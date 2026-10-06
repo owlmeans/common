@@ -10,7 +10,7 @@ only when composing a context without that package. WebSocket routes belong to
 ## Installation
 
 ```bash
-bun add @owlmeans/server-api@^0.1.18-rc.48
+bun add @owlmeans/server-api@^0.1.18-rc.51
 ```
 
 ## Concepts
@@ -41,7 +41,7 @@ bun add @owlmeans/server-api@^0.1.18-rc.48
 ```ts
 import { handlers } from '@owlmeans/server-api'
 import { bind } from '@owlmeans/server-entrypoint'
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 import { projectProtocols } from 'my-app-common'
 import type { Context } from './context.js'
 
@@ -49,15 +49,15 @@ const api = handlers<Context>()
 
 // body: the validated body first, then context and the full request
 const create = api.body(projectProtocols.create, async (payload, context, request) =>
-  context.project().create({ ...payload, entityId: requireEntityKey(request) }))
+  context.project().create({ ...payload, entityId: makeEntityScope(request).requireEntityKey() }))
 
 // params: the validated URL params first
 const get = api.params(projectProtocols.get, async ({ id }, context, request) =>
-  context.project().load({ id, entityId: requireEntityKey(request) }))
+  context.project().load({ id, entityId: makeEntityScope(request).requireEntityKey() }))
 
 // request: every typed section plus request metadata (auth, entity, headers)
 const search = api.request(projectProtocols.search, async (request, context) =>
-  context.project().list({ entityId: requireEntityKey(request), ...request.query }))
+  context.project().list({ entityId: makeEntityScope(request).requireEntityKey(), ...request.query }))
 
 export const serverBindings = [
   bind(projectProtocols.base),
@@ -77,7 +77,7 @@ import { AuthForbidden } from '@owlmeans/auth'
 
 // the protocol declares both `params` and `body`
 export const rename = api.body(projectProtocols.rename, async ({ name }, context, request) => {
-  const entityId = requireEntityKey(request)
+  const entityId = makeEntityScope(request).requireEntityKey()
   const project = await context.project().load({ id: request.params.id, entityId })
   if (project == null) {
     throw new AuthForbidden('project') // 403
@@ -120,7 +120,7 @@ export const upload = api.request(invoiceProtocols.attach, async (request, conte
   const content = await file.toBuffer()
 
   return context.attachment().create({
-    entityId: requireEntityKey(request),
+    entityId: makeEntityScope(request).requireEntityKey(),
     name: file.filename,
     mimetype: file.mimetype,
     size: content.length,
@@ -187,17 +187,18 @@ code does not need it.
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `authorize(context, module, req, reply)` | function | Run guards, set `auth`, call `attachEntity` |
+| `authorize(context, module, req, reply)` | function | Run guards, set `auth`, call `makeEntityScope(req).attachEntity(context)` |
 | `createServerHandler(module, location)` | function | The Fastify handler: authorize, gates, handle, respond |
 | `canServeModule(context, module)` | function | Whether an entrypoint belongs on this HTTP server |
-| `provideRequest(alias, req, provision?)` | function | Build an `AbstractRequest` from a Fastify request |
-| `executeResponse(response, reply, throwOnError?)` | function | Send an `AbstractResponse` onto a reply |
-| `handleError(error, reply)` | function | Answer an error with `errorStatus` and the marshalled body |
-| `errorStatus(error)` | function | 403 / 401 for auth errors (by class or type name), else the class's declared 4xx, else 500 |
-| `declaredErrorStatus(error)` | function | The integer 4xx a class declares through `static httpStatus`, or `null` |
+| `payloadHelper.provideRequest(alias, req, provision?)` | helper member | Build an `AbstractRequest` from a Fastify request |
+| `payloadHelper.executeResponse(response, reply, throwOnError?)` | helper member | Send an `AbstractResponse` onto a reply |
+| `httpErrorHelper.handleError(error, reply, exposure?)` | helper member | Answer an error with `httpErrorHelper.errorStatus` and the marshalled body |
+| `httpErrorHelper.errorStatus(error)` | helper member | 403 / 401 for auth errors (by class or type name), else the class's declared 4xx, else 500 |
+| `httpErrorHelper.declaredErrorStatus(error)` | helper member | The integer 4xx a class declares through `static httpStatus`, or `null` |
+| `httpErrorHelper.errorExposure(config?)`, `.serializeError(error, exposure?)`, `.applyErrorHeaders(error, reply)` | helper member | The exposure policy, the wire shape and the response headers of an error |
 | `HttpStatusDeclaration` | type | `{ httpStatus?: unknown }` — the structural shape a declaring class has |
 | `fixFormatDates(schema)` | function | Rewrite `date-time` object schemas as strings |
-| `populateContext(req, context)`, `extractContext(req, ctx?, location?)` | function | Carry the request-scoped context on the raw request |
+| `makeRequestContextHelper(req).populateContext(context)`, `.extractContext(ctx?, location?)` | helper member | Carry the request-scoped context on the raw request |
 
 ## Common pitfalls
 
@@ -215,9 +216,9 @@ code does not need it.
   is not a plain function fails that one route with `HandlerMisconfiguredError` instead of the
   opaque `TypeError: handler is not a function`.
 - A guard only authenticates. Gates authorize, and the handler keeps its organization check keyed on
-  `requireEntityKey(request)` — never an id read from the token.
-- `request.entity` is absent when no entity resolver is registered; `requireEntityKey` falls back to
-  the slug there, `requireEntity` throws.
+  `makeEntityScope(request).requireEntityKey()` — never an id read from the token.
+- `request.entity` is absent when no entity resolver is registered; `makeEntityScope(request).requireEntityKey()` falls back to
+  the slug there, `.requireEntity()` throws.
 - A handler always answers 200 on success. The port comes from `cfg.services[cfg.service]`
   (`internalPort ?? port ?? 80`).
 - A `holdApiPort` bind failure must end the process with a non-zero exit.
@@ -229,7 +230,7 @@ code does not need it.
 - [`@owlmeans/server-app`](../server-app) — application bootstrap and re-exports
 - [`@owlmeans/server-socket`](../server-socket) — the WebSocket counterpart of `handlers`
 - [`@owlmeans/entrypoint`](../entrypoint) — `contract`, `typed`, request/response types
-- [`@owlmeans/auth-common`](../auth-common) — `requireEntityKey`, `attachEntity`, guard aliases
+- [`@owlmeans/auth-common`](../auth-common) — `makeEntityScope` (`requireEntityKey`, `attachEntity`), guard aliases
 - [`@owlmeans/api`](../api) — the client that calls these endpoints from other services
 
 <!-- owlmeans:agent-guidance:start -->
@@ -240,7 +241,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

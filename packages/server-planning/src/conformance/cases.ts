@@ -1,38 +1,16 @@
-import { uuid } from '@owlmeans/basic-ids'
-import {
-  applyTransition, CardTypeNotAllowed, CommitState, IntrinsicStatus, PlanningError, PlanningSchemaKind,
-  RelationshipRefused, SchemaConflict, SchemaInUse, SchemaInvalid, SchemaOrigin, SchemaSealed, SpecificationFormat,
-  TransitionAction, UnknownWorkcardType, WorkcardConflict, WorkcardKind, WorkcardNotFound,
-} from '@owlmeans/planning'
-import type {
-  CommitEvent, PlanningFacade, PlanningService, PlanningStore, StatusFlowSchema, Transition, TransitionExecution,
-  Unsubscribe, Workcard, WorkcardQuery, WorkcardTypeSchema,
-} from '@owlmeans/planning'
-import { creatorOf } from '../executor/creator.js'
-import { check, rejects, same, sameSet } from './assert.js'
-import { BOOK_TYPE, LIBRARY, PERIODICAL_TYPE, createBook, createBranch, transit } from './fixtures.js'
 
-/** What a case runs against: a planning service over the store under test. */
-export interface ConformanceSubject {
-  /** A service with `planningConformancePlugin` registered and a strictly increasing clock. */
-  service: PlanningService
-  /** The store under test — the service's default store. */
-  store: PlanningStore
-  /** A facade of one organization, acting as a signed-in person. */
-  facade: (entityId: string) => PlanningFacade
-}
+import { applyHelper, CardTypeNotAllowed, CommitState, IntrinsicStatus, PlanningError, PlanningSchemaKind, RelationshipRefused, SchemaConflict, SchemaInUse, SchemaInvalid, SchemaOrigin, SchemaSealed, SpecificationFormat, TransitionAction, UnknownWorkcardType, WorkcardConflict, WorkcardKind, WorkcardNotFound, type CommitEvent, type PlanningFacade, type PlanningStore, type StatusFlowSchema, type Transition, type TransitionExecution, type Unsubscribe, type Workcard, type WorkcardQuery, type WorkcardTypeSchema } from '@owlmeans/planning'
+import { creatorHelper } from '../executor/creator.js'
+import { assertHelper } from './assert.js'
+import { conformanceFixturesOf } from './fixtures.js'
+import { BOOK_TYPE, LIBRARY, PERIODICAL_TYPE } from './consts.js'
+import type { ConformanceCase } from './types.js'
+import { idHelper } from '@owlmeans/basic-ids'
 
-/** A capability a store may implement; a case that needs one is skipped for a store without it. */
-export type ConformanceCapability = 'schemas'
-
-export interface ConformanceCase {
-  name: string
-  needs?: ConformanceCapability[]
-  run: (subject: ConformanceSubject) => Promise<void>
-}
+const { check, rejects, same, sameSet } = assertHelper
 
 /** A fresh organization per case, so cases never see each other's cards on a shared database. */
-const organization = (): string => `conformance-${uuid()}`
+const organization = (): string => `conformance-${idHelper.uuid()}`
 
 const ids = async (planning: PlanningFacade, query: WorkcardQuery): Promise<string[]> =>
   (await planning.cards.list({ ...query, size: 0 })).items.map(card => card.id!)
@@ -46,13 +24,14 @@ const cases: ConformanceCase[] = [
     name: 'folds transitions in seq order and settles each one once',
     run: async ({ facade }) => {
       const planning = facade(organization())
+      const fixtures = conformanceFixturesOf(planning)
       const events: CommitEvent[] = []
       const unsubscribe: Unsubscribe = await planning.commits.subscribe(event => { events.push(event) })
       try {
-        const branch = await createBranch(planning)
-        const book = await createBook(planning, branch.id!, 'Winter poems')
+        const branch = await fixtures.createBranch()
+        const book = await fixtures.createBook(branch.id!, 'Winter poems')
         await execute(planning, { card: book.id!, action: TransitionAction.Update, changes: { title: 'Winter verses' } })
-        await transit(planning, book.id!, 'lend')
+        await fixtures.transit(book.id!, 'lend')
 
         const card = await planning.cards.get(book.id!)
         same([card.seq, card.head, card.title, card.status, card.intrinsic], [3, 3, 'Winter verses', 'lent', IntrinsicStatus.InProgress], 'the folded card')
@@ -68,13 +47,14 @@ const cases: ConformanceCase[] = [
     name: 'allocates seq against the head and refuses a stale expectSeq',
     run: async ({ facade, store }) => {
       const planning = facade(organization())
-      const book = await createBook(planning, (await createBranch(planning)).id!)
+      const fixtures = conformanceFixturesOf(planning)
+      const book = await fixtures.createBook((await fixtures.createBranch()).id!)
 
       await execute(planning, { card: book.id!, action: TransitionAction.Update, changes: { title: 'First' }, expectSeq: 1 })
       await rejects(planning.execute({ card: book.id!, action: TransitionAction.Update, changes: { title: 'Stale' }, expectSeq: 1 }),
         WorkcardConflict, 'a stale expectSeq')
       same(await store.transitions!.head(book.id!), 2, 'the head after two transitions')
-      same(await store.transitions!.nextSeq(`conformance-${uuid()}`, null), 1, 'a card with no log allocates 1')
+      same(await store.transitions!.nextSeq(`conformance-${idHelper.uuid()}`, null), 1, 'a card with no log allocates 1')
       same((await planning.cards.get(book.id!)).title, 'First', 'the refused write left the card alone')
     },
   },
@@ -83,7 +63,8 @@ const cases: ConformanceCase[] = [
     name: 'an idempotency key answers its first receipt',
     run: async ({ facade }) => {
       const planning = facade(organization())
-      const book = await createBook(planning, (await createBranch(planning)).id!)
+      const fixtures = conformanceFixturesOf(planning)
+      const book = await fixtures.createBook((await fixtures.createBranch()).id!)
 
       const first = await planning.execute({ card: book.id!, action: TransitionAction.Update, changes: { title: 'Kept' }, key: 'import:1' }, { wait: true })
       const again = await planning.execute({ card: book.id!, action: TransitionAction.Update, changes: { title: 'Lost' }, key: 'import:1' }, { wait: true })
@@ -98,14 +79,15 @@ const cases: ConformanceCase[] = [
     name: 'keeps a create\'s createdBy — the scope\'s subject, or the one the caller named — through later writes',
     run: async ({ facade }) => {
       const planning = facade(organization())
-      const subject = creatorOf(planning.scope)
+      const fixtures = conformanceFixturesOf(planning)
+      const subject = creatorHelper.creatorOf(planning.scope)
       check(subject != null, 'the conformance facade acts as a signed-in person')
 
-      const branch = await createBranch(planning)
-      const stamped = await createBook(planning, branch.id!, 'Stamped')
-      const named = await createBook(planning, branch.id!, 'Named', { createdBy: 'conformance-donor' })
+      const branch = await fixtures.createBranch()
+      const stamped = await fixtures.createBook(branch.id!, 'Stamped')
+      const named = await fixtures.createBook(branch.id!, 'Named', { createdBy: 'conformance-donor' })
       await execute(planning, { card: stamped.id!, action: TransitionAction.Update, changes: { title: 'Stamped, revised' } })
-      await transit(planning, stamped.id!, 'lend')
+      await fixtures.transit(stamped.id!, 'lend')
 
       same([branch.createdBy, (await planning.cards.get(stamped.id!)).createdBy, (await planning.cards.get(named.id!)).createdBy],
         [subject, subject, 'conformance-donor'], 'createdBy read back after later writes')
@@ -119,8 +101,9 @@ const cases: ConformanceCase[] = [
     run: async ({ facade, store }) => {
       const org = organization()
       const planning = facade(org)
-      const branch = await createBranch(planning)
-      const book = await createBook(planning, branch.id!, 'Owned')
+      const fixtures = conformanceFixturesOf(planning)
+      const branch = await fixtures.createBranch()
+      const book = await fixtures.createBook(branch.id!, 'Owned')
       const moves: TransitionExecution[] = [
         { card: book.id!, action: TransitionAction.Update, changes: { title: 'Taken', createdBy: 'conformance-intruder' } },
         { card: book.id!, action: TransitionAction.Update, unset: ['createdBy'] },
@@ -132,7 +115,7 @@ const cases: ConformanceCase[] = [
       }
       const kept = await planning.cards.get(book.id!)
       same([kept.createdBy, kept.title, kept.seq, (await planning.transitions.list({ card: book.id! })).total],
-        [creatorOf(planning.scope), 'Owned', 1, 1], 'the refused writes left the card and its log alone')
+        [creatorHelper.creatorOf(planning.scope), 'Owned', 1, 1], 'the refused writes left the card and its log alone')
 
       // Rows appended before the refusal existed: the store folds them exactly as the pure fold does.
       const legacy: Transition[] = []
@@ -149,7 +132,7 @@ const cases: ConformanceCase[] = [
       for (const row of legacy) {
         same((await planning.commits.status(row.id!)).state, CommitState.Committed, `legacy row ${row.seq} settles committed`)
       }
-      const expected = legacy.reduce<Workcard | null>((card, row) => applyTransition(card, row), kept)!
+      const expected = legacy.reduce<Workcard | null>((card, row) => applyHelper.applyTransition(card, row), kept)!
       const folded = await planning.cards.get(book.id!)
       same([folded.title, folded.seq, folded.createdBy], [expected.title, expected.seq, expected.createdBy], 'the legacy rows folded')
       await execute(planning, { card: book.id!, action: TransitionAction.Update, changes: { title: 'After' } })
@@ -161,18 +144,19 @@ const cases: ConformanceCase[] = [
     name: 'transit moves the intrinsic state and closedAt, and a second flow leaves the primary alone',
     run: async ({ facade }) => {
       const planning = facade(organization())
-      const book = await createBook(planning, (await createBranch(planning)).id!)
+      const fixtures = conformanceFixturesOf(planning)
+      const book = await fixtures.createBook((await fixtures.createBranch()).id!)
 
-      await transit(planning, book.id!, 'retire')
+      await fixtures.transit(book.id!, 'retire')
       const retired = await planning.cards.get(book.id!)
       same([retired.status, retired.intrinsic], ['retired', IntrinsicStatus.Closed], 'retired')
       check(typeof retired.closedAt === 'string', 'closedAt is set on entering closed')
 
-      await transit(planning, book.id!, 'restore')
+      await fixtures.transit(book.id!, 'restore')
       const restored = await planning.cards.get(book.id!)
       same([restored.status, restored.intrinsic, restored.closedAt], ['shelved', IntrinsicStatus.Planned, undefined], 'closedAt cleared on leaving closed')
 
-      await transit(planning, book.id!, 'review', { flow: LIBRARY.review })
+      await fixtures.transit(book.id!, 'review', { flow: LIBRARY.review })
       const reviewed = await planning.cards.get(book.id!)
       same([reviewed.status, reviewed.flows[LIBRARY.review], reviewed.intrinsic], ['shelved', 'reviewed', IntrinsicStatus.Planned], 'the second flow moved alone')
     },
@@ -183,12 +167,13 @@ const cases: ConformanceCase[] = [
     run: async ({ facade }) => {
       const org = organization()
       const planning = facade(org)
-      const east = await createBranch(planning, 'East branch')
-      const west = await createBranch(planning, 'West branch')
-      const poems = await createBook(planning, east.id!, 'Winter poems', { labels: ['rare'], fields: { genre: 'poetry', signed: true } })
-      const atlas = await createBook(planning, east.id!, 'River atlas', { labels: ['new'], parents: [west.id!], fields: { genre: 'history' } })
-      const harbour = await createBook(planning, east.id!, 'Quiet harbour', { fields: { genre: 'fiction', signed: false } })
-      await transit(planning, atlas.id!, 'lend')
+      const fixtures = conformanceFixturesOf(planning)
+      const east = await fixtures.createBranch('East branch')
+      const west = await fixtures.createBranch('West branch')
+      const poems = await fixtures.createBook(east.id!, 'Winter poems', { labels: ['rare'], fields: { genre: 'poetry', signed: true } })
+      const atlas = await fixtures.createBook(east.id!, 'River atlas', { labels: ['new'], parents: [west.id!], fields: { genre: 'history' } })
+      const harbour = await fixtures.createBook(east.id!, 'Quiet harbour', { fields: { genre: 'fiction', signed: false } })
+      await fixtures.transit(atlas.id!, 'lend')
       const since = (await planning.cards.get(atlas.id!)).updatedAt!
 
       sameSet(await ids(planning, { within: west.id }), [atlas.id], 'within')
@@ -214,8 +199,9 @@ const cases: ConformanceCase[] = [
     name: 'lists specifications only when the query asks for them',
     run: async ({ facade }) => {
       const planning = facade(organization())
-      const branch = await createBranch(planning)
-      const book = await createBook(planning, branch.id!)
+      const fixtures = conformanceFixturesOf(planning)
+      const branch = await fixtures.createBranch()
+      const book = await fixtures.createBook(branch.id!)
       const model = await planning.model(book)
       const summary = (await model.write('summary', '{"lines":["a"]}', { wait: true })).card!
       const charter = (await (await planning.model(branch)).write('charter', '# Charter', { wait: true })).card!
@@ -233,9 +219,10 @@ const cases: ConformanceCase[] = [
     name: 'pages and sorts a list, counting the whole match',
     run: async ({ facade }) => {
       const planning = facade(organization())
-      const branch = await createBranch(planning)
+      const fixtures = conformanceFixturesOf(planning)
+      const branch = await fixtures.createBranch()
       for (const order of [5, 3, 1, 4, 2]) {
-        await createBook(planning, branch.id!, `Volume ${order}`, { order })
+        await fixtures.createBook(branch.id!, `Volume ${order}`, { order })
       }
 
       const page = await planning.cards.list({ parent: branch.id, sort: ['order'], size: 2, page: 1 })
@@ -250,15 +237,16 @@ const cases: ConformanceCase[] = [
     name: 'summarizes direct children by intrinsic state',
     run: async ({ facade }) => {
       const planning = facade(organization())
-      const branch = await createBranch(planning)
-      const empty = await createBranch(planning, 'Empty branch')
-      const lent = await createBook(planning, branch.id!, 'Lent')
-      const retired = await createBook(planning, branch.id!, 'Retired')
-      await createBook(planning, branch.id!, 'Shelved')
-      await transit(planning, lent.id!, 'lend')
-      await transit(planning, retired.id!, 'retire')
-      const annex = await createBranch(planning, 'Annex', { parent: branch.id })
-      await createBook(planning, annex.id!, 'Deeper')
+      const fixtures = conformanceFixturesOf(planning)
+      const branch = await fixtures.createBranch()
+      const empty = await fixtures.createBranch('Empty branch')
+      const lent = await fixtures.createBook(branch.id!, 'Lent')
+      const retired = await fixtures.createBook(branch.id!, 'Retired')
+      await fixtures.createBook(branch.id!, 'Shelved')
+      await fixtures.transit(lent.id!, 'lend')
+      await fixtures.transit(retired.id!, 'retire')
+      const annex = await fixtures.createBranch('Annex', { parent: branch.id })
+      await fixtures.createBook(annex.id!, 'Deeper')
       await (await planning.model(branch)).write('charter', '# Charter', { wait: true })
 
       const summary = await planning.cards.summary([branch.id!, empty.id!])
@@ -273,8 +261,9 @@ const cases: ConformanceCase[] = [
     name: 'answers a specification current, listed, every document and its revisions',
     run: async ({ facade }) => {
       const planning = facade(organization())
-      const branch = await createBranch(planning)
-      const book = await createBook(planning, branch.id!)
+      const fixtures = conformanceFixturesOf(planning)
+      const branch = await fixtures.createBranch()
+      const book = await fixtures.createBook(branch.id!)
       const model = await planning.model(book)
       await model.write('summary', '{"lines":["first"]}', { wait: true })
       await (await planning.model(book.id!)).write('summary', '{"lines":["second"]}', { wait: true })
@@ -300,10 +289,11 @@ const cases: ConformanceCase[] = [
     name: 'keeps links: both ends, the single constraint, unlink and a delete dropping edges',
     run: async ({ facade }) => {
       const planning = facade(organization())
-      const branch = await createBranch(planning)
-      const first = await createBook(planning, branch.id!, 'First')
-      const second = await createBook(planning, branch.id!, 'Second')
-      const third = await createBook(planning, branch.id!, 'Third')
+      const fixtures = conformanceFixturesOf(planning)
+      const branch = await fixtures.createBranch()
+      const first = await fixtures.createBook(branch.id!, 'First')
+      const second = await fixtures.createBook(branch.id!, 'Second')
+      const third = await fixtures.createBook(branch.id!, 'Third')
 
       await execute(planning, { card: second.id!, action: TransitionAction.Link, link: { type: 'sequel-of', to: first.id! } })
       same((await planning.relationships.list({ from: second.id })).total, 1, 'from')
@@ -326,9 +316,10 @@ const cases: ConformanceCase[] = [
     name: 'isolates organizations on every read and write',
     run: async ({ facade }) => {
       const mine = facade(organization())
+      const fixtures = conformanceFixturesOf(mine)
       const theirs = facade(organization())
-      const branch = await createBranch(mine)
-      const book = await createBook(mine, branch.id!)
+      const branch = await fixtures.createBranch()
+      const book = await fixtures.createBook(branch.id!)
       const receipt = await mine.execute({ card: book.id!, action: TransitionAction.Update, changes: { title: 'Mine' } }, { wait: true })
 
       same(await theirs.cards.load(book.id!), null, 'load')
@@ -347,15 +338,16 @@ const cases: ConformanceCase[] = [
     name: 'purges everything under a deleted project, keeping at most its own delete as a tombstone',
     run: async ({ facade }) => {
       const planning = facade(organization())
-      const doomed = await createBranch(planning, 'Doomed branch')
-      const kept = await createBranch(planning, 'Kept branch')
-      const first = await createBook(planning, doomed.id!, 'First')
-      const second = await createBook(planning, doomed.id!, 'Second')
+      const fixtures = conformanceFixturesOf(planning)
+      const doomed = await fixtures.createBranch('Doomed branch')
+      const kept = await fixtures.createBranch('Kept branch')
+      const first = await fixtures.createBook(doomed.id!, 'First')
+      const second = await fixtures.createBook(doomed.id!, 'Second')
       await execute(planning, { card: second.id!, action: TransitionAction.Link, link: { type: 'sequel-of', to: first.id! } })
       const summary = (await (await planning.model(first)).write('summary', '{}', { wait: true })).card!
-      const annex = await createBranch(planning, 'Annex', { parent: doomed.id })
-      const deeper = await createBook(planning, annex.id!, 'Deeper')
-      const survivor = await createBook(planning, kept.id!, 'Survivor')
+      const annex = await fixtures.createBranch('Annex', { parent: doomed.id })
+      const deeper = await fixtures.createBook(annex.id!, 'Deeper')
+      const survivor = await fixtures.createBook(kept.id!, 'Survivor')
 
       const deleted = await planning.execute({ card: doomed.id!, action: TransitionAction.Delete }, { wait: true })
 
@@ -377,7 +369,8 @@ const cases: ConformanceCase[] = [
     run: async ({ facade, store }) => {
       const org = organization()
       const planning = facade(org)
-      const book = await createBook(planning, (await createBranch(planning)).id!)
+      const fixtures = conformanceFixturesOf(planning)
+      const book = await fixtures.createBook((await fixtures.createBranch()).id!)
       // A row two past the card with nothing between — its allocation lost long ago.
       const rogue = await store.transitions!.append({
         entityId: org, card: book.id!, kind: WorkcardKind.Card, type: LIBRARY.book, seq: 3,
@@ -400,6 +393,7 @@ const cases: ConformanceCase[] = [
     needs: ['schemas'],
     run: async ({ facade }) => {
       const planning = facade(organization())
+      const fixtures = conformanceFixturesOf(planning)
       const pamphlets: StatusFlowSchema = {
         id: 'library:pamphlet-life', version: 1,
         statuses: [{ key: 'stacked', intrinsic: IntrinsicStatus.Planned, initial: true }, { key: 'taken', intrinsic: IntrinsicStatus.Closed }],
@@ -412,11 +406,11 @@ const cases: ConformanceCase[] = [
       same(written.map(record => [record.kind, record.key, record.version]),
         [[PlanningSchemaKind.Flow, pamphlets.id, 1], [PlanningSchemaKind.Type, pamphlet.type, 1]], 'flows first, then types')
 
-      const branch = await createBranch(planning)
+      const branch = await fixtures.createBranch()
       const card = await execute(planning, { card: { kind: WorkcardKind.Card, type: pamphlet.type, parent: branch.id!, title: 'Opening hours' }, action: TransitionAction.Create })
       same([card?.status, card?.intrinsic], ['stacked', IntrinsicStatus.Planned], 'the data-defined flow started it')
       same((await planning.model(card!)).available().map(rule => rule.name), ['take'], 'the model reads the layer')
-      await transit(planning, card!.id!, 'take')
+      await fixtures.transit(card!.id!, 'take')
 
       const room = await execute(planning, { card: { kind: WorkcardKind.Project, type: LIBRARY.room, title: 'Reading room' }, action: TransitionAction.Create })
       await rejects(planning.execute({ card: { kind: WorkcardKind.Card, type: pamphlet.type, parent: room!.id!, title: 'Refused' }, action: TransitionAction.Create }),
@@ -433,8 +427,9 @@ const cases: ConformanceCase[] = [
     needs: ['schemas'],
     run: async ({ facade }) => {
       const planning = facade(organization())
-      const branch = await createBranch(planning)
-      const other = await createBranch(planning, 'Other branch')
+      const fixtures = conformanceFixturesOf(planning)
+      const branch = await fixtures.createBranch()
+      const other = await fixtures.createBranch('Other branch')
       await planning.definitions!.define({ types: [{ ...PERIODICAL_TYPE, label: 'Magazine' }] })
       await planning.definitions!.define({ types: [{ ...PERIODICAL_TYPE, label: 'Zine' }] }, { project: branch.id })
 
@@ -475,6 +470,7 @@ const cases: ConformanceCase[] = [
     needs: ['schemas'],
     run: async ({ facade }) => {
       const planning = facade(organization())
+      const fixtures = conformanceFixturesOf(planning)
       const definitions = planning.definitions!
       const repair: StatusFlowSchema = {
         id: 'library:repair', version: 1,
@@ -489,15 +485,15 @@ const cases: ConformanceCase[] = [
         type: 'library:folio', kind: WorkcardKind.Card, version: 1, fields: { type: 'object' }, flows: [repair.id], specifications: [],
       }
       await definitions.define({ flows: [repair], types: [folio] })
-      const branch = await createBranch(planning)
+      const branch = await fixtures.createBranch()
       const card = await execute(planning, { card: { kind: WorkcardKind.Card, type: folio.type, parent: branch.id!, title: 'Old map' }, action: TransitionAction.Create })
-      await transit(planning, card!.id!, 'mend')
+      await fixtures.transit(card!.id!, 'mend')
 
       await rejects(definitions.retire(PlanningSchemaKind.Flow, repair.id), SchemaInUse, 'a flow a live type runs')
 
       // The flow changes under the card: `mending` is no longer declared, and the card still moves.
       await definitions.define({ flows: [{ ...repair, statuses: [repair.statuses[0], repair.statuses[2]], transitions: [{ name: 'finish', from: ['queued'], to: 'done' }] }] })
-      await transit(planning, card!.id!, 'finish')
+      await fixtures.transit(card!.id!, 'finish')
       same((await planning.cards.get(card!.id!)).status, 'done', 'an undeclared status follows the rule of the name')
 
       await definitions.retire(PlanningSchemaKind.Type, folio.type)

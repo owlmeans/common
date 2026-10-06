@@ -14,7 +14,6 @@
  * things at each hop.
  */
 
-import type { StoryKind } from '../ba/consts.js'
 import { HISTORY_FILE, METADATA_DIRS } from '../metadata/consts.js'
 
 /**
@@ -360,15 +359,6 @@ export enum EstimateSlice {
 }
 
 /**
- * What KIND of story a conversion produced.
- *
- * The analysis half of a conversion produces exactly the two kinds an ordinary initialization
- * does; a conversion adds one more — a `coverage` story, written so an area the origin serves but
- * the flow never reaches still has something in it.
- */
-export type ConversionStoryKind = StoryKind | 'coverage'
-
-/**
  * Where the origin's own sources live inside the target's volume.
  *
  * One directory, at the sandbox root, named so nothing a generator writes can collide with it.
@@ -454,10 +444,6 @@ export const CONVERSION_SEED_DIR = `${CONVERSION_DIR}/seed`
 /** The carried seed data itself, beside its description. */
 export const CONVERSION_SEED_DATA_DIR = `${CONVERSION_SEED_DIR}/data`
 
-export const conversionStoryDoc = (code: string): string => `${CONVERSION_STORY_DIR}/${code}.md`
-export const conversionSeedDoc = (name: string): string => `${CONVERSION_SEED_DIR}/${name}.md`
-export const conversionSeedData = (name: string, ext: string): string =>
-  `${CONVERSION_SEED_DATA_DIR}/${name}.${ext}`
 
 /**
  * The two agent-memory nodes a conversion writes into the TARGET's own harness.
@@ -670,3 +656,8 @@ export const CONVERSION_INQUIRY = {
   areasMap: 'convert.areas.map',
   originRelocate: 'convert.origin.relocate',
 } as const
+
+/** The reasons a convertibility verdict can carry, for a consumer building its own enum check. */
+export const ConvertibilityReasonValues = Object.values(ConvertibilityReason)
+export const ConvertibilityVerdictValues = Object.values(ConvertibilityVerdict)
+export const EstimateSliceValues = Object.values(EstimateSlice)

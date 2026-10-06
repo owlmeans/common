@@ -1,16 +1,12 @@
 import Stripe from 'stripe'
-import { config as serverConfig, makeServerContext } from '@owlmeans/server-context'
-import type { ServerConfig } from '@owlmeans/server-context'
+import { config as serverConfig, makeServerContext, type ServerConfig } from '@owlmeans/server-context'
 import { AppType } from '@owlmeans/context'
 import {
-  CheckoutPricingMode, LimitKind, LimitWindow, PlanDuration, ProductType,
+  CheckoutPricingMode, LimitKind, LimitWindow, PlanDuration, ProductType, type PlanCapability,
 } from '@owlmeans/payment'
-import type { PlanCapability } from '@owlmeans/payment'
-import { applyQuery, firstMatch, matchCriteria, RecordExists, UnknownRecordError } from '@owlmeans/resource'
-import type { Criteria, ListOptions, ResourceRecord } from '@owlmeans/resource'
+import { RecordExists, UnknownRecordError, type Criteria, type ListOptions, type ResourceRecord, recordQueryHelper } from '@owlmeans/resource'
 import type { MongoResource } from '@owlmeans/mongo-resource'
-import { makeConsoleMailerService, MAILER_SERVICE } from '@owlmeans/mailer'
-import type { MailMessage } from '@owlmeans/mailer'
+import { makeConsoleMailerService, MAILER_SERVICE, type MailMessage } from '@owlmeans/mailer'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import {
   declareConsumerRights, declarePaymentPlan, declarePaymentPricing, declarePaymentProduct, portalBranding,
@@ -28,13 +24,12 @@ import {
   makePurchaseResource, makeSubscriptionResource, makeUsageCounterResource, makeUsageResource, makeWebhookResource,
 } from '../src/resource.js'
 import { appendPaymentGatewayService } from '../src/service.js'
-import type { GatewayServiceOptions } from '../src/service.js'
-import { observer } from '../src/utils.js'
 import type {
-  CancellationEvent, Config, ConsentEvent, ConsumerRightsDef, ConsumerRightsOptions, DisputeEvent, PaymentFailedEvent,
-  PaymentPlanDef, PortalBrandingDef, PricingDef, RefundEvent, SubscriptionEvent, TopUpCompletion, UsageMeter,
-  WithdrawalEvent,
+  GatewayServiceOptions, CancellationEvent, Config, ConsentEvent, ConsumerRightsDef, ConsumerRightsOptions,
+  DisputeEvent, PaymentFailedEvent, PaymentPlanDef, PortalBrandingDef, PricingDef, RefundEvent, SubscriptionEvent,
+  TopUpCompletion, UsageMeter, WithdrawalEvent,
 } from '../src/types.js'
+import { paymentAccessOf } from '../src/access.js'
 
 // -----------------------------------------------------------------------------------------------
 // Catalogue — neutral names only
@@ -683,21 +678,21 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
   target.init = async () => undefined
   target.get = async (idOrWhere: string | Criteria<T>, opts?: { sort?: never[] }) => {
     guard('get')
-    const row = typeof idOrWhere === 'string' ? byId(idOrWhere) : firstMatch(store.rows, idOrWhere as Criteria<any>, opts)
+    const row = typeof idOrWhere === 'string' ? byId(idOrWhere) : recordQueryHelper.firstMatch(store.rows, idOrWhere as Criteria<any>, opts)
     if (row == null) throw new UnknownRecordError(JSON.stringify(idOrWhere))
     return out(row)
   }
   target.load = async (idOrWhere: string | Criteria<T>, opts?: { sort?: never[] }) => {
     guard('load')
-    const row = typeof idOrWhere === 'string' ? byId(idOrWhere) : firstMatch(store.rows, idOrWhere as Criteria<any>, opts)
+    const row = typeof idOrWhere === 'string' ? byId(idOrWhere) : recordQueryHelper.firstMatch(store.rows, idOrWhere as Criteria<any>, opts)
     return row == null ? null : out(row)
   }
   target.list = async (where?: Criteria<T>, opts?: ListOptions<T>) => {
     guard('list')
-    const result = applyQuery(store.rows, where as Criteria<any>, opts as ListOptions<any>)
+    const result = recordQueryHelper.applyQuery(store.rows, where as Criteria<any>, opts as ListOptions<any>)
     return { ...result, items: result.items.map(out) }
   }
-  target.count = async (where?: Criteria<T>) => store.rows.filter(row => matchCriteria(row, where)).length
+  target.count = async (where?: Criteria<T>) => store.rows.filter(row => recordQueryHelper.matchCriteria(row, where)).length
   target.create = async (record: Rec) => {
     guard('create')
     if (record.id != null) throw new RecordExists('id-present')
@@ -726,11 +721,11 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
   }
   target.purge = async (where: Criteria<T>) => {
     const before = store.rows.length
-    store.rows = store.rows.filter(row => !matchCriteria(row, where))
+    store.rows = store.rows.filter(row => !recordQueryHelper.matchCriteria(row, where))
     return before - store.rows.length
   }
 
-  const matchRaw = (filter: Rec) => store.rows.find(row => matchCriteria(row, filter))
+  const matchRaw = (filter: Rec) => store.rows.find(row => recordQueryHelper.matchCriteria(row, filter))
   const upsert = (filter: Rec, update: Rec, opts: Rec = {}): { doc: Rec | null, inserted: boolean } => {
     const found = matchRaw(filter)
     if (found != null) {
@@ -774,14 +769,14 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
       return { deletedCount: row != null ? 1 : 0 }
     },
     distinct: async (field: string, filter: Rec = {}) =>
-      [...new Set(store.rows.filter(row => matchCriteria(row, filter)).map(row => row[field]))],
+      [...new Set(store.rows.filter(row => recordQueryHelper.matchCriteria(row, filter)).map(row => row[field]))],
     aggregate: (pipeline: Rec[]) => ({
       toArray: async () => {
         guard('aggregate')
         let docs: Rec[] = store.rows.map(row => structuredClone(row))
         for (const stage of pipeline) {
           if (stage.$match != null) {
-            docs = docs.filter(doc => matchCriteria(doc, stage.$match))
+            docs = docs.filter(doc => recordQueryHelper.matchCriteria(doc, stage.$match))
           } else if (stage.$group != null) {
             const groups = new Map<string, Rec>()
             const { _id: key, ...accumulators } = stage.$group
@@ -951,7 +946,7 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
     topUp: [], subscription: [], refund: [], dispute: [], paymentFailed: [], consent: [], withdrawal: [],
     cancellation: [], failSubscription: 0, failTopUp: 0, failWithdrawal: 0,
   }
-  const completions = observer(ctx)
+  const completions = paymentAccessOf(ctx).observer()
   await completions.ready()
   completions.onTopUp(async event => {
     if (observed.failTopUp > 0) {

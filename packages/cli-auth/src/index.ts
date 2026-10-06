@@ -1,5 +1,8 @@
 export * from './consts.js'
 export * from './env-file.js'
+export type * from './env-file/types.js'
 export * from './lock.js'
+export type * from './lock/types.js'
+export type * from './types.js'
 export * from './open-browser.js'
 export * from './holder.js'

@@ -30,7 +30,7 @@ export interface StorageConfig {
  * store behind it to read, list or delete against, so the type names the one method that works
  * rather than promising a full {@link Resource} whose rest would only throw.
  */
-export type StorageResource = Pick<Resource<StoredRecord>, 'create'> & BasicResource
+export interface StorageResource extends Pick<Resource<StoredRecord>, 'create'>, BasicResource {}
 
 export interface Config extends ServerConfig, StoredConfigAppend { }
 export interface Context<C extends Config = Config> extends ServerContext<C> { }

@@ -1,27 +1,10 @@
-import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
-/** The shape the platform validates an e-mail address with (`@owlmeans/payment` `EmailSchema`). */
-export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/
+import { EMAIL_PATTERN } from './consts.js'
+import type { ChoiceProps, FieldProps, HoneypotProps } from './types.js'
 
 export const isEmail = (value: string): boolean => value.length >= 3 && value.length <= 254 && EMAIL_PATTERN.test(value)
-
-export interface FieldProps {
-  id: string
-  label: string
-  value: string
-  onChange: (value: string) => void
-  error?: string | null
-  type?: 'text' | 'email' | 'date'
-  autoComplete?: string
-  disabled?: boolean
-  min?: string
-  /** A `data-*` hook for tests (`data-withdrawal-field="name"`). */
-  hook?: Record<string, string>
-  multiline?: boolean
-}
 
 export const Field = ({
   id, label, value, onChange, error, type = 'text', autoComplete, disabled, min, hook, multiline = false,
@@ -45,16 +28,6 @@ export const Field = ({
   {error != null && <p id={`${id}-error`} className="text-destructive text-xs">{error}</p>}
 </div>
 
-export interface ChoiceProps {
-  id: string
-  name: string
-  checked: boolean
-  onSelect: () => void
-  disabled?: boolean
-  hook?: Record<string, string>
-  children: ReactNode
-}
-
 /** One option of a radio group — a native radio, so the group needs no extra primitive. */
 export const Choice = ({ id, name, checked, onSelect, disabled, hook, children }: ChoiceProps) => <label
   htmlFor={id}
@@ -66,13 +39,6 @@ export const Choice = ({ id, name, checked, onSelect, disabled, hook, children }
   />
   <span className="grid gap-0.5">{children}</span>
 </label>
-
-export interface HoneypotProps {
-  id: string
-  label: string
-  value: string
-  onChange: (value: string) => void
-}
 
 /**
  * A field a person never sees or reaches: off screen, out of the tab order and hidden from

@@ -1,6 +1,6 @@
 
 import type { WithFlowConfig } from '@owlmeans/flow'
-import type { AppConfig as Config, AppContext as Context } from '@owlmeans/web-client'
+import type { AppConfig as Config, AppContext as Context, RenderOptions } from '@owlmeans/web-client'
 import type { FlowService } from '@owlmeans/web-flow'
 import type { SocketClientSettings, SocketStatusServiceAppend } from '@owlmeans/client-socket'
 
@@ -18,4 +18,8 @@ export interface AppConfig extends Config, WithFlowConfig {
 
 export interface AppContext<C extends AppConfig = AppConfig> extends Context<C>, SocketStatusServiceAppend {
   flow: () => FlowService
+}
+
+export interface WebRenderOptions extends RenderOptions {
+  rootClassName?: string
 }

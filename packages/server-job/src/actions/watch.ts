@@ -1,11 +1,16 @@
+import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
+import type { BoundEntrypointHandler } from '@owlmeans/server-entrypoint'
 import { connection } from '@owlmeans/server-socket'
 import type { EventMessage } from '@owlmeans/socket'
 import { MessageType } from '@owlmeans/socket'
 import { JOB_EVENT } from '@owlmeans/job'
 import type { JobViewEvent } from '@owlmeans/job'
 import type { JobEvent } from '@owlmeans/queue'
+import { logger } from '@owlmeans/log'
 import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
-import { jobsOf } from '../utils/index.js'
+import { makeJobPolicyHelper } from '../utils/index.js'
+
+const log = logger('server-job:watch')
 
 /**
  * Push this caller's job lifecycle events down a socket.
@@ -22,44 +27,48 @@ import { jobsOf } from '../utils/index.js'
 export const watchJobs = (
   protocol: JobEntrypoints['watch'],
   opts: JobHandlerOptions
-): ReturnType<typeof connection> => connection<typeof protocol, Context>(protocol, async (conn, ctx, req) => {
-  const resource = jobsOf(ctx, opts)
-  const audience = await opts.policy.audience(req, ctx)
-  const publicIds = new Map<string, string>()
+): BoundEntrypointHandler<EntrypointProtocolDeclaration> => {
+  const policy = makeJobPolicyHelper(opts)
 
-  const project = async (event: JobEvent): Promise<JobViewEvent | null> => {
-    const record = await resource.load({
-      $and: [{ id: event.id }, opts.policy.where(audience, {})],
-    })
-    if (record != null) {
-      const job = await opts.policy.map(record, audience)
-      publicIds.set(event.id, job.id)
-      return { type: 'upsert', job }
-    }
-    const id = publicIds.get(event.id)
-    return id == null ? null : { type: 'remove', id }
-  }
+  return connection<typeof protocol, Context>(protocol, async (conn, ctx, req) => {
+    const resource = policy.jobsOf(ctx)
+    const audience = await opts.policy.audience(req, ctx)
+    const publicIds = new Map<string, string>()
 
-  const unsubscribe = await resource.subscribe(async event => {
-    try {
-      const projected = await project(event)
-      if (projected != null) await conn.notify(JOB_EVENT, projected)
-    } catch (e) {
-      console.error('Job watch notify error:', e)
-    }
-  })
-
-  conn.listen(async message => {
-    if (typeof message !== 'object') {
-      return
-    }
-    const msg = message as EventMessage<void>
-    if (msg.type === MessageType.System && msg.event === 'close') {
-      try {
-        await unsubscribe()
-      } catch (e) {
-        console.error('Job watch unsubscribe error:', e)
+    const project = async (event: JobEvent): Promise<JobViewEvent | null> => {
+      const record = await resource.load({
+        $and: [{ id: event.id }, opts.policy.where(audience, {})],
+      })
+      if (record != null) {
+        const job = await opts.policy.map(record, audience)
+        publicIds.set(event.id, job.id)
+        return { type: 'upsert', job }
       }
+      const id = publicIds.get(event.id)
+      return id == null ? null : { type: 'remove', id }
     }
+
+    const unsubscribe = await resource.subscribe(async event => {
+      try {
+        const projected = await project(event)
+        if (projected != null) await conn.notify(JOB_EVENT, projected)
+      } catch (e) {
+        log.warn('Job watch notify failed', { id: event.id, queue: event.queue, error: e })
+      }
+    })
+
+    conn.listen(async message => {
+      if (typeof message !== 'object') {
+        return
+      }
+      const msg = message as EventMessage<void>
+      if (msg.type === MessageType.System && msg.event === 'close') {
+        try {
+          await unsubscribe()
+        } catch (e) {
+          log.warn('Job watch unsubscribe failed', e)
+        }
+      }
+    })
   })
-})
+}

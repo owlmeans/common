@@ -1,10 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { resolveMarketingConsents } from '../src/resolve.js'
-import { MC_EMAIL, MC_PARTNERS, STANDARD_MARKETING_CONSENTS } from '../src/consts.js'
+import { marketingConsentHelper } from '../src/resolve.js'
+import { MC_EMAIL, MC_PARTNERS } from '../src/consts.js'
+import { STANDARD_MARKETING_CONSENTS } from '../src/consts.js'
 
 describe('resolveMarketingConsents', () => {
   test('the standard set has its 6 entries, in order, with no config', () => {
-    const defs = resolveMarketingConsents()
+    const defs = marketingConsentHelper.resolveMarketingConsents()
 
     expect(defs).toHaveLength(6)
     expect(defs.map(def => def.key)).toEqual(STANDARD_MARKETING_CONSENTS.map(def => def.key))
@@ -21,14 +22,14 @@ describe('resolveMarketingConsents', () => {
   })
 
   test('a `standard: { key: false }` override drops that definition entirely', () => {
-    const defs = resolveMarketingConsents({ standard: { [MC_EMAIL]: false } })
+    const defs = marketingConsentHelper.resolveMarketingConsents({ standard: { [MC_EMAIL]: false } })
 
     expect(defs).toHaveLength(5)
     expect(defs.find(def => def.key === MC_EMAIL)).toBeUndefined()
   })
 
   test('a partial standard override merges over the standard one, key and group unchanged', () => {
-    const defs = resolveMarketingConsents({
+    const defs = marketingConsentHelper.resolveMarketingConsents({
       standard: { [MC_EMAIL]: { labelKey: 'custom.email.label', group: 'ignored-group' } },
     })
     const email = defs.find(def => def.key === MC_EMAIL)
@@ -39,7 +40,7 @@ describe('resolveMarketingConsents', () => {
   })
 
   test('`custom` adds a new definition, defaulted and appended after the standard set', () => {
-    const defs = resolveMarketingConsents({
+    const defs = marketingConsentHelper.resolveMarketingConsents({
       custom: [{ key: 'custom.survey', group: 'custom' }],
     })
     const custom = defs.find(def => def.key === 'custom.survey')
@@ -50,7 +51,7 @@ describe('resolveMarketingConsents', () => {
   })
 
   test('a disabled custom entry is filtered out', () => {
-    const defs = resolveMarketingConsents({
+    const defs = marketingConsentHelper.resolveMarketingConsents({
       custom: [{ key: 'custom.survey', group: 'custom', enabled: false }],
     })
 
@@ -58,7 +59,7 @@ describe('resolveMarketingConsents', () => {
   })
 
   test('links merge into a definition, concatenated and de-duplicated by href', () => {
-    const defs = resolveMarketingConsents({
+    const defs = marketingConsentHelper.resolveMarketingConsents({
       standard: { [MC_PARTNERS]: { links: [{ href: 'https://example.com/a' }] } },
       links: { [MC_PARTNERS]: [{ href: 'https://example.com/a' }, { href: 'https://example.com/b' }] },
     })

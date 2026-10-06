@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { runCleanups } from '@owlmeans/test-integration'
 import { getTestEnv } from './context.js'
+import { cleanupHelper } from '@owlmeans/test-integration'
 
 const env = getTestEnv()
 const it = env.gate.skip ? test.skip : test
 
 afterAll(async () => {
-  await runCleanups()
+  await cleanupHelper.runCleanups()
 })
 
 describe('@owlmeans/mongo-resource — connection round-trip', () => {

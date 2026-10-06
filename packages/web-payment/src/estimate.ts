@@ -2,27 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RegisteredEntrypoint } from '@owlmeans/entrypoint'
 import type { PriceEstimate } from '@owlmeans/payment'
 import { EstimateCache } from './estimate-cache.js'
-import type { PriceEstimateArguments, PriceEstimateControl, PriceEstimateRequest } from './types.js'
-
-const DEFAULT_TTL_MS = 5 * 60_000
+import type { PriceEstimateArguments, PriceEstimateControl, PriceEstimateRequest, UsePriceEstimateOptions } from './types.js'
+import { DEFAULT_TTL_MS } from './consts.local.js'
 
 /** Shared across every mounted dialog/estimate card in the tab — the server already caches per TTL too. */
 const cache = new EstimateCache<PriceEstimate>()
-
-export interface UsePriceEstimateOptions {
-  /** Fetch (and refetch on a country change) only while `true` — a closed dialog costs nothing. */
-  enabled: boolean
-  ttlMs?: number
-  /**
-   * Controls the country from outside (several estimates sharing one picker — a plan comparison
-   * table). Given: the hook never owns `useState` for it, never preselects from `source:
-   * 'customer'` (the owner does, once, for whichever estimate answers first), and the returned
-   * control's `onCountryChange` calls this back instead of an internal setter. Absent (the
-   * default): the hook is self-contained, exactly as a standalone dialog needs.
-   */
-  country?: string
-  onCountryChange?: (country: string) => void
-}
 
 /**
  * A live `PriceEstimate` for one protocol/request, with a country the caller may change.

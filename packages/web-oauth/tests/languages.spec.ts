@@ -1,5 +1,4 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser } from '@owlmeans/test-ui'
 import { OAUTH_CONSENT_PATH } from '@owlmeans/oauth'
 import en from '../src/i18n/en.json' with { type: 'json' }
 import pl from '../src/i18n/pl.json' with { type: 'json' }
@@ -9,8 +8,9 @@ import uk from '../src/i18n/uk.json' with { type: 'json' }
 import es from '../src/i18n/es.json' with { type: 'json' }
 import de from '../src/i18n/de.json' with { type: 'json' }
 import { deviceView, open, TIMEOUT } from './helpers.js'
+import { browserHelper } from '@owlmeans/test-ui'
 
-afterAll(async () => { await closeBrowser() })
+afterAll(async () => { await browserHelper.closeBrowser() })
 
 const LANGUAGES = { en, pl, ru, be, uk, es, de }
 

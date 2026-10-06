@@ -1,5 +1,6 @@
 
 import type { SpecCategory } from '../ba/consts.js'
+import { MetadataKind, MetadataListKind, RegistryKind } from './consts.js'
 
 export interface MetadataFile<T extends Record<string, unknown> = Record<string, unknown>> {
   path: string
@@ -10,20 +11,6 @@ export interface MetadataFile<T extends Record<string, unknown> = Record<string,
 export interface MetadataWriteInput<T extends Record<string, unknown> = Record<string, unknown>> {
   data?: Partial<T>
   body: string
-}
-
-export enum MetadataKind {
-  Project = 'project',
-  Story = 'story',
-  Source = 'source',
-  History = 'history',
-}
-
-export enum MetadataListKind {
-  Stories = 'stories',
-  Meta = 'meta',
-  // All metadata: the docs/ and .agents/ trees + co-located *.spec/.ux/.ui.md beside sources
-  All = 'all',
 }
 
 /**
@@ -180,29 +167,6 @@ export interface StoryWriteInput {
 }
 
 // ─── Name registry (.agents/memory/registry.md) ───────────────────────────────────────
-
-/**
- * What a registry entry names.
- *
- * One entry per artifact the pipeline can generate, so that "where does this live" and "what is
- * it called" have exactly one answer for the whole life of the project.
- */
-export enum RegistryKind {
-  /** The single directory segment an entity owns across models/, resources/ and backend models/ */
-  EntityDir = 'entity-dir',
-  ModelType = 'model-type',
-  Resource = 'resource',
-  BackendModel = 'backend-model',
-  ApiHandlers = 'api-handlers',
-  Service = 'service',
-  Layout = 'layout',
-  Screen = 'screen',
-  Component = 'component',
-  ViewModel = 'view-model',
-  State = 'state',
-  /** Alias-only entry for one endpoint — carries no source path of its own */
-  ApiEntrypoint = 'api-entrypoint',
-}
 
 /**
  * One allocated name.

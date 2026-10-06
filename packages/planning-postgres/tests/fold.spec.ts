@@ -1,17 +1,17 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { uuid } from '@owlmeans/basic-ids'
 import {
-  CommitFailed, CommitState, isPending, TITLE_MAX, TransitionAction, WorkcardKind,
+  cardHelper, CommitFailed, CommitState, TITLE_MAX, TransitionAction, WorkcardKind,
 } from '@owlmeans/planning'
 import type { PlanningFacade, PlanningPlugin, Transition } from '@owlmeans/planning'
-import { advisoryKey } from '@owlmeans/postgres-resource'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
-import { createBook, createBranch, LIBRARY, planningConformancePlugin } from '@owlmeans/server-planning/conformance'
+import { conformanceFixturesOf, LIBRARY, planningConformancePlugin } from '@owlmeans/server-planning/conformance'
 import { Client } from 'pg'
 
 import { LOST_ALLOCATION, RES_PLANNING_CARD } from '../src/index.js'
 import type { Booted } from './context.js'
 import { gate, makeSuite } from './context.js'
+import { idHelper } from '@owlmeans/basic-ids'
+import { pgNameHelper } from '@owlmeans/postgres-resource'
 
 /** A lending library's books, folded under the conditions a two-round-trip append creates. */
 const suite = makeSuite('fold')
@@ -51,10 +51,10 @@ describe('@owlmeans/planning-postgres — the fold', () => {
   })
 
   const start = async (): Promise<{ org: string, planning: PlanningFacade, book: string }> => {
-    const org = `library-${uuid()}`
+    const org = `library-${idHelper.uuid()}`
     const planning = booted.facade(org)
-    const branch = await createBranch(planning)
-    const book = await createBook(planning, branch.id!)
+    const branch = await conformanceFixturesOf(planning).createBranch()
+    const book = await conformanceFixturesOf(planning).createBook(branch.id!)
     return { org, planning, book: book.id! }
   }
 
@@ -113,13 +113,13 @@ describe('@owlmeans/planning-postgres — the fold', () => {
   it('an allocation lost with no row at all is released by the next fold', async () => {
     const { planning, book } = await start()
     await booted.store.transitions.nextSeq(book, null)
-    expect(isPending(await planning.cards.get(book))).toBe(true)
+    expect(cardHelper.isPending(await planning.cards.get(book))).toBe(true)
 
     await new Promise(resolve => setTimeout(resolve, LIMITS.gapGraceMs + 50))
     await booted.store.fold(book)
 
     const card = await planning.cards.get(book)
-    expect(isPending(card)).toBe(false)
+    expect(cardHelper.isPending(card)).toBe(false)
     await planning.execute({ card: book, action: TransitionAction.Update, changes: { title: 'Moving on' } }, { wait: true })
     expect((await planning.cards.get(book)).title).toBe('Moving on')
   })
@@ -182,7 +182,7 @@ describe('@owlmeans/planning-postgres — the fold', () => {
   it('a fold that cannot take the card\'s lock yields, and a waiter heals it once the lock is free', async () => {
     const { planning, book } = await start()
     const table = booted.context.resource<PostgresResource<never>>(RES_PLANNING_CARD).table.qualified
-    const [first, second] = advisoryKey(`planning:${table}:${book}`)
+    const [first, second] = pgNameHelper.advisoryKey(`planning:${table}:${book}`)
     const holder = new Client({ connectionString: gate.env.POSTGRES_URL as string })
     await holder.connect()
     try {

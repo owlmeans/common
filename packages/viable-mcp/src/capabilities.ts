@@ -1,6 +1,5 @@
-import { ConnectExecutor, ConnectTarget } from '@owlmeans/viable-common'
-import type { ConnectCapabilities } from '@owlmeans/viable-common'
-import type { McpConfig } from './config.js'
+import { ConnectExecutor, ConnectTarget, type ConnectCapabilities } from '@owlmeans/viable-common'
+import type { McpConfig } from './types.js'
 
 /**
  * What this connector tells the platform it is able to do.

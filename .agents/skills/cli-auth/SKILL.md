@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/cli-auth
 
 **Layer:** Tooling (Node/Bun — no React, no DOM, no framework runtime)
-**Install:** `"@owlmeans/cli-auth": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/cli-auth": "^0.1.18-rc.16"` in `dependencies`
 **Contracts:** `@owlmeans/oauth` (discovery, device authorization, polling, revoke, `SignInRequired`)
 **Server half:** any API built on `@owlmeans/server-oauth`; **consumers:** `@owlmeans/viable-mcp`
 
@@ -16,13 +16,13 @@ user-invocable: false
 | Export | Description |
 |--------|-------------|
 | `makeCliCredentials(opts)` | The holder: `token()` · `require(waitMs?)` · `invalidate(rejected)` · `signOut()` |
-| `resolveEnvFile(env?)` | `OWLMEANS_CREDENTIALS`, else `~/.owlmeans` |
-| `parseEnv(content)` | `KEY=value`, optional `export `, `#` comments, one level of quotes |
-| `readCredentialsFile(env?)` | The file's values alone — what a token is *bound* to |
-| `loadOwlmeansEnv(env?)` | File overlaid by the process environment (below) |
-| `setEnvValues(path, values)` | Replace named keys, keep every other line; atomic, `0600`; returns `{ insecurePermissions }` |
+| `envFileHelper.resolveEnvFile(env?)` | `OWLMEANS_CREDENTIALS`, else `~/.owlmeans` |
+| `envFileHelper.parseEnv(content)` | `KEY=value`, optional `export `, `#` comments, one level of quotes |
+| `envFileHelper.readCredentialsFile(env?)` | The file's values alone — what a token is *bound* to |
+| `envFileHelper.loadOwlmeansEnv(env?)` | File overlaid by the process environment (below) |
+| `envFileHelper.setEnvValues(path, values)` | Replace named keys, keep every other line; atomic, `0600`; returns `{ insecurePermissions }` |
 | `openBrowser(url, env?)` | Best-effort detached opener; `false` on any refusal |
-| `claimOrJoinLock` · `readLock` · `releaseLock` · `lockPathFor` · `SignInLockInfo` | The sign-in lock |
+| `makeSignInLockHelper(lockPathFor(file))` → `.claimOrJoinLock` · `.readLock` · `.releaseLock`; `SignInLockInfo` | The sign-in lock |
 | `ENV_CREDENTIALS_FILE` · `DEFAULT_CREDENTIALS_FILENAME` · `DEFAULT_WAIT_MS` (20 s) · `MAX_SIGN_IN_WAIT_MS` (15 min) | Constants |
 
 `CliCredentialsOptions`: `apiUrl`, `clientId` (a static client the server declared, or a CIMD URL),
@@ -35,7 +35,8 @@ names), `deviceName?` (defaults to `host · user`), `resource?` (defaults to `ap
 Dotenv-style `KEY=VALUE`, e.g. `VIABLE_API_URL=…` and `VIABLE_API_TOKEN=…`. Never merged with another
 file; a CLI that serves several deployments points `OWLMEANS_CREDENTIALS` at one file each.
 
-- **The environment wins over the file** (`loadOwlmeansEnv` → `{ ...file, ...envWithoutEmpty }`).
+- **The environment wins over the file** (`envFileHelper.loadOwlmeansEnv` →
+  `{ ...file, ...envWithoutEmpty }`).
 - **An empty environment value counts as unset.** A harness config that expands an unset variable
   (`${VIABLE_API_TOKEN:-}`) produces `''`, which must not shadow the file — "I did not set it" and
   "set it to nothing" are not the same, and the file is the more deliberate of the two.
@@ -51,12 +52,12 @@ file; a CLI that serves several deployments points `OWLMEANS_CREDENTIALS` at one
 
 - **`token()`** — the environment value, else the bound file value, else `null`.
 - **`require(waitMs = DEFAULT_WAIT_MS)`** — returns a token, starting or joining ONE device sign-in
-  per API URL: discover → `requestDeviceAuthorization` → claim/join the lock → `notify("Sign in at
-  <url> with code <code>")` → open the browser (owner only) → `pollDeviceToken` → persist
-  `{tokenEnvKey, apiUrlEnvKey}` → resolve. If `waitMs` runs out first it throws `signInRequired`
-  (`url`, `code`, `expiresAt` from the lock) and **polling continues in the background**; the next
-  `require()` joins it instead of starting over. `denied`/`expired`/`aborted` become
-  `OAuthAccessDenied` / `OAuthError`.
+  per API URL: discover → `oauthClientHelper.requestDeviceAuthorization` → claim/join the lock →
+  `notify("Sign in at <url> with code <code>")` → open the browser (owner only) → `.pollDeviceToken`
+  → persist `{tokenEnvKey, apiUrlEnvKey}` → resolve. If `waitMs` runs out first it throws
+  `signInRequired` (`url`, `code`, `expiresAt` from the lock) and **polling continues in the
+  background**; the next `require()` joins it instead of starting over. `denied`/`expired`/`aborted`
+  become `OAuthAccessDenied` / `OAuthError`.
 - **The `waitMs` ceiling is a timer that is cleared** when the race is decided. A pending timer keeps
   a Node process alive, so an uncleared one made `viable-mcp login` (ceiling 15 minutes) hang after
   it had signed in. Any new timeout in this package clears its timer the same way.
@@ -73,7 +74,8 @@ file; a CLI that serves several deployments points `OWLMEANS_CREDENTIALS` at one
   (next `require()` signs in); an **environment** token is never silently replaced — it throws
   `TokenRejected(tokenEnvKey)` so the operator hears "VIABLE_API_TOKEN was refused" instead of the
   tool quietly becoming another identity.
-- **`signOut()`** — best-effort `revokeToken` at the server, then remove the file token.
+- **`signOut()`** — best-effort `oauthClientHelper.revokeToken` at the server, then remove the file
+  token.
 
 ## Opening the browser
 

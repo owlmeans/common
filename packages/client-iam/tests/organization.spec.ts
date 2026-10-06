@@ -12,7 +12,7 @@ import { DEFAULT_ALIAS as AUTH_SERVICE } from '@owlmeans/client-auth'
 import { ORGANIZATION_REFUSAL, oidcProtocols } from '@owlmeans/oidc'
 import type { OidcOrganizationItem } from '@owlmeans/oidc'
 import { RouteProtocols } from '@owlmeans/route'
-import { listOrganizations, switchOrganization } from '../src/organization.js'
+import { organizationSwitchOf } from '../src/organization.js'
 
 /**
  * The organization switch from the browser's side. The relying party's server is stood in for by
@@ -63,14 +63,14 @@ describe('@owlmeans/client-iam — organizations', () => {
   test('listOrganizations answers the items of the session', async () => {
     const { context, calls } = await start()
 
-    expect(await listOrganizations(context)).toEqual(ITEMS)
+    expect(await organizationSwitchOf(context).listOrganizations()).toEqual(ITEMS)
     expect(calls.map(call => call.alias)).toEqual([oidcProtocols.organizations.alias])
   })
 
   test('switchOrganization posts the slug and adopts the re-signed token', async () => {
     const { context, calls, adopted } = await start()
 
-    await switchOrganization(context, 'beta')
+    await organizationSwitchOf(context).switchOrganization('beta')
     expect(calls[0].alias).toBe(oidcProtocols.organization.alias)
     expect(calls[0].body).toEqual({ entitySlug: 'beta' })
     expect(adopted).toEqual(['wrapped-token-for-beta'])
@@ -79,7 +79,7 @@ describe('@owlmeans/client-iam — organizations', () => {
   test('a refused switch adopts nothing', async () => {
     const { context, adopted } = await start()
 
-    await expect(switchOrganization(context, 'gamma')).rejects.toBeInstanceOf(AuthForbidden)
+    await expect(organizationSwitchOf(context).switchOrganization('gamma')).rejects.toBeInstanceOf(AuthForbidden)
     expect(adopted).toEqual([])
   })
 })

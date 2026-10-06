@@ -3,15 +3,9 @@ import {
   Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
 } from '@/components/ui/card'
 import { useEntitlementCopy } from './copy.js'
-import { planStatusLineOf } from './selectors.js'
-import type { PlanCardProps, PlanStatusTone } from './types.js'
-
-const TONE_DOT: Record<PlanStatusTone, string> = {
-  ok: 'bg-primary',
-  warning: 'bg-destructive/60',
-  critical: 'bg-destructive',
-  inactive: 'bg-muted-foreground',
-}
+import { entitlementSelectorHelper } from './selectors.js'
+import type { PlanCardProps } from './types.js'
+import { TONE_DOT } from './consts.local.js'
 
 const classes = (...names: Array<string | false | null | undefined>): string =>
   names.filter(Boolean).join(' ')
@@ -26,7 +20,7 @@ export const PlanCard = ({
   const copy = useEntitlementCopy()
   const sku = offer?.sku ?? plan.sku
   const isCurrent = current ?? (offer != null && offer.sku === plan.sku)
-  const status = offer == null || isCurrent ? planStatusLineOf(plan) : null
+  const status = offer == null || isCurrent ? entitlementSelectorHelper.planStatusLineOf(plan) : null
   const statusText = status == null
     ? null
     : copy.text(status.date != null ? `status.${status.kind}-on` : `status.${status.kind}`, {

@@ -4,19 +4,13 @@ import { ChatOpenAI } from '@langchain/openai'
 import { BadRequestError } from '@anthropic-ai/sdk'
 import { ContextOverflowError } from '@langchain/core/errors'
 import { ModelEffort, ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
-import {
-  anthropicPlugin, compatiblePlugin, effortSupportOf, makeLlmService, openAiPlugin, pluginFor,
-  pluginOf, REASONING_MIN_MAX_TOKENS, registerLlmPlugin, resolveFallbacks, resolvePlugin,
-  usesResponsesApi,
-} from '@owlmeans/llm'
-import type { LlmPlugin, ModelConfig } from '@owlmeans/llm'
+import { anthropicPlugin, compatiblePlugin, makeLlmService, openAiPlugin, REASONING_MIN_MAX_TOKENS, resolveFallbacks, usesResponsesApi, type LlmPlugin, type ModelConfig, DEFAULT_MAX_OUTPUT_CAP, llmPluginRegistry } from '@owlmeans/llm'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { DEFAULT_MAX_OUTPUT_CAP } from '@owlmeans/llm'
 import { offlineConfigs, Role } from './context.js'
-import { stripCacheMarkers } from '../src/utils/prompt.js'
-import { resolveOutputCap } from '../src/utils/config.js'
-import { rungAt, rungsOf } from '../src/utils/rungs.js'
-import { ADAPTIVE_MIN_MAX_TOKENS } from '../src/plugins/anthropic.js'
+import { configUtils } from '../src/utils/config.js'
+import { rungUtils } from '../src/utils/rungs.js'
+import { ADAPTIVE_MIN_MAX_TOKENS } from '../src/plugins/consts.js'
+import { promptUtils } from '../src/utils/prompt.js'
 
 const build = (plugin: LlmPlugin, config: Partial<ModelConfig> = {}) =>
   plugin.build({
@@ -26,9 +20,9 @@ const build = (plugin: LlmPlugin, config: Partial<ModelConfig> = {}) =>
 
 describe('@owlmeans/llm — plugin resolution', () => {
   test('resolves by the config provider', () => {
-    expect(resolvePlugin({ provider: ModelProvider.Anthropic }).type).toBe(ModelProvider.Anthropic)
-    expect(resolvePlugin({ provider: ModelProvider.OpenAI }).type).toBe(ModelProvider.OpenAI)
-    expect(resolvePlugin({ provider: ModelProvider.Compatible }).type).toBe(ModelProvider.Compatible)
+    expect(llmPluginRegistry.resolvePlugin({ provider: ModelProvider.Anthropic }).type).toBe(ModelProvider.Anthropic)
+    expect(llmPluginRegistry.resolvePlugin({ provider: ModelProvider.OpenAI }).type).toBe(ModelProvider.OpenAI)
+    expect(llmPluginRegistry.resolvePlugin({ provider: ModelProvider.Compatible }).type).toBe(ModelProvider.Compatible)
   })
 
   // A refined model instance is rebuilt from lc_kwargs and may lose its metadata, so the
@@ -37,25 +31,25 @@ describe('@owlmeans/llm — plugin resolution', () => {
     const anthropic = build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001' })
     const openai = build(openAiPlugin, { model: 'gpt-4.1-mini' })
 
-    expect(pluginFor(anthropic)?.type).toBe(ModelProvider.Anthropic)
+    expect(llmPluginRegistry.pluginFor(anthropic)?.type).toBe(ModelProvider.Anthropic)
     // Both openai and compatible own a ChatOpenAI; compatible (tool-calling) wins.
-    expect(pluginFor(openai)?.type).toBe(ModelProvider.Compatible)
-    expect(resolvePlugin(undefined, openai).type).toBe(ModelProvider.Compatible)
+    expect(llmPluginRegistry.pluginFor(openai)?.type).toBe(ModelProvider.Compatible)
+    expect(llmPluginRegistry.resolvePlugin(undefined, openai).type).toBe(ModelProvider.Compatible)
   })
 
   test('an unknown provider with no model instance is an error, not a silent default', () => {
-    expect(() => resolvePlugin({ provider: 'no-such-provider' })).toThrow()
-    expect(pluginOf('no-such-provider')).toBeUndefined()
+    expect(() => llmPluginRegistry.resolvePlugin({ provider: 'no-such-provider' })).toThrow()
+    expect(llmPluginRegistry.pluginOf('no-such-provider')).toBeUndefined()
   })
 
   test('a custom plugin can be registered and then resolved', () => {
     const custom: LlmPlugin = {
       ...openAiPlugin, type: 'spec-custom', structuredMode: () => StructuredMode.Native,
     }
-    registerLlmPlugin(custom)
-    expect(resolvePlugin({ provider: 'spec-custom' }).type).toBe('spec-custom')
+    llmPluginRegistry.register(custom)
+    expect(llmPluginRegistry.resolvePlugin({ provider: 'spec-custom' }).type).toBe('spec-custom')
     // Registered last, so it never shadows the built-ins on instance lookup.
-    expect(pluginFor(build(openAiPlugin, { model: 'gpt-4.1-mini' }))?.type)
+    expect(llmPluginRegistry.pluginFor(build(openAiPlugin, { model: 'gpt-4.1-mini' }))?.type)
       .toBe(ModelProvider.Compatible)
   })
 })
@@ -313,7 +307,7 @@ describe('@owlmeans/llm — provider effort', () => {
     expect(anthropicEffort(anthropicPlugin.refine({ base: off, attempt: 2, rungAttempt: 2, maxOutputCap: 64000 })))
       .toBe('high')
     expect(anthropicEffort(on)).toBe('max')
-    expect(effortSupportOf({ provider: ModelProvider.Anthropic, model: 'claude-opus-5-5' })?.default)
+    expect(llmPluginRegistry.effortSupportOf({ provider: ModelProvider.Anthropic, model: 'claude-opus-5-5' })?.default)
       .toBe(ModelEffort.Medium)
   })
 })
@@ -364,7 +358,7 @@ describe('@owlmeans/llm — fallback chains', () => {
 
   test('the service hangs every rung off the one above it, each with its own plugin', () => {
     const service = makeLlmService({ models: () => [coder()] }, 'spec-chain-rungs')
-    const rungs = rungsOf(service.getModel('coder'))
+    const rungs = rungUtils.rungsOf(service.getModel('coder'))
 
     expect(rungs.map(rung => rung.plugin?.type))
       .toEqual([ModelProvider.OpenAI, ModelProvider.Anthropic, ModelProvider.OpenAI])
@@ -373,9 +367,9 @@ describe('@owlmeans/llm — fallback chains', () => {
 
   test('each rung gets three attempts and the last one keeps the rest', () => {
     const service = makeLlmService({ models: () => [coder()] }, 'spec-chain-ladder')
-    const rungs = rungsOf(service.getModel('coder'))
+    const rungs = rungUtils.rungsOf(service.getModel('coder'))
     const ladder = [0, 2, 3, 5, 6, 7, 20].map(attempt => {
-      const { rung, rungAttempt } = rungAt(rungs, attempt)
+      const { rung, rungAttempt } = rungUtils.rungAt(rungs, attempt)
       return [rung.index, rungAttempt]
     })
 
@@ -601,7 +595,7 @@ describe('@owlmeans/llm — the four-breakpoint request budget', () => {
 
     // Call two: the caller appends a turn and re-sends the SAME objects.
     msgs.push({ role: 'user' as const, content: 'dddd' })
-    stripCacheMarkers(msgs)
+    promptUtils.stripCacheMarkers(msgs)
     expect(markers(msgs)).toBe(0)
 
     anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 3 })
@@ -636,7 +630,7 @@ describe('@owlmeans/llm — the four-breakpoint request budget', () => {
       role: 'user' as const,
       content: [{ type: 'text', text: 'keep me', cache_control: { type: 'ephemeral' } }] as never,
     }]
-    stripCacheMarkers(msgs)
+    promptUtils.stripCacheMarkers(msgs)
     expect(msgs[0]!.content).toEqual([{ type: 'text', text: 'keep me' }] as never)
   })
 })
@@ -829,11 +823,11 @@ describe('@owlmeans/llm — output capability', () => {
   ]
 
   test('the declared cap chooses the ceiling and the capability trims it', () => {
-    expect(resolveOutputCap({ maxTokensCap: 32000 })).toBe(32000)
-    expect(resolveOutputCap({ maxOutput: 64000 })).toBe(64000)
-    expect(resolveOutputCap({ maxTokensCap: 64000, maxOutput: 8000 })).toBe(8000)
-    expect(resolveOutputCap({ maxTokensCap: 16000, maxOutput: 64000 })).toBe(16000)
-    expect(resolveOutputCap({})).toBe(DEFAULT_MAX_OUTPUT_CAP)
+    expect(configUtils.resolveOutputCap({ maxTokensCap: 32000 })).toBe(32000)
+    expect(configUtils.resolveOutputCap({ maxOutput: 64000 })).toBe(64000)
+    expect(configUtils.resolveOutputCap({ maxTokensCap: 64000, maxOutput: 8000 })).toBe(8000)
+    expect(configUtils.resolveOutputCap({ maxTokensCap: 16000, maxOutput: 64000 })).toBe(16000)
+    expect(configUtils.resolveOutputCap({})).toBe(DEFAULT_MAX_OUTPUT_CAP)
   })
 
   test('an initial budget above the provider capability is clamped at build time', () => {
@@ -851,7 +845,7 @@ describe('@owlmeans/llm — output capability', () => {
     const config = (fallback as unknown as { metadata: { config: ModelConfig } }).metadata.config
 
     expect(config.maxOutput).toBe(128_000)
-    expect(resolveOutputCap(config)).toBe(32000)
+    expect(configUtils.resolveOutputCap(config)).toBe(32000)
   })
 })
 

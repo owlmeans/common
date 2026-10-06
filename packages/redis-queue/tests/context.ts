@@ -1,4 +1,4 @@
-import { randomNamespace, redisGate } from '@owlmeans/test-integration'
+import { randomNamespace, gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, RedisEnv } from '@owlmeans/test-integration'
 import { config, makeServerContext } from '@owlmeans/server-context'
 import { appendRedis, DEFAULT_ALIAS as REDIS_ALIAS } from '@owlmeans/redis'
@@ -13,10 +13,10 @@ import type {
 import type { BasicEntrypoint } from '@owlmeans/context'
 import { MiddlewareStage, MiddlewareType } from '@owlmeans/context'
 import { Queue } from 'bullmq'
-import { appendRedisQueue, queuePrefix, queueResourceAlias } from '@owlmeans/redis-queue'
+import { appendRedisQueue, queueConnectionHelper, queueResourceAlias } from '@owlmeans/redis-queue'
 import type { Config, Context, RedisQueueResource, RedisQueueWorkerService } from '@owlmeans/redis-queue'
 
-export const gate: IntegrationGate<RedisEnv> = redisGate()
+export const gate: IntegrationGate<RedisEnv> = gateHelper.redisGate()
 
 export interface DeclaredQueue {
   name: string
@@ -123,7 +123,7 @@ export const makeSuite = (label: string): QueueSuite => {
     booted = {
       context,
       client: await context.service<RedisDbService>(REDIS_ALIAS).client(),
-      keys: queuePrefix(prefix),
+      keys: queueConnectionHelper.queuePrefix(prefix),
       // Through the mixin the applications use, not through the registry behind it — the accessor
       // is what refuses an undeclared queue.
       jobs: <D, R>(queue: string) => (context as unknown as QueueAppend).jobs<D, R>(queue),

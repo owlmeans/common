@@ -77,3 +77,16 @@ export interface PanelNavModel {
    */
   hrefOf: (target: PanelNavItem | PanelNavSection) => string | undefined
 }
+
+/** How a navigation entry gets its label. */
+export interface NavLabelHelper {
+  /** Default resolver: no i18n, the caller's fallback wins. See {@link NavTranslate}. */
+  defaultNavTranslate: NavTranslate
+  /**
+   * Turn an alias into something readable — `my-app:web:user-list` becomes `User list`.
+   * The last segment is the meaningful one; the prefixes address the app, not the screen.
+   */
+  defaultNavLabel: (alias: string) => string
+  /** The literal label when given, else the translation of `key` falling back to the humanized alias. */
+  resolveNavLabel: (translate: NavTranslate, label: string | undefined, key: string, alias?: string) => string
+}

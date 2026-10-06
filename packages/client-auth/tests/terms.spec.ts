@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { OWLMEANS_COOKIES_URL, OWLMEANS_PRIVACY_URL, OWLMEANS_TERMS_URL } from '@owlmeans/config'
-import type { LoginTermsConfig } from '@owlmeans/config'
-import { resolveTerms, termsAcceptanceOf, termsLabelResolver, termsSentence } from '../src/login/terms.js'
-import type { ResolvedTermsDocument } from '../src/login/terms.js'
+import { OWLMEANS_COOKIES_URL, OWLMEANS_PRIVACY_URL, OWLMEANS_TERMS_URL, type LoginTermsConfig } from '@owlmeans/config'
+import { loginTermsHelper } from '../src/login/terms.js'
+import type { ResolvedTermsDocument } from '../src/login/terms/types.js'
 
 /**
  * The pre-existing digest, copied rather than imported: `resolveTerms`'s own `digest` is private,
@@ -40,7 +39,7 @@ describe('resolveTerms — the digest', () => {
     const cfg: LoginTermsConfig = {
       required: true, terms: 'https://a.test/terms', privacy: 'https://a.test/privacy',
     }
-    const resolved = resolveTerms(cfg)
+    const resolved = loginTermsHelper.resolveTerms(cfg)
 
     expect(resolved?.version).toBe(
       legacyDigest(['https://a.test/terms', 'https://a.test/privacy', OWLMEANS_COOKIES_URL])
@@ -48,7 +47,7 @@ describe('resolveTerms — the digest', () => {
   })
 
   test('a defaulted config (no terms/privacy/cookies at all) matches the same algorithm', () => {
-    const resolved = resolveTerms({})
+    const resolved = loginTermsHelper.resolveTerms({})
 
     expect(resolved?.version).toBe(
       legacyDigest([OWLMEANS_TERMS_URL, OWLMEANS_PRIVACY_URL, OWLMEANS_COOKIES_URL])
@@ -56,19 +55,19 @@ describe('resolveTerms — the digest', () => {
   })
 
   test('an explicit version override is used verbatim, as before', () => {
-    expect(resolveTerms({ version: 'pinned-v3' })?.version).toBe('pinned-v3')
+    expect(loginTermsHelper.resolveTerms({ version: 'pinned-v3' })?.version).toBe('pinned-v3')
   })
 
   test('adding a billing document changes the digest', () => {
-    const base = resolveTerms({})?.version
-    const withBilling = resolveTerms({ billing: 'https://a.test/billing' })?.version
+    const base = loginTermsHelper.resolveTerms({})?.version
+    const withBilling = loginTermsHelper.resolveTerms({ billing: 'https://a.test/billing' })?.version
 
     expect(withBilling).not.toBe(base)
   })
 
   test('changing only a revision date changes the digest', () => {
-    const unrevised = resolveTerms({})?.version
-    const revised = resolveTerms({ revisions: { terms: '2026-01-01' } })?.version
+    const unrevised = loginTermsHelper.resolveTerms({})?.version
+    const revised = loginTermsHelper.resolveTerms({ revisions: { terms: '2026-01-01' } })?.version
 
     expect(revised).not.toBe(unrevised)
   })
@@ -91,7 +90,7 @@ describe('resolveTerms — documents and notices', () => {
       revisions: { terms: '2026-01-15' },
     }
 
-    const resolved = resolveTerms(cfg)
+    const resolved = loginTermsHelper.resolveTerms(cfg)
 
     expect(resolved?.documents.map(doc => doc.key))
       .toEqual(['terms', 'billing', 'product', 'custom-a', 'custom-b'])
@@ -105,19 +104,19 @@ describe('resolveTerms — documents and notices', () => {
   })
 
   test('a bare billing string is treated as `{ href }`', () => {
-    const resolved = resolveTerms({ billing: 'https://a.test/billing' })
+    const resolved = loginTermsHelper.resolveTerms({ billing: 'https://a.test/billing' })
 
     expect(resolved?.documents.find(doc => doc.key === 'billing')?.href).toBe('https://a.test/billing')
   })
 
   test('`false` turns billing/product off — the default', () => {
-    const resolved = resolveTerms({ billing: false, product: false })
+    const resolved = loginTermsHelper.resolveTerms({ billing: false, product: false })
 
     expect(resolved?.documents.map(doc => doc.key)).toEqual(['terms'])
   })
 
   test('the cookies notice is included when explicitly configured', () => {
-    const resolved = resolveTerms({
+    const resolved = loginTermsHelper.resolveTerms({
       terms: 'https://a.test/terms', privacy: 'https://a.test/privacy', cookies: 'https://a.test/cookies',
     })
 
@@ -125,13 +124,13 @@ describe('resolveTerms — documents and notices', () => {
   })
 
   test('the cookies notice is included when terms/privacy/cookies are ALL still the defaults', () => {
-    const resolved = resolveTerms({})
+    const resolved = loginTermsHelper.resolveTerms({})
 
     expect(resolved?.notices.map(doc => doc.key)).toEqual(['privacy', 'cookies'])
   })
 
   test('the cookies notice is DROPPED when terms/privacy were customised but cookies was not', () => {
-    const resolved = resolveTerms({ terms: 'https://a.test/terms', privacy: 'https://a.test/privacy' })
+    const resolved = loginTermsHelper.resolveTerms({ terms: 'https://a.test/terms', privacy: 'https://a.test/privacy' })
 
     expect(resolved?.notices.map(doc => doc.key)).toEqual(['privacy'])
   })
@@ -139,8 +138,8 @@ describe('resolveTerms — documents and notices', () => {
   test('`revisedAt` is set only when `showRevision` is true', () => {
     const cfg: LoginTermsConfig = { revisions: { terms: '2026-03-01' } }
 
-    expect(resolveTerms(cfg)?.revisedAt).toBeUndefined()
-    expect(resolveTerms({ ...cfg, showRevision: true })?.revisedAt).toBe('2026-03-01')
+    expect(loginTermsHelper.resolveTerms(cfg)?.revisedAt).toBeUndefined()
+    expect(loginTermsHelper.resolveTerms({ ...cfg, showRevision: true })?.revisedAt).toBe('2026-03-01')
   })
 
   test('`revisedAt` is the LATEST revision among documents', () => {
@@ -150,17 +149,17 @@ describe('resolveTerms — documents and notices', () => {
       revisions: { terms: '2026-06-01' },
     }
 
-    expect(resolveTerms(cfg)?.revisedAt).toBe('2026-06-01')
+    expect(loginTermsHelper.resolveTerms(cfg)?.revisedAt).toBe('2026-06-01')
   })
 })
 
 describe('termsSentence', () => {
   test('interpolates {{documents}} as a formatted, linked list', () => {
-    const resolved = resolveTerms({
+    const resolved = loginTermsHelper.resolveTerms({
       terms: 'https://a.test/terms', billing: 'https://a.test/billing',
     })!
 
-    const parts = termsSentence('I agree to the {{documents}}.', resolved, 'en', label)
+    const parts = loginTermsHelper.termsSentence('I agree to the {{documents}}.', resolved, 'en', label)
     const linked = parts.filter(part => part.href != null)
 
     expect(linked.map(part => part.documentKey)).toEqual(['terms', 'billing'])
@@ -169,22 +168,22 @@ describe('termsSentence', () => {
   })
 
   test('interpolates {{notices}} the same way, from `resolved.notices`', () => {
-    const resolved = resolveTerms({
+    const resolved = loginTermsHelper.resolveTerms({
       terms: 'https://a.test/terms', privacy: 'https://a.test/privacy', cookies: 'https://a.test/cookies',
     })!
 
-    const parts = termsSentence('Data: {{notices}}.', resolved, 'en', label)
+    const parts = loginTermsHelper.termsSentence('Data: {{notices}}.', resolved, 'en', label)
     const linked = parts.filter(part => part.href != null)
 
     expect(linked.map(part => part.documentKey)).toEqual(['privacy', 'cookies'])
   })
 
   test('supports the legacy {{terms}}/{{privacy}}/{{cookies}} placeholders', () => {
-    const resolved = resolveTerms({
+    const resolved = loginTermsHelper.resolveTerms({
       terms: 'https://a.test/terms', privacy: 'https://a.test/privacy', cookies: 'https://a.test/cookies',
     })!
 
-    const parts = termsSentence('{{terms}} and {{privacy}} and {{cookies}}', resolved, 'en', label)
+    const parts = loginTermsHelper.termsSentence('{{terms}} and {{privacy}} and {{cookies}}', resolved, 'en', label)
     const linked = parts.filter(part => part.href != null)
 
     expect(linked.map(part => part.documentKey)).toEqual(['terms', 'privacy', 'cookies'])
@@ -193,9 +192,9 @@ describe('termsSentence', () => {
   })
 
   test('a single document renders with no list separator', () => {
-    const resolved = resolveTerms({ terms: 'https://a.test/terms' })!
+    const resolved = loginTermsHelper.resolveTerms({ terms: 'https://a.test/terms' })!
 
-    const parts = termsSentence('{{documents}}', resolved, 'en', label)
+    const parts = loginTermsHelper.termsSentence('{{documents}}', resolved, 'en', label)
 
     expect(parts).toEqual([{ text: 'Terms & Conditions', href: 'https://a.test/terms', documentKey: 'terms' }])
   })
@@ -204,7 +203,7 @@ describe('termsSentence', () => {
 describe('termsLabelResolver', () => {
   test('resolves a document label the same way the two renderers used to, by hand', () => {
     const translate = (key: string, defaultValue: string) => key === 'login.terms.custom' ? 'Custom!' : defaultValue
-    const resolve = termsLabelResolver(translate, 'en')
+    const resolve = loginTermsHelper.termsLabelResolver(translate, 'en')
 
     expect(resolve({ key: 'terms', href: 'https://a.test/terms', i18nKey: 'login.terms.terms' }))
       .toBe('Terms & Conditions')
@@ -222,14 +221,14 @@ describe('termsAcceptanceOf', () => {
   test('keeps only key/href/revisedAt — never i18nKey, params or label', () => {
     // A viable-shaped config: billing, a product document carrying `params`, and revisions —
     // exactly what `termsRecorder`/a Terms-mode consent screen sends the server.
-    const resolved = resolveTerms({
+    const resolved = loginTermsHelper.resolveTerms({
       terms: 'https://a.test/terms', privacy: 'https://a.test/privacy', cookies: 'https://a.test/cookies',
       billing: { href: 'https://a.test/billing', revisedAt: '2026-02-01' },
       product: { name: 'Acme', href: 'https://a.test/product' },
       revisions: { terms: '2026-01-15', privacy: '2026-01-15' },
     })!
 
-    const acceptance = termsAcceptanceOf(resolved, 'en')
+    const acceptance = loginTermsHelper.termsAcceptanceOf(resolved, 'en')
 
     expect(acceptance.version).toBe(resolved.version)
     expect(acceptance.locale).toBe('en')
@@ -249,8 +248,8 @@ describe('termsAcceptanceOf', () => {
   })
 
   test('omits `locale` entirely when none is given', () => {
-    const resolved = resolveTerms({ terms: 'https://a.test/terms' })!
+    const resolved = loginTermsHelper.resolveTerms({ terms: 'https://a.test/terms' })!
 
-    expect(termsAcceptanceOf(resolved)).not.toHaveProperty('locale')
+    expect(loginTermsHelper.termsAcceptanceOf(resolved)).not.toHaveProperty('locale')
   })
 })

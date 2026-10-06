@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { makePostgresResource } from '@owlmeans/postgres-resource'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
-import { matchCriteria, UnsupportedArgumentError } from '@owlmeans/resource'
+import { recordQueryHelper, UnsupportedArgumentError } from '@owlmeans/resource'
 import type { Criteria, ResourceRecord } from '@owlmeans/resource'
 
 import { gate, makeSuite } from './context.js'
@@ -62,7 +62,7 @@ describe('@owlmeans/postgres — criteria answer what the in-memory engine answe
 
   const byBoth = async (criteria: Criteria<Plot>): Promise<void> => {
     const listed = (await plots.list(criteria, { size: 0 })).items.map(plot => plot.id).sort()
-    const expected = seeded.filter(plot => matchCriteria(plot, criteria)).map(plot => plot.id).sort()
+    const expected = seeded.filter(plot => recordQueryHelper.matchCriteria(plot, criteria)).map(plot => plot.id).sort()
     expect([JSON.stringify(criteria), listed]).toEqual([JSON.stringify(criteria), expected])
   }
 

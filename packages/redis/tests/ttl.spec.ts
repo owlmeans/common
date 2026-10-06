@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { gate, makeSuite } from './context.js'
+import { gate, makeSuite, TEARDOWN_TIMEOUT } from './context.js'
 
 /**
  * TTL regression coverage.
@@ -19,9 +19,11 @@ describe('@owlmeans/redis — resource ttl', () => {
   /** Generous: the assertion is about the order of magnitude, not clock precision. */
   const tolerance = 5_000
 
+  // The teardown SCANs a shared store for this suite's prefix; under a full-repo run that walk
+  // outlasts the default 5 s hook budget.
   afterAll(async () => {
     await suite.teardown()
-  })
+  }, TEARDOWN_TIMEOUT)
 
   test('a number TTL is seconds from now', async () => {
     const { resource } = await suite.boot()

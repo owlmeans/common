@@ -16,7 +16,7 @@ headless navigation model.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-panel@^0.1.18-rc.55
+bun add @owlmeans/client-panel@^0.1.18-rc.58
 ```
 
 ## Usage
@@ -130,12 +130,12 @@ Returns `sections` (with `hidden` filtered out), `current` (the active screen's 
   keyboard-operable, openable in a new tab). It returns `undefined` for a path carrying route
   parameters.
 
-### `resolveNavLabel(translate, label, key, alias)`
+### `navLabelHelper.resolveNavLabel(translate, label, key, alias)`
 
 Resolves a label as literal `label` → `translate(key, defaultNavLabel(alias))` → the humanized
-alias. `translate` always reaches a component as a **prop**, defaulting to `defaultNavTranslate`
+alias. `translate` always reaches a component as a **prop**, defaulting to `navLabelHelper.defaultNavTranslate`
 (which returns the fallback) — a menu must never read an i18n context implicitly, because an app
-mounted without an i18n provider throws inside render and blanks the page. `defaultNavLabel`
+mounted without an i18n provider throws inside render and blanks the page. `navLabelHelper.defaultNavLabel`
 humanizes the last alias segment
 (`my-app:web:user-list` → `User list`). Default key families are `nav.<section>` and
 `modules.<alias>`.
@@ -153,7 +153,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

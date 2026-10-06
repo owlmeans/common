@@ -2,10 +2,11 @@ import { describe, expect, test } from 'bun:test'
 import { MisshapedRecord, RecordExists, ResourceError } from '@owlmeans/resource'
 
 import {
-  describePgError, PgErrorCode, PostgresCastRequired, PostgresCheckError, PostgresConnectionError,
-  PostgresConstraintError, PostgresDeadlockError, PostgresError, PostgresForeignKeyError,
-  pgErrorToResourceError
+  PgErrorCode, pgErrorHelper, PostgresCastRequired, PostgresCheckError, PostgresConnectionError,
+  PostgresConstraintError, PostgresDeadlockError, PostgresError, PostgresForeignKeyError
 } from '@owlmeans/postgres-resource'
+
+const { describePgError, pgErrorToResourceError } = pgErrorHelper
 
 interface DriverShape {
   code: string

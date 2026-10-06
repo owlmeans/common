@@ -1,68 +1,27 @@
-import {
-  CommitState, isProject, PlanningUnsupported, TransitionAction,
-} from '@owlmeans/planning'
-import type { CommitEvent, PlanningStore, Transition, Workcard } from '@owlmeans/planning'
-import { advisoryKey } from '@owlmeans/postgres-resource'
-import { failPending, foldPending } from '@owlmeans/server-planning/store'
-import type { CommitHub, CommitListener, FoldResult } from '@owlmeans/server-planning/store'
-import type { Pool } from 'pg'
-import {
-  DEFAULT_RECOVER_LIMIT, LOST_ALLOCATION, MAX_FOLD_PASSES, MAX_FOLD_ROUNDS, PLANNING_POSTGRES_STORE,
-} from '../consts.js'
-import { clientRunner, col, insertOf, LOCK_NOT_AVAILABLE, pgFault } from '../sql.js'
-import type { PlanningTables, SqlContext } from '../sql.js'
-import type { PlanningPostgresLimits } from '../types.js'
-import type { PlanningBus } from './bus.js'
-import { dropCard, readCard, readCardRow, writeCard } from './cards.js'
-import { dropLinks, listLinks, putLink } from './links.js'
-import { bumpRevision, purgeSchemaLayers } from './schemas.js'
-import { commitTransition, listTransitions, readTransition, readTransitionByKey } from './transitions.js'
+import { cardHelper, CommitState, PlanningUnsupported, TransitionAction, type CommitEvent, type PlanningStore, type Transition, type Workcard } from '@owlmeans/planning'
+import { logger } from '@owlmeans/log'
+import { foldHelper, type FoldResult } from '@owlmeans/server-planning/store'
+import { DEFAULT_RECOVER_LIMIT, LOST_ALLOCATION, MAX_FOLD_PASSES, MAX_FOLD_ROUNDS, PLANNING_POSTGRES_STORE, LOCK_NOT_AVAILABLE } from '../consts.js'
+import { sqlHelper } from '../sql.js'
+import { cardSqlOf } from './card-sql.js'
+import { linkSqlOf } from './link-sql.js'
+import { schemaSqlOf } from './schema-sql.js'
+import { transitionSqlOf } from './transition-sql.js'
+import { EMPTY } from './consts.local.js'
+import type { FoldPlan, LockMode } from './types.local.js'
+import type { FoldContext, FoldEngine, FoldEngineDeps } from './types.js'
+import { pgNameHelper } from '@owlmeans/postgres-resource'
 
-const EMPTY: FoldResult = Object.freeze({ card: null, folded: 0, failed: 0, followUp: false })
+// Not `log`: the transition table is called that throughout this module.
+const foldLog = logger('planning-postgres:fold')
 
 const safely = async (label: string, run: () => Promise<unknown> | unknown): Promise<void> => {
   try {
     await run()
   } catch (error) {
-    console.error(`planning-postgres: ${label} failed:`, error)
+    foldLog.error('Planning store step failed', { step: label, error })
   }
 }
-
-/** One open fold transaction: its runner, a savepoint helper, and what must happen after it commits. */
-export interface FoldContext extends SqlContext {
-  /** Run as one unit: a failure rolls back to before it, and the transaction stays usable. */
-  savepoint: <R>(run: () => Promise<R>) => Promise<R>
-  /** Settled events, delivered in order once the transaction commits. */
-  events: CommitEvent[]
-  /** Organizations whose schema revision moved in this transaction. */
-  schemas: Set<string>
-}
-
-export interface FoldEngineDeps {
-  pool: () => Promise<Pool>
-  tables: () => Promise<PlanningTables>
-  limits: PlanningPostgresLimits
-  ids: () => string
-  now: () => string
-  bus: PlanningBus
-  hub: CommitHub
-  committed: () => CommitListener | undefined
-  /** Told of every organization whose schemas this process changed, after the commit. */
-  schemasTouched: (entityId: string) => void
-  closed: () => boolean
-}
-
-export interface FoldEngine {
-  /** Fold now, waiting for another folder's lock — what `project()` runs. */
-  fold: (cardId: string) => Promise<FoldResult>
-  /** Fold in the background unless another folder holds the card — deduplicated per card. */
-  heal: (cardId: string) => void
-  recover: (opts?: { olderThanMs?: number, limit?: number }) => Promise<number>
-  /** Purge a project (outside a fold) in one transaction under the project's lock. */
-  purge: (project: string, entityId: string) => Promise<number>
-}
-
-type LockMode = 'wait' | 'try'
 
 /** A transaction a statement failed in — rolled back, never committed. */
 class Poisoned extends Error { }
@@ -73,7 +32,7 @@ const poisoned = (lock: string, cause: unknown): Poisoned => {
   return failure
 }
 
-const lockTimedOut = (error: unknown): boolean => pgFault(error).code === LOCK_NOT_AVAILABLE
+const lockTimedOut = (error: unknown): boolean => sqlHelper.pgFault(error).code === LOCK_NOT_AVAILABLE
 
 const strip = (event: CommitEvent): Omit<CommitEvent, 'record'> => {
   const { record: _record, ...bare } = event
@@ -96,6 +55,7 @@ const strip = (event: CommitEvent): Omit<CommitEvent, 'record'> => {
  */
 export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
   const { limits } = deps
+  const { clientRunner, col, insertOf } = sqlHelper
   const chains = new Map<string, Promise<unknown>>()
   const healing = new Set<string>()
 
@@ -151,7 +111,7 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
     try {
       await client.query('BEGIN')
       await client.query(`SET LOCAL lock_timeout = '${Math.max(0, Math.floor(limits.lockTimeoutMs))}ms'`)
-      const [first, second] = advisoryKey(`planning:${tables.card.qualified}:${lock}`)
+      const [first, second] = pgNameHelper.advisoryKey(`planning:${tables.card.qualified}:${lock}`)
       if (mode === 'try') {
         const taken = await client.query<{ ok: boolean }>('SELECT pg_try_advisory_xact_lock($1, $2) AS ok', [first, second])
         if (taken.rows[0]?.ok !== true) {
@@ -181,34 +141,40 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
 
   const refuse = (what: string) => async (): Promise<never> => { throw new PlanningUnsupported(`fold-view:${what}`) }
 
-  const viewOf = (ctx: FoldContext): PlanningStore => ({
-    alias: PLANNING_POSTGRES_STORE,
-    transitions: {
-      append: refuse('append'),
-      get: async id => await readTransition(ctx, id),
-      byKey: async (entityId, key) => await readTransitionByKey(ctx, entityId, key),
-      list: async (where, opts) => await listTransitions(ctx, where, opts?.size ?? 0),
-      nextSeq: refuse('nextSeq'),
-      head: refuse('head'),
-      commit: async (id, commit) => { await commitTransition(ctx, id, commit) },
-      purge: refuse('purge'),
-    },
-    cards: {
-      get: async (id, entityId) => await readCard(ctx, id, entityId),
-      list: refuse('list'),
-      count: refuse('count'),
-      summary: refuse('summary'),
-      put: async card => { await writeCard(ctx, card) },
-      drop: async (id, entityId) => { await dropCard(ctx, id, entityId) },
-      project: refuse('project'),
-      purge: async (project, entityId) => await purgeInside(ctx, project, entityId),
-    },
-    links: {
-      list: async where => await listLinks(ctx, where),
-      put: async link => await putLink(ctx, link, deps.ids),
-      drop: async where => await dropLinks(ctx, where),
-    },
-  })
+  const viewOf = (ctx: FoldContext): PlanningStore => {
+    const transitions = transitionSqlOf(ctx)
+    const cards = cardSqlOf(ctx)
+    const links = linkSqlOf(ctx)
+
+    return {
+      alias: PLANNING_POSTGRES_STORE,
+      transitions: {
+        append: refuse('append'),
+        get: async id => await transitions.readTransition(id),
+        byKey: async (entityId, key) => await transitions.readTransitionByKey(entityId, key),
+        list: async (where, opts) => await transitions.listTransitions(where, opts?.size ?? 0),
+        nextSeq: refuse('nextSeq'),
+        head: refuse('head'),
+        commit: async (id, commit) => { await transitions.commitTransition(id, commit) },
+        purge: refuse('purge'),
+      },
+      cards: {
+        get: async (id, entityId) => await cards.readCard(id, entityId),
+        list: refuse('list'),
+        count: refuse('count'),
+        summary: refuse('summary'),
+        put: async card => { await cards.writeCard(card) },
+        drop: async (id, entityId) => { await cards.dropCard(id, entityId) },
+        project: refuse('project'),
+        purge: async (project, entityId) => await purgeInside(ctx, project, entityId),
+      },
+      links: {
+        list: async where => await links.listLinks(where),
+        put: async link => await links.putLink(link, deps.ids),
+        drop: async where => await links.dropLinks(where),
+      },
+    }
+  }
 
   // ─── Purge ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -219,6 +185,7 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
    * as its tombstone, so a waiter still reads the delete committed.
    */
   const purgeInside = async (ctx: FoldContext, project: string, entityId: string): Promise<number> => {
+    const schemaSql = schemaSqlOf(ctx)
     const { card: cards, transition: log, link: links } = ctx.tables
     const parents = cards.byProperty.parents
     const doomed = (await ctx.runner.query<{ id: string }>(
@@ -242,9 +209,9 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
       + ` AND NOT (${col(log, 'card')} = $3 AND ${col(log, 'action')} = $4) RETURNING ${col(log, 'id')}`,
       [entityId, doomed, project, TransitionAction.Delete]
     )).length
-    const layers = await purgeSchemaLayers(ctx, entityId, doomed)
+    const layers = await schemaSql.purgeSchemaLayers(entityId, doomed)
     if (layers > 0) {
-      await bumpRevision(ctx, entityId, deps.now(), deps.ids)
+      await schemaSql.bumpRevision(entityId, deps.now(), deps.ids)
       await deps.bus.notify(ctx.runner, { t: 's', e: entityId })
       ctx.schemas.add(entityId)
       count += layers
@@ -293,17 +260,6 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
     return true
   }
 
-  /** What one pass of the prelude found: the card's organization and how much `foldPending` may fold. */
-  interface Plan {
-    entityId: string
-    /** Consecutive pending rows at the cursor — exactly what `foldPending` folds this pass. */
-    run: number
-    /** The log goes on after the run in a way the next pass handles (a failed row, a gap). */
-    more: boolean
-    /** The read hit `foldBatch`: a next round has more to read. */
-    full: boolean
-  }
-
   /**
    * Walk the log past `card.seq`: a FAILED row at the cursor moves the cursor past it; PENDING rows
    * from the cursor on are the run `foldPending` folds; a GAP (a row past the expected seq, or an
@@ -316,18 +272,19 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
    * A card with no row folds its log as it is: a create from seq 1, and anything else fails out of
    * order. `null` when there is neither a row nor a log.
    */
-  const prelude = async (ctx: FoldContext, cardId: string): Promise<Plan | null> => {
-    const card = await readCardRow(ctx, cardId)
+  const prelude = async (ctx: FoldContext, cardId: string): Promise<FoldPlan | null> => {
+    const transitionSql = transitionSqlOf(ctx)
+    const card = await cardSqlOf(ctx).readCardRow(cardId)
     if (card == null) {
       const entityId = await logEntityOf(ctx, cardId)
       if (entityId == null) {
         return null
       }
-      const pending = await listTransitions(ctx, { entityId, card: cardId, state: CommitState.Pending }, limits.foldBatch)
+      const pending = await transitionSql.listTransitions({ entityId, card: cardId, state: CommitState.Pending }, limits.foldBatch)
       return { entityId, run: pending.items.length, more: false, full: pending.total > pending.items.length }
     }
     const entityId = card.entityId
-    const rows = (await listTransitions(ctx, { entityId, card: cardId, sinceSeq: card.seq }, limits.foldBatch)).items
+    const rows = (await transitionSql.listTransitions({ entityId, card: cardId, sinceSeq: card.seq }, limits.foldBatch)).items
 
     const now = Date.now()
     let expected = card.seq + 1
@@ -376,7 +333,7 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
     if (consumed && run === 0 && !full) {
       const head = card.head ?? card.seq
       if (head > advanced && card.headAt != null && now - Date.parse(card.headAt) >= limits.gapGraceMs
-        && await placeholders(ctx, card, advanced + 1, head, rows.at(-1)?.project ?? (isProject(card) ? card.id : undefined))) {
+        && await placeholders(ctx, card, advanced + 1, head, rows.at(-1)?.project ?? (cardHelper.isProject(card) ? card.id : undefined))) {
         advanced = head
       }
     }
@@ -413,10 +370,10 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
       }
       total.followUp = plan.full
       if (plan.run === 0) {
-        total.card = await readCard(ctx, cardId, plan.entityId)
+        total.card = await cardSqlOf(ctx).readCard(cardId, plan.entityId)
         break
       }
-      const result = await foldPending(viewOf(ctx), cardId, plan.entityId, {
+      const result = await foldHelper.foldPending(viewOf(ctx), cardId, plan.entityId, {
         now: deps.now,
         limit: plan.run,
         unit: ctx.savepoint,
@@ -434,11 +391,11 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
   }
 
   const failInside = async (ctx: FoldContext, cardId: string, reason: string): Promise<FoldResult> => {
-    const entityId = (await readCardRow(ctx, cardId))?.entityId ?? await logEntityOf(ctx, cardId)
+    const entityId = (await cardSqlOf(ctx).readCardRow(cardId))?.entityId ?? await logEntityOf(ctx, cardId)
     if (entityId == null) {
       return EMPTY
     }
-    const failed = await failPending(viewOf(ctx), cardId, entityId, reason, {
+    const failed = await foldHelper.failPending(viewOf(ctx), cardId, entityId, reason, {
       now: deps.now, publish: async event => { ctx.events.push(event) },
     })
     await notifyAll(ctx)
@@ -484,11 +441,11 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
           engine.heal(cardId)
           return EMPTY
         }
-        console.error(`planning-postgres: fold of ${cardId} failed twice, failing its pending transitions:`, second)
+        foldLog.error('Planning fold failed twice, failing its pending transitions', { cardId, error: second })
         try {
           outcome = await serial(cardId, () => transaction(cardId, 'wait', ctx => failInside(ctx, cardId, reasonOf(second))))
         } catch (third) {
-          console.error(`planning-postgres: cannot fail the pending transitions of ${cardId}:`, third)
+          foldLog.error('Planning cannot fail the pending transitions', { cardId, error: third })
           return EMPTY
         }
       }
@@ -520,7 +477,7 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
       }
       healing.add(cardId)
       void foldWith(cardId, 'try')
-        .catch(error => console.error(`planning-postgres: heal of ${cardId} failed:`, error))
+        .catch(error => foldLog.error('Planning heal failed', { cardId, error }))
         .finally(() => { healing.delete(cardId) })
     },
 

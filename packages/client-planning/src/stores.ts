@@ -1,11 +1,11 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { Relationship, Workcard } from '@owlmeans/planning'
 import type { Criteria } from '@owlmeans/resource'
-import { appendStateResource } from '@owlmeans/state'
-import type { StateResourceAppend } from '@owlmeans/state'
+import { appendStateResource, type StateResourceAppend } from '@owlmeans/state'
 import { DEFAULT_STORE_ALIASES } from './consts.js'
+import { planningContextOf } from './helper.js'
+import { syncHelper } from './sync.js'
 import type { PlanningStoreAliases, PlanningStores, SyncOptions, WithPlanningStores } from './types.js'
-import { idsOf, putCard, putLink } from './utils/record.js'
 
 /**
  * Register the planning state mirror: ONE card store for every kind, a link store and a commit
@@ -35,47 +35,16 @@ export const appendPlanningStores = <C extends BasicConfig, T extends BasicConte
   return result
 }
 
-/** The stores `appendPlanningStores` registered, or `null` on a context that has none. */
-export const planningStoresOf = (context: BasicContext<any>): PlanningStores | null => {
-  const ctx = context as Partial<WithPlanningStores>
 
-  return typeof ctx.planningStores === 'function' ? ctx.planningStores() : null
-}
+/** @deprecated compat:factory-refactor — use `planningContextOf(context).stores()` */
+export const planningStoresOf = (context: BasicContext<any>): PlanningStores | null => planningContextOf(context).stores()
 
-/**
- * Make the store agree with an authoritative list WITHIN a scope: every card given is written
- * (unless the store holds a newer fold of it), and every card matching `where` that the list does
- * not name is dropped. Cards outside `where` are left alone — which is why this, and never
- * `replace()`, is how a list reaches the one shared card store.
- *
- * Unchanged cards are not rewritten, so a periodic re-seed wakes no subscriber.
- */
+/** @deprecated compat:factory-refactor — use `syncHelper.syncCards(…)` */
 export const syncCards = async (
   store: PlanningStores['cards'], items: Workcard[], where?: Criteria<Workcard>, opts?: SyncOptions
-): Promise<void> => {
-  await dropUnnamed(store, idsOf(items), where, opts)
-  for (const item of items) {
-    await putCard(store, item)
-  }
-}
+): Promise<void> => await syncHelper.syncCards(store, items, where, opts)
 
-/** {@link syncCards} for the link store. */
+/** @deprecated compat:factory-refactor — use `syncHelper.syncLinks(…)` */
 export const syncLinks = async (
   store: PlanningStores['links'], items: Relationship[], where?: Criteria<Relationship>, opts?: SyncOptions
-): Promise<void> => {
-  await dropUnnamed(store, idsOf(items), where, opts)
-  for (const item of items) {
-    await putLink(store, item)
-  }
-}
-
-const dropUnnamed = async <T extends Workcard | Relationship>(
-  store: PlanningStores['cards'] | PlanningStores['links'], named: string[], where?: Criteria<T>, opts?: SyncOptions
-): Promise<void> => {
-  const keep = new Set([...named, ...(opts?.keep ?? [])])
-  const scoped = await (store as PlanningStores['cards']).list(where as Criteria<Workcard>)
-  const stale = idsOf(scoped.items).filter(id => !keep.has(id))
-  if (stale.length > 0) {
-    await store.purge({ id: { $in: stale } })
-  }
-}
+): Promise<void> => await syncHelper.syncLinks(store, items, where, opts)

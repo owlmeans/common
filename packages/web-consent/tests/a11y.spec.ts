@@ -1,14 +1,14 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { createRequire } from 'node:module'
 import type { Page } from 'playwright'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 import { CONSENT_KEY, CONSENT_SCHEMA_VERSION } from '@owlmeans/consent'
 import { HARNESS_URL } from './context.js'
 
 const TIMEOUT = 60_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 const base = HARNESS_URL.replace(/\/$/, '')

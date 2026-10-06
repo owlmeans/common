@@ -1,22 +1,17 @@
-import type {
-  Criteria, FirstOptions, ListOptions, ListResult, ResourceRecord, SubscribeOptions, Ttl,
-  Unsubscribe, WriteOptions
-} from '@owlmeans/resource'
-import {
-  applyQuery, filterRecords, firstMatch, matchCriteria, MisshapedRecord, RecordExists,
-  UnknownRecordError, UnsupportedArgumentError
-} from '@owlmeans/resource'
-import type { RedisClient, RedisDbService, RedisResource } from './types.js'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import { type Criteria, type FirstOptions, type ListOptions, type ListResult, type ResourceRecord, type SubscribeOptions, type Ttl, type Unsubscribe, type WriteOptions, MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, recordQueryHelper } from '@owlmeans/resource'
+import { logThrottle, logger } from '@owlmeans/log'
+import type { Redis } from 'ioredis'
+import type { RedisDbService, RedisResource } from './types.js'
 import {
   CONSUMER_ID_LENGTH, DEFAULT_DB_ALIAS, DEFAULT_STREAM_BLOCK, READ_BATCH, RECLAIM_COUNT,
   RECLAIM_IDLE, SCAN_BATCH, STREAM_MAX_LENGTH
 } from './consts.js'
 import { appendContextual, assertContext } from '@owlmeans/context'
-import { createIdOfLength, uuid } from '@owlmeans/basic-ids'
+import { createIdOfLength, idHelper } from '@owlmeans/basic-ids'
+import type { Config, Context } from './types.local.js'
 
-type Config = ServerConfig
-type Context<C extends Config = Config> = ServerContext<C>
+const log = logger('redis-resource')
+
 
 /**
  * A `Resource` over plain redis strings: one JSON document per namespaced key.
@@ -138,7 +133,7 @@ export const makeRedisResource = <
       return value == null ? null : JSON.parse(value)
     }
 
-    return firstMatch(await readRecords(), idOrWhere as Criteria<any>, opts)
+    return recordQueryHelper.firstMatch(await readRecords(), idOrWhere as Criteria<any>, opts)
   }
 
   /**
@@ -149,7 +144,7 @@ export const makeRedisResource = <
     pattern: string, onMessage: (channel: string, message: string) => void,
     opts?: { once?: boolean, ttl?: Ttl }
   ): Promise<Unsubscribe> => {
-    const subscriber = (resource.db.client as RedisClient).duplicate()
+    const subscriber = (resource.db.client as unknown as { duplicate: () => Redis }).duplicate()
     let closed = false
     const unsubscribe: Unsubscribe = async () => {
       if (closed) {
@@ -160,7 +155,7 @@ export const makeRedisResource = <
         await subscriber.punsubscribe(pattern)
         await subscriber.quit()
       } catch (e) {
-        console.error(`${location}: failed to unsubscribe ${pattern}`, e)
+        log.error('Redis failed to unsubscribe', { resource: alias, pattern, error: e })
       }
     }
 
@@ -212,11 +207,11 @@ export const makeRedisResource = <
         throw new UnsupportedArgumentError('page-without-size')
       }
 
-      return applyQuery(await readRecords(), where, opts)
+      return recordQueryHelper.applyQuery(await readRecords(), where, opts)
     },
 
     count: async (where?: Criteria<any>): Promise<number> =>
-      filterRecords(await readRecords(), where).length,
+      recordQueryHelper.filterRecords(await readRecords(), where).length,
 
     /**
      * SET NX rather than a read followed by a write: two callers racing for the same id both saw
@@ -227,7 +222,7 @@ export const makeRedisResource = <
      * @throws {RecordExists}
      */
     create: async (record: Partial<R>, opts?: WriteOptions): Promise<R> => {
-      const id = record.id ?? uuid()
+      const id = record.id ?? idHelper.uuid()
       const key = resource.key(id)
       const stored = withId(record, id)
       if (await resource.db.client.set(key, JSON.stringify(stored), 'NX') == null) {
@@ -296,7 +291,7 @@ export const makeRedisResource = <
         throw new UnsupportedArgumentError('purge:empty-criteria')
       }
       const keys = (await readNamespace())
-        .filter(([, record]) => matchCriteria(record, where))
+        .filter(([, record]) => recordQueryHelper.matchCriteria(record, where))
         .map(([key]) => key)
 
       let deleted = 0
@@ -366,7 +361,10 @@ export const makeRedisResource = <
             try {
               yield JSON.parse(fields[1])
             } catch (e) {
-              console.error('Cannot parse redis stream entry', e)
+              // Fires per bad entry: one line per window per resource is enough.
+              if (logThrottle(`${location}:stream-parse`)) {
+                log.warn('Cannot parse redis stream entry', { resource: alias, stream: streamKey, error: e })
+              }
             }
           }
         } while (true)
@@ -385,7 +383,9 @@ export const makeRedisResource = <
               try {
                 yield JSON.parse(fields[1])
               } catch (e) {
-                console.error('Cannot parse reclaimed redis stream entry', e)
+                if (logThrottle(`${location}:stream-reclaim-parse`)) {
+                  log.warn('Cannot parse reclaimed redis stream entry', { resource: alias, stream: streamKey, error: e })
+                }
               }
               await resource.db.client.xack(streamKey, group, id)
             }
@@ -394,7 +394,12 @@ export const makeRedisResource = <
         try {
           await resource.db.client.xgroup('CREATE', streamKey, group, '$', 'MKSTREAM')
         } catch (e) {
-          console.error('Error in redis stream consumer group', e)
+          // BUSYGROUP is the ordinary answer for a group that already exists.
+          if (e instanceof Error && e.message.includes('BUSYGROUP')) {
+            log.debug('Redis stream consumer group exists', { resource: alias, stream: streamKey, group })
+          } else {
+            log.error('Error in redis stream consumer group', { resource: alias, stream: streamKey, group, error: e })
+          }
         }
         do {
           const resp = await resource.db.client.xreadgroup(
@@ -412,7 +417,10 @@ export const makeRedisResource = <
               yield JSON.parse(fields[1])
               await resource.db.client.xack(streamKey, group, entryId)
             } catch (e) {
-              console.error('Cannot parse redis stream entry', e)
+              // Fires per bad entry: one line per window per resource is enough.
+              if (logThrottle(`${location}:stream-parse`)) {
+                log.warn('Cannot parse redis stream entry', { resource: alias, stream: streamKey, error: e })
+              }
             }
           }
         } while (true)

@@ -1,16 +1,6 @@
 import type { FC } from 'react'
-import { cn } from '../lib/utils.js'
-
-export interface ConsentToggleProps {
-  id: string
-  label: string
-  description: string
-  checked: boolean
-  /** A required category is disclosure, not a question: locked on, and labelled as such. */
-  required?: boolean
-  requiredLabel: string
-  onChange: (value: boolean) => void
-}
+import { webConsentUtils } from '../lib/utils.js'
+import type { ConsentToggleProps } from './types.js'
 
 /**
  * One category row: a hairline card with the label, the description and a switch.
@@ -48,7 +38,7 @@ export const ConsentToggle: FC<ConsentToggleProps> = (
           id={`${id}-desc`} className="text-pretty text-xs leading-relaxed text-muted-foreground"
         >{description}</p>}
       </div>
-      <label className={cn(
+      <label className={webConsentUtils.cn(
         'relative inline-flex h-11 w-14 flex-shrink-0 items-center justify-center',
         required === true ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
       )}>
@@ -62,11 +52,11 @@ export const ConsentToggle: FC<ConsentToggleProps> = (
           disabled={required === true}
           onChange={event => onChange(event.target.checked)}
         />
-        <span className={cn(
+        <span className={webConsentUtils.cn(
           'relative h-6 w-11 rounded-full transition-colors duration-300 peer-focus-visible:outline-3 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-ring',
           checked || required === true ? 'bg-primary' : 'bg-muted-foreground/40'
         )}>
-          <span className={cn(
+          <span className={webConsentUtils.cn(
             'absolute top-0.5 left-0 h-5 w-5 rounded-full bg-white transition-transform duration-300',
             checked || required === true ? 'translate-x-5' : 'translate-x-0.5'
           )} />

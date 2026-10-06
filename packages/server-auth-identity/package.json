@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-auth-identity",
-  "version": "0.1.18-rc.44",
+  "version": "0.1.18-rc.47",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,22 +22,23 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.38",
-    "@owlmeans/auth-common": "^0.1.18-rc.44",
-    "@owlmeans/basic-ids": "^0.1.18-rc.34",
-    "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/mongo-resource": "^0.1.18-rc.40",
-    "@owlmeans/oidc": "^0.1.18-rc.52",
-    "@owlmeans/resource": "^0.1.18-rc.37",
-    "@owlmeans/server-context": "^0.1.18-rc.40",
-    "@scure/base": "^2.3.0"
+    "@owlmeans/auth": "^0.1.18-rc.40",
+    "@owlmeans/auth-common": "^0.1.18-rc.47",
+    "@owlmeans/basic-ids": "^0.1.18-rc.37",
+    "@owlmeans/context": "^0.1.18-rc.34",
+    "@owlmeans/log": "^0.1.18-rc.2",
+    "@owlmeans/mongo-resource": "^0.1.18-rc.43",
+    "@owlmeans/oidc": "^0.1.18-rc.55",
+    "@owlmeans/resource": "^0.1.18-rc.40",
+    "@owlmeans/server-context": "^0.1.18-rc.43",
+    "@scure/base": "^2.4.0"
   },
   "peerDependencies": {
     "mongodb": "*"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/bun": "^1.4.0",
+    "@types/bun": "^1.4.2",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

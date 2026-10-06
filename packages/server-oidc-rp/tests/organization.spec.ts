@@ -7,7 +7,7 @@ import { TRUSTED } from '@owlmeans/config'
 import { makeFixtureKeyPair, makeMemoryTrustedResource } from '@owlmeans/test-auth'
 import { AuthForbidden, AuthorizationError, AuthenFailed } from '@owlmeans/auth'
 import type { Auth, AuthToken } from '@owlmeans/auth'
-import { attachEntity, authProtocols } from '@owlmeans/auth-common'
+import { authProtocols, makeEntityScope } from '@owlmeans/auth-common'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { provideResponse } from '@owlmeans/entrypoint'
 import type { AbstractRequest, GuardService } from '@owlmeans/entrypoint'
@@ -21,7 +21,7 @@ import type {
 import { DEFAULT_ALIAS } from '../src/consts.js'
 import { authenticate, init, listOrganizations, switchOrganization } from '../src/actions/index.js'
 import { makeOidcWrappingService } from '../src/wrapper.js'
-import { cache, managedId, verifierId } from '../src/utils/cache.js'
+import { oidcCacheOf } from '../src/utils/cache.js'
 import type { OIDCAuthCache } from '../src/utils/types.js'
 import type {
   Config, Context, OidcClientAdapter, OidcClientService, OidcTokenSet, OidcTokenSetParameters,
@@ -139,8 +139,8 @@ const authOf = (token: string): Auth => makeEnvelopeModel<Auth>(token.split(' ')
 /** Signs in through the exchange, as the dispatcher does after the provider redirected back. */
 const signIn = async (env: Env, entitySlug?: string): Promise<string> => {
   const challenge = `challenge-${Math.random().toString(36).slice(2)}`
-  await cache(env.context).create({
-    id: verifierId(challenge), verifier: 'verifier', client: CLIENT, ...(entitySlug != null ? { entitySlug } : {}),
+  await oidcCacheOf(env.context).resource().create({
+    id: oidcCacheOf(env.context).verifierId(challenge), verifier: 'verifier', client: CLIENT, ...(entitySlug != null ? { entitySlug } : {}),
   })
   const authUrl = `${ISSUER}/auth?${new URLSearchParams({ code_challenge: challenge, redirect_uri: REDIRECT })}`
   const { token } = await run<AuthToken>(authenticate, env, requestOf({ body: { authUrl, code: 'authorization-code-0001' } }))
@@ -149,7 +149,7 @@ const signIn = async (env: Env, entitySlug?: string): Promise<string> => {
 }
 
 const recordOf = async (env: Env, token: string): Promise<OIDCAuthCache | null> =>
-  cache(env.context).load(managedId(authOf(token).token))
+  oidcCacheOf(env.context).resource().load(oidcCacheOf(env.context).managedId(authOf(token).token))
 
 /** What the HTTP boundary does for a guarded request: the guard, then `attachEntity`. */
 const guarded = async (env: Env, token: string) => {
@@ -158,7 +158,7 @@ const guarded = async (env: Env, token: string) => {
   const guard = env.context.service<GuardService>(OIDC_GUARD)
   expect(await guard.handle<boolean>(req, res)).toBe(true)
   req.auth = res.value
-  const attached = await attachEntity(env.context, req)
+  const attached = await makeEntityScope(req).attachEntity(env.context)
 
   return { req, attached, auth: res.value! }
 }
@@ -225,7 +225,7 @@ describe('sign-in of a tenanted client', () => {
   test('answers the token alone — the entity behind it never leaves the server', async () => {
     const env = await start({ claims: ORG_CLAIMS })
     const challenge = 'challenge-response-shape'
-    await cache(env.context).create({ id: verifierId(challenge), verifier: 'verifier', client: CLIENT })
+    await oidcCacheOf(env.context).resource().create({ id: oidcCacheOf(env.context).verifierId(challenge), verifier: 'verifier', client: CLIENT })
     const authUrl = `${ISSUER}/auth?${new URLSearchParams({ code_challenge: challenge, redirect_uri: REDIRECT })}`
     const response = await run<Record<string, unknown>>(authenticate, env, requestOf({ body: { authUrl, code: 'authorization-code-0002' } }))
 
@@ -253,7 +253,7 @@ describe('init', () => {
     const url = await run<string>(init, env, requestOf({ body: { entity: CLIENT, entitySlug: 'beta' } }))
     const challenge = new URL(url).searchParams.get('code_challenge')!
 
-    const verification = await cache(env.context).load(verifierId(challenge))
+    const verification = await oidcCacheOf(env.context).resource().load(oidcCacheOf(env.context).verifierId(challenge))
     expect(verification?.entitySlug).toBe('beta')
     expect(verification?.client).toBe(CLIENT)
   })
@@ -300,7 +300,7 @@ describe('every validation re-reads the organizations', () => {
     const record = (await recordOf(env, token))!
     record.validated = new Date(0)
     record.payload = { ...record.payload, expires_at: 1 } as OidcTokenSetParameters
-    await cache(env.context).save(record)
+    await oidcCacheOf(env.context).resource().save(record)
     env.idp.claims = {
       [ORGANIZATIONS_CLAIM]: [ACME, BETA],
       [PERMISSIONS_CLAIM]: [UNBOUND, { ...IN_ACME, permissions: { 'order--archive': true } }],

@@ -1,15 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve as resolvePath } from 'node:path'
-import { resolveFileProvider } from '@owlmeans/llm-common'
-import type { LlmFileProvider, SkillDefinition } from '@owlmeans/llm-common'
-import { parseManifest, skillEntries, stripMeta, toSkill, unscoped } from './manifest.js'
+import { resolveFileProvider, type LlmFileProvider, type SkillDefinition } from '@owlmeans/llm-common'
+import { manifestHelper } from './manifest.js'
 import type { PackageSkills, PackageSkillsOptions } from './types.js'
+import { AGENT_META, DEFAULT_REF, DEFAULT_REPO, DEFAULT_TIMEOUT, MANIFEST, PACKAGE_DIR } from './consts.local.js'
 
-const AGENT_META = 'agent-meta'
-const MANIFEST = 'manifest.json'
-const DEFAULT_REPO = 'owlmeans/common'
-const DEFAULT_REF = 'main'
-const DEFAULT_TIMEOUT = 5000
 
 /** Path of an embedded file relative to a project root, in the host's own terms. */
 const projectPath = (packageName: string, ...parts: string[]): string =>
@@ -34,16 +29,16 @@ const fromFiles = async (
     }
   }
 
-  const manifest = parseManifest(await read(projectPath(packageName, MANIFEST)))
+  const manifest = manifestHelper.parseManifest(await read(projectPath(packageName, MANIFEST)))
   if (manifest == null) {
     return null
   }
 
   const skills: SkillDefinition[] = []
-  for (const entry of skillEntries(manifest, categories)) {
-    const body = stripMeta(await read(projectPath(packageName, entry.file)))
+  for (const entry of manifestHelper.skillEntries(manifest, categories)) {
+    const body = manifestHelper.stripMeta(await read(projectPath(packageName, entry.file)))
     if (body !== '') {
-      skills.push(toSkill(packageName, entry, body))
+      skills.push(manifestHelper.toSkill(packageName, entry, body))
     }
   }
 
@@ -88,16 +83,16 @@ const fromDir = (
     }
   }
 
-  const manifest = parseManifest(read(join(dir, MANIFEST)))
+  const manifest = manifestHelper.parseManifest(read(join(dir, MANIFEST)))
   if (manifest == null) {
     return null
   }
 
   const skills: SkillDefinition[] = []
-  for (const entry of skillEntries(manifest, categories)) {
-    const body = stripMeta(read(join(dir, ...entry.file.split('/'))))
+  for (const entry of manifestHelper.skillEntries(manifest, categories)) {
+    const body = manifestHelper.stripMeta(read(join(dir, ...entry.file.split('/'))))
     if (body !== '') {
-      skills.push(toSkill(packageName, entry, body))
+      skills.push(manifestHelper.toSkill(packageName, entry, body))
     }
   }
 
@@ -116,9 +111,6 @@ const fromLocal = (
   return dir == null ? null : fromDir(packageName, dir, categories, 'local')
 }
 
-/** What a package directory may be named — never a path that climbs out of `packages/`. */
-const PACKAGE_DIR = /^[a-z0-9][a-z0-9._-]*$/
-
 /**
  * Source 3, from disk — a CHECKOUT of the canonical repository, read in place of GitHub.
  *
@@ -132,7 +124,7 @@ const fromCheckout = (
   root: string,
   categories: readonly string[],
 ): PackageSkills | null => {
-  const name = unscoped(packageName)
+  const name = manifestHelper.unscoped(packageName)
   if (!PACKAGE_DIR.test(name) || name.includes('..')) {
     return null
   }
@@ -159,7 +151,7 @@ const fromRemote = async (
   const ref = options.ref ?? DEFAULT_REF
   const timeout = options.timeout ?? DEFAULT_TIMEOUT
   const url = (file: string): string =>
-    `https://raw.githubusercontent.com/${repo}/${ref}/packages/${unscoped(packageName)}/${AGENT_META}/${file}`
+    `https://raw.githubusercontent.com/${repo}/${ref}/packages/${manifestHelper.unscoped(packageName)}/${AGENT_META}/${file}`
 
   // Every failure here is a miss, never a throw: a prompt plugin that breaks the call
   // because GitHub was slow is worse than a prompt without one package's knowledge.
@@ -172,17 +164,17 @@ const fromRemote = async (
     }
   }
 
-  const manifest = parseManifest(await get(MANIFEST))
+  const manifest = manifestHelper.parseManifest(await get(MANIFEST))
   if (manifest == null) {
     return null
   }
 
-  const entries = skillEntries(manifest, categories)
-  const bodies = await Promise.all(entries.map(async entry => stripMeta(await get(entry.file))))
+  const entries = manifestHelper.skillEntries(manifest, categories)
+  const bodies = await Promise.all(entries.map(async entry => manifestHelper.stripMeta(await get(entry.file))))
   const skills = entries
     .map((entry, i) => ({ entry, body: bodies[i]! }))
     .filter(({ body }) => body !== '')
-    .map(({ entry, body }) => toSkill(packageName, entry, body))
+    .map(({ entry, body }) => manifestHelper.toSkill(packageName, entry, body))
 
   return skills.length > 0
     ? { packageName, version: manifest.version, source: 'remote', skills }

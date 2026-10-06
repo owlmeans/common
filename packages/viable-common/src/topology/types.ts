@@ -84,3 +84,9 @@ export interface ResolvedTopology extends TopologyDescriptor {
   /** Role → the packages holding it, in topology order. */
   byRole: Partial<Record<SubProject, TargetPackageDescriptor[]>>
 }
+
+/** What `.agents/memory/topology.md` carries in its frontmatter. */
+export interface TopologyMeta extends TopologyDescriptor {
+  version: number
+  updatedAt: string
+}

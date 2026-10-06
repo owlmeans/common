@@ -135,36 +135,3 @@ export const QUERY_TEXT_MAX = 256
 /** The longest list a wire query carries in one value (ids, parents). */
 export const MAX_QUERY_LIST = 500
 
-/**
- * The aliases one planning tree answers under, derived from the mount's base alias.
- *
- * Two mounts of the tree in one deployment are two base aliases, never two copies of this table —
- * which is why nothing here is a global constant.
- */
-export const planningAliases = (base: string) => Object.freeze({
-  base,
-  schema: Object.freeze({ list: `${base}:schema:list` }),
-  card: Object.freeze({
-    list: `${base}:card:list`,
-    summary: `${base}:card:summary`,
-    get: `${base}:card:get`,
-    transitions: `${base}:card:transitions`,
-    specifications: `${base}:card:specifications`,
-  }),
-  spec: Object.freeze({
-    get: `${base}:specification:get`,
-    revisions: `${base}:specification:revisions`,
-  }),
-  link: Object.freeze({ list: `${base}:link:list` }),
-  transition: Object.freeze({ get: `${base}:transition:get` }),
-  execute: `${base}:execute`,
-  commit: Object.freeze({ get: `${base}:commit:get`, events: `${base}:commit:events` }),
-})
-
-/**
- * The aliases of the leaves a tree gains with `definitions: true` — kept apart from
- * {@link planningAliases} so a tree declared without them names no alias it does not declare.
- */
-export const planningDefinitionAliases = (base: string) => Object.freeze({
-  define: `${base}:schema:define`,
-})

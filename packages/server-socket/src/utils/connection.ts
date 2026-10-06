@@ -5,11 +5,13 @@ import {
   SocketUnsupported, createBasicConnection, MessageType, SocketInitializationError, SocketUnauthorized
 } from '@owlmeans/socket'
 import { AbstractRequest } from '@owlmeans/entrypoint'
-import { AuthenticationStage, AUTH_QUERY } from '@owlmeans/auth'
+import { AuthenticationStage, AUTH_QUERY, authHelper } from '@owlmeans/auth'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
-import { isAuth, isAuthCredentials, isAuthToken } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { AuthServiceAppend } from '@owlmeans/server-auth'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-socket')
 
 export const makeConnection = <C extends Config, T extends Context<C> = Context<C>>(
   request: AbstractRequest<WebSocket>, context: T
@@ -43,7 +45,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
   // @TODO This method is fully supported only by authentication services
   model.authenticate = async (stage, payload) => {
     if (AuthenticationStage.Authenticate === stage) {
-      if (isAuthToken(payload)) {
+      if (authHelper.isAuthToken(payload)) {
         const ctx = context as AuthServiceAppend & T
         const _auth = await ctx.auth().authenticate(payload)
         if (_auth == null) {
@@ -54,7 +56,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
 
         return [AuthenticationStage.Authenticated, _auth as any]
       }
-      if (isAuth(payload)) {
+      if (authHelper.isAuth(payload)) {
         auth = payload
 
         return [stage, auth as any]
@@ -77,7 +79,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
         if (authorization != null) {
           const envelope = makeEnvelopeModel<Auth | AuthCredentials>(authorization, EnvelopeKind.Token)
           const _auth = envelope.message()
-          if (isAuth(_auth) || isAuthCredentials(_auth)) {
+          if (authHelper.isAuth(_auth) || authHelper.isAuthCredentials(_auth)) {
             auth = _auth
           }
         }
@@ -127,7 +129,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
   // and terminate only this socket when parsing, staging, or dispatch rejects.
   const messageHandler = (_message: Buffer | Buffer[]) => {
     void receiveMessage(_message).catch(error => {
-      console.error('WebSocket message rejected:', error)
+      log.debug('WebSocket message rejected', { error })
       conn.close(1008)
     })
   }
@@ -160,7 +162,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
       try {
         await listener(msg)
       } catch (error) {
-        console.error('Socket close listener error:', error)
+        log.error('Socket close listener failed', { error })
       }
     }))
     conn.off('message', messageHandler)
@@ -169,7 +171,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
 
   const closeHandler = (code: number) => {
     void handleClose(code).catch(error => {
-      console.error('WebSocket close handling failed:', error)
+      log.error('WebSocket close handling failed', { error })
     })
   }
 

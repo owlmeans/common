@@ -2,9 +2,7 @@ import {
   CUMULATIVE_RESULTS_OMITTED_LEAD, CUMULATIVE_RESULTS_OMITTED_TAIL, CUMULATIVE_RESULTS_PREAMBLE,
 } from './consts.js'
 import type { CumulativeResults } from './types.js'
-
-/** Separator between sections — the same two newlines every other prompt join uses. */
-const SEPARATOR = '\n\n'
+import { SEPARATOR } from './consts.local.js'
 
 /**
  * A {@link CumulativeResults} view as prompt text, or `''` when there is nothing to say.

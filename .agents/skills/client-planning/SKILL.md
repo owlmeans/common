@@ -1,13 +1,13 @@
 ---
 name: client-planning
-description: How to use @owlmeans/client-planning — appendPlanningClient for the remote planning facade, appendPlanningStores and applyCommitEvent for the state mirror, makePlanningFeed, commits.wait (subscribe then long-poll), and the models that are the same objects the server uses. Auto-invoked when reading planning data in a browser or a Node client, mounting the commit feed, or wiring optimistic transitions.
+description: How to use @owlmeans/client-planning — appendPlanningClient for the remote planning facade, appendPlanningStores and planningMirrorOf for the state mirror, makePlanningFeed, commits.wait (subscribe then long-poll), and the models that are the same objects the server uses. Auto-invoked when reading planning data in a browser or a Node client, mounting the commit feed, or wiring optimistic transitions.
 user-invocable: false
 ---
 
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.18"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.22"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps
@@ -24,13 +24,13 @@ CLI). React hooks over the mirror are `useStoreModel` / `useStoreList` from `@ow
 | `makeRemoteFacade(context, protocols, scope, opts)` | One facade — every method is one entrypoint call |
 | `makeRemoteCommitSource(context, protocols, opts?)` | `status` / `subscribe` / `wait` over `commit.get` and `commit.events` |
 | `makeRemoteDefinitions(context, protocols, opts?)` | Data-defined types and flows over a tree declared with `definitions: true` |
-| `appendPlanningStores(context, aliases?)` / `planningStoresOf(context)` | The state mirror, and a lookup that answers `null` without one |
-| `syncCards(store, items, where?, opts?)` / `syncLinks(...)` | Make the mirror agree with a list WITHIN a scope |
-| `applyCommitEvent(stores, event, facade?)` / `applyReceipt(stores, view)` / `applyCards(stores, cards)` | The folds |
+| `appendPlanningStores(context, aliases?)` / `planningContextOf(context).stores()` | The state mirror, and a lookup that answers `null` without one |
+| `syncHelper.syncCards(store, items, where?, opts?)` / `syncHelper.syncLinks(...)` | Make the mirror agree with a list WITHIN a scope |
+| `planningMirrorOf(stores).applyCommitEvent(event, facade?)` / `.applyReceipt(view)` / `.applyCards(cards)` | The folds |
 | `makePlanningFeed(context, opts?)` | Subscribe, seed, fold, refresh — `{ connected, seeded, error, ready, refresh, stop }` |
-| `planningOf(context, scope?)` / `planningModelOf(context, card, scope?)` | The facade / a model with the schemas loaded |
+| `planningContextOf(context).facade(scope?)` / `.model(card, scope?)` | The facade / a model with the schemas loaded |
 | `CARDS`, `LINKS`, `COMMITS` | Store aliases (`planning-card-state`, `planning-link-state`, `planning-commit-state`) |
-| Types | `PlanningClientOptions`, `PlanningClientService`, `WithPlanningClient`, `PlanningSocketOpener`, `RemoteCommitSource`, `RemoteDefinitions`, `RemoteDefinitionsOptions`, `PlanningStores`, `PlanningStoreAliases`, `WithPlanningStores`, `PlanningCommitRecord`, `PlanningFeed`, `PlanningFeedOptions`, `PlanningFeedState`, `SyncOptions` |
+| Types | `PlanningClientOptions`, `PlanningClientService`, `WithPlanningClient`, `PlanningSocketOpener`, `RemoteCommitSource`, `RemoteDefinitions`, `RemoteDefinitionsOptions`, `PlanningStores`, `PlanningStoreAliases`, `WithPlanningStores`, `PlanningCommitRecord`, `PlanningFeed`, `PlanningFeedOptions`, `PlanningFeedState`, `SyncOptions`, `PlanningContextHelper`, `PlanningMirror`, `SyncHelper` |
 
 ## Wiring
 
@@ -86,6 +86,21 @@ whole cache — an organization-wide write reaches every project's layer — and
 `model(card)` of a card resolves its type in its project's layer (a project's own id, a card's
 `parent`); a specification's type is always code's. A tree without `definitions` has none of this.
 
+## Mounting in a target
+
+The web half of the target mount (`planning` → Mounting in a target).
+
+- `appendPlanningClient(context, { protocols, bind: false, schemas: false })` — the target binds
+  its whole api tree itself, and a signed-out visitor may read nothing, so the bundle loads on
+  first use — plus `appendPlanningStores(context)`. No `socket`: the target serves no commit socket,
+  so `commits.wait` long-polls.
+- Screens read the mirror with `useStoreList` / `useStoreModel` (`@owlmeans/client`), never a
+  fetched array kept in component state; lists reach the store through `syncHelper.syncCards` or
+  `makePlanningFeed` (with `refresh`), NEVER `replace()` — the one card store holds every kind.
+- Every write is `facade.execute(...)` with a `key` (a retried click or a double submit answers
+  the first receipt) and `{ wait: true }` where the screen shows the result.
+- Never call a route with an empty id; a picker offers no archived parent (`intrinsic: closed`).
+
 ## Reading
 
 ```typescript
@@ -99,7 +114,7 @@ drill.available().map(rule => rule.name)
 ```
 
 - The facade takes the rich `WorkcardQuery`; it encodes the scalar wire shape itself
-  (`encodeWorkcardQuery` and its twins). Never pass a wire shape to the facade.
+  (`wireHelper.encodeWorkcardQuery` and its twins). Never pass a wire shape to the facade.
 - `cards.load(id)` answers `null` for a missing card — and for another entity's card, which the
   server deliberately reports the same way.
 - `cards.count(query)` is a one-row list read for its `total`; the tree declares no count route.
@@ -113,13 +128,14 @@ drill.available().map(rule => rule.name)
 share an id space on the server, so they share one store here: a store per kind lets a card list
 that reloads drop the projects beside it.
 
-That is also why a list reaches the store through **`syncCards(store, items, where)`, never
-`replace()`**: every card given is written, every card matching `where` that the list does not name
-is dropped, and everything outside `where` is left alone. An unchanged card is not rewritten, so a
+That is also why a list reaches the store through **`syncHelper.syncCards(store, items, where)`,
+never `replace()`**: every card given is written, every card matching `where` that the list does not
+name is dropped, and everything outside `where` is left alone. An unchanged card is not rewritten, so a
 periodic re-seed wakes no subscriber. `opts.keep` protects ids a commit wrote while the list was in
 flight.
 
-The fold rules, shared by `syncCards`, `applyCards`, `applyCommitEvent` and `commits.wait`:
+The fold rules, shared by `syncHelper.syncCards`, the mirror's `applyCards` and `applyCommitEvent`, and
+`commits.wait`:
 
 - an OLDER `seq` never overwrites a newer record — frames and list answers race;
 - a committed `delete` removes the row and every link touching it; a project's delete also drops
@@ -146,11 +162,11 @@ await feed.stop()         // stops folding; the shared socket stays open
 ```
 
 1. Subscribes to commits FIRST (the socket, when an opener exists).
-2. Seeds: `cards.list` (unpaged unless the query pages) → `syncCards` over `where`
-   (`criteriaOf(query)` by default). A PAGED seed only writes — a page cannot say what does not
-   exist.
-3. Folds every frame with `applyCommitEvent`, and re-seeds every `refresh` ms — the authoritative
-   backstop to a socket that can drop frames.
+2. Seeds: `cards.list` (unpaged unless the query pages) → `syncHelper.syncCards` over `where`
+   (`queryHelper.criteriaOf(query)` by default). A PAGED seed only writes — a page cannot say what
+   does not exist.
+3. Folds every frame with `planningMirrorOf(stores).applyCommitEvent`, and re-seeds every `refresh`
+   ms — the authoritative backstop to a socket that can drop frames.
 
 `connected` reports whether a socket was open when the feed subscribed; `seeded` tells "nothing
 there" from "not loaded yet". A React hook wraps the feed in an effect and stops it on unmount.
@@ -192,10 +208,10 @@ A Node client passes no opener and relies on the long poll.
 
 ## Optimistic writes and `head > seq`
 
-`seq` is the last transition folded into a card, `head` the highest allocated. `applyReceipt`
-(run by `execute` whenever stores are registered) raises the stored card's `head` to the new
-transition's `seq`, so `model.pending()` is true before any frame arrives; the commit's fold brings
-`seq` up to it. The mirror only ever grows `head`, so a list fetched before the append does not
+`seq` is the last transition folded into a card, `head` the highest allocated. The mirror's
+`applyReceipt` (run by `execute` whenever stores are registered) raises the stored card's `head` to
+the new transition's `seq`, so `model.pending()` is true before any frame arrives; the commit's fold
+brings `seq` up to it. The mirror only ever grows `head`, so a list fetched before the append does not
 clear the marker. A model's `expectSeq` default and its `WorkcardConflict` are `planning` → Models.
 
 ## Gotchas
@@ -216,4 +232,4 @@ clear the marker. A model's `expectSeq` default and its `WorkcardConflict` are `
 - `planning` — records, flows, the fold, the models
 - `server-planning` — the handlers this addresses, the executor, the commit hub
 - `client-job` — the same seed-then-fold shape for safe application-job views
-- `state` — `syncCards` is built on its criteria engine and `purge`
+- `state` — `syncHelper.syncCards` is built on its criteria engine and `purge`

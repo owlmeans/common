@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.18-rc.42"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.18-rc.45"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only owns the
 provider-independent parts (streaming discipline, retries, validation, observability). Serializable
@@ -27,15 +27,15 @@ symbol "because a test needs it".
 | `makePromptService(options?, alias?)` · `appendPromptService(ctx, options?, alias?)` · `promptServiceApi(options, self)` | Skill registry + the composition plugin chain. Also at `@owlmeans/llm/prompt`. |
 | `rolePlugin`, `skillsPlugin`, `resultsPlugin`, `contextPlugin`, `BUILT_IN_PROMPT_PLUGINS` | The built-in composition plugins. |
 | `PromptContext.claim(key)` · `PromptComposeParams.utility` | Per-composition ownership of a key; a cheap model for one plugin-side call. |
-| `renderSkill`, `sortSkills`, `joinChunks`, `compareAlias`, `prefixHash` · `readCacheUsage`, `hasCacheActivity` | Deterministic rendering primitives — reuse them, never re-implement — and normalized prompt-cache accounting from a completion. |
-| `plugins`, `registerLlmPlugin`, `resolvePlugin`, `pluginOf`, `pluginFor` | The provider-plugin registry. Also at `@owlmeans/llm/plugins`. |
+| `promptRenderHelper.{renderSkill, sortSkills, joinChunks, compareAlias, prefixHash}` · `cacheHelper.{readCacheUsage, hasCacheActivity}` | Deterministic rendering primitives — reuse them, never re-implement — and normalized prompt-cache accounting from a completion. |
+| `llmPluginRegistry.{plugins, register, resolvePlugin, pluginOf, pluginFor}` | The provider-plugin registry. Also at `@owlmeans/llm/plugins`. |
 | `anthropicPlugin`, `openAiPlugin`, `compatiblePlugin`, `openAiFamily` | Built-in providers; `openAiFamily` is the shared OpenAI-client behaviour to spread into a new plugin. |
-| `NO_SAMPLING_PREFIXES` / `rejectsSampling(model)` · `RESPONSES_API_PREFIXES` / `usesResponsesApi(model)` | Which families reject which sampling parameters — see the table below. Consumers pin presets against them. |
-| `effortSupportOf(config)` · `OPENAI_EFFORT_SUPPORT`, `OPENAI_HIDDEN_PROPERTY_NAMES`, `ANTHROPIC_MODEL_SUPPORT` / `anthropicSupportOf(model)` · `REASONING_MIN_MAX_TOKENS` | Which `ModelConfig.effort` levels a model accepts, and the per-family Anthropic facts beside them — see "Fallback chains and provider effort". |
-| `ThinkingOff`, `thinkingOffFor(config)` · `rejectsForcedTool(model)` | The Anthropic off switch a config sends (`disabled`, `between_tools`, or none), and whether a model refuses a pinned `tool_choice`. |
-| `withRetry`, `registerFatalError`, `isFatalError`, `spectate`, `normalizeInput`, `parseJsonContent`, `coerceToSchema`, `resolveFallbacks`, `PROVIDER_NEUTRAL_FIELDS` | Helpers usable alongside a model. Also at `@owlmeans/llm/helpers`. |
+| `NO_SAMPLING_PREFIXES` / `anthropicSupportHelper.rejectsSampling(model)` · `RESPONSES_API_PREFIXES` / `usesResponsesApi(model)` | Which families reject which sampling parameters — see the table below. Consumers pin presets against them. |
+| `llmPluginRegistry.effortSupportOf(config)` · `OPENAI_EFFORT_SUPPORT`, `OPENAI_HIDDEN_PROPERTY_NAMES`, `ANTHROPIC_MODEL_SUPPORT` / `anthropicSupportHelper.anthropicSupportOf(model)` · `REASONING_MIN_MAX_TOKENS` | Which `ModelConfig.effort` levels a model accepts, and the per-family Anthropic facts beside them — see "Fallback chains and provider effort". |
+| `ThinkingOff`, `anthropicSupportHelper.thinkingOffFor(config)` · `anthropicSupportHelper.rejectsForcedTool(model)` | The Anthropic off switch a config sends (`disabled`, `between_tools`, or none), and whether a model refuses a pinned `tool_choice`. |
+| `retryHelper.{withRetry, registerFatalError, isFatalError}`, `spectate`, `normalizeInput`, `jsonHelper.{parseJsonContent, coerceToSchema}`, `resolveFallbacks`, `PROVIDER_NEUTRAL_FIELDS` | Helpers usable alongside a model. Also at `@owlmeans/llm/helpers`. |
 | `LlmError`, `LlmModelError`, `LlmMissconfiguredError`, `LlmPluginError`, `LlmRetryExceededError` | `ResilientError` family. `LlmModelError` is the RETRYABLE one. |
-| `mergePrompt`, `mergePolicy`, `resolveRole`, `effortPatch`, `freezeResults` | Execution merge helpers; `mergePrompt` unions skills and takes the deepest role; `freezeResults` deep-freezes a results view. |
+| `executionPolicyHelper.{mergePrompt, mergePolicy, resolveRole, effortPatch}`, `executionStateHelper.freezeResults` | Execution merge helpers; `mergePrompt` unions skills and takes the deepest role; `freezeResults` deep-freezes a results view. |
 | `DEFAULT_MODEL_RETRIES`, `MODEL_STREAM_TIMEOUT_MS` (3 min idle), `FALLBACK_AFTER_ATTEMPTS`, `TEMPERATURE_PER_EFFORT_STEP`, `DEFAULT_EFFORT`, `EFFORT_TABLE`, `MAX_CACHE_BREAKPOINTS`, `MAX_SYSTEM_BREAKPOINTS`, `MIN_CACHEABLE_TOKENS`, `LLM_SERVICE`, `EXECUTION_SERVICE`, `PROMPT_SERVICE` | Tuning + aliases. |
 
 ## Provider differences are plugins, never `if`s
@@ -47,7 +47,7 @@ symbol "because a test needs it".
 | `build` | the provider switch in the model factory |
 | `owns` / `family` | `instanceof` checks; a `family` change between rungs re-renders the prompt |
 | `refine` | the per-provider retry rebuild (budget doubling, reasoning shrink, effort climb) |
-| `effort` | which `ModelConfig.effort` levels a model accepts (`effortSupportOf(config)`) |
+| `effort` | which `ModelConfig.effort` levels a model accepts (`llmPluginRegistry.effortSupportOf(config)`) |
 | `structuredMode` | native `response_format` vs a structured-output tool call |
 | `toolChoice(toolName, config)` / `responseFormat` | the provider-specific call shapes; `config` is the ACTIVE rung's, so a model that refuses a pinned tool gets the automatic choice |
 | `pinsTool(config)` / `strictTool(config, schema)` | whether `toolChoice` pins the tool (when not, `prepare` appends `toolCallInstruction`), and whether the tool goes `strict` |
@@ -69,7 +69,7 @@ hooks, through a predicate the package root exports:
 
 | Family | Rejects | Predicate |
 |---|---|---|
-| Claude 4.7+ and the 5 family | `temperature`, `top_p`, `top_k` | `NO_SAMPLING_PREFIXES` / `rejectsSampling(model)` |
+| Claude 4.7+ and the 5 family | `temperature`, `top_p`, `top_k` | `NO_SAMPLING_PREFIXES` / `anthropicSupportHelper.rejectsSampling(model)` |
 | OpenAI Responses API (`gpt-6*`, `gpt-5*`, `codex-*`) | `temperature`, `top_p` | `RESPONSES_API_PREFIXES` / `usesResponsesApi(model)` |
 
 A new OpenAI family goes into `RESPONSES_API_PREFIXES` the day it is pinned: outside it the model
@@ -82,7 +82,7 @@ primary's. Keep the predicate exported: consumers
 pin presets against it (viable-agent's `tests/presets.test.ts` asserts no preset entry declares a
 parameter its model rejects), and a second hand-written copy drifts when a family is added.
 
-**Registration order is load-bearing.** Instance lookup (`pluginFor`) returns the FIRST plugin whose
+**Registration order is load-bearing.** Instance lookup (`llmPluginRegistry.pluginFor`) returns the FIRST plugin whose
 `owns` matches, and `compatible` is registered before `openai` because both build a `ChatOpenAI`:
 assuming the tool-calling hack for an unlabelled model is safe everywhere, assuming native
 JSON-schema support is not.
@@ -94,7 +94,7 @@ composes them into an ordered, cacheable system message; a caller's own leading 
 folded into the volatile `Context` block, so an unmigrated call site still works. **Do not build a
 persona as a `SystemMessage` in a helper** — declare it as `PromptPolicy.role` plus registered
 skills, or the knowledge duplicates and the cache prefix stops being stable. Skills accumulate down
-the execution chain (project → task → helper) and the deepest declared `role` wins (`mergePrompt`).
+the execution chain (project → task → helper) and the deepest declared `role` wins (`executionPolicyHelper.mergePrompt`).
 Block order, the breakpoint budget, the provider facts behind them, and the plugin seams
 `claim(key)` / `utility`: [[llm-prompt-caching]].
 
@@ -177,7 +177,7 @@ look retryable — costing the whole retry budget with the real message buried u
    (`ContextOverflowError` for an input past the context window, and its siblings) carrying the
    original **only under `cause`**, no `status` of its own — so `e.status === 400` misses it.
 
-Use `isBadRequest` from `plugins/utils.ts`: it walks the `cause` chain for `status === 400`, bounded
+Use `pluginUtils.isBadRequest` from `plugins/utils.ts`: it walks the `cause` chain for `status === 400`, bounded
 in depth so a self-referential chain terminates. Both built-in `isFatal` implementations go through
 it. A context overflow makes this urgent: `refine` escalates the **output** budget on each retry, so
 an over-limit **input** can never improve — every attempt re-sends the identical oversized request,
@@ -216,13 +216,13 @@ model switch depends on preset data rather than code: the role must declare a `f
 in the other direction — a per-call resolver consulted before the global ones and the plugin's
 `isFatal`, for an error the caller knows no retry can fix.
 
-### A loop ABOVE the model asks the same question with `isFatalError`
+### A loop ABOVE the model asks the same question with `retryHelper.isFatalError`
 
 A retry loop is not the only place that decides to carry on: a fix ladder rescues a failed repair and
 climbs to a stronger model, an agent runner catches a round that threw and reports "gave up". Both
 are right for a model that answered badly and wrong for a budget that ran out, and a blanket `catch`
 cannot tell them apart — an exhausted balance becomes more expensive calls instead of a halt.
-`isFatalError(e, fatal?)` runs the same resolvers, in the same order, that `withRetry` uses, and
+`retryHelper.isFatalError(e, fatal?)` runs the same resolvers, in the same order, that `retryHelper.withRetry` uses, and
 returns the error to abort WITH (a resolver may unwrap a carrier and hand back the real cause) or
 `null` when nothing considers it terminal. Ask it rather than re-deriving the rule.
 
@@ -237,7 +237,7 @@ Four fields, and conflating them turns an escalation into a fatal 400 hours into
 | `maxOutput` | what the PROVIDER accepts in one request — a fact about the model |
 | `contextWindow` | total window (input + output); informational, never sent |
 
-`resolveOutputCap` (`utils/config.ts`) reconciles them: the declared cap chooses the ceiling and the
+`configUtils.resolveOutputCap` (`utils/config.ts`) reconciles them: the declared cap chooses the ceiling and the
 capability trims it, and `DEFAULT_MAX_OUTPUT_CAP` applies only when neither is stated. `createModel`
 also clamps `maxTokens` to `maxOutput` and warns about a cap above it. For an aggregated model
 `maxOutput` is the limit of the `inferenceProvider` actually pinned, often far below what the model
@@ -301,14 +301,14 @@ lives — never an inline check on one id:
 | Sonnet 5, Opus 4.8/4.7 | `disabled` | all | accepted | 1024 |
 | Older models (Haiku 4.5, Sonnet 4.6, …) | none — they reason only when asked | per the effort table | accepted | 1024 |
 
-`thinkingOffFor(config)` is the value `build` sends; `refine` carries it through `lc_kwargs` and
+`anthropicSupportHelper.thinkingOffFor(config)` is the value `build` sends; `refine` carries it through `lc_kwargs` and
 reads it back to keep the ceiling, so a climbed retry stops at `high` instead of answering 400. The
 cache minimum is the default under a preset's own `cacheMinTokens`.
 
-**Structured output on a model that refuses a pinned tool** (`rejectsForcedTool`): `toolChoice`
+**Structured output on a model that refuses a pinned tool** (`anthropicSupportHelper.rejectsForcedTool`): `toolChoice`
 answers `{ type: 'auto' }`, `pinsTool` answers `false`, and `prepare` appends
 `toolCallInstruction(toolName)` to the per-call payload after the JSON mention — the prompt is all
-that asks for the call. The tool goes `strict: true` only when `isStrictSchema(schema)` (every object
+that asks for the call. The tool goes `strict: true` only when `schemaUtils.isStrictSchema(schema)` (every object
 closed with `additionalProperties: false`, basic types, scalar `enum`/`const`, `anyOf`/`allOf`, the
 listed formats, `minItems` 0/1; no `$ref`, no length/pattern/numeric constraints, no `nullable`): a
 strict schema outside that subset is a 400 no retry fixes, while a non-strict one is still checked by
@@ -326,7 +326,7 @@ family, not Opus 4.8/4.7); the wire is unchanged.
 **Effort climbs on retries, one level per attempt of the rung** (`LlmRefineParams.rungAttempt`), from
 the rung's declared level — or its model's default once it has retried — to the model's ceiling. So
 each fallback starts from its OWN level. A `TemperatureFactory` request climbs it too
-(`temperatureSteps`: one level per `TEMPERATURE_PER_EFFORT_STEP` = 0.3, at least one), because the
+(`effortUtils.temperatureSteps`: one level per `TEMPERATURE_PER_EFFORT_STEP` = 0.3, at least one), because the
 models that take effort have mostly taken sampling away and "hotter" alone changes nothing on the
 wire. Effort is part of Anthropic's cached prefix, so a climbed retry writes a new cache entry.
 At `high` and above the OpenAI plugin floors the output budget at `REASONING_MIN_MAX_TOKENS` (25k,
@@ -361,7 +361,7 @@ JSON pointer (only keys of a `properties` map — a keyword in keyword position 
 fatal to every retry loop. Function calling (`structuredOutput: false`) and Anthropic's tool mode
 keep every name and are not refused. Rename the field (`mandatory` for `required`). `strict: true`
 is not sent to OpenAI: its strict mode also demands every property in `required`, which
-`isStrictSchema` (Anthropic's subset) does not check.
+`schemaUtils.isStrictSchema` (Anthropic's subset) does not check.
 
 ### Reasoning is off unless a preset asks for it — and it is billed against the same budget
 
@@ -378,7 +378,7 @@ the idle deadline reads as a dead connection and retries from scratch
 `makeLlmModel` appends the literal `/no_think` to every request's prepared messages whenever the flag
 is set AND the plugin's `suppressesThinking(config)` does not answer `true` — the soft switch for
 models with no request-level control (Qwen3). The Anthropic plugin answers `true` only for
-`rejectsSampling(model)`, and for those puts the family's off switch (`thinkingOffFor`, the table
+`anthropicSupportHelper.rejectsSampling(model)`, and for those puts the family's off switch (`anthropicSupportHelper.thinkingOffFor`, the table
 above) on the request in `build`, which `refine` carries through `lc_kwargs` on every attempt — on a
 model that always thinks nothing is sent and the flag only keeps the directive out. Below that line
 (`claude-haiku-4-5`, `claude-sonnet-4-6`) and under any plugin declaring no hook the flag injects
@@ -388,9 +388,9 @@ switches TO Anthropic inherits nothing and must name it (viable-agent's `presets
 rung). Turning reasoning ON is a per-role decision.
 
 `ADAPTIVE_MIN_MAX_TOKENS` (32k) is the output floor the Anthropic plugin's `build` applies to every
-`rejectsSampling(model)` config — `disableThinking` is not consulted, so a role with reasoning turned
+`anthropicSupportHelper.rejectsSampling(model)` config — `disableThinking` is not consulted, so a role with reasoning turned
 off is floored just the same. It is a floor, not an override (a preset asking for more keeps it) and
-it is clamped through `resolveOutputCap`, so it can never exceed what the provider accepts and turn a
+it is clamped through `configUtils.resolveOutputCap`, so it can never exceed what the provider accepts and turn a
 retryable empty answer into a fatal 400. Raising or removing it re-opens empty completions.
 
 Two diagnostics the above depends on:

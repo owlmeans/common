@@ -1,6 +1,6 @@
 ---
 name: agent
-description: How to use @owlmeans/agent — context-aware LLM agents over the LangGraph functional API, and resumable PIPELINES over a checkpointed StateGraph, with the AgentPlugin and PipelinePlugin seams, CUMULATIVE PIPELINE RESULTS (cumulativeResultsPlugin), conversation-summarization and memory plugins, and storage-independent ports. Auto-invoked when importing makeAgentModel, makePipeline, makeCheckpointSaver, appendAgentsService, an agent or pipeline plugin, cumulativeResultsPlugin, safeInvokeTool, or an agent store.
+description: How to use @owlmeans/agent — context-aware LLM agents over the LangGraph functional API, and resumable PIPELINES over a checkpointed StateGraph, with the AgentPlugin and PipelinePlugin seams, CUMULATIVE PIPELINE RESULTS (cumulativeResultsPlugin), conversation-summarization and memory plugins, and storage-independent ports. Auto-invoked when importing makeAgentModel, makePipeline, makeCheckpointSaver, appendAgentsService, an agent or pipeline plugin, cumulativeResultsPlugin, toolHelper, or an agent store.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/agent
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent": "^0.1.18-rc.45"` in `dependencies`, plus the `@langchain/core` and
+**Install:** `"@owlmeans/agent": "^0.1.18-rc.48"` in `dependencies`, plus the `@langchain/core` and
 `@langchain/langgraph` **peers**
 
 The agent runtime. Contracts live in `@owlmeans/agent-common`.
@@ -24,10 +24,10 @@ The agent runtime. Contracts live in `@owlmeans/agent-common`.
 | `makeCheckpointSaver(store)` | A `BaseCheckpointSaver` over the `CheckpointStore` port. |
 | `makeAgentsService(options?, alias?)` · `appendAgentsService(ctx, options?, alias?)` · `agentServiceApi(options, self)` | The service, and its half without `createService` for composition. |
 | `summarizePlugin(options?)` | Compacts each finished run into `summary` + `advice`; replays the last few. |
-| `memoryGraphPlugin(options?)` · `memoryGraph(store, options?)` | Durable notes filed by subsystem, with links. Plugin **and** plain API. |
-| `memoryEventsPlugin(options?)` · `memoryEvents(store, options?)` | A bounded, ordered record of what happened. |
-| `safeInvokeTool`, `toErrorResponse`, `isToolError` | The never-throwing tool contract. |
-| `composeCompaction`, `composeRollingSummary`, `renderTranscript`, `messageText` | Summary primitives; both composers are total. |
+| `memoryGraphPlugin(options?)` · `makeMemoryGraphApi(store, options?)` | Durable notes filed by subsystem, with links. Plugin **and** plain API. |
+| `memoryEventsPlugin(options?)` · `makeMemoryEventsApi(store, options?)` | A bounded, ordered record of what happened. |
+| `toolHelper.{safeInvokeTool, toErrorResponse, isToolError}` | The never-throwing tool contract. |
+| `compactionHelper.{composeCompaction, renderTranscript, messageText}`, `composeRollingSummary` | Summary primitives; both composers are total. |
 | `makeStaticFlowProvider(flows)` | The server-side `FlowProvider` `@owlmeans/flow` does not ship. |
 | `inProcessTransport()`, `AgentTransport` | The scaling seam; default carries messages by direct call. |
 | `createMemory*Store()` | In-memory reference implementations of every port, including `createMemoryPipelineRunStore`, `createMemoryCheckpointStore` and `createMemoryCumulativeResultStore`. |
@@ -183,7 +183,7 @@ that every call sharing a persona pays for.
 model keeps calling tools without ever answering — so catch that error by name rather than treating
 every failed run alike: it says the loop ran out of room, not that a tool or the model failed.
 
-**`safeInvokeTool` must never throw.** The loop wraps it in a LangGraph `task`, and a rejected task
+**`toolHelper.safeInvokeTool` must never throw.** The loop wraps it in a LangGraph `task`, and a rejected task
 aborts the whole superstep: every sibling tool call in the same parallel batch dies with AbortError
 and the run ends on "Multiple errors occurred during superstep 0", discarding work the others had
 already finished. A tool failure comes back as `{ error }` the model can read and correct — most are
@@ -219,7 +219,7 @@ is streamed to the client, so without it the summary of a run types itself out i
 that run, immediately after it finished.
 
 **Character caps are applied after the model answers, never asked for in the prompt alone.** A cap in
-a prompt is a request. Both composers (`composeCompaction`, `composeRollingSummary`) are total: with
+a prompt is a request. Both composers (`compactionHelper.composeCompaction`, `composeRollingSummary`) are total: with
 no model, a failing model or an empty answer they fall back deterministically, so a caller can record
 history unconditionally. A failed fold costs detail, never the event.
 
@@ -272,7 +272,7 @@ refuses to re-enter a completed one without `force`.
 effects already applied to the world: re-entering a turn re-applies them. What IS resumable is a
 pipeline — and an agent run belongs inside one of its steps.
 
-**`safeInvokeTool(tools, call, fatal?)` takes a fatal predicate.** Containment is right for a bad
+**`toolHelper.safeInvokeTool(tools, call, fatal?)` takes a fatal predicate.** Containment is right for a bad
 argument and wrong for an exhausted budget: a tool may be a whole pipeline behind one call, and
 handing the model a readable "out of tokens" is an invitation to pick another tool and spend again.
 

@@ -6,7 +6,7 @@ description: Category-D component-level acceptance tests for OwlMeans Common UI 
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
 
-**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.46"` in `devDependencies`
+**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.49"` in `devDependencies`
 
 `@owlmeans/test-ui` depends on `playwright`, so the browser library arrives with it; add
 `playwright` to `devDependencies` as well when a spec imports a launcher itself. The Vite harness
@@ -52,13 +52,13 @@ Downloads the chromium binary the `playwright` library drives. CI installs it in
 
 | Helper | Purpose |
 |---|---|
-| `launchBrowser(opts?)` | Return the shared chromium for this `bun test` process. Idempotent. |
-| `closeBrowser()` | Tear it down. Call from `afterAll`. |
-| `withPage(fn)` | Lease a fresh context+page for the duration of `fn`, dispose context on completion. |
+| `browserHelper.launchBrowser(opts?)` | Return the shared chromium for this `bun test` process. Idempotent. |
+| `browserHelper.closeBrowser()` | Tear it down. Call from `afterAll`. |
+| `browserHelper.withPage(fn)` | Lease a fresh context+page for the duration of `fn`, dispose context on completion. |
 | `mountComponent(opts)` | Open a fresh context, navigate to `opts.url`, return `Mounted` = `{ page, close }`. `component` and `props`, when given, are appended as `?component=` and `?props=`; omit them when the harness mounts a fixed root, which is what every harness here does. |
 | `MountOptions` | `{ url, component?, props?, waitUntil?, timeout? }` — `waitUntil` defaults to `domcontentloaded`, see below. |
-| `acceptConsent(page, { timeout? })` | Wait up to `timeout` (default 5s) for `[data-consent-dialog]`, accept all, wait for it to detach. Returns whether it answered one — and costs that whole wait when it does not. |
-| `saveScreenshot(page, dir, name)` | Full-page PNG to `<dir>/<name>.png`, creating `dir`. Returns the absolute path. |
+| `makePageHelper(page).acceptConsent({ timeout? })` | Wait up to `timeout` (default 5s) for `[data-consent-dialog]`, accept all, wait for it to detach. Returns whether it answered one — and costs that whole wait when it does not. |
+| `makePageHelper(page).saveScreenshot(dir, name)` | Full-page PNG to `<dir>/<name>.png`, creating `dir`. Returns the absolute path. |
 | Re-exports: `Browser`, `BrowserContext`, `Page`, `Locator` | Playwright types — no direct `playwright` import needed. |
 
 ### Authenticated specs
@@ -68,11 +68,11 @@ sits behind auth without hand-rolling a token:
 
 | Helper | Purpose |
 |---|---|
-| `pregenerateAuthToken(opts)` | Mint an `ED25519-BASIC-TOKEN …` bearer offline from a trusted private key — no browser, no round trip. Options: `{ userId, pk, scopes?, role?, entityId?, profileId?, source? }`. |
-| `authenticateViaSupervisorApi(opts)` | Drive the live PK supervisor flow over the backend API (init → sign → authenticate → dispatch), registering the user on first use. Options: `{ apiBaseUrl, userId, pk, paths?, fetchImpl? }`. |
-| `loginViaDispatcher(page, baseUrl, token, opts?)` | Inject a bearer through the standard `/dispatcher?token=…` route, wait for the app to navigate away, then answer marketing consent (see below). Options: `{ dispatcherPath?, waitUntil?, marketingConsent? }`. |
-| `loginViaSupervisorForm(page, opts)` | Drive the real login form end-to-end — navigate, answer consent, fill user id + key, submit, wait for the landing, then answer marketing consent (see below). Options: `{ baseUrl, userId, pk, path?, expectPath?, timeout?, waitUntil?, consent?, screenshotDir?, marketingConsent? }`. |
-| `answerMarketingConsent(page, opts?)` | Answer the `@owlmeans/web-marketing-consent` full-page step if it is shown right after login. Options: `{ accept?: 'all' \| 'none' \| 'skip', terms?: 'accept' \| 'leave', timeout? }`, default `accept: 'all'`, `terms: 'accept'`, `timeout: 30_000`. Returns whether the step was actually shown and answered — `false` means it never appeared. Throws if a Terms box could not be confirmed. |
+| `supervisorAuthHelper.pregenerateAuthToken(opts)` | Mint an `ED25519-BASIC-TOKEN …` bearer offline from a trusted private key — no browser, no round trip. Options: `{ userId, pk, scopes?, role?, entityId?, profileId?, source? }`. |
+| `supervisorAuthHelper.authenticateViaSupervisorApi(opts)` | Drive the live PK supervisor flow over the backend API (init → sign → authenticate → dispatch), registering the user on first use. Options: `{ apiBaseUrl, userId, pk, paths?, fetchImpl? }`. |
+| `makePageHelper(page).loginViaDispatcher(baseUrl, token, opts?)` | Inject a bearer through the standard `/dispatcher?token=…` route, wait for the app to navigate away, then answer marketing consent (see below). Options: `{ dispatcherPath?, waitUntil?, marketingConsent? }`. |
+| `makePageHelper(page).loginViaSupervisorForm(opts)` | Drive the real login form end-to-end — navigate, answer consent, fill user id + key, submit, wait for the landing, then answer marketing consent (see below). Options: `{ baseUrl, userId, pk, path?, expectPath?, timeout?, waitUntil?, consent?, screenshotDir?, marketingConsent? }`. |
+| `makePageHelper(page).answerMarketingConsent(opts?)` | Answer the `@owlmeans/web-marketing-consent` full-page step if it is shown right after login. Options: `{ accept?: 'all' \| 'none' \| 'skip', terms?: 'accept' \| 'leave', timeout? }`, default `accept: 'all'`, `terms: 'accept'`, `timeout: 30_000`. Returns whether the step was actually shown and answered — `false` means it never appeared. Throws if a Terms box could not be confirmed. |
 
 These need a project whose backend trusts the private key they sign with, so they belong to specs
 that run against a real app rather than a mounted component. See `[[supervisor-auth]]` for the
@@ -82,14 +82,14 @@ server and web wiring they assume.
 
 ```ts
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { browserHelper, mountComponent } from '@owlmeans/test-ui'
 import { HARNESS_URL } from './context.js'
 
 // Browser work does not fit bun's 5s default: a cold harness compiles the app on first request,
 // and the first test to run pays for the Vite boot happening in the same process.
 const TIMEOUT = 30_000
 
-afterAll(async () => { await closeBrowser() })
+afterAll(async () => { await browserHelper.closeBrowser() })
 
 // The harness is a real app, so a spec picks its case by opening a path on it.
 const open = async (path: string) =>
@@ -173,11 +173,11 @@ For a package that only needs to prove the bun-test + chromium pipeline works, s
 
 ```ts
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { browserHelper, mountComponent } from '@owlmeans/test-ui'
 
 const harness = `data:text/html,${encodeURIComponent('<h1 id="t">hello</h1>')}`
 
-afterAll(async () => { await closeBrowser() })
+afterAll(async () => { await browserHelper.closeBrowser() })
 
 describe('chromium smoke', () => {
   test('reads a heading from a data: URL', async () => {
@@ -262,7 +262,7 @@ See `[[shadcn-web]]` for the full `@` alias contract and `tests/context.ts` patt
 - **Always pass a timeout as `test`'s third argument.** 30s for a mounted component, 60s for a
   suite that drives a login or a consent gate. Bun's 5s default is for in-process work, and
   `bunfig.toml`'s `[test] timeout` is not a way to change it.
-- **Always `close()` the page and `closeBrowser()` in `afterAll`.** A leaked context blocks the bun process from exiting.
+- **Always `close()` the page and `browserHelper.closeBrowser()` in `afterAll`.** A leaked context blocks the bun process from exiting.
 - **Chromium only by default.** Add `firefox` or `webkit` per package only when the feature has documented cross-browser concerns — call `chromium.launch` / `firefox.launch` explicitly in that case.
 
 ## `mountComponent` waits for `domcontentloaded`, not `load`
@@ -278,13 +278,13 @@ selector it actually needs. That wait IS the assertion; the load event never was
 `waitUntil` explicitly for the rare case that wants otherwise.
 
 The rule is not `mountComponent`'s alone — **every** navigation helper here follows it, including
-`loginViaSupervisorForm` and `loginViaDispatcher`. A helper that navigates on playwright's default
+`makePageHelper(page).loginViaSupervisorForm` and `.loginViaDispatcher`. A helper that navigates on playwright's default
 turns "someone added a tag manager" into "the whole login-driven suite times out", with the browser
 showing a working login form the entire time. Any new helper that calls `page.goto` passes
 `domcontentloaded` and takes a `waitUntil` override.
 
-`saveScreenshot(page, dir, name)` is the fastest way to see what the browser actually had on
-screen when an assertion timed out; `loginViaSupervisorForm` takes a `screenshotDir` that captures
+`makePageHelper(page).saveScreenshot(dir, name)` is the fastest way to see what the browser actually had on
+screen when an assertion timed out; `.loginViaSupervisorForm` takes a `screenshotDir` that captures
 the filled form just before submit.
 
 ## The consent dialog blocks the login form, and the failure blames the button
@@ -297,27 +297,27 @@ and then reports `click: Timeout … waiting for getByTestId('supervisor-submit'
 button. Nothing is wrong with the button; read the `subtree intercepts pointer events` line, which
 names `[data-consent-dialog]`.
 
-`loginViaSupervisorForm` therefore calls `acceptConsent(page)` after navigating. `acceptConsent` is
-exported for specs that drive their own login: it waits for `[data-consent-dialog]` to become
+`makePageHelper(page).loginViaSupervisorForm` therefore calls `.acceptConsent()` after navigating. `.acceptConsent` is
+public for specs that drive their own login: it waits for `[data-consent-dialog]` to become
 visible, clicks `[data-consent-accept-all]`, waits for the dialog to detach, and reports whether it
 answered one. It accepts **all** categories deliberately — a spec asserting a narrower decision must
 make that decision itself rather than inherit a silent minimum.
 
 **The `false` return costs the full wait.** It is what the visibility wait rejects into, not a cheap
-probe, so a page with no dialog pays the timeout — 5s by `acceptConsent`'s own default, but
-`loginViaSupervisorForm` passes its `timeout` straight through and that defaults to `60_000`. On an
+probe, so a page with no dialog pays the timeout — 5s by `makePageHelper(page).acceptConsent`'s own default, but
+`.loginViaSupervisorForm` passes its `timeout` straight through and that defaults to `60_000`. On an
 app that ships no consent widget the login helper therefore sits for a full minute before it fills
 the first field, with nothing on screen to explain it. Drive such an app with `consent: 'ignore'`,
 which skips the call entirely; that is also the switch a spec flips when it wants to answer the
 dialog itself.
 
-## `answerMarketingConsent` — cheap absence detection, unlike the cookie dialog
+## `makePageHelper(page).answerMarketingConsent` — cheap absence detection, unlike the cookie dialog
 
-`loginViaSupervisorForm` and `loginViaDispatcher` both call `answerMarketingConsent(page, { accept:
+`makePageHelper(page).loginViaSupervisorForm` and `.loginViaDispatcher` both call `.answerMarketingConsent({ accept:
 'all', timeout })` right after they confirm the app has navigated away from login/dispatch, passing
 their **own** `timeout` through explicitly rather than relying on this helper's internal default —
 both of them already budget more than one round trip (login + terms + items) into the value they
-pick. Both also default `marketingConsent` (their own option, not `answerMarketingConsent`'s) to
+pick. Both also default `marketingConsent` (their own option, not `.answerMarketingConsent`'s) to
 `'save'` — pass `'ignore'` to skip the call in a spec that drives the step itself.
 `@owlmeans/web-marketing-consent` renders a full-page step, when shown, with `[data-marketing-consent]`
 (root, carrying `data-state="loading"` while its status read is outstanding and `"ready"` once it can
@@ -329,15 +329,15 @@ step is optional-only — i.e. `!loading && !terms.needed` — not only after a 
 `[data-marketing-consent-skip-note]`, `[data-marketing-consent-signout]` (shown while a Terms box or
 the loading state is up) and `[data-marketing-consent-error]`.
 
-Unlike `acceptConsent`, whose `false` return deliberately costs the full wait (see above),
-`answerMarketingConsent` does NOT pay the full `timeout` (default `30_000`) when the step is absent.
+Unlike `makePageHelper(page).acceptConsent`, whose `false` return deliberately costs the full wait (see above),
+`.answerMarketingConsent` does NOT pay the full `timeout` (default `30_000`) when the step is absent.
 The screen is opt-in per app and most applications and environments don't have it wired in yet, and this helper
 is called unconditionally by both login helpers — a full-timeout tax on every login, on every app,
 whether or not the screen exists, would be an unacceptable regression to every existing suite. It
 instead races `[data-marketing-consent]` against the generic "the app has already landed" /
 "still on the login screen" markers the login helpers themselves already rely on (`#app-prompt`,
 `[data-login-method]`) via the same `locator('a, b, c').first().waitFor({ state: 'visible' })` idiom
-`loginViaSupervisorForm` uses for its own dialog-vs-form race. By the time a login helper calls this,
+`.loginViaSupervisorForm` uses for its own dialog-vs-form race. By the time a login helper calls this,
 one of those markers has typically already rendered, so on an app without the screen the race
 resolves as soon as it does — no fixed sleep, and no meaningful added latency over what the login
 helper already paid to get there.

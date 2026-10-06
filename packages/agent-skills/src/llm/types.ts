@@ -1,8 +1,5 @@
 import type { FileProviderRef, SkillDefinition } from '@owlmeans/llm-common'
 
-/** The default scope the plugin looks for in a prompt. */
-export const OWLMEANS_SCOPE = '@owlmeans'
-
 /** Where a package's skills came from — surfaced in logs, useful when a lookup surprises you. */
 export type SkillSource = 'files' | 'local' | 'checkout' | 'remote'
 

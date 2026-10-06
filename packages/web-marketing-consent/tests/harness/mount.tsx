@@ -6,7 +6,7 @@ import { AppType, service } from '@owlmeans/config'
 import { HOME } from '@owlmeans/context'
 import { App, handler } from '@owlmeans/client'
 import type { RoutedComponent } from '@owlmeans/client'
-import { I18nContext, setLanguage } from '@owlmeans/client-i18n'
+import { I18nContext, i18nInstanceHelper } from '@owlmeans/client-i18n'
 import { bindAll, bindScreen } from '@owlmeans/client-entrypoint'
 import type { EntrypointTree } from '@owlmeans/entrypoint'
 import { openProtocol } from '@owlmeans/entrypoint'
@@ -122,7 +122,7 @@ const bearer = params.get('bearer')
 if (bearer != null && bearer !== '') await set(`${AUTH_RESOURCE}:${USER_ID}`, { id: USER_ID, token: bearer })
 
 // The instance starts in the language chosen before it exists, so this is what `?lng=` means.
-if (lng !== 'en') await setLanguage(lng)
+if (lng !== 'en') await i18nInstanceHelper.setLanguage(lng)
 
 createRoot(document.getElementById('root')!).render(
   <I18nContext config={context.cfg}><App context={context as never} /></I18nContext>

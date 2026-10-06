@@ -27,3 +27,34 @@ export interface NavEntry {
   alias: string
   label: string
 }
+
+/**
+ * Whether a generated application splits its audiences into tenant ORGANIZATIONS.
+ *
+ * Two flags rather than one, because the two audiences split independently: one back office can
+ * serve end users who each belong to their own company (`users` only), every reseller can run its
+ * own staff over one shared public (`operators` only), and a B2B tool usually does both. An
+ * organization is an IAM-managed tenant — never a table the target keeps for itself.
+ *
+ * Both false is today's application: one organization, the project owner's, that every person acts in.
+ */
+export interface ProjectTenancy {
+  /** The staff of the back office are split into tenant organizations. */
+  operators: boolean
+  /** The end users of the front office are distributed across tenant organizations. */
+  users: boolean
+}
+
+/**
+ * A tenancy decision as the project card records it (`fields.tenancy`).
+ *
+ * The flags plus where they came from. `quotes` are the requester's OWN sentences, verbatim — the
+ * evidence a later reader (a person reviewing the board, a run asked to reconsider) checks the
+ * decision against, which a paraphrase would quietly replace with the model's reading of it.
+ * `by` says whether a model inferred it or the owner set it; `at` is when, an ISO timestamp.
+ */
+export interface ViableTenancyDecision extends ProjectTenancy {
+  quotes?: { operators?: string; users?: string }
+  by: 'model' | 'owner'
+  at: string
+}

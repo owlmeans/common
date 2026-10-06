@@ -12,7 +12,7 @@ legacy). The server-side counterpart is `@owlmeans/server-auth`.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-auth@^0.1.18-rc.55
+bun add @owlmeans/client-auth@^0.1.18-rc.58
 ```
 
 ## Concepts
@@ -31,10 +31,10 @@ bun add @owlmeans/client-auth@^0.1.18-rc.55
   (embedded, surrogate) and priority. `@owlmeans/web-client` registers the redirect and surrogate
   plugins.
 - **Login method** — one offerable button. `LoginMethodSource`s produce candidates;
-  `resolveLoginMethods` drops restricted ones the config did not name and applies the configured
+  `loginMethodsHelper.resolveLoginMethods` drops restricted ones the config did not name and applies the configured
   order.
 - **Login outcome** — `LoginOutcome` (`Handled`, `Passed`, `Redirected`, `Gesture`, `Orphaned`,
-  `Failed`) tells the caller what to do next. `resumeAction` and `loginAttemptError` are the only
+  `Failed`) tells the caller what to do next. `loginResumeHelper.resumeAction` and `.loginAttemptError` are the only
   readings of it.
 
 ## Usage
@@ -69,7 +69,7 @@ export const clientBindings = [
 ### 2. Guarding a layout and reading the identity
 
 ```tsx
-import { entitySlugOf } from '@owlmeans/auth'
+import { authHelper } from '@owlmeans/auth'
 import { useSelfAuth } from '@owlmeans/client-auth'
 import type { FC, PropsWithChildren } from 'react'
 import { useContext } from '../context.js'
@@ -85,7 +85,7 @@ export const UserLayout: FC<PropsWithChildren> = ({ children }) => {
 
   const auth = context.auth().user()
   // The organization is its renameable entitySlug; the stable entityId never reaches the browser.
-  const organization = entitySlugOf(auth)
+  const organization = authHelper.entitySlugOf(auth)
 
   return <main data-organization={organization}>{children}</main>
 }
@@ -157,7 +157,7 @@ export const appendPartnerLogin = <C extends Config, T extends Context<C>>(conte
 ```tsx
 import { AuthenticationStage } from '@owlmeans/auth'
 import type { AuthenticationRendererProps } from '@owlmeans/client-auth/manager'
-import { registerAuthPlugin } from '@owlmeans/client-auth/manager/plugins'
+import { authPluginHelper } from '@owlmeans/client-auth/manager/plugins'
 import type { AuthenticationPlugin } from '@owlmeans/client-auth/manager/plugins'
 import { useEffect } from 'react'
 
@@ -183,7 +183,7 @@ export const passkeyPlugin: AuthenticationPlugin = {
   },
 }
 
-registerAuthPlugin(passkeyPlugin)
+authPluginHelper.registerAuthPlugin(passkeyPlugin)
 ```
 
 A UI package then assigns `plugins[MY_APP_PASSKEY].Renderer`, and the renderer calls
@@ -215,7 +215,7 @@ Importing it registers `basic-ed25519`, `re-captcha` and `wallet-consumer`, plus
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `plugins`, `registerAuthPlugin`, `getAuthPlugin`, `listAuthPlugins` | registry | The module-global authentication-plugin registry |
+| `plugins`, `authPluginHelper` (`registerAuthPlugin`, `getAuthPlugin`, `listAuthPlugins`), `AuthPluginHelper` | registry | The module-global authentication-plugin registry |
 | `AuthenticationHOC(Renderer?, type?)` | HOC | The authentication screen hosting a plugin |
 | `AuthenticationProps`, `TAuthenticationHOC` | type | Screen props (`type?`, `callback?`, `source?`) |
 | `makeControl(context, callback?)` | function | The control a plugin drives: `requestAllowence`, `authenticate`, `persist` / `restore` / `hasPersistentState` / `cleanUpState`, `setError`, `flow` |
@@ -240,7 +240,7 @@ The plugin-authoring surface, with no registration side effect.
 | `AuthenticationPlugin` | type | `type`, `Implementation`, `Renderer?`, `requiresRenderer?`, `method?`, `authenticate` / `beforeAuthenticate` / `afterAuthenticate` |
 | `PluginImplemnetation` (sic) | type | `(Renderer?) => FC<AuthenticationRendererProps>` |
 | `AuthMethodMeta` | type | `id`, `label`, `i18nKey`, `icon`, `order`, `emphasis`, `restricted`, `hidden`, `available(ctx)` |
-| `plugins`, `registerAuthPlugin`, `getAuthPlugin`, `listAuthPlugins` | registry | Same registry as `./manager` |
+| `plugins`, `authPluginHelper`, `AuthPluginHelper` | registry | Same registry as `./manager` |
 | `pluginMethodSource` | const | The `LoginMethodSource` that offers registered plugins |
 | `createWalletFacade`, `PinSchema`, `PinForm`, `TunnelAuthenticationRenderer`, `TunnelAuthenticationRendererProps` | function, const, type | Wallet-tunnel helpers |
 | `ed25519BasicUIPlugin`, `reCaptchaPlugin`, `tunnelConsumerUIPlugin` | const | Shipped plugin objects |
@@ -256,18 +256,19 @@ The plugin-authoring surface, with no registration side effect.
 | `LoginOutcome`, `LoginIntent` | enum | Stage results; login or logout surrogate |
 | `useLogin(target?)` | hook | `[dispatcherPath, onLogIn]` |
 | `useLogout(target?)` | hook | `onLogOut` |
-| `registerMethodSource`, `listMethodSources`, `resolveLoginMethods(ctx, cfg?, extra?)`, `primaryLoginMethod(methods)` | function | Global method sources and resolution |
+| `loginMethodsHelper` — `.registerMethodSource`, `.listMethodSources`, `.resolveLoginMethods(ctx, cfg?, extra?)`, `.primaryLoginMethod(methods)`; `LoginMethodsHelper` | helper, type | Global method sources and resolution |
 | `LoginMethod`, `LoginMethodSource`, `LoginMethodContext` | type | Method contract |
-| `resolveTerms(cfg?)`, `termsAccepted(resolved)`, `acceptTerms(resolved, accepted)`, `ResolvedTerms` | function, type | Terms confirmation, stored in `localStorage` against a version derived from the URLs |
-| `termsLabelResolver(translate, locale)`, `termsAcceptanceOf(resolved, locale?)`, `TermsAcceptanceRef` | function, type | The one document-label resolver every terms renderer shares; the wire shape a sign-in-time acceptance sends the server (structurally `@owlmeans/marketing-consent`'s `TermsAcceptance`, no dependency on it) |
-| `termsDeferred(ctx)` | function | True once a registered AND bound `LoginStep` declares `confirmsTerms` — the sign-in screen then renders no checkbox and blocks nothing, because the confirmation lives on that step instead |
+| `loginTermsHelper` — `.resolveTerms(cfg?)`, `.termsAccepted(resolved)`, `.acceptTerms(resolved, accepted)`; `LoginTermsHelper`, `ResolvedTerms` | helper, type | Terms confirmation, stored in `localStorage` against a version derived from the URLs |
+| `loginTermsHelper` — `.termsLabelResolver(translate, locale)`, `.termsAcceptanceOf(resolved, locale?)`; `LoginTermsAcceptance`, `TermsAcceptanceRef` | helper, type | The one document-label resolver every terms renderer shares; the wire shape a sign-in-time acceptance sends the server (structurally `@owlmeans/marketing-consent`'s `TermsAcceptance`, no dependency on it) |
+| `loginTermsHelper.termsDeferred(ctx)` | helper | True once a registered AND bound `LoginStep` declares `confirmsTerms` — the sign-in screen then renders no checkbox and blocks nothing, because the confirmation lives on that step instead |
 | `resolveCredit(cfg?, brand?, service?)`, `ResolvedCredit` | function, type | The credit and copyright line |
 | `FallbackLoginScreen`, `LoginScreenProps`, `LoginScreenComponent` | component, type | The plain screen used when no UI family registered one |
 | `surrogatePath(ctx, target)`, `SurrogateTarget` | function, type | Where a surrogate window opens; `null` on an entrypoint list without the surrogate route |
-| `resumeAction(outcome)`, `ResumeAction`, `loginAttemptError(outcome)` | function, enum | The shared readings of a `resume` outcome and of a finished attempt |
+| `loginResumeHelper` — `.resumeAction(outcome)`, `.loginAttemptError(outcome)`; `LoginResumeHelper`, `ResumeAction` | helper, enum | The shared readings of a `resume` outcome and of a finished attempt |
 | `enterOidcAuthorization(model)` | function | Move a flow to the step that can authorize; idempotent |
-| `adoptToken(ctx, token)`, `revokeToken(ctx)` | function | The single adoption and de-adoption paths |
-| `isEmbedded`, `isSurrogate`, `markSurrogate`, `clearSurrogate`, `defaultLoginEnv` | function | Environment probes behind `LoginEnv` |
+| `loginTokenOf(ctx)` — `.adoptToken(token)`, `.revokeToken()`; `makeLoginTokenHelper`, `LoginTokenHelper` | helper | The single adoption and de-adoption paths |
+| `loginLandingOf(ctx)` — `.landAfterLogin(opts?)`, `.continueLogin(opts?)`, `.landingUrl(landing)`; `makeLoginLandingHelper`, `LoginLandingHelper`, `useContinueLogin()` | helper, hook | Where a finished sign-in lands: pending steps, landing hooks, a suspended flow, else the fallback |
+| `loginEnvHelper` — `isEmbedded`, `isSurrogate`, `markSurrogate`, `clearSurrogate`, `defaultLoginEnv`; `LoginEnvHelper` | helper | Environment probes behind `LoginEnv` |
 | `LOGIN_SERVICE`, `DEFAULT_ALIAS`, `DEFAULT_LOGIN_PRIORITY`, `DEFAULT_METHOD_ORDER`, `LOGIN_SURROGATE_NAME`, `LOGIN_TOKEN_MESSAGE`, `LOGIN_LOGOUT_MESSAGE`, `LOGIN_SURROGATE_MARKER`, `LOGIN_SURROGATE_FEATURES`, `LOGIN_WATCH_INTERVAL`, `LOGIN_INTENT_QUERY`, `LOGIN_NEXT_QUERY`, `LOGIN_METHOD_QUERY`, `LOGIN_TERMS_STORAGE` | const | Service alias, ordering defaults and cross-document wire values |
 
 Importing `./login` also registers the `login` strings of the `auth` library namespace in all
@@ -281,7 +282,7 @@ seven supported languages.
   precondition.
 - **Never start login from an effect.** Without a user gesture the window is blocked. Render a
   control and let the person click.
-- **Adopt and drop tokens only through the auth service or `adoptToken` / `revokeToken`.**
+- **Adopt and drop tokens only through the auth service or `loginTokenOf(ctx).adoptToken` / `.revokeToken`.**
   Hand-written access to `AUTH_RESOURCE` drifts from the envelope decoding beside it.
 - **Import names from the right subpath.** The plugin contract (`AuthenticationPlugin`,
   `AuthMethodMeta`, `pluginMethodSource`, tunnel helpers) resolves only through
@@ -296,14 +297,14 @@ seven supported languages.
 - **Authorization stays server-side.** The browser ends up holding an ordinary OwlMeans bearer token
   whichever provider issued it. Product checks live in entrypoint gates and handlers, never in
   client-only state.
-- **The organization on the wire is its `entitySlug`.** Read it with `entitySlugOf` from
+- **The organization on the wire is its `entitySlug`.** Read it with `authHelper.entitySlugOf` from
   `@owlmeans/auth`; the stable `entityId` never reaches the browser.
 - **Overrides of the `login` strings cover all seven languages** (`en`, `pl`, `ru`, `be`, `uk`,
   `es`, `de`).
 
 ## Related packages
 
-- [`@owlmeans/auth`](../auth) — `Auth`, aliases, `entitySlugOf`, auth errors
+- [`@owlmeans/auth`](../auth) — `Auth`, aliases, `authHelper.entitySlugOf`, auth errors
 - [`@owlmeans/auth-common`](../auth-common) — `authProtocols`, `authMiddleware`, guard aliases
 - [`@owlmeans/web-client`](../web-client) — appends the auth service and login host; ships the dispatcher and login plugins
 - [`@owlmeans/web-panel`](../web-panel) — the shadcn sign-in screen (`appendLoginScreen`)
@@ -321,7 +322,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

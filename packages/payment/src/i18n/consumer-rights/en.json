@@ -1,20 +1,27 @@
 {
   "performance-consent": {
     "title": "Start using your credits now?",
+    "title_included": "Use your topped-up credits now?",
     "intro": "Purchases still within the withdrawal period: {{count}}. The last withdrawal period ends on {{deadline}}.",
+    "intro_included": "Purchases still within the withdrawal period: {{count}}. The last withdrawal period ends on {{deadline}}. The credit limits included in your plan are always used first; this applies to credits you topped up once those limits have run out.",
     "purchase": "Credits bought on {{date}} ({{amount}}): as a consumer in the EU you may withdraw from this purchase until the end of {{deadline}}.",
     "request": "I expressly request and agree that {{trader}} starts performing the paid service — the AI work and the digital content it produces — now, before the withdrawal period ends.",
+    "request_included": "I expressly request and agree that {{trader}} starts performing the paid service — the AI work and the digital content it produces — now, before the withdrawal period ends, paid with my topped-up credits once the credit limits included in my plan, which are always used first, have run out.",
     "acknowledgement": "I acknowledge that for the credits I use, my right of withdrawal expires once that work has been performed, and that if I withdraw, only the credits I have not used are reimbursed.",
     "checkbox": "I expressly request and agree that {{trader}} starts performing the paid service — the AI work and the digital content it produces — now, before the withdrawal period ends. I acknowledge that for the credits I use, my right of withdrawal expires once that work has been performed, and that if I withdraw, only the credits I have not used are reimbursed.",
+    "checkbox_included": "I expressly request and agree that {{trader}} starts performing the paid service — the AI work and the digital content it produces — now, before the withdrawal period ends, paid with my topped-up credits once the credit limits included in my plan, which are always used first, have run out. I acknowledge that for the credits I use, my right of withdrawal expires once that work has been performed, and that if I withdraw, only the credits I have not used are reimbursed.",
     "confirm": "Start now",
     "decline": "Not now"
   },
   "subscription-start": {
     "title": "Start the {{plan}} services now?",
     "intro": "As a consumer in the EU you may withdraw from this subscription within 14 days. We start the services before that period ends only at your express request.",
-    "request": "I expressly request and agree that {{trader}} starts the {{plan}} platform services now and performs the AI work paid with the included credits whenever I start it, before the 14-day withdrawal period ends.",
-    "acknowledgement": "I acknowledge that if I withdraw, I pay for the platform services provided until then, pro rata by time, and that my right of withdrawal expires for the included credits I have used; everything else is reimbursed.",
-    "checkbox": "I expressly request and agree that {{trader}} starts the {{plan}} platform services now and performs the AI work paid with the included credits whenever I start it, before the 14-day withdrawal period ends. I acknowledge that if I withdraw, I pay for the platform services provided until then, pro rata by time, and that my right of withdrawal expires for the included credits I have used; everything else is reimbursed.",
+    "request": "I expressly request and agree that {{trader}} starts the {{plan}} services — including the AI work within the usage the plan includes — now, before the 14-day withdrawal period ends.",
+    "request_units": "I expressly request and agree that {{trader}} starts the {{plan}} platform services now and performs the AI work paid with the included credits whenever I start it, before the 14-day withdrawal period ends.",
+    "acknowledgement": "I acknowledge that if I withdraw, I pay for the services provided until then, pro rata by the days elapsed, and everything else is reimbursed.",
+    "acknowledgement_units": "I acknowledge that if I withdraw, I pay for the platform services provided until then, pro rata by time, and that my right of withdrawal expires for the included credits I have used; everything else is reimbursed.",
+    "checkbox": "I expressly request and agree that {{trader}} starts the {{plan}} services — including the AI work within the usage the plan includes — now, before the 14-day withdrawal period ends. I acknowledge that if I withdraw, I pay for the services provided until then, pro rata by the days elapsed, and everything else is reimbursed.",
+    "checkbox_units": "I expressly request and agree that {{trader}} starts the {{plan}} platform services now and performs the AI work paid with the included credits whenever I start it, before the 14-day withdrawal period ends. I acknowledge that if I withdraw, I pay for the platform services provided until then, pro rata by time, and that my right of withdrawal expires for the included credits I have used; everything else is reimbursed.",
     "confirm": "Continue to payment",
     "decline": "Cancel"
   },
@@ -92,7 +99,8 @@
     "start": {
       "subject": "Confirmation: your request to start the {{plan}} services",
       "body": "On {{date}} (UTC), before subscribing to {{plan}}, you gave us the following statement:\n\n\"{{statement}}\"",
-      "rule": "If you withdraw within the withdrawal period, you pay for the platform services provided until then, pro rata by time, and your right of withdrawal expires for the included credits you have used; everything else is reimbursed."
+      "rule": "If you withdraw within the withdrawal period, you pay for the services provided until then, pro rata by the days elapsed; everything else is reimbursed.",
+      "rule_units": "If you withdraw within the withdrawal period, you pay for the platform services provided until then, pro rata by time, and your right of withdrawal expires for the included credits you have used; everything else is reimbursed."
     },
     "purchase": {
       "subject": "Order confirmation {{contractRef}}",

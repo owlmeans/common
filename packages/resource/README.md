@@ -12,7 +12,7 @@ wants is the `resource-choice` decision.
 ## Installation
 
 ```bash
-bun add @owlmeans/resource@^0.1.18-rc.37
+bun add @owlmeans/resource@^0.1.18-rc.40
 ```
 
 ## Concepts
@@ -75,17 +75,17 @@ export const projectResource = (ctx: BasicContext<BasicConfig>) =>
 ### CRUD in a handler
 
 A read is addressed by an id **or** by criteria; a write takes the record, with its id inside it.
-The organization is keyed by `entityId`, which a server handler takes from `requireEntityKey(req)`
+The organization is keyed by `entityId`, which a server handler takes from `makeEntityScope(req).requireEntityKey()`
 (`@owlmeans/auth-common`), never from the token or the body.
 
 ```ts
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import { MisshapedRecord, UnknownRecordError } from '@owlmeans/resource'
 import type { Resource } from '@owlmeans/resource'
 
 export const handleCreateProject = async (req: AbstractRequest, ctx: Context) => {
-  const entityId = requireEntityKey(req)
+  const entityId = makeEntityScope(req).requireEntityKey()
   const { alias } = req.body as { alias?: string }
   if (alias == null || alias.trim() === '') {
     throw new MisshapedRecord('alias-required')
@@ -96,7 +96,7 @@ export const handleCreateProject = async (req: AbstractRequest, ctx: Context) =>
 }
 
 export const handleGetProject = async (req: AbstractRequest, ctx: Context) => {
-  const entityId = requireEntityKey(req)
+  const entityId = makeEntityScope(req).requireEntityKey()
   const { alias } = req.params as { alias: string }
 
   // One record by several fields is one call — get() throws UnknownRecordError on a miss
@@ -104,7 +104,7 @@ export const handleGetProject = async (req: AbstractRequest, ctx: Context) => {
 }
 
 export const handleRenameProject = async (req: AbstractRequest, ctx: Context) => {
-  const entityId = requireEntityKey(req)
+  const entityId = makeEntityScope(req).requireEntityKey()
   const { id } = req.params as { id: string }
   const project = await projectResource(ctx).load(id)
   if (project == null || project.entityId !== entityId) {
@@ -131,7 +131,7 @@ export const handleDestroyProject = async (req: AbstractRequest, ctx: Context) =
 import type { Criteria, ListQuery, ListResult } from '@owlmeans/resource'
 
 export const handleListProjects = async (req: AbstractRequest, ctx: Context) => {
-  const entityId = requireEntityKey(req)
+  const entityId = makeEntityScope(req).requireEntityKey()
   const { where, sort, page, size } = req.query as ListQuery<ProjectRecord>
 
   const criteria: Criteria<ProjectRecord> = {
@@ -174,15 +174,15 @@ Client state hooks take the same `Criteria<T>`.
 
 ```ts
 import { useStoreList } from '@owlmeans/client'
-import { applyQuery, filterRecords, firstMatch, matchCriteria } from '@owlmeans/resource'
+import { recordQueryHelper } from '@owlmeans/resource'
 import type { Criteria } from '@owlmeans/resource'
 
 const open: Criteria<StoryRecord> = { status: ['open', 'review'], archivedAt: null, assignee: undefined }
 
-filterRecords(stories, open)                                        // every match, insertion order
-firstMatch(stories, open, { sort: [{ field: 'updatedAt', order: 'desc' }] })
-applyQuery(stories, open, { sort: ['title'], page: 1, size: 10 })   // a full ListResult
-stories.some(story => matchCriteria(story, { priority: { $gte: 3 } }))
+recordQueryHelper.filterRecords(stories, open)                      // every match, insertion order
+recordQueryHelper.firstMatch(stories, open, { sort: [{ field: 'updatedAt', order: 'desc' }] })
+recordQueryHelper.applyQuery(stories, open, { sort: ['title'], page: 1, size: 10 })   // a full ListResult
+stories.some(story => recordQueryHelper.matchCriteria(story, { priority: { $gte: 3 } }))
 
 // Web state (hook from @owlmeans/client) — the query is the same vocabulary
 export const useStoryList = (query: Criteria<StoryRecord> = {}) =>
@@ -320,11 +320,12 @@ throws `UnsupportedArgumentError('page-without-size')`.
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `matchCriteria(record, where?)` | function | does one record satisfy the criteria |
-| `filterRecords(records, where?)` | function | every match, in insertion order |
-| `sortRecords(records, sort?)` | function | a sorted copy |
-| `firstMatch(records, where?, { sort }?)` | function | the record `load(where)` returns |
-| `applyQuery(records, where?, opts?)` | function | filter, sort and page into a `ListResult` |
+| `recordQueryHelper` (`createRecordQueryHelper()`, `RecordQueryHelper`) | helper | the in-memory criteria engine below |
+| `recordQueryHelper.matchCriteria(record, where?)` | member | does one record satisfy the criteria |
+| `recordQueryHelper.filterRecords(records, where?)` | member | every match, in insertion order |
+| `recordQueryHelper.sortRecords(records, sort?)` | member | a sorted copy |
+| `recordQueryHelper.firstMatch(records, where?, { sort }?)` | member | the record `load(where)` returns |
+| `recordQueryHelper.applyQuery(records, where?, opts?)` | member | filter, sort and page into a `ListResult` |
 | `createListSchema(schema)` | function | AJV `JSONSchemaType<ListResult<T>>` for a record schema |
 | `filterObject(obj, keep?)` | function | drop null/undefined properties, keeping names in `keep` |
 | `createDbService(alias, override, init?)` | function | base for `ResourceDbService` implementations; `name()` resolves `config.schema ?? config.alias ?? service.alias` |
@@ -381,7 +382,7 @@ durable ledger, and make `run` atomic with the ledger write where the database a
   detects an edit.
 - Install `@noble/hashes` and `@scure/base` alongside this package when you load
   `createMigrationRegistry` or `runMigrations`; install peer `ajv` when you use `createListSchema`.
-- Scope organization data by `entityId` from `requireEntityKey(req)`, never by an id taken from the
+- Scope organization data by `entityId` from `makeEntityScope(req).requireEntityKey()`, never by an id taken from the
   wire.
 
 ## Related packages
@@ -403,7 +404,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.42
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

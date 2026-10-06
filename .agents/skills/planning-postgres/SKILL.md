@@ -7,13 +7,13 @@ user-invocable: false
 # @owlmeans/planning-postgres
 
 **Layer:** Infra extension
-**Install:** `"@owlmeans/planning-postgres": "^0.1.18-rc.5"` in `dependencies` (peers `pg`, `ajv`, `ajv-formats`)
+**Install:** `"@owlmeans/planning-postgres": "^0.1.18-rc.9"` in `dependencies` (peers `pg`, `ajv`, `ajv-formats`)
 
 A `PlanningStore` of `@owlmeans/server-planning` on Postgres. It owns no planning semantics: every
-write still goes through the executor, every fold through `foldPending`, every query through
-`criteriaOf` — this package supplies four tables, the transaction a fold runs in, and the bus that
-carries commits between processes. It implements every port, the data-defined schema port
-included, so a facade over it has `definitions`.
+write still goes through the executor, every fold through `foldHelper.foldPending`, every query
+through `queryHelper.criteriaOf` — this package supplies four tables, the transaction a fold runs
+in, and the bus that carries commits between processes. It implements every port, the
+data-defined schema port included, so a facade over it has `definitions`.
 
 ## Key Exports
 
@@ -145,6 +145,13 @@ export const PLANNING: PlanningPlugin = {
 }
 ```
 
+## Mounting in a target
+
+This service is the store under a target's stock planning API (`planning` → Mounting in a target).
+Its `planning-schema` table is what lets the app's people override and extend the kit's
+`overridable` card types and flows through `schema.define` — never drop it from a target that
+mounts the tree.
+
 ## A worked example
 
 The api binds the tree the shared package declares (an api's own `entrypoints.ts`, outside the
@@ -200,7 +207,7 @@ naming the file to add.
 `project()` folds inline — there is no queued mode. One fold is ONE transaction:
 
 1. `SET LOCAL lock_timeout` (`limits.lockTimeoutMs`), then `pg_advisory_xact_lock` on
-   `advisoryKey('planning:<qualified card table>:<card id>')`.
+   `pgNameHelper.advisoryKey('planning:<qualified card table>:<card id>')`.
 2. **The prelude** walks the rows past `card.seq` (at most `foldBatch`): a FAILED row at the cursor
    moves the cursor past it; the PENDING rows from the cursor on are the run the fold takes; a GAP
    — a row past the expected seq, or `head > seq` with no row at all — is an append still in
@@ -208,7 +215,7 @@ naming the file to add.
    it), and a lost allocation after that: a failed `lost-allocation` placeholder per missing seq.
    `nextSeq` and `append` are two round trips, so without it a transient gap or an already-failed
    row would turn the next write into a spurious `fold:out-of-order`.
-3. `foldPending` of `@owlmeans/server-planning` over a view of the ports bound to the transaction,
+3. `foldHelper.foldPending` of `@owlmeans/server-planning` over a view of the ports bound to the transaction,
    limited to that run, each transition's writes in a SAVEPOINT (`FoldOptions.unit`) — so a write
    the database refuses fails that transition alone and the fold goes past it. Prelude and fold
    repeat within the transaction until the log is folded or a young gap stops it.
@@ -218,8 +225,8 @@ naming the file to add.
 
 A statement that fails outside a savepoint **poisons** the transaction: it is never committed
 (the "transaction is aborted" answers after it are not the cause — the first failure is). The
-fold is retried once; failing again, `failPending` fails the card's pending transitions in a fresh
-transaction, so no waiter hangs to its timeout. A lock that cannot be taken within
+fold is retried once; failing again, `foldHelper.failPending` fails the card's pending transitions
+in a fresh transaction, so no waiter hangs to its timeout. A lock that cannot be taken within
 `lockTimeoutMs` means another process is folding the card: nothing is failed, a heal follows.
 
 Allocation: `nextSeq` is a compare-and-set of `head` on the card row, stamping `headAt`; a card
@@ -266,8 +273,8 @@ delete committed.
 
 ## Querying
 
-Lists, counts and summaries go through `@owlmeans/postgres-resource` (`criteriaToSql`), so a
-`WorkcardQuery` selects here what it selects in memory: `within` is `parents @> $1::varchar[]`,
+Lists, counts and summaries go through `@owlmeans/postgres-resource` (`pgCriteriaHelper.criteriaToSql`),
+so a `WorkcardQuery` selects here what it selects in memory: `within` is `parents @> $1::varchar[]`,
 `labels` `&&`, `flows.<id>` / `fields.<key>` typed jsonb paths (a list is membership), `q` `ILIKE` +
 code prefix. A summary is one `countBy(parent, intrinsic)`. Paging is Postgres's — 100 rows unless
 `size` says otherwise.
@@ -287,13 +294,14 @@ code prefix. A summary is one `countBy(parent, intrinsic)`. Paging is Postgres's
 around the `createdBy` column ownership checks read) need no database; `conformance.spec.ts`
 (the `@owlmeans/server-planning/conformance` cases, read from that package's BUILT output — a new
 case runs here only after `server-planning` is rebuilt), `fold.spec.ts`, `bus.spec.ts` and
-`sync.spec.ts` are gated on `POSTGRES_URL` (`postgresGate()`) and skip cleanly without it. Each spec
-file owns a throwaway schema (`makeSuite`); a fault is injected with a real trigger, never a mock.
+`sync.spec.ts` are gated on `POSTGRES_URL` (`gateHelper.postgresGate()`) and skip cleanly without
+it. Each spec file owns a throwaway schema (`makeSuite`); a fault is injected with a real trigger,
+never a mock.
 
 ## Related
 
-- `server-planning` — the executor, `foldPending`/`failPending`, the commit hub, the conformance suite
+- `server-planning` — the executor, `foldHelper.foldPending`/`failPending`, the commit hub, the conformance suite
 - `planning` — records, flows, scoped schemas, the query language
-- `postgres-resource` — the table compiler, `criteriaToSql`, `countBy`, `advisoryKey`
+- `postgres-resource` — the table compiler, `pgCriteriaHelper.criteriaToSql`, `countBy`, `pgNameHelper.advisoryKey`
 - `postgres` — the connection service these resources resolve through
 - `marketing-consent-postgres` — the same resource-per-file wiring for another feature

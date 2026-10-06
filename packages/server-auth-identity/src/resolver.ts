@@ -1,24 +1,12 @@
 import { appendContextual } from '@owlmeans/context'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { Criteria } from '@owlmeans/resource'
-import type { EntityResolverService, OrgEntityRef } from '@owlmeans/auth-common'
-import { ENTITY_RESOLVER, ENTITY_SLUG_PATTERN } from '@owlmeans/auth-common'
-import { generateWordSlug, nextSlugCandidate } from '@owlmeans/basic-ids'
+import { type EntityResolverService, type OrgEntityRef, ENTITY_RESOLVER, ENTITY_SLUG_PATTERN } from '@owlmeans/auth-common'
+import { idHelper } from '@owlmeans/basic-ids'
 import type { OrgEntity, OrgEntityResource } from './types.js'
 import { AUTH_IDENTITY_ORG_ENTITY, MAX_ENTITY_SLUG_ATTEMPTS, MAX_GUARDED_UPDATE_ATTEMPTS } from './consts.js'
-import { idFilter, isDuplicateKey } from './native.js'
-
-type Context = ServerContext<ServerConfig>
-
-/**
- * How long a resolution is trusted without re-reading the registry.
- *
- * Every authenticated request resolves an entity, so an uncached resolver would put a database
- * round-trip in front of the whole API. The cost of the cache is a rename taking up to this long
- * to be seen by other replicas — which is survivable precisely because the old slug keeps
- * resolving through `formerSlugs` rather than failing.
- */
-const CACHE_TTL = 30_000
+import { nativeUtils } from './utils/native.js'
+import { CACHE_TTL } from './consts.local.js'
+import type { CacheEntry, ResolverContext } from './types.local.js'
 
 /**
  * A stored record as the contract exposes it. Persisted records always carry an id. The cache keeps
@@ -28,11 +16,6 @@ const toRef = (entity: OrgEntity | null): OrgEntityRef | null =>
   entity == null ? null : {
     id: entity.id!, slug: entity.slug, formerSlugs: entity.formerSlugs, iamKey: entity.iamKey,
   }
-
-interface CacheEntry {
-  entity: OrgEntityRef | null
-  at: number
-}
 
 export const makeEntityResolverService = (
   alias: string = ENTITY_RESOLVER
@@ -64,7 +47,7 @@ export const makeEntityResolverService = (
   }
 
   const resource = (): OrgEntityResource =>
-    (service.ctx as Context).resource<OrgEntityResource>(AUTH_IDENTITY_ORG_ENTITY)
+    (service.ctx as ResolverContext).resource<OrgEntityResource>(AUTH_IDENTITY_ORG_ENTITY)
 
   const load = async (value: string): Promise<OrgEntityRef | null> => {
     const cached = cache.get(value)
@@ -103,9 +86,9 @@ export const makeEntityResolverService = (
       // once an installation has many organizations, and the numeric suffix keeps the readable
       // name rather than rerolling into an unrelated one.
       for (let attempt = 1; attempt <= MAX_ENTITY_SLUG_ATTEMPTS; ++attempt) {
-        const base = generateWordSlug()
+        const base = idHelper.generateWordSlug()
         for (let suffix = 1; suffix <= 3; ++suffix) {
-          const candidate = nextSlugCandidate(base, suffix)
+          const candidate = idHelper.nextSlugCandidate(base, suffix)
           const taken = await res.load({
             $or: [{ slug: candidate }, { formerSlugs: { $contains: [candidate] } }],
           })
@@ -145,13 +128,13 @@ export const makeEntityResolverService = (
           // above survive. Guarded on the slug that was read — `formerSlugs` moves only with it —
           // so a concurrent rename makes this match nothing instead of writing a stale list.
           const result = await res.collection.updateOne(
-            { ...idFilter(res, id), slug: entity.slug },
+            { ...nativeUtils.idFilter(res, id), slug: entity.slug },
             { $set: { slug, formerSlugs, updatedAt: new Date() } },
           )
           renamed = result.matchedCount > 0
         } catch (error) {
           // The unique index settles a race the read above could not see.
-          if (isDuplicateKey(error)) throw new SyntaxError(`entity:slug-taken:${slug}`)
+          if (nativeUtils.isDuplicateKey(error)) throw new SyntaxError(`entity:slug-taken:${slug}`)
           throw error
         }
 
@@ -182,7 +165,7 @@ export const makeEntityResolverService = (
       // One field, guarded on still being unset: of two concurrent minters the first write wins,
       // and both answer what was stored.
       await res.collection.updateOne(
-        { ...idFilter(res, id), [`names.${key}`]: { $in: [null, ''] } },
+        { ...nativeUtils.idFilter(res, id), [`names.${key}`]: { $in: [null, ''] } },
         { $set: { [`names.${key}`]: minted, updatedAt: new Date() } },
       )
 

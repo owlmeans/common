@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/test-ui",
-  "version": "0.1.18-rc.46",
+  "version": "0.1.18-rc.49",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,13 +22,13 @@
     "./harness": "./harness/index.html"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.38",
-    "@owlmeans/basic-envelope": "^0.1.18-rc.43",
-    "@owlmeans/basic-ids": "^0.1.18-rc.34",
-    "@owlmeans/basic-keys": "^0.1.18-rc.45",
-    "@owlmeans/test": "^0.1.18-rc.33",
-    "@owlmeans/test-auth": "^0.1.18-rc.43",
-    "playwright": "^1.61.1"
+    "@owlmeans/auth": "^0.1.18-rc.40",
+    "@owlmeans/basic-envelope": "^0.1.18-rc.46",
+    "@owlmeans/basic-ids": "^0.1.18-rc.37",
+    "@owlmeans/basic-keys": "^0.1.18-rc.48",
+    "@owlmeans/test": "^0.1.18-rc.35",
+    "@owlmeans/test-auth": "^0.1.18-rc.46",
+    "playwright": "^1.63.0"
   },
   "peerDependencies": {
     "react": "*",
@@ -44,8 +44,8 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.18-rc.6",
-    "@types/bun": "^1.4.0",
-    "@types/react": "^19.2.17",
+    "@types/bun": "^1.4.2",
+    "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

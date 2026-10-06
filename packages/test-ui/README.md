@@ -6,19 +6,21 @@ These are **not** end-to-end UI tests — they exercise individual components in
 
 ## Exports
 
-- `launchBrowser(opts?)` — return the shared chromium instance for this `bun test` process. Idempotent.
-- `closeBrowser()` — tear it down. Call from `afterAll`.
-- `withPage(fn)` — convenience: lease a fresh context+page for the duration of `fn`, then dispose the context.
+- `browserHelper.launchBrowser(opts?)` — return the shared chromium instance for this `bun test` process. Idempotent.
+- `browserHelper.closeBrowser()` — tear it down. Call from `afterAll`.
+- `browserHelper.withPage(fn)` — convenience: lease a fresh context+page for the duration of `fn`, then dispose the context.
 - `mountComponent({ url, component?, props? })` — opens a fresh context, navigates to a harness URL with the component / props encoded, returns `{ page, close }` so the spec can assert against `page.locator(...)` and dispose the context when done.
+- `makePageHelper(page)` — drives one page of an OwlMeans app: `.acceptConsent(opts?)`, `.answerMarketingConsent(opts?)`, `.loginViaDispatcher(baseUrl, token, opts?)`, `.loginViaSupervisorForm(opts)`, `.saveScreenshot(dir, name)`.
+- `supervisorAuthHelper` — bearers without a browser: `.pregenerateAuthToken(opts)` (signed offline) and `.authenticateViaSupervisorApi(opts)` (the live supervisor flow over the API).
 - `Browser`, `BrowserContext`, `Page`, `Locator` — re-exports of the Playwright types so consumers don't need a direct `playwright` import.
 
 ## Spec shape
 
 ```ts
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { browserHelper, mountComponent } from '@owlmeans/test-ui'
 
-afterAll(async () => { await closeBrowser() })
+afterAll(async () => { await browserHelper.closeBrowser() })
 
 describe('LoginForm — acceptance', () => {
   test('renders the heading from the SKILL example', async () => {
@@ -58,7 +60,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

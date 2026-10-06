@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/viable-mcp",
-  "version": "0.1.18-rc.39",
+  "version": "0.1.18-rc.45",
   "license": "MIT",
   "description": "An MCP server that lets Claude Code, Codex, Copilot or OpenCode build full-stack web applications with the OwlMeans Viable platform.",
   "type": "module",
@@ -33,17 +33,17 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "@owlmeans/cli-auth": "^0.1.18-rc.13",
-    "@owlmeans/oauth": "^0.1.18-rc.13",
-    "@owlmeans/viable-common": "^0.0.41",
-    "@owlmeans/viable-sdk": "^0.1.18-rc.40",
-    "zod": "^4.1.0"
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "@owlmeans/cli-auth": "^0.1.18-rc.16",
+    "@owlmeans/oauth": "^0.1.18-rc.16",
+    "@owlmeans/viable-common": "^0.0.45",
+    "@owlmeans/viable-sdk": "^0.1.18-rc.45",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/bun": "^1.4.0",
-    "@types/node": "^26.1.0",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.6.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

@@ -10,6 +10,9 @@ import { useFormContext } from 'react-hook-form'
 import { I18nProps, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'
 import { useContext } from '@owlmeans/client'
 import { useFormI18n, usePanelI18n } from '@owlmeans/client-panel'
+import { logger } from '@owlmeans/log'
+
+const log = logger('mui-panel:form')
 
 export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n, loader, size, fullWidth, variant = 'contained' }) => {
   const context = useContext()
@@ -42,7 +45,7 @@ export const SubmitButton: FC<SubmitProps> = memo((props) => {
 
   return <Button {...props} label={t(label)} i18n={_i18n}
     onClick={handleSubmit(
-      props.onSubmit ?? props.onClick ?? (() => { console.info('Empty submit') }),
-      problem => console.error('Failed to submit form with error: ', problem)
+      props.onSubmit ?? props.onClick ?? (() => { log.debug('Empty submit') }),
+      problem => log.debug('Form submit refused by validation', { fields: Object.keys(problem) })
     )} />
 })

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/agent-skills
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.46"` — in `devDependencies` for the CLI, in
+**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.50"` — in `devDependencies` for the CLI, in
 `dependencies` for the `./llm` plugins (plus the `@owlmeans/llm*`, `@owlmeans/agent` and
 `@langchain/core` **optional peers**)
 
@@ -32,7 +32,7 @@ Two halves that never meet at runtime:
 | `parseSkillFile(path, content)` · `parseSkillFrontmatter(content)` | The spec parser/validator. Returns `null` for anything that is not a valid skill. |
 | `matchRules(rules, signals)` · `pickByModel(index, signals, model, max)` | The two activation mechanisms, usable standalone. |
 | `projectSkillsCache(provider)` · `invalidateProjectSkills(key?)` | The per-project read cache and its invalidation. |
-| `loadPackageSkills`, `stripMeta`, `parseManifest`, `skillEntries`, `toSkill`, `unscoped` | Embedded-manifest primitives. |
+| `loadPackageSkills`, `manifestHelper.{stripMeta, parseManifest, skillEntries, toSkill, unscoped}` | Embedded-manifest primitives. |
 
 ## Key exports (package root — the installer as a library)
 
@@ -69,7 +69,7 @@ Parsing rules this package holds to:
   notes, and none of them may take down a model call.
 - A `name` that differs from its directory is invalid — the name is how everything else
   addresses the skill, so the mismatch makes it unreachable.
-- Bodies are stripped of frontmatter and of any `AUTO-GENERATED` banner (`stripMeta`).
+- Bodies are stripped of frontmatter and of any `AUTO-GENERATED` banner (`manifestHelper.stripMeta`).
 
 ## `owlmeansPackagesPlugin` — what a named package contributes
 
@@ -118,10 +118,10 @@ ctx.prompts().use(projectSkillsPlugin({
 | Half | Block | Lifetime | Content |
 |---|---|---|---|
 | index | `Skills` | per project | `- <name> — <description>` per skill, sorted, capped |
-| body | `Packages` | per request | `renderSkill()` of each activated skill |
+| body | `Packages` | per request | `promptRenderHelper.renderSkill()` of each activated skill |
 
 The index MUST stay byte-stable for a project: it sits behind a cache breakpoint that every
-call about that project shares. That is why entries sort by `compareAlias` (code units, never
+call about that project shares. That is why entries sort by `promptRenderHelper.compareAlias` (code units, never
 `localeCompare`), descriptions are clipped to a fixed `descriptionChars`, and the heading and
 lead line are constants.
 
@@ -188,7 +188,7 @@ tool never throws — a rejected tool call aborts the whole LangGraph superstep.
 
 ## Installer CLI
 
-`npx @owlmeans/agent-skills@^0.1.18-rc.46` walks the **whole** project tree, reads every nested
+`npx @owlmeans/agent-skills@^0.1.18-rc.50` walks the **whole** project tree, reads every nested
 `<dir>/node_modules/@owlmeans` scope it finds, and copies each `agent-meta/` skill into
 `.agents/skills/<name>/SKILL.md`. A workspace keeps its dependencies beside the workspace member
 that declares them, so the root scope is routinely empty and a root-only scan would find nothing.

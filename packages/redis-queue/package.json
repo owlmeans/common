@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/redis-queue",
-  "version": "0.1.18-rc.32",
+  "version": "0.1.18-rc.36",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,23 +22,25 @@
     }
   },
   "dependencies": {
-    "@owlmeans/basic-ids": "^0.1.18-rc.34",
-    "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/error": "^0.1.18-rc.36",
-    "@owlmeans/queue": "^0.1.18-rc.38",
-    "@owlmeans/redis": "^0.1.18-rc.39",
-    "@owlmeans/redis-resource": "^0.1.18-rc.41",
-    "@owlmeans/resource": "^0.1.18-rc.37",
-    "@owlmeans/server-context": "^0.1.18-rc.40",
-    "bullmq": "^5.78.0"
+    "@owlmeans/basic-ids": "^0.1.18-rc.37",
+    "@owlmeans/context": "^0.1.18-rc.34",
+    "@owlmeans/error": "^0.1.18-rc.38",
+    "@owlmeans/log": "^0.1.18-rc.2",
+    "@owlmeans/queue": "^0.1.18-rc.41",
+    "@owlmeans/redis": "^0.1.18-rc.42",
+    "@owlmeans/redis-resource": "^0.1.18-rc.44",
+    "@owlmeans/resource": "^0.1.18-rc.40",
+    "@owlmeans/server-context": "^0.1.18-rc.43",
+    "bullmq": "^6.3.11",
+    "ioredis": "^6.0.0"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/entrypoint": "^0.1.18-rc.39",
-    "@owlmeans/route": "^0.1.18-rc.33",
-    "@owlmeans/test-integration": "^0.1.18-rc.30",
-    "@types/bun": "^1.4.0",
-    "@types/node": "^26.1.0",
+    "@owlmeans/entrypoint": "^0.1.18-rc.41",
+    "@owlmeans/route": "^0.1.18-rc.35",
+    "@owlmeans/test-integration": "^0.1.18-rc.33",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.6.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

@@ -17,7 +17,7 @@ entrypoint is registered in — `path()` walks the parent chain, `mount()` adds 
 ## Installation
 
 ```bash
-bun add @owlmeans/entrypoint@^0.1.18-rc.39
+bun add @owlmeans/entrypoint@^0.1.18-rc.41
 ```
 
 ## Concepts
@@ -92,14 +92,14 @@ section independently. The children inherit `DEFAULT_GUARD` from `base`.
 ```ts
 import { handlers } from '@owlmeans/server-api'
 import { bind } from '@owlmeans/server-entrypoint'
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 import { storyProtocols } from 'my-app-common'
 import type { Context } from 'my-app-backend'
 
 const api = handlers<Context>()
 
 const create = api.body(storyProtocols.create, async (body, context, request) =>
-  context.story().create(requireEntityKey(request), body))
+  context.story().create(makeEntityScope(request).requireEntityKey(), body))
 
 const get = api.params(storyProtocols.get, async ({ id }, context) =>
   context.story().get(id))
@@ -112,7 +112,7 @@ export const serverBindings = [
 ```
 
 `body`, `params` and `id` are inferred from the protocol; no generic is named. The organization
-record id comes from the request (`requireEntityKey`), never from the payload.
+record id comes from the request (`makeEntityScope(request).requireEntityKey()`), never from the payload.
 
 ### 3. Call the protocol from a client or another service
 
@@ -281,8 +281,8 @@ over HTTP.
   transport decide.
 - Inherited gates are deduplicated by gate service: a child declaring a gate under the same service
   replaces its ancestor's gate for that service rather than adding to it.
-- `request.entity` is set only where authentication ran `attachEntity`; handlers key records by
-  `entity.id` (via `requireEntityKey` / `requireEntity` from `@owlmeans/auth-common`), never by the
+- `request.entity` is set only where authentication ran `makeEntityScope(request).attachEntity(context)`; handlers key records by
+  `entity.id` (via `makeEntityScope(request).requireEntityKey()` / `.requireEntity()` from `@owlmeans/auth-common`), never by the
   token's `entitySlug`.
 
 ## Related packages
@@ -304,7 +304,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

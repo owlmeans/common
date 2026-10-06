@@ -1,12 +1,11 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 import type { Criteria, ListOptions, ListResult, ResourceRecord } from '@owlmeans/resource'
-import type { RouteParent } from '@owlmeans/route'
 import type { AnySchema, ValidateFunction } from 'ajv'
 import type {
   CodeScope, CodeStyle, CommitState, IntrinsicPolicy, IntrinsicStatus, PlanningSchemaKind, SchemaOrigin,
   SchemaWriteMode, SpecificationFormat, TransitionAction, WorkcardKind,
 } from './consts.js'
+import type { WorkcardModel } from './models/types.js'
 
 // ─── Records ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -121,9 +120,7 @@ export interface TransitionCommit {
  * Every key carries a NEW VALUE, never a delta. `fields` and `flows` merge shallowly into the
  * card's; every other key replaces. Clearing is `Transition.unset`.
  */
-export type WorkcardChanges =
-  & Partial<Omit<Workcard, 'id' | 'kind' | 'type' | 'entityId' | 'seq' | 'head' | 'createdAt'>>
-  & Partial<Pick<Specification, 'category' | 'format' | 'body' | 'ref' | 'revision' | 'version' | 'bodyChars'>>
+export interface WorkcardChanges extends Partial<Omit<Workcard, 'id' | 'kind' | 'type' | 'entityId' | 'seq' | 'head' | 'createdAt'>>, Partial<Pick<Specification, 'category' | 'format' | 'body' | 'ref' | 'revision' | 'version' | 'bodyChars'>> {}
 
 /** The event. Append-only, never edited; folding every transition of a card in `seq` order IS the card. */
 export interface Transition extends ResourceRecord {
@@ -540,7 +537,7 @@ export interface CommitFilter {
   kind?: WorkcardKind
 }
 
-export type Unsubscribe = () => void
+export interface Unsubscribe { (): void }
 
 export interface CommitSource {
   status: (transition: string) => Promise<CommitStatus>
@@ -917,130 +914,4 @@ export interface PlanningService {
   for: (scope: PlanningScope) => PlanningFacade
   /** Runs the ordered `after` chain — called by the process that FOLDED the transition. */
   committed: (event: CommitEvent) => Promise<void>
-}
-
-// ─── Models ──────────────────────────────────────────────────────────────────────────────────────
-
-export interface ExecuteMeta {
-  actor?: TransitionActor
-  cause?: string
-  key?: string
-  expectSeq?: number | null
-}
-
-export type ModelExecuteOptions = ExecuteOptions & ExecuteMeta
-
-export interface SpecificationWriteOptions extends ModelExecuteOptions {
-  format?: SpecificationFormat
-  version?: number
-  ref?: string
-  /** The title a new document gets; the category when omitted. */
-  title?: string
-  /** The specification type; resolved from the slot and the registry when omitted. */
-  type?: string
-}
-
-export interface WorkcardModel<T extends Workcard = Workcard> {
-  record: T
-  id: string
-  kind: WorkcardKind
-  type: string
-  schema: () => AnyTypeSchema
-  flow: (id?: string) => StatusFlowSchema
-  statusOf: (flowId?: string) => string
-  intrinsicOf: (flowId?: string) => IntrinsicStatus
-  can: (transition: string, flowId?: string) => boolean
-  available: (flowId?: string) => StatusTransitionRule[]
-  pending: () => boolean
-  transit: (transition: string, changes?: WorkcardChanges, opts?: ModelExecuteOptions & { flow?: string }) => Promise<TransitionReceipt>
-  update: (changes: WorkcardChanges, opts?: ModelExecuteOptions & { unset?: string[] }) => Promise<TransitionReceipt>
-  remove: (opts?: ModelExecuteOptions) => Promise<TransitionReceipt>
-  link: (type: string, to: string, fields?: Record<string, unknown>, opts?: ModelExecuteOptions) => Promise<TransitionReceipt>
-  unlink: (type: string, to: string, opts?: ModelExecuteOptions) => Promise<TransitionReceipt>
-  children: (query?: Omit<WorkcardQuery, 'parent'>) => Promise<ListResult<Workcard>>
-  relationships: (query?: RelationshipQuery) => Promise<ListResult<Relationship>>
-  transitions: (query?: Omit<TransitionQuery, 'card'>) => Promise<ListResult<Transition>>
-  specification: (category: string) => Promise<Specification | null>
-  specifications: (query?: SpecificationQuery) => Promise<ListResult<Specification>>
-  revisions: (category: string, limit?: number) => Promise<SpecificationRevision[]>
-  /** Create the slot's document, or revise it when it already exists. */
-  write: (category: string, body: string, opts?: SpecificationWriteOptions) => Promise<TransitionReceipt>
-  reload: () => Promise<WorkcardModel<T>>
-}
-
-export interface ProjectModel extends WorkcardModel<Project> {
-  cards: (query?: Omit<WorkcardQuery, 'within' | 'kind'>) => Promise<ListResult<Workcard>>
-  projects: (query?: Omit<WorkcardQuery, 'within' | 'kind'>) => Promise<ListResult<Workcard>>
-  summary: (query?: Omit<SummaryQuery, 'parents'>) => Promise<IntrinsicCounts>
-  /** A `delete` of the project — the store removes everything under it. */
-  purge: (opts?: ModelExecuteOptions) => Promise<TransitionReceipt>
-  reload: () => Promise<ProjectModel>
-}
-
-export interface SpecificationModel extends WorkcardModel<Specification> {
-  body: () => string | undefined
-  revise: (body: string, opts?: ModelExecuteOptions & { version?: number, ref?: string }) => Promise<TransitionReceipt>
-  history: (limit?: number) => Promise<SpecificationRevision[]>
-  reload: () => Promise<SpecificationModel>
-}
-
-// ─── Protocol tree ───────────────────────────────────────────────────────────────────────────────
-
-export interface PlanningBaseOptions {
-  /** The base alias every leaf alias derives from (`planningAliases`). */
-  alias: string
-  /** Defaults to `PLANNING_PATH`. */
-  path?: string
-  parent?: RouteParent
-  service?: string
-}
-
-export interface PlanningProtocolOptions {
-  base: PlanningBaseOptions
-  /** The guard(s) the base carries; every HTTP leaf inherits them. */
-  guards: string | readonly string[]
-  gate?: { alias: string, params?: string | readonly string[] }
-  /**
-   * The socket base the commit feed hangs under. The feed inherits THAT base's guards; the
-   * planning base when omitted.
-   */
-  socketBase?: RouteParent
-  /**
-   * Declare the data-defined schema surface: `schema.list` takes a `project` query and answers
-   * that layer's scoped bundle, and `schema.define` writes. Off by default — a tree without it
-   * declares exactly the other leaves.
-   */
-  definitions?: boolean
-}
-
-export interface PlanningProtocols {
-  base: EntrypointProtocol<OpenRequest, OpenValue>
-  schema: {
-    /** The plain bundle — or, on a tree declared with `definitions`, a layer's scoped one. */
-    list: EntrypointProtocol<{ query?: SchemaListQuery }, ScopedSchemaBundle>
-    /** Present on a tree declared with `definitions` only. */
-    define?: EntrypointProtocol<{ body: SchemaDefineRequest }, SchemaDefineReply>
-  }
-  card: {
-    list: EntrypointProtocol<{ query: WorkcardQueryWire }, ListResult<Workcard>>
-    summary: EntrypointProtocol<{ query: SummaryQueryWire }, SummaryView>
-    get: EntrypointProtocol<{ params: WorkcardParams }, Workcard>
-    transitions: EntrypointProtocol<{ params: WorkcardParams, query: TransitionQueryWire }, ListResult<Transition>>
-    specifications: EntrypointProtocol<{ params: WorkcardParams, query: SpecificationQueryWire }, ListResult<Specification>>
-  }
-  spec: {
-    get: EntrypointProtocol<{ params: WorkcardParams }, Specification>
-    revisions: EntrypointProtocol<{ params: WorkcardParams, query: RevisionsQuery }, SpecificationRevisionList>
-  }
-  link: {
-    list: EntrypointProtocol<{ query: RelationshipQueryWire }, ListResult<Relationship>>
-  }
-  transition: {
-    get: EntrypointProtocol<{ params: TransitionParams }, Transition>
-  }
-  execute: EntrypointProtocol<{ body: ExecuteRequest }, TransitionReceiptView>
-  commit: {
-    get: EntrypointProtocol<{ params: TransitionParams, query: CommitQuery }, CommitStatus>
-    events: EntrypointProtocol<{ query: CommitFeedQuery }, CommitEvent>
-  }
 }

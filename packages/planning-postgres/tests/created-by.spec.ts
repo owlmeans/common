@@ -1,17 +1,17 @@
 import { describe, expect, test } from 'bun:test'
-import { schemaToTableSpec } from '@owlmeans/postgres-resource'
 import { IntrinsicStatus, WorkcardKind } from '@owlmeans/planning'
 import type { Workcard } from '@owlmeans/planning'
 
-import { PlanningCardTableSchema, RES_PLANNING_CARD, readCard, writeCard } from '../src/index.js'
+import { cardSqlOf, PlanningCardTableSchema, RES_PLANNING_CARD } from '../src/index.js'
 import type { SqlContext } from '../src/index.js'
+import { pgSchemaHelper } from '@owlmeans/postgres-resource'
 
 /**
  * No database: what the card statements do with `createdBy` — the column ownership checks read.
  * A real round trip is the `@owlmeans/server-planning/conformance` createdBy case, which
  * `conformance.spec.ts` runs when the Postgres gate is open.
  */
-const card = schemaToTableSpec(RES_PLANNING_CARD, PlanningCardTableSchema, 'app', 'planning_card', true)
+const card = pgSchemaHelper.schemaToTableSpec(RES_PLANNING_CARD, PlanningCardTableSchema, 'app', 'planning_card', true)
 
 const recording = (rows: Record<string, unknown>[] = []) => {
   const calls: { text: string, params: unknown[] }[] = []
@@ -47,12 +47,12 @@ describe('@owlmeans/planning-postgres — createdBy', () => {
 
   test('a create inserts it and every later fold writes the folded value back', async () => {
     const created = recording()
-    await writeCard(created.sql, folded(1))
+    await cardSqlOf(created.sql).writeCard(folded(1))
     expect(created.calls[0].text).toStartWith('INSERT INTO "app"."planning_card"')
     expect(bound(created.calls[0], 'createdBy')).toBe('librarian')
 
     const updated = recording([{ id: 'card-1' }])
-    await writeCard(updated.sql, folded(3))
+    await cardSqlOf(updated.sql).writeCard(folded(3))
     expect(updated.calls[0].text).toStartWith('UPDATE "app"."planning_card" SET')
     expect(bound(updated.calls[0], 'createdBy')).toBe('librarian')
   })
@@ -60,8 +60,8 @@ describe('@owlmeans/planning-postgres — createdBy', () => {
   test('a read answers it, and an unset one is absent rather than null', async () => {
     const { createdBy: _createdBy, ...unowned } = folded(1)
 
-    expect((await readCard(recording([{ ...folded(1), headAt: null }]).sql, 'card-1', 'library-1'))?.createdBy).toBe('librarian')
-    const read = await readCard(recording([{ ...unowned, createdBy: null }]).sql, 'card-1', 'library-1')
+    expect((await cardSqlOf(recording([{ ...folded(1), headAt: null }]).sql).readCard('card-1', 'library-1'))?.createdBy).toBe('librarian')
+    const read = await cardSqlOf(recording([{ ...unowned, createdBy: null }]).sql).readCard('card-1', 'library-1')
     expect(read).not.toBeNull()
     expect(Object.keys(read!)).not.toContain('createdBy')
   })

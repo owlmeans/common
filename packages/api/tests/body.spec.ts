@@ -1,60 +1,59 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { provideResponse } from '@owlmeans/entrypoint'
-import type { AbstractRequest } from '@owlmeans/entrypoint'
+import { provideResponse, type AbstractRequest } from '@owlmeans/entrypoint'
 import { RouteMethod } from '@owlmeans/route'
 import { createApiService } from '../src/service.js'
-import { contentTypeOf, isJsonContentType, jsonScalarBody, requestBodyOf } from '../src/utils/body.js'
+import { bodyUtils } from '../src/utils/body.js'
 
 const STRING = { type: 'string' }
 
 describe('what a request body becomes', () => {
   test('a scalar on a POST without a content type is JSON text', () => {
-    expect(requestBodyOf('abc', {}, RouteMethod.POST)).toEqual({ data: '"abc"', contentType: 'application/json', verbatim: true })
-    expect(requestBodyOf('', {}, RouteMethod.POST).data).toBe('""')
-    expect(requestBodyOf(5, {}, RouteMethod.POST).data).toBe('5')
-    expect(requestBodyOf(0, {}, RouteMethod.POST).data).toBe('0')
-    expect(requestBodyOf(true, {}, RouteMethod.POST).data).toBe('true')
-    expect(requestBodyOf(false, {}, RouteMethod.POST).data).toBe('false')
+    expect(bodyUtils.requestBodyOf('abc', {}, RouteMethod.POST)).toEqual({ data: '"abc"', contentType: 'application/json', verbatim: true })
+    expect(bodyUtils.requestBodyOf('', {}, RouteMethod.POST).data).toBe('""')
+    expect(bodyUtils.requestBodyOf(5, {}, RouteMethod.POST).data).toBe('5')
+    expect(bodyUtils.requestBodyOf(0, {}, RouteMethod.POST).data).toBe('0')
+    expect(bodyUtils.requestBodyOf(true, {}, RouteMethod.POST).data).toBe('true')
+    expect(bodyUtils.requestBodyOf(false, {}, RouteMethod.POST).data).toBe('false')
   })
 
   test('a scalar under an explicit JSON content type is JSON text, on any method', () => {
-    expect(requestBodyOf('abc', { 'Content-Type': 'application/json; charset=utf-8' }, RouteMethod.PUT))
+    expect(bodyUtils.requestBodyOf('abc', { 'Content-Type': 'application/json; charset=utf-8' }, RouteMethod.PUT))
       .toEqual({ data: '"abc"', verbatim: true })
-    expect(requestBodyOf(7, { 'content-type': 'application/merge-patch+json' }, RouteMethod.PATCH).data).toBe('7')
+    expect(bodyUtils.requestBodyOf(7, { 'content-type': 'application/merge-patch+json' }, RouteMethod.PATCH).data).toBe('7')
   })
 
   test('already-serialized JSON text is sent as it is', () => {
-    expect(requestBodyOf('{"a":1}', {}, RouteMethod.POST).data).toBe('{"a":1}')
-    expect(requestBodyOf('[1,2]', {}, RouteMethod.POST).data).toBe('[1,2]')
-    expect(requestBodyOf('"abc"', {}, RouteMethod.POST).data).toBe('"abc"')
-    expect(requestBodyOf('"abc"', {}, RouteMethod.POST, STRING).data).toBe('"abc"')
+    expect(bodyUtils.requestBodyOf('{"a":1}', {}, RouteMethod.POST).data).toBe('{"a":1}')
+    expect(bodyUtils.requestBodyOf('[1,2]', {}, RouteMethod.POST).data).toBe('[1,2]')
+    expect(bodyUtils.requestBodyOf('"abc"', {}, RouteMethod.POST).data).toBe('"abc"')
+    expect(bodyUtils.requestBodyOf('"abc"', {}, RouteMethod.POST, STRING).data).toBe('"abc"')
   })
 
   test('under a string body schema, JSON-looking text is the string the caller means', () => {
-    expect(jsonScalarBody('123', STRING)).toBe('"123"')
-    expect(jsonScalarBody('true', STRING)).toBe('"true"')
-    expect(jsonScalarBody('null', { type: ['string', 'null'] })).toBe('"null"')
-    expect(jsonScalarBody('{"a":1}', STRING)).toBe('"{\\"a\\":1}"')
-    expect(jsonScalarBody('123', { type: 'number' })).toBe('123')
+    expect(bodyUtils.jsonScalarBody('123', STRING)).toBe('"123"')
+    expect(bodyUtils.jsonScalarBody('true', STRING)).toBe('"true"')
+    expect(bodyUtils.jsonScalarBody('null', { type: ['string', 'null'] })).toBe('"null"')
+    expect(bodyUtils.jsonScalarBody('{"a":1}', STRING)).toBe('"{\\"a\\":1}"')
+    expect(bodyUtils.jsonScalarBody('123', { type: 'number' })).toBe('123')
   })
 
   test('objects, arrays and everything outside JSON behave as before', () => {
     const object = { a: 1 }
-    expect(requestBodyOf(object, {}, RouteMethod.POST)).toEqual({ data: object, verbatim: false })
-    expect(requestBodyOf([1], {}, RouteMethod.POST)).toEqual({ data: [1], verbatim: false })
-    expect(requestBodyOf(undefined, {}, RouteMethod.POST)).toEqual({ data: undefined, verbatim: false })
-    expect(requestBodyOf('abc', { 'content-type': 'text/plain' }, RouteMethod.POST)).toEqual({ data: 'abc', verbatim: false })
-    expect(requestBodyOf('abc', {}, RouteMethod.PUT)).toEqual({ data: 'abc', verbatim: false })
-    expect(requestBodyOf({ a: '1', b: ['x'] }, { 'content-type': 'application/x-www-form-urlencoded' }, RouteMethod.POST).data)
+    expect(bodyUtils.requestBodyOf(object, {}, RouteMethod.POST)).toEqual({ data: object, verbatim: false })
+    expect(bodyUtils.requestBodyOf([1], {}, RouteMethod.POST)).toEqual({ data: [1], verbatim: false })
+    expect(bodyUtils.requestBodyOf(undefined, {}, RouteMethod.POST)).toEqual({ data: undefined, verbatim: false })
+    expect(bodyUtils.requestBodyOf('abc', { 'content-type': 'text/plain' }, RouteMethod.POST)).toEqual({ data: 'abc', verbatim: false })
+    expect(bodyUtils.requestBodyOf('abc', {}, RouteMethod.PUT)).toEqual({ data: 'abc', verbatim: false })
+    expect(bodyUtils.requestBodyOf({ a: '1', b: ['x'] }, { 'content-type': 'application/x-www-form-urlencoded' }, RouteMethod.POST).data)
       .toBe('a=1&b%5B0%5D=x')
   })
 
   test('the content-type header is read whatever its case', () => {
-    expect(contentTypeOf({ 'CONTENT-TYPE': 'application/json' })).toBe('application/json')
-    expect(contentTypeOf({ accept: 'application/json' })).toBeUndefined()
-    expect(isJsonContentType('application/vnd.api+json')).toBe(true)
-    expect(isJsonContentType('application/jsonp')).toBe(false)
-    expect(isJsonContentType('text/plain')).toBe(false)
+    expect(bodyUtils.contentTypeOf({ 'CONTENT-TYPE': 'application/json' })).toBe('application/json')
+    expect(bodyUtils.contentTypeOf({ accept: 'application/json' })).toBeUndefined()
+    expect(bodyUtils.isJsonContentType('application/vnd.api+json')).toBe(true)
+    expect(bodyUtils.isJsonContentType('application/jsonp')).toBe(false)
+    expect(bodyUtils.isJsonContentType('text/plain')).toBe(false)
   })
 })
 

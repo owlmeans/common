@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/test-integration",
-  "version": "0.1.18-rc.30",
+  "version": "0.1.18-rc.33",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,11 +21,12 @@
     }
   },
   "dependencies": {
-    "@owlmeans/test": "^0.1.18-rc.33"
+    "@owlmeans/log": "^0.1.18-rc.2",
+    "@owlmeans/test": "^0.1.18-rc.35"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.18-rc.6",
-    "@types/bun": "^1.4.0",
+    "@types/bun": "^1.4.2",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

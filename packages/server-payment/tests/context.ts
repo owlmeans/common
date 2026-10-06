@@ -1,4 +1,4 @@
-import { mongoGate, randomNamespace } from '@owlmeans/test-integration'
+import { randomNamespace, gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, MongoEnv } from '@owlmeans/test-integration'
 import { AppType } from '@owlmeans/context'
 import { appendMongo } from '@owlmeans/mongo'
@@ -19,7 +19,7 @@ import { declareTestCatalogue, HOST, PLANS_PRODUCT, SERVICE } from './fake-strip
  * their validators and indexes, the entitlement service and the gates — with the gateway unmanaged
  * (no Stripe). One database per spec file, dropped by that file's own teardown.
  */
-export const gate: IntegrationGate<MongoEnv> = mongoGate()
+export const gate: IntegrationGate<MongoEnv> = gateHelper.mongoGate()
 
 export const BURST_PLAN = 'burst-plan'
 

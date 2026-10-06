@@ -1,41 +1,8 @@
-import { ConnectConsentRequired, ConnectOutOfCredits } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
-import { visibleTools } from './catalogue.js'
-import { consentRequiredPhrase, refusalMessage, refusalPhrase } from './refusal.js'
-import { delegatedLlm, performsModelTasks, sessionCapable } from './types.js'
-import type { ToolDeps } from './types.js'
-
-/**
- * Turn a refusal the model can act on into words a model can act on.
- *
- * The amounts and the link travel packed into the error's message (only `type` and `message`
- * survive the trip from the platform), so this is the one place they are read back out and put in
- * front of the model — never the raw `out-of-credits:...` marker.
- */
-const phraseOutOfCredits = (e: ConnectOutOfCredits): string =>
-  `Not enough balance to do this — it needs about $${e.requiredUsd.toFixed(2)} and the account has `
-  + `$${e.balanceUsd.toFixed(2)} left. Nothing was started. Ask the user to top up here: `
-  + `${e.topUpUrl} — then retry.`
-
-/**
- * Turn a consent refusal into what the model has to tell a PERSON — the page to open and that
- * retrying first is pointless. The URL and the deadline travel packed into the message, like the
- * out-of-credits fields.
- */
-const phraseConsentRequired = (e: ConnectConsentRequired): string => consentRequiredPhrase(e.consentUrl, e.deadline)
-
-/** The minimum of an MCP server this adapter needs. Typed structurally so the SDK stays optional. */
-export interface McpServerLike {
-  registerTool: (
-    name: string,
-    config: { title?: string, description?: string, inputSchema?: unknown },
-    cb: (args: Record<string, unknown>) => Promise<{
-      content: Array<{ type: 'text', text: string }>
-      structuredContent?: object
-      isError?: boolean
-    }>
-  ) => unknown
-}
+import { catalogueHelper } from './catalogue.js'
+import { refusalHelper } from './refusal.js'
+import { toolHostHelper } from './host.js'
+import type { ToolDeps, McpServerLike } from './types.js'
 
 const withDeadline = async <T>(label: string, ms: number, fn: () => Promise<T>): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -63,7 +30,7 @@ const withDeadline = async <T>(label: string, ms: number, fn: () => Promise<T>):
 export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string[] => {
   const registered: string[] = []
 
-  for (const tool of visibleTools(deps.host)) {
+  for (const tool of catalogueHelper.visibleTools(deps.host)) {
     server.registerTool(
       tool.name,
       { title: tool.title, description: tool.description, inputSchema: tool.input },
@@ -78,13 +45,13 @@ export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string
             ...(result.isError === true ? { isError: true } : {}),
           }
         } catch (e) {
-          const isOutOfCredits = e instanceof ConnectOutOfCredits
-          const isConsent = e instanceof ConnectConsentRequired
-          const text = isOutOfCredits
-            ? phraseOutOfCredits(e)
-            : isConsent ? phraseConsentRequired(e) : refusalPhrase(e)
-          deps.log(`${tool.name} failed: ${refusalMessage(e)}`)
-          if (isOutOfCredits || isConsent) {
+          // The balance, the spend consent and a conversion's confirmation are refusals only a
+          // PERSON resolves: phrased from their packed fields (never the raw marker) and pushed out
+          // of band as well, where the host has a channel for it.
+          const person = refusalHelper.personRefusalPhrase(e)
+          const text = person ?? refusalHelper.refusalPhrase(e)
+          deps.log(`${tool.name} failed: ${refusalHelper.refusalMessage(e)}`)
+          if (person != null) {
             deps.notify?.('warning', text)
           }
 
@@ -122,7 +89,9 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     + ' project_status → list_stories → develop_story → story_status. An application that already'
     + ' exists is brought onto the same rails instead: convert_project → conversion_status → check_convertible →'
     + ' proceed_conversion at each stage. The check reads what the intake found, so it comes'
-    + ' after the first stage rather than before it.',
+    + ' after the first stage rather than before it. A conversion step that would use the plan\'s'
+    + ' conversion limit or spend credits answers with what it costs instead of starting: tell the'
+    + ' user, and repeat the call with confirm: true only after they agree.',
     '',
     'Call describe_platform for what this platform can build and which of it this session can'
     + ' drive.',
@@ -139,11 +108,11 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     + ' write your own.',
   ]
 
-  if (sessionCapable(host)) {
+  if (toolHostHelper.sessionCapable(host)) {
     lines.push(
       '',
       'MODEL TASKS: '
-      + (performsModelTasks(host)
+      + (toolHostHelper.performsModelTasks(host)
         ? 'this session runs the platform\'s model calls on YOUR side.'
         : 'the platform performs its own model calls for stories and free flight, but a'
           + ' CONVERSION\'s are yours by default.')
@@ -159,7 +128,7 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
       + ' answer it yourself; if they are unavailable, submit declined: true so the platform records'
       + ' an assumption.'
     )
-  } else if (delegatedLlm(host)) {
+  } else if (toolHostHelper.delegatedLlm(host)) {
     // The account asks for the delegated mode and this host cannot serve it: it answers one
     // request and forgets, so there is nothing here to hold a task until an answer comes back.
     // Said plainly, because the alternative is a parent waiting for a next_task tool that is not

@@ -1,14 +1,16 @@
 import { handlers } from '@owlmeans/server-api'
-import { decodeRelationshipQuery } from '@owlmeans/planning'
+import { wireHelper } from '@owlmeans/planning'
 import type { PlanningProtocols } from '@owlmeans/planning'
 import type { Context, PlanningHandlerOptions } from '../types.js'
-import { concealed, handlerFacade } from '../utils/index.js'
+import { guardHelper } from '../utils/guard.js'
+import { planningHandlerOf } from '../utils/handler.js'
+import type { RequestHandler } from './types.js'
 
 export const listLinks = (
   protocol: PlanningProtocols['link']['list'], opts?: PlanningHandlerOptions
-): ReturnType<ReturnType<typeof handlers<Context>>['request']> =>
-  handlers<Context>().request(protocol, async (req, ctx) => concealed(async () => {
-    const facade = await handlerFacade(ctx, req, opts)
+): RequestHandler =>
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async () => {
+    const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
 
-    return await facade.relationships.list(decodeRelationshipQuery(req.query))
+    return await facade.relationships.list(wireHelper.decodeRelationshipQuery(req.query))
   }))

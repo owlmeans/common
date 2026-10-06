@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  COLOR_SCHEME_EVENT, COLOR_SCHEME_KEY, applyColorScheme, readColorScheme, setColorSchemeClass,
-} from '../../scheme/scheme.js'
-import type { ColorSchemeChoice } from '../../scheme/scheme.js'
+import { colorSchemeHelper } from '../../scheme/scheme.js'
+import { COLOR_SCHEME_EVENT, COLOR_SCHEME_KEY } from '../../scheme/consts.js'
+import type { ColorSchemeChoice } from '../../scheme/types.js'
 import type { ColorSchemeModel } from './types.js'
-
-const DARK_QUERY = '(prefers-color-scheme: dark)'
+import { DARK_QUERY } from './consts.local.js'
 
 const systemDark = (): boolean =>
   typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -25,21 +23,21 @@ const systemDark = (): boolean =>
  * late rather than never.
  */
 export const useColorScheme = (): ColorSchemeModel => {
-  const [choice, setState] = useState<ColorSchemeChoice | null>(readColorScheme)
+  const [choice, setState] = useState<ColorSchemeChoice | null>(colorSchemeHelper.readColorScheme)
   const [dark, setDark] = useState<boolean>(systemDark)
 
   useEffect(() => {
-    const stored = readColorScheme()
+    const stored = colorSchemeHelper.readColorScheme()
     if (stored != null) {
-      setColorSchemeClass(stored)
+      colorSchemeHelper.setColorSchemeClass(stored)
     }
     setState(stored)
 
-    const onChoice = () => setState(readColorScheme())
+    const onChoice = () => setState(colorSchemeHelper.readColorScheme())
     const onStorage = (event: StorageEvent) => {
       if (event.key === COLOR_SCHEME_KEY || event.key == null) {
-        const next = readColorScheme()
-        setColorSchemeClass(next)
+        const next = colorSchemeHelper.readColorScheme()
+        colorSchemeHelper.setColorSchemeClass(next)
         setState(next)
       }
     }
@@ -58,7 +56,7 @@ export const useColorScheme = (): ColorSchemeModel => {
     }
   }, [])
 
-  const setChoice = useCallback((next: ColorSchemeChoice | null) => applyColorScheme(next), [])
+  const setChoice = useCallback((next: ColorSchemeChoice | null) => colorSchemeHelper.applyColorScheme(next), [])
 
   return { scheme: choice ?? (dark ? 'dark' : 'light'), choice, setChoice }
 }

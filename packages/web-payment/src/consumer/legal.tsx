@@ -1,27 +1,16 @@
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { useLanguage } from '@owlmeans/client-i18n'
-import { baseLanguageOf } from '@owlmeans/payment'
-import type { ConsumerRightsLinks } from '@owlmeans/payment'
+import { type ConsumerRightsLinks, consumerRightsPolicyHelper } from '@owlmeans/payment'
 import { cn } from '@/lib/utils'
-import { languageNameOf, usePaymentText, type FixedText } from './copy.js'
-import type { LegalLinksSource, PieceError } from './types.js'
+import { fixedTextHelper } from './copy.js'
+import { usePaymentText } from './hooks.js'
+import type { FixedText, LegalLinksSource, PieceError, LanguageToggleProps, LegalLinksProps, ShownLanguage } from './types.js'
 
 /** The interface language: the one given, else the active i18n language. */
 export const useUiLanguage = (uiLanguage?: string): string => {
   const [active] = useLanguage()
 
-  return baseLanguageOf(uiLanguage ?? active) || 'en'
-}
-
-export interface ShownLanguage {
-  /** The language the legal copy is shown in now (base code). */
-  shown: string
-  /** The contract language (base code). */
-  contract: string
-  ui: string
-  /** The contract and interface languages differ, so a toggle is offered. */
-  canToggle: boolean
-  toggle: () => void
+  return consumerRightsPolicyHelper.baseLanguageOf(uiLanguage ?? active) || 'en'
 }
 
 /**
@@ -31,20 +20,13 @@ export interface ShownLanguage {
  */
 export const useShownLanguage = (contractLanguage: string, uiLanguage?: string, resetKey?: unknown): ShownLanguage => {
   const ui = useUiLanguage(uiLanguage)
-  const contract = baseLanguageOf(contractLanguage) || ui
+  const contract = consumerRightsPolicyHelper.baseLanguageOf(contractLanguage) || ui
   const [showUi, setShowUi] = useState(false)
   useEffect(() => { setShowUi(false) }, [contract, resetKey])
   const canToggle = contract !== ui
   const toggle = useCallback(() => setShowUi(value => !value), [])
 
   return { shown: canToggle && showUi ? ui : contract, contract, ui, canToggle, toggle }
-}
-
-export interface LanguageToggleProps {
-  language: ShownLanguage
-  /** An extra `data-*` hook of the piece that hosts the toggle (`data-consent-language-toggle`). */
-  hook?: string
-  className?: string
 }
 
 /**
@@ -63,7 +45,7 @@ export const LanguageToggle = ({ language, hook, className }: LanguageToggleProp
     {...(hook != null ? { [hook]: '' } : {})}
     className={cn('text-primary w-fit cursor-pointer text-xs underline-offset-4 hover:underline', className)}
   >
-    {ui('consumer.show-in', { language: languageNameOf(target, language.ui) })}
+    {ui('consumer.show-in', { language: fixedTextHelper.languageNameOf(target, language.ui) })}
   </button>
 }
 
@@ -74,16 +56,9 @@ export const linksFor = (language: string, own: ConsumerRightsLinks | undefined,
   }
   const picked = typeof source === 'function'
     ? source(language)
-    : source[language] ?? source[baseLanguageOf(language)]
+    : source[language] ?? source[consumerRightsPolicyHelper.baseLanguageOf(language)]
 
   return picked ?? own
-}
-
-export interface LegalLinksProps {
-  links?: ConsumerRightsLinks
-  legal: FixedText
-  onWithdraw?: () => void
-  className?: string
 }
 
 /**

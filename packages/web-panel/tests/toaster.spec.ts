@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 import { HARNESS_URL } from './context.js'
 
 // Browser work does not fit the 5s default: a cold harness compiles the app on first request.
 const TIMEOUT = 30_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 const open = async (path: string) => mountComponent({ url: `${HARNESS_URL.replace(/\/$/, '')}${path}` })

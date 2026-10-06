@@ -2,10 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import { ConnectHarness, ConnectLlm, ConnectTarget } from '@owlmeans/viable-common'
 
 import { catalogue } from '../src/tools/catalogue.js'
-import { PLATFORM_CATALOGUE, renderPlatform } from '../src/tools/platform.js'
-import type { PlatformCatalogue } from '../src/tools/platform.js'
-import { ToolHostKind } from '../src/tools/types.js'
-import type { ToolHost } from '../src/tools/types.js'
+import { renderPlatform } from '../src/tools/platform.js'
+import { PLATFORM_CATALOGUE, ToolHostKind } from '../src/tools/consts.js'
+import type { PlatformCatalogue, ToolHost } from '../src/tools/types.js'
 
 const host = (patch: Partial<ToolHost> = {}): ToolHost => ({
   kind: ToolHostKind.Stdio,

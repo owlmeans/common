@@ -1,6 +1,6 @@
 import type { RouteModel } from '@owlmeans/route'
 import type { ClientRouteModel, ClientRouteOptions } from './types.js'
-import { overrideParams } from '@owlmeans/route/utils'
+import { routeDeclarationHelper } from '@owlmeans/route/utils'
 
 /**
  * Mark a route model as a client one and fill in whatever the declaration left blank.
@@ -14,7 +14,7 @@ export const route = (route: RouteModel, opts?: ClientRouteOptions): ClientRoute
     _client: true
   }
 
-  overrideParams(model.route, opts?.overrides)
+  routeDeclarationHelper.overrideParams(model.route, opts?.overrides)
 
   return model
 }

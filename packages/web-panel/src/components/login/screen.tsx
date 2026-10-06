@@ -1,22 +1,15 @@
-import { isValidElement } from 'react'
-import type { FC } from 'react'
+import { isValidElement, type FC } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Button } from '../../@/components/ui/button.js'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../@/components/ui/card.js'
 import { cn } from '../../@/lib/utils.js'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import { useLoginMethods } from '@owlmeans/client-panel/auth'
-import { loginAttemptError } from '@owlmeans/client-auth/login'
-import type { LoginMethod, LoginScreenProps } from '@owlmeans/client-auth/login'
+import { type LoginMethod, type LoginScreenProps, loginResumeHelper } from '@owlmeans/client-auth/login'
 import { LoginMethodIcon } from './icons.js'
 import { LoginPrivacyNotice, LoginTerms } from './terms.js'
 import { LoginCredit } from './credit.js'
-
-const VARIANT: Record<string, 'default' | 'outline' | 'link'> = {
-  primary: 'default',
-  secondary: 'outline',
-  link: 'link',
-}
+import { VARIANT } from './consts.local.js'
 
 /**
  * The sign-in screen: which identity provider, confirmed against which documents.
@@ -38,7 +31,7 @@ export const LoginScreen: FC<LoginScreenProps> = props => {
   })
 
   const Logo = props.Logo
-  const attemptError = model.busy == null ? loginAttemptError(model.outcome) : null
+  const attemptError = model.busy == null ? loginResumeHelper.loginAttemptError(model.outcome) : null
 
   // The viewport height is set INLINE, and deliberately.
   //

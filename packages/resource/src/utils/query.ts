@@ -1,5 +1,7 @@
 import { UnsupportedArgumentError } from '../errors.js'
 import type { Criteria, ListOptions, ListResult, ResourceRecord, Sort } from '../types.js'
+import { COMPARISON } from './consts.local.js'
+import type { RecordQueryHelper } from './query/types.js'
 
 /**
  * In-memory evaluation of `Criteria<any>`.
@@ -16,8 +18,6 @@ import type { Criteria, ListOptions, ListResult, ResourceRecord, Sort } from '..
  *   record, so the record does not match. There is nothing to compare it against.
  * - There is no jsonb/column distinction, so a dotted key always reaches into the record.
  */
-
-const COMPARISON = new Set(['$eq', '$ne', '$gt', '$gte', '$lt', '$lte'])
 
 /** Dates compare by instant; everything else compares as it is. */
 const comparable = (value: unknown): unknown =>
@@ -159,119 +159,127 @@ const applyOperators = (value: unknown, spec: Record<string, unknown>): boolean 
   return true
 }
 
-/**
- * Whether one record satisfies the criteria.
- *
- * `undefined` as a criteria value is skipped rather than compared — it is what an optional filter
- * looks like when nothing was chosen, and treating it as "must be undefined" makes an unset
- * dropdown filter the list down to nothing.
- *
- * @throws {UnsupportedArgumentError} on an unknown operator.
- */
-export const matchCriteria = <T extends ResourceRecord>(
-  record: T, criteria?: Criteria<any>
-): boolean => {
-  for (const [key, raw] of Object.entries(criteria ?? {})) {
-    if (raw === undefined) {
-      continue
+export const createRecordQueryHelper = (): RecordQueryHelper => {
+  const matchCriteria = <T extends ResourceRecord>(
+    record: T, criteria?: Criteria<any>
+  ): boolean => {
+    for (const [key, raw] of Object.entries(criteria ?? {})) {
+      if (raw === undefined) {
+        continue
+      }
+
+      if (key === '$and' || key === '$or') {
+        const parts = (Array.isArray(raw) ? raw : [raw]) as Criteria<any>[]
+        if (parts.length < 1) continue
+        const matched = key === '$and'
+          ? parts.every(part => matchCriteria(record, part))
+          : parts.some(part => matchCriteria(record, part))
+        if (!matched) return false
+        continue
+      }
+      if (key === '$not') {
+        if (matchCriteria(record, raw as Criteria<any>)) return false
+        continue
+      }
+
+      const value = reach(record, key.split('.'))
+
+      if (raw === null) {
+        if (value != null) return false
+        continue
+      }
+      if (isOperatorSpec(raw)) {
+        if (!applyOperators(value, raw as Record<string, unknown>)) return false
+        continue
+      }
+      if (Array.isArray(raw)) {
+        /**
+         * A bare array means "any of these", exactly as it does against a relational store.
+         * Exact array equality stays reachable as `{ $eq: [...] }`.
+         */
+        if (!inList(value, raw)) return false
+        continue
+      }
+      if (!equal(value, raw)) return false
     }
 
-    if (key === '$and' || key === '$or') {
-      const parts = (Array.isArray(raw) ? raw : [raw]) as Criteria<any>[]
-      if (parts.length < 1) continue
-      const matched = key === '$and'
-        ? parts.every(part => matchCriteria(record, part))
-        : parts.some(part => matchCriteria(record, part))
-      if (!matched) return false
-      continue
-    }
-    if (key === '$not') {
-      if (matchCriteria(record, raw as Criteria<any>)) return false
-      continue
-    }
-
-    const value = reach(record, key.split('.'))
-
-    if (raw === null) {
-      if (value != null) return false
-      continue
-    }
-    if (isOperatorSpec(raw)) {
-      if (!applyOperators(value, raw as Record<string, unknown>)) return false
-      continue
-    }
-    if (Array.isArray(raw)) {
-      /**
-       * A bare array means "any of these", exactly as it does against a relational store.
-       * Exact array equality stays reachable as `{ $eq: [...] }`.
-       */
-      if (!inList(value, raw)) return false
-      continue
-    }
-    if (!equal(value, raw)) return false
+    return true
   }
 
-  return true
-}
+  const filterRecords = <T extends ResourceRecord>(
+    records: T[], criteria?: Criteria<any>
+  ): T[] => criteria == null || Object.keys(criteria).length < 1
+      ? [...records]
+      : records.filter(record => matchCriteria(record, criteria))
 
-/** Every record the criteria accepts, in insertion order. */
-export const filterRecords = <T extends ResourceRecord>(
-  records: T[], criteria?: Criteria<any>
-): T[] => criteria == null || Object.keys(criteria).length < 1
-    ? [...records]
-    : records.filter(record => matchCriteria(record, criteria))
-
-/**
- * Sort a copy. A bare field name is ascending; `{ field, order: 'desc' }` reverses it — the same
- * meaning every backend gives it, so a sort written for one store orders the same way against
- * another.
- */
-export const sortRecords = <T extends ResourceRecord>(records: T[], sort?: Sort<any>[]): T[] => {
-  if (sort == null || sort.length < 1) {
-    return [...records]
-  }
-
-  const rules = sort.map(entry => typeof entry === 'string'
-    ? { field: entry, desc: false }
-    : { field: entry.field, desc: entry.order === 'desc' })
-
-  return [...records].sort((left, right) => {
-    for (const { field, desc } of rules) {
-      const a = comparable(reach(left, field.split('.')))
-      const b = comparable(reach(right, field.split('.')))
-      if (a == null && b == null) continue
-      /** An absent value sorts last ascending, which is where a reader expects "no value". */
-      if (a == null) return 1
-      if (b == null) return -1
-      if ((a as never) < (b as never)) return desc ? 1 : -1
-      if ((a as never) > (b as never)) return desc ? -1 : 1
+  const sortRecords = <T extends ResourceRecord>(records: T[], sort?: Sort<any>[]): T[] => {
+    if (sort == null || sort.length < 1) {
+      return [...records]
     }
 
-    return 0
-  })
+    const rules = sort.map(entry => typeof entry === 'string'
+      ? { field: entry, desc: false }
+      : { field: entry.field, desc: entry.order === 'desc' })
+
+    return [...records].sort((left, right) => {
+      for (const { field, desc } of rules) {
+        const a = comparable(reach(left, field.split('.')))
+        const b = comparable(reach(right, field.split('.')))
+        if (a == null && b == null) continue
+        /** An absent value sorts last ascending, which is where a reader expects "no value". */
+        if (a == null) return 1
+        if (b == null) return -1
+        if ((a as never) < (b as never)) return desc ? 1 : -1
+        if ((a as never) > (b as never)) return desc ? -1 : 1
+      }
+
+      return 0
+    })
+  }
+
+  const firstMatch = <T extends ResourceRecord>(
+    records: T[], where?: Criteria<any>, opts?: { sort?: Sort<any>[] }
+  ): T | null => sortRecords(filterRecords(records, where), opts?.sort)[0] ?? null
+
+  const applyQuery = <T extends ResourceRecord>(
+    records: T[], where?: Criteria<any>, opts?: ListOptions<any>
+  ): ListResult<T> => {
+    const matched = sortRecords(filterRecords(records, where), opts?.sort)
+    const total = matched.length
+    // `size: 0` is the explicit ask for everything — the same meaning the paged backends give it, so
+    // one query object means one thing whichever store answers it. An omitted size is unpaged here.
+    if (opts?.size == null || opts.size === 0) {
+      return { items: matched, total }
+    }
+    const page = opts.page ?? 0
+    const from = page * opts.size
+
+    return { items: matched.slice(from, from + opts.size), total, page, size: opts.size }
+  }
+
+  return { matchCriteria, filterRecords, sortRecords, firstMatch, applyQuery }
 }
 
-/** The first record the criteria accepts, honouring the sort. */
+export const recordQueryHelper = createRecordQueryHelper()
+
+/** @deprecated compat:factory-refactor — use `recordQueryHelper.matchCriteria(…)` */
+export const matchCriteria = <T extends ResourceRecord>(record: T, criteria?: Criteria<any>): boolean =>
+  recordQueryHelper.matchCriteria(record, criteria)
+
+/** @deprecated compat:factory-refactor — use `recordQueryHelper.filterRecords(…)` */
+export const filterRecords = <T extends ResourceRecord>(records: T[], criteria?: Criteria<any>): T[] =>
+  recordQueryHelper.filterRecords(records, criteria)
+
+/** @deprecated compat:factory-refactor — use `recordQueryHelper.sortRecords(…)` */
+export const sortRecords = <T extends ResourceRecord>(records: T[], sort?: Sort<any>[]): T[] =>
+  recordQueryHelper.sortRecords(records, sort)
+
+/** @deprecated compat:factory-refactor — use `recordQueryHelper.firstMatch(…)` */
 export const firstMatch = <T extends ResourceRecord>(
   records: T[], where?: Criteria<any>, opts?: { sort?: Sort<any>[] }
-): T | null => sortRecords(filterRecords(records, where), opts?.sort)[0] ?? null
+): T | null => recordQueryHelper.firstMatch(records, where, opts)
 
-/**
- * Filter, sort and page an in-memory record set into the shape every resource answers with.
- * `size` is opt-in: an in-memory store returns everything when none is asked for.
- */
+/** @deprecated compat:factory-refactor — use `recordQueryHelper.applyQuery(…)` */
 export const applyQuery = <T extends ResourceRecord>(
   records: T[], where?: Criteria<any>, opts?: ListOptions<any>
-): ListResult<T> => {
-  const matched = sortRecords(filterRecords(records, where), opts?.sort)
-  const total = matched.length
-  // `size: 0` is the explicit ask for everything — the same meaning the paged backends give it, so
-  // one query object means one thing whichever store answers it. An omitted size is unpaged here.
-  if (opts?.size == null || opts.size === 0) {
-    return { items: matched, total }
-  }
-  const page = opts.page ?? 0
-  const from = page * opts.size
-
-  return { items: matched.slice(from, from + opts.size), total, page, size: opts.size }
-}
+): ListResult<T> => recordQueryHelper.applyQuery(records, where, opts)

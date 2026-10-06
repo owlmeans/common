@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/api
 
 **Layer:** Core
-**Install:** `"@owlmeans/api": "^0.1.18-rc.44"` in `dependencies`
+**Install:** `"@owlmeans/api": "^0.1.18-rc.47"` in `dependencies`
 
 ## Key Exports
 
@@ -18,16 +18,17 @@ user-invocable: false
 | `appendApiClient(ctx, alias?)` | Register it and make it the context's default `webService` when none is set |
 | `ApiClient` | Service interface — a single `handler(req, reply)` |
 | `ApiError`, `ApiClientError`, `ServerCrashedError`, `ServerAuthError`, `ApiStatusError` | Typed transport errors; an `ApiClientError` carries the answered `status` and the server's `incidentId` |
-| `httpStatusOf`, `incidentIdOf`, `isAccessDenied`, `isIncidentBody`, `parseClientMarker`, `API_CLIENT_MARKER`, `API_STATUS_MARKER` | Read a failure's HTTP status, incident id and IAM denial marker (also the `./status` subpath) |
+| `apiStatusHelper` (`httpStatusOf`, `incidentIdOf`, `isAccessDenied`, `isIncidentBody`), `parseClientMarker`, `API_CLIENT_MARKER`, `API_STATUS_MARKER` | Read a failure's HTTP status, incident id and IAM denial marker (also the `./status` subpath) |
 | Constants | Status codes (`OK`, `CREATED`, `ACCEPTED`, `FINISHED`, `UNAUTHORIZED_ERROR`, `FORBIDDEN_ERROR`, `SERVER_ERROR`), `INCIDENT_ID_HEADER` (`X-Incident-ID`), `DEFAULT_ALIAS` (`web-client`) |
 
-Subpath `./status` — `httpStatusOf`, `incidentIdOf`, `isIncidentBody`, `parseClientMarker`, the
-markers and `INCIDENT_ID_HEADER`, importing only `@owlmeans/error`: a browser package reads a
-status without pulling axios in.
+Subpath `./status` — `apiStatusHelper` (`httpStatusOf`, `incidentIdOf`, `isAccessDenied`,
+`isIncidentBody`), `parseClientMarker`, the markers and `INCIDENT_ID_HEADER`, importing only
+`@owlmeans/error`: a browser package reads a status without pulling axios in.
 
-`isAccessDenied(error)` requires the server's `X-OwlMeans-Denial: access-denied` marker and a 403.
-Do not classify all 403 responses as IAM denials: entitlement and other refusals use that status
-too. The API client stamps the marker on its rejection even under production error exposure.
+`apiStatusHelper.isAccessDenied(error)` requires the server's `X-OwlMeans-Denial: access-denied`
+marker and a 403. Do not classify all 403 responses as IAM denials: entitlement and other refusals
+use that status too. The API client stamps the marker on its rejection even under production error
+exposure.
 
 ## How a call is carried
 
@@ -94,15 +95,15 @@ browser reads that header cross-origin only when the server exposes it, the body
 | Production — a bare incident UUID; also proxy HTML, framework JSON, anything else | `ServerCrashedError` `api:client:crashed:<id>` (500) · `ServerAuthError` `api:client:auth:<id>` (401) · `ApiClientError` `api:client:forbidden[:<id>]` (403) · `ApiStatusError` `api:client:status:<n>[:<id>]` (every other status) |
 
 An `@owlmeans/server-api` boundary in production exposure sends ONLY the incident id, so a typed
-refusal's class never reaches the browser — its status does. Read it with `httpStatusOf(e)`: the
-stamped `responseStatus`, else an `ApiClientError`'s parsed `status`, else a class's declared
-`httpStatus` (a 4xx; a 5xx only with `allowServerErrorStatus`, exactly what the server answers),
-else an `api:client:*` marker in the message or type; `null` when nothing states one. A consumer
-that acts on a refusal checks the class/marker AND the status (`consentRefusalOf(e) ||
-httpStatusOf(e) === 428`). Markers without an id stay as they were (`api:client:crashed:error`,
-`api:client:forbidden`). The status and id are rebuilt from the marker in `finalizeUnmarshal()`,
-so they survive a marshal. No class of this family declares a static `httpStatus`: a server that
-rethrows one still answers 500.
+refusal's class never reaches the browser — its status does. Read it with
+`apiStatusHelper.httpStatusOf(e)`: the stamped `responseStatus`, else an `ApiClientError`'s parsed
+`status`, else a class's declared `httpStatus` (a 4xx; a 5xx only with `allowServerErrorStatus`,
+exactly what the server answers), else an `api:client:*` marker in the message or type; `null` when
+nothing states one. A consumer that acts on a refusal checks the class/marker AND the status
+(`consentRefusalOf(e) || apiStatusHelper.httpStatusOf(e) === 428`). Markers without an id stay as
+they were (`api:client:crashed:error`, `api:client:forbidden`). The status and id are rebuilt from
+the marker in `finalizeUnmarshal()`, so they survive a marshal. No class of this family declares a
+static `httpStatus`: a server that rethrows one still answers 500.
 
 **A failure with no answer at all is a different family.** Suppressing status errors does not wrap
 the call: an expired `timeout` (`ECONNABORTED`), an aborted `signal` (`CanceledError` /
@@ -114,8 +115,9 @@ An `auth-token-refresh` response header is consumed here: when the context has a
 rotated token is handed to it, which is what keeps a long session alive without the caller doing
 anything.
 
-Building a URL without making the call is a different question — that is `entrypointUrl` from
-`@owlmeans/client-entrypoint/utils`, or `ep.url(req, { absolute })`.
+Building a URL without making the call is a different question — that is
+`apiCallOf(ref).entrypointUrl(req, opts)` from `@owlmeans/client-entrypoint/utils`, or
+`ep.url(req, { absolute })`.
 
 ## Usage
 
@@ -132,7 +134,7 @@ transport keeps it.
 ## Depends On
 
 - `@owlmeans/context` — service registration
-- `@owlmeans/entrypoint` — the entrypoint being addressed, `@owlmeans/client-route` — `extractParams`
+- `@owlmeans/entrypoint` — the entrypoint being addressed, `@owlmeans/client-route` — `clientRouteHelper.extractParams`
 - `@owlmeans/config` — `makeSecurityHelper`, `@owlmeans/client-config` — the config shape
 - `@owlmeans/auth-common` — the token-refresh header and the auth service it updates
 - `@owlmeans/error`, `@owlmeans/route`

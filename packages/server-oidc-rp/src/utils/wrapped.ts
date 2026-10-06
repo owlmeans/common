@@ -2,18 +2,26 @@ import type { Auth } from '@owlmeans/auth'
 import { trust } from '@owlmeans/auth-common/utils'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { TRUSTED } from '@owlmeans/config'
+import { memoHelper } from '@owlmeans/context'
 import type { WrappedOIDCService } from '@owlmeans/oidc'
 import { OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from '@owlmeans/oidc'
 import type { Config, Context } from '../types.js'
+import type { OidcWrappedUtils } from './wrapped/types.js'
 
-export const wrapper = (context: Context): WrappedOIDCService =>
-  context.service(WRAPPED_OIDC)
+export const makeOidcWrappedUtils = (context: Context): OidcWrappedUtils => {
+  const wrapper = (): WrappedOIDCService =>
+    context.service(WRAPPED_OIDC)
 
-/** Signs `user` with this service's trusted key into the bearer value of a wrapped token. */
-export const signWrapped = async <C extends Config, T extends Context<C>>(context: T, user: Auth): Promise<string> => {
-  const trusted = await trust<C, T>(context, TRUSTED, context.cfg.alias ?? context.cfg.service)
-  const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
-    .send(user, null).sign(trusted.key, EnvelopeKind.Token)
+  const signWrapped = async (user: Auth): Promise<string> => {
+    const trusted = await trust<Config, Context>(context, TRUSTED, context.cfg.alias ?? context.cfg.service)
+    const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
+      .send(user, null).sign(trusted.key, EnvelopeKind.Token)
 
-  return `${OIDC_WRAPPED_TOKEN.toUpperCase()} ${authorization}`
+    return `${OIDC_WRAPPED_TOKEN.toUpperCase()} ${authorization}`
+  }
+
+  return { wrapper, signWrapped }
 }
+
+/** The wrapped-token utils of a context — one per context. */
+export const oidcWrappedOf = memoHelper.oncePer(makeOidcWrappedUtils)

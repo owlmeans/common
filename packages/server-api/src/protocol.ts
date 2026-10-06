@@ -1,43 +1,10 @@
-import { assertContext } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { EntrypointOutcome } from '@owlmeans/entrypoint'
-import type {
-  BodyOf, EntrypointProtocolDeclaration, HandlerRequest, OpenRequest, OpenValue, ParamsOf, RequestOf, ResponseOf,
-} from '@owlmeans/entrypoint'
-import type { AbstractRequest } from '@owlmeans/entrypoint'
+import { assertContext, type BasicConfig, type BasicContext } from '@owlmeans/context'
+import { EntrypointOutcome, type BodyOf, type EntrypointProtocolDeclaration, type HandlerRequest, type OpenRequest, type ParamsOf, type RequestOf, type ResponseOf, type AbstractRequest } from '@owlmeans/entrypoint'
 import type { BoundEntrypointHandler } from '@owlmeans/server-entrypoint'
 import { HandlerMisconfiguredError } from './errors.js'
+import { logger } from '@owlmeans/log'
+import type { AnyBoundHandler, BodyProtocol, ContextCarrier, HandlerResponse, MaybePromise, ParamsProtocol } from './types.local.js'
 
-/**
- * True for a response the declaration left with no compile-time contract: `typed<any>()` (an
- * `[any] extends [X]` conditional does not produce `any`'s usual both-branches union once the
- * checked type is wrapped in a tuple, so it resolves to a single branch like any other type) and
- * a response inferred as bare `typed()` with nothing to infer from, which resolves to `undefined`
- * with no shape to validate a handler's return against — the same signal a zero-argument
- * `contract()` produces for a genuinely response-less route. Neither means "this handler must
- * return void": it means the declaration did not constrain the response, so the handler is free to
- * return whatever its route actually sends.
- */
-type IsUntypedResponse<T> = 0 extends (1 & T) ? true : [T] extends [undefined] ? true : false
-
-/**
- * The type a bound handler is allowed to return for a given protocol response.
- *
- * A concretely typed or schema-backed `Response` is returned unchanged — the handler must produce
- * exactly that shape. An untyped one (see `IsUntypedResponse` above) relaxes to `any`: the
- * declaration made no promise about the response, so nothing here should force a handler bound to
- * it into returning `void`.
- */
-type HandlerResponse<Response> = IsUntypedResponse<Response> extends true ? any : Response
-type MaybePromise<Value> = Value | Promise<Value>
-type BodyProtocol<Protocol extends EntrypointProtocolDeclaration> = RequestOf<Protocol> extends { body: OpenValue }
-  ? Protocol : never
-type ParamsProtocol<Protocol extends EntrypointProtocolDeclaration> = RequestOf<Protocol> extends { params: object }
-  ? Protocol : never
-
-interface ContextCarrier<Context> {
-  _ctx?: Context
-}
 
 const contextFor = <Context extends BasicContext<BasicConfig>>(
   request: AbstractRequest,
@@ -74,9 +41,6 @@ const bind = <Protocol extends EntrypointProtocolDeclaration, Context extends Ba
   },
 })
 
-/** Structural, not `instanceof`: a `BoundEntrypointHandler` crosses no class boundary a runtime check could use. */
-type AnyBoundHandler = BoundEntrypointHandler<EntrypointProtocolDeclaration>
-
 /**
  * `value` is shaped like a `BoundEntrypointHandler` — never a plain function, which also carries
  * its own `.bind` and would otherwise pass a `typeof value.bind === 'function'` check alone.
@@ -112,8 +76,8 @@ const toleratedHandler = <Protocol extends EntrypointProtocolDeclaration>(
     if (handler.protocol.alias === protocol.alias) {
       if (!warnedAliases.has(protocol.alias)) {
         warnedAliases.add(protocol.alias)
-        console.warn(
-          `[server-api] ${protocol.alias}: handler is already bound — pass it to bind() directly; `
+        logger('server-api').warn(
+          `${protocol.alias}: handler is already bound — pass it to bind() directly; `
           + 'wrapping it again here is a type error (TS2345 "BoundEntrypointHandler<…> is not '
           + 'assignable"), tolerated at runtime for a project generated before the wrap-once rule.'
         )

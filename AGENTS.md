@@ -15,14 +15,14 @@ An OwlMeans **organization entity** is the customer/tenant. The bare word "entit
 - **`entitySlug`** — the organization's renameable, human-readable name, and the ONLY organization
   value that appears on the wire: tokens (`Authorization.entitySlug`), URLs, query params, forms.
   Newly generated addresses — hostnames, namespaces, OIDC client ids — are composed from it.
-  Read it with `entitySlugOf(payload)`, which also accepts a pre-split token's `entityId`.
+  Read it with `authHelper.entitySlugOf(payload)`, which also accepts a pre-split token's `entityId`.
 - **`entityId`** — the organization's stable record id, never on the wire. Database references,
   permission grants and third-party records key on it; that is what makes a rename one write.
-  Server handlers get it from `requireEntityKey(req)` / `requireEntity(req)`, never from the token.
+  Server handlers get it from `makeEntityScope(req).requireEntityKey()` / `.requireEntity()`, never from the token.
 - Bare **"entity"** remains correct for an abstract data-model entity (`UserStory.entity`, ER
   models). Do not rename those.
 
-Any code path that ESTABLISHES authentication must call `attachEntity(context, request)`
+Any code path that ESTABLISHES authentication must call `makeEntityScope(request).attachEntity(context)`
 (`@owlmeans/auth-common`) — the HTTP boundary already does; sockets authenticate on their own and
 must do it explicitly, or `request.entity` stays empty and handlers compare a slug against ids.
 
@@ -60,6 +60,15 @@ never write memory outside this repository.
 Work that started from an agreed plan is complete only after the `self-education` skill is applied;
 the completion report states its outcome or why none was needed.
 
+## Code structure (mandatory)
+
+The functions of one domain are ONE object built by a factory: its `interface` is declared first
+(never `ReturnType<typeof …>`; interfaces over types wherever possible), the implementation and its
+private parts live in the factory, and a shared context or collaborator is bound into the factory.
+Types, consts and code live in separate files; an object with parts gets a same-named folder
+(`x.ts` + `x/types.ts`). Load `/owlmeans-code-structure` before writing, moving or reviewing any
+`.ts`/`.tsx`, and hold every diff to it.
+
 ## What This Is
 
 Security-first TypeScript monorepo framework for fullstack microservice/microclient apps, with
@@ -72,20 +81,20 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 | Layer | Packages |
 |---|---|
 | Tooling | `dep-config`, `agent-skills`, `create-app` |
-| Core | `context`, `error`, `auth`, `config`, `i18n`, `state`, `entrypoint`, `route`, `router`, `resource`, `socket`, `did`, `basic-*` |
+| Core | `context`, `log`, `error`, `auth`, `config`, `i18n`, `state`, `entrypoint`, `route`, `router`, `resource`, `socket`, `did`, `basic-*` |
 | Auth shared / API | `auth-common`, `api`, `api-config*` |
 | Server | `server-*` |
 | Client (platform-agnostic) | `client-*` (`client-iam` and `client-auth` pull in the web layer) |
-| Web | `web-*`, `astro`; LEGACY `mui-panel`, `mui-oidc-rp` (maintain only) |
+| Web | `web-*` (incl. `web-log`), `astro`; LEGACY `mui-panel`, `mui-oidc-rp` (maintain only) |
 | Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource` |
-| AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `viable-common`, `viable-sdk`, `viable-mcp` |
+| AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `viable-common`, `viable-log`, `viable-sdk`, `viable-mcp` |
 | Mail | `mailer`, `mailer-smtp`, `server-mailer-mailgun` |
 | Domain | `oidc`, `iam`, `payment`, `consent`, `auth-otp`, `flow`, `wled`, `queue`, `planning` |
 | Not framework | `_tpl`, `test`, `test-auth`, `test-integration`, `test-ui` |
 
 ## Key Facts
 
-- 124 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
+- 127 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
 - ESM only, output in `build/`; TypeScript `^7.0.2` (`/tsconfig`, `/bun`).
 - Versions are per package and deliberately uneven — never resynchronise (`/versions`, `/publishing`).
 - React is a peer dependency; crypto via `@noble/*` + `@scure/*`; validation via AJV + ajv-formats.
@@ -108,6 +117,8 @@ topic or `/<name>`. Every package has its own skill `/<package-name>` (`owlmeans
 `owlmeans-config` avoid built-in command names).
 
 - `/reuse-code` — MANDATORY before planning or writing any feature: find an existing package or code first
+- `/owlmeans-code-structure` — before writing, moving or reviewing any `.ts`/`.tsx`: file kinds, helpers, models
+- `/logging` — before adding any log line, catch block or `console` call: `@owlmeans/log` policy (`/log`, `/web-log`, `/viable-log`)
 - `/localization` — before adding any UI string or translation file (`/i18n`, `/client-i18n` per package)
 - `/dependency-tree` — layer placement, new dependency edges, build cycles
 - `/bun` — install, build, scripts, workspace filters

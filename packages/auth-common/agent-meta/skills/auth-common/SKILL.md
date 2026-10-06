@@ -1,6 +1,6 @@
 ---
 name: auth-common
-description: How to use @owlmeans/auth-common — the auth vocabulary both sides of the wire share, covering guard aliases (DEFAULT_GUARD, GUARD_ED25519), the shared auth protocol trees, the Ed25519 signature guard, the TRUSTED-record trust() helper, and the organization-entity resolver contract (ENTITY_RESOLVER, entityKeyOf, attachEntity). Auto-invoked when importing guard constants, shared auth protocols, or entity-resolution helpers.
+description: How to use @owlmeans/auth-common — the auth vocabulary both sides of the wire share, covering guard aliases (DEFAULT_GUARD, GUARD_ED25519), the shared auth protocol trees, the Ed25519 signature guard, the TRUSTED-record trust() helper, and the organization-entity resolver contract (ENTITY_RESOLVER, makeEntityScope). Auto-invoked when importing guard constants, shared auth protocols, or entity-resolution helpers.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.44"` in `dependencies`
+**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.47"` in `dependencies`
 
 Everything a server and a browser must agree on to talk authentication: aliases, the shared
 protocol declarations, the signature guard, and the contract for resolving the organization
@@ -78,32 +78,35 @@ a deployment backed by an external IAM registers none, and every consumer must t
 entity as ordinary rather than exceptional.
 
 ```typescript
-import { attachEntity, entityKeyOf, requireEntityKey, requireEntity } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
+
+const scope = makeEntityScope(request)   // once at the top of a handler, never stored
 ```
 
 | Helper | What it answers |
 |--------|-----------------|
-| `attachEntity(context, request)` | Resolve the slug on `request.auth` and set `request.entity`, canonicalizing a retired slug to the current one. Keeps an entity the guard already attached when its `slug` equals the token's exactly, and drops one that does not. Otherwise a no-op when no resolver is registered; throws `AuthenFailed('entity')` when the token names an organization that will not resolve |
-| `entityKeyOf(req)` | The value to store and query organization-scoped records by — `req.entity?.id`, falling back to the token's slug where no resolver exists |
-| `requireEntityKey(req)` | Same, throwing `AuthorizationError` when the request carries no organization |
-| `requireEntity(req)` | The full `ResolvedEntity` (`id`, `slug`, `iamKey`), throwing `AuthorizationError` when nothing resolved |
+| `scope.attachEntity(context)` | Resolve the slug on `request.auth` and set `request.entity`, canonicalizing a retired slug to the current one. Keeps an entity the guard already attached when its `slug` equals the token's exactly, and drops one that does not. Otherwise a no-op when no resolver is registered; throws `AuthenFailed('entity')` when the token names an organization that will not resolve |
+| `scope.entityKeyOf()` | The value to store and query organization-scoped records by — `req.entity?.id`, falling back to the token's slug where no resolver exists |
+| `scope.requireEntityKey()` | Same, throwing `AuthorizationError` when the request carries no organization |
+| `scope.requireEntity()` | The full `ResolvedEntity` (`id`, `slug`, `iamKey`), throwing `AuthorizationError` when nothing resolved |
 
-`attachEntity` must be called wherever authentication is **established** — the HTTP boundary, and
-any socket that authenticates after its connection is already open. A path that authenticates
-without it leaves `request.entity` empty and its handlers silently compare a slug against stored
-ids.
+`scope.attachEntity(context)` must be called wherever authentication is **established** — the HTTP
+boundary, and any socket that authenticates after its connection is already open. A path that
+authenticates without it leaves `request.entity` empty and its handlers silently compare a slug
+against stored ids.
 
-A guard may attach the entity itself when its authority names the organization — the OIDC guard
-does for a session of a tenanted client (`@owlmeans/oidc`), whose relying party has no registry to
-resolve from. `attachEntity` trusts that attachment only while its `slug` is the token's
-`entitySlugOf(request.auth)`; on any mismatch it removes it and resolves as if nothing had been
-attached, so a stale or foreign entity can never reach a handler. That attached entity is keyed by
-the organization's frozen IAM key (`{ id: entityKey, slug, iamKey: entityKey }`) — the registry's
-record id never leaves the provider — so on such a relying party `requireEntityKey(req)` answers the
-`entityKey`, which survives a rename exactly as a record id would.
+A guard may attach the entity itself when its authority names the organization — the OIDC guard does
+for a session of a tenanted client (`@owlmeans/oidc`), whose relying party has no registry to
+resolve from. `scope.attachEntity` trusts that attachment only while its `slug` is the token's
+`authHelper.entitySlugOf(request.auth)`; on any mismatch it removes it and resolves as if nothing
+had been attached, so a stale or foreign entity can never reach a handler. That attached entity is
+keyed by the organization's frozen IAM key (`{ id: entityKey, slug, iamKey: entityKey }`) — the
+registry's record id never leaves the provider — so on such a relying party
+`scope.requireEntityKey()` answers the `entityKey`, which survives a rename exactly as a record id
+would.
 
-Never build a user-facing name (a hostname, a display label) from `entityKeyOf`. Those want the
-current slug, `req.entity?.slug`.
+Never build a user-facing name (a hostname, a display label) from `scope.entityKeyOf()`. Those want
+the current slug, `req.entity?.slug`.
 
 ## Usage
 

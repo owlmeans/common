@@ -34,8 +34,9 @@ tokens, integer minor units, and the packaged seven-language `web-payment` resou
 revives its ISO dates; `null` means "not known yet", so render paid controls disabled until it
 answers. Read it with `useCapability(view, param)` (`boolean | null`) and `useLimit(view, key)`
 (the limit row plus `exhausted` and a `ratio` clamped to `[0, 1]`). An application that keeps the
-view in its own store uses the pure selectors instead — `capabilityStateOf`, `limitStatusOf`,
-`planStatusLineOf`, `promoInscriptionOf` — and never polls a second time.
+view in its own store uses the pure selectors instead — `entitlementSelectorHelper`'s
+`capabilityStateOf`, `limitStatusOf`, `planStatusLineOf`, `promoInscriptionOf` — and never polls a
+second time.
 
 ```tsx
 const view = useEntitlementView(ctx.entrypoint(account.entitlements))
@@ -65,7 +66,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

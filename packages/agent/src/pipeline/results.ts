@@ -1,186 +1,15 @@
-import {
-  CumulativeResultSource, DEFAULT_RESULT_SUMMARY_CHARS, DEFAULT_RESULTS_MAX_CHARS,
-  DEFAULT_RESULTS_WINDOW, RESULTS_EVERY_STEP, ResultViewMode,
-  compareResultOrder, factKey, orderPipelineSteps, pipelineAncestry, renderResultEntry,
-  renderResultFact, renderResultSummary, resultLabel, rootRunOf, sortFacts,
-} from '@owlmeans/agent-common'
-import type {
-  CumulativeResultEntry, CumulativeResultFact, CumulativeResultsSpec, PipelineSpec, PipelineState,
-  ResultSummarySpec, StepResultsSpec,
-} from '@owlmeans/agent-common'
-import { prefixHash } from '@owlmeans/llm'
+import { CumulativeResultSource, DEFAULT_RESULT_SUMMARY_CHARS, DEFAULT_RESULTS_MAX_CHARS, DEFAULT_RESULTS_WINDOW, RESULTS_EVERY_STEP, ResultViewMode, cumulativeResultsHelper, makePipelineSpecModel, type CumulativeResultEntry, type CumulativeResultFact, type PipelineState, type ResultSummarySpec, type StepResultsSpec } from '@owlmeans/agent-common'
+import { promptRenderHelper } from '@owlmeans/llm'
+import { logger } from '@owlmeans/log'
 import type { CumulativeResults } from '@owlmeans/llm-common'
 import { createMemoryCumulativeResultStore } from '../stores/memory.js'
-import type { CumulativeResultStore } from '../stores/types.js'
-import type {
-  PipelineEnterMode, PipelineParentRef, PipelinePlugin, PipelineRunContext, StepResults,
-  VisibleResultEntry,
-} from './types.js'
+import type { PipelinePlugin, PipelineRunContext } from './runner/types.js'
+import type { StepResults, VisibleResultEntry, CumulativeResultsPluginOptions, ResultExtractFn, ResultExtractor, ResultsRunInfo } from './results/types.js'
+import { SEPARATOR } from './consts.local.js'
+import { CUMULATIVE_RESULTS_PLUGIN, DEFAULT_RESULT_SUMMARY_SCHEMA } from './consts.js'
+import type { EntryParts, Item, Recorded, RunLedger } from './results/types.local.js'
 
-/** The plugin's alias. Seated under it, so wiring it twice replaces rather than doubles. */
-export const CUMULATIVE_RESULTS_PLUGIN = 'cumulative-results'
-
-/** The answer shape a summary is asked for when its declaration names none. */
-export const DEFAULT_RESULT_SUMMARY_SCHEMA: Record<string, unknown> = {
-  type: 'object',
-  properties: { summary: { type: 'string' } },
-  required: ['summary'],
-  additionalProperties: false,
-}
-
-/** What a declaration resolver, a seed and a ledger resolver are told about the run. */
-export interface ResultsRunInfo<S extends PipelineState, C> {
-  pipeline: string
-  spec: PipelineSpec
-  runId: string
-  scope: string
-  entityId?: string
-  deps: C
-  state: Readonly<S>
-  mode: PipelineEnterMode
-  parent?: PipelineParentRef
-}
-
-/** What an extractor reads facts from. */
-export interface ResultExtractInput<S extends PipelineState, C> {
-  pipeline: string
-  runId: string
-  step: string
-  /** Durable: the run's state, restored from its row on a resume. */
-  state: Readonly<S>
-  deps: C
-  /** Every file the entry answers for — its durable scope and whatever its step recorded. */
-  files: readonly string[]
-  /** What was recorded as touched on THIS pass — empty on a rebuild. */
-  changed: readonly string[]
-}
-
-export type ResultScopeInput<S extends PipelineState, C> = Omit<
-  ResultExtractInput<S, C>, 'files' | 'changed'
->
-
-/**
- * Facts from files. DETERMINISTIC — the same inputs give the same facts — and never a model
- * call: an extractor is what makes a fact a fact, and a rebuild after a crash must find exactly
- * what the first pass found.
- */
-export type ResultExtractFn<S extends PipelineState, C> = (
-  input: ResultExtractInput<S, C>,
-) => Promise<CumulativeResultFact[]> | CumulativeResultFact[]
-
-export interface ResultExtractorSpec<S extends PipelineState, C> {
-  /**
-   * The files this extractor answers for, recomputed from DURABLE inputs — the state's keys, the
-   * file tree — and never from what a step happened to report. It is what a rebuild reads when
-   * nothing was recorded, so a step's facts can be found again after the process that ran it died.
-   */
-  scope?: (input: ResultScopeInput<S, C>) => Promise<string[]> | string[]
-  extract: ResultExtractFn<S, C>
-}
-
-export type ResultExtractor<S extends PipelineState, C> =
-  ResultExtractFn<S, C> | ResultExtractorSpec<S, C>
-
-/** Facts known before any step of the run ran. Called on every entry of the run; deterministic. */
-export type ResultSeed<S extends PipelineState, C> = (
-  run: ResultsRunInfo<S, C>,
-) => Promise<CumulativeResultFact[]> | CumulativeResultFact[]
-
-/** Everything a summarize callback needs, including a ready prompt. */
-export interface ResultSummaryRequest<S extends PipelineState, C> extends ResultSummarySpec {
-  schema: Record<string, unknown>
-  maxChars: number
-  pipeline: string
-  runId: string
-  step: string
-  label: string
-  facts: readonly CumulativeResultFact[]
-  files: readonly string[]
-  state: Readonly<S>
-  deps: C
-  signal: AbortSignal
-  /** The instructions, the step's facts and its files, as one deterministic prompt. */
-  prompt: string
-}
-
-/**
- * Ask a model for a step's summary; return its schema-shaped answer.
- *
- * Typically `request => model.invoke(request.prompt, request.schema, { action })` on a model
- * resolved for `request.role`. A throw is a warning and the entry goes without a summary.
- */
-export type ResultSummarizer<S extends PipelineState, C> = (
-  request: ResultSummaryRequest<S, C>,
-) => Promise<unknown>
-
-export interface CumulativeResultsPluginOptions<S extends PipelineState, C> {
-  alias?: string
-  order?: number
-  /**
-   * The declaration, or a function of the run that returns one — or `null`/`false` to leave THIS
-   * run without results. Resolved once, on `enter`.
-   */
-  spec:
-    | CumulativeResultsSpec
-    | ((run: ResultsRunInfo<S, C>) =>
-      CumulativeResultsSpec | null | false | undefined
-      | Promise<CumulativeResultsSpec | null | false | undefined>)
-  /** Named deterministic extractors, referenced by name from `StepResultsSpec.extractors`. */
-  extractors?: Record<string, ResultExtractor<S, C>>
-  /** Named facts available before any step ran. Visible to every step, in name order. */
-  seeds?: Record<string, ResultSeed<S, C>>
-  /**
-   * Where entries live. A composed pipeline must be given the SAME store as the pipeline it is a
-   * step of, or neither sees what the other produced. Default: an in-process memory store of this
-   * plugin instance.
-   */
-  store?: CumulativeResultStore
-  /** Called only for a step whose declaration has a `summary`. */
-  summarize?: ResultSummarizer<S, C>
-  /** The ledger a run's entries belong to. Default: the parent's, else the root run's id. */
-  ledger?: (run: ResultsRunInfo<S, C>) => string
-  trace?: (line: string) => void
-}
-
-interface Recorded {
-  files: Set<string>
-  facts: CumulativeResultFact[]
-}
-
-interface Item {
-  entry: CumulativeResultEntry
-  mode: ResultViewMode
-  /** Named as a full consumer by its producer — the last thing a budget touches. */
-  explicit: boolean
-  dropped: boolean
-}
-
-interface RunLedger<C> {
-  results: CumulativeResultsSpec
-  spec: PipelineSpec
-  runId: string
-  ledger: string
-  trail: number[]
-  index: Map<string, number>
-  entries: Map<string, CumulativeResultEntry>
-  upstream: readonly VisibleResultEntry[]
-  seeds: CumulativeResultEntry[]
-  views: Map<string, StepResults>
-  recorded: Map<string, Recorded>
-  deps: C
-}
-
-interface EntryParts {
-  facts: CumulativeResultFact[]
-  files: string[]
-  source: CumulativeResultSource
-  order: number[]
-  spec?: StepResultsSpec
-  partial?: boolean
-  summary?: string
-}
-
-const SEPARATOR = '\n\n'
+const log = logger('agent:pipeline:results')
 
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0
 
@@ -200,7 +29,7 @@ const dedupe = (facts: readonly CumulativeResultFact[]): CumulativeResultFact[] 
   const seen = new Set<string>()
 
   return facts.filter(fact => {
-    const key = factKey(fact)
+    const key = cumulativeResultsHelper.factKey(fact)
     if (seen.has(key)) {
       return false
     }
@@ -243,7 +72,7 @@ const summaryPrompt = (
   `The step "${label}" has just finished. For the later steps of the same work, summarize what it `
   + 'decided or produced that the facts below do not already say. Do not repeat the facts and do not '
   + `guess at anything not shown. At most ${maxChars} characters.`,
-  `# Facts read from the files after the step finished\n${facts.map(renderResultFact).join('\n') || '(none)'}`,
+  `# Facts read from the files after the step finished\n${facts.map(cumulativeResultsHelper.renderResultFact).join('\n') || '(none)'}`,
   `# Files the step answers for\n${files.map(file => `- ${file}`).join('\n') || '(none)'}`,
 ].join(SEPARATOR)
 
@@ -277,7 +106,7 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
   const runs = new Map<string, RunLedger<C>>()
 
   const warn = (what: string, e?: unknown): void => {
-    console.warn(`Cumulative results (${alias}): ${what}`, ...(e != null ? [e] : []))
+    log.warn('Cumulative results warning', { plugin: alias, what, ...(e != null ? { error: e } : {}) })
   }
 
   const say = (run: RunLedger<C>, line: string): void => {
@@ -359,7 +188,7 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
    * necessarily run, so what it says cannot be what a step relies on.
    */
   const visibleTo = (run: RunLedger<C>, step: string): Item[] => {
-    const depths = new Map(pipelineAncestry(run.spec, step).map(({ step: name, depth }) => [name, depth]))
+    const depths = new Map(makePipelineSpecModel(run.spec).ancestry(step).map(({ step: name, depth }) => [name, depth]))
     const items: Item[] = [
       ...run.upstream.map(visible => ({
         entry: visible.entry, mode: visible.mode, explicit: false, dropped: visible.dropped === true,
@@ -375,7 +204,7 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
     }
 
     return items.sort((a, b) =>
-      compareResultOrder(a.entry.order, b.entry.order) || compare(a.entry.label, b.entry.label))
+      cumulativeResultsHelper.compareResultOrder(a.entry.order, b.entry.order) || compare(a.entry.label, b.entry.label))
   }
 
   const textOf = (item: Item): string =>
@@ -422,11 +251,11 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
       .map(item => item.entry.label)
     const joined = sections.map(section => section.text).join(SEPARATOR)
     const view: CumulativeResults = Object.freeze({
-      step: resultLabel(run.ledger, run.runId, step),
+      step: cumulativeResultsHelper.resultLabel(run.ledger, run.runId, step),
       sections: Object.freeze(sections) as CumulativeResults['sections'],
       omitted: Object.freeze(omitted) as string[],
       chars: joined.length,
-      digest: prefixHash(`${joined}\u0000${omitted.join('\u0000')}`),
+      digest: promptRenderHelper.prefixHash(`${joined}\u0000${omitted.join('\u0000')}`),
     })
     const visible: readonly VisibleResultEntry[] = Object.freeze(items.map(item => Object.freeze({
       entry: item.entry, mode: item.mode, ...(item.dropped ? { dropped: true } : {}),
@@ -519,18 +348,18 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
     const owned = new Set<string>()
     for (const item of visibleTo(run, step)) {
       for (const fact of item.entry.facts) {
-        owned.add(factKey(fact))
+        owned.add(cumulativeResultsHelper.factKey(fact))
       }
     }
     for (const entry of run.entries.values()) {
       if (entry.runId.startsWith(`${run.runId}/${step}`) && anchorOf(run, entry) === step) {
         for (const fact of entry.facts) {
-          owned.add(factKey(fact))
+          owned.add(cumulativeResultsHelper.factKey(fact))
         }
       }
     }
 
-    return facts.filter(fact => !owned.has(factKey(fact)))
+    return facts.filter(fact => !owned.has(cumulativeResultsHelper.factKey(fact)))
   }
 
   /** A step's facts and files, from its durable scope, what it recorded, and its extractors. */
@@ -546,12 +375,12 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
 
   const compose = (run: RunLedger<C>, step: string, parts: EntryParts): CumulativeResultEntry => {
     const previous = run.entries.get(keyOf(run.runId, step))
-    const label = resultLabel(run.ledger, run.runId, step)
+    const label = cumulativeResultsHelper.resultLabel(run.ledger, run.runId, step)
     const source = parts.facts.length === 0 && parts.summary != null
       ? CumulativeResultSource.Summarized
       : parts.source
-    const facts = sortFacts(parts.facts)
-    const rendered = renderResultEntry(
+    const facts = cumulativeResultsHelper.sortFacts(parts.facts)
+    const rendered = cumulativeResultsHelper.renderResultEntry(
       { label, source, facts, ...(parts.partial === true ? { partial: true } : {}), ...(parts.summary != null ? { summary: parts.summary } : {}) },
       {
         maxChars: parts.spec?.maxChars ?? run.results.maxEntryChars,
@@ -596,8 +425,8 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
     const mine = orderOf(run, step)
     const earlier = [...run.entries.values()]
       .filter(entry => entry.runId === run.runId && entry.step !== step
-        && compareResultOrder(entry.order, mine) < 0)
-      .sort((a, b) => compareResultOrder(a.order, b.order))
+        && cumulativeResultsHelper.compareResultOrder(entry.order, mine) < 0)
+      .sort((a, b) => cumulativeResultsHelper.compareResultOrder(a.order, b.order))
 
     for (const entry of earlier) {
       const spec = run.results.steps?.[entry.step]
@@ -609,8 +438,8 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
         continue
       }
       const fresh = await extract(run, entry.step, state, entry.files, overlap)
-      const freshKeys = new Set(fresh.map(factKey))
-      const kept = entry.facts.filter(fact => !freshKeys.has(factKey(fact))
+      const freshKeys = new Set(fresh.map(cumulativeResultsHelper.factKey))
+      const kept = entry.facts.filter(fact => !freshKeys.has(cumulativeResultsHelper.factKey(fact))
         && (fact.path == null || !overlap.includes(normalizePath(fact.path))))
       const facts = unowned(run, entry.step, dedupe([...fresh, ...kept]))
       const refreshed = compose(run, entry.step, {
@@ -638,7 +467,7 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
       return undefined
     }
     const maxChars = spec.maxChars ?? DEFAULT_RESULT_SUMMARY_CHARS
-    const label = resultLabel(run.ledger, run.runId, step)
+    const label = cumulativeResultsHelper.resultLabel(run.ledger, run.runId, step)
     try {
       const answer = await options.summarize({
         ...spec,
@@ -655,7 +484,7 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
         signal: ctx.signal,
         prompt: summaryPrompt(spec, label, facts, files, maxChars),
       })
-      const text = renderResultSummary(answer, maxChars)
+      const text = cumulativeResultsHelper.renderResultSummary(answer, maxChars)
 
       return text !== '' ? text : undefined
     } catch (e) {
@@ -688,14 +517,14 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
       }
 
       const parent = event.parent?.results
-      const ledger = options.ledger?.(info) ?? parent?.ledger ?? rootRunOf(event.runId)
+      const ledger = options.ledger?.(info) ?? parent?.ledger ?? cumulativeResultsHelper.rootRunOf(event.runId)
       const run: RunLedger<C> = {
         results: declared,
         spec: event.spec,
         runId: event.runId,
         ledger,
         trail: parent != null ? [...parent.order] : [],
-        index: new Map(orderPipelineSteps(event.spec).map((step, at) => [step, at + 1])),
+        index: new Map(makePipelineSpecModel(event.spec).orderSteps().map((step, at) => [step, at + 1])),
         entries: new Map(),
         upstream: parent != null ? parent.entries() : [],
         seeds: [],

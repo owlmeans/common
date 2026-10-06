@@ -20,7 +20,7 @@ abstraction that resolves models from an inheritable policy.
 ## Installation
 
 ```bash
-bun add @owlmeans/llm@^0.1.18-rc.42 @owlmeans/llm-common@^0.1.18-rc.37
+bun add @owlmeans/llm@^0.1.18-rc.45 @owlmeans/llm-common@^0.1.18-rc.39
 bun add @langchain/core @langchain/openai @langchain/anthropic   # peer dependencies
 ```
 
@@ -100,10 +100,10 @@ const resumed = context.executions().restore(state, { models: () => context.llm(
 ### Add a provider
 
 ```typescript
-import { openAiFamily, registerLlmPlugin } from '@owlmeans/llm'
+import { llmPluginRegistry, openAiFamily } from '@owlmeans/llm'
 import { StructuredMode } from '@owlmeans/llm-common'
 
-registerLlmPlugin({
+llmPluginRegistry.register({
   ...openAiFamily,                       // shares owns/refine/toolChoice/responseFormat
   type: 'my-gateway',
   structuredMode: config => config.structuredOutput === true ? StructuredMode.Native : StructuredMode.Tool,
@@ -139,24 +139,25 @@ spectator entry), `filter` (reject a result and force a retry), `useCache` / `ca
 | Reasoning eats the whole output budget | Retry doubles `maxTokens` toward `maxTokensCap` **and** shrinks an absolute reasoning cap |
 | A weak cheap model keeps failing | Walks the `ModelConfig.fallback` chain, `FALLBACK_AFTER_ATTEMPTS` attempts per rung; a rung may be another provider, called in its own dialect |
 | The same model keeps giving the same weak answer | Climbs `ModelConfig.effort` one level per attempt of the rung, up to the model's ceiling; a `TemperatureFactory` request climbs it too |
-| Model stringifies arrays / over-wraps scalars | `coerceToSchema` reconciles the answer with the schema before validation |
-| Model ignores the tool and answers in prose | `parseJsonContent` salvages JSON from fences and surrounding text |
+| Model stringifies arrays / over-wraps scalars | `jsonHelper.coerceToSchema` reconciles the answer with the schema before validation |
+| Model ignores the tool and answers in prose | `jsonHelper.parseJsonContent` salvages JSON from fences and surrounding text |
 | A blank message poisons the request (Anthropic 400 `text content blocks must contain non-whitespace text`, typically an empty file read pasted into a prompt) | Whitespace-only text blocks are dropped before every call; blank tool results are stubbed to keep their `tool_use` pairing, and an all-blank input becomes one stub user message |
 | Nothing usable came back | `NullCapture` — request, response, token accounting and finish reason, to the spectator |
-| An error no retry can fix | `registerFatalError` / `LlmPlugin.isFatal` abort the loop immediately |
+| An error no retry can fix | `retryHelper.registerFatalError` / `LlmPlugin.isFatal` abort the loop immediately |
 
 ### Helpers (usable alongside a model)
 
-`withRetry` · `registerFatalError` · `spectate` · `normalizeInput` · `parseJsonContent` ·
-`coerceToSchema` · `resolveFallbacks`. Also exported from `@owlmeans/llm/helpers`.
+`retryHelper` (`withRetry`, `registerFatalError`, `isFatalError`) · `jsonHelper` (`parseJsonContent`,
+`coerceToSchema`) · `cacheHelper` (`readCacheUsage`, `hasCacheActivity`) · `spectate` ·
+`normalizeInput` · `resolveFallbacks`. Also exported from `@owlmeans/llm/helpers`.
 
 Everything under `src/utils/` is library-private and deliberately not exported.
 
 ### Plugins
 
-Exported from `@owlmeans/llm/plugins` as well as the root: `plugins` (the registry),
-`registerLlmPlugin`, `resolvePlugin`, `pluginOf`, `pluginFor`, `anthropicPlugin`,
-`openAiPlugin`, `compatiblePlugin`, `openAiFamily`.
+Exported from `@owlmeans/llm/plugins` as well as the root: `llmPluginRegistry` (the registry —
+`plugins`, `register`, `resolvePlugin`, `pluginOf`, `pluginFor`, `effortSupportOf`),
+`anthropicSupportHelper`, `anthropicPlugin`, `openAiPlugin`, `compatiblePlugin`, `openAiFamily`.
 
 ## Tests
 
@@ -185,7 +186,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.44
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,8 +1,6 @@
 import type { CommonEntrypoint } from './types.js'
 import { appendContextual } from '@owlmeans/context'
-import {
-  isLocalRoute, resolveAddress, resolveMount, resolvePath, resolveService
-} from '@owlmeans/route/utils'
+import { routeAddressOf } from '@owlmeans/route/utils'
 import type { CreateEntrypointSignature } from './utils/types.js'
 
 export const entrypoint: CreateEntrypointSignature<CommonEntrypoint> = (route, opts) => {
@@ -15,15 +13,15 @@ export const entrypoint: CreateEntrypointSignature<CommonEntrypoint> = (route, o
 
     segment: () => ep.route.route.path,
 
-    path: () => resolvePath(ep.assertCtx(), ep.route.route),
+    path: () => routeAddressOf(ep.assertCtx()).resolvePath(ep.route.route),
 
-    mount: () => resolveMount(ep.assertCtx(), ep.route.route),
+    mount: () => routeAddressOf(ep.assertCtx()).resolveMount(ep.route.route),
 
-    service: () => resolveService(ep.assertCtx(), ep.route.route),
+    service: () => routeAddressOf(ep.assertCtx()).resolveService(ep.route.route),
 
-    address: () => resolveAddress(ep.assertCtx(), ep.route.route),
+    address: () => routeAddressOf(ep.assertCtx()).resolveAddress(ep.route.route),
 
-    isLocal: () => isLocalRoute(ep.assertCtx(), ep.route.route),
+    isLocal: () => routeAddressOf(ep.assertCtx()).isLocalRoute(ep.route.route),
 
     parent: () => ep.route.route.parent == null ? null
       : ep.assertCtx().entrypoint<CommonEntrypoint>(ep.route.route.parent),

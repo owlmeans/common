@@ -1,18 +1,13 @@
 import type { FC } from 'react'
-import { CookieConsent, CookiePolicy } from '@owlmeans/web-consent'
-import type { CookieConsentProps, CookiePolicyProps, ConsentLocale } from '@owlmeans/web-consent'
+import { CookieConsent, CookiePolicy, type CookieConsentProps, type CookiePolicyProps } from '@owlmeans/web-consent'
 import { useLanguage } from '@owlmeans/client-i18n'
-import { SUPPORTED_LNGS } from '@owlmeans/i18n'
 import { useContext } from '../context.js'
 import type { AppConfig, AppContext } from '../types.js'
 import { useConsentTranslate } from './translate.js'
 import { useConsentWidgetPresent } from './presence.js'
 import type { ConsentWidgetServiceAppend } from './types.js'
-
-interface BoundCookieConsentProps extends CookieConsentProps {
-  /** Whether a host menu currently offers the preferences row — see `useConsentMenuPresence`. */
-  menuPresent?: boolean
-}
+import { _localeParity } from './consts.local.js'
+import type { BoundCookieConsentProps } from './types.local.js'
 
 const BoundCookieConsent: FC<BoundCookieConsentProps> = ({ menuPresent, ...props }) => {
   const [lng] = useLanguage()
@@ -64,11 +59,4 @@ export const PanelCookiePolicy: FC<CookiePolicyProps> = props => {
   return <CookiePolicy {...props} locale={locale} translate={translate} />
 }
 
-/**
- * The consent package carries its own locale list because it must build with no dependency on the
- * i18n package at all. This assertion is what keeps the two from drifting: a language added to the
- * framework and not to the bundle fails here, at build time, rather than as a dialog rendering
- * English to the one reader who cannot report it.
- */
-const _localeParity: readonly ConsentLocale[] = SUPPORTED_LNGS as readonly ConsentLocale[]
 void _localeParity

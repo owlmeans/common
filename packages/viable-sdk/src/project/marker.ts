@@ -1,10 +1,11 @@
 import fs from 'fs-extra'
 import p from 'node:path'
 
-import { CONNECT_MARKER_DIR, CONNECT_MARKER_FILE } from '@owlmeans/viable-common'
-import type { ConnectMarker } from '@owlmeans/viable-common'
+import { CONNECT_MARKER_DIR, CONNECT_MARKER_FILE, type ConnectMarker } from '@owlmeans/viable-common'
 
-import { verifyTarget } from '../executor/integrity.js'
+import { integrityHelper } from '../executor/integrity.js'
+import type { DiscoveredProject } from './types.js'
+import type { MarkerHelper } from './marker/types.js'
 
 /**
  * What a local project keeps so a later session knows which platform project it is.
@@ -13,66 +14,53 @@ import { verifyTarget } from '../executor/integrity.js'
  * nothing else to go on — the tree itself is a generated application like any other, and asking
  * the platform "which of my projects is this" needs an id the tree already carries.
  */
+export const makeMarkerHelper = (dir: string): MarkerHelper => {
+  const markerAt = async (at: string): Promise<ConnectMarker | null> => {
+    const content = await fs.readFile(p.join(at, CONNECT_MARKER_FILE), 'utf-8').catch(() => null)
+    if (content == null) return null
 
-export interface DiscoveredProject {
-  /** The directory holding `.viable/connect.json` — the project root, not where the search began. */
-  dir: string
-  marker: ConnectMarker
-}
+    try {
+      const parsed: unknown = JSON.parse(content)
 
-/** The marker this directory carries, or `null` when it carries none or an unreadable one. */
-export const readMarker = async (dir: string): Promise<ConnectMarker | null> => {
-  const content = await fs.readFile(p.join(dir, CONNECT_MARKER_FILE), 'utf-8').catch(() => null)
-  if (content == null) return null
-
-  try {
-    const parsed: unknown = JSON.parse(content)
-
-    return typeof parsed === 'object' && parsed !== null ? parsed as ConnectMarker : null
-  } catch {
-    // A half-written or hand-edited marker is the same as none: the connector re-attaches by
-    // slug and writes a fresh one, which is strictly better than refusing to open the project.
-    return null
-  }
-}
-
-export const writeMarker = async (dir: string, marker: ConnectMarker): Promise<void> => {
-  await fs.ensureDir(p.join(dir, CONNECT_MARKER_DIR))
-  await fs.writeFile(
-    p.join(dir, CONNECT_MARKER_FILE), `${JSON.stringify(marker, null, 2)}\n`
-  )
-}
-
-/**
- * Find the project a directory belongs to, by walking up.
- *
- * An agent is started wherever its user happened to be — usually several levels inside the tree —
- * and every tool that acts on "this project" has to mean the same one whichever of those
- * directories it was asked from. The walk stops at the filesystem root; a machine with no marker
- * anywhere above answers `null`, which is how a connector knows to offer attaching rather than
- * assuming.
- */
-export const discoverProject = async (startDir: string): Promise<DiscoveredProject | null> => {
-  let dir = p.resolve(startDir)
-  for (;;) {
-    const marker = await readMarker(dir)
-    if (marker != null) {
-      return { dir, marker }
-    }
-
-    const parent = p.dirname(dir)
-    if (parent === dir) {
+      return typeof parsed === 'object' && parsed !== null ? parsed as ConnectMarker : null
+    } catch {
+      // A half-written or hand-edited marker is the same as none: the connector re-attaches by
+      // slug and writes a fresh one, which is strictly better than refusing to open the project.
       return null
     }
-    dir = parent
   }
+
+  const readMarker = async (): Promise<ConnectMarker | null> => await markerAt(dir)
+
+  const writeMarker = async (marker: ConnectMarker): Promise<void> => {
+    await fs.ensureDir(p.join(dir, CONNECT_MARKER_DIR))
+    await fs.writeFile(
+      p.join(dir, CONNECT_MARKER_FILE), `${JSON.stringify(marker, null, 2)}\n`
+    )
+  }
+
+  const discoverProject = async (): Promise<DiscoveredProject | null> => {
+    let at = p.resolve(dir)
+    for (;;) {
+      const marker = await markerAt(at)
+      if (marker != null) {
+        return { dir: at, marker }
+      }
+
+      const parent = p.dirname(at)
+      if (parent === at) {
+        return null
+      }
+      at = parent
+    }
+  }
+
+  const isViableTree = async (): Promise<boolean> =>
+    (await integrityHelper.verifyTarget(dir)).ok
+
+  return { readMarker, writeMarker, discoverProject, isViableTree }
 }
 
-/**
- * Whether this directory holds the generated application.
- *
- * Asked before a connector offers to drive a directory, so a person who pointed it at the wrong
- * folder learns that from a sentence rather than from a build that refuses everything.
- */
-export const isViableTree = async (dir: string): Promise<boolean> =>
-  (await verifyTarget(dir)).ok
+/** @deprecated compat:factory-refactor — use `makeMarkerHelper(startDir).discoverProject()` */
+export const discoverProject = async (startDir: string): Promise<DiscoveredProject | null> =>
+  await makeMarkerHelper(startDir).discoverProject()

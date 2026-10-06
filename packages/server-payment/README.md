@@ -40,17 +40,16 @@ declarePaymentPlan(cfg, {
 })
 ```
 
-`declarePaymentPlan` validates each declaration before recording it; `assertPlanDeclarations` checks
-the catalogue as a whole (one free plan per rank, no two paid plans of a product at one rank) and runs
-when the gateway initializes. A limit key may use a different kind on different plans — each kind keeps
-its own counter window, so a lifetime count still sticks to the entity when it moves to a monthly plan.
+`declarePaymentPlan` validates each declaration before recording it;
+`makePlanDeclarationsModel(cfg).assertPlans()` checks the catalogue as a whole (one free plan per
+rank, no two paid plans of a product at one rank) and runs when the gateway initializes. A limit key
+may use a different kind on different plans — each kind keeps its own counter window, so a lifetime
+count still sticks to the entity when it moves to a monthly plan.
 
 ## Wire the services
 
 ```typescript
-import {
-  appendPaymentGatewayService, entitlements, gateway, observer, paymentGateEntrypoints,
-} from '@owlmeans/server-payment'
+import { appendPaymentGatewayService, paymentAccessOf, paymentGateEntrypoints } from '@owlmeans/server-payment'
 
 appendPaymentGatewayService(context)                    // the process that owns Stripe
 appendPaymentGatewayService(context, { manage: false }) // a process that only reads entitlements
@@ -59,11 +58,12 @@ appendPaymentGatewayService(context, { owner: 'app-api', webhookService: 'app-ho
 appendPaymentGatewayService(context, { owner: 'app-api', webhookService: 'app-hooks', bootstrap: false }) // checkout and portal
 export const serverBindings = [...paymentGateEntrypoints]
 
-observer(context).onTopUp(async completion => { /* credit, idempotent by completion.externalId */ })
-observer(context).onSubscription(async event => { /* idempotent by event.eventKey */ })
-observer(context).onRefund(async event => { /* claw back, idempotent by event.eventKey */ })
-observer(context).onDispute(async event => { /* … */ })
-observer(context).onPaymentFailed(async event => { /* notify */ })
+const paid = paymentAccessOf(context).observer()
+paid.onTopUp(async completion => { /* credit, idempotent by completion.externalId */ })
+paid.onSubscription(async event => { /* idempotent by event.eventKey */ })
+paid.onRefund(async event => { /* claw back, idempotent by event.eventKey */ })
+paid.onDispute(async event => { /* … */ })
+paid.onPaymentFailed(async event => { /* notify */ })
 ```
 
 A managed gateway brings Stripe to the declared state at boot — products and prices, one
@@ -77,7 +77,7 @@ Three gateway options place that state when a deployment runs several processes:
 |---|---|---|
 | `webhookService` | `cfg.service` | the `cfg.services` alias whose host and base form the webhook URL — also the portal's deployment key |
 | `owner` | `cfg.service` | the key of the `payment-webhook` rows, the signing-secret lookup, the `portal:<owner>` fingerprint and the Stripe labels |
-| `bootstrap` | `manage` | whether this process runs the bootstrap at boot; a forced one (`resync`, `bootstrapStripe(ctx, stripe, { force: true })`) runs in any managed process |
+| `bootstrap` | `manage` | whether this process runs the bootstrap at boot; a forced one (`resync`, `stripeBootstrapOf(ctx).bootstrapStripe(stripe, { force: true })`) runs in any managed process |
 
 Give every process of the database the same `owner` and `webhookService` (the process that receives
 the webhook), and keep `bootstrap` on that receiver only. Changing `webhookService` moves the
@@ -103,29 +103,40 @@ even an undeliverable local one.
 ## Use it
 
 ```typescript
+const payments = paymentAccessOf(ctx)   // the services, resources and settings of one context
+
 // Checkout and the portal (in-process; resolve the stable entityId at your authenticated boundary)
-const url = await gateway(ctx).createLink(ctx, { productSku: 'app-plans', planSku: 'pro-monthly', entityId, service: 'app', successUrl })
-const portal = await gateway(ctx).portalLink(ctx, entityId, { flow: PortalFlow.Change, planSku: 'pro-monthly', returnUrl })
-await gateway(ctx).grantInternalPlan(ctx, entityId, 'free')   // when the organization is created
+const url = await payments.gateway().createLink(ctx, { productSku: 'app-plans', planSku: 'pro-monthly', entityId, service: 'app', successUrl })
+const portal = await payments.gateway().portalLink(ctx, entityId, { flow: PortalFlow.Change, planSku: 'pro-monthly', returnUrl })
+await payments.gateway().grantInternalPlan(ctx, entityId, 'free')   // when the organization is created
 
 // What the entity may do
-const view = await entitlements(ctx).entitlements(entityId)   // the EntitlementView a UI renders
-await entitlements(ctx).hasCapability(entityId, 'feature:whitelabel')
+const view = await payments.entitlements().entitlements(entityId)   // the EntitlementView a UI renders
+await payments.entitlements().hasCapability(entityId, 'feature:whitelabel')
 
 // Spend a counted allowance — key it by the record it pays for
-await entitlements(ctx).consume({ entityId, limitKey: 'exports', eventKey: `export:${reportId}`, ref: reportId })
-await entitlements(ctx).release({ entityId, limitKey: 'exports', eventKey: `export:${reportId}` })
+await payments.entitlements().consume({ entityId, limitKey: 'exports', eventKey: `export:${reportId}`, ref: reportId })
+await payments.entitlements().release({ entityId, limitKey: 'exports', eventKey: `export:${reportId}` })
 
 // Periodic repair
-await reconcileAll(ctx, { freePlanSku: 'free' })
-await entitlements(ctx).reconcileOccupancy(entityId, 'seats', liveSeatCount)
+await reconcileOf(ctx).reconcileAll({ freePlanSku: 'free' })
+await payments.entitlements().reconcileOccupancy(entityId, 'seats', liveSeatCount)
 ```
+
+The package's functionality comes as objects: pure helpers with a ready instance (`planHelper`,
+`subscriptionHelper`, `checkoutPolicyHelper`, `stripeSessionHelper`, `consumerFormatHelper`,
+`originHelper`) and helpers bound to one context, reached through their accessor — `paymentAccessOf(ctx)`,
+`catalogueOf(ctx)`, `usageOf(ctx)`, `subscriptionCommitOf(ctx)`, `productSyncOf(ctx)`,
+`stripeBootstrapOf(ctx)`, `reconcileOf(ctx)`, `checkoutPluginsOf(ctx)`, `stripeCheckoutOf(ctx)`,
+`stripeSubscriptionsOf(ctx)`, `portalOf(ctx)`, `webhookOf(ctx)`, `estimateOf(ctx)`, `consumerMailOf(ctx)`.
+The former free functions (`gateway`, `reconcileAll`, `webhookUrlOf`, …) remain as
+deprecated delegates.
 
 Routes declare what they need; the gates refuse before the handler:
 
 ```typescript
 protocol(route(...), contract(...), { gate: { alias: ENTITLEMENT_GATE, params: ['feature:whitelabel'] } })
-protocol(route(...), contract(...), { gate: { alias: LIMIT_GATE, params: [formatLimitParam('seats')] } })
+protocol(route(...), contract(...), { gate: { alias: LIMIT_GATE, params: [planLimitHelper.formatLimitParam('seats')] } })
 ```
 
 `CapabilityRequired` and `LimitExhausted` extend `AuthForbidden`, so an HTTP boundary answers 403.
@@ -167,7 +178,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

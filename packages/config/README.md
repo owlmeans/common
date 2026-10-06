@@ -12,7 +12,7 @@ services are declared with `sservice()` from the same package.
 ## Installation
 
 ```bash
-bun add @owlmeans/config@^0.1.18-rc.41
+bun add @owlmeans/config@^0.1.18-rc.44
 ```
 
 ## Concepts
@@ -159,8 +159,8 @@ and its request/response types in the shared protocol declaration.
 |--------|------|---------|
 | `makeConfig(type, service, cfg?)` | function | Build a `CommonConfig` (`trusted` and `records` preset); layer packages wrap it as their own `config()` |
 | `service(route, cfg?)` | function | Write a `CommonServiceRoute` into `cfg.services[route.service]`; returns the config |
-| `mergeConfig(target, source)` | function | Deep-merge `source` into `target` in place; arrays concatenate |
-| `toConfigRecord(object)` / `fromConfigRecord(record)` | function | Cast between a plain object and a `ConfigRecord` |
+| `configHelper.mergeConfig(target, source)` | helper member | Deep-merge `source` into `target` in place; arrays concatenate |
+| `configHelper.toConfigRecord(object)` / `configHelper.fromConfigRecord(record)` | helper member | Cast between a plain object and a `ConfigRecord` |
 | `AppType` | enum | Re-exported from `@owlmeans/context` |
 | `CommonConfig` | type | The base application config |
 | `BrandSettings` | type | `{ home?, name?, organization?, entity? }` — what a UI credits |
@@ -234,7 +234,7 @@ and its request/response types in the shared protocol declaration.
 - [`@owlmeans/server-config`](../server-config) — `sservice()` and boot-time value resolution
 - [`@owlmeans/server-context`](../server-context) / [`@owlmeans/client-context`](../client-context) — layer `config()` and context wiring
 - [`@owlmeans/server-app`](../server-app) — re-exports `config`, `service`, `sservice`, `PLUGINS`
-- [`@owlmeans/api-config`](../api-config) — the runtime config a backend advertises and a client merges with `mergeConfig`
+- [`@owlmeans/api-config`](../api-config) — the runtime config a backend advertises and a client merges with `configHelper.mergeConfig`
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -244,7 +244,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

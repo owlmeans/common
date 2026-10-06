@@ -4,8 +4,8 @@ import {
   COUNTRY_CURRENCIES, CreateCheckoutBodySchema, DEFAULT_PRICING_POLICY, EntitlementViewSchema,
   LimitKind, LimitWindow, PlanDuration, PlanStatus, PortalFlow, PortalLinkBodySchema,
   PriceEstimateBodySchema, PriceEstimateSchema, PricingPolicySchema, ProductPlanSchema,
-  SubscriptionStatus, TaxBehavior, TaxEstimateStatus, TaxType, entitlementViewOf,
-  ENTITLING_STATUSES, TERMINAL_STATUSES,
+  SubscriptionStatus, TaxBehavior, TaxEstimateStatus, TaxType, ENTITLING_STATUSES, TERMINAL_STATUSES,
+  entitlementViewHelper,
 } from '../src/index.js'
 import * as payment from '../src/index.js'
 import type { PriceEstimate, ProductPlan } from '../src/index.js'
@@ -64,7 +64,7 @@ describe('plan declarations', () => {
 
 describe('wire shapes', () => {
   test('the entitlement view schema accepts a full view as the wire carries it', () => {
-    const view = entitlementViewOf(plan, {
+    const view = entitlementViewHelper.entitlementViewOf(plan, {
       sku: plan.sku, productSku: plan.productSku, title: plan.title, rank: 10, free: false,
       status: SubscriptionStatus.PastDue, paygate: 'stripe', subscriptionId: 'sub_1', pastDue: true,
       subscribedAt: new Date('2026-09-01T00:00:00.000Z'), periodEnd: new Date('2026-10-01T00:00:00.000Z'),

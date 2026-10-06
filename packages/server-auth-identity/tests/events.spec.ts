@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test'
+import { addLogPlugin, memoryPlugin, removeLogPlugin } from '@owlmeans/log'
 import { AuthenticationType } from '@owlmeans/auth'
 import { makeServerContext, config as serverConfig } from '@owlmeans/server-context'
 import type { ServerConfig } from '@owlmeans/server-context'
 import { identityEvents } from '../src/events.js'
-import { ensureAccount, ensureProfile, profileIdOf } from '../src/identity.js'
+import { identityOf } from '../src/identity.js'
+import { identityKeyHelper } from '../src/keys.js'
 import { details, makeIdentityContext } from './context.js'
 
 /**
@@ -30,7 +32,7 @@ describe('identity events', () => {
     expect(entityCreated[0]!.createdAt).toBeInstanceOf(Date)
     expect(profileCreated).toEqual([{
       entityId: entity!.id, entitySlug: entity!.slug, accountId: account!.id,
-      profileId: profileIdOf('viable', account!.id), service: 'viable', owner: true,
+      profileId: identityKeyHelper.profileIdOf('viable', account!.id), service: 'viable', owner: true,
     }])
   })
 
@@ -46,8 +48,8 @@ describe('identity events', () => {
 
   test('a person known from another app becomes a user of this one without a new organization', async () => {
     const { ctx, linking, entityCreated, profileCreated } = await makeIdentityContext({ service: 'viable' })
-    const { account } = await ensureAccount(ctx, { email: 'person@example.org' })
-    await ensureProfile(ctx, { account, service: 'shop-taskly', entityId: account.entityId, owner: true })
+    const { account } = await identityOf(ctx).ensureAccount({ email: 'person@example.org' })
+    await identityOf(ctx).ensureProfile({ account, service: 'shop-taskly', entityId: account.entityId, owner: true })
 
     await linking.linkProfile(details('google-oauth', 'sub'), { username: 'person@example.org' })
 
@@ -63,16 +65,19 @@ describe('identity events', () => {
     events.onEntityCreated(async event => { reached.push(event.entityId) })
     events.onProfileCreated(async () => { throw new Error('plans are down') })
     events.onProfileCreated(async event => { reached.push(event.profileId) })
-    const quiet = console.error
-    console.error = () => undefined
+    const memory = memoryPlugin('identity-events')
+    addLogPlugin(memory)
 
     try {
       const payload = await linking.linkProfile(details('google-oauth', 'google-sub'), { username: 'person@example.org' })
 
       expect(payload.profileId).toStartWith('app:')
       expect(reached).toHaveLength(2)
+      // Each failed listener is logged, with its error, rather than failing the sign-in.
+      const failed = memory.records.filter(record => record.level === 'error' && record.scope === 'server-auth-identity')
+      expect(failed.map(record => record.error?.message).sort()).toEqual(['plans are down', 'provisioning is down'])
     } finally {
-      console.error = quiet
+      removeLogPlugin('identity-events')
     }
   })
 

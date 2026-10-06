@@ -1,21 +1,8 @@
-import { useEffect, useRef } from 'react'
-import type { FC } from 'react'
-import type { UseMarketingConsentModel } from '../hooks/use-marketing-consent.js'
-import { rowTextOf } from './inline.js'
-import type { Translate } from './inline.js'
+import { useEffect, useRef, type FC } from 'react'
 import { ConsentRow, RevisedLine } from './row.js'
 import { ConsentTerms } from './terms.js'
-
-export interface ConsentFieldsProps {
-  t: Translate
-  model: UseMarketingConsentModel
-  /**
-   * The sign-in screen's own translator (`auth` resource), which the Terms row speaks in. Given
-   * only by the screen: the settings card has no Terms row and passes nothing.
-   */
-  termsT?: Translate
-  locale?: string
-}
+import type { ConsentFieldsProps } from './types.js'
+import { inlineHelper } from './inline.js'
 
 /**
  * The select-all/list body shared by `MarketingConsentScreen` and `MarketingConsentPreferences` —
@@ -73,7 +60,7 @@ export const ConsentFields: FC<ConsentFieldsProps> = ({ t, model, termsT, locale
         {showTerms && <ConsentTerms termsT={termsT} t={t} model={model.terms} locale={locale} />}
 
         {model.groups.flatMap(group => group.items).map(item => {
-          const { statement, detail } = rowTextOf(item.definition, t, locale)
+          const { statement, detail } = inlineHelper.rowTextOf(item.definition, t, locale)
 
           return (
             <ConsentRow

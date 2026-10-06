@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-panel
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.55"` in `dependencies`
+**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.58"` in `dependencies`
 
 ## Key Exports
 
@@ -34,7 +34,7 @@ controller; apps may override it through their own `buttons` resource.
 | `usePanelLayout()` / `useLayoutTitle(name?, alias?)` / `prepareLayoutTitle(title)` | The entrypoint the current layout is rendering, and its translated title |
 | `BlockScaling` | `Full` / `Half` / `Wide` — the sizing vocabulary both platform families render |
 | `usePanelNav(config)` | Headless navigation model behind a two-layer menu |
-| `resolveNavLabel`, `defaultNavLabel`, `defaultNavTranslate` | Label resolution helpers |
+| `navLabelHelper` → `.resolveNavLabel`, `.defaultNavLabel`, `.defaultNavTranslate` | Label resolution helpers |
 | `PanelNavConfig`, `PanelNavSection`, `PanelNavItem`, `PanelNavLink`, `PanelNavModel`, `NavTranslate` | Navigation types |
 | `FormProps`, `FormRef`, `FormOnSubmit`, `TFormContext`, `FormFieldProps`, `FormActionProps`, `FormActionRenderArgs`, `InputControllerProps`, `TPanelContext`, `StatusOptions` | The model shapes a renderer is written against |
 
@@ -55,13 +55,13 @@ same split the form and navigation models already use. See `login-methods`.
 `@owlmeans/client-auth/login`) rather than a flat `urls: { terms, privacy, cookies? }` — that field
 is gone; nothing in the repo read it outside this model and its one renderer, so it was dropped
 rather than kept alongside the replacement. It also carries `revisedAt?` and `version`. A renderer
-turns `documents`/`notices` into markup with `termsSentence` (`@owlmeans/client-auth/login`), never
-by re-deriving link/label pairs itself.
+turns `documents`/`notices` into markup with `loginTermsHelper.termsSentence`
+(`@owlmeans/client-auth/login`), never by re-deriving link/label pairs itself.
 
-`LoginTermsModel.deferred` mirrors `termsDeferred(ctx)`: true once a registered, bound `LoginStep`
-confirms the terms instead of this screen. `LoginMethodsModel.blocked` folds it in
-(`required && !deferred && !accepted`) — a renderer never blocks on `required`/`accepted` alone,
-or it would re-block a screen whose confirmation moved elsewhere.
+`LoginTermsModel.deferred` mirrors `loginTermsHelper.termsDeferred(ctx)`: true once a registered,
+bound `LoginStep` confirms the terms instead of this screen. `LoginMethodsModel.blocked` folds it in
+(`required && !deferred && !accepted`) — a renderer never blocks on `required`/`accepted` alone, or
+it would re-block a screen whose confirmation moved elsewhere.
 
 ## Usage
 
@@ -122,13 +122,14 @@ alias, or null), `active` (its section), `showSide`, `isSectionActive` / `isItem
 - **`showSide` owns the one-screen rule.** It is false when the active section holds a single
   screen — a second level offering the page you are already on is noise. A renderer asks the model;
   it does not count items itself.
-- **Label resolution never touches i18n implicitly.** `NavTranslate` is a `(key, defaultValue) =>
-  string` **prop**, defaulting to `defaultNavTranslate`, which returns the fallback. An app mounted
-  without an i18n provider (`renderApp` from `@owlmeans/web-client` mounts none) crashes if a menu
-  reaches for the panel i18n context: the hook dereferences `i18n.options` on the empty object
-  `react-i18next` returns without an instance, and a throw inside render blanks the whole app.
-  `resolveNavLabel(translate, label, key, alias)` applies the order — literal `label` →
-  `translate(key, humanized)` → `defaultNavLabel(alias)`, which humanizes the last alias segment
+- **Label resolution never touches i18n implicitly.** `NavTranslate` is a
+  `(key, defaultValue) => string` **prop**, defaulting to `navLabelHelper.defaultNavTranslate`,
+  which returns the fallback. An app mounted without an i18n provider (`renderApp` from
+  `@owlmeans/web-client` mounts none) crashes if a menu reaches for the panel i18n context: the hook
+  dereferences `i18n.options` on the empty object `react-i18next` returns without an instance, and a
+  throw inside render blanks the whole app.
+  `navLabelHelper.resolveNavLabel(translate, label, key, alias)` applies the order — literal `label`
+  → `translate(key, humanized)` → `.defaultNavLabel(alias)`, which humanizes the last alias segment
   (`my-app:web:user-list` → `User list`). Default key families: `nav.<name>` for sections,
   `modules.<alias>` for items and footer links.
 - **Resolving the current screen needs two sources.** The router's `location.state.alias` is

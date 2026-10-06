@@ -1,9 +1,12 @@
+import { EmailSchema, ProfileIdSchema, TitleSchema } from './consts.local.js'
+import type { IamRuntimeAck, IamRuntimeGrantQuery, IamRuntimeMemberInvite, IamRuntimeMemberParams, IamRuntimeOrganizationCreate, IamRuntimeOrganizationParams, IamRuntimeOrganizationUpdate } from './runtime/types.js'
+import type { JSONSchemaType } from 'ajv'
+import { EntitySlugValueSchema } from '@owlmeans/auth'
+
 export const DEFAULT_ALIAS = 'iam-service'
 
 export const IAM_MODE_KEYCLOAK = 'keycloak'
 export const IAM_MODE_INTEGRATED = 'integrated'
-
-export type IamMode = typeof IAM_MODE_KEYCLOAK | typeof IAM_MODE_INTEGRATED
 
 /**
  * Gate-param syntax: `<permission>[@<selector>]`.
@@ -105,8 +108,6 @@ export enum IamRemovalPolicy {
  */
 export const IAM_AREAS = ['user', 'operator', 'admin'] as const
 
-export type IamArea = typeof IAM_AREAS[number]
-
 /** Separates the resource from the action in a permission name. TWO hyphens, never one. */
 export const PERMISSION_ACTION_SEPARATOR = '--'
 
@@ -173,3 +174,59 @@ export const IAM_RUNTIME_ROUTES = {
   grants: '/organizations/:entitySlug/grants',
   grantsRevoke: '/organizations/:entitySlug/grants/revoke',
 } as const
+
+export const IamRuntimeOrganizationCreateSchema: JSONSchemaType<IamRuntimeOrganizationCreate> = {
+  type: 'object',
+  properties: { title: { ...TitleSchema, nullable: true } },
+  required: [],
+  additionalProperties: false,
+}
+
+export const IamRuntimeOrganizationUpdateSchema: JSONSchemaType<IamRuntimeOrganizationUpdate> = {
+  type: 'object',
+  properties: { title: { ...TitleSchema } },
+  required: ['title'],
+  additionalProperties: false,
+}
+
+export const IamRuntimeOrganizationParamsSchema: JSONSchemaType<IamRuntimeOrganizationParams> = {
+  type: 'object',
+  properties: { entitySlug: { ...EntitySlugValueSchema } },
+  required: ['entitySlug'],
+  additionalProperties: false,
+}
+
+export const IamRuntimeMemberInviteSchema: JSONSchemaType<IamRuntimeMemberInvite> = {
+  type: 'object',
+  properties: {
+    email: { ...EmailSchema },
+    name: { ...TitleSchema, nullable: true },
+    owner: { type: 'boolean', nullable: true },
+  },
+  required: ['email'],
+  additionalProperties: false,
+}
+
+export const IamRuntimeMemberParamsSchema: JSONSchemaType<IamRuntimeMemberParams> = {
+  type: 'object',
+  properties: {
+    entitySlug: { ...EntitySlugValueSchema },
+    profileId: { ...ProfileIdSchema },
+  },
+  required: ['entitySlug', 'profileId'],
+  additionalProperties: false,
+}
+
+export const IamRuntimeGrantQuerySchema: JSONSchemaType<IamRuntimeGrantQuery> = {
+  type: 'object',
+  properties: { profileId: { ...ProfileIdSchema, nullable: true } },
+  required: [],
+  additionalProperties: false,
+}
+
+export const IamRuntimeAckSchema: JSONSchemaType<IamRuntimeAck> = {
+  type: 'object',
+  properties: { ok: { type: 'boolean' } },
+  required: ['ok'],
+  additionalProperties: false,
+}

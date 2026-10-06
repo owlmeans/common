@@ -1,10 +1,8 @@
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import { cn } from '@/lib/utils'
-import { money, shortMomentUtc } from './format.js'
 import type { CheckoutLimitNoteProps } from './types.js'
-
-/** The reasons the package phrases itself; any other reads the generic sentence. */
-const KNOWN_REASONS = ['per-purchase', 'window', 'total', 'hold']
+import { KNOWN_REASONS } from './consts.local.js'
+import { formatHelper } from './format.js'
 
 /**
  * What an amount checkout is narrowed to for this entity now: the largest amount (or that nothing
@@ -28,7 +26,7 @@ export const CheckoutLimitNote = ({ limit, reasonLabel, className }: CheckoutLim
     : t(`reason.${KNOWN_REASONS.includes(reason) ? reason : 'other'}`)
   const resetsAt = limit.resetsAt != null ? new Date(limit.resetsAt) : null
   const resets = resetsAt != null && !Number.isNaN(resetsAt.getTime())
-    ? t('resets', { date: shortMomentUtc(resetsAt, locale), interpolation: { escapeValue: false } })
+    ? t('resets', { date: formatHelper.shortMomentUtc(resetsAt, locale), interpolation: { escapeValue: false } })
     : null
 
   return <div
@@ -40,7 +38,7 @@ export const CheckoutLimitNote = ({ limit, reasonLabel, className }: CheckoutLim
     <p className={limit.blocked ? 'text-destructive font-medium' : 'font-medium'} data-checkout-limit-headline="">
       {limit.blocked
         ? t('blocked')
-        : t('note', { amount: money(limit.maximumMinor, limit.currency, locale), interpolation: { escapeValue: false } })}
+        : t('note', { amount: formatHelper.money(limit.maximumMinor, limit.currency, locale), interpolation: { escapeValue: false } })}
     </p>
     <p className="text-muted-foreground text-xs" data-checkout-limit-reason="">{explained}</p>
     {resets != null && <p className="text-muted-foreground text-xs" data-checkout-limit-resets="">{resets}</p>}

@@ -1,11 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { CallArguments, RegisteredEntrypoint, RequestShape } from '@owlmeans/entrypoint'
-import { limitOf, reviveEntitlementView } from '@owlmeans/payment'
-import type { EntitlementView, PortalFlow, PortalLinkResponse } from '@owlmeans/payment'
+import { type EntitlementView, type PortalFlow, type PortalLinkResponse, planLimitHelper, entitlementViewHelper } from '@owlmeans/payment'
 import { usePolled } from './poll.js'
-import { capabilityStateOf, limitStatusOf } from './selectors.js'
-import { openCheckout, type CheckoutTarget } from './service.js'
-import type { LimitStatus, PortalArguments, PortalRequest } from './types.js'
+import { entitlementSelectorHelper } from './selectors.js'
+import { openCheckout } from './service.js'
+import type { CheckoutTarget, LimitStatus, PortalArguments, PortalRequest } from './types.js'
 
 /**
  * Poll an entitlement-view protocol — `null` until the first answer. The view is revived on the way
@@ -20,16 +19,16 @@ export const useEntitlementView = <Request extends RequestShape>(
   deps: unknown[] = [],
   ...request: CallArguments<Request>
 ): EntitlementView | null => usePolled(
-  async () => reviveEntitlementView(await entry.call(...request)), intervalMs, deps,
+  async () => entitlementViewHelper.reviveEntitlementView(await entry.call(...request)), intervalMs, deps,
 )
 
 /** Whether the view grants a capability parameter; `null` while the view is unknown. */
 export const useCapability = (view: EntitlementView | null | undefined, param: string): boolean | null =>
-  useMemo(() => capabilityStateOf(view, param), [view, param])
+  useMemo(() => entitlementSelectorHelper.capabilityStateOf(view, param), [view, param])
 
 /** One limit of the view with `exhausted` and `ratio`; `null` while unknown or undeclared. */
 export const useLimit = (view: EntitlementView | null | undefined, key: string): LimitStatus | null =>
-  useMemo(() => limitStatusOf(limitOf(view, key)), [view, key])
+  useMemo(() => entitlementSelectorHelper.limitStatusOf(planLimitHelper.limitOf(view, key)), [view, key])
 
 /**
  * Open a billing-portal flow: `portal(entry, request?)` calls the portal protocol with `body.flow`

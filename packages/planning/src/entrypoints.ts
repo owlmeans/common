@@ -1,16 +1,17 @@
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import type { ListResult } from '@owlmeans/resource'
-import { backend, route, RouteMethod, socket } from '@owlmeans/route'
-import type { RouteOptions } from '@owlmeans/route'
-import { PLANNING_PATH, planningAliases, planningDefinitionAliases } from './consts.js'
+import { backend, route, RouteMethod, socket, type RouteOptions } from '@owlmeans/route'
+import { PLANNING_PATH } from './consts.js'
+import { planningAliasHelper } from './aliases.js'
 import {
   CommitQuerySchema, ExecuteRequestSchema, RelationshipQuerySchema, RevisionsQuerySchema,
   SchemaDefineRequestSchema, SchemaListQuerySchema, SpecificationQuerySchema, SummaryQuerySchema,
   TransitionParamsSchema, TransitionQuerySchema, WorkcardParamsSchema, WorkcardQuerySchema,
 } from './schemas.js'
+import type { PlanningProtocolOptions, PlanningProtocols } from './entrypoints/types.js'
 import type {
-  CommitEvent, CommitFeedQuery, CommitQuery, CommitStatus, ExecuteRequest, PlanningProtocolOptions,
-  PlanningProtocols, PlanningSchemaBundle, Relationship, RelationshipQueryWire, RevisionsQuery,
+  CommitEvent, CommitFeedQuery, CommitQuery, CommitStatus, ExecuteRequest,
+  PlanningSchemaBundle, Relationship, RelationshipQueryWire, RevisionsQuery,
   SchemaDefineReply, SchemaDefineRequest, SchemaListQuery, ScopedSchemaBundle, Specification, SpecificationQueryWire,
   SpecificationRevisionList, SummaryQueryWire, SummaryView, Transition, TransitionParams,
   TransitionQueryWire, TransitionReceiptView, Workcard, WorkcardParams, WorkcardQueryWire,
@@ -32,7 +33,7 @@ import type {
  * the tree declares exactly the other leaves.
  */
 export const makePlanningProtocols = (opts: PlanningProtocolOptions): PlanningProtocols => {
-  const aliases = planningAliases(opts.base.alias)
+  const aliases = planningAliasHelper.planningAliases(opts.base.alias)
   const mount: Partial<RouteOptions> = {
     ...(opts.base.parent != null ? { parent: opts.base.parent } : {}),
     ...(opts.base.service != null ? { service: opts.base.service } : {}),
@@ -51,7 +52,7 @@ export const makePlanningProtocols = (opts: PlanningProtocolOptions): PlanningPr
         contract.request({ query: typed<SchemaListQuery>(SchemaListQuerySchema) }, typed<ScopedSchemaBundle>())
       ) as unknown as PlanningProtocols['schema']['list'],
       define: protocol(
-        route(planningDefinitionAliases(opts.base.alias).define, '/schemas', backend({ parent: base }, RouteMethod.POST)),
+        route(planningAliasHelper.planningDefinitionAliases(opts.base.alias).define, '/schemas', backend({ parent: base }, RouteMethod.POST)),
         contract.request({ body: typed<SchemaDefineRequest>(SchemaDefineRequestSchema) }, typed<SchemaDefineReply>())
       ),
     })

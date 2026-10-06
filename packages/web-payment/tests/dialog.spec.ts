@@ -1,11 +1,11 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 import { closeHarness, harnessUrl } from './context.js'
 
 const TIMEOUT = 60_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
   await closeHarness()
 })
 
@@ -13,11 +13,25 @@ describe('AmountCheckoutDialog', () => {
   test('renders application details and allows cancel when application reads are unavailable', async () => {
     const { page, close } = await mountComponent({ url: `${await harnessUrl()}?details=true&disabled=true` })
     try {
-      await page.locator('[data-test-details]').waitFor()
+      await page.locator('[data-amount-details] [data-test-details]').waitFor()
       expect(await page.getByLabel('Custom amount').isDisabled()).toBe(true)
       expect(await page.getByRole('button', { name: 'Continue to Stripe' }).isDisabled()).toBe(true)
       expect(await page.getByRole('button', { name: 'Cancel' }).isDisabled()).toBe(false)
     } finally { await close() }
+  }, TIMEOUT)
+
+  test('puts the limit note in the side column with the details, and above the presets without them', async () => {
+    const withDetails = await mountComponent({ url: `${await harnessUrl()}?limit=true&details=true` })
+    try {
+      await withDetails.page.locator('[data-amount-details] [data-checkout-limit]').waitFor()
+      expect(await withDetails.page.locator('[data-amount-details] > *').first().getAttribute('data-checkout-limit')).not.toBeNull()
+    } finally { await withDetails.close() }
+
+    const alone = await mountComponent({ url: `${await harnessUrl()}?limit=true` })
+    try {
+      await alone.page.locator('[data-checkout-limit]').waitFor()
+      expect(await alone.page.locator('[data-amount-details]').count()).toBe(0)
+    } finally { await alone.close() }
   }, TIMEOUT)
 
   test('renders presets and the net, adjustment, and pre-tax amounts', async () => {

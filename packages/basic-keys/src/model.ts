@@ -1,18 +1,18 @@
-import type { KeyPairModel, KeyPairModelMaker } from './types.js'
+import type { KeyPair, KeyPairModel } from './types.js'
 import { plugins } from './plugins/index.js'
 import { base64urlnopad, utf8 } from '@scure/base'
-import { assertType, prepareData, prepareKey } from './utils.js'
+import { keyUtils } from './utils.js'
 import { inputToKeyPair } from './keypair.js'
 
-export const makeKeyPairModel: KeyPairModelMaker = input => {
+export const makeKeyPairModel = (input?: KeyPair | string): KeyPairModel => {
   const keyPair = inputToKeyPair(input)
 
   const _model: KeyPairModel = {
     keyPair,
 
     sign: async (data) => {
-      data = prepareData(data)
-      assertType(_model.keyPair?.type)
+      data = keyUtils.prepareData(data)
+      keyUtils.assertType(_model.keyPair?.type)
 
       if (_model.keyPair == null) {
         throw new Error('basic.keys:missing-keypair')
@@ -25,14 +25,14 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
       return base64urlnopad.encode(
         plugins[_model.keyPair.type].sign(
           data as Uint8Array,
-          prepareKey(_model.keyPair.privateKey)
+          keyUtils.prepareKey(_model.keyPair.privateKey)
         )
       )
     },
     
     verify: async (data, signature) => {
-      data = prepareData(data)
-      assertType(_model.keyPair?.type)
+      data = keyUtils.prepareData(data)
+      keyUtils.assertType(_model.keyPair?.type)
       const sig = base64urlnopad.decode(signature)
 
       if (_model.keyPair == null) {
@@ -42,12 +42,12 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
       return plugins[_model.keyPair.type].verify(
         data as Uint8Array,
         sig,
-        prepareKey(_model.keyPair.publicKey)
+        keyUtils.prepareKey(_model.keyPair.publicKey)
       )
     },
 
     export: () => {
-      assertType(_model.keyPair?.type)
+      keyUtils.assertType(_model.keyPair?.type)
 
       if (_model.keyPair == null) {
         throw new Error('basic.keys:missing-keypair')
@@ -57,7 +57,7 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
     },
 
     exportPublic: () => {
-      assertType(_model.keyPair?.type)
+      keyUtils.assertType(_model.keyPair?.type)
 
       if (_model.keyPair == null) {
         throw new Error('basic.keys:missing-keypair')
@@ -67,7 +67,7 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
     },
 
     exportAddress: () => {
-      assertType(_model.keyPair?.type)
+      keyUtils.assertType(_model.keyPair?.type)
 
       if (_model.keyPair == null) {
         throw new Error('basic.keys:missing-keypair')
@@ -77,8 +77,8 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
     },
 
     encrypt: async data => {
-      data = prepareData(data)
-      assertType(_model.keyPair?.type)
+      data = keyUtils.prepareData(data)
+      keyUtils.assertType(_model.keyPair?.type)
 
       if (_model.keyPair == null) {
         throw new Error('basic.keys:missing-keypair')
@@ -87,7 +87,7 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
       return base64urlnopad.encode(
         plugins[_model.keyPair.type].encrypt(
           data as Uint8Array,
-          prepareKey(_model.keyPair.publicKey)
+          keyUtils.prepareKey(_model.keyPair.publicKey)
         )
       )
     },
@@ -105,7 +105,7 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
 
     dcrpt: async data => {
       data = data instanceof Uint8Array ? data : base64urlnopad.decode(data as string)
-      assertType(_model.keyPair?.type)
+      keyUtils.assertType(_model.keyPair?.type)
 
       if (_model.keyPair == null) {
         throw new Error('basic.keys:missing-keypair')
@@ -113,7 +113,7 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
 
       return plugins[_model.keyPair.type].decrypt(
         data as Uint8Array,
-        prepareKey(_model.keyPair.privateKey)
+        keyUtils.prepareKey(_model.keyPair.privateKey)
       )
     }
   }

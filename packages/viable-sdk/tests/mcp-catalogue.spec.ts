@@ -4,9 +4,8 @@ import {
   ConnectConsentRequired, ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget, ViableStoryTransition,
 } from '@owlmeans/viable-common'
 import { registerCatalogue } from '../src/tools/mcp.js'
-import type { McpServerLike } from '../src/tools/mcp.js'
-import { ToolHostKind } from '../src/tools/types.js'
-import type { ToolDeps, ToolHost } from '../src/tools/types.js'
+import type { McpServerLike, ToolDeps, ToolHost } from '../src/tools/types.js'
+import { ToolHostKind } from '../src/tools/consts.js'
 import { makePlanningSuite } from './context.js'
 
 const host: ToolHost = {
@@ -193,5 +192,37 @@ describe('viable-sdk — a planning refusal, at the MCP boundary', () => {
     expect(remote.isError).toBe(true)
     expect(remote.content[0]!.text).toContain('not open from the status the story is in')
     expect(remote.content[0]!.text).not.toContain(ResilientError.separator)
+  })
+})
+
+describe('viable-sdk — planning kits, at the MCP boundary', () => {
+  test('both kit tools are registered, and a refused apply is phrased as an error', async () => {
+    const logged: string[] = []
+    const deps: ToolDeps = {
+      host,
+      api: {
+        project: {
+          kitDescribe: async () => ({ kits: [] }),
+          kitApply: async () => { throw new Error('the project is busy') },
+        },
+      },
+      session: async () => ({} as never),
+      currentSession: () => null,
+      attached: () => 'p1',
+      attach: () => undefined,
+      log: (line: string) => { logged.push(line) },
+    } as unknown as ToolDeps
+
+    const { server, run } = fakeServer()
+    registerCatalogue(server, deps)
+
+    const described = await run('describe_planning_kits', {}) as { content: Array<{ text: string }>, isError?: boolean }
+    expect(described.isError).toBeUndefined()
+    expect(described.content[0]!.text).toContain('no planning kits are offered for p1')
+
+    const applied = await run('apply_planning_kit', { kit: 'project' }) as { content: Array<{ text: string }>, isError?: boolean }
+    expect(applied.isError).toBe(true)
+    expect(applied.content[0]!.text).toContain('the project is busy')
+    expect(logged.some(line => line.startsWith('apply_planning_kit refused:'))).toBe(true)
   })
 })

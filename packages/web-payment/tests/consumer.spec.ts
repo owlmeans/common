@@ -1,11 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent, type Page } from '@owlmeans/test-ui'
+import { ConsentKind, consumerCopyHelper } from '@owlmeans/payment'
+import { mountComponent, type Page, browserHelper } from '@owlmeans/test-ui'
 import { closeHarness, harnessUrl } from './context.js'
 
 const TIMEOUT = 60_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
   await closeHarness()
 })
 
@@ -94,6 +95,43 @@ describe('PerformanceConsentDialog — contract language, one unchecked checkbox
   }, TIMEOUT)
 })
 
+describe('PerformanceConsentDialog — a consent context', () => {
+  test('shows the variant title, intro and statement the server records, in both languages, and marks the context', async () => {
+    const { page, close } = await open('case=consent&lng=pl&ui=en&context=included')
+    try {
+      const dialog = page.locator('[data-consent-dialog]')
+      await dialog.waitFor()
+      expect(await dialog.getAttribute('data-consent-context')).toBe('included')
+      const recorded = (lng: string) =>
+        consumerCopyHelper.consentStatementOf(lng, ConsentKind.Performance, { trader: 'Example Trader', context: 'included' }).checkbox
+      expect(await text(page, '[data-consent-statement]')).toBe(recorded('pl'))
+      expect(await text(page, '[data-consent-statement]')).toStartWith('Żądam i wyrażam wyraźną zgodę')
+      expect(await text(page, '[data-consent-dialog] h2')).toBe(consumerCopyHelper.consumerText('pl', 'performance-consent.title', {}, 'included'))
+      expect(await dialog.innerText()).toContain('Limity kredytów wliczone w Twój plan są zawsze wykorzystywane w pierwszej kolejności')
+      expect(FORBIDDEN.test(await dialog.innerText())).toBe(false)
+
+      await page.locator('[data-consent-language-toggle]').click()
+      expect(await dialog.getAttribute('data-language')).toBe('en')
+      expect(await dialog.getAttribute('data-consent-context')).toBe('included')
+      expect(await text(page, '[data-consent-statement]')).toBe(recorded('en'))
+      expect(await text(page, '[data-consent-dialog] h2')).toBe('Use your topped-up credits now?')
+      expect(await dialog.innerText()).toContain('The credit limits included in your plan are always used first')
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('without a context the base texts show and no context is marked', async () => {
+    const { page, close } = await open('case=consent&lng=en')
+    try {
+      const dialog = page.locator('[data-consent-dialog]')
+      await dialog.waitFor()
+      expect(await dialog.getAttribute('data-consent-context')).toBeNull()
+      expect(await text(page, '[data-consent-statement]'))
+        .toBe(consumerCopyHelper.consentStatementOf('en', ConsentKind.Performance, { trader: 'Example Trader' }).checkbox)
+      expect(await text(page, '[data-consent-dialog] h2')).toBe('Start using your credits now?')
+    } finally { await close() }
+  }, TIMEOUT)
+})
+
 describe('SubscriptionStartDialog', () => {
   test('French statement, "Continuer vers le paiement" gated on the checkbox', async () => {
     const { page, close } = await open('case=start&lng=fr')
@@ -115,6 +153,49 @@ describe('SubscriptionStartDialog', () => {
       expect(JSON.parse(await output(page, 'start-result'))).toEqual({
         planSku: 'pro-monthly', textVersion: 'terms-2026-09', language: 'fr', acknowledged: true,
       })
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('a time-only plan (no context): the base statement the server records, and no context is marked', async () => {
+    const { page, close } = await open('case=start&lng=de&ui=en')
+    try {
+      const dialog = page.locator('[data-start-dialog]')
+      await dialog.waitFor()
+      expect(await dialog.getAttribute('data-start-context')).toBeNull()
+      const recorded = (lng: string) =>
+        consumerCopyHelper.consentStatementOf(lng, ConsentKind.SubscriptionStart, { trader: 'Example Trader', plan: 'Pro' }).checkbox
+      expect(await text(page, '[data-start-statement]')).toBe(recorded('de'))
+      expect(await text(page, '[data-start-statement]')).toStartWith('Ich verlange ausdrücklich und stimme ausdrücklich zu')
+      expect(await text(page, '[data-start-statement]')).not.toContain('Credits')
+
+      await page.locator('[data-start-language-toggle]').click()
+      expect(await dialog.getAttribute('data-language')).toBe('en')
+      expect(await text(page, '[data-start-statement]')).toBe(recorded('en'))
+      expect(await text(page, '[data-start-statement]')).toContain('pro rata by the days elapsed')
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('a plan with a units component: the `_units` statement the server records, in both languages, and marks it', async () => {
+    const { page, close } = await open('case=start&lng=pl&ui=en&context=units')
+    try {
+      const dialog = page.locator('[data-start-dialog]')
+      await dialog.waitFor()
+      expect(await dialog.getAttribute('data-start-context')).toBe('units')
+      const recorded = (lng: string) =>
+        consumerCopyHelper.consentStatementOf(lng, ConsentKind.SubscriptionStart, { trader: 'Example Trader', plan: 'Pro', context: 'units' }).checkbox
+      expect(await text(page, '[data-start-statement]')).toBe(recorded('pl'))
+      expect(await text(page, '[data-start-statement]')).toBe(
+        consumerCopyHelper.consumerText('pl', 'subscription-start.checkbox_units', { trader: 'Example Trader', plan: 'Pro' }),
+      )
+      expect(await text(page, '[data-start-statement]')).toStartWith('Żądam i wyrażam wyraźną zgodę')
+      // Title and intro have no `_units` variant: the base shows.
+      expect(await text(page, '[data-start-dialog] h2')).toBe(consumerCopyHelper.consumerText('pl', 'subscription-start.title', { plan: 'Pro' }))
+      expect(FORBIDDEN.test(await dialog.innerText())).toBe(false)
+
+      await page.locator('[data-start-language-toggle]').click()
+      expect(await dialog.getAttribute('data-start-context')).toBe('units')
+      expect(await text(page, '[data-start-statement]')).toBe(recorded('en'))
+      expect(await text(page, '[data-start-statement]')).toContain('my right of withdrawal expires for the included credits')
     } finally { await close() }
   }, TIMEOUT)
 })

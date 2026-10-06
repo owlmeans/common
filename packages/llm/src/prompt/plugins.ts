@@ -1,6 +1,6 @@
 import { PromptBlock, renderCumulativeResults } from '@owlmeans/llm-common'
 import type { SkillDefinition } from '@owlmeans/llm-common'
-import { joinChunks, renderSkill, sortSkills } from './render.js'
+import { promptRenderHelper } from './render.js'
 import type { LlmPromptPlugin } from './types.js'
 
 /**
@@ -34,8 +34,8 @@ export const skillsPlugin: LlmPromptPlugin = {
     for (const skill of [...declared, ...(ctx.input.inline ?? [])]) {
       merged.set(skill.alias, skill)
     }
-    for (const skill of sortSkills([...merged.values()])) {
-      ctx.add(skill.block ?? PromptBlock.Skills, renderSkill(skill))
+    for (const skill of promptRenderHelper.sortSkills([...merged.values()])) {
+      ctx.add(skill.block ?? PromptBlock.Skills, promptRenderHelper.renderSkill(skill))
     }
   },
 }
@@ -74,11 +74,11 @@ export const contextPlugin: LlmPromptPlugin = {
     // parts separable, and a single contiguous section reads as one instruction to the
     // model instead of a pile of loose fragments.
     const parts = [
-      ...sortSkills(ctx.resolve(ctx.input.callSkills ?? [])).map(renderSkill),
+      ...promptRenderHelper.sortSkills(ctx.resolve(ctx.input.callSkills ?? [])).map(promptRenderHelper.renderSkill),
       ...(ctx.input.context ?? []),
     ]
     if (parts.length > 0) {
-      ctx.add(PromptBlock.Context, joinChunks(parts))
+      ctx.add(PromptBlock.Context, promptRenderHelper.joinChunks(parts))
     }
   },
 }

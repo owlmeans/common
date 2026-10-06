@@ -1,41 +1,10 @@
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import { ensureLoginService } from '@owlmeans/client-auth/login'
-import type { MarketingConsentConfig, MarketingConsentEntrypoints } from '@owlmeans/marketing-consent'
 import { MARKETING_CONSENT_CLIENT_SERVICE } from './consts.js'
 import { termsRecorder } from './landing.js'
 import { appendMarketingConsentClient } from './service.js'
-import type { MarketingConsentClientService } from './service.js'
+import type { MarketingConsentClientService, MarketingConsentAppendOptions } from './types.js'
 import { marketingConsentStep } from './step.js'
-
-export interface MarketingConsentAppendOptions {
-  /** From `makeMarketingConsentProtocols(...)` — the app builds this once and shares it between
-   * this call and its own server-side `serveMarketingConsentEntrypoints`/`bindAll` wiring. */
-  protocols: MarketingConsentEntrypoints
-  /**
-   * Accepted for API symmetry with the server side (`appendMarketingConsentService({ config })`),
-   * but not read here: `resolveMarketingConsents` only ever runs where the catalogue is actually
-   * enumerated — the server. This package's own UI reads the ALREADY-RESOLVED definitions back off
-   * `MarketingConsentStatusItem.definition` and never re-resolves the catalogue client-side.
-   */
-  config?: MarketingConsentConfig
-  /** Register the post-sign-in step. Default `true`. */
-  step?: boolean
-  /**
-   * `true` (default): the sign-in screen keeps its own Terms checkbox, and this option only
-   * decides whether `termsRecorder` copies a LOCAL acceptance to the server once landed.
-   * `false`: no terms recording at all — an application that does not use
-   * `@owlmeans/client-auth`'s terms confirmation.
-   * `'step'`: the Terms confirmation moves OFF the sign-in screen onto THIS package's own
-   * post-sign-in step instead — the checkbox, its recording and the version check all happen
-   * there (`termsDeferred`, `@owlmeans/client-auth/login`). Requires `step !== false`; with
-   * `step: false` there is no step left to confirm on, so this falls back to `true`.
-   */
-  terms?: boolean | 'step'
-  /** Entrypoint alias of a host's own "Privacy choices" settings screen, for
-   * `MarketingConsentClientService.preferences()`. */
-  preferences?: string
-  locale?: string
-}
 
 /**
  * Wire the marketing-consent client into a web app: the client service, the post-sign-in step

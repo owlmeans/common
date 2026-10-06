@@ -1,20 +1,27 @@
 {
   "performance-consent": {
     "title": "Jetzt mit der Nutzung Ihrer Credits beginnen?",
+    "title_included": "Jetzt Ihre aufgeladenen Credits verwenden?",
     "intro": "Käufe, die sich noch in der Widerrufsfrist befinden: {{count}}. Die letzte Widerrufsfrist endet am {{deadline}}.",
+    "intro_included": "Käufe, die sich noch in der Widerrufsfrist befinden: {{count}}. Die letzte Widerrufsfrist endet am {{deadline}}. Die in Ihrem Tarif enthaltenen Credit-Limits werden stets zuerst verwendet; dies gilt für die von Ihnen aufgeladenen Credits, sobald diese Limits aufgebraucht sind.",
     "purchase": "Credits gekauft am {{date}} ({{amount}}): Als Verbraucher in der EU können Sie diesen Kauf bis einschließlich {{deadline}} widerrufen.",
     "request": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} mit der Ausführung der kostenpflichtigen Leistung – der KI-Arbeit und der dabei erstellten digitalen Inhalte – jetzt, vor Ablauf der Widerrufsfrist, beginnt.",
+    "request_included": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} mit der Ausführung der kostenpflichtigen Leistung – der KI-Arbeit und der dabei erstellten digitalen Inhalte – jetzt, vor Ablauf der Widerrufsfrist, beginnt; bezahlt wird sie mit meinen aufgeladenen Credits, sobald die in meinem Tarif enthaltenen Credit-Limits, die stets zuerst verwendet werden, aufgebraucht sind.",
     "acknowledgement": "Mir ist bekannt, dass mein Widerrufsrecht für die von mir verwendeten Credits erlischt, sobald diese Arbeit ausgeführt wurde, und dass mir bei einem Widerruf nur die nicht verwendeten Credits erstattet werden.",
     "checkbox": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} mit der Ausführung der kostenpflichtigen Leistung – der KI-Arbeit und der dabei erstellten digitalen Inhalte – jetzt, vor Ablauf der Widerrufsfrist, beginnt. Mir ist bekannt, dass mein Widerrufsrecht für die von mir verwendeten Credits erlischt, sobald diese Arbeit ausgeführt wurde, und dass mir bei einem Widerruf nur die nicht verwendeten Credits erstattet werden.",
+    "checkbox_included": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} mit der Ausführung der kostenpflichtigen Leistung – der KI-Arbeit und der dabei erstellten digitalen Inhalte – jetzt, vor Ablauf der Widerrufsfrist, beginnt; bezahlt wird sie mit meinen aufgeladenen Credits, sobald die in meinem Tarif enthaltenen Credit-Limits, die stets zuerst verwendet werden, aufgebraucht sind. Mir ist bekannt, dass mein Widerrufsrecht für die von mir verwendeten Credits erlischt, sobald diese Arbeit ausgeführt wurde, und dass mir bei einem Widerruf nur die nicht verwendeten Credits erstattet werden.",
     "confirm": "Jetzt beginnen",
     "decline": "Nicht jetzt"
   },
   "subscription-start": {
     "title": "Die Leistungen von {{plan}} jetzt beginnen?",
     "intro": "Als Verbraucher in der EU können Sie dieses Abonnement binnen 14 Tagen widerrufen. Vor Ablauf dieser Frist beginnen wir mit den Leistungen nur auf Ihr ausdrückliches Verlangen.",
-    "request": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} die Plattformleistungen von {{plan}} jetzt beginnt und die mit den enthaltenen Credits bezahlte KI-Arbeit ausführt, sobald ich sie starte – vor Ablauf der 14-tägigen Widerrufsfrist.",
-    "acknowledgement": "Mir ist bekannt, dass ich bei einem Widerruf die bis dahin erbrachten Plattformleistungen zeitanteilig bezahle und dass mein Widerrufsrecht für die von mir verwendeten enthaltenen Credits erlischt; alles Übrige wird erstattet.",
-    "checkbox": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} die Plattformleistungen von {{plan}} jetzt beginnt und die mit den enthaltenen Credits bezahlte KI-Arbeit ausführt, sobald ich sie starte – vor Ablauf der 14-tägigen Widerrufsfrist. Mir ist bekannt, dass ich bei einem Widerruf die bis dahin erbrachten Plattformleistungen zeitanteilig bezahle und dass mein Widerrufsrecht für die von mir verwendeten enthaltenen Credits erlischt; alles Übrige wird erstattet.",
+    "request": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} die Leistungen von {{plan}} – einschließlich der KI-Arbeit im Rahmen der im Plan enthaltenen Nutzung – jetzt beginnt, vor Ablauf der 14-tägigen Widerrufsfrist.",
+    "request_units": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} die Plattformleistungen von {{plan}} jetzt beginnt und die mit den enthaltenen Credits bezahlte KI-Arbeit ausführt, sobald ich sie starte – vor Ablauf der 14-tägigen Widerrufsfrist.",
+    "acknowledgement": "Mir ist bekannt, dass ich bei einem Widerruf die bis dahin erbrachten Leistungen anteilig nach den verstrichenen Tagen bezahle und alles Übrige erstattet wird.",
+    "acknowledgement_units": "Mir ist bekannt, dass ich bei einem Widerruf die bis dahin erbrachten Plattformleistungen zeitanteilig bezahle und dass mein Widerrufsrecht für die von mir verwendeten enthaltenen Credits erlischt; alles Übrige wird erstattet.",
+    "checkbox": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} die Leistungen von {{plan}} – einschließlich der KI-Arbeit im Rahmen der im Plan enthaltenen Nutzung – jetzt beginnt, vor Ablauf der 14-tägigen Widerrufsfrist. Mir ist bekannt, dass ich bei einem Widerruf die bis dahin erbrachten Leistungen anteilig nach den verstrichenen Tagen bezahle und alles Übrige erstattet wird.",
+    "checkbox_units": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} die Plattformleistungen von {{plan}} jetzt beginnt und die mit den enthaltenen Credits bezahlte KI-Arbeit ausführt, sobald ich sie starte – vor Ablauf der 14-tägigen Widerrufsfrist. Mir ist bekannt, dass ich bei einem Widerruf die bis dahin erbrachten Plattformleistungen zeitanteilig bezahle und dass mein Widerrufsrecht für die von mir verwendeten enthaltenen Credits erlischt; alles Übrige wird erstattet.",
     "confirm": "Weiter zur Zahlung",
     "decline": "Abbrechen"
   },
@@ -92,7 +99,8 @@
     "start": {
       "subject": "Bestätigung: Ihr Verlangen, die Leistungen von {{plan}} zu beginnen",
       "body": "Am {{date}} (UTC) haben Sie uns vor dem Abschluss des Abonnements {{plan}} folgende Erklärung abgegeben:\n\n„{{statement}}“",
-      "rule": "Widerrufen Sie innerhalb der Widerrufsfrist, bezahlen Sie die bis dahin erbrachten Plattformleistungen zeitanteilig, und Ihr Widerrufsrecht erlischt für die verwendeten enthaltenen Credits; alles Übrige wird erstattet."
+      "rule": "Widerrufen Sie innerhalb der Widerrufsfrist, bezahlen Sie die bis dahin erbrachten Leistungen anteilig nach den verstrichenen Tagen; alles Übrige wird erstattet.",
+      "rule_units": "Widerrufen Sie innerhalb der Widerrufsfrist, bezahlen Sie die bis dahin erbrachten Plattformleistungen zeitanteilig, und Ihr Widerrufsrecht erlischt für die verwendeten enthaltenen Credits; alles Übrige wird erstattet."
     },
     "purchase": {
       "subject": "Bestellbestätigung {{contractRef}}",

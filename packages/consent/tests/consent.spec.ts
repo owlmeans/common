@@ -1,14 +1,12 @@
 import { describe, test, expect, beforeEach } from 'bun:test'
 import {
   CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_EVENT, CONSENT_KEY, CONSENT_LOCALES,
-  CONSENT_MARKETING, CONSENT_SCHEMA_VERSION, DEFAULT_CONSENT_CATEGORIES,
+  CONSENT_MARKETING, CONSENT_SCHEMA_VERSION, DEFAULT_CONSENT_CATEGORIES, DEFAULT_CONSENT_MESSAGES,
 } from '../src/consts.js'
-import { migrateConsent, readConsent, writeConsent, clearConsent } from '../src/storage.js'
-import { applyConsent, consentDefaults, consentUpdate, consentBootstrapScript } from '../src/gtm.js'
+import { consentStorageHelper } from '../src/storage.js'
+import { consentModeHelper } from '../src/gtm.js'
 import { makeConsentStore } from '../src/store.js'
-import {
-  DEFAULT_CONSENT_MESSAGES, defaultConsentTranslate, interpolate, normalizeLocale,
-} from '../src/i18n.js'
+import { consentI18nHelper } from '../src/i18n.js'
 import type { ConsentCategory } from '../src/types.js'
 
 /** A minimal browser: just the two stores this package writes to. */
@@ -41,33 +39,33 @@ beforeEach(() => {
 
 describe('storage', () => {
   test('a record round-trips through localStorage', () => {
-    writeConsent({ [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
+    consentStorageHelper.writeConsent({ [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
 
-    expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
-    expect(readConsent()?.[CONSENT_MARKETING]).toBe(false)
+    expect(consentStorageHelper.readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
+    expect(consentStorageHelper.readConsent()?.[CONSENT_MARKETING]).toBe(false)
   })
 
   test('the cookie answers when localStorage does not', () => {
-    writeConsent({ [CONSENT_ANALYTICS]: true })
+    consentStorageHelper.writeConsent({ [CONSENT_ANALYTICS]: true })
     env.store.clear()
 
-    expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
+    expect(consentStorageHelper.readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
   })
 
   test('the cookie is path-wide, SameSite=Lax and long-lived', () => {
-    writeConsent({ [CONSENT_ANALYTICS]: true })
+    consentStorageHelper.writeConsent({ [CONSENT_ANALYTICS]: true })
 
     expect(env.raw()).toContain(`${CONSENT_KEY}=`)
     // The cookie fragment the browser stub keeps is just the pair, so the attributes are asserted
     // on what `writeConsent` produced rather than on what a real browser would retain.
-    expect(readConsent()).not.toBeNull()
+    expect(consentStorageHelper.readConsent()).not.toBeNull()
   })
 
   test('a legacy record — the owlmeans.com visitor — migrates instead of being discarded', () => {
     // Exactly what the previous widget wrote: two categories, no version, essential implicit.
     const legacy = { analytics: true, marketing: false }
 
-    const migrated = migrateConsent(legacy)
+    const migrated = consentStorageHelper.migrateConsent(legacy)
 
     expect(migrated?.[CONSENT_ESSENTIAL]).toBe(true)
     expect(migrated?.[CONSENT_ANALYTICS]).toBe(true)
@@ -77,19 +75,19 @@ describe('storage', () => {
   test('a current record is returned unchanged', () => {
     const current = { essential: true, analytics: false, v: CONSENT_SCHEMA_VERSION }
 
-    expect(migrateConsent(current)).toBe(current)
+    expect(consentStorageHelper.migrateConsent(current)).toBe(current)
   })
 
   test('nothing stored reads as null', () => {
-    clearConsent()
+    consentStorageHelper.clearConsent()
 
-    expect(readConsent()).toBeNull()
+    expect(consentStorageHelper.readConsent()).toBeNull()
   })
 })
 
 describe('consent mode signals', () => {
   test('defaults deny everything except security storage', () => {
-    const defaults = consentDefaults()
+    const defaults = consentModeHelper.consentDefaults()
 
     expect(defaults.analytics_storage).toBe('denied')
     expect(defaults.ad_storage).toBe('denied')
@@ -99,7 +97,7 @@ describe('consent mode signals', () => {
   })
 
   test('an update maps each category onto the signals it drives', () => {
-    const update = consentUpdate({ [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
+    const update = consentModeHelper.consentUpdate({ [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
 
     expect(update.analytics_storage).toBe('granted')
     expect(update.ad_storage).toBe('denied')
@@ -112,8 +110,8 @@ describe('consent mode signals', () => {
       { key: 'ads', labelKey: 'a', descriptionKey: 'b', signals: ['ad_storage'] },
     ]
 
-    expect(Object.keys(consentDefaults(categories))).toEqual(['ad_storage'])
-    expect(consentUpdate({ ads: true }, categories)).toEqual({ ad_storage: 'granted' })
+    expect(Object.keys(consentModeHelper.consentDefaults(categories))).toEqual(['ad_storage'])
+    expect(consentModeHelper.consentUpdate({ ads: true }, categories)).toEqual({ ad_storage: 'granted' })
   })
 })
 
@@ -124,7 +122,7 @@ describe('applyConsent dispatches a DOM event', () => {
     ;(globalThis as any).addEventListener(CONSENT_EVENT, listener)
 
     try {
-      applyConsent({ [CONSENT_ANALYTICS]: true })
+      consentModeHelper.applyConsent({ [CONSENT_ANALYTICS]: true })
 
       expect(seen).toEqual([{ record: { [CONSENT_ANALYTICS]: true } }])
     } finally {
@@ -138,7 +136,7 @@ describe('applyConsent dispatches a DOM event', () => {
     ;(globalThis as any).addEventListener(CONSENT_EVENT, listener)
 
     try {
-      applyConsent({ [CONSENT_ANALYTICS]: true }, { silent: true })
+      consentModeHelper.applyConsent({ [CONSENT_ANALYTICS]: true }, { silent: true })
 
       expect(seen).toEqual([])
     } finally {
@@ -148,7 +146,7 @@ describe('applyConsent dispatches a DOM event', () => {
 })
 
 describe('the bootstrap script', () => {
-  const script = consentBootstrapScript()
+  const script = consentModeHelper.consentBootstrapScript()
 
   test('declares the defaults before anything else can', () => {
     expect(script).toContain("'consent','default'")
@@ -242,15 +240,15 @@ describe('the built-in translations', () => {
   })
 
   test('an unknown locale falls back to English rather than to a raw key', () => {
-    expect(normalizeLocale('kl')).toBe('en')
-    expect(defaultConsentTranslate('kl')('title', 'fallback')).toBe('Cookie Preferences')
+    expect(consentI18nHelper.normalizeLocale('kl')).toBe('en')
+    expect(consentI18nHelper.defaultConsentTranslate('kl')('title', 'fallback')).toBe('Cookie Preferences')
   })
 
   test('a key nobody translated returns the supplied default', () => {
-    expect(defaultConsentTranslate('en')('nope', 'the default')).toBe('the default')
+    expect(consentI18nHelper.defaultConsentTranslate('en')('nope', 'the default')).toBe('the default')
   })
 
   test('placeholders interpolate', () => {
-    expect(interpolate('kept for {{days}} days', { days: 365 })).toBe('kept for 365 days')
+    expect(consentI18nHelper.interpolate('kept for {{days}} days', { days: 365 })).toBe('kept for 365 days')
   })
 })

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-auth
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth": "^0.1.18-rc.51"` in `dependencies`
+**Install:** `"@owlmeans/server-auth": "^0.1.18-rc.54"` in `dependencies`
 
 Two halves, deliberately split by subpath:
 
@@ -58,8 +58,8 @@ one import.
 | `AuthPlugin` | `{ type, init(request), authenticate(credential) }` — `AuthModel` minus `rely` |
 | `registerPlugin(type, factory)` | Add a plugin under a type string. The registry is a module-level singleton |
 | `plugins` | The registry map |
-| `getPlugin(type, context)`, `assertType(type, plugin)` | Resolution; `getPlugin` throws `AuthUnknown(type)` for an unregistered type |
-| `basicEd25519`, `reCaptcha`, `basicRely` | The plugins registered out of the box, for `AuthenticationType.BasicEd25519`, `ReCaptcha` and `RelyHandshake` |
+| `authPluginHelper.getPlugin(type, context)`, `authPluginHelper.assertType(type, plugin)` | Resolution; `getPlugin` throws `AuthUnknown(type)` for an unregistered type |
+| `makeBasicEd25519Plugin`, `makeReCaptchaPlugin`, `makeBasicRelyPlugin` | The plugin factories registered out of the box, for `AuthenticationType.BasicEd25519`, `ReCaptcha` and `RelyHandshake` |
 | `makeSupervisorPlugin(context, opts)` | The PK supervisor plugin factory |
 | `RecpatchaResponse`, `RecaptchaRequest`, `RelyRecord`, `AuthRedisResource` | Types |
 

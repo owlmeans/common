@@ -1,9 +1,9 @@
 import { PaygateError } from '@owlmeans/payment'
 import { handlers } from '@owlmeans/server-api'
-import { paymentGate } from '../consts.js'
-import { bootstrapStripe } from '../service.js'
-import { fingerprints, gateway } from '../utils.js'
 import type { Context } from '../types.js'
+import { paymentAccessOf } from '../access.js'
+import { paymentGate } from '../protocol.js'
+import { stripeBootstrapOf } from '../bootstrap.js'
 
 const bind = handlers<Context>()
 
@@ -13,9 +13,10 @@ const bind = handlers<Context>()
  * gateway's `webhookService` and `owner`, so every process of the owner converges on one state.
  */
 export const resync = bind.request(paymentGate.resync, async (_request, context) => {
-  const service = gateway(context)
+  const paymentAccess = paymentAccessOf(context)
+  const service = paymentAccess.gateway()
   if (!service.managed) throw new PaygateError('unmanaged')
-  await fingerprints(context).clear()
-  await bootstrapStripe(context, await service.stripe(context), { force: true })
+  await paymentAccess.fingerprints().clear()
+  await stripeBootstrapOf(context).bootstrapStripe(await service.stripe(context), { force: true })
   return { ok: true }
 })

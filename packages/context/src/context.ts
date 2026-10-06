@@ -1,10 +1,7 @@
 import { ContextStage, MiddlewareStage, MiddlewareType } from './consts.js'
-import type {
-  BasicConfig, BasicContext, Middleware, BasicEntrypoint, BasicResource, EntrypointReference, Service
-} from './types.js'
-import { applyMiddlewares, getMiddlerwareKey } from './utils/context.js'
-
-type Entrypoint = BasicEntrypoint
+import type { BasicConfig, BasicContext, Middleware, BasicResource, EntrypointReference, Service } from './types.js'
+import { middlewareUtils } from './utils/middleware.js'
+import type { Entrypoint } from './types.local.js'
 
 export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C> => {
   /**
@@ -41,7 +38,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       }
 
       void (async () => {
-        await applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Config, MiddlewareStage.Configuration)
+        await middlewareUtils.applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Config, MiddlewareStage.Configuration)
 
         context.stage = ContextStage.Loading
         configure(true)
@@ -57,7 +54,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
         return context as T
       }
 
-      await applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Context, MiddlewareStage.Configuration)
+      await middlewareUtils.applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Context, MiddlewareStage.Configuration)
 
       await Object.values(services).reduce(
         async (previous, service) => {
@@ -73,20 +70,20 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
         }
         , Promise.resolve())
 
-      await applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Config, MiddlewareStage.Loading)
+      await middlewareUtils.applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Config, MiddlewareStage.Loading)
 
       await Object.values(resources).reduce(async (previous, resource) => {
         await previous
         await resource.init?.()
       }, Promise.resolve())
 
-      await applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Context, MiddlewareStage.Loading)
+      await middlewareUtils.applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Context, MiddlewareStage.Loading)
 
       context.stage = ContextStage.Ready
       context.cfg.ready = true
       initialize(true)
 
-      void applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Context, MiddlewareStage.Ready)
+      void middlewareUtils.applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Context, MiddlewareStage.Ready)
 
       return context as T
     },
@@ -115,7 +112,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
     },
 
     registerMiddleware: <T>(middleware: Middleware) => {
-      const key = getMiddlerwareKey(middleware)
+      const key = middlewareUtils.getMiddlerwareKey(middleware)
       if (!(key in middlewares)) {
         middlewares[key] = []
       }

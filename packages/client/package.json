@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client",
-  "version": "0.1.18-rc.48",
+  "version": "0.1.18-rc.51",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -29,17 +29,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.38",
-    "@owlmeans/client-context": "^0.1.18-rc.45",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.44",
-    "@owlmeans/client-resource": "^0.1.18-rc.44",
-    "@owlmeans/config": "^0.1.18-rc.41",
-    "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/error": "^0.1.18-rc.36",
-    "@owlmeans/entrypoint": "^0.1.18-rc.39",
-    "@owlmeans/resource": "^0.1.18-rc.37",
-    "@owlmeans/router": "^0.1.18-rc.31",
-    "@owlmeans/state": "^0.1.18-rc.36"
+    "@owlmeans/auth": "^0.1.18-rc.40",
+    "@owlmeans/client-context": "^0.1.18-rc.48",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.47",
+    "@owlmeans/client-resource": "^0.1.18-rc.47",
+    "@owlmeans/config": "^0.1.18-rc.44",
+    "@owlmeans/context": "^0.1.18-rc.34",
+    "@owlmeans/error": "^0.1.18-rc.38",
+    "@owlmeans/entrypoint": "^0.1.18-rc.41",
+    "@owlmeans/resource": "^0.1.18-rc.40",
+    "@owlmeans/router": "^0.1.18-rc.33",
+    "@owlmeans/state": "^0.1.18-rc.39"
   },
   "peerDependencies": {
     "@remix-run/router": "*",
@@ -52,15 +52,15 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-ui": "^0.1.18-rc.46",
-    "@types/react": "^19.2.17",
-    "@vitejs/plugin-react": "^6.0.3",
+    "@owlmeans/test-ui": "^0.1.18-rc.49",
+    "@types/react": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "nodemon": "^3.1.14",
-    "playwright": "^1.61.1",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "playwright": "^1.63.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "typescript": "^7.0.2",
-    "vite": "^8.1.2"
+    "vite": "^8.3.2"
   },
   "publishConfig": {
     "access": "public"

@@ -6,7 +6,7 @@ import { appendApiClient } from '@owlmeans/api'
 import { appendStaticResource } from '@owlmeans/static-resource'
 import { appendSocketService, createSocketMiddleware } from '@owlmeans/server-socket'
 
-export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C, customize: boolean = false) => {
+export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C, customize: boolean = false): T => {
   const context = makeServerContext(cfg) as T
 
   appendApiServer<C, T>(context)

@@ -4,21 +4,20 @@ import {
   WithdrawalStatus,
 } from '@owlmeans/payment'
 import { checkoutReadEntrypoints, consumerRightsEntrypoints } from '../src/consumer/handlers.js'
-import { isReservedAddress } from '../src/consumer/format.js'
-import { requestOriginOf } from '../src/consumer/origin.js'
-import { estimateStripePrice, makeEstimateCache } from '../src/plugins/estimate.js'
-import { ensurePortalConfiguration } from '../src/plugins/portal.js'
-import { syncStripeProducts } from '../src/sync.js'
-import {
-  billingProfiles, consumerEvents, consumerRights, fingerprints, fulfillments, gateway, paygateCustomers, purchases,
-} from '../src/utils.js'
 import {
   ALL_ON, buyTopUp, CREDITS_PRODUCT, ENTITY, epoch, fixedMeter, makeRightsContext, paidSession, PLANS_PRODUCT, PRO,
   rightsOf, TEXT_VERSION,
 } from './consumer-fixtures.js'
 import type { FakeContext } from './fake-stripe.js'
+import { paymentAccessOf } from '../src/access.js'
+import { productSyncOf } from '../src/sync.js'
+import { estimateOf } from '../src/plugins/estimate.js'
+import { makeEstimateCache } from '../src/plugins/estimate/cache.js'
+import { portalOf } from '../src/plugins/portal.js'
+import { consumerFormatHelper } from '../src/consumer/format.js'
+import { originHelper } from '../src/consumer/origin.js'
 
-const service = (fake: FakeContext) => consumerRights(fake.ctx)
+const service = (fake: FakeContext) => paymentAccessOf(fake.ctx).consumerRights()
 const subject = { entityId: ENTITY, email: 'owner@shop.eu', name: 'Anna' }
 
 /** Run a server binding the way the transport does. */
@@ -37,7 +36,7 @@ describe('reconcile', () => {
     fake.mailer.send = async () => { throw new Error('smtp down') }
     const purchase = await buyTopUp(fake)
     fake.mailer.send = send
-    const failed = await consumerEvents(fake.ctx).load({ recordId: purchase.purchaseId, action: 'mail' })
+    const failed = await paymentAccessOf(fake.ctx).consumerEvents().load({ recordId: purchase.purchaseId, action: 'mail' })
     expect(failed).toEqual(expect.objectContaining({ ok: false, step: 'purchase', error: 'smtp down' }))
 
     expect((await service(fake).reconcile()).mailed).toBe(1)
@@ -60,7 +59,7 @@ describe('reconcile', () => {
     })
     expect(kinds).toEqual(['purchase', 'consent'])
     expect(fake.mails.some(mail => mail.to === 'owner@shop.eu')).toBe(false)
-    const skipped = (await consumerEvents(fake.ctx).list({ action: 'mail', step: 'consent' })).items[0]
+    const skipped = (await paymentAccessOf(fake.ctx).consumerEvents().list({ action: 'mail', step: 'consent' })).items[0]
     expect(skipped).toEqual(expect.objectContaining({ ok: true, skipped: true, detail: '{"reason":"renderer"}' }))
   })
 
@@ -88,25 +87,25 @@ describe('reconcile', () => {
     ]
     const result = await service(fake).reconcile()
     expect(result.backfilled).toBe(1)
-    const purchase = await purchases(fake.ctx).load({ sessionId: 'cs_missed' })
+    const purchase = await paymentAccessOf(fake.ctx).purchases().load({ sessionId: 'cs_missed' })
     expect(purchase).toEqual(expect.objectContaining({ purchasedAt: new Date(created * 1000), inScope: true }))
     expect(fake.mails).toHaveLength(0)
-    expect((await billingProfiles(fake.ctx).byEntity(ENTITY))?.country).toBe('PL')
+    expect((await paymentAccessOf(fake.ctx).billingProfiles().byEntity(ENTITY))?.country).toBe('PL')
   })
 
   test('an organization that paid before the lock is locked from its paygate customer', async () => {
     const fake = await makeRightsContext()
-    await paygateCustomers(fake.ctx).create({ paygate: 'stripe', externalId: 'cus_n', entityId: 'entity-n', country: 'NO' })
-    await fulfillments(fake.ctx).create({
+    await paymentAccessOf(fake.ctx).paygateCustomers().create({ paygate: 'stripe', externalId: 'cus_n', entityId: 'entity-n', country: 'NO' })
+    await paymentAccessOf(fake.ctx).fulfillments().create({
       entityId: 'entity-n', productSku: CREDITS_PRODUCT, service: 'app', paygate: 'stripe', externalId: 'cs_n',
       mode: 'amount' as never, createdAt: new Date(), fulfilledAt: new Date(),
     })
-    await paygateCustomers(fake.ctx).create({ paygate: 'stripe', externalId: 'cus_u', entityId: 'entity-u', country: 'US' })
+    await paymentAccessOf(fake.ctx).paygateCustomers().create({ paygate: 'stripe', externalId: 'cus_u', entityId: 'entity-u', country: 'US' })
     expect((await service(fake).reconcile()).locked).toBe(1)
-    expect(await billingProfiles(fake.ctx).byEntity('entity-n')).toEqual(expect.objectContaining({
+    expect(await paymentAccessOf(fake.ctx).billingProfiles().byEntity('entity-n')).toEqual(expect.objectContaining({
       country: 'NO', source: 'customer', region: 'eu',
     }))
-    expect(await billingProfiles(fake.ctx).byEntity('entity-u')).toBeNull()
+    expect(await paymentAccessOf(fake.ctx).billingProfiles().byEntity('entity-u')).toBeNull()
   })
 })
 
@@ -136,7 +135,7 @@ describe('handlers', () => {
         guarded.push(action)
         if (action === 'withdraw') throw new Error('token refused')
       },
-      metaOf: (request, ctx) => { contexts.add(ctx); return requestOriginOf(request) },
+      metaOf: (request, ctx) => { contexts.add(ctx); return originHelper.requestOriginOf(request) },
       subjectOf: () => ({ email: 'owner@shop.eu', name: 'Anna', profileId: 'profile-1' }),
     })
     const byAlias = (alias: string) => bound.find(entry => entry.alias === alias)
@@ -201,7 +200,7 @@ describe('handlers', () => {
 
   test('checkout read routes answer the narrowed amount policy and the synced prices', async () => {
     const fake = await makeRightsContext()
-    gateway(fake.ctx).use({ alias: 'tier', narrow: async () => ({ maximumMinor: 2_500, reason: 'per-purchase' }) })
+    paymentAccessOf(fake.ctx).gateway().use({ alias: 'tier', narrow: async () => ({ maximumMinor: 2_500, reason: 'per-purchase' }) })
     const read = checkoutReadEntrypoints(makeCheckoutReadProtocols({ prefix: 'app:checkout', guards: ['guard:default'] }))
     const policy = await invoke(read.find(entry => entry.alias === 'app:checkout:amount-policy'), fake, req({ query: { productSku: CREDITS_PRODUCT } }))
     expect(policy.limit).toEqual(expect.objectContaining({ maximumMinor: 2_500 }))
@@ -210,8 +209,8 @@ describe('handlers', () => {
   })
 
   test('requestOriginOf: the Cloudflare address first, else the LAST forwarded entry, else x-real-ip, else the socket', () => {
-    expect(requestOriginOf({ headers: { 'cf-connecting-ip': '1.1.1.1', 'x-forwarded-for': '9.9.9.9, 2.2.2.2' } } as never).ip).toBe('1.1.1.1')
-    const origin = requestOriginOf({
+    expect(originHelper.requestOriginOf({ headers: { 'cf-connecting-ip': '1.1.1.1', 'x-forwarded-for': '9.9.9.9, 2.2.2.2' } } as never).ip).toBe('1.1.1.1')
+    const origin = originHelper.requestOriginOf({
       headers: {
         'x-forwarded-for': '9.9.9.9, 2.2.2.2', 'user-agent': 'x'.repeat(600), 'cf-ipcountry': 'de', 'accept-language': 'de-DE',
       },
@@ -219,8 +218,8 @@ describe('handlers', () => {
     expect(origin).toEqual({
       ip: '2.2.2.2', forwardedFor: '9.9.9.9, 2.2.2.2', userAgent: 'x'.repeat(512), ipCountry: 'DE', acceptLanguage: 'de-DE',
     })
-    expect(requestOriginOf({ headers: { 'x-real-ip': '3.3.3.3' } } as never).ip).toBe('3.3.3.3')
-    expect(requestOriginOf({ headers: {}, original: { socket: { remoteAddress: '4.4.4.4' } } } as never).ip).toBe('4.4.4.4')
+    expect(originHelper.requestOriginOf({ headers: { 'x-real-ip': '3.3.3.3' } } as never).ip).toBe('3.3.3.3')
+    expect(originHelper.requestOriginOf({ headers: {}, original: { socket: { remoteAddress: '4.4.4.4' } } } as never).ip).toBe('4.4.4.4')
   })
 })
 
@@ -229,22 +228,22 @@ describe('sync, portal and estimate under the policy', () => {
 
   test('a USD catalogue price syncs as EUR with an exact USD option, each with its tax behavior, persisted', async () => {
     const fake = await makeRightsContext({ pricing: exclusive })
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     const pro = fake.state.prices.find(price => price.lookup_key === PRO && price.active)
     expect(pro).toEqual(expect.objectContaining({ currency: 'eur', unit_amount: 1_800, tax_behavior: 'exclusive' }))
     expect(pro?.currency_options).toEqual({ usd: { unit_amount: 2_000, tax_behavior: 'exclusive' } })
-    const row = await fingerprints(fake.ctx).bySku(PLANS_PRODUCT)
+    const row = await paymentAccessOf(fake.ctx).fingerprints().bySku(PLANS_PRODUCT)
     expect(row?.prices?.find(price => price.planSku === PRO)).toEqual(expect.objectContaining({
       priceId: pro?.id, currency: 'eur', unitAmount: 1_800, options: [{ currency: 'usd', unitAmount: 2_000 }], interval: 'month',
       sourceUnitAmount: 2_000, sourceCurrency: 'usd',
     }))
-    expect(await gateway(fake.ctx).planPrices(fake.ctx, PLANS_PRODUCT)).toEqual(expect.arrayContaining([
+    expect(await paymentAccessOf(fake.ctx).gateway().planPrices(fake.ctx, PLANS_PRODUCT)).toEqual(expect.arrayContaining([
       { planSku: PRO, currency: 'eur', unitAmountMinor: 1_800, default: true, taxBehavior: TaxBehavior.Exclusive, interval: 'month' },
       { planSku: PRO, currency: 'usd', unitAmountMinor: 2_000, default: false, taxBehavior: TaxBehavior.Exclusive, interval: 'month' },
     ]))
 
     fake.state.calls.length = 0
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     expect(fake.state.calls.filter(call => call !== 'rawRequest')).toEqual([])
   })
 
@@ -258,12 +257,12 @@ describe('sync, portal and estimate under the policy', () => {
         }],
       },
     })
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     const first = fake.state.prices.find(price => price.lookup_key === 'pro-exact' && price.active)
     expect(first?.currency_options).toEqual({ usd: { unit_amount: 2_100, tax_behavior: 'exclusive' } })
     first!.currency_options = { usd: { unit_amount: 1_900, tax_behavior: 'exclusive' } }
-    await fingerprints(fake.ctx).clear()
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await paymentAccessOf(fake.ctx).fingerprints().clear()
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     expect(first?.active).toBe(false)
     expect(fake.state.prices.find(price => price.lookup_key === 'pro-exact' && price.active)?.currency_options)
       .toEqual({ usd: { unit_amount: 2_100, tax_behavior: 'exclusive' } })
@@ -271,28 +270,28 @@ describe('sync, portal and estimate under the policy', () => {
 
   test('the portal drops address updates under the country lock', async () => {
     const fake = await makeRightsContext({ portal: { returnUrl: 'https://app.example.com/billing' } })
-    await ensurePortalConfiguration(fake.ctx, fake.stripe)
+    await portalOf(fake.ctx).ensurePortalConfiguration(fake.stripe)
     expect(fake.state.portalConfigurations[0].features.customer_update).toEqual({ enabled: true, allowed_updates: ['email', 'tax_id'] })
     const open = await makeRightsContext({
       portal: { returnUrl: 'https://app.example.com/billing' }, consumerRights: rightsOf({ mechanisms: { ...ALL_ON, countryLock: false } }),
     })
-    await ensurePortalConfiguration(open.ctx, open.stripe)
+    await portalOf(open.ctx).ensurePortalConfiguration(open.stripe)
     expect(open.state.portalConfigurations[0].features.customer_update.allowed_updates).toEqual(['email', 'address', 'tax_id'])
   })
 
   test('a locked profile overrides the requested estimate country; a recurring plan is estimated in the charge currency', async () => {
     const fake = await makeRightsContext({ pricing: exclusive, stripe: { taxRates: { DE: [{ type: 'vat', percentage: '19' }] } } })
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     await service(fake).lock(ENTITY, 'DE', 'manual')
-    const estimate = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const estimate = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: ENTITY, productSku: PLANS_PRODUCT, planSku: PRO, country: 'US',
     }, makeEstimateCache())
     expect(estimate).toEqual(expect.objectContaining({ country: 'DE', source: 'profile', locked: true, region: 'eu', currency: 'eur' }))
     expect(estimate.tax).toEqual(expect.objectContaining({ subtotalMinor: 1_800, taxMinor: 342, totalMinor: 2_142 }))
 
     const other = await makeRightsContext({ pricing: exclusive })
-    await syncStripeProducts(other.ctx, other.stripe)
-    const usd = await estimateStripePrice(other.ctx, other.stripe, {
+    await productSyncOf(other.ctx).syncStripeProducts(other.stripe)
+    const usd = await estimateOf(other.ctx).estimateStripePrice(other.stripe, {
       entityId: 'entity-us', productSku: PLANS_PRODUCT, planSku: PRO, country: 'US',
     }, makeEstimateCache())
     expect(usd).toEqual(expect.objectContaining({ country: 'US', source: 'request', region: 'other', currency: 'usd' }))
@@ -335,10 +334,10 @@ describe('the declaration', () => {
       'a@shop.test', 'a@mail.shop.test', 'A@Shop.EXAMPLE', 'a@x.invalid', 'a@localhost', 'a@app.localhost',
       ' Jan <a@shop.test> ', 'a@shop.test.',
     ]) {
-      expect([address, isReservedAddress(address)]).toEqual([address, true])
+      expect([address, consumerFormatHelper.isReservedAddress(address)]).toEqual([address, true])
     }
     for (const address of ['a@shop.eu', 'a@test.com', 'a@example.com', 'a@testing', 'a@localhost.com', 'a@test.example.org']) {
-      expect([address, isReservedAddress(address)]).toEqual([address, false])
+      expect([address, consumerFormatHelper.isReservedAddress(address)]).toEqual([address, false])
     }
   })
 

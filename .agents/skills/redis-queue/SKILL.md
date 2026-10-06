@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/redis-queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.32"` in `dependencies`
+**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.36"` in `dependencies`
 
 The driver behind `@owlmeans/queue`, on BullMQ over the existing Redis connection. Contracts live
 in `queue`; nothing here belongs in an application's imports beyond the wiring call.
@@ -41,9 +41,9 @@ Declaring queues and choosing which to consume is the `queue` package's job — 
 | `makeRedisQueueResource(queue, dbAlias?, serviceAlias?)` | One queue as a resource, when registering it by hand |
 | `makeRedisQueueWorker(alias?, dbAlias?, serviceAlias?)` | The consuming service |
 | `queueResourceAlias(queue)` | `queue:<name>` — the resource alias one queue is registered under |
-| `queuePrefix(prefix)` / `queueConnection(redis, dbAlias?)` | The key namespace, and everything a queue needs from the redis service |
-| `syncSchedules(bull, cfg, queue)` / `ScheduleSync` | Reconcile one queue's job schedulers with its declarations; never throws |
-| `scheduleKey(id)` / `scheduleIdOf(key)` / `repeatOptionsOf(s)` / `templateOf(s, cfg?)` | Scheduler id ⇄ schedule id, and the two halves `upsertJobScheduler` takes |
+| `queueConnectionHelper.queuePrefix(prefix)` / `.queueConnection(redis, dbAlias?)` | The key namespace, and everything a queue needs from the redis service |
+| `queueScheduleHelper.syncSchedules(bull, cfg, queue)` / `ScheduleSync` | Reconcile one queue's job schedulers with its declarations; never throws |
+| `queueScheduleHelper.scheduleKey(id)` / `.scheduleIdOf(key)` / `.repeatOptionsOf(s)` / `.templateOf(s, cfg?)` | Scheduler id ⇄ schedule id, and the two halves `upsertJobScheduler` takes |
 | `RedisQueueOptions` / `RedisQueueResource` / `RedisQueueWorkerService` | The option shape and the driver's named contract aliases |
 | Constants | `QUEUE_KEY_SUFFIX`, `DEFAULT_LOCK_DURATION` (60 000 ms), `DEFAULT_STALLED_INTERVAL` (30 000 ms), `DEFAULT_MAX_STALLED_COUNT` (2), `LISTED_STATES`, `PUBLISHED_EVENT`, `PUBLISHED_EVENT_MAX`, `WAIT_TIMEOUT_MARKER`, `STALLED_FAILURE`, `SCHEDULE_PREFIX` (`owlmeans:`) |
 
@@ -67,9 +67,10 @@ hash-tagged prefix to keep one queue's keys in one slot, and this prefix is shar
 namespace — so a cluster would fail per-command with `CROSSSLOT` at runtime instead. Refusing at
 connection time is the honest failure.
 
-**Valkey works — verified, not assumed.** The whole suite passes against `valkey/valkey:8` started
-as `docker run -d -p 6399:6379 valkey/valkey:8 valkey-server --requirepass <pw> --maxmemory-policy
-noeviction`, then `REDIS_URL='redis://:<pw>@127.0.0.1:6399/0' bun test`. Password auth, the BullMQ
+**Valkey works — verified, not assumed.** The whole suite passes against `valkey/valkey:9.1.2` (BullMQ 6,
+ioredis 6 pinned to RESP2) started as `docker run -d -p 6399:6379 valkey/valkey:9.1.2 valkey-server
+--requirepass <pw> --maxmemory-policy noeviction`, then `REDIS_URL='redis://:<pw>@127.0.0.1:6399/0' bun test`
+(pick a free port: a leftover check container may hold 6399). Password auth, the BullMQ
 Lua/EVALSHA paths, stalled-job reclaim, flows and QueueEvents all behave as on Redis.
 
 That holds because the driver is RESP-only — standard commands plus BullMQ's bundled Lua — with no
@@ -101,22 +102,24 @@ consumed while processors are still registering.
 Each declared schedule (`declareSchedule`, see `queue`) is one BullMQ **job scheduler** with the id
 `owlmeans:<schedule id>`. Rules the driver follows, and why:
 
-- **Reconciled in `start()`, per queue it binds, after every worker is consuming.** `syncSchedules`
-  lists the queue's schedulers once, upserts each declared schedule the broker does not hold exactly
-  as declared, and removes each `owlmeans:` scheduler no declaration names. The Ready-stage
-  middleware is not awaited by `context.init()`, so the reconciliation finishes shortly after
-  `init()` resolves — a spec polls the broker for it rather than asserting straight after boot.
+- **Reconciled in `start()`, per queue it binds, after every worker is consuming.**
+  `queueScheduleHelper.syncSchedules` lists the queue's schedulers once, upserts each declared
+  schedule the broker does not hold exactly as declared, and removes each `owlmeans:` scheduler no
+  declaration names. The Ready-stage middleware is not awaited by `context.init()`, so the
+  reconciliation finishes shortly after `init()` resolves — a spec polls the broker for it rather
+  than asserting straight after boot.
 - **Unchanged means untouched.** An upsert replaces the scheduler's pending run, re-runs a pattern
   declared `immediately`, and collides with a run in progress, so a declaration already held as
   declared (name, timing, data, options) is skipped. A restart therefore costs one listing.
 - **The prefix is ownership.** Only `owlmeans:` schedulers are ever removed; a scheduler created
   outside it survives every start. Never create one under the prefix by hand.
-- **Nothing here stops consumption.** A refused declaration (`assertSchedule`), a failed listing or
-  a failed upsert is caught and logged step by step; the rest still applies. When the listing
-  fails nothing is removed. A declaration past its `endDate` counts as absent and is removed.
+- **Nothing here stops consumption.** A refused declaration (`queueConfigOf(cfg).assertSchedule`), a
+  failed listing or a failed upsert is caught and logged step by step; the rest still applies. When
+  the listing fails nothing is removed. A declaration past its `endDate` counts as absent and is
+  removed.
 - **Listened queues only.** A producer never creates, updates or removes a scheduler.
-- **`job.scheduled`** is `scheduleIdOf(job.repeatJobKey)` — BullMQ stamps every run with the
-  scheduler id, and a job enqueued any other way has none of ours.
+- **`job.scheduled`** is `queueScheduleHelper.scheduleIdOf(job.repeatJobKey)` — BullMQ stamps every
+  run with the scheduler id, and a job enqueued any other way has none of ours.
 - **Processors register before the worker takes jobs.** A scheduled run whose name has no processor
   yet fails once as `UnknownJobName`; register processors while wiring, or at the Loading stage.
 
@@ -172,15 +175,17 @@ is not released by the broker, and without this it is only freed when its TTL ex
 For a per-entity single-flight projection, `onJobResult` is the release point: compare the completed
 job id and applied revision atomically, release only that claim, then enqueue one follow-up if the
 dirty revision advanced. `onJobDead` marks/releases the claim so the next read or write can recover.
-Keep enough completed jobs for any `waitForProtocol` caller; immediate removal races the waiter.
+Keep enough completed jobs for any `queueProtocolOf(ctx).waitFor` caller; immediate removal races
+the waiter.
 
 ## Tests
 
 Queue integration specs live HERE, not in `queue` — the contract package has no broker to test
-against. They are gated by `redisGate` from `@owlmeans/test-integration` and need `REDIS_URL`;
-each suite namespaces its own prefix and `obliterate()`s its queues on teardown, so a run leaves no
-keys behind. Check that with `--scan --pattern '<prefix>*'` after a run. Bun runs a package's spec
-files in one process, so cleanup belongs to each suite's own `afterAll`, never to a shared global.
+against. They are gated by `gateHelper.redisGate` from `@owlmeans/test-integration` and need
+`REDIS_URL`; each suite namespaces its own prefix and `obliterate()`s its queues on teardown, so a
+run leaves no keys behind. Check that with `--scan --pattern '<prefix>*'` after a run. Bun runs a
+package's spec files in one process, so cleanup belongs to each suite's own `afterAll`, never to a
+shared global.
 
 A schedule spec boots one context, reboots a second over the same prefix to act as a restart, and
 polls the broker for the reconciled state; `obliterate()` removes a queue's schedulers with its

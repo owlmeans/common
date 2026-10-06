@@ -3,6 +3,7 @@ import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/cor
 import type { MessageContent, MessageFieldWithRole } from '@langchain/core/messages'
 import type { CacheTtl, ModelEffort, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
 import type { ModelConfig } from '../types.js'
+import { ThinkingOff } from './consts.js'
 
 /** The effort levels one model accepts, least work first, and the one it uses when unset. */
 export interface EffortSupport {
@@ -176,4 +177,46 @@ export interface LlmPlugin {
    * immediately, or `null` to let it be retried.
    */
   isFatal?: (e: unknown) => Error | null
+}
+
+/** The instance-level behaviours every plugin that constructs a `ChatOpenAI` shares. */
+export interface OpenAiFamily {
+  family: string
+  owns: (model: BaseChatModel) => boolean
+  /**
+   * langchain converts the OpenAI-shaped tool DEFINITION for either provider, but the
+   * `tool_choice` shape is NOT converted — this is the OpenAI spelling.
+   */
+  toolChoice: (toolName: string) => unknown
+  /**
+   * `strict: false` keeps schemas that do not satisfy OpenAI strict-mode rules
+   * acceptable; the model's own ajv validation still enforces conformance afterwards.
+   */
+  responseFormat: (toolName: string, schema: unknown) => Record<string, unknown>
+  /** A 400 means the request itself is malformed — retrying re-sends the same shape. */
+  isFatal: (e: unknown) => Error | null
+  refine: (params: LlmRefineParams) => BaseChatModel
+}
+
+/** What one Anthropic model family accepts, where the families differ in ways that are a 400. */
+export interface AnthropicModelSupport extends EffortSupport {
+  /** Model-id prefix; the table below is first match wins, so a longer id comes first. */
+  prefix: string
+  /**
+   * The `thinking.type` that turns up-front thinking off. `null`: the model always thinks and
+   * refuses every off switch, so the request sends no `thinking` and effort is the only control.
+   * Omitted: `disabled`.
+   */
+  thinkingOff?: ThinkingOff | null
+  /** The highest effort the model accepts together with its off switch. */
+  thinkingOffCeiling?: ModelEffort
+  /**
+   * An absent `thinking` field means adaptive thinking here (the 5 family). On Opus 4.8/4.7 it
+   * means none, so they are not marked.
+   */
+  thinksByDefault?: boolean
+  /** `tool_choice` `any` / `tool` is a 400: only `auto` and `none` are accepted. */
+  rejectsForcedTool?: boolean
+  /** The model's own minimum cacheable prefix, in tokens ({@link MIN_CACHEABLE_TOKENS} when omitted). */
+  cacheMinTokens?: number
 }

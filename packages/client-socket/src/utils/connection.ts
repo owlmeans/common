@@ -1,47 +1,10 @@
-import type { Connection, EventMessage as EMessage } from '@owlmeans/socket'
-import {
-  createBasicConnection, MessageType, SocketConnectionError, SocketSystemEvent,
-  SOCKET_HEARTBEAT_TIMEOUT_CODE
-} from '@owlmeans/socket'
+import { type EventMessage as EMessage, createBasicConnection, MessageType, SocketConnectionError, SocketSystemEvent, SOCKET_HEARTBEAT_TIMEOUT_CODE } from '@owlmeans/socket'
 import { AuthenticationStage } from '@owlmeans/auth'
-import type { ReconnectPolicy, SocketConnectionState } from '../types.js'
+import { logger } from '@owlmeans/log'
+import { TERMINAL_CLOSE_CODES } from './consts.local.js'
+import type { ManagedConnection, ManagedConnectionOptions } from './types.js'
 
-/** Close codes that mean "this connection is finished on purpose" — never worth retrying: a
- *  normal closure the SERVER initiated (1000, e.g. the protocol's own one-shot completion) and a
- *  policy violation (1008, e.g. the guard rejected the frame that opened it). A client-initiated
- *  close is handled separately, through `closedByClient`. */
-const TERMINAL_CLOSE_CODES: ReadonlySet<number> = new Set([1000, 1008])
-
-export interface ConnectionOpener {
-  (): Promise<WebSocket>
-}
-
-export interface ManagedConnectionOptions {
-  policy: ReconnectPolicy
-  /** Whether a drop schedules a retry at all. `false` keeps the pre-reconnect-support
-   *  behaviour — one attempt, report and stop — while the heartbeat/liveness check below still
-   *  runs exactly as it always did. */
-  retry: boolean
-  /** Opens a fresh socket for the first attempt and every retry — already reflecting whatever a
-   *  caller's `beforeConnect` refreshed (a token, most often). Resolves once the socket is OPEN,
-   *  rejects on a handshake failure. */
-  open: ConnectionOpener
-  /** Told this connection's coarse health, if a caller wants to aggregate it — the status
-   *  service `@owlmeans/web-panel`'s reload dialog reads. */
-  onStatus?: (state: SocketConnectionState) => void
-}
-
-export interface ManagedConnection {
-  connection: Connection
-  /** Settles once the first socket opens; rejects with `SocketConnectionError('lost')` once the
-   *  retry budget elapses first (or the single attempt fails, with `retry: false`). */
-  ready: Promise<void>
-  /** Restart retrying a connection that gave up after its budget: one attempt at once, then the
-   *  usual backoff within `policy.reviveBudget`. On a connection still waiting out a backoff
-   *  delay: attempt at once, and leave it at least `reviveBudget`. A no-op otherwise — a terminal
-   *  close (client close, 1000/1008, `retry: false`) is never revived. */
-  revive: () => void
-}
+const log = logger('client-socket')
 
 /**
  * Build a `Connection` whose transport survives a dropped WebSocket.
@@ -90,7 +53,7 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
       try {
         await listener(msg)
       } catch (error) {
-        console.error('Socket system listener error:', error)
+        log.error('Socket system listener failed', { error })
       }
     }))
   }
@@ -227,7 +190,7 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
     }
     const messageHandler = (event: MessageEvent) => {
       void receiveMessage(event).catch(error => {
-        console.error('WebSocket message rejected:', error)
+        log.warn('WebSocket message rejected', { error })
         socket.close(1008)
       })
     }

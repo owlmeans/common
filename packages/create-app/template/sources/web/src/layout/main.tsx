@@ -1,6 +1,7 @@
 import type { FC, PropsWithChildren } from 'react'
 import { NavLayout } from '@owlmeans/web-panel'
-import { footerLinks, navConfig } from '@/nav'
+import { navConfig } from '@/nav'
+import { footerLinks } from '@/consts'
 
 /**
  * The application shell. `NavLayout` renders the header with the section menu, the side menu

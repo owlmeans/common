@@ -4,25 +4,7 @@ import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import type { Location } from '@owlmeans/router'
 import { useContext, useNavigate } from '@owlmeans/client'
 
-import type { NavTranslate, PanelNavConfig, PanelNavItem, PanelNavModel, PanelNavSection } from './types.js'
-
-/** Default resolver: no i18n, the caller's fallback wins. See {@link NavTranslate}. */
-export const defaultNavTranslate: NavTranslate = (_key, defaultValue) => defaultValue
-
-/**
- * Turn an alias into something readable — `my-app:web:user-list` becomes `User list`.
- * The last segment is the meaningful one; the prefixes address the app, not the screen.
- */
-export const defaultNavLabel = (alias: string): string => {
-  const segment = alias.split(/[:.]/).filter(part => part !== '').pop() ?? alias
-  const words = segment.replace(/[-_]+/g, ' ').trim()
-
-  return words.charAt(0).toUpperCase() + words.slice(1)
-}
-
-export const resolveNavLabel = (
-  translate: NavTranslate, label: string | undefined, key: string, alias?: string
-): string => label ?? translate(key, defaultNavLabel(alias ?? key))
+import type { PanelNavConfig, PanelNavItem, PanelNavModel, PanelNavSection } from './types.js'
 
 const visibleItems = (section: PanelNavSection): PanelNavItem[] =>
   section.items.filter(item => item.hidden !== true)

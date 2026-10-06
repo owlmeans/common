@@ -1,32 +1,11 @@
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
-import type { EntrypointOptions, EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 import { backend, route, RouteMethod } from '@owlmeans/route'
-import type { RouteParent } from '@owlmeans/route'
 import {
   AmountPolicyQuerySchema, AmountPolicyViewSchema, PlanPriceListSchema, PlanPricesQuerySchema,
 } from '../model/consumer.js'
-import type { AmountPolicyQuery, AmountPolicyView, PlanPriceList, PlanPricesQuery } from '../types.js'
-
-export const CHECKOUT_READ_API_PATH = '/checkout'
-
-export interface CheckoutReadProtocolOptions {
-  /** Alias prefix of every declaration, e.g. `my-app:account:checkout`. */
-  prefix: string
-  /** The application's guarded parent — its guards and gate are inherited. */
-  parent?: RouteParent
-  guards?: EntrypointOptions['guards']
-  gate?: EntrypointOptions['gate']
-  /** Default `/checkout`. */
-  path?: string
-}
-
-export type CheckoutReadProtocols = {
-  base: EntrypointProtocol<OpenRequest, OpenValue>
-  /** The entity's amount policy as narrowed now — the same computation the checkout enforces. */
-  amountPolicy: EntrypointProtocol<{ query: AmountPolicyQuery }, AmountPolicyView>
-  /** The prices a product's plans are charged at, per currency, as last synchronized. */
-  planPrices: EntrypointProtocol<{ query: PlanPricesQuery }, PlanPriceList>
-}
+import type { AmountPolicyQuery, PlanPricesQuery } from '../types.js'
+import { CHECKOUT_READ_API_PATH } from './consts.js'
+import type { CheckoutReadProtocolOptions, CheckoutReadProtocols } from './types.js'
 
 /**
  * The read side of checkout: `amountPolicy` GET `/amount-policy?productSku&planSku` and

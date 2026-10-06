@@ -1,28 +1,21 @@
 import { assertContext, createService } from '@owlmeans/context'
-import type { BasicContext } from '@owlmeans/context'
-import { extractParams } from '@owlmeans/client-route'
+import { clientRouteHelper } from '@owlmeans/client-route'
 import type { ApiClient } from './types.js'
 import axios, { AxiosHeaders } from 'axios'
 import type { AxiosRequestTransformer } from 'axios'
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import { DEFAULT_ALIAS, UNAUTHORIZED_ERROR } from './consts.js'
-import { requestBodyOf } from './utils/body.js'
-import { processResponse } from './utils/handler.js'
-import { BasicClientConfig } from '@owlmeans/client-config'
+import { responseUtils } from './utils/response.js'
 import { makeSecurityHelper } from '@owlmeans/config'
-import { AUTH_HEADER, DEF_AUTH_SRV, TOKEN_UPDATE } from '@owlmeans/auth-common'
-import type { AuthService } from '@owlmeans/auth-common'
+import { AUTH_HEADER, DEF_AUTH_SRV, TOKEN_UPDATE, type AuthService } from '@owlmeans/auth-common'
+import type { Config, Context } from './types.local.js'
+import { bodyUtils } from './utils/body.js'
 
 /** Whether a request carried an authentication header of its own. */
 const presented = (headers?: Record<string, unknown>): boolean =>
   headers != null && Object.entries(headers).some(
     ([key, value]) => key.toLowerCase() === AUTH_HEADER && value != null && value !== ''
   )
-
-type Config = BasicClientConfig
-
-interface Context<C extends Config = Config> extends BasicContext<C> {
-}
 
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const location = `api.service:${alias}`
@@ -35,7 +28,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       const module = context.entrypoint<CommonEntrypoint>(request.alias)
       const route = module.route.route
       let path = module.path()
-      const params = extractParams(path)
+      const params = clientRouteHelper.extractParams(path)
       path = params.reduce((path, param) => {
         type Key = keyof typeof request.params
         if (request.params[param as Key] == null) {
@@ -55,7 +48,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
 
       // A scalar JSON body (a string, a number, a boolean) is serialized here, so the server parses
       // back the value the caller sent; objects and arrays are left to axios.
-      const body = requestBodyOf(request.body, request.headers, route.method, module.filter?.body)
+      const body = bodyUtils.requestBodyOf(request.body, request.headers, route.method, module.filter?.body)
       const transformer: AxiosRequestTransformer | undefined = body.verbatim ? data => data : undefined
       const requestHeaders = body.contentType != null
         ? { ...request.headers, 'content-type': body.contentType }
@@ -101,7 +94,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         await context.service<AuthService>(DEF_AUTH_SRV).update(undefined)
       }
 
-      processResponse(response, reply)
+      responseUtils.processResponse(response, reply)
 
       return [reply.error ?? reply.value, reply.outcome] as any
     }

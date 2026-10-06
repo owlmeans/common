@@ -1,4 +1,4 @@
-import { postgresGate, randomNamespace } from '@owlmeans/test-integration'
+import { randomNamespace, gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, PostgresEnv } from '@owlmeans/test-integration'
 import { PgAutoSync } from '@owlmeans/postgres-resource'
 import { config, makeServerContext } from '@owlmeans/server-context'
@@ -22,7 +22,7 @@ import type { PlanningPostgresLimits, PostgresPlanningStore } from '../src/index
  * `ServerContext` per boot against a throwaway schema, dropped in `teardown()`. Specs skip cleanly
  * when `POSTGRES_URL` is unset or nothing answers at it.
  */
-export const gate: IntegrationGate<PostgresEnv> = postgresGate()
+export const gate: IntegrationGate<PostgresEnv> = gateHelper.postgresGate()
 
 const url = (): string => gate.env.POSTGRES_URL as string
 

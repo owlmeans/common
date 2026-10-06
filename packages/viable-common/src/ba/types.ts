@@ -2,7 +2,7 @@ import { SpecCategory } from "./consts"
 import type { ConnectingStoryKind, StoryKind } from "./consts.js"
 import type { ProjectArea } from "../areas/consts.js"
 import type { StoryDraft } from "../areas/types.js"
-import type { StoryActor } from "../design/runtime.js"
+import type { StoryActor } from "../design/consts.js"
 
 export interface EntityList {
   entities: string[]

@@ -18,6 +18,7 @@ import type {
   SubscriptionStatus, WithdrawalBody, WithdrawalCandidateList, WithdrawalReceipt, WithdrawalStatus,
 } from '@owlmeans/payment'
 
+
 export interface Config extends ApiConfig {}
 export interface Context<C extends Config = Config> extends ApiContext<C> {}
 
@@ -111,13 +112,32 @@ export interface StripePricingDef {
   settlementCurrency?: string
   /** Explicit Stripe payment methods for subscription Checkout; absent keeps Stripe's dynamic selection. */
   subscriptionPaymentMethodTypes?: string[]
+  /** Payment methods for a specific subscription charge currency; overrides the default list. */
+  subscriptionPaymentMethodTypesByCurrency?: Record<string, string[]>
   /**
    * Let a matching `unspecified` price take the declared `tax.behavior` even when the Stripe
    * account's own tax-settings default resolves to the opposite one — which changes what an
    * existing subscriber is charged at their next renewal. Absent/`false`: such a price is left
-   * `unspecified` and a `console.error` explains why.
+   * `unspecified` and a `log.error` explains why.
    */
   migrateUnspecifiedPrices?: boolean
+  /**
+   * The Stripe customer's e-mail is the application's: every checkout must pass
+   * `CreateLinkParams.email` (else `PaygateError('customer-email')`), which is written to the
+   * customer before the session — Checkout shows a customer's valid e-mail read-only, so no other
+   * address can be typed — and the portal configuration never offers to edit it.
+   */
+  lockCustomerEmail?: boolean
+  /**
+   * The billing country a checkout knows — the locked profile's, else `CreateLinkParams.country` —
+   * is pinned on the Stripe customer (replacing a saved address of another country before any lock)
+   * and Checkout never collects another (`customer_update.address: 'never'`, collection `'auto'`):
+   * tax is calculated on it whatever the card form's "Country or region" says, the first completed
+   * purchase locks it, and the portal never offers to edit the address. Where Stripe Tax needs more
+   * than a country (US: a postal code; CA, IN: a postal code or province) and the customer carries
+   * none, Checkout still collects the address — Stripe refuses a session otherwise.
+   */
+  lockCustomerCountry?: boolean
 }
 export interface StripePricingPluginConfig extends PluginConfig, StripePricingDef {}
 
@@ -133,6 +153,7 @@ export interface PricingDef extends PricingPolicy {
  */
 // A type alias, not an interface: it is stored inside a plugin config record, whose values must be
 // index-signature compatible.
+// Kept as a type: it is stored in config values that need an implicit index signature.
 export type TraderDef = {
   name: string
   legalName: string
@@ -156,7 +177,7 @@ export interface ConsumerMailPluginConfig extends PluginConfig, ConsumerMailDef 
 }
 
 /** `declareConsumerRights`'s argument: the advertised policy plus the backend-only trader and mail options. */
-export type ConsumerRightsDef = ConsumerRightsDeclaration & { trader?: TraderDef, mail?: ConsumerMailDef }
+export interface ConsumerRightsDef extends ConsumerRightsDeclaration { trader?: TraderDef, mail?: ConsumerMailDef }
 
 /** What the managed customer portal configuration shows. */
 export interface PortalBrandingDef {
@@ -197,6 +218,11 @@ export interface CreateLinkParams {
   consumerLanguage?: string
   /** The request's geolocated country (`cf-ipcountry`) — second location evidence, stored at lock. */
   ipCountry?: string
+  /**
+   * The buyer's e-mail as the application verified it (the signed-in person's account). Read only
+   * under `stripe.lockCustomerEmail`, where it is required and pinned on the Stripe customer.
+   */
+  email?: string
 }
 
 /** What a submit-text function is told about the session it labels. */
@@ -276,9 +302,10 @@ export interface CheckoutSettled {
 }
 
 /**
- * A seam around amount and subscription checkout, registered with `gateway(ctx).use(plugin)` (a
- * plugin with an `alias` registered twice replaces the first). Errors from `narrow` and `admit`
- * propagate — a plugin fails closed; `settled` errors are logged, since holds carry their own TTL.
+ * A seam around amount and subscription checkout, registered with
+ * `paymentAccessOf(ctx).gateway().use(plugin)` (a plugin with an `alias` registered twice replaces
+ * the first). Errors from `narrow` and `admit` propagate — a plugin fails closed; `settled` errors
+ * are logged, since holds carry their own TTL.
  */
 export interface CheckoutPlugin {
   alias?: string
@@ -371,7 +398,7 @@ export interface PaymentGatewayOptions {
    * Whether this process brings Stripe to the declared state at boot (`bootstrapStripe`: products,
    * portal configuration, webhook endpoint). Default: `manage`. A managed process with `false`
    * still serves checkout, the portal, estimates and the resyncs, and still runs a FORCED
-   * bootstrap (`resync`, an application's `bootstrapStripe(ctx, stripe, { force: true })`).
+   * bootstrap (`resync`, an application's `stripeBootstrapOf(ctx).bootstrapStripe(stripe, { force: true })`).
    * `true` on an unmanaged gateway is refused at construction.
    */
   bootstrap?: boolean
@@ -395,7 +422,7 @@ export interface PaymentGatewayOptions {
 }
 
 /** A Stripe client for one context — the default reads the configured secret. */
-export type StripeFactory = (ctx: ApiContext) => Promise<Stripe>
+export interface StripeFactory { (ctx: ApiContext): Promise<Stripe> }
 
 /** @deprecated use `PaymentGatewayOptions` */
 export type PaymentResourceOptions = PaymentGatewayOptions
@@ -1093,6 +1120,11 @@ export interface ConsumerConsentRecord extends ResourceRecord, RequestOrigin {
   language: string
   uiLanguage?: string
   trader: string
+  /**
+   * The copy variant the statement was rendered with: the policy's `consentContext` for a
+   * performance consent, `startContextOf(plan)` (`'units'`) for a start request; absent for the base.
+   */
+  context?: string
   /** The statement exactly as rendered and recorded. */
   text: { request: string, acknowledgement: string, checkbox: string }
   links: ConsumerRightsLinks
@@ -1246,9 +1278,7 @@ export interface ConsumerMailData {
  * Replace or suppress a consumer-rights mail: answer a message to send it instead, `null` to send
  * nothing (recorded as skipped), `undefined` to send the rendered one.
  */
-export type ConsumerMailRenderer = (
-  kind: ConsumerMailKind, data: ConsumerMailData, rendered: MailMessage,
-) => MailMessage | null | undefined | Promise<MailMessage | null | undefined>
+export interface ConsumerMailRenderer { (kind: ConsumerMailKind, data: ConsumerMailData, rendered: MailMessage): MailMessage | null | undefined | Promise<MailMessage | null | undefined> }
 
 export interface LockOptions {
   customerId?: string
@@ -1315,9 +1345,13 @@ export interface ConsumerRightsService extends LazyService {
   recordConsent: (subject: ConsumerSubject, body: PerformanceConsentBody, origin?: RequestOrigin) => Promise<PerformanceConsentResponse>
   /** @throws PerformanceConsentRequired while an open in-scope window has no consent */
   assertConsent: (entityId: string, at?: Date) => Promise<void>
+  /** `context` = `startContextOf(plan)`: the statement variant the dialog shows and the request records. */
   startView: (entityId: string, planSku: string, opts?: { language?: string }) => Promise<SubscriptionStartView>
-  /** @throws SubscriptionStartRequired (428) for a stale text version */
-  /** `plan`: the plan's short name the statement says (default: its localized catalogue title). */
+  /**
+   * Records the statement in the variant of the plan (`startContextOf`), the one the start view
+   * named. `plan`: the plan's short name the statement says (default: its localized catalogue title).
+   * @throws SubscriptionStartRequired (428) for a stale text version
+   */
   recordStartRequest: (
     subject: ConsumerSubject, body: SubscriptionStartBody, origin?: RequestOrigin, opts?: { plan?: string },
   ) => Promise<SubscriptionStartResponse>
@@ -1396,4 +1430,61 @@ export interface ConsumerRightsHandlerOptions {
 export interface CheckoutReadHandlerOptions {
   resolveEntity?: (req: AbstractRequest, ctx: ApiContext) => string | null | undefined
   gatewayAlias?: string
+}
+
+export interface PaygateParams { paygate: string }
+
+export interface ResyncResult { ok: boolean }
+
+export interface ResyncSubscriptionsResult { scanned: number; updated: number }
+
+export interface EntityResolverOption {
+  /** The stable organization id a request acts for. Default: `req.entity.id`, else the token's entity. */
+  resolveEntity?: (req: AbstractRequest) => string | null
+}
+
+export interface CapabilityGateOptions extends EntityResolverOption {
+  /** Refuse unless the effective plan belongs to one of these products. */
+  productSkus?: string[]
+  /**
+   * Also require the token to grant the permission (IAM `hasPermission`). Off by default: a
+   * platform token carries no permissions, and the subscription is the authority.
+   */
+  requirePermission?: boolean
+}
+
+/** @deprecated use `CapabilityGateOptions` */
+export type EntitlementGateOptions = CapabilityGateOptions
+
+export interface LimitGateOptions extends EntityResolverOption {}
+
+export interface StripeBootstrapOptions {
+  /** Re-verify what the stored fingerprints say is in place. */
+  force?: boolean
+}
+
+/** The gateway options a service instance takes — the resource aliases belong to the registration. */
+export interface GatewayServiceOptions extends Omit<PaymentGatewayOptions, 'dbAlias' | 'serviceAlias'> {}
+
+export interface CommitOptions {
+  /** The paygate event being applied; a repeat of the last applied one is ignored. */
+  eventId?: string
+  /** A paid renewal invoice. */
+  renewal?: boolean
+  invoiceId?: string
+  /** The paygate announced the trial ends soon. */
+  trialEnding?: boolean
+  /**
+   * Runs after the new state is written and BEFORE observers hear the change — what must exist
+   * before an observer grants anything (a subscription's purchase row). A throw propagates: the
+   * observers are not told and the paygate retries.
+   */
+  beforePropagate?: (record: PaymentSubscriptionRecord, change: SubscriptionChange) => Promise<void>
+}
+
+export interface CommitResult {
+  record: PaymentSubscriptionRecord | null
+  change: SubscriptionChange | null
+  /** The stored subscription state changed. */
+  updated: boolean
 }

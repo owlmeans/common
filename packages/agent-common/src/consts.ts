@@ -1,3 +1,5 @@
+import type { ShallowFlow } from '@owlmeans/flow'
+
 /**
  * The agent service alias.
  *
@@ -119,3 +121,167 @@ export const DEFAULT_MEMORY_EVENTS_LIMIT = 50
 
 /** Separator between a dedication's kind and its target — `project:<id>`. */
 export const SCOPE_SEP = ':'
+
+/** How a run ended, or that it has not. */
+export enum PipelineRunStatus {
+  Running = 'running',
+  Done = 'done',
+  Failed = 'failed',
+  /** Stopped on purpose with work left — a budget expired, or the caller asked. Resumable. */
+  Aborted = 'aborted',
+  /**
+   * Stopped on purpose, waiting for an answer to {@link PipelineRun.inquiry}.
+   *
+   * Resumable, and NOT stale: a waiting run has no process behind it and its `heartbeatAt` will not
+   * move again until somebody answers. A reconciler that reads staleness alone would take this for
+   * a crashed run and repair what is merely waiting.
+   */
+  Waiting = 'waiting',
+}
+
+/** Where the facts of an entry came from. */
+export enum CumulativeResultSource {
+  /** Read by code from what the step left behind, when the step finished. */
+  Extracted = 'extracted',
+  /**
+   * Read by code from the step's DURABLE inputs, after the fact — on a resume that found no stored
+   * entry, or for a step whose guard skipped it. The same facts an extraction would have found.
+   */
+  Rebuilt = 'rebuilt',
+  /** Supplied before any step of the run ran — the caller already knew them. */
+  Seeded = 'seeded',
+  /** No facts at all; only a model's summary, which nothing has checked. */
+  Summarized = 'summarized',
+}
+
+/** How one entry appears in a view cut for a given step. */
+export enum ResultViewMode {
+  Full = 'full',
+  /** Names only, grouped by kind. */
+  Compact = 'compact',
+  /** Not in the prompt. Still answered by a programmatic facts query. */
+  Omitted = 'omitted',
+}
+
+/**
+ * Kinds an extractor is encouraged to use. `CumulativeResultFact.kind` is an open string — declare
+ * your own — but two extractors naming the same thing differently split one fact into two.
+ */
+export enum CumulativeFactKind {
+  Type = 'type',
+  Symbol = 'symbol',
+  Endpoint = 'endpoint',
+  Resource = 'resource',
+  File = 'file',
+}
+
+/**
+ * The lifecycle of one agent run.
+ *
+ * Read it as "how far did this run get", not "what did it say". Everything conversational happens
+ * inside `Working`; the steps exist so a plugin reading `onFinish` can say where a run ended.
+ * `Fail` is reachable from every working step and is TERMINAL — see the note on that step.
+ *
+ * `service` is left as the flow name on every step. A flow step normally binds to a service or an
+ * entrypoint, but an agent run is driven by whoever holds the model — there is no second party to
+ * hand control to, and inventing one would put a name in the serialized state that nothing
+ * resolves.
+ *
+ * Each working step keeps exactly ONE non-explicit outgoing transition, so `FlowModel.next()`
+ * always has an unambiguous answer: that is what lets a driver advance the run without knowing the
+ * vocabulary. `Fail` is marked explicit precisely so it never becomes that automatic answer.
+ */
+export const agentRunFlow: ShallowFlow = {
+  flow: AGENT_RUN_FLOW,
+  initialStep: AgentRunStep.Received,
+
+  steps: {
+    [AgentRunStep.Received]: {
+      index: 0,
+      step: AgentRunStep.Received,
+      service: AGENT_RUN_FLOW,
+      initial: true,
+      transitions: {
+        [AgentRunTransition.Prepare]: {
+          transition: AgentRunTransition.Prepare,
+          step: AgentRunStep.Prepared,
+        },
+        [AgentRunTransition.Fail]: {
+          transition: AgentRunTransition.Fail,
+          step: AgentRunStep.Failed,
+          explicit: true,
+        },
+      },
+    },
+
+    [AgentRunStep.Prepared]: {
+      index: 1,
+      step: AgentRunStep.Prepared,
+      service: AGENT_RUN_FLOW,
+      transitions: {
+        [AgentRunTransition.Work]: {
+          transition: AgentRunTransition.Work,
+          step: AgentRunStep.Working,
+        },
+        [AgentRunTransition.Fail]: {
+          transition: AgentRunTransition.Fail,
+          step: AgentRunStep.Failed,
+          explicit: true,
+        },
+      },
+    },
+
+    [AgentRunStep.Working]: {
+      index: 2,
+      step: AgentRunStep.Working,
+      service: AGENT_RUN_FLOW,
+      transitions: {
+        [AgentRunTransition.Finalize]: {
+          transition: AgentRunTransition.Finalize,
+          step: AgentRunStep.Finalizing,
+        },
+        [AgentRunTransition.Fail]: {
+          transition: AgentRunTransition.Fail,
+          step: AgentRunStep.Failed,
+          explicit: true,
+        },
+      },
+    },
+
+    [AgentRunStep.Finalizing]: {
+      index: 3,
+      step: AgentRunStep.Finalizing,
+      service: AGENT_RUN_FLOW,
+      transitions: {
+        [AgentRunTransition.Finish]: {
+          transition: AgentRunTransition.Finish,
+          step: AgentRunStep.Finished,
+        },
+        [AgentRunTransition.Fail]: {
+          transition: AgentRunTransition.Fail,
+          step: AgentRunStep.Failed,
+          explicit: true,
+        },
+      },
+    },
+
+    [AgentRunStep.Finished]: {
+      index: 4,
+      step: AgentRunStep.Finished,
+      service: AGENT_RUN_FLOW,
+      transitions: {},
+    },
+
+    [AgentRunStep.Failed]: {
+      index: 5,
+      step: AgentRunStep.Failed,
+      service: AGENT_RUN_FLOW,
+      // Terminal. Nothing resumes a ReAct run — its tool results are side effects already applied
+      // to the world, so re-entering it re-applies them. Resumable work is a pipeline.
+      transitions: {},
+    },
+  },
+}
+
+/** Every flow this package declares, for a provider to serve. */
+export const agentFlows: ShallowFlow[] = [agentRunFlow]

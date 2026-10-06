@@ -1,55 +1,13 @@
 import { createLazyService } from '@owlmeans/context'
-import type { LazyService } from '@owlmeans/context'
-import {
-  consentStatus, MARKETING_CONSENT_SERVICE, resolveMarketingConsents, UnknownMarketingConsentError,
-} from '@owlmeans/marketing-consent'
-import type {
-  MarketingConsentConfig, MarketingConsentDecision, MarketingConsentDefinition,
-  MarketingConsentSource, MarketingConsentStatusView, SaveMarketingConsentRequest, TermsAcceptance,
-} from '@owlmeans/marketing-consent'
+import { marketingConsentHelper, MARKETING_CONSENT_SERVICE, UnknownMarketingConsentError, type MarketingConsentDecision, type MarketingConsentDefinition, type MarketingConsentStatusView } from '@owlmeans/marketing-consent'
 import type { Criteria, Resource } from '@owlmeans/resource'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import type { ServerConfig } from '@owlmeans/server-context'
 import { RES_MARKETING_CONSENT_LOG, RES_MARKETING_CONSENT_STATE } from './consts.js'
-import type { MarketingConsentLogRecord, MarketingConsentStateRecord } from './model.js'
-import { subjectKey } from './subject.js'
-import type { MarketingConsentSubject } from './subject.js'
+import type { MarketingConsentLogRecord, MarketingConsentStateRecord, MarketingConsentSubject, MakeMarketingConsentServiceOptions, MarketingConsentContext, MarketingConsentObserver, MarketingConsentService } from './types.js'
+import { marketingConsentSubjectHelper } from './subject.js'
+import { logger } from '@owlmeans/log'
 
-export type MarketingConsentContext = ServerContext<ServerConfig>
-
-export type MarketingConsentObserver =
-  (event: { subject: MarketingConsentSubject, decisions: MarketingConsentDecision[] }) => void | Promise<void>
-
-export interface MarketingConsentService extends LazyService {
-  /** The effective catalogue (`resolveMarketingConsents`), computed once and memoized. */
-  definitions(): MarketingConsentDefinition[]
-  status(subject: MarketingConsentSubject, opts?: { gpc?: boolean }): Promise<MarketingConsentStatusView>
-  save(
-    subject: MarketingConsentSubject,
-    request: SaveMarketingConsentRequest | (Omit<SaveMarketingConsentRequest, 'source'> & { source: 'api' }),
-  ): Promise<{ ok: true, status: MarketingConsentStatusView }>
-  recordTerms(
-    subject: MarketingConsentSubject, acceptance: TermsAcceptance, opts?: { source?: MarketingConsentSource },
-  ): Promise<{ ok: true }>
-  /**
-   * The SERVER-SIDE gate a send/share checks — the SAVED, CONFIRMED answer only. An item still
-   * `'new'` or `'revised'` has never been affirmatively answered by this person, so it reads as
-   * NOT granted here even where `consentStatus`'s own `granted` defaults an opt-out item to `true`
-   * for DISPLAY purposes.
-   */
-  isGranted(subject: MarketingConsentSubject, key: string, opts?: { gpc?: boolean }): Promise<boolean>
-  /** Clears the current-state record. Log rows stay — they are the append-only compliance evidence. */
-  purge(subject: MarketingConsentSubject): Promise<void>
-  observe(listener: MarketingConsentObserver): void
-}
-
-export interface MakeMarketingConsentServiceOptions {
-  alias?: string
-  /** Resource alias holding one current-state record per subject. Defaults to `RES_MARKETING_CONSENT_STATE`. */
-  state?: string
-  /** Resource alias holding the append-only log. Defaults to `RES_MARKETING_CONSENT_LOG`. */
-  log?: string
-  config?: MarketingConsentConfig
-}
+const log = logger('server-marketing-consent')
 
 const nowIso = (): string => new Date().toISOString()
 
@@ -67,7 +25,7 @@ export const makeMarketingConsentService = (
 
   let memoizedDefinitions: MarketingConsentDefinition[] | undefined
   const definitions = (): MarketingConsentDefinition[] => {
-    memoizedDefinitions ??= resolveMarketingConsents(opts.config)
+    memoizedDefinitions ??= marketingConsentHelper.resolveMarketingConsents(opts.config)
     return memoizedDefinitions
   }
 
@@ -89,14 +47,14 @@ export const makeMarketingConsentService = (
         await listener({ subject, decisions })
       } catch (error) {
         // A listener's failure never fails the write that triggered it.
-        console.error(`${alias}: observer failed for ${subjectKey(subject)}`, error)
+        log.error('Marketing-consent observer failed', { alias, subject: marketingConsentSubjectHelper.subjectKey(subject), error })
       }
     }
   }
 
   const statusOf = (
     state: MarketingConsentStateRecord | null, gpc?: boolean,
-  ): MarketingConsentStatusView => consentStatus(definitions(), state?.decisions ?? [], {
+  ): MarketingConsentStatusView => marketingConsentHelper.consentStatus(definitions(), state?.decisions ?? [], {
     gpc, termsAcceptedAt: state?.terms?.acceptedAt, termsVersion: state?.terms?.version,
   })
 
@@ -130,7 +88,7 @@ export const makeMarketingConsentService = (
     definitions,
 
     status: async (subject, statusOpts) => {
-      const state = await states().load({ subject: subjectKey(subject) } as Criteria<MarketingConsentStateRecord>)
+      const state = await states().load({ subject: marketingConsentSubjectHelper.subjectKey(subject) } as Criteria<MarketingConsentStateRecord>)
       return statusOf(state, statusOpts?.gpc)
     },
 
@@ -153,14 +111,14 @@ export const makeMarketingConsentService = (
 
       for (const decision of decided) {
         await appendLog({
-          subject: subjectKey(subject), userId: subject.userId, profileId: subject.profileId,
+          subject: marketingConsentSubjectHelper.subjectKey(subject), userId: subject.userId, profileId: subject.profileId,
           entityId: subject.entityId, kind: 'consent', key: decision.key, granted: decision.granted,
           revisedAt: decision.revisedAt, mode: decision.mode, decidedAt: decision.decidedAt,
           source: decision.source, locale: request.locale, gpc: request.gpc,
         })
       }
 
-      const id = subjectKey(subject)
+      const id = marketingConsentSubjectHelper.subjectKey(subject)
       const saved = await upsertState(id, existing => {
         const merged = new Map((existing?.decisions ?? []).map(decision => [decision.key, decision]))
         decided.forEach(decision => merged.set(decision.key, decision))
@@ -181,13 +139,13 @@ export const makeMarketingConsentService = (
       const source = recordOpts?.source ?? 'sign-in'
 
       await appendLog({
-        subject: subjectKey(subject), userId: subject.userId, profileId: subject.profileId,
+        subject: marketingConsentSubjectHelper.subjectKey(subject), userId: subject.userId, profileId: subject.profileId,
         entityId: subject.entityId, kind: 'terms', documents: acceptance.documents,
         notices: acceptance.notices, version: acceptance.version, decidedAt: now, source,
         locale: acceptance.locale,
       })
 
-      const id = subjectKey(subject)
+      const id = marketingConsentSubjectHelper.subjectKey(subject)
       const terms = {
         documents: acceptance.documents, notices: acceptance.notices, version: acceptance.version,
         locale: acceptance.locale, acceptedAt: now,
@@ -210,7 +168,7 @@ export const makeMarketingConsentService = (
     },
 
     purge: async subject => {
-      await states().purge({ subject: subjectKey(subject) } as Criteria<MarketingConsentStateRecord>)
+      await states().purge({ subject: marketingConsentSubjectHelper.subjectKey(subject) } as Criteria<MarketingConsentStateRecord>)
     },
 
     observe: listener => {

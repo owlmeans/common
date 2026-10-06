@@ -1,3 +1,2 @@
-
 export * from './config.js'
-export * from './client.js'
+export type * from './config/types.js'

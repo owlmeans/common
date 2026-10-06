@@ -1,17 +1,16 @@
 export type * from './types.js'
+export type * from './gtm/types.js'
+export type * from './i18n/types.js'
+export type * from './linker/types.js'
+export type * from './plugins/types.js'
+export type * from './storage/types.js'
 export * from './consts.js'
 export * from './storage.js'
 export * from './gtm.js'
 export * from './store.js'
 export * from './i18n.js'
-export type { ConsentPlugin } from './plugins.js'
-export {
-  registerConsentPlugin, consentPlugins, decorateConsentUrl, consentDomains, adoptConsent,
-  startConsentPlugins, adoptConsentLanguage,
-} from './plugins.js'
-export type { ConsentLinkPayload } from './linker.js'
-export {
-  consentLinker, encodeConsentLink, decodeConsentLink, stripConsentLinkParam, consentLinkerScript,
-  writeConsentLanguage,
-  CONSENT_LINK_PARAM, CONSENT_LINK_MAX_AGE, CONSENT_LINK_SKEW,
-} from './linker.js'
+export type { ConsentPlugin } from './types.js'
+export { createConsentPluginHelper, consentPluginHelper, decorateConsentUrl } from './plugins.js'
+export type { ConsentLinkPayload } from './types.js'
+export { createConsentLinkHelper, consentLinkHelper, encodeConsentLink, consentLinkerScript } from './linker.js'
+export { CONSENT_LINK_PARAM, CONSENT_LINK_MAX_AGE, CONSENT_LINK_SKEW } from './consts.js'

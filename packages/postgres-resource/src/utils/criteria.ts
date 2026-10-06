@@ -1,13 +1,10 @@
-import { UnsupportedArgumentError } from '@owlmeans/resource'
-import type { Criteria, FieldOperators, Sort } from '@owlmeans/resource'
-import { and, asc, desc, or, param, sql } from 'drizzle-orm'
-import type { SQL } from 'drizzle-orm'
+import { UnsupportedArgumentError, type Criteria, type FieldOperators, type Sort } from '@owlmeans/resource'
+import { and, asc, desc, or, param, sql, type SQL } from 'drizzle-orm'
 
 import type { ColumnSpec, PgRuntimeTable, TableSpec } from '../types.js'
-
-const COMPARISON: Record<string, string> = {
-  $eq: '=', $ne: '<>', $gt: '>', $gte: '>=', $lt: '<', $lte: '<='
-}
+import { COMPARISON } from './consts.local.js'
+import type { PathTarget } from './types.local.js'
+import type { PgCriteriaHelper } from './criteria/types.js'
 
 const columnRef = (table: PgRuntimeTable, column: ColumnSpec): SQL => sql`${table[column.property]}`
 
@@ -166,17 +163,6 @@ const escapeLike = (value: string): string => value.replace(/[\\%_]/g, match => 
 
 // ─── Dotted paths into a jsonb column ────────────────────────────────────────────────────────────
 
-/**
- * A value at a path, as the jsonb it is (`#>`) and as text (`#>>`). The path is ONE bound `text[]`
- * parameter, so a segment holding a comma or a brace stays one segment.
- */
-interface PathTarget {
-  value: SQL
-  text: SQL
-  /** Absent, or a JSON `null` — what every other store reads as "no value". */
-  missing: SQL
-}
-
 const pathTarget = (table: PgRuntimeTable, column: ColumnSpec, path: string[]): PathTarget => {
   const value = sql`(${columnRef(table, column)} #> ${param(path)}::text[])`
 
@@ -295,131 +281,115 @@ const isOperatorSpec = (value: unknown): value is FieldOperators<any> =>
   value != null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)
   && Object.keys(value).some(key => key.startsWith('$'))
 
-/**
- * Translate a {@link Criteria} into a WHERE clause. `undefined` means "no constraint at
- * all" — the caller decides whether that is a full scan or a refusal.
- *
- * An unknown key raises rather than being skipped: a typo silently widening a query to
- * the whole table is the failure mode worth being loud about.
- *
- * @throws {UnsupportedArgumentError}
- */
-export const criteriaToSql = <T>(
-  criteria: Criteria<T> | undefined, spec: TableSpec, table: PgRuntimeTable
-): SQL | undefined => {
-  const conditions = build(criteria, spec, table)
+export const createPgCriteriaHelper = (): PgCriteriaHelper => {
+  const criteriaToSql = <T>(
+    criteria: Criteria<T> | undefined, spec: TableSpec, table: PgRuntimeTable
+  ): SQL | undefined => {
+    const conditions = build(criteria, spec, table)
 
-  return conditions.length > 0 ? and(...conditions) : undefined
-}
+    return conditions.length > 0 ? and(...conditions) : undefined
+  }
 
-const build = <T>(
-  criteria: Criteria<T> | undefined, spec: TableSpec, table: PgRuntimeTable
-): SQL[] => {
-  const conditions: SQL[] = []
-  for (const [key, raw] of Object.entries(criteria ?? {})) {
-    if (raw === undefined) {
-      continue
-    }
+  const build = <T>(
+    criteria: Criteria<T> | undefined, spec: TableSpec, table: PgRuntimeTable
+  ): SQL[] => {
+    const conditions: SQL[] = []
+    for (const [key, raw] of Object.entries(criteria ?? {})) {
+      if (raw === undefined) {
+        continue
+      }
 
-    if (key === '$and' || key === '$or') {
-      const parts = (Array.isArray(raw) ? raw : [raw])
-        .map(entry => and(...build(entry as Criteria<T>, spec, table)))
-        .filter((entry): entry is SQL => entry != null)
-      if (parts.length > 0) {
-        const combined = key === '$and' ? and(...parts) : or(...parts)
-        if (combined != null) {
-          conditions.push(combined)
+      if (key === '$and' || key === '$or') {
+        const parts = (Array.isArray(raw) ? raw : [raw])
+          .map(entry => and(...build(entry as Criteria<T>, spec, table)))
+          .filter((entry): entry is SQL => entry != null)
+        if (parts.length > 0) {
+          const combined = key === '$and' ? and(...parts) : or(...parts)
+          if (combined != null) {
+            conditions.push(combined)
+          }
         }
+        continue
       }
-      continue
-    }
-    if (key === '$not') {
-      const inner = and(...build(raw as Criteria<T>, spec, table))
-      if (inner != null) {
-        conditions.push(sql`NOT (${inner})`)
+      if (key === '$not') {
+        const inner = and(...build(raw as Criteria<T>, spec, table))
+        if (inner != null) {
+          conditions.push(sql`NOT (${inner})`)
+        }
+        continue
       }
-      continue
+
+      /** `profile.city` reaches into a jsonb column rather than naming a column. */
+      const [head, ...path] = key.split('.')
+      const column = spec.byProperty[head]
+      if (column == null) {
+        throw new UnsupportedArgumentError(`criteria:${key}`)
+      }
+      if (path.length > 0) {
+        if (!column.jsonb) {
+          throw new UnsupportedArgumentError(`criteria-path:${key}`)
+        }
+        conditions.push(...pathCondition(pathTarget(table, column, path), raw, key))
+        continue
+      }
+
+      if (raw === null) {
+        conditions.push(sql`${columnRef(table, column)} IS NULL`)
+        continue
+      }
+      if (isOperatorSpec(raw)) {
+        conditions.push(...operators(table, column, raw))
+        continue
+      }
+      if (Array.isArray(raw)) {
+        /**
+         * A bare array means `IN` for a relational store, which is overwhelmingly the intent.
+         * Exact array equality against a `text[]` column stays available as `{ $eq: [...] }`.
+         */
+        conditions.push(inList(table, column, raw, false))
+        continue
+      }
+      if (column.jsonb && typeof raw === 'object') {
+        conditions.push(sql`${columnRef(table, column)} @> ${JSON.stringify(raw)}`)
+        continue
+      }
+      conditions.push(sql`${columnRef(table, column)} = ${value(raw, column)}`)
     }
 
-    /** `profile.city` reaches into a jsonb column rather than naming a column. */
-    const [head, ...path] = key.split('.')
-    const column = spec.byProperty[head]
-    if (column == null) {
-      throw new UnsupportedArgumentError(`criteria:${key}`)
-    }
-    if (path.length > 0) {
-      if (!column.jsonb) {
-        throw new UnsupportedArgumentError(`criteria-path:${key}`)
-      }
-      conditions.push(...pathCondition(pathTarget(table, column, path), raw, key))
-      continue
-    }
-
-    if (raw === null) {
-      conditions.push(sql`${columnRef(table, column)} IS NULL`)
-      continue
-    }
-    if (isOperatorSpec(raw)) {
-      conditions.push(...operators(table, column, raw))
-      continue
-    }
-    if (Array.isArray(raw)) {
-      /**
-       * A bare array means `IN` for a relational store, which is overwhelmingly the intent.
-       * Exact array equality against a `text[]` column stays available as `{ $eq: [...] }`.
-       */
-      conditions.push(inList(table, column, raw, false))
-      continue
-    }
-    if (column.jsonb && typeof raw === 'object') {
-      conditions.push(sql`${columnRef(table, column)} @> ${JSON.stringify(raw)}`)
-      continue
-    }
-    conditions.push(sql`${columnRef(table, column)} = ${value(raw, column)}`)
+    return conditions
   }
 
-  return conditions
+  const sortToSql = <T>(
+    sort: Sort<T>[] | undefined, spec: TableSpec, table: PgRuntimeTable
+  ): SQL[] => {
+    const order: SQL[] = []
+    const seen: string[] = []
+
+    for (const entry of sort ?? []) {
+      const property = typeof entry === 'string' ? entry : entry.field
+      const descending = typeof entry !== 'string' && entry.order === 'desc'
+      const column = spec.byProperty[property]
+      if (column == null) {
+        throw new UnsupportedArgumentError(`sort:${property}`)
+      }
+      seen.push(column.column)
+      order.push(descending ? desc(table[column.property]) : asc(table[column.property]))
+    }
+
+    for (const key of spec.primaryKey) {
+      if (seen.includes(key)) {
+        continue
+      }
+      const column = spec.byColumn[key]
+      if (column != null) {
+        order.push(asc(table[column.property]))
+      }
+    }
+
+    return order
+  }
+
+  return { criteriaToSql, sortToSql }
 }
 
-/**
- * Translate a {@link Sort} list into ORDER BY. A bare field name is ascending;
- * `{ field, order: 'desc' }` reverses it — the same meaning every backend gives it.
- *
- * The primary key is always appended as a tiebreak. Postgres has no implicit row order, so
- * paginating on a non-unique sort key silently duplicates and skips rows between pages —
- * a difference from mongo that would otherwise surface as a data bug rather than an error.
- *
- * A dotted path is a column this table does not have: criteria can reach into jsonb, ORDER BY
- * cannot, and refusing is better than ordering by something the caller did not name.
- *
- * @throws {UnsupportedArgumentError}
- */
-export const sortToSql = <T>(
-  sort: Sort<T>[] | undefined, spec: TableSpec, table: PgRuntimeTable
-): SQL[] => {
-  const order: SQL[] = []
-  const seen: string[] = []
-
-  for (const entry of sort ?? []) {
-    const property = typeof entry === 'string' ? entry : entry.field
-    const descending = typeof entry !== 'string' && entry.order === 'desc'
-    const column = spec.byProperty[property]
-    if (column == null) {
-      throw new UnsupportedArgumentError(`sort:${property}`)
-    }
-    seen.push(column.column)
-    order.push(descending ? desc(table[column.property]) : asc(table[column.property]))
-  }
-
-  for (const key of spec.primaryKey) {
-    if (seen.includes(key)) {
-      continue
-    }
-    const column = spec.byColumn[key]
-    if (column != null) {
-      order.push(asc(table[column.property]))
-    }
-  }
-
-  return order
-}
+export const pgCriteriaHelper = createPgCriteriaHelper()

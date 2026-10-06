@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-oauth
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-oauth": "^0.1.18-rc.18"` in `dependencies`
+**Install:** `"@owlmeans/web-oauth": "^0.1.18-rc.21"` in `dependencies`
 **Contracts:** `@owlmeans/oauth` — aliases, `makeOAuthProtocols`, `oauthFlow`, `ConsentView`
 **Server half:** `@owlmeans/server-oauth` (its `consentUrl`/`deviceUrl` must point at these screens)
 
@@ -80,9 +80,9 @@ of this package's runtime, and `tests/package-boundary.spec.ts` fails on any `fr
 
 The consent screen never assumes a session. When `auth.authenticated()` is empty it builds
 `makeFlowModel(oauthFlow)` (never the live flow slot), sets `ref`, transits the explicit `sign-in`
-step, calls `suspendFlow(context, model, { expiresAt: now + OAUTH_SUSPEND_TTL_MS })` and sends the
+step, calls `flowLandingOf(context).suspendFlow(model, { expiresAt: now + OAUTH_SUSPEND_TTL_MS })` and sends the
 browser to `DISPATCHER`. The chooser / Google / supervisor sign-in then lands through
-`resumeSuspendedFlow` (the landing rule in `/login-plugins`, `/client-flow`) — back on the consent
+`flowLandingOf(context).resumeSuspendedFlow` (the landing rule in `/login-plugins`, `/client-flow`) — back on the consent
 screen with the **same `ref`**, now authenticated. What is stored is the destination entrypoint alias
 plus the payload query, delete-on-read and expiry-checked, in `FLOW_STATE` (IndexedDB, so it survives
 Google's full-page round trip). A plugin that still navigates to `HOME` instead of the landing breaks

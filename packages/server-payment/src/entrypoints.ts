@@ -1,6 +1,6 @@
 import { bind } from '@owlmeans/server-entrypoint'
-import { paymentGate } from './consts.js'
 import { resync, resyncSubscriptions, webhook } from './actions/index.js'
+import { paymentGate } from './protocol.js'
 
 /**
  * The payment gate's action handlers, for an application that declares the gate itself — its own

@@ -1,8 +1,7 @@
-import { resolveTerms, termsAccepted, termsAcceptanceOf, termsDeferred } from '@owlmeans/client-auth/login'
-import type { LoginLandingHook } from '@owlmeans/client-auth/login'
+import { type LoginLandingHook, loginTermsHelper } from '@owlmeans/client-auth/login'
 import type { CommonConfig } from '@owlmeans/config'
 import { MARKETING_CONSENT_LANDING_HOOK_TERMS } from './consts.js'
-import type { MarketingConsentClientService } from './service.js'
+import type { MarketingConsentClientService } from './types.js'
 
 /**
  * Records a fresh terms acceptance once a sign-in lands, mirroring server-side the acceptance
@@ -23,15 +22,15 @@ export const termsRecorder = (
   alias: MARKETING_CONSENT_LANDING_HOOK_TERMS,
   priority: 100,
   landed: async ctx => {
-    if (termsDeferred(ctx)) {
+    if (loginTermsHelper.termsDeferred(ctx)) {
       return
     }
 
-    const resolved = resolveTerms((ctx.cfg as CommonConfig).security?.auth?.login?.terms)
-    if (resolved == null || !resolved.required || !termsAccepted(resolved)) {
+    const resolved = loginTermsHelper.resolveTerms((ctx.cfg as CommonConfig).security?.auth?.login?.terms)
+    if (resolved == null || !resolved.required || !loginTermsHelper.termsAccepted(resolved)) {
       return
     }
 
-    await client.recordTerms(termsAcceptanceOf(resolved, locale))
+    await client.recordTerms(loginTermsHelper.termsAcceptanceOf(resolved, locale))
   },
 })

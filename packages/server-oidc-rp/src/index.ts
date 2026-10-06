@@ -25,8 +25,10 @@ export type { OIDCAuthCache } from './utils/types.js'
 export { createGateModel } from './model/gate.js'
 export { extractPermissionSets } from './utils/permissions.js'
 export {
-  extractOrganizations, pickOrganization, actingPermissionSets, actingAuth, resolvedEntityOf, organizationItemOf,
+  createOidcOrganizationHelper, oidcOrganizationHelper, pickOrganization, actingPermissionSets, resolvedEntityOf,
 } from './utils/organization.js'
-export type { OrganizationSelector } from './utils/organization.js'
-export { sessionRecord } from './utils/cache.js'
+export type { OidcOrganizationHelper } from './utils/organization/types.js'
+export type { OrganizationSelector } from './utils/types.js'
+export { makeOidcCacheHelper, oidcCacheOf, sessionRecord } from './utils/cache.js'
+export type { OidcCacheHelper } from './utils/cache/types.js'
 export { requestedScope } from './utils/scope.js'

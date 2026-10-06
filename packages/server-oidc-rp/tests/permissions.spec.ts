@@ -3,9 +3,11 @@ import { AuthRole } from '@owlmeans/auth'
 import type { Auth } from '@owlmeans/auth'
 import type { OidcOrganizationClaim, OidcPermissionSetClaim } from '@owlmeans/oidc'
 import { extractPermissionSets } from '../src/utils/permissions.js'
-import {
+import { oidcOrganizationHelper } from '../src/utils/organization.js'
+
+const {
   actingAuth, actingPermissionSets, extractOrganizations, organizationItemOf, pickOrganization, resolvedEntityOf,
-} from '../src/utils/organization.js'
+} = oidcOrganizationHelper
 
 const UNBOUND: OidcPermissionSetClaim = { scope: 'app', permissions: { 'report--view': true } }
 const ACME: OidcPermissionSetClaim = { scope: 'app', permissions: { 'order--edit': true }, entitySlug: 'acme' }

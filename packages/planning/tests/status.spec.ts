@@ -1,66 +1,64 @@
 import { describe, expect, test } from 'bun:test'
 import { IntrinsicStatus } from '../src/consts.js'
 import { UnknownStatusFlow, UnknownWorkcardType } from '../src/errors.js'
-import {
-  canTransit, initialFlowsOf, initialStatusOf, intrinsicOf, resolveIntrinsic, ruleOf, transitionsFrom,
-} from '../src/helpers/status.js'
 import { PROJECT_TYPE, REVIEW_FLOW, STORY_FLOW, STORY_TYPE, TASK_TYPE, makeRegistry } from './fixtures.js'
+import { statusHelper } from '../src/helpers/status.js'
 
 const registry = makeRegistry()
 
 describe('status flows', () => {
   test('every status maps onto its intrinsic state; the initial one is the marked one', () => {
-    expect(intrinsicOf(STORY_FLOW, 'failed')).toBe(IntrinsicStatus.Planned)
-    expect(intrinsicOf(STORY_FLOW, 'completed')).toBe(IntrinsicStatus.Closed)
-    expect(intrinsicOf(STORY_FLOW, 'unknown')).toBeUndefined()
-    expect(initialStatusOf(REVIEW_FLOW)).toBe('pending')
+    expect(statusHelper.intrinsicOf(STORY_FLOW, 'failed')).toBe(IntrinsicStatus.Planned)
+    expect(statusHelper.intrinsicOf(STORY_FLOW, 'completed')).toBe(IntrinsicStatus.Closed)
+    expect(statusHelper.intrinsicOf(STORY_FLOW, 'unknown')).toBeUndefined()
+    expect(statusHelper.initialStatusOf(REVIEW_FLOW)).toBe('pending')
   })
 
   test('a repeated name picks the rule whose from matches, and a wildcard answers last', () => {
-    expect(ruleOf(STORY_FLOW, 'start', 'failed')?.to).toBe('in-progress')
-    expect(ruleOf(STORY_FLOW, 'start', 'completed')).toBeUndefined()
-    expect(ruleOf(REVIEW_FLOW, 'reopen', 'approved')?.to).toBe('reviewing')
-    expect(ruleOf(REVIEW_FLOW, 'reopen', 'reviewing')?.to).toBe('pending')
+    expect(statusHelper.ruleOf(STORY_FLOW, 'start', 'failed')?.to).toBe('in-progress')
+    expect(statusHelper.ruleOf(STORY_FLOW, 'start', 'completed')).toBeUndefined()
+    expect(statusHelper.ruleOf(REVIEW_FLOW, 'reopen', 'approved')?.to).toBe('reviewing')
+    expect(statusHelper.ruleOf(REVIEW_FLOW, 'reopen', 'reviewing')?.to).toBe('pending')
   })
 
   test('a status the flow does not declare matches every rule of the name, the first declared answering', () => {
     // A card whose flow changed under it: `abandoned` is no longer a status of the flow.
-    expect(ruleOf(STORY_FLOW, 'start', 'abandoned')?.to).toBe('in-progress')
-    expect(ruleOf(STORY_FLOW, 'complete', 'abandoned')?.to).toBe('completed')
-    expect(ruleOf(STORY_FLOW, 'reset', 'abandoned')?.to).toBe('planned')
-    expect(ruleOf(STORY_FLOW, 'nope', 'abandoned')).toBeUndefined()
+    expect(statusHelper.ruleOf(STORY_FLOW, 'start', 'abandoned')?.to).toBe('in-progress')
+    expect(statusHelper.ruleOf(STORY_FLOW, 'complete', 'abandoned')?.to).toBe('completed')
+    expect(statusHelper.ruleOf(STORY_FLOW, 'reset', 'abandoned')?.to).toBe('planned')
+    expect(statusHelper.ruleOf(STORY_FLOW, 'nope', 'abandoned')).toBeUndefined()
     // A declared status keeps its own rules only.
-    expect(ruleOf(STORY_FLOW, 'complete', 'planned')).toBeUndefined()
-    expect(transitionsFrom(STORY_FLOW, 'abandoned').map(rule => rule.name)).toEqual(['start', 'complete', 'fail', 'reset'])
+    expect(statusHelper.ruleOf(STORY_FLOW, 'complete', 'planned')).toBeUndefined()
+    expect(statusHelper.transitionsFrom(STORY_FLOW, 'abandoned').map(rule => rule.name)).toEqual(['start', 'complete', 'fail', 'reset'])
   })
 
   test('canTransit and transitionsFrom read the same rules, one per name', () => {
-    expect(canTransit(STORY_FLOW, 'reset', 'planned')).toBe(true)
-    expect(canTransit(STORY_FLOW, 'complete', 'planned')).toBe(false)
-    expect(transitionsFrom(STORY_FLOW, 'in-progress').map(rule => rule.name)).toEqual(['complete', 'fail', 'reset'])
-    expect(transitionsFrom(STORY_FLOW, 'failed', { explicit: true }).map(rule => `${rule.name}→${rule.to}`))
+    expect(statusHelper.canTransit(STORY_FLOW, 'reset', 'planned')).toBe(true)
+    expect(statusHelper.canTransit(STORY_FLOW, 'complete', 'planned')).toBe(false)
+    expect(statusHelper.transitionsFrom(STORY_FLOW, 'in-progress').map(rule => rule.name)).toEqual(['complete', 'fail', 'reset'])
+    expect(statusHelper.transitionsFrom(STORY_FLOW, 'failed', { explicit: true }).map(rule => `${rule.name}→${rule.to}`))
       .toEqual(['start→in-progress', 'reset→planned'])
   })
 })
 
 describe('intrinsic resolution', () => {
   test('primary policy reads the primary flow only', () => {
-    expect(resolveIntrinsic(STORY_TYPE, { 'test:story': 'in-progress' }, registry)).toBe(IntrinsicStatus.InProgress)
-    expect(resolveIntrinsic(PROJECT_TYPE, { 'test:story': 'completed' }, registry)).toBe(IntrinsicStatus.Closed)
+    expect(statusHelper.resolveIntrinsic(STORY_TYPE, { 'test:story': 'in-progress' }, registry)).toBe(IntrinsicStatus.InProgress)
+    expect(statusHelper.resolveIntrinsic(PROJECT_TYPE, { 'test:story': 'completed' }, registry)).toBe(IntrinsicStatus.Closed)
   })
 
   test('IntrinsicPolicy.All takes the least advanced flow', () => {
-    expect(resolveIntrinsic(TASK_TYPE, { 'test:story': 'completed', 'test:review': 'reviewing' }, registry))
+    expect(statusHelper.resolveIntrinsic(TASK_TYPE, { 'test:story': 'completed', 'test:review': 'reviewing' }, registry))
       .toBe(IntrinsicStatus.InProgress)
-    expect(resolveIntrinsic(TASK_TYPE, { 'test:story': 'completed', 'test:review': 'approved' }, registry))
+    expect(statusHelper.resolveIntrinsic(TASK_TYPE, { 'test:story': 'completed', 'test:review': 'approved' }, registry))
       .toBe(IntrinsicStatus.Closed)
-    expect(resolveIntrinsic(TASK_TYPE, { 'test:story': 'failed', 'test:review': 'approved' }, registry))
+    expect(statusHelper.resolveIntrinsic(TASK_TYPE, { 'test:story': 'failed', 'test:review': 'approved' }, registry))
       .toBe(IntrinsicStatus.Planned)
   })
 
   test('initialFlowsOf starts every flow at its initial status, the primary at the draft status', () => {
-    expect(initialFlowsOf(TASK_TYPE, registry)).toEqual({ 'test:story': 'planned', 'test:review': 'pending' })
-    expect(initialFlowsOf(TASK_TYPE, registry, 'failed')).toEqual({ 'test:story': 'failed', 'test:review': 'pending' })
+    expect(statusHelper.initialFlowsOf(TASK_TYPE, registry)).toEqual({ 'test:story': 'planned', 'test:review': 'pending' })
+    expect(statusHelper.initialFlowsOf(TASK_TYPE, registry, 'failed')).toEqual({ 'test:story': 'failed', 'test:review': 'pending' })
   })
 })
 

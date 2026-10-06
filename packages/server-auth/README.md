@@ -13,7 +13,7 @@ account/profile records `@owlmeans/server-auth-identity`, and the browser side `
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth@^0.1.18-rc.51
+bun add @owlmeans/server-auth@^0.1.18-rc.54
 ```
 
 ## Concepts
@@ -60,13 +60,13 @@ export const invoiceProtocols = {
 
 ```ts
 import { handlers } from '@owlmeans/server-app'
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 
 const api = handlers<Context>()
 
 export const list = api.request(invoiceProtocols.list, async (request, context) => {
   // request.auth is the verified Auth: userId, profileId, role, scopes, entitySlug
-  const { items } = await context.invoice().list({ entityId: requireEntityKey(request) })
+  const { items } = await context.invoice().list({ entityId: makeEntityScope(request).requireEntityKey() })
   return items
 })
 ```
@@ -184,10 +184,10 @@ registerPlugin('my-method', context => ({
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `registerPlugin(type, factory)`, `plugins` | function / const | The module-level registry |
-| `getPlugin(type, context)`, `assertType(type, plugin)` | function | Resolution; `getPlugin` throws `AuthUnknown(type)` for an unregistered type |
-| `basicEd25519`, `reCaptcha`, `basicRely` | function | Built-in plugins |
+| `authPluginHelper.getPlugin(type, context)`, `authPluginHelper.assertType(type, plugin)` | method | Resolution; `getPlugin` throws `AuthUnknown(type)` for an unregistered type |
+| `makeBasicEd25519Plugin`, `makeReCaptchaPlugin`, `makeBasicRelyPlugin` | function | Built-in plugin factories |
 | `makeSupervisorPlugin(context, opts)` | function | PK supervisor plugin factory |
-| `AuthPlugin`, `RecpatchaResponse`, `RecaptchaRequest`, `RelyRecord`, `AuthRedisResource` | type | Plugin shapes |
+| `AuthPlugin`, `AuthPluginFactory`, `AuthPluginHelper`, `RecpatchaResponse`, `RecaptchaRequest`, `RelyRecord`, `AuthRedisResource` | type | Plugin shapes |
 
 ## Common pitfalls
 
@@ -222,7 +222,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

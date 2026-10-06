@@ -4,7 +4,10 @@ import { aliasOf, protocols } from '@owlmeans/entrypoint'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { RouteMethod, RouteProtocols } from '@owlmeans/route'
 import { connect, CONNECT_BRANDING_GOOGLE_TAG_MAX } from '../src/connect/consts.js'
-import { ConnectProjectBrandingSaveSchema } from '../src/connect/schemas.js'
+import {
+  ConnectKitApplyBodySchema, ConnectKitApplyResultSchema, ConnectKitDescribeSchema, ConnectProjectBrandingSaveSchema,
+  PlanningKitViewSchema,
+} from '../src/connect/schemas.js'
 import { connectProtocols } from '../src/connect/entrypoints.js'
 import { connectRef } from '../src/connect/references.js'
 
@@ -18,8 +21,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.convert.proceed.alias).toBe(connect.convert.proceed)
     expect(tree.inquiry.answer.alias).toBe(connect.inquiry.answer)
     expect(tree.files.list.alias).toBe(connect.files.list)
-    expect(protocols(tree)).toHaveLength(26)
-    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(26)
+    expect(protocols(tree)).toHaveLength(28)
+    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(28)
   })
 
   test('declares exactly the routes a connector calls — every alias, reference and path, and no socket', () => {
@@ -29,11 +32,11 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
 
     expect(addresses).toEqual([
       'GET /convert/:id', 'GET /convert/:id/check', 'GET /pipeline/:id/:runId', 'GET /project',
-      'GET /project/:id/branding', 'GET /project/:id/files', 'GET /project/:id/status',
+      'GET /project/:id/branding', 'GET /project/:id/files', 'GET /project/:id/kits', 'GET /project/:id/status',
       'GET /project/:id/story/:storyId/status', 'GET /session/:sessionId/ops',
       'POST /convert', 'POST /convert/:id/proceed', 'POST /convert/:id/purge', 'POST /convert/:id/start',
       'POST /pipeline/:id/:runId/resume', 'POST /project', 'POST /project/:id/branding',
-      'POST /project/:id/confirm', 'POST /project/:id/inquiry/:inquiryId', 'POST /project/:id/modify',
+      'POST /project/:id/confirm', 'POST /project/:id/inquiry/:inquiryId', 'POST /project/:id/kits', 'POST /project/:id/modify',
       'POST /project/:id/reinit', 'POST /project/attach', 'POST /session', 'POST /session/:sessionId/close',
       'POST /session/:sessionId/ops/:opId', 'POST /session/delegated',
     ])
@@ -93,5 +96,49 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect((tree.project as Record<string, unknown>).job).toBeUndefined()
     expect((connect.project as Record<string, unknown>).job).toBeUndefined()
     expect((connectRef.project as Record<string, unknown>).job).toBeUndefined()
+  })
+
+  test('describes and applies planning kits at one project path, under the owned base and no paid gate', () => {
+    const paid = connectProtocols({
+      guard: DEFAULT_GUARD,
+      gate: { alias: 'test-gate', params: ['owner'] },
+      localLlm: { alias: 'test-paid-llm', params: ['cap'] },
+    })
+    const { describe: list, apply } = paid.project.kit
+
+    expect([list.alias, apply.alias]).toEqual([connect.project.kit.describe, connect.project.kit.apply])
+    expect([list.route.route.path, apply.route.route.path]).toEqual(['/project/:id/kits', '/project/:id/kits'])
+    expect([list.route.route.method, apply.route.route.method]).toEqual([RouteMethod.GET, RouteMethod.POST])
+    expect([aliasOf(list.route.route.parent), aliasOf(apply.route.route.parent)]).toEqual([connect.base, connect.base])
+    expect([list.gate, apply.gate]).toEqual([undefined, undefined])
+    expect([connectRef.project.kit.describe.alias, connectRef.project.kit.apply.alias])
+      .toEqual([connect.project.kit.describe, connect.project.kit.apply])
+  })
+
+  test('the kit view, the describe reply, the apply body and its result are closed shapes', () => {
+    const ajv = new Ajv({ strict: false })
+    const view = ajv.compile(PlanningKitViewSchema)
+    const reply = ajv.compile(ConnectKitDescribeSchema)
+    const body = ajv.compile(ConnectKitApplyBodySchema)
+    const result = ajv.compile(ConnectKitApplyResultSchema)
+    const kit = {
+      id: 'project', kind: 'project', title: 'Project tracking', purpose: 'Tasks moving to done',
+      container: { key: 'workspace', label: 'Project' },
+      types: [{ key: 'task', label: 'Task', flow: 'task' }],
+      flows: [{ key: 'task', label: 'Task', statuses: [{ key: 'open', label: 'Open', intrinsic: 'planned' }] }],
+    }
+
+    expect(view(kit)).toBe(true)
+    expect(view({ ...kit, extra: true })).toBe(false)
+    expect(view({ ...kit, types: [{ key: 'task', label: 'Task' }] })).toBe(false)
+    expect(reply({ kits: [kit] })).toBe(true)
+    expect(body({ kit: 'project' })).toBe(true)
+    expect(body({ kit: 'project', types: ['task', 'bug'] })).toBe(true)
+    expect(body({ kit: 'project', types: null })).toBe(true)
+    expect(body({ kit: '' })).toBe(false)
+    expect(body({ types: ['task'] })).toBe(false)
+    expect(body({ kit: 'project', force: true })).toBe(false)
+    expect(result({ applied: ['task'], skipped: ['bug'], warnings: [] })).toBe(true)
+    expect(result({ applied: ['task'], skipped: [] })).toBe(false)
   })
 })

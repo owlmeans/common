@@ -63,7 +63,7 @@ answers them, model tasks queue for the parent agent.
 sixty. Anything that takes minutes is a JOB: it returns at once and is polled. A tool that blocked
 would be reported to the user as a hung server rather than as a slow platform.
 
-**A tool that cannot work in a mode is hidden, not failing.** `visibleTools(host)` is the whole
+**A tool that cannot work in a mode is hidden, not failing.** `catalogueHelper.visibleTools(host)` is the whole
 catalogue a parent sees, and it is exactly the set of things that work for it. A tool offered and
 then refused is one an agent tries once and remembers as broken.
 
@@ -75,7 +75,7 @@ throughput problem, it is a corrupted tree.
 answer is handed everything still outstanding, including what it had already answered. Re-running a build
 because an acknowledgement was lost is exactly the cost that cache avoids.
 
-**A malformed model-task answer is refused locally.** `parseTaskResult` checks the answer against
+**A malformed model-task answer is refused locally.** `makeTaskEnvelopeModel(task).parseTaskResult` checks the answer against
 the task before the platform ever sees it — with the subagent's context still open, so the parent
 can retry immediately. A malformed answer that reached the platform would cost a whole new task, a
 new subagent and another wait.
@@ -96,7 +96,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

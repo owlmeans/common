@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { handleDeviceAuthorization } from '../src/handlers/device.js'
-import { approveConsent, denyConsent, loadConsent } from '../src/handlers/consent.js'
+import { approveConsent, denyConsent, loadConsent } from '../src/handlers/consent/index.js'
 import { handleToken } from '../src/handlers/token.js'
 import { makeOAuthProtocols } from '@owlmeans/oauth'
 import { makeTestContext, seedProfile, session, TEST_CLIENT_ID } from './context.js'

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 import type { Page } from '@owlmeans/test-ui'
 import { CHUNK_RELOAD_KEY } from '../src/consts.js'
 import { HARNESS_URL } from './context.js'
@@ -24,7 +24,7 @@ const bootsOf = async (page: Page): Promise<number> => {
 }
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 // A cold Vite server transforms the harness and optimizes its dependencies on the first request,

@@ -1,12 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  CONSENT_EVENT, CONSENT_KEY, DEFAULT_CONSENT_CATEGORIES, consentBootstrapScript,
-} from '@owlmeans/consent'
-import type { ConsentCategory } from '@owlmeans/consent'
-import {
-  GOOGLE_TAG_CSP_SOURCES, GOOGLE_TAG_FRAME_SOURCES, googleTagHeadScript, googleTagKind,
-  googleTagServices, isGoogleTagId,
-} from '../src/index.js'
+import { CONSENT_EVENT, CONSENT_KEY, DEFAULT_CONSENT_CATEGORIES, type ConsentCategory, consentModeHelper } from '@owlmeans/consent'
+import { googleTagHelper } from '../src/index.js'
+import { GOOGLE_TAG_CSP_SOURCES, GOOGLE_TAG_FRAME_SOURCES } from '../src/consts.js'
 
 /**
  * The publisher's filter for slot-supplied CSP sources (`CSP_SOURCE_SHAPE` in viable's
@@ -114,20 +109,20 @@ describe('isGoogleTagId / googleTagKind', () => {
 
   for (const [id, kind] of cases) {
     test(`${JSON.stringify(id)} → ${String(kind)}`, () => {
-      expect(isGoogleTagId(id)).toBe(kind != null)
-      expect(googleTagKind(id)).toBe(kind)
+      expect(googleTagHelper.isGoogleTagId(id)).toBe(kind != null)
+      expect(googleTagHelper.googleTagKind(id)).toBe(kind)
     })
   }
 
   test('a value that is not a string is not an id', () => {
-    expect(isGoogleTagId(undefined as never)).toBe(false)
-    expect(googleTagKind(null as never)).toBeNull()
+    expect(googleTagHelper.isGoogleTagId(undefined as never)).toBe(false)
+    expect(googleTagHelper.googleTagKind(null as never)).toBeNull()
   })
 })
 
 describe('googleTagHeadScript — the order ("advanced" mode — the original, unconditional load)', () => {
   test('gtag.js: consent default, then redaction, then js/config, then the library', () => {
-    const script = googleTagHeadScript({ id: 'G-ABCD1234', mode: 'advanced' })
+    const script = googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234', mode: 'advanced' })
     const page = browser()
     page.run(script)
 
@@ -150,7 +145,7 @@ describe('googleTagHeadScript — the order ("advanced" mode — the original, u
 
   test('the redaction flags carry the right values', () => {
     const page = browser()
-    page.run(googleTagHeadScript({ id: 'AW-123456789', mode: 'advanced' }))
+    page.run(googleTagHelper.googleTagHeadScript({ id: 'AW-123456789', mode: 'advanced' }))
     const sets = ((page.win.dataLayer as ArrayLike<unknown>[]) ?? [])
       .map(entry => Array.from(entry))
       .filter(args => args[0] === 'set')
@@ -159,7 +154,7 @@ describe('googleTagHeadScript — the order ("advanced" mode — the original, u
   })
 
   test('Tag Manager: consent default, then redaction, then the container', () => {
-    const script = googleTagHeadScript({ id: 'GTM-ABC1234', mode: 'advanced' })
+    const script = googleTagHelper.googleTagHeadScript({ id: 'GTM-ABC1234', mode: 'advanced' })
     const page = browser()
     page.run(script)
 
@@ -177,7 +172,7 @@ describe('googleTagHeadScript — the order ("advanced" mode — the original, u
 
   test('a returning visitor\'s decision is applied before the tag is configured', () => {
     const page = browser({ record: { essential: true, analytics: true, marketing: false, v: 2 } })
-    page.run(googleTagHeadScript({ id: 'G-ABCD1234' }))
+    page.run(googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234' }))
     const queue = page.queue()
 
     expect(queue.slice(0, 2)).toEqual(['consent:default', 'consent:update'])
@@ -189,7 +184,7 @@ describe('googleTagHeadScript — the order ("advanced" mode — the original, u
   test('running it twice configures the tag once', () => {
     // Two stampings or a hot reload must not double-count every page view.
     const page = browser()
-    const script = googleTagHeadScript({ id: 'G-ABCD1234', mode: 'advanced' })
+    const script = googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234', mode: 'advanced' })
     page.run(script)
     page.run(script)
 
@@ -200,19 +195,19 @@ describe('googleTagHeadScript — the order ("advanced" mode — the original, u
 
   test('window.gtag is published for application events, and never replaced', () => {
     const page = browser()
-    page.run(googleTagHeadScript({ id: 'G-ABCD1234', mode: 'advanced' }))
+    page.run(googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234', mode: 'advanced' }))
     expect(typeof page.win.gtag).toBe('function')
 
     const owned = () => undefined
     const other = browser()
     other.win.gtag = owned
-    other.run(googleTagHeadScript({ id: 'G-ABCD1234', mode: 'advanced' }))
+    other.run(googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234', mode: 'advanced' }))
     expect(other.win.gtag).toBe(owned)
   })
 
   test('a custom queue is used by the tag and passed to the library', () => {
     const page = browser()
-    page.run(googleTagHeadScript({ id: 'G-ABCD1234', dataLayerName: 'owlLayer', mode: 'advanced' }))
+    page.run(googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234', dataLayerName: 'owlLayer', mode: 'advanced' }))
 
     expect(page.queue('owlLayer')).toContain('config:G-ABCD1234')
     expect(page.loaded[0].src).toBe('https://www.googletagmanager.com/gtag/js?id=G-ABCD1234&l=owlLayer')
@@ -220,7 +215,7 @@ describe('googleTagHeadScript — the order ("advanced" mode — the original, u
 
   test('a queue name that is not an identifier falls back to dataLayer', () => {
     const page = browser()
-    page.run(googleTagHeadScript({ id: 'G-ABCD1234', dataLayerName: 'a-b', mode: 'advanced' }))
+    page.run(googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234', dataLayerName: 'a-b', mode: 'advanced' }))
 
     expect(page.queue()).toContain('config:G-ABCD1234')
     expect(page.loaded[0].src).toBe('https://www.googletagmanager.com/gtag/js?id=G-ABCD1234')
@@ -233,20 +228,20 @@ describe('googleTagHeadScript — "basic" mode (the default)', () => {
     // this invalid never reaches the gate at all.
     for (const id of ['', 'UA-1234-1', 'G-x"+alert(1)']) {
       for (const mode of ['basic', 'advanced'] as const) {
-        const script = googleTagHeadScript({ id, mode })
+        const script = googleTagHelper.googleTagHeadScript({ id, mode })
 
-        expect(script).toBe(consentBootstrapScript({ id } as never))
+        expect(script).toBe(consentModeHelper.consentBootstrapScript({ id } as never))
         expect(script).not.toContain('googletagmanager')
         expect(script).not.toContain('ads_data_redaction')
       }
     }
     // And omitting `mode` altogether is the same as the default, `'basic'`.
-    expect(googleTagHeadScript({ id: '' })).toBe(googleTagHeadScript({ id: '', mode: 'basic' }))
+    expect(googleTagHelper.googleTagHeadScript({ id: '' })).toBe(googleTagHelper.googleTagHeadScript({ id: '', mode: 'basic' }))
   })
 
   test('a valid id with no stored consent does not load the tag synchronously', () => {
     const page = browser()
-    page.run(googleTagHeadScript({ id: 'G-ABCD1234' }))
+    page.run(googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234' }))
 
     // The consent bootstrap and the redaction flags still run unconditionally — Consent Mode's
     // OWN denied-by-default signals are declared either way — but nothing asked for the tag itself.
@@ -257,7 +252,7 @@ describe('googleTagHeadScript — "basic" mode (the default)', () => {
 
   test('it loads once the visitor grants a signal-bearing category, and not before', () => {
     const page = browser()
-    page.run(googleTagHeadScript({ id: 'G-ABCD1234' }))
+    page.run(googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234' }))
 
     // Denying, or granting only a category with no Consent Mode signal, changes nothing.
     page.grant({ essential: true, analytics: false, marketing: false })
@@ -276,7 +271,7 @@ describe('googleTagHeadScript — "basic" mode (the default)', () => {
 
   test('a returning visitor with a stored grant loads immediately, with no listener left behind', () => {
     const page = browser({ record: { essential: true, analytics: true, marketing: false, v: 2 } })
-    page.run(googleTagHeadScript({ id: 'G-ABCD1234' }))
+    page.run(googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234' }))
 
     expect(page.loaded).toHaveLength(1)
     expect(page.queue().filter(entry => entry.startsWith('config:'))).toEqual(['config:G-ABCD1234'])
@@ -285,7 +280,7 @@ describe('googleTagHeadScript — "basic" mode (the default)', () => {
 
   test('the Tag Manager container is gated the same way', () => {
     const page = browser()
-    page.run(googleTagHeadScript({ id: 'GTM-ABC1234' }))
+    page.run(googleTagHelper.googleTagHeadScript({ id: 'GTM-ABC1234' }))
 
     expect(page.loaded).toHaveLength(0)
 
@@ -305,7 +300,7 @@ describe('googleTagHeadScript — safe inline in HTML', () => {
   ]
 
   test('no configured value can close the script element or open a comment', () => {
-    const script = googleTagHeadScript({
+    const script = googleTagHelper.googleTagHeadScript({
       id: 'G-ABCD1234', categories: hostile, storageKey: 'k</SCRIPT>',
       dataLayerName: '</script><script>alert(1)</script>',
     })
@@ -318,7 +313,7 @@ describe('googleTagHeadScript — safe inline in HTML', () => {
     // The backslashes are for the HTML parser; JavaScript must read the same values as before.
     const key = 'k</script>'
     const page = browser({ key, record: { 'x</script><!--y': true, v: 2 } })
-    page.run(googleTagHeadScript({ id: 'G-ABCD1234', categories: hostile, storageKey: key }))
+    page.run(googleTagHelper.googleTagHeadScript({ id: 'G-ABCD1234', categories: hostile, storageKey: key }))
 
     expect(page.win.probe).toBe(true)
     expect(page.queue()).toContain('consent:update')
@@ -365,7 +360,7 @@ describe('googleTagServices', () => {
   const categoryKeys = new Set(DEFAULT_CONSENT_CATEGORIES.map(category => category.key))
 
   test('GA4 is analytics, with the session cookie named after the measurement id', () => {
-    const services = googleTagServices('G-ABCD1234')
+    const services = googleTagHelper.googleTagServices('G-ABCD1234')
 
     expect(services).toHaveLength(1)
     expect(services[0]).toMatchObject({ name: 'Google Analytics', category: 'analytics' })
@@ -373,16 +368,16 @@ describe('googleTagServices', () => {
   })
 
   test('Google Ads and Floodlight are marketing', () => {
-    expect(googleTagServices('AW-123456789').map(service => service.category)).toEqual(['marketing'])
-    expect(googleTagServices('AW-123456789')[0].cookies).toContain('_gcl_au')
-    expect(googleTagServices('DC-1234567').map(service => service.category)).toEqual(['marketing'])
-    expect(googleTagServices('DC-1234567')[0].cookies).toContain('_gcl_dc')
+    expect(googleTagHelper.googleTagServices('AW-123456789').map(service => service.category)).toEqual(['marketing'])
+    expect(googleTagHelper.googleTagServices('AW-123456789')[0].cookies).toContain('_gcl_au')
+    expect(googleTagHelper.googleTagServices('DC-1234567').map(service => service.category)).toEqual(['marketing'])
+    expect(googleTagHelper.googleTagServices('DC-1234567')[0].cookies).toContain('_gcl_dc')
   })
 
   test('a container or a Google tag discloses both, as configured there', () => {
     // Whatever the owner put in the container can run, so the policy may not claim less.
     for (const id of ['GTM-ABC1234', 'GT-ABCD1234']) {
-      const services = googleTagServices(id)
+      const services = googleTagHelper.googleTagServices(id)
 
       expect(services.map(service => service.category)).toEqual(['analytics', 'marketing'])
       expect(services.every(service => /configured/.test(service.purpose ?? ''))).toBe(true)
@@ -391,7 +386,7 @@ describe('googleTagServices', () => {
 
   test('every entry is complete and lands in a default category', () => {
     for (const id of ['G-ABCD1234', 'GT-ABCD1234', 'AW-123456789', 'DC-1234567', 'GTM-ABC1234']) {
-      for (const service of googleTagServices(id)) {
+      for (const service of googleTagHelper.googleTagServices(id)) {
         expect(service.provider).toBe('Google LLC')
         expect(service.privacyHref).toStartWith('https://policies.google.com/')
         expect(categoryKeys.has(service.category)).toBe(true)
@@ -401,7 +396,7 @@ describe('googleTagServices', () => {
   })
 
   test('an invalid id discloses nothing, as it loads nothing', () => {
-    expect(googleTagServices('')).toEqual([])
-    expect(googleTagServices('UA-1234-1')).toEqual([])
+    expect(googleTagHelper.googleTagServices('')).toEqual([])
+    expect(googleTagHelper.googleTagServices('UA-1234-1')).toEqual([])
   })
 })

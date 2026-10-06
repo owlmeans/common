@@ -1,6 +1,4 @@
-import type {
-  Resource, ResourceRecord, ResourceDbService, DbLocker, LockableResource, MigratableResource
-} from '@owlmeans/resource'
+import type { Resource, ResourceRecord, ResourceDbService, DbLocker, LockableResource, MigratableResource, MigrationRegistry } from '@owlmeans/resource'
 import type { Collection, CreateIndexesOptions, Db, IndexSpecification, MongoClient } from 'mongodb'
 import type { AnySchema } from 'ajv'
 
@@ -82,4 +80,10 @@ export interface MongoResource<T extends ResourceRecord> extends Resource<T>, Lo
 }
 
 export interface MongoDbService extends ResourceDbService<Db, MongoClient>, DbLocker<ResourceRecord> {
+}
+
+export interface MongoDeclaration {
+  migrations: MigrationRegistry<MongoTx>
+  /** Declared ObjectId references, keyed by field. Registered via `resource.reference()`. */
+  references: Map<string, MongoReference>
 }

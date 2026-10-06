@@ -1,6 +1,7 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import type { LazyService, BasicContext } from '@owlmeans/context'
 import type { LoginMethodEmphasis, LoginScreenConfig, LoginTermsConfig } from '@owlmeans/config'
+import { LoginOutcome } from './consts.js'
 
 /**
  * The context a login plugin is handed.
@@ -29,36 +30,6 @@ export interface LoginEnv {
   hasOpener: boolean
 }
 
-/** What a stage did, and therefore what the caller must do next. */
-export enum LoginOutcome {
-  /** The plugin took the flow over and it is finished. The caller does nothing more. */
-  Handled = 'handled',
-  /** The plugin did nothing — the caller carries on with its ordinary continuation. */
-  Passed = 'passed',
-  /** The browser is leaving this document. The caller must not navigate or render. */
-  Redirected = 'redirected',
-  /** Cannot proceed without a fresh user gesture — the caller renders a sign-in control. */
-  Gesture = 'gesture',
-  /** Authenticated, but with no channel back to the window that started it. */
-  Orphaned = 'orphaned',
-  /** The attempt ended with no token (the user closed the window, or the provider refused it). */
-  Failed = 'failed',
-  /**
-   * A window this flow needed could not be opened at all — `window.open` returned `null`, which is
-   * the browser's own popup blocker, not a flow failure. Distinct from {@link Failed}: a caller
-   * with nowhere inline to render (a header "Log in"/"Log out" control, not the sign-in screen)
-   * needs to know specifically that a fresh click reopening the SAME control will not help, and
-   * that the browser is already showing its own blocked-popup affordance somewhere.
-   */
-  Blocked = 'blocked',
-}
-
-/** Why a surrogate window was opened. */
-export enum LoginIntent {
-  Login = 'login',
-  Logout = 'logout',
-}
-
 export interface LoginRequest {
   /** Where the login flow starts — a resolved dispatcher path, or the current address. */
   url: string
@@ -68,7 +39,18 @@ export interface LoginRequest {
    * fallback is a full page load of {@link url}.
    */
   navigate?: () => void | Promise<void>
-  /** Entrypoint alias to return to after login. */
+  /**
+   * Entrypoint alias to land on once sign-in completes.
+   *
+   * The facade parks it (`suspendLanding` from `@owlmeans/client-flow`, the record
+   * `resumeSuspendedFlow` reads) once the preconditions have passed, and holds {@link navigate}
+   * until the write has landed — so the continuation still goes to the dispatcher, whose ordinary
+   * post-sign-in landing (`landAfterLogin`: landing hooks, pending steps such as a consent screen,
+   * then the suspended landing) ends on this screen. It is never a navigation target of its own:
+   * a guarded screen reached before sign-in renders signed out. An attempt that ends without a
+   * sign-in (`Blocked`, `Failed`, `Gesture`) discards the parked screen again. A caller with no
+   * {@link navigate} leaves the document at once, so its parked screen is best-effort only.
+   */
   target?: string
 }
 
@@ -242,7 +224,7 @@ export type LoginScreenComponent = ComponentType<LoginScreenProps>
  * that control a way to speak — e.g. a toast when {@link LoginOutcome.Blocked} fires. Unregistered,
  * it is silence, which is what a non-DOM host and a screen-mounted flow both already have.
  */
-export type LoginNotifier = (outcome: LoginOutcome, env: LoginEnv) => void
+export interface LoginNotifier { (outcome: LoginOutcome, env: LoginEnv): void }
 
 export interface LoginService extends LazyService {
   registerPlugin: (plugin: LoginPlugin) => void
@@ -335,15 +317,6 @@ export interface LoginStep {
   required?: boolean
 }
 
-/** Where a finished sign-in (or a pending step) lands. */
-export interface LoginLanding {
-  alias: string
-  params?: LoginLandingParams
-  query?: LoginLandingParams
-  /** The step alias this landing came from, when it came from one. */
-  step?: string
-}
-
 /**
  * Observes that a freshly authenticated token has landed — unlike {@link LoginStep}, it never
  * blocks the landing, it only reacts to it, once per distinct token.
@@ -355,21 +328,6 @@ export interface LoginLandingHook {
   alias: string
   priority?: number
   landed: (ctx: LoginContext) => Promise<void>
-}
-
-/** Options for {@link LoginService.landAfterLogin}-shaped helpers (./land.js). */
-export interface LandOptions {
-  /** Where to land when nothing else claims the flow. Defaults to `{ alias: HOME }`. */
-  fallback?: LoginLanding
-  /** `false` skips `resumeSuspendedFlow` — the caller already has its own concrete destination. */
-  resume?: boolean
-  /** Skip every step up to and including this alias — the resume point for a step's re-entry. */
-  after?: string
-  /**
-   * Overrides the step/hook timeout for this call. Mainly for tests; production callers leave it
-   * at the default (`LOGIN_STEP_TIMEOUT`).
-   */
-  stepTimeout?: number
 }
 
 export interface LoginServiceAppend {

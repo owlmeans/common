@@ -1,5 +1,5 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { PlanningUnsupported, SchemaWriteMode, scopedRegistryOf } from '@owlmeans/planning'
+import { PlanningUnsupported, SchemaWriteMode, scopedSchemaHelper } from '@owlmeans/planning'
 import type {
   PlanningProtocols, SchemaDefineReply, SchemaDefineRequest, ScopedSchemaRegistry,
 } from '@owlmeans/planning'
@@ -34,7 +34,7 @@ export const makeRemoteDefinitions = <C extends BasicConfig, T extends BasicCont
     const key = project ?? ''
     let entry = cache.get(key)
     if (entry == null) {
-      const loading = (async () => scopedRegistryOf(await context.entrypoint(protocols.schema.list).call({
+      const loading = (async () => scopedSchemaHelper.scopedRegistryOf(await context.entrypoint(protocols.schema.list).call({
         query: project != null ? { project } : {}, timeout: opts.timeout,
       })))()
       entry = loading

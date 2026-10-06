@@ -1,23 +1,6 @@
 import type { SlotMetadata } from './types.js'
 
 /**
- * The build-time environment keys a generated application reads its branding from.
- *
- * Named here, once, because two processes emit them — the publisher for the preview and the agent
- * for a production publish — and a key spelled differently in one of them produces an application
- * that silently falls back to its defaults with nothing anywhere reporting it.
- */
-export const BRANDING_ENV_KEYS = [
-  'BRANDING_COPYRIGHT',
-  'BRANDING_ORGANIZATION',
-  'BRANDING_TERMS_URL',
-  'BRANDING_PRIVACY_URL',
-  'BRANDING_CREDIT',
-  'BRANDING_PRODUCT',
-  'BRANDING_GOOGLE_TAG',
-] as const
-
-/**
  * Slot metadata as build-time environment.
  *
  * `BRANDING_CREDIT` is the one value whose ABSENCE means something: only an explicit empty string

@@ -6,7 +6,7 @@ import { backend, route, RouteMethod } from '@owlmeans/route'
 import { GUARD_ED25519 } from '@owlmeans/server-app'
 import { bind, bindAll } from '@owlmeans/server-entrypoint'
 import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
-import { paymentGate, paymentGateEntrypoints, paymentGateHandlers, webhookUrlOf } from '../src/index.js'
+import { paymentGate, paymentGateEntrypoints, paymentGateHandlers, webhookOf } from '../src/index.js'
 import type { PaygateParams, ResyncResult, ResyncSubscriptionsResult } from '../src/index.js'
 import { makeFakeContext } from './fake-stripe.js'
 import type { FakeContext } from './fake-stripe.js'
@@ -113,7 +113,7 @@ describe('@owlmeans/server-payment — the payment gate handlers', () => {
   test('the application\'s webhook path is the one Stripe is pointed at — a re-declaration keeps the library\'s path', async () => {
     const hooks = await hookProcess(false)
 
-    expect(webhookUrlOf(hooks.ctx)).toBe(`https://${HOOKS_HOST}/payment-gate/webhook/stripe`)
+    expect(webhookOf(hooks.ctx).webhookUrlOf()).toBe(`https://${HOOKS_HOST}/payment-gate/webhook/stripe`)
     expect([own.base.route.route.path, own.webhook.route.route.path])
       .toEqual([paymentGate.base.route.route.path, paymentGate.webhook.route.route.path])
   })

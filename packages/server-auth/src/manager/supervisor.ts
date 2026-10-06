@@ -1,56 +1,10 @@
 import { AuthenticationType } from '@owlmeans/auth'
-import type { AuthPayload } from '@owlmeans/auth'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
-import type { AppConfig, AppContext } from './types.js'
+import type { AppConfig, AppContext, SupervisorAuthOptions, SupervisorPluginOptions } from './types.js'
+import type { AuthPluginFactory } from './plugins/types.js'
 import { registerPlugin } from './plugins/index.js'
 import { makeSupervisorPlugin } from './plugins/supervisor.js'
-
-/**
- * What a `SupervisorUserResolver` returns: the identity the supervisor-minted
- * token will represent. Only `userId` is required - the rest default sensibly.
- */
-export interface SupervisorUserResolution extends Partial<Pick<AuthPayload,
-  'profileId' | 'entitySlug' | 'role' | 'scopes'>> {
-  userId: string
-}
-
-/**
- * Find-or-create the target identity for a supervisor login. `register` reflects
- * `allowRegistration`; when false the resolver should only look existing users up.
- * Wire this to the project's identity store (e.g. `@owlmeans/server-auth-identity`).
- */
-export interface SupervisorUserResolver {
-  <C extends AppConfig, T extends AppContext<C>>(
-    userId: string, context: T, opts: { register: boolean }
-  ): Promise<SupervisorUserResolution>
-}
-
-/** Resolved options handed to the plugin factory. */
-export interface SupervisorPluginOptions {
-  supervisors: string[]
-  allowRegistration: boolean
-  resolveUser?: SupervisorUserResolver
-}
-
-export interface SupervisorAuthOptions {
-  /** Trusted-record aliases authorized to act as supervisor. Default: master + superuser. */
-  supervisors?: string[]
-  /** Find-or-create the target user by id/email. Default: trust the id as-is. */
-  resolveUser?: SupervisorUserResolver
-  /** Allow minting a token for an unknown user (registration). Default: true. */
-  allowRegistration?: boolean
-  /** Force enable/disable. Default: development only (cfg.debug.all || cfg.debug.supervisor). */
-  enabled?: boolean
-  /**
-   * Also accept internal owlmeans `Ed25519BasicToken`s even when another guard
-   * (e.g. OIDC) is the primary guard on protected entrypoints. Default: true.
-   */
-  acceptInternalTokens?: boolean
-  /** The internal-token guard to add as a coguard. Default: DEFAULT_GUARD ('auth'). */
-  guard?: string
-}
-
-const DEFAULT_SUPERVISORS = ['master', 'superuser']
+import { DEFAULT_SUPERVISORS } from './consts.local.js'
 
 const isDevelopment = (context: { cfg: { debug?: { all?: boolean, supervisor?: boolean } } }): boolean =>
   context.cfg.debug?.all === true || context.cfg.debug?.supervisor === true
@@ -97,7 +51,7 @@ export const appendSupervisorAuth = <C extends AppConfig, T extends AppContext<C
 
   registerPlugin(
     AuthenticationType.Supervisor,
-    (ctx => makeSupervisorPlugin(ctx as unknown as AppContext<AppConfig>, resolved)) as Parameters<typeof registerPlugin>[1]
+    (ctx => makeSupervisorPlugin(ctx as unknown as AppContext<AppConfig>, resolved)) as AuthPluginFactory
   )
 
   if (opts?.acceptInternalTokens !== false) {

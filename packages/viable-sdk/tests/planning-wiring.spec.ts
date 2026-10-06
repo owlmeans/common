@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
-import { PLANNING_SERVICE, planningAliases } from '@owlmeans/planning'
+import { PLANNING_SERVICE, planningAliasHelper } from '@owlmeans/planning'
 import { CONNECT_TOKEN_PREFIX, connectRef } from '@owlmeans/viable-common'
 import { makeSdkContext } from '../src/context/index.js'
 
@@ -26,7 +26,7 @@ describe('viable-sdk — makeSdkContext binds the planning tree manager-api moun
   test('every planning alias is bound beside the connector routes, and the context initializes', async () => {
     const context = await offline()
 
-    for (const alias of leaves(planningAliases(BASE))) {
+    for (const alias of leaves(planningAliasHelper.planningAliases(BASE))) {
       expect(() => context.entrypoint(alias)).not.toThrow()
     }
     // The connector surface is still there: one registration holds both.
@@ -37,7 +37,7 @@ describe('viable-sdk — makeSdkContext binds the planning tree manager-api moun
 
   test('the paths are the platform\'s, and the commit feed hangs under its update base', async () => {
     const context = await offline()
-    const aliases = planningAliases(BASE)
+    const aliases = planningAliasHelper.planningAliases(BASE)
     const path = (alias: string): string => context.entrypoint<ClientEntrypoint>(alias).path()
 
     expect(path(aliases.card.list)).toBe('/planning/cards')

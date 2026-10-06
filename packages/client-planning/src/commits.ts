@@ -1,20 +1,13 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import {
-  CommitFailed, CommitState, CommitTimeout, DEFAULT_COMMIT_POLL, DEFAULT_COMMIT_TIMEOUT, MAX_COMMIT_POLL,
-  PLANNING_COMMIT_EVENT, PlanningError, WorkcardKind,
-} from '@owlmeans/planning'
-import type {
-  CommitEvent, CommitFilter, CommitStatus, PlanningProtocols, Unsubscribe, Workcard,
-} from '@owlmeans/planning'
+import { logger } from '@owlmeans/log'
+import { CommitFailed, CommitState, CommitTimeout, DEFAULT_COMMIT_POLL, DEFAULT_COMMIT_TIMEOUT, MAX_COMMIT_POLL, PLANNING_COMMIT_EVENT, PlanningError, WorkcardKind, type CommitEvent, type CommitFilter, type CommitStatus, type PlanningProtocols, type Unsubscribe, type Workcard } from '@owlmeans/planning'
 import type { Connection } from '@owlmeans/socket'
 import { EARLY_POLL_LADDER, EARLY_POLL_MS, LONG_POLL_GRACE } from './consts.js'
 import type { RemoteCommitSource, RemoteCommitSourceOptions } from './types.js'
-import { dropCard, putCard, putCommit } from './utils/record.js'
+import type { Subscription } from './types.local.js'
+import { recordUtils } from './utils/record.js'
 
-interface Subscription {
-  listener: (event: CommitEvent) => void | Promise<void>
-  filter?: CommitFilter
-}
+const log = logger('client-planning')
 
 const matches = (filter: CommitFilter | undefined, event: CommitEvent): boolean =>
   filter == null || (
@@ -61,7 +54,7 @@ export const makeRemoteCommitSource = <C extends BasicConfig, T extends BasicCon
       try {
         await subscription.listener(event)
       } catch (e) {
-        console.error('Planning commit listener error:', e)
+        log.error('Planning commit listener failed', e)
       }
     }
   }
@@ -86,7 +79,7 @@ export const makeRemoteCommitSource = <C extends BasicConfig, T extends BasicCon
         return connection
       } catch (e) {
         opening = null
-        console.error('Planning commit socket error:', e)
+        log.warn('Planning commit socket failed to open', e)
         return null
       }
     })()
@@ -122,16 +115,16 @@ export const makeRemoteCommitSource = <C extends BasicConfig, T extends BasicCon
       return
     }
     const known = await stores.commits.load(transition)
-    await putCommit(stores.commits, {
+    await recordUtils.putCommit(stores.commits, {
       id: transition, state: settled.state, at: settled.at, error: settled.error,
     })
     if (settled.state !== CommitState.Committed) {
       return
     }
     if (settled.card != null) {
-      await putCard(stores.cards, settled.card)
+      await recordUtils.putCard(stores.cards, settled.card)
     } else if (settled.card === null && known?.card != null) {
-      await dropCard(stores, known.card, known.kind === WorkcardKind.Project)
+      await recordUtils.dropCard(stores, known.card, known.kind === WorkcardKind.Project)
     }
   }
 

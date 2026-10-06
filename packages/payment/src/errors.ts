@@ -1,6 +1,8 @@
 
 import { ResilientError } from '@owlmeans/error'
 import { AuthForbidden } from '@owlmeans/auth'
+import { BILLING_COUNTRY_LOCKED_MARKER, CANCELLATION_UNAVAILABLE_MARKER, CAPABILITY_REQUIRED_MARKER, CHECKOUT_LIMIT_MARKER, LIMIT_EXHAUSTED_FIELDS, LIMIT_EXHAUSTED_MARKER, PERFORMANCE_CONSENT_MARKER, SUBSCRIPTION_START_MARKER, WITHDRAWAL_UNAVAILABLE_MARKER } from './consts.local.js'
+import type { BillingCountryLockedDetails, CheckoutLimitExceededDetails, LimitExhaustedDetails, PerformanceConsentRequiredDetails } from './types.js'
 
 export class PaymentError extends ResilientError {
   public static override typeName: string = 'PaymentError'
@@ -183,8 +185,6 @@ export class EntitlementRefusal extends AuthForbidden {
   }
 }
 
-const CAPABILITY_REQUIRED_MARKER = 'capability-required:'
-
 /** None of the capability parameters (OR'd) is granted. Message marker `capability-required:<a|b>`. */
 export class CapabilityRequired extends EntitlementRefusal {
   public static override typeName: string = `${EntitlementRefusal.typeName}CapabilityRequired`
@@ -210,16 +210,6 @@ export class CapabilityRequired extends EntitlementRefusal {
   }
 }
 
-export interface LimitExhaustedDetails {
-  key: string
-  used: number
-  limit: number
-  /** When the window renews. Absent for a limit that never renews. */
-  resetsAt?: Date
-}
-
-const LIMIT_EXHAUSTED_MARKER = 'limit-exhausted:'
-const LIMIT_EXHAUSTED_FIELDS = /^(.*):([^:/]+)\/([^:/]+)(?::(.+))?$/
 
 /**
  * A limit has no room left. Message marker `limit-exhausted:<key>:<used>/<limit>[:<resetsAt ISO>]`.
@@ -319,15 +309,6 @@ const decode = (value: string): string => {
   }
 }
 
-export interface PerformanceConsentRequiredDetails {
-  /** How many open purchases wait for consent. */
-  pending: number
-  /** The latest of their deadlines. */
-  deadline?: Date
-}
-
-const PERFORMANCE_CONSENT_MARKER = 'performance-consent-required:'
-
 /**
  * Billed work would spend credits of a purchase still inside its withdrawal window, and the
  * consumer has not expressly requested performance. HTTP 428. Marker
@@ -367,8 +348,6 @@ export class PerformanceConsentRequired extends ConsumerRightsRefusal {
   }
 }
 
-const SUBSCRIPTION_START_MARKER = 'subscription-start-required:'
-
 /**
  * A subscription checkout needs a fresh express start request bound to this plan. HTTP 428.
  * Marker `subscription-start-required:<encodeURIComponent(planSku)>`.
@@ -406,15 +385,6 @@ export class SubscriptionStartRequired extends ConsumerRightsRefusal {
     this.applyFields()
   }
 }
-
-export interface BillingCountryLockedDetails {
-  /** The locked country. */
-  country: string
-  /** The country the request declared. */
-  requested?: string
-}
-
-const BILLING_COUNTRY_LOCKED_MARKER = 'billing-country-locked:'
 
 /**
  * The entity's billing country is fixed and the request declared another. HTTP 409. Marker
@@ -454,8 +424,6 @@ export class BillingCountryLocked extends ConsumerRightsRefusal {
   }
 }
 
-const WITHDRAWAL_UNAVAILABLE_MARKER = 'withdrawal-unavailable:'
-
 /**
  * The named purchase cannot be withdrawn from (`WithdrawalUnavailableReason`). HTTP 409. Marker
  * `withdrawal-unavailable:<reason>`. Never raised on the public page, which discloses nothing.
@@ -481,8 +449,6 @@ export class WithdrawalUnavailable extends ConsumerRightsRefusal {
   }
 }
 
-const CANCELLATION_UNAVAILABLE_MARKER = 'cancellation-unavailable:'
-
 /**
  * Nothing to cancel in-app (`CancellationUnavailableReason`). HTTP 409. Marker
  * `cancellation-unavailable:<reason>`.
@@ -507,17 +473,6 @@ export class CancellationUnavailable extends ConsumerRightsRefusal {
     this.applyFields()
   }
 }
-
-export interface CheckoutLimitExceededDetails {
-  /** The key of the narrowing that set the maximum. */
-  reason: string
-  /** The narrowed maximum, net minor units — below the policy minimum when nothing may be bought. */
-  maximumMinor: number
-  currency: string
-  resetsAt?: Date
-}
-
-const CHECKOUT_LIMIT_MARKER = 'checkout-limit-exceeded:'
 
 /**
  * The amount is above what this entity may buy now (a narrowing of the plan's policy). HTTP 409.

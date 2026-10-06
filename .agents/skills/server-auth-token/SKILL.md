@@ -1,13 +1,13 @@
 ---
 name: server-auth-token
-description: How to use @owlmeans/server-auth-token — the server half of long-lived access tokens — the Mongo store, the guard that verifies a presented token and intersects its scopes with the profile's, the mint/list/revoke handlers, the shared `issueAccessToken`, audience admission for OAuth-issued tokens, and the coguard that admits a token on every already-guarded route. Auto-invoked when registering the token guard or resources, mounting the token handlers, or diagnosing a 401 on a route an access token should reach.
+description: How to use @owlmeans/server-auth-token — the server half of long-lived access tokens — the Mongo store, the guard that verifies a presented token and intersects its scopes with the profile's, the mint/list/revoke handlers, the shared `accessTokenIssuerOf(ctx).issueAccessToken`, audience admission for OAuth-issued tokens, and the coguard that admits a token on every already-guarded route. Auto-invoked when registering the token guard or resources, mounting the token handlers, or diagnosing a 401 on a route an access token should reach.
 user-invocable: false
 ---
 
 # @owlmeans/server-auth-token
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-token": "^0.1.18-rc.29"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-token": "^0.1.18-rc.32"` in `dependencies`
 **Contracts:** `@owlmeans/auth-token` — the record, the routes, the format helpers
 
 ## Key Exports
@@ -19,10 +19,10 @@ user-invocable: false
 | `makeAuthTokenGuard(alias?, opts?)` | The guard itself |
 | `makeAccessTokenResource(dbAlias?)` | The Mongo resource, with its three indexes |
 | `prefixOf(context, opts?)` | The deployment's prefix: guard options → config → default |
-| `hashAccessToken(token)` · `mintAccessToken(prefix)` | The stored form; one minted `{ token, hash, display }` |
+| `tokenHashHelper` — `.hashAccessToken(token)` · `.mintAccessToken(prefix)` | The stored form; one minted `{ token, hash, display }` |
 | `withAuthTokenCoguard(protocolTree, guard?)` | Return the same-shaped immutable tree with the guard appended to every already-guarded protocol |
 | `listAccessTokens` · `createAccessToken` · `revokeAccessToken` | The three handlers |
-| `issueAccessToken(ctx, subject, request)` | Mint one token for `{ entityId, userId, profileId, role, scopes }` — what `createAccessToken` does over an HTTP body, and what an OAuth token endpoint calls over a session it verified itself. `request` is `CreateAccessToken` plus `audience?: string[]` |
+| `accessTokenIssuerOf(ctx).issueAccessToken(subject, request)` | Mint one token for `{ entityId, userId, profileId, role, scopes }` — what `createAccessToken` does over an HTTP body, and what an OAuth token endpoint calls over a session it verified itself. `request` is `CreateAccessToken` plus `audience?: string[]` |
 | `refuseTokenAuth(req, what)` | The one "interactive session only" check — throws `AuthForbidden` when `req.auth.type` is an access token |
 | `AuthTokenGuardOptions` (`prefix`, `denyAliases`, `touchInterval`, `resourceAlias`, `profileAlias`, `resources`) · `IssueAccessTokenSubject` · `IssueAccessTokenRequest` · `AuthTokenConfig` · `AccessTokenResource` | Types |
 
@@ -132,7 +132,7 @@ works.
 ## Tests
 
 `bun test ./tests` in the package — what the guard claims, what it resolves (including that a token
-can never outrank its profile), the mint/list/revoke rules, `issueAccessToken` parity with the route, audience admission, and the coguard's four properties.
+can never outrank its profile), the mint/list/revoke rules, `accessTokenIssuerOf(ctx).issueAccessToken` parity with the route, audience admission, and the coguard's four properties.
 
 ## Depends On
 
@@ -144,5 +144,5 @@ can never outrank its profile), the mint/list/revoke rules, `issueAccessToken` p
 ## Related
 
 - [[auth-token]] — the format, the routes, `audience` and the client carrier guard
-- [[server-oauth]] — the authorization server that mints audience-scoped tokens through `issueAccessToken`
+- [[server-oauth]] — the authorization server that mints audience-scoped tokens through `accessTokenIssuerOf(ctx).issueAccessToken`
 - [[web-auth-token]] — the management panel · [[auth-protocol]] · [[server-auth]]

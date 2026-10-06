@@ -9,7 +9,7 @@ planning service runs in-process.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-planning@^0.1.18-rc.18
+bun add @owlmeans/client-planning@^0.1.18-rc.22
 ```
 
 ## Concepts
@@ -17,12 +17,12 @@ bun add @owlmeans/client-planning@^0.1.18-rc.18
 - **Remote facade** — the same `PlanningFacade` interface the server answers; every method is one
   entrypoint call, and `modelOf(record, facade)` models behave identically on both sides.
 - **One id space** — projects, cards and specifications share ONE card store; a list reaches it
-  through `syncCards(store, items, where)`, never `replace()`.
+  through `syncHelper.syncCards(store, items, where)`, never `replace()`.
 - **Commit** — `execute()` returns a receipt for a pending transition; `receipt.committed()` /
   `commits.wait()` resolve with the folded card, or throw `CommitTimeout` / `CommitFailed`.
 - **Socket seam** — the commit socket is opened by an injected `PlanningSocketOpener`; without one
   the client long-polls.
-- **`head > seq`** — a card with a transition allocated and not yet folded; `applyReceipt` marks it
+- **`head > seq`** — a card with a transition allocated and not yet folded; the mirror's `applyReceipt` marks it
   the moment the server answers.
 
 ## Usage
@@ -77,7 +77,7 @@ Give a browser its commit socket through the host's own opener:
 ```typescript
 appendPlanningClient(context, {
   protocols: planningProtocols,
-  socket: async (protocol, request) => await ws(context.entrypoint(protocol), request),
+  socket: async (protocol, request) => await socketClientHelper.ws(context.entrypoint(protocol), request),
 })
 ```
 
@@ -85,10 +85,15 @@ appendPlanningClient(context, {
 
 - `appendPlanningClient(context, options)`, `makePlanningClientService(context, options)`
 - `makeRemoteFacade(context, protocols, scope, opts)`, `makeRemoteCommitSource(context, protocols, opts?)`
-- `appendPlanningStores(context, aliases?)`, `planningStoresOf(context)`, `syncCards`, `syncLinks`
-- `applyCommitEvent(stores, event, facade?)`, `applyReceipt(stores, view)`, `applyCards(stores, cards)`
+- `appendPlanningStores(context, aliases?)`
+- `syncHelper` — `.syncCards(store, items, where?, opts?)`, `.syncLinks(store, items, where?, opts?)`
+- `planningMirrorOf(stores)` (`makePlanningMirror`) — `.applyCommitEvent(event, facade?)`,
+  `.applyReceipt(view)`, `.applyCards(cards)`
 - `makePlanningFeed(context, opts?)`
-- `planningOf(context, scope?)`, `planningModelOf(context, card, scope?)`
+- `planningContextOf(context)` (`makePlanningContextHelper`) — `.facade(scope?)`, `.model(card, scope?)`,
+  `.stores()`
+- The former plain functions (`syncCards`, `applyCards`, `planningOf`, …) remain as deprecated
+  delegates.
 - `CARDS`, `LINKS`, `COMMITS`, `DEFAULT_STORE_ALIASES`, `LONG_POLL_GRACE`, `EARLY_POLL_LADDER`, `EARLY_POLL_MS`
 - Types: `PlanningClientOptions`, `PlanningClientService`, `WithPlanningClient`,
   `PlanningSocketOpener`, `RemoteCommitSource`, `RemoteCommitSourceOptions`, `RemoteFacadeOptions`,
@@ -119,7 +124,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

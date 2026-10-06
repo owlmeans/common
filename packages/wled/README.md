@@ -8,12 +8,12 @@ Whitelabel ("wled") core — shared types, models, and entrypoint declarations f
 - `WL_TYPE_COMPANY_INFO`, `WL_TYPE_STYLES`, `WL_TYPE_MEDIA`, `WL_TYPE_DNS` — whitelabel content type discriminators
 - Type definitions: `CompanyInfo`, `CustomStyles`, `CustomColors`, `CustomFont`, `CustomMedia`, `CustomBrand`, `ProvideParams`, `ProvidedWL<T>`
 - `wledEntrypoints.provide` — immutable protocol for `GET /wl/provide/:entity`
-- AJV models under `model/` (e.g., `ProvideParamsSchema`)
+- AJV schemas in `schemas.ts` (e.g., `ProvideParamsSchema`)
 
 ## Installation
 
 ```bash
-bun add @owlmeans/wled@^0.1.18-rc.36
+bun add @owlmeans/wled@^0.1.18-rc.38
 ```
 
 ## Usage
@@ -74,7 +74,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

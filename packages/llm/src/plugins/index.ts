@@ -1,59 +1,25 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { LlmPluginError } from '../errors.js'
 import type { ModelConfig } from '../types.js'
 import type { EffortSupport, LlmPlugin } from './types.js'
-import { anthropicPlugin } from './anthropic.js'
-import { compatiblePlugin } from './compatible.js'
-import { openAiPlugin } from './openai.js'
+import { llmPluginRegistry } from './registry.js'
 
-export const plugins: Record<string, LlmPlugin> = {}
+/** @deprecated compat:factory-refactor — use `llmPluginRegistry.plugins` */
+export const plugins: Record<string, LlmPlugin> = llmPluginRegistry.plugins
 
-/**
- * Lookup order for INSTANCE-based resolution (a model whose config metadata is not
- * reachable). The first plugin whose `owns` matches wins, so the conservative member of
- * a client family must come first: `compatible` precedes `openai` because both build a
- * `ChatOpenAI`, and assuming the tool-calling hack for an unlabelled model is safe
- * everywhere, while assuming native JSON-schema support is not.
- */
-const order: string[] = []
+/** @deprecated compat:factory-refactor — use `llmPluginRegistry.register(…)` */
+export const registerLlmPlugin = (plugin: LlmPlugin): void => llmPluginRegistry.register(plugin)
 
-/** Register (or replace) a provider plugin. Later registrations go last in the lookup order. */
-export const registerLlmPlugin = (plugin: LlmPlugin): void => {
-  if (plugins[plugin.type] == null) {
-    order.push(plugin.type)
-  }
-  plugins[plugin.type] = plugin
-}
+/** @deprecated compat:factory-refactor — use `llmPluginRegistry.pluginOf(…)` */
+export const pluginOf = (provider: string | undefined): LlmPlugin | undefined => llmPluginRegistry.pluginOf(provider)
 
-registerLlmPlugin(anthropicPlugin)
-registerLlmPlugin(compatiblePlugin)
-registerLlmPlugin(openAiPlugin)
-
-/** The plugin registered for `provider`, or `undefined`. */
-export const pluginOf = (provider: string | undefined): LlmPlugin | undefined =>
-  provider != null ? plugins[provider] : undefined
-
-/** The `ModelConfig.effort` levels this config's model accepts, or `undefined` for none. */
+/** @deprecated compat:factory-refactor — use `llmPluginRegistry.effortSupportOf(…)` */
 export const effortSupportOf = (
   config: Pick<ModelConfig, 'provider' | 'model' | 'disableThinking'>,
-): EffortSupport | undefined => pluginOf(config.provider)?.effort?.(config)
+): EffortSupport | undefined => llmPluginRegistry.effortSupportOf(config)
 
-/** The first registered plugin that recognises this model instance, or `undefined`. */
-export const pluginFor = (model: BaseChatModel): LlmPlugin | undefined =>
-  order.map(type => plugins[type]).find(plugin => plugin?.owns(model) === true)
+/** @deprecated compat:factory-refactor — use `llmPluginRegistry.pluginFor(…)` */
+export const pluginFor = (model: BaseChatModel): LlmPlugin | undefined => llmPluginRegistry.pluginFor(model)
 
-/**
- * Resolve the plugin governing a call. The config's `provider` is authoritative; when it
- * is unavailable (a refined instance whose metadata did not survive) the model instance
- * is matched against the registration order.
- */
-export const resolvePlugin = (
-  config: { provider?: string } | undefined,
-  model?: BaseChatModel,
-): LlmPlugin => {
-  const byType = pluginOf(config?.provider)
-  if (byType != null) return byType
-  const byModel = model != null ? pluginFor(model) : undefined
-  if (byModel != null) return byModel
-  throw new LlmPluginError(`${LlmPluginError.NO_PLUGIN}:${config?.provider ?? 'unknown'}`)
-}
+/** @deprecated compat:factory-refactor — use `llmPluginRegistry.resolvePlugin(…)` */
+export const resolvePlugin = (config: { provider?: string } | undefined, model?: BaseChatModel): LlmPlugin =>
+  llmPluginRegistry.resolvePlugin(config, model)

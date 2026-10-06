@@ -1,15 +1,16 @@
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import type { ServerContext } from '@owlmeans/server-context'
 import type { ApiServer, ApiServerAppend } from './types.js'
 import { assertContext, createService } from '@owlmeans/context'
-import { canServeModule, executeResponse, provideRequest } from './utils/index.js'
+import { canServeModule, payloadHelper, createServerHandler, fixFormatDates } from './utils/index.js'
 import { DEFAULT_ALIAS, CLOSED_HOST, PORT, OPENED_HOST } from './consts.js'
 import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
 import { RouteMethod } from '@owlmeans/route'
-import { createServerHandler, fixFormatDates } from './utils/index.js'
 import { provideResponse } from '@owlmeans/entrypoint'
 import { TOKEN_UPDATE } from '@owlmeans/auth-common'
-import { INCIDENT_ID_HEADER } from './utils/error.js'
+import { INCIDENT_ID_HEADER } from './utils/consts.js'
 import { DENIAL_KIND_HEADER } from '@owlmeans/api'
+import { logger } from '@owlmeans/log'
+import { fastifyLogger } from './utils/log.js'
 
 import Fastify from 'fastify'
 import type { FastifyRequest } from 'fastify'
@@ -22,6 +23,8 @@ import Multipart from '@fastify/multipart'
 import formatsPlugin from 'ajv-formats'
 import Ajv from 'ajv'
 import ajvErrors from "ajv-errors"
+import { bodyLimit } from './consts.local.js'
+import type { Config, Context } from './types.local.js'
 
 
 const ajv = new Ajv({
@@ -34,30 +37,25 @@ const ajv = new Ajv({
 formatsPlugin(ajv)
 ajvErrors(ajv, { singleError: true })
 
-type Config = ServerConfig
-type Context = ServerContext<Config>
 
-const bodyLimit = 1024 * 1024 * 20
+const http = logger('http')
+
+/**
+ * Fastify logging through `@owlmeans/log`. Fastify's own request/response lines are dropped by the
+ * adapter: a request is a debug record written once from `onResponse` (below), and a failed one is
+ * classified by `handleError`, so an info-level process is not flooded with every call it serves.
+ */
+const createFastify = () => Fastify({
+  loggerInstance: fastifyLogger(http),
+  bodyLimit,
+})
 
 export const createApiServer = (alias: string): ApiServer => {
   const location = `service:${alias}`
   const _assertContext = (context: Context | undefined): Context => assertContext<Config, Context>(context, location)
 
   const service = createService<ApiServer>(alias, {
-    server: Fastify({
-      logger: true,
-      bodyLimit,
-      /*{
-       transport: {
-         target: 'pino-pretty',
-         options: {
-           singleLine: true,
-           translateTime: 'HH:MM:ss Z',
-           ignore: 'pid,hostname',
-         },
-       },
-     }*/
-    }),
+    server: createFastify(),
 
     listen: async () => {
       const context = _assertContext(service.ctx as Context)
@@ -67,7 +65,7 @@ export const createApiServer = (alias: string): ApiServer => {
       const port = config?.internalPort ?? config?.port ?? PORT
       const host = config.opened === true ? OPENED_HOST : CLOSED_HOST
       await service.server.listen({ port, host })
-      console.info(`${location}: server listening on ${host}${port != null ? `:${port}` : ''}`)
+      logger('server').info(`${location}: server listening on ${host}${port != null ? `:${port}` : ''}`, undefined, { event: 'server.listening' })
 
       process.on('SIGTERM', () => {
         service.server.close().then(() => {
@@ -78,7 +76,7 @@ export const createApiServer = (alias: string): ApiServer => {
   }, service => async () => {
     if (service.server.server.listening) {
       await service.server.close()
-      service.server = Fastify({ logger: true, bodyLimit })
+      service.server = createFastify()
     }
 
     const context = _assertContext(service.ctx as Context)
@@ -86,6 +84,16 @@ export const createApiServer = (alias: string): ApiServer => {
     const server = service.server
     // @TODO We should ensure some way that Resilient Error is thrown and go to the flow
     server.setValidatorCompiler(opts => ajv.compile(opts.schema))
+    server.addHook('onResponse', (request, reply, done) => {
+      if (http.enabled('debug')) {
+        // The path only: a query string can carry a token.
+        http.debug('request', {
+          method: request.method, path: request.url.split('?')[0], status: reply.statusCode,
+          ms: Math.round(reply.elapsedTime),
+        })
+      }
+      done()
+    })
     // @TODO It's quite unsafe and should be properly configured
     await server.register(cors, {
       origin: '*',
@@ -136,13 +144,13 @@ export const createApiServer = (alias: string): ApiServer => {
         // An intermediate route can be created without a handler by the binding layer.
         if (module.route.match(request, module.mount()) && module.handle != null) {
           const response = provideResponse(reply)
-          const currentRequest = provideRequest(module.alias, request, true)
+          const currentRequest = payloadHelper.provideRequest(module.alias, request, true)
           currentRequest.original._ctx = context
           const result: Context = await module.handle(currentRequest, response)
           if (result != null) {
             context = result
           }
-          responded = executeResponse(response, reply, true) || responded
+          responded = payloadHelper.executeResponse(response, reply, true) || responded
         }
         return context
       }, Promise.resolve(context))

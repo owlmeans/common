@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { ConnectExecutor, ConnectHarness } from '@owlmeans/viable-common'
 import { ENV_CREDENTIALS_FILE } from '@owlmeans/cli-auth'
 import { sessionCapabilities } from '../src/capabilities.js'
-import { readConfig } from '../src/config.js'
+import { configHelper } from '../src/config.js'
 
 const NO_FILE = '/nonexistent-viable-mcp-test-path/.owlmeans'
 
@@ -11,7 +11,7 @@ const NO_FILE = '/nonexistent-viable-mcp-test-path/.owlmeans'
  * capabilities is caught here too — the two are one decision as far as the platform is concerned.
  */
 const capsOf = async (...args: string[]): Promise<ReturnType<typeof sessionCapabilities>> =>
-  sessionCapabilities(await readConfig(
+  sessionCapabilities(await configHelper.readConfig(
     ['node', 'bin.js', ...args], { [ENV_CREDENTIALS_FILE]: NO_FILE, VIABLE_API_TOKEN: 'vib_x' }
   ))
 

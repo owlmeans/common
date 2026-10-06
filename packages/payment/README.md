@@ -8,7 +8,7 @@ server integration (`@owlmeans/server-payment`) implements against these contrac
 ## Installation
 
 ```bash
-bun add @owlmeans/payment@^0.1.18-rc.45
+bun add @owlmeans/payment@^0.1.18-rc.48
 ```
 
 ## Concepts
@@ -49,25 +49,23 @@ const proMonthly: ProductPlan = {
 Gate a route on a capability or on a limit:
 
 ```typescript
-import { ENTITLEMENT_GATE, LIMIT_GATE, entitled, formatLimitParam } from '@owlmeans/payment'
+import { ENTITLEMENT_GATE, LIMIT_GATE, entitled, planLimitHelper } from '@owlmeans/payment'
 
 protocol(route(WHITELABEL, '/whitelabel', backend(BASE, RouteMethod.POST)), contract(typed()),
   entitled('feature:whitelabel'))
 protocol(route(INVITE, '/invite', backend(BASE, RouteMethod.POST)), contract(typed()),
-  { gate: { alias: LIMIT_GATE, params: [formatLimitParam('seats')] } })
+  { gate: { alias: LIMIT_GATE, params: [planLimitHelper.formatLimitParam('seats')] } })
 ```
 
 Build and read an entitlement view:
 
 ```typescript
-import {
-  capabilityOf, entitlementViewOf, hasLimitRoom, limitOf, reviveEntitlementView,
-} from '@owlmeans/payment'
+import { entitlementViewHelper, planLimitHelper } from '@owlmeans/payment'
 
-const view = entitlementViewOf(plan, planView, usage)          // server
-const fromWire = reviveEntitlementView(await response.json())  // browser: ISO strings → Dates
-capabilityOf(fromWire, 'feature:whitelabel')
-hasLimitRoom(limitOf(fromWire, 'seats'))
+const view = entitlementViewHelper.entitlementViewOf(plan, planView, usage)          // server
+const fromWire = entitlementViewHelper.reviveEntitlementView(await response.json())  // browser: ISO strings → Dates
+planLimitHelper.capabilityOf(fromWire, 'feature:whitelabel')
+planLimitHelper.hasLimitRoom(planLimitHelper.limitOf(fromWire, 'seats'))
 ```
 
 Refuse and recover the fields on the other side of a service hop:
@@ -88,20 +86,22 @@ if (error instanceof LimitExhausted) { error.limitKey; error.used; error.limit; 
   (`product`, `products`, `plans`, `plan`, `allPlans`, `localize`, `shallowAuthentication`),
   `l10nToId`, record types/prefixes.
 - Checkout: `CheckoutPricingMode`, `AmountCheckoutPolicy`/`QuantityCheckoutPolicy` (+ schemas),
-  `assertAmountCheckoutPolicy`, `assertQuantityCheckoutPolicy`, `assertCheckoutAmount`,
-  `chargeAmountMinor`, `CreateCheckoutBody` (`planSku`) / `CreateCheckoutResponse` (+ schemas),
+  `checkoutPricingHelper` (`assertAmountCheckoutPolicy`, `assertQuantityCheckoutPolicy`,
+  `assertCheckoutAmount`, `chargeAmountMinor`), `CreateCheckoutBody` (`planSku`) / `CreateCheckoutResponse` (+ schemas),
   `PortalFlow`, `PortalLinkBody` / `PortalLinkResponse` (+ schemas).
 - Entitlement grammar: `ENTITLEMENT_GATE`, `LIMIT_GATE`, `CAPABILITY_FEATURE_SCOPE`,
-  `CAPABILITY_LIMIT_SCOPE`, `entitled`, `parseEntitlementParam`, `formatEntitlementParam`,
-  `hasEntitlement`, `entitlementList`, `parseLimitParam`, `formatLimitParam`.
+  `CAPABILITY_LIMIT_SCOPE`, `entitled`, `entitlementParamHelper` (`parseEntitlementParam`,
+  `formatEntitlementParam`, `hasEntitlement`, `entitlementList`), `planLimitHelper`
+  (`parseLimitParam`, `formatLimitParam`).
 - Statuses: `SubscriptionStatus` (incl. `PastDue`), `ENTITLING_STATUSES`, `TERMINAL_STATUSES`,
   `INTERNAL_PAYGATE`.
 - Limits and promos: `LimitKind`, `LimitWindow`, `LimitDeclaration`, `PlanCapability`,
-  `PromoDeclaration` (+ schemas), `windowKeyOf`, `windowBoundsOf`, `LIFETIME_WINDOW`,
-  `OCCUPANCY_WINDOW`, `promoActive`, `promoViewOf`.
+  `PromoDeclaration` (+ schemas), `planLimitHelper` (`windowKeyOf`, `windowBoundsOf`),
+  `LIFETIME_WINDOW`, `OCCUPANCY_WINDOW`, `promoHelper` (`promoActive`, `promoViewOf`).
 - Views: `EntitlementView`, `EntitlementPlanView`, `CapabilityView`, `LimitView`, `PromoView`,
-  `LimitUsage` (+ wire schemas), `capabilityViewsOf`, `limitViewsOf`, `entitlementViewOf`,
-  `reviveEntitlementView`, `capabilityOf`, `limitOf`, `hasLimitRoom`.
+  `LimitUsage` (+ wire schemas), `entitlementViewHelper` (`capabilityViewsOf`, `limitViewsOf`,
+  `entitlementViewOf`, `reviveEntitlementView`), `planLimitHelper` (`capabilityOf`, `limitOf`,
+  `hasLimitRoom`).
 - Errors: `EntitlementRefusal` → `CapabilityRequired`, `LimitExhausted` (all `AuthForbidden`);
   `PaymentError` family incl. `LimitUnknown`, `LimitMisdeclared`, `PlanRequired`,
   `PlanRankConflict`, `WebhookSetupError`, `PortalUnavailable` (declares `httpStatus = 409`, so an
@@ -110,7 +110,7 @@ if (error instanceof LimitExhausted) { error.limitKey; error.used; error.limit; 
 
 ## Common pitfalls
 
-- A limit parameter is never a capability: `hasEntitlement(sets, 'limit:x')` is always `false`.
+- A limit parameter is never a capability: `entitlementParamHelper.hasEntitlement(sets, 'limit:x')` is always `false`.
 - A view's dates are ISO strings on the wire — revive before calling date methods.
 - A promo ends AT `until`; grandfathering needs the subscription's creation date on the plan view.
 - A refusal's fields survive a hop only through its message; catch the class, not the text.
@@ -129,7 +129,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { gate, makeSuite } from './context.js'
+import { gate, makeSuite, TEARDOWN_TIMEOUT } from './context.js'
 
 /**
  * `delete` / `take` coverage.
@@ -17,9 +17,11 @@ describe('@owlmeans/redis — resource delete', () => {
 
   const suite = makeSuite('delete')
 
+  // The teardown SCANs a shared store for this suite's prefix; under a full-repo run that walk
+  // outlasts the default 5 s hook budget.
   afterAll(async () => {
     await suite.teardown()
-  })
+  }, TEARDOWN_TIMEOUT)
 
   test('removes the record when called by id', async () => {
     const { resource } = await suite.boot()

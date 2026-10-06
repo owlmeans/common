@@ -9,9 +9,12 @@ import { AUTH_CACHE } from '../../consts.js'
 import { ResourceError } from '@owlmeans/resource'
 import type { Unsubscribe } from '@owlmeans/resource'
 import { RELY_CALL_TIMEOUT, RELY_PIN_PERFIX, RELY_TOKEN_PREFIX } from '@owlmeans/auth-common'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-auth:rely')
 
 const _subscriptions: Record<string, Unsubscribe> = {}
-export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
+export const makeBasicRelyPlugin = (context: AppContext, type?: string): AuthPlugin => {
   const plugin: AuthPlugin = {
     type: type ?? AuthenticationType.RelyHandshake,
 
@@ -75,7 +78,7 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
           return response
         } catch (e) {
           if (e instanceof ResourceError) {
-            console.error('COLISION ON TRY TO CREATE RELY PIN\TOKEN...', e)
+            log.warn('Rely pin/token collision; retrying', e)
           } else {
             throw e
           }
@@ -118,7 +121,8 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
         rely = envelop.message()
       } catch (e) {
         if (e instanceof ResourceError) {
-          console.error(e)
+          // The peer's pin/token is unknown; the refusal itself is logged where sign-in is decided.
+          log.debug('Rely peer lookup failed', e)
           throw new AuthorizationError('rely')
         } else {
           throw e

@@ -1,10 +1,6 @@
 import { bind } from '@owlmeans/server-entrypoint'
-import type { MarketingConsentEntrypoints } from '@owlmeans/marketing-consent'
-import { marketingConsentStatus, recordTermsAcceptance, saveMarketingConsent } from './handlers.js'
-import type { MarketingConsentHandlerOptions } from './handlers.js'
-
-/** The part of a `makeMarketingConsentProtocols` tree that carries a server implementation. */
-export type MarketingConsentServedProtocols = Pick<MarketingConsentEntrypoints, 'status' | 'save' | 'terms'>
+import { marketingConsentStatus, recordTermsAcceptance, saveMarketingConsent } from './handlers/index.js'
+import type { MarketingConsentHandlerOptions, MarketingConsentServedProtocols } from './types.js'
 
 /**
  * Bind this package's handlers to a tree declared by `makeMarketingConsentProtocols` — one binding

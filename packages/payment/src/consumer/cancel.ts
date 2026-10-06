@@ -1,6 +1,5 @@
 import { ConsumerRightsError } from '../errors.js'
-
-export type BillingInterval = 'month' | 'year'
+import type { BillingInterval } from './types.js'
 
 /** `anchor` moved by `months` calendar months (UTC), its day clamped to the target month's end. */
 const addMonths = (anchor: Date, months: number): Date => {

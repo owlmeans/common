@@ -1,78 +1,12 @@
 import type { JSONSchemaType } from 'ajv'
 import { IdValueSchema, ResourceValueSchema } from '@owlmeans/auth'
 import { schema } from '@owlmeans/entrypoint'
-import {
-  CancellationKindSchema, CancellationStatusSchema, ConsumerRegion, ConsumerRegionSchema, PurchaseKindSchema,
-  TaxBehaviorSchema, WithdrawalStatusSchema,
-} from '../consts.js'
-import { CountrySchema } from '../countries.js'
+import { CancellationKindSchema, CancellationStatusSchema, WithdrawalStatusSchema, CountrySchema } from '../consts.js'
 import { AmountCheckoutPolicySchema } from './pricing.js'
-import type {
-  AmountPolicyQuery, AmountPolicyView, BillingProfileView, CancellationBody, CancellationReceipt, CheckoutLimitView,
-  ConsumerRightsLinks, ConsumerRightsMechanisms, ConsumerRightsPolicy, ConsumerRightsPublicView, DeclarationReceipt,
-  PerformanceConsentBody, PerformanceConsentResponse, PerformanceConsentView, PlanPriceList, PlanPricesQuery,
-  PlanPriceView, PlanWithdrawalComponent, PurchaseList, PurchaseView, SubscriptionStartBody,
-  SubscriptionStartQuery, SubscriptionStartResponse, SubscriptionStartView, WithdrawalBody, WithdrawalCandidate,
-  WithdrawalCandidateList, WithdrawalEstimate, WithdrawalReceipt,
-} from '../types.js'
-
-/**
- * The consumer-rights schemas describe the WIRE: a date is an ISO string, exactly as in
- * `model/view.ts` — a response serializer writes a `Date` through it as ISO. A browser revives the
- * dates with the `revive*` helpers before touching one.
- */
-const IsoDateSchema = { type: 'string', format: 'date-time' } as unknown as JSONSchemaType<Date>
-
-const MinorSchema: JSONSchemaType<number> = { type: 'number', minimum: 0, multipleOf: 1 }
-const CurrencySchema: JSONSchemaType<string> = { type: 'string', minLength: 3, maxLength: 3 }
-const VersionSchema: JSONSchemaType<string> = { type: 'string', minLength: 1, maxLength: 64 }
-const KeySchema: JSONSchemaType<string> = { type: 'string', minLength: 1, maxLength: 128 }
-const UrlSchema: JSONSchemaType<string> = { type: 'string', minLength: 1, maxLength: 2048 }
-const LanguageSchema: JSONSchemaType<string> = {
-  type: 'string', minLength: 2, maxLength: 16, pattern: '^[a-z]{2,3}([-_][A-Za-z0-9]{2,8})?$',
-}
-const NameSchema: JSONSchemaType<string> = { type: 'string', minLength: 1, maxLength: 200 }
-const EmailSchema: JSONSchemaType<string> = {
-  type: 'string', minLength: 3, maxLength: 254, pattern: '^[^\\s@]+@[^\\s@]+$',
-}
-const HoneypotSchema: JSONSchemaType<string> = { type: 'string', maxLength: 256 }
-const AcknowledgedSchema = { type: 'boolean', const: true } as unknown as JSONSchemaType<true>
-/** A region that may be `null` on the wire — an enum admits `null` only when it lists it. */
-const NullableRegionSchema = {
-  ...ConsumerRegionSchema, enum: [...ConsumerRegionSchema.enum, null], nullable: true,
-} as unknown as JSONSchemaType<ConsumerRegion | null>
-
-export const ConsumerRightsLinksSchema: JSONSchemaType<ConsumerRightsLinks> = {
-  type: 'object',
-  properties: {
-    billingTerms: UrlSchema,
-    withdrawalInformation: { ...UrlSchema, nullable: true },
-    withdrawalForm: { ...UrlSchema, nullable: true },
-    withdrawalFunction: { ...UrlSchema, nullable: true },
-    cancellation: { ...UrlSchema, nullable: true },
-  },
-  required: ['billingTerms'],
-  additionalProperties: false,
-}
-
-export const ConsumerRightsMechanismsSchema: JSONSchemaType<ConsumerRightsMechanisms> = {
-  type: 'object',
-  properties: {
-    countryLock: { type: 'boolean' },
-    checkoutTerms: { type: 'boolean' },
-    performanceConsent: { type: 'boolean' },
-    subscriptionStart: { type: 'boolean' },
-    withdrawal: { type: 'boolean' },
-    automaticRefunds: { type: 'boolean' },
-    cancellation: { type: 'boolean' },
-    purchaseConfirmation: { type: 'boolean' },
-  },
-  required: [
-    'countryLock', 'checkoutTerms', 'performanceConsent', 'subscriptionStart', 'withdrawal', 'automaticRefunds',
-    'cancellation', 'purchaseConfirmation',
-  ],
-  additionalProperties: false,
-}
+import type { AmountPolicyQuery, AmountPolicyView, BillingProfileView, CancellationBody, CancellationReceipt, ConsumerRightsPolicy, ConsumerRightsPublicView, DeclarationReceipt, PerformanceConsentBody, PerformanceConsentResponse, PerformanceConsentView, PlanPriceList, PlanPricesQuery, PurchaseList, SubscriptionStartBody, SubscriptionStartQuery, SubscriptionStartResponse, SubscriptionStartView, WithdrawalBody, WithdrawalCandidateList, WithdrawalReceipt } from '../types.js'
+import { AcknowledgedSchema, ConsentContextSchema, CurrencySchema, declarationReceiptProperties, EmailSchema, HoneypotSchema, IsoDateSchema, KeySchema, LanguageSchema, MinorSchema, NameSchema, VersionSchema } from './consts.local.js'
+import { CheckoutLimitViewSchema, ConsumerRightsLinksSchema, ConsumerRightsMechanismsSchema, PlanPriceViewSchema, PurchaseViewSchema, WithdrawalCandidateSchema } from './consts.js'
+import { NullableRegionSchema } from './consts.local.js'
 
 export const ConsumerRightsPolicySchema = schema<ConsumerRightsPolicy>({
   type: 'object',
@@ -107,6 +41,7 @@ export const ConsumerRightsPolicySchema = schema<ConsumerRightsPolicy>({
     renewalOpensWindow: { type: 'boolean', nullable: true },
     startRequestTtlSeconds: { type: 'number', minimum: 1, multipleOf: 1, nullable: true },
     exemptBusinesses: { type: 'boolean', nullable: true },
+    consentContext: { ...ConsentContextSchema, nullable: true },
   },
   required: [
     'textVersion', 'countries', 'unknownCountry', 'withdrawalDays', 'deadline', 'mechanisms', 'defaultLanguage',
@@ -114,17 +49,6 @@ export const ConsumerRightsPolicySchema = schema<ConsumerRightsPolicy>({
   ],
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConsumerRightsPolicy>)
-
-export const PlanWithdrawalComponentSchema: JSONSchemaType<PlanWithdrawalComponent> = {
-  type: 'object',
-  properties: {
-    key: KeySchema,
-    basis: { type: 'string', enum: ['time', 'units'] },
-    shareMinor: MinorSchema,
-  },
-  required: ['key', 'basis', 'shareMinor'],
-  additionalProperties: false,
-}
 
 export const BillingProfileViewSchema = schema<BillingProfileView>({
   type: 'object',
@@ -141,28 +65,6 @@ export const BillingProfileViewSchema = schema<BillingProfileView>({
   additionalProperties: false,
 } as unknown as JSONSchemaType<BillingProfileView>)
 
-export const PurchaseViewSchema: JSONSchemaType<PurchaseView> = {
-  type: 'object',
-  properties: {
-    purchaseId: IdValueSchema,
-    contractRef: IdValueSchema,
-    kind: PurchaseKindSchema,
-    purchasedAt: IsoDateSchema,
-    deadline: { ...IsoDateSchema, nullable: true },
-    productSku: KeySchema,
-    planSku: { ...KeySchema, nullable: true },
-    amountTotalMinor: MinorSchema,
-    currency: CurrencySchema,
-    consentedAt: { ...IsoDateSchema, nullable: true },
-    withdrawnAt: { ...IsoDateSchema, nullable: true },
-    withdrawable: { type: 'boolean' },
-  },
-  required: [
-    'purchaseId', 'contractRef', 'kind', 'purchasedAt', 'productSku', 'amountTotalMinor', 'currency', 'withdrawable',
-  ],
-  additionalProperties: false,
-}
-
 export const PurchaseListSchema = schema<PurchaseList>({
   type: 'object',
   properties: { purchases: { type: 'array', items: PurchaseViewSchema } },
@@ -178,6 +80,7 @@ export const PerformanceConsentViewSchema = schema<PerformanceConsentView>({
     country: { ...CountrySchema, nullable: true },
     language: LanguageSchema,
     trader: NameSchema,
+    context: { ...ConsentContextSchema, nullable: true },
     textVersion: VersionSchema,
     copyVersion: VersionSchema,
     links: ConsumerRightsLinksSchema,
@@ -230,6 +133,7 @@ export const SubscriptionStartViewSchema = schema<SubscriptionStartView>({
     planSku: KeySchema,
     language: LanguageSchema,
     trader: NameSchema,
+    context: { ...ConsentContextSchema, nullable: true },
     textVersion: VersionSchema,
     copyVersion: VersionSchema,
     links: ConsumerRightsLinksSchema,
@@ -262,42 +166,6 @@ export const SubscriptionStartResponseSchema = schema<SubscriptionStartResponse>
   additionalProperties: false,
 })
 
-export const WithdrawalEstimateSchema: JSONSchemaType<WithdrawalEstimate> = {
-  type: 'object',
-  properties: {
-    refundMinor: MinorSchema,
-    currency: CurrencySchema,
-    timeDeductionMinor: MinorSchema,
-    unitsDeductionMinor: MinorSchema,
-    elapsedDays: { ...MinorSchema, nullable: true },
-    periodDays: { ...MinorSchema, nullable: true },
-    unitsUsed: { type: 'number', minimum: 0, nullable: true },
-    unitsGranted: { type: 'number', minimum: 0, nullable: true },
-  },
-  required: ['refundMinor', 'currency', 'timeDeductionMinor', 'unitsDeductionMinor'],
-  additionalProperties: false,
-}
-
-export const WithdrawalCandidateSchema: JSONSchemaType<WithdrawalCandidate> = {
-  type: 'object',
-  properties: {
-    purchaseId: IdValueSchema,
-    contractRef: IdValueSchema,
-    kind: PurchaseKindSchema,
-    purchasedAt: IsoDateSchema,
-    deadline: IsoDateSchema,
-    amountTotalMinor: MinorSchema,
-    currency: CurrencySchema,
-    estimate: { ...WithdrawalEstimateSchema, nullable: true },
-    automatic: { type: 'boolean' },
-  },
-  required: [
-    'purchaseId', 'contractRef', 'kind', 'purchasedAt', 'deadline', 'amountTotalMinor', 'currency', 'estimate',
-    'automatic',
-  ],
-  additionalProperties: false,
-} as unknown as JSONSchemaType<WithdrawalCandidate>
-
 export const WithdrawalCandidateListSchema = schema<WithdrawalCandidateList>({
   type: 'object',
   properties: {
@@ -324,17 +192,6 @@ export const WithdrawalBodySchema = schema<WithdrawalBody>({
   required: ['name', 'email'],
   additionalProperties: false,
 })
-
-const ReceiptContentSchema = {
-  type: 'object', required: [], additionalProperties: { type: 'string', maxLength: 4096 },
-} as unknown as JSONSchemaType<Record<string, string>>
-
-const declarationReceiptProperties = {
-  declarationId: IdValueSchema,
-  receivedAt: IsoDateSchema,
-  content: ReceiptContentSchema,
-  mailed: { type: 'boolean' },
-}
 
 export const DeclarationReceiptSchema = schema<DeclarationReceipt>({
   type: 'object',
@@ -402,24 +259,6 @@ export const ConsumerRightsPublicViewSchema = schema<ConsumerRightsPublicView>({
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConsumerRightsPublicView>)
 
-export const CheckoutLimitViewSchema: JSONSchemaType<CheckoutLimitView> = {
-  type: 'object',
-  properties: {
-    productSku: { type: 'string', maxLength: 128 },
-    planSku: { ...KeySchema, nullable: true },
-    currency: CurrencySchema,
-    minimumMinor: MinorSchema,
-    maximumMinor: MinorSchema,
-    narrowed: { type: 'boolean' },
-    blocked: { type: 'boolean' },
-    reason: { ...KeySchema, nullable: true },
-    resetsAt: { ...IsoDateSchema, nullable: true },
-    remainingMinor: { ...MinorSchema, nullable: true },
-  },
-  required: ['productSku', 'currency', 'minimumMinor', 'maximumMinor', 'narrowed', 'blocked'],
-  additionalProperties: false,
-}
-
 export const AmountPolicyViewSchema = schema<AmountPolicyView>({
   type: 'object',
   properties: {
@@ -439,20 +278,6 @@ export const AmountPolicyQuerySchema = schema<AmountPolicyQuery>({
   required: ['productSku'],
   additionalProperties: false,
 } as JSONSchemaType<AmountPolicyQuery>)
-
-export const PlanPriceViewSchema: JSONSchemaType<PlanPriceView> = {
-  type: 'object',
-  properties: {
-    planSku: KeySchema,
-    currency: CurrencySchema,
-    unitAmountMinor: MinorSchema,
-    default: { type: 'boolean' },
-    taxBehavior: { ...TaxBehaviorSchema, nullable: true },
-    interval: { type: 'string', enum: ['month', 'year'], nullable: true },
-  },
-  required: ['planSku', 'currency', 'unitAmountMinor', 'default'],
-  additionalProperties: false,
-} as JSONSchemaType<PlanPriceView>
 
 export const PlanPriceListSchema = schema<PlanPriceList>({
   type: 'object',

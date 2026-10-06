@@ -1,15 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
-import {
-  CONSENT_KEY, CONSENT_LOCALES, CONSENT_SCHEMA_VERSION, defaultConsentTranslate,
-} from '@owlmeans/consent'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
+import { CONSENT_KEY, CONSENT_LOCALES, CONSENT_SCHEMA_VERSION, consentI18nHelper } from '@owlmeans/consent'
 import { HARNESS_URL } from './context.js'
 
 // Browser work does not fit the 5s default: a cold harness compiles the app on first request.
 const TIMEOUT = 60_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 const base = HARNESS_URL.replace(/\/$/, '')
@@ -275,7 +273,7 @@ describe('@owlmeans/web-consent — the dialog', () => {
         expect(text).not.toContain('consent.')
         expect(text.length).toBeGreaterThan(40)
         // And it is genuinely THAT language's wording, not English shown seven times.
-        expect(text).toContain(defaultConsentTranslate(locale)('consent.title', ''))
+        expect(text).toContain(consentI18nHelper.defaultConsentTranslate(locale)('consent.title', ''))
       } finally {
         await close()
       }
@@ -361,9 +359,9 @@ describe('@owlmeans/web-consent — the policy page', () => {
       await analytics.waitFor()
       const text = await analytics.innerText()
 
-      expect(text).toContain(defaultConsentTranslate('de')('policyProvider', ''))
-      expect(text).toContain(defaultConsentTranslate('de')('policyPurpose', ''))
-      expect(defaultConsentTranslate('de')('policyProvider', '')).not.toBe('Provider')
+      expect(text).toContain(consentI18nHelper.defaultConsentTranslate('de')('policyProvider', ''))
+      expect(text).toContain(consentI18nHelper.defaultConsentTranslate('de')('policyPurpose', ''))
+      expect(consentI18nHelper.defaultConsentTranslate('de')('policyProvider', '')).not.toBe('Provider')
     } finally {
       await close()
     }
@@ -374,7 +372,7 @@ describe('@owlmeans/web-consent — the policy page', () => {
     try {
       const policy = page.locator('[data-cookie-policy]')
       await policy.waitFor()
-      const de = defaultConsentTranslate('de')
+      const de = consentI18nHelper.defaultConsentTranslate('de')
 
       expect(await policy.locator('a[href="https://example.test/privacy"]').innerText())
         .toBe(de('privacy', ''))

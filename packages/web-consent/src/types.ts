@@ -59,7 +59,7 @@ export interface ConsentMenuWidgetProps {
   translate?: (key: string, defaultValue: string) => string
   label?: string
   className?: string
-  /** Defaults to `openConsent('reopen')` — the same call the floating button itself makes. */
+  /** Defaults to `consentStore.open('reopen')` — the same call the floating button itself makes. */
   onSelect?: () => void
 }
 

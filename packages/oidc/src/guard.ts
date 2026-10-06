@@ -6,6 +6,7 @@ import type { AbstractRequest, AbstractResponse, EntrypointTree, GuardService } 
 import { DEFAULT_GUARD, TOKEN_UPDATE } from '@owlmeans/auth-common'
 import { AUTH_HEADER, type Auth, AuthorizationError } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
+import type { EnvelopeModel } from '@owlmeans/basic-envelope'
 import { trust } from '@owlmeans/auth-common/utils'
 import { TRUSTED } from '@owlmeans/config'
 import { extractAuthToken } from '@owlmeans/auth-common/utils'
@@ -63,7 +64,7 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
 
       // A token that cannot even be decoded is a credential this server does not accept — the
       // same answer as one whose signature does not verify (401), never a server failure (500).
-      let envelope: ReturnType<typeof makeEnvelopeModel<Auth>>
+      let envelope: EnvelopeModel<Auth>
       let verified = false
       try {
         envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)

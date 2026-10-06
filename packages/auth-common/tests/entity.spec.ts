@@ -4,7 +4,7 @@ import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { AuthenFailed, AuthRole } from '@owlmeans/auth'
 import type { Auth } from '@owlmeans/auth'
 import type { AbstractRequest, ResolvedEntity } from '@owlmeans/entrypoint'
-import { attachEntity } from '../src/entity.js'
+import { makeEntityScope } from '../src/entity.js'
 import { ENTITY_RESOLVER } from '../src/consts.js'
 import type { EntityResolverService, OrgEntityRef } from '../src/types.js'
 
@@ -47,7 +47,7 @@ describe('attachEntity — an entity the guard attached', () => {
     const { ctx } = await contextWith()
     const request = requestFor('tenant', attached)
 
-    expect(await attachEntity(ctx, request)).toEqual(attached)
+    expect(await makeEntityScope(request).attachEntity(ctx)).toEqual(attached)
     expect(request.entity).toEqual(attached)
   })
 
@@ -55,7 +55,7 @@ describe('attachEntity — an entity the guard attached', () => {
     const { ctx, calls } = await contextWith([ACME])
     const request = requestFor('tenant', attached)
 
-    expect(await attachEntity(ctx, request)).toEqual(attached)
+    expect(await makeEntityScope(request).attachEntity(ctx)).toEqual(attached)
     expect(calls).toEqual([])
   })
 
@@ -63,7 +63,7 @@ describe('attachEntity — an entity the guard attached', () => {
     const { ctx, calls } = await contextWith([ACME])
     const request = requestFor('acme', attached)
 
-    expect(await attachEntity(ctx, request)).toEqual(ACME)
+    expect(await makeEntityScope(request).attachEntity(ctx)).toEqual(ACME)
     expect(request.entity).toEqual(ACME)
     expect(calls).toEqual(['acme'])
   })
@@ -72,7 +72,7 @@ describe('attachEntity — an entity the guard attached', () => {
     const { ctx } = await contextWith()
     const request = requestFor('acme', attached)
 
-    expect(await attachEntity(ctx, request)).toBeUndefined()
+    expect(await makeEntityScope(request).attachEntity(ctx)).toBeUndefined()
     expect(request.entity).toBeUndefined()
   })
 
@@ -80,7 +80,7 @@ describe('attachEntity — an entity the guard attached', () => {
     const { ctx } = await contextWith()
     const request = requestFor(undefined, attached)
 
-    expect(await attachEntity(ctx, request)).toBeUndefined()
+    expect(await makeEntityScope(request).attachEntity(ctx)).toBeUndefined()
     expect(request.entity).toBeUndefined()
   })
 })
@@ -90,7 +90,7 @@ describe('attachEntity — the resolver path', () => {
     const { ctx } = await contextWith([ACME])
     const request = requestFor('acme-old')
 
-    expect(await attachEntity(ctx, request)).toEqual(ACME)
+    expect(await makeEntityScope(request).attachEntity(ctx)).toEqual(ACME)
     expect(request.entity).toEqual(ACME)
     expect(request.auth?.entitySlug).toBe('acme')
   })
@@ -98,14 +98,14 @@ describe('attachEntity — the resolver path', () => {
   test('refuses a token naming an organization the registry does not know', async () => {
     const { ctx } = await contextWith([ACME])
 
-    await expect(attachEntity(ctx, requestFor('nobody'))).rejects.toBeInstanceOf(AuthenFailed)
+    await expect(makeEntityScope(requestFor('nobody')).attachEntity(ctx)).rejects.toBeInstanceOf(AuthenFailed)
   })
 
   test('is a no-op with no resolver and nothing attached', async () => {
     const { ctx } = await contextWith()
     const request = requestFor('acme')
 
-    expect(await attachEntity(ctx, request)).toBeUndefined()
+    expect(await makeEntityScope(request).attachEntity(ctx)).toBeUndefined()
     expect(request.entity).toBeUndefined()
     expect(request.auth?.entitySlug).toBe('acme')
   })

@@ -15,10 +15,6 @@ export enum JobState {
   Unknown = 'unknown',
 }
 
-/** A job has reached a state it will not leave on its own. */
-export const isSettled = (state?: JobState): boolean =>
-  state === JobState.Completed || state === JobState.Failed
-
 export enum JobEventType {
   Completed = 'completed',
   Failed = 'failed',
@@ -37,3 +33,6 @@ export const DEFAULT_JOB_TIMEOUT = 60_000
  * the tokens that just failed. A queue whose jobs are cheap and idempotent raises it per queue.
  */
 export const DEFAULT_ATTEMPTS = 1
+
+/** The transport identifier owned by the queue package. */
+export const QUEUE_PROTOCOL = 'queue' as const

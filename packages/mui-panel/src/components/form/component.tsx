@@ -69,8 +69,8 @@ export const Form: FC<WebFormProps> = (props) => {
   const style: SxProps = useMemo(() => scalingToStyles(horizontal, vertical, theme), [horizontal])
 
   const content = () =>
-    <Grid container direction="column" justifyContent="flex-start" alignItems="stretch"
-      rowSpacing={2} sx={!decorate ? style : {}}>{
+    <Grid container rowSpacing={2}
+      sx={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'stretch', ...(!decorate ? style : {}) }}>{
         Array.isArray(children)
           ? children.map((child, index) =>
             <Grid key={index}>{child}</Grid>

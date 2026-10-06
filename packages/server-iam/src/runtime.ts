@@ -1,61 +1,13 @@
 import { AuthForbidden, AuthorizationError, AuthUnavailable } from '@owlmeans/auth'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
-import { IAM_RUNTIME_ROUTES, IamClientError, IamError } from '@owlmeans/iam'
-import type {
-  IamRuntimeAck, IamRuntimeGrant, IamRuntimeGrantList, IamRuntimeGrantQuery, IamRuntimeGrantRequest,
-  IamRuntimeMember, IamRuntimeMemberInvite, IamRuntimeMemberList, IamRuntimeMemberUpdate, IamRuntimeOrganization,
-  IamRuntimeOrganizationCreate, IamRuntimeOrganizationList, IamRuntimeOrganizationUpdate, IamRuntimePermission,
-  IamRuntimePermissionList,
-} from '@owlmeans/iam'
+import { IAM_RUNTIME_ROUTES, IamClientError, IamError, type IamRuntimeAck, type IamRuntimeGrant, type IamRuntimeGrantList, type IamRuntimeMember, type IamRuntimeMemberList, type IamRuntimeOrganization, type IamRuntimeOrganizationList, type IamRuntimePermissionList } from '@owlmeans/iam'
 import { IAM_API_METADATA, ORGANIZATION_OWNER_REFUSAL, ORGANIZATION_REFUSAL } from '@owlmeans/oidc'
-import { DEFAULT_ALIAS as OIDC_CLIENT_SERVICE } from '@owlmeans/server-oidc-rp'
-import type { Config, Context, OidcClientService } from '@owlmeans/server-oidc-rp'
-import { sessionOf } from './organization.js'
-
-/**
- * The runtime IAM API as the signed-in subject of one request: its organizations, their members,
- * the grantable definitions and the grants. Every call acts as that subject — the provider decides
- * owner and member rights from the access token, never from anything sent here.
- */
-export interface IamRuntimeClient {
-  organizations: {
-    list: () => Promise<IamRuntimeOrganization[]>
-    /** The subject becomes the new organization's owner. */
-    create: (body?: IamRuntimeOrganizationCreate) => Promise<IamRuntimeOrganization>
-    update: (entitySlug: string, body: IamRuntimeOrganizationUpdate) => Promise<IamRuntimeOrganization>
-  }
-  members: {
-    list: (entitySlug: string) => Promise<IamRuntimeMember[]>
-    /** Find-or-create by e-mail: adding an address twice answers the same member. */
-    add: (entitySlug: string, invite: IamRuntimeMemberInvite) => Promise<IamRuntimeMember>
-    update: (entitySlug: string, profileId: string, update: IamRuntimeMemberUpdate) => Promise<IamRuntimeMember>
-    remove: (entitySlug: string, profileId: string) => Promise<void>
-  }
-  permissions: {
-    list: (entitySlug: string) => Promise<IamRuntimePermission[]>
-  }
-  grants: {
-    list: (entitySlug: string, query?: IamRuntimeGrantQuery) => Promise<IamRuntimeGrant[]>
-    assign: (entitySlug: string, grant: IamRuntimeGrantRequest) => Promise<IamRuntimeGrant>
-    revoke: (entitySlug: string, grant: IamRuntimeGrantRequest) => Promise<void>
-  }
-}
-
-/** Who a route admits — and therefore which refusal a bare 403 from it means. */
-type Access = 'subject' | 'member' | 'owner'
-
-interface Call {
-  method: 'GET' | 'POST'
-  path: string
-  access: Access
-  params?: Record<string, string>
-  query?: object
-  body?: object
-}
-
-/** `@owlmeans/server-api`'s incident header; a production error body is nothing but this id. */
-const INCIDENT_ID_HEADER = 'x-incident-id'
+import { DEFAULT_ALIAS as OIDC_CLIENT_SERVICE, type Config, type Context, type OidcClientService } from '@owlmeans/server-oidc-rp'
+import { makeOrganizationScope } from './organization.js'
+import { INCIDENT_ID_HEADER } from './consts.local.js'
+import type { Access, Call } from './types.local.js'
+import type { IamRuntimeClient } from './types.js'
 
 /**
  * Discovered runtime bases, per context and per client. Discovery is a network round trip the OIDC
@@ -63,35 +15,6 @@ const INCIDENT_ID_HEADER = 'x-incident-id'
  * lookup is forgotten, so the next request asks again rather than inheriting the error.
  */
 const bases = new WeakMap<object, Map<string, Promise<string>>>()
-
-const runtimeBase = <C extends Config, T extends Context<C>>(context: T, clientId: string): Promise<string> => {
-  const known = bases.get(context) ?? new Map<string, Promise<string>>()
-  bases.set(context, known)
-  const cached = known.get(clientId)
-  if (cached != null) {
-    return cached
-  }
-
-  const attempt = (async () => {
-    const client = await context.service<OidcClientService>(OIDC_CLIENT_SERVICE).getClient(clientId)
-    const base = client.getMetadata()[IAM_API_METADATA]
-    if (typeof base !== 'string' || base === '') {
-      // A provider that advertises no runtime API — Keycloak, or an integrated provider that does not
-      // serve it — has nothing to call.
-      throw new IamClientError(`runtime-api:${clientId}`)
-    }
-
-    return base.replace(/\/+$/, '')
-  })()
-  known.set(clientId, attempt)
-  attempt.catch(() => {
-    if (known.get(clientId) === attempt) {
-      known.delete(clientId)
-    }
-  })
-
-  return attempt
-}
 
 const pathOf = (path: string, params: Record<string, string> = {}): string =>
   path.replace(/:(\w+)/g, (_, key: string) => {
@@ -143,11 +66,42 @@ const failureOf = async (response: Response, access: Access): Promise<Error> => 
  * sent. The base URL is the provider's discovery field `IAM_API_METADATA`. Calls travel over plain
  * `fetch`, because the API is another service's tree and a relying party binds none of it.
  */
-export const iamRuntime = <C extends Config, T extends Context<C>>(
+export const makeIamRuntimeClient = <C extends Config, T extends Context<C>>(
   context: T, request: AbstractRequest
 ): IamRuntimeClient => {
+  const runtimeBase = (clientId: string): Promise<string> => {
+    const known = bases.get(context) ?? new Map<string, Promise<string>>()
+    bases.set(context, known)
+    const cached = known.get(clientId)
+    if (cached != null) {
+      return cached
+    }
+
+    const attempt = (async () => {
+      const client = await context.service<OidcClientService>(OIDC_CLIENT_SERVICE).getClient(clientId)
+      const base = client.getMetadata()[IAM_API_METADATA]
+      if (typeof base !== 'string' || base === '') {
+        // A provider that advertises no runtime API — Keycloak, or an integrated provider that does not
+        // serve it — has nothing to call.
+        throw new IamClientError(`runtime-api:${clientId}`)
+      }
+
+      return base.replace(/\/+$/, '')
+    })()
+    known.set(clientId, attempt)
+    attempt.catch(() => {
+      if (known.get(clientId) === attempt) {
+        known.delete(clientId)
+      }
+    })
+
+    return attempt
+  }
+
+  const scope = makeOrganizationScope<C, T>(context, request)
+
   const call = async <R>({ method, path, access, params, query, body }: Call): Promise<R> => {
-    const record = await sessionOf<C, T>(context, request)
+    const record = await scope.sessionOf()
     const clientId = record.client ?? context.service<OidcClientService>(OIDC_CLIENT_SERVICE).getDefault()
     if (clientId == null) {
       throw new AuthUnavailable('oidc-client')
@@ -157,7 +111,7 @@ export const iamRuntime = <C extends Config, T extends Context<C>>(
       throw new AuthForbidden('record')
     }
 
-    const url = new URL(`${await runtimeBase<C, T>(context, clientId)}${pathOf(path, params)}`)
+    const url = new URL(`${await runtimeBase(clientId)}${pathOf(path, params)}`)
     Object.entries(query ?? {}).forEach(([key, value]) => {
       if (value != null) {
         url.searchParams.set(key, String(value))
@@ -232,3 +186,8 @@ export const iamRuntime = <C extends Config, T extends Context<C>>(
     },
   }
 }
+
+/** @deprecated compat:factory-refactor — use `makeIamRuntimeClient(context, request)` */
+export const iamRuntime = <C extends Config, T extends Context<C>>(
+  context: T, request: AbstractRequest
+): IamRuntimeClient => makeIamRuntimeClient<C, T>(context, request)

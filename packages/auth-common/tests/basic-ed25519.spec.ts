@@ -4,7 +4,7 @@ import {
   BED255_NONCE_HEADER, BED255_SIG_TTL, BED255_TIME_HEADER, makeBasicEd25519Guard,
   makeResourceSignedRequestReplayStore
 } from '@owlmeans/auth-common'
-import type { SignedRequestReplayResource } from '@owlmeans/auth-common'
+import type { BasicEd25519Guard, SignedRequestReplayResource } from '@owlmeans/auth-common'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
 import type { Auth } from '@owlmeans/auth'
 import { RecordExists } from '@owlmeans/resource'
@@ -35,7 +35,7 @@ const request = async (timestamp: string, nonce: string) => {
 }
 
 const handle = async (
-  guard: ReturnType<typeof makeBasicEd25519Guard>, req: AbstractRequest
+  guard: BasicEd25519Guard, req: AbstractRequest
 ): Promise<Auth | undefined> => {
   let value: Auth | undefined
   const response: AbstractResponse<Auth> = {

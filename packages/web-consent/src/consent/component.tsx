@@ -1,50 +1,27 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { FC } from 'react'
+import { useCallback, useEffect, useState, type FC } from 'react'
 import { Cookie } from 'lucide-react'
-import {
-  DEFAULT_CONSENT_CATEGORIES, defaultConsentTranslate, interpolate, readConsent,
-} from '@owlmeans/consent'
-import type { ConsentRecord } from '@owlmeans/consent'
-import { cn, disclosedDomains } from '../lib/utils.js'
+import { DEFAULT_CONSENT_CATEGORIES, type ConsentRecord, consentI18nHelper, consentStorageHelper } from '@owlmeans/consent'
+import { webConsentUtils } from '../lib/utils.js'
 import { useConsent } from '../hooks.js'
 import { ConsentToggle } from './toggle.js'
 import type { CookieConsentProps } from '../types.js'
-
-/**
- * The cookie preferences dialog, and the button that brings it back.
- *
- * Deliberately built from raw elements rather than shadcn primitives. One of the three surfaces
- * this serves is an Astro island on a site that vendors its own component library, and requiring a
- * consumer to install a UI family in order to render a consent notice would put the notice out of
- * reach of the site that needs it most.
- *
- * Flat by rule, because it is the first thing every new visitor of a generated app sees: the
- * surface and every colour come from the host's theme tokens (ground, ink, muted, hairline, one
- * accent), depth comes from a hairline border and the overlay alone, and nothing paints a
- * gradient, a shadow, a glow or a `backdrop-filter`. The accept action is the one accent pill,
- * the others are outlined pills; every control is at least 44px tall and shows a 3px focus ring.
- */
-/**
- * The focus ring every control here shows: 3px solid in the theme's ring colour, 3px off the
- * element. An outline rather than a box-shadow ring, so it survives a host that zeroes shadows.
- */
-const FOCUS = 'focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-ring'
+import { FOCUS } from './consts.local.js'
 
 /** A pill button: 44px tall at minimum, full width on a phone, sharing the row above that. */
-const PILL = cn(
+const PILL = webConsentUtils.cn(
   'inline-flex min-h-11 flex-1 items-center justify-center rounded-full px-6 py-2.5 text-[15px] transition-colors motion-safe:active:scale-[0.98]',
   FOCUS
 )
 
 /** A text link: muted, underlined at rest (colour is never the only signal), 44px tall to tap. */
-const LINK = cn(
+const LINK = webConsentUtils.cn(
   'inline-flex min-h-11 items-center font-semibold underline decoration-1 underline-offset-4 transition-colors hover:text-foreground hover:decoration-2',
   FOCUS
 )
 
 export const CookieConsent: FC<CookieConsentProps> = props => {
   const categories = props.categories ?? DEFAULT_CONSENT_CATEGORIES
-  const t = props.translate ?? defaultConsentTranslate(props.locale)
+  const t = props.translate ?? consentI18nHelper.defaultConsentTranslate(props.locale)
 
   const consentOpts = {
     categories,
@@ -55,7 +32,7 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
     ...(props.linker != null ? { linker: props.linker } : {}),
   }
   const consent = useConsent(consentOpts)
-  const domains = disclosedDomains(props.linker)
+  const domains = webConsentUtils.disclosedDomains(props.linker)
 
   const optional = categories.filter(category => category.required !== true)
   const [draft, setDraft] = useState<Record<string, boolean>>({})
@@ -66,7 +43,7 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
     if (!consent.open) {
       return
     }
-    const stored = consent.record ?? readConsent({
+    const stored = consent.record ?? consentStorageHelper.readConsent({
       ...(props.storageKey != null ? { storageKey: props.storageKey } : {}),
     })
     setDraft(Object.fromEntries(optional.map(category =>
@@ -98,7 +75,7 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
       aria-describedby={domains.length > 1 ? 'cc-desc cc-domains' : 'cc-desc'}
       data-consent-dialog
     >
-      <div className={cn(
+      <div className={webConsentUtils.cn(
         'relative z-[999999] w-full max-w-lg rounded-3xl border border-border bg-background p-6 text-foreground sm:p-8',
         props.className
       )}>
@@ -119,7 +96,7 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
           id="cc-domains" data-consent-domains
           className="mb-6 -mt-3 text-pretty text-xs text-muted-foreground"
         >
-          {interpolate(t('domains', 'This choice applies to {{domains}}.'), { domains: domains.join(', ') })}
+          {consentI18nHelper.interpolate(t('domains', 'This choice applies to {{domains}}.'), { domains: domains.join(', ') })}
         </p>}
 
         <div className="space-y-3">
@@ -142,11 +119,11 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:gap-4">
           <button
             type="button" onClick={onSave} data-consent-save
-            className={cn(PILL, 'border-[1.5px] border-foreground bg-transparent font-semibold text-foreground hover:bg-muted')}
+            className={webConsentUtils.cn(PILL, 'border-[1.5px] border-foreground bg-transparent font-semibold text-foreground hover:bg-muted')}
           >{t('savePreferences', 'Save Preferences')}</button>
           <button
             type="button" onClick={onAcceptAll} data-consent-accept-all
-            className={cn(PILL, 'bg-primary font-bold text-primary-foreground hover:bg-primary/90')}
+            className={webConsentUtils.cn(PILL, 'bg-primary font-bold text-primary-foreground hover:bg-primary/90')}
           >{gated
             ? t('acceptAndContinue', 'Accept & continue')
             : t('acceptAll', 'Accept All')}</button>
@@ -175,7 +152,7 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
       type="button" onClick={() => consent.openDialog('reopen')}
       aria-label={t('openPreferences', 'Cookie preferences')}
       data-consent-reopen
-      className={cn('fixed bottom-1 left-1 z-[999997] inline-flex h-11 w-11 items-center justify-center rounded border-0 bg-transparent p-0 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 hover:text-primary focus-visible:opacity-100', FOCUS)}
+      className={webConsentUtils.cn('fixed bottom-1 left-1 z-[999997] inline-flex h-11 w-11 items-center justify-center rounded border-0 bg-transparent p-0 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 hover:text-primary focus-visible:opacity-100', FOCUS)}
     >
       <Cookie className="h-5 w-5" aria-hidden="true" />
     </button>}

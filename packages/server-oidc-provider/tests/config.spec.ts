@@ -5,7 +5,7 @@ import type { BasicContext } from '@owlmeans/context'
 import {
   IAM_API_METADATA, ORGANIZATIONS_CLAIM, ORGANIZATIONS_SCOPE, PERMISSIONS_CLAIM, PERMISSIONS_SCOPE,
 } from '@owlmeans/oidc'
-import { combineConfig } from '../src/utils/config.js'
+import { makeOidcConfigUtils } from '../src/utils/config.js'
 import type { Config } from '../src/types.js'
 
 const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
@@ -35,7 +35,7 @@ const makeTestContext = (oidc: Partial<Config['oidc']> = {}) => {
 describe('combineConfig (jose v6 extractable key)', () => {
   it('produces a JWKS with an RS256 key', async () => {
     const context = makeTestContext()
-    const config = await combineConfig(context as any, true)
+    const config = await makeOidcConfigUtils(context as any).combineConfig(true)
 
     expect(config.jwks).toBeDefined()
     expect(Array.isArray(config.jwks?.keys)).toBe(true)
@@ -47,7 +47,7 @@ describe('combineConfig (jose v6 extractable key)', () => {
 
 describe('combineConfig — scopes and the claims behind them', () => {
   it('maps each integrated-IAM scope to its own claim', async () => {
-    const config = await combineConfig(makeTestContext() as any, true)
+    const config = await makeOidcConfigUtils(makeTestContext() as any).combineConfig(true)
 
     expect(config.claims?.[PERMISSIONS_SCOPE]).toEqual([PERMISSIONS_CLAIM])
     expect(config.claims?.[ORGANIZATIONS_SCOPE]).toEqual([ORGANIZATIONS_CLAIM])
@@ -58,19 +58,19 @@ describe('combineConfig — scopes and the claims behind them', () => {
 
 describe('combineConfig — the discovery document', () => {
   it('expands a service-relative field against the registered service', async () => {
-    const config = await combineConfig(makeTestContext({
+    const config = await makeOidcConfigUtils(makeTestContext({
       discoveryUris: { [IAM_API_METADATA]: '{{iam-api}}/iam/api/runtime' },
-    }) as any, true)
+    }) as any).combineConfig(true)
 
     expect((config.discovery as Record<string, unknown>)[IAM_API_METADATA])
       .toBe('https://iam.example.test/iam/api/runtime')
   })
 
   it('keeps an absolute field and the custom discovery fields as given', async () => {
-    const config = await combineConfig(makeTestContext({
+    const config = await makeOidcConfigUtils(makeTestContext({
       discoveryUris: { [IAM_API_METADATA]: 'https://elsewhere.example.test/runtime' },
       customConfiguration: { discovery: { service_documentation: 'https://docs.example.test' } },
-    }) as any, true)
+    }) as any).combineConfig(true)
 
     expect(config.discovery).toEqual({
       service_documentation: 'https://docs.example.test',
@@ -83,9 +83,9 @@ describe('combineConfig — pairwise subjects pass through', () => {
   it('keeps the subject options of the custom configuration', async () => {
     const pairwiseIdentifier = async (_: unknown, accountId: string) => `pairwise:${accountId}`
     const sectorIdentifierUriValidate = () => false
-    const config = await combineConfig(makeTestContext({
+    const config = await makeOidcConfigUtils(makeTestContext({
       customConfiguration: { subjectTypes: ['pairwise'], pairwiseIdentifier, sectorIdentifierUriValidate },
-    }) as any, true)
+    }) as any).combineConfig(true)
 
     expect(config.subjectTypes).toEqual(['pairwise'])
     expect(config.pairwiseIdentifier).toBe(pairwiseIdentifier)

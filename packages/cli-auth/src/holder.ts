@@ -1,52 +1,10 @@
 import { hostname, userInfo } from 'node:os'
-import {
-  discoverAuthorizationServer, OAuthAccessDenied, OAuthError, OAUTH_DEVICE_NAME_MAX,
-  pollDeviceToken, requestDeviceAuthorization, revokeToken, signInRequired, TokenRejected
-} from '@owlmeans/oauth'
-import type { AuthorizationServerMetadata, DeviceSignInOutcome } from '@owlmeans/oauth'
+import { OAuthAccessDenied, OAuthError, OAUTH_DEVICE_NAME_MAX, signInRequired, TokenRejected, type AuthorizationServerMetadata, type DeviceSignInOutcome, oauthClientHelper } from '@owlmeans/oauth'
 import { DEFAULT_WAIT_MS } from './consts.js'
-import { readCredentialsFile, resolveEnvFile, setEnvValues } from './env-file.js'
-import { claimOrJoinLock, lockPathFor, readLock, releaseLock } from './lock.js'
-import type { SignInLockInfo } from './lock.js'
+import { envFileHelper } from './env-file.js'
+import { lockPathFor, makeSignInLockHelper } from './lock.js'
+import type { SignInLockInfo, CliCredentials, CliCredentialsOptions } from './types.js'
 import { openBrowser } from './open-browser.js'
-
-export interface CliCredentialsOptions {
-  /** The API origin this credential set is for, and the OAuth `resource` it is scoped to unless
-   * `resource` says otherwise. */
-  apiUrl: string
-  /** This CLI's OAuth `client_id` — a static one the authorization server declared, or an https
-   * Client ID Metadata Document URL. */
-  clientId: string
-  deviceName?: string
-  resource?: string
-  scope?: string
-  /** Which key in `~/.owlmeans` (and the environment) carries the token. */
-  tokenEnvKey: string
-  /** Which key records the URL a stored token belongs to. A file naming no URL at all is treated
-   * as belonging to whichever `apiUrl` is asked for — only an explicit MISMATCH refuses it. */
-  apiUrlEnvKey: string
-  env?: NodeJS.ProcessEnv
-  /** Best-effort progress — "open this URL and enter this code", "signed in", a failure. A host
-   * wires this to stderr, an MCP `notifications/message`, or nothing at all. */
-  onNotify?: (message: string) => void
-}
-
-export interface CliCredentials {
-  /** The token this call site should use right now: the environment, then the bound file value,
-   * or `null` when neither has one. */
-  token: () => Promise<string | null>
-  /** Ensure a usable token exists. Starts or joins a device sign-in when there is none, waits up
-   * to `waitMs` for it to be approved, and returns the token. The sign-in keeps running in the
-   * background past that wait — a later `require()` call picks up wherever it left off, rather
-   * than starting over. */
-  require: (waitMs?: number) => Promise<string>
-  /** A 401 happened while presenting `rejectedToken`. A token that came from the FILE is forgotten
-   * so the next `require()` signs in again; a token that came from the ENVIRONMENT is reported —
-   * silently trying another identity behind an operator's back is worse than failing loudly. */
-  invalidate: (rejectedToken: string) => Promise<void>
-  /** Revoke the current token at the server and remove it from the file. */
-  signOut: () => Promise<void>
-}
 
 
 const defaultDeviceName = (): string => {
@@ -67,14 +25,14 @@ const inFlightByApiUrl = new Map<string, Promise<DeviceSignInOutcome>>()
 export const makeCliCredentials = (opts: CliCredentialsOptions): CliCredentials => {
   const env = opts.env ?? process.env
   const notify = (message: string): void => opts.onNotify?.(message)
-  const credentialsPath = resolveEnvFile(env)
-  const lockPath = lockPathFor(credentialsPath)
+  const credentialsPath = envFileHelper.resolveEnvFile(env)
+  const lock = makeSignInLockHelper(lockPathFor(credentialsPath))
 
   const token = async (): Promise<string | null> => {
     const envValue = env[opts.tokenEnvKey]
     if (envValue != null && envValue !== '') return envValue
 
-    const file = await readCredentialsFile(env)
+    const file = await envFileHelper.readCredentialsFile(env)
     const boundUrl = file[opts.apiUrlEnvKey]
     if (boundUrl != null && boundUrl !== '' && boundUrl !== opts.apiUrl) return null
 
@@ -86,12 +44,12 @@ export const makeCliCredentials = (opts: CliCredentialsOptions): CliCredentials 
   /** Start a fresh device authorization, or adopt another live process's own — either way, claim
    * or join the lock BEFORE requesting one, so the decision and the request agree. */
   const claimJoinOrStart = async (server: AuthorizationServerMetadata): Promise<{ owner: boolean, info: SignInLockInfo }> => {
-    const authorization = await requestDeviceAuthorization(server, {
+    const authorization = await oauthClientHelper.requestDeviceAuthorization(server, {
       client_id: opts.clientId, scope: opts.scope, resource: opts.resource ?? opts.apiUrl,
       device_name: opts.deviceName ?? defaultDeviceName(),
     })
 
-    return await claimOrJoinLock(lockPath, opts.apiUrl, {
+    return await lock.claimOrJoinLock(opts.apiUrl, {
       verificationUri: authorization.verification_uri,
       verificationUriComplete: authorization.verification_uri_complete,
       userCode: authorization.user_code,
@@ -112,7 +70,7 @@ export const makeCliCredentials = (opts: CliCredentialsOptions): CliCredentials 
     if (existing != null) return existing
 
     const promise = (async (): Promise<DeviceSignInOutcome> => {
-      const server = await discoverAuthorizationServer(opts.apiUrl)
+      const server = await oauthClientHelper.discoverAuthorizationServer(opts.apiUrl)
       const claim = await claimJoinOrStart(server)
 
       notify(
@@ -128,19 +86,19 @@ export const makeCliCredentials = (opts: CliCredentialsOptions): CliCredentials 
       }
 
       try {
-        const outcome = await pollDeviceToken(server, {
+        const outcome = await oauthClientHelper.pollDeviceToken(server, {
           clientId: opts.clientId, deviceCode: claim.info.deviceCode, interval: claim.info.interval,
           expiresAt: claim.info.expiresAt,
         })
         if (outcome.status === 'authorized') {
-          await setEnvValues(credentialsPath, { [opts.tokenEnvKey]: outcome.token, [opts.apiUrlEnvKey]: opts.apiUrl })
+          await envFileHelper.setEnvValues(credentialsPath, { [opts.tokenEnvKey]: outcome.token, [opts.apiUrlEnvKey]: opts.apiUrl })
           notify('Signed in.')
         }
 
         return outcome
       } finally {
         inFlightByApiUrl.delete(opts.apiUrl)
-        if (claim.owner) await releaseLock(lockPath, claim.info.nonce)
+        if (claim.owner) await lock.releaseLock(claim.info.nonce)
       }
     })()
     inFlightByApiUrl.set(opts.apiUrl, promise)
@@ -170,9 +128,9 @@ export const makeCliCredentials = (opts: CliCredentialsOptions): CliCredentials 
       ]).finally(() => clearTimeout(ceiling))
 
       if (!raced.settled) {
-        const lock = await readLock(lockPath)
+        const pending = await lock.readLock()
         throw signInRequired({
-          url: lock?.verificationUri ?? opts.apiUrl, code: lock?.userCode, expiresAt: lock?.expiresAt,
+          url: pending?.verificationUri ?? opts.apiUrl, code: pending?.userCode, expiresAt: pending?.expiresAt,
         })
       }
 
@@ -189,9 +147,9 @@ export const makeCliCredentials = (opts: CliCredentialsOptions): CliCredentials 
     },
 
     invalidate: async (rejectedToken: string): Promise<void> => {
-      const file = await readCredentialsFile(env)
+      const file = await envFileHelper.readCredentialsFile(env)
       if (file[opts.tokenEnvKey] === rejectedToken) {
-        await setEnvValues(credentialsPath, { [opts.tokenEnvKey]: undefined })
+        await envFileHelper.setEnvValues(credentialsPath, { [opts.tokenEnvKey]: undefined })
         notify('The stored token was refused. Signing in again.')
 
         return
@@ -205,11 +163,11 @@ export const makeCliCredentials = (opts: CliCredentialsOptions): CliCredentials 
       const current = await token()
       if (current == null) return
 
-      const server = await discoverAuthorizationServer(opts.apiUrl).catch(() => null)
+      const server = await oauthClientHelper.discoverAuthorizationServer(opts.apiUrl).catch(() => null)
       if (server != null) {
-        await revokeToken(server, { token: current, clientId: opts.clientId }).catch(() => undefined)
+        await oauthClientHelper.revokeToken(server, { token: current, clientId: opts.clientId }).catch(() => undefined)
       }
-      await setEnvValues(credentialsPath, { [opts.tokenEnvKey]: undefined })
+      await envFileHelper.setEnvValues(credentialsPath, { [opts.tokenEnvKey]: undefined })
     },
   }
 }

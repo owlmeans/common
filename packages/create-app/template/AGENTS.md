@@ -30,6 +30,15 @@ skill.
 - Report finished git work as a Markdown table (**Action**, **Target**, **Result**), and never
   commit a conflicted working copy — stop, list the conflicted paths, hand control back.
 
+## Code structure (mandatory)
+
+The functions of one domain are ONE object built by a factory: its `interface` is declared first
+(never `ReturnType<typeof …>`; interfaces over types wherever possible), the implementation and its
+private parts live in the factory, and a shared context or collaborator is bound into the factory.
+Types, consts and code live in separate files; an object with parts gets a same-named folder
+(`x.ts` + `x/types.ts`). Load `/owlmeans-code-structure` before writing, moving or reviewing any
+`.ts`/`.tsx`, and hold every diff to it.
+
 ## Reporting (mandatory)
 
 Always report concisely and briefly, in table format, about WHAT was done rather than why —
@@ -87,6 +96,17 @@ package that owns its browser consumer imports `apiConfigPlugin({ allow, deny? }
 nested `deny` selector when a public collection carries a credential. Databases, queues, SMTP,
 tokens, secrets and internal addresses never belong in an `allow` selector.
 
+## Logging (mandatory)
+
+Before adding any log line, catch block or `console` call, follow the `logging` skill (mechanics: `log`).
+
+- No `console.*`: `const log = logger('<scope>')` from `@owlmeans/log`, a deliberate level, the
+  `Error` itself to `log.error`; never secrets, tokens or personal content.
+- The level is set per environment, never in code: the api reads `LOG_LEVEL` / `LOG_DEBUG`
+  (default `info`), the web build reads `VITE_LOG_LEVEL` / `VITE_LOG_DEBUG` (`debug` under `vite`,
+  `info` in a build). Local values go in the git-ignored `sources/api/.env` / `sources/web/.env`.
+- Never set `cfg.debug = { all: true }` — it does not control logging and must not reach production.
+
 ## Skills
 
 Reusable guidance lives in `.agents/skills/<name>/SKILL.md`, deployed by `@owlmeans/agent-skills`
@@ -94,8 +114,9 @@ from the installed `@owlmeans/*` packages. Agents load a skill by topic, or you 
 explicitly. Copilot and Codex read `.agents/skills/` directly; Claude Code reads the generated
 symlinks in `.claude/skills/` (see "Claude Code" below).
 
-- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.46` to refresh
+- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.50` to refresh
   the deployed skills.
+- `/logging` — before adding any log line, catch block or `console` call (mechanics: `/log`).
 - Deployed files carry an `AUTO-GENERATED` banner and are refreshed in place — never hand-edit them.
 - To capture your own guidance, see the `skill-authoring` skill; to turn repeatedly-used memory into
   a skill, `memory-promotion`. Keep it inside this repository, in `.agents/skills/` — never in a

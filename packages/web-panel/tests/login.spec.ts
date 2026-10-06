@@ -1,11 +1,11 @@
 import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 import { HARNESS_URL } from './context.js'
 
 const TIMEOUT = 30_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 const open = async (query?: string) => {

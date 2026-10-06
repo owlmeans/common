@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.68"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.71"` in `dependencies`
 
 ## Key Exports
 
@@ -32,8 +32,8 @@ user-invocable: false
 | `useBreakPoint()` | The current Tailwind breakpoint name, tracked on `resize` (`lg` when there is no `window`) |
 | `useMapBreakpoint(map, def?, breakpoint?)` | The `map` entry for the current breakpoint (or for the `breakpoint` passed), falling back to `def`. It **throws a `SyntaxError`** when neither yields a value, so give it a `def` or cover every breakpoint |
 | Re-exports from `@owlmeans/client-panel` | Cross-platform panel primitives, incl. `usePanelNav` and the `PanelNav*` types |
-| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` / `@owlmeans/route` | `bind`, `bindAll`, `bindScreen`, `handler`, `lazyHandler` / `lazyComponent` (+ `LazyHandler` / `LazyComponent` / `LazyComponentOptions` types — see the `client` skill), `provideRequest`, `stab`, `route`, `croute`, `frontend`, `useNavigate`, `useEntrypoint`, `useValue` |
-| Re-exports from the surrounding layers | `config`, `service`, `addWebService`, `AppType` / `HOME` / `ROOT` / `BASE` / `GUEST`, `DISPATCHER`, `CAUTHEN_FLOW_ENTER`, `DAUTH_GUARD`, `bindExternalAuthentication`, `Dispatcher`, `appendWebAuthService`, `flow` / `configureFlows` / `useFlow` / `FLOW_PARAM` / `SERVICE_PARAM`, `useI18n*` / `useLanguage` / `composePrefix`, `addI18nApp` / `addI18nLib` / `SUPPORTED_LNGS` |
+| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` / `@owlmeans/route` | `bind`, `bindAll`, `bindScreen`, `handler`, `lazyHandler` / `lazyComponent` (+ `LazyHandler` / `LazyComponent` / `LazyComponentOptions` types — see the `client` skill), `clientRequestHelper` (`provideRequest`), `stab`, `route`, `croute`, `frontend`, `useNavigate`, `useEntrypoint`, `useValue` |
+| Re-exports from the surrounding layers | `config`, `service`, `addWebService`, `AppType` / `HOME` / `ROOT` / `BASE` / `GUEST`, `DISPATCHER`, `CAUTHEN_FLOW_ENTER`, `DAUTH_GUARD`, `bindExternalAuthentication`, `Dispatcher`, `appendWebAuthService`, `flow` / `configureFlows` / `useFlow` / `FLOW_PARAM` / `SERVICE_PARAM`, `useI18n*` / `useLanguage` / `composePrefix`, `i18nHelper` (`addI18nApp` / `addI18nLib`) / `SUPPORTED_LNGS` |
 
 ## Subpath Exports
 
@@ -43,7 +43,7 @@ user-invocable: false
   widget and a presence service so a host's own collapsed menu can take over the floating button's
   job
 - `./scheme` — the React-free colour-scheme half: `COLOR_SCHEME_KEY`, `COLOR_SCHEME_EVENT`,
-  `ColorSchemeChoice`, `readColorScheme`, `applyColorScheme`, `colorSchemeBootstrapScript` — safe
+  `ColorSchemeChoice`, `colorSchemeHelper` (`readColorScheme`, `applyColorScheme`, `colorSchemeBootstrapScript`) — safe
   to import from a Node build script
 
 ## Usage
@@ -276,7 +276,7 @@ that paints dark under `prefers-color-scheme: dark`. So a consumer's CSS must re
 A theme with dark tokens under `.dark` alone never follows the OS; one with them under the media
 query alone ignores an explicit light choice.
 
-**The head bootstrap goes before any stylesheet paints.** `colorSchemeBootstrapScript()` returns a
+**The head bootstrap goes before any stylesheet paints.** `colorSchemeHelper.colorSchemeBootstrapScript()` returns a
 self-contained inline script that puts the stored choice's class on `<html>` before first paint —
 the only moment it can; a component doing it after mount shows a visitor who chose dark one frame
 of the light page. A build step inlines it into `index.html` (import it from
@@ -291,7 +291,7 @@ Rules the pieces own:
   is in (sun while light, moon while dark), chosen in script, not by a `dark:` variant.
 - **The accessible name says what pressing does** — `labels.toLight` / `labels.toDark`, English
   defaults; `NavLayout` resolves them through `translate` (`shell.toLight`, `shell.toDark`).
-- **One choice per document.** `applyColorScheme(choice | null)` sets the class, stores or clears
+- **One choice per document.** `colorSchemeHelper.applyColorScheme(choice | null)` sets the class, stores or clears
   the key and dispatches `COLOR_SCHEME_EVENT`, so every mounted `useColorScheme` agrees at once;
   another tab's change arrives through `storage`, and an OS switch through `matchMedia` while
   nothing is stored. `setChoice(null)` hands the page back to the OS.
@@ -345,7 +345,7 @@ on every navigation. Neither does anything unless an app opts in:
 cfg.socket = { reloadDialog: true }
 ```
 
-Once any `ws()`/`useWs()` connection in the app has exhausted its own retry budget
+Once any `socketClientHelper.ws()`/`useWs()` connection in the app has exhausted its own retry budget
 (`useSocketStatus() === 'lost'`), a global, blocking `AlertDialog` covers the screen — no Escape,
 no outside click, two actions:
 
@@ -428,7 +428,7 @@ import { Form, TextInput, SubmitButton, Button } from '@owlmeans/web-panel'
 ### The terms confirmation — `LoginTerms`, `LoginPrivacyNotice`
 
 `components/login/terms.tsx` renders `LoginTermsModel` (`@owlmeans/client-panel/auth`) via
-`termsSentence` + `termsLabelResolver` (`@owlmeans/client-auth/login`) rather than re-deriving
+`loginTermsHelper.termsSentence` + `.termsLabelResolver` (`@owlmeans/client-auth/login`) rather than re-deriving
 link/label pairs itself. **`[data-login-terms]` marks exactly one checkbox — or NONE, once
 `model.terms.deferred` is true** (`LoginScreen` renders `LoginTerms` when not deferred,
 `LoginPrivacyNotice` when it is): an e2e suite elsewhere in the platform treats the checkbox as a
@@ -503,7 +503,7 @@ menu has already mounted) and because React 18 StrictMode double-invokes mount/c
 | Job | Import from `@owlmeans/web-panel/consent` | Where it goes |
 |---|---|---|
 | The consent dialog (and its floating re-open button) | `PanelCookieConsent` | Beside the router — a `PanelApp` child — once |
-| The "Cookie settings" control in a footer or menu | `PanelConsentMenuWidget` (`label`, `className`, `onSelect?` — defaults to `openConsent('reopen')`) | Inside the host's own footer/menu |
+| The "Cookie settings" control in a footer or menu | `PanelConsentMenuWidget` (`label`, `className`, `onSelect?` — defaults to `consentStore.open('reopen')`) | Inside the host's own footer/menu |
 | Hiding the floating button while that control is reachable | `useConsentMenuPresence()` | Called by the always-mounted component that renders the control — mounted ONLY while the control can actually be reached: a component that is merely hidden by CSS (`xl:hidden`) is still mounted and still claims presence, so the floating button vanishes with nothing else to open the dialog; render it conditionally instead (viable's header mounts its hamburger menu only below the full-row breakpoint) |
 | Registering the presence service | `appendConsentWidgetService(context)` | The app's `context.ts` |
 

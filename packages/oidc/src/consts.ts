@@ -73,7 +73,7 @@ export const PERMISSIONS_SCOPE = 'permissions'
 export const OIDC_RP_BASE_SCOPES = ['openid', 'profile', EMAIL_SCOPE]
 
 /** `OIDC_RP_BASE_SCOPES` as the space-delimited string an authorization request carries. */
-export const OIDC_RP_BASE_SCOPE = OIDC_RP_BASE_SCOPES.join(' ')
+export const OIDC_RP_BASE_SCOPE = `openid profile ${EMAIL_SCOPE}`
 
 /** Token/userinfo claim carrying the subject's PermissionSet[] for the requesting client. */
 export const PERMISSIONS_CLAIM = 'permissions'

@@ -33,7 +33,7 @@ its text simply travels a different route.
 ## Rules
 
 - **Order is the cache key.** `PROMPT_BLOCK_ORDER` is declared explicitly, skills sort by
-  `(order, alias)` with a code-unit comparison (`compareAlias`, never `localeCompare` —
+  `(order, alias)` with a code-unit comparison (`promptRenderHelper.compareAlias`, never `localeCompare` —
   ICU data differs between hosts), and detected packages sort alphabetically.
 - **Skill bodies are pure constants.** No timestamps, no absolute paths, no interpolated
   request data. One varying byte invalidates the prefix for every call that shares it.
@@ -58,10 +58,10 @@ its text simply travels a different route.
   may spend at most `MAX_SYSTEM_BREAKPOINTS` (2) — its only STABLE boundaries are the end
   of role+skills and the end of packages — which always leaves two for the messages.
 - **The last message is never cached.** `patchCache` stops one short of the end: the final
-  message is the per-call payload, and `ensureJsonMention` / `applyNoThink` append to it.
+  message is the per-call payload, and `promptUtils.ensureJsonMention` / `.applyNoThink` append to it.
 - **Markers are placed in-place, on the caller's objects.** A caller that carries its
   message array across calls (a coder's growing conversation, a fix loop) hands them back
-  still marked, and they accumulate. `prepare()` therefore calls `stripCacheMarkers()`
+  still marked, and they accumulate. `prepare()` therefore calls `promptUtils.stripCacheMarkers()`
   first, so the per-request count depends on THIS call alone. Anything that places a
   marker outside that pipeline must do the same.
 - **A short prefix is not marked.** Below `MIN_CACHEABLE_TOKENS` (override per alias with
@@ -74,7 +74,7 @@ its text simply travels a different route.
 > logs for `Prompt cache [` lines and a non-zero `read`.
 
 
-`usage_metadata.input_token_details` is the only honest answer. `readCacheUsage(message)`
+`usage_metadata.input_token_details` is the only honest answer. `cacheHelper.readCacheUsage(message)`
 (`@owlmeans/llm/helpers`) normalizes it; `spectate` logs a line whenever a provider reports
 any cache activity. **If `read` stays 0 across repeated calls that share a prefix, something
 is invalidating it** — diff `PromptResult.blocks` between two calls to find what.

@@ -11,7 +11,7 @@ tools the in-memory store of `@owlmeans/server-planning`.
 ## Installation
 
 ```sh
-bun add @owlmeans/planning-postgres@^0.1.18-rc.5
+bun add @owlmeans/planning-postgres@^0.1.18-rc.9
 ```
 
 Peers: `pg`, `ajv`, `ajv-formats`.
@@ -68,7 +68,10 @@ const planning = ctx.service<PlanningHostService>(PLANNING_SERVICE).for({ entity
 `makePlanningPostgresResources`); `makePostgresPlanningStore`, `makePostgresPlanningService`,
 `appendPostgresPlanning`; `PostgresPlanningStore` (`fold`, `recover`, `close`);
 `DEFAULT_PLANNING_POSTGRES_LIMITS`, `RES_PLANNING_*`, `PLANNING_POSTGRES_STORE`;
-`PlanningPostgresError`; the table schemas `Planning*TableSchema`.
+`PlanningPostgresError`; the table schemas `Planning*TableSchema`; the statement helpers
+`sqlHelper` and, bound to one `SqlContext` (a runner and the tables), `cardSqlOf(sql)`,
+`linkSqlOf(sql)`, `transitionSqlOf(sql)`, `schemaSqlOf(sql)`. The former plain statement functions
+(`insertOf`, `readCard`, `listTransitions`, …) remain as deprecated delegates.
 
 ## Common pitfalls
 
@@ -93,7 +96,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

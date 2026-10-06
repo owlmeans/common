@@ -4,16 +4,16 @@ import { AuthenticationType, AuthRole, buildSupervisorPayload } from '@owlmeans/
 import type { AuthCredentials } from '@owlmeans/auth'
 import type { TrustedRecord } from '@owlmeans/auth-common'
 import type { Criteria } from '@owlmeans/resource'
-import { firstMatch } from '@owlmeans/resource'
 import { makeSupervisorPlugin } from '../src/manager/plugins/supervisor.js'
 import type { AppConfig, AppContext } from '../src/manager/types.js'
+import { recordQueryHelper } from '@owlmeans/resource'
 
 const SUPERVISOR = 'master'
 
 const makeStubContext = (records: TrustedRecord[]): AppContext<AppConfig> => ({
   getConfigResource: () => ({
     load: async (idOrWhere: string | Criteria<TrustedRecord>) =>
-      firstMatch(records, typeof idOrWhere === 'string' ? { id: idOrWhere } : idOrWhere)
+      recordQueryHelper.firstMatch(records, typeof idOrWhere === 'string' ? { id: idOrWhere } : idOrWhere)
   })
 } as unknown as AppContext<AppConfig>)
 

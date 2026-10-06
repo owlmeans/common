@@ -10,7 +10,7 @@ re-exports of `@owlmeans/web-client` or `@owlmeans/web-panel`. Protocols are dec
 ## Installation
 
 ```bash
-bun add @owlmeans/client-entrypoint@^0.1.18-rc.44
+bun add @owlmeans/client-entrypoint@^0.1.18-rc.47
 ```
 
 ## Concepts
@@ -116,15 +116,15 @@ so `call({ params })` is enough. Never add `{ body: {} }` as a workaround.
 
 ### 5. Narrowing a payload to a schema
 
-`pickPerSchema(object, schema)` keeps only the keys the AJV schema declares and skips `null` values.
+`clientRequestHelper.pickPerSchema(object, schema)` keeps only the keys the AJV schema declares and skips `null` values.
 It is useful when a form model carries more fields than the contract accepts.
 
 ```ts
-import { pickPerSchema } from '@owlmeans/client-entrypoint'
+import { clientRequestHelper } from '@owlmeans/client-entrypoint'
 import type { ProjectUpdate } from 'my-app-common'
 import { ProjectUpdateSchema } from 'my-app-common'
 
-const body = pickPerSchema<typeof formValues, ProjectUpdate>(formValues, ProjectUpdateSchema)
+const body = clientRequestHelper.pickPerSchema<typeof formValues, ProjectUpdate>(formValues, ProjectUpdateSchema)
 await ctx.entrypoint(apiProtocols.project.update).call({ params: { id }, body })
 ```
 
@@ -138,8 +138,8 @@ await ctx.entrypoint(apiProtocols.project.update).call({ params: { id }, body })
 | `bindAll(tree)` | function | Materialize every protocol in a named declaration tree |
 | `bindScreen(protocol, handler, options?)` | function | Materialize a frontend protocol with its renderer |
 | `stab` | const | No-op `RefedEntrypointHandler` for a URL-only frontend binding |
-| `provideRequest(alias, path)` | function | A minimal `AbstractRequest` for a dynamic boundary (for example a socket request) |
-| `pickPerSchema(object, schema)` | function | Keep only the non-null keys an AJV schema declares |
+| `clientRequestHelper.provideRequest(alias, path)` | helper member | A minimal `AbstractRequest` for a dynamic boundary (for example a socket request) |
+| `clientRequestHelper.pickPerSchema(object, schema)` | helper member | Keep only the non-null keys an AJV schema declares |
 | `ClientProtocolEntrypoint<Protocol>` | type | The bound view of a protocol — see *Entrypoint members* |
 | `ClientEntrypoint<T, R>` | type | The untyped bound entrypoint shape the protocol view is built from |
 | `ClientEntrypointOptions` | type | `routeOptions?` (`ClientRouteOptions`), `validateOnCall?`, plus common entrypoint options |
@@ -164,9 +164,10 @@ await ctx.entrypoint(apiProtocols.project.update).call({ params: { id }, body })
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `apiInvoke(ref, options?)` | function | The round trip behind `invoke()` |
-| `apiHandler(ref)` | function | The handler that picks the transport service or the API client |
-| `entrypointUrl(ref, request?, options?)` | function | The address behind `url()` |
+| `apiCallOf(ref)` / `makeApiCallHelper(ref)` | helper | The call mechanics bound to one entrypoint ref (one per ref through `apiCallOf`) |
+| `apiCallOf(ref).apiInvoke(options?)` | helper member | The round trip behind `invoke()` |
+| `apiCallOf(ref).apiHandler` | helper member | The handler that picks the transport service or the API client |
+| `apiCallOf(ref).entrypointUrl(request?, options?)` | helper member | The address behind `url()` |
 | `validate(ref)` | function | The filter behind `validate()` |
 | `isEntrypoint(value)` | function | Re-export from `@owlmeans/entrypoint/utils` |
 
@@ -204,7 +205,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

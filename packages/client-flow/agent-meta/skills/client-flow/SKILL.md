@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-flow
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-flow": "^0.1.18-rc.51"` in `dependencies`
+**Install:** `"@owlmeans/client-flow": "^0.1.18-rc.54"` in `dependencies`
 
 Two objects, with different lifetimes. The **service** lives on the context and owns the flow
 definitions and the one live `FlowModel`. The **client** is built per screen, wraps that model with
@@ -26,7 +26,7 @@ a `Navigator`, and is what a component actually calls.
 | `ResolvePair` | The `{ resolve, reject }` behind `service.supplied` |
 | `DEFAULT_ALIAS` (`flow`) | The service alias |
 | `FLOW_STATE` (`state:flow`) | Alias of the client resource the state is persisted in, and the record id inside it |
-| `suspendFlow(context, model, { expiresAt })` · `resumeSuspendedFlow(context)` · `RESUME_FLOW` (`resume-flow`) | The suspended landing: park where a flow was headed before sign-in, read it back once after |
+| `flowLandingOf(context)` → `.suspendFlow(model, { expiresAt })` · `.suspendLanding({ entrypoint, query }, { expiresAt })` · `.resumeSuspendedFlow()` · `.discardSuspendedLanding()` · `RESUME_FLOW` (`resume-flow`) | The suspended landing: park where a flow was headed (or a known screen) before sign-in, read it back once after, or drop it unread |
 | `SuspendedLanding` `{ entrypoint, query }` · `SuspendedLandingRecord` | What resumes / what is stored |
 | `EXTRA_FLOW` (`extra-flow`) · `REHACK_MOD` (`__redirect`) | Id of the second, side-band state record kept in the same resource, and the alias of the entrypoint synthesized to address a target service |
 
@@ -127,27 +127,34 @@ record all belong to the OIDC sign-in machinery, so a flow that must leave for s
 side-band record under `RESUME_FLOW` in the same `FLOW_STATE` resource — the `EXTRA_FLOW` precedent —
 which is IndexedDB in a browser and so survives a full-page Google round trip.
 
-- `suspendFlow(context, model, { expiresAt })` asks the model's own `next()` where the current step
+- `flowLandingOf(context).suspendFlow(model, { expiresAt })` asks the model's own `next()` where the current step
   leads and stores that destination step's **`module`** (an entrypoint alias), the model's `payload()`
   as `query`, and `expiresAt` (epoch ms). It answers `false` — and stores nothing — when `FLOW_STATE`
   is not registered, the step has no forward transition, or the destination has no `module`; the
   caller then lands on `HOME` as before. The record is not a serialized flow token: the destination
   is a screen the app can enter fresh, reading its own parameters from the query.
-- `resumeSuspendedFlow(context)` returns `{ entrypoint, query }` or `null`, and is **delete-on-read** —
+- `.suspendLanding({ entrypoint, query }, { expiresAt })` writes the SAME record for a caller
+  whose destination is already an alias rather than a flow step — `@owlmeans/client-auth`'s login
+  facade parks `useLogin(target)`'s screen with it. One record, one reader: the later write replaces
+  the earlier, whichever helper wrote it. `false` when `FLOW_STATE` is not registered.
+- `.discardSuspendedLanding()` deletes the record unread — for a sign-in that ended without
+  signing anyone in, so its landing cannot hijack the next, unrelated one. A no-op with nothing there.
+- `.resumeSuspendedFlow()` returns `{ entrypoint, query }` or `null`, and is **delete-on-read** —
   a landing answers exactly one sign-in, so a stale tab's record never resurrects on someone else's
   later sign-in. `null` covers no resource, no record, a failed read and an expired record.
 - **Destinations are entrypoint aliases from a registered flow definition, never stored URLs**, so a
   landing cannot become an open redirect. Consumers navigate to the alias with the query.
 
-Two flows use it today: the OAuth consent screen (`oauthFlow`, a signed-out person on a consent link) and
-viable's intent-first landing (`intentFlow` from `@owlmeans/viable-common/intent`, a visitor who arrives
-from the public site with `?ref=` and no account) — both enter their flow FRESH on an `initial` screen
-and never carry `?flow=`.
+Writers today: `useLogin(target)` (`@owlmeans/client-auth`, through the login facade's
+`suspendLanding`), the OAuth consent screen (`oauthFlow`, a signed-out person on a consent link) and
+viable's intent-first landing (`intentFlow` from `@owlmeans/viable-common/intent`, a visitor who
+arrives from the public site with `?ref=` and no account) — the two flows enter FRESH on an `initial`
+screen and never carry `?flow=`.
 
 Every sign-in completion asks `resumeSuspendedFlow` before it navigates home: `DispatcherHOC`'s HOME
 branch (`@owlmeans/client-auth`, so the `/dispatcher?token=` and resume paths are covered) and the
 supervisor and Google login plugins (`web-auth`, `web-oidc-rp`) — see [[login-plugins]].
-`bun test ./tests` covers suspend, resume, expiry and the empty cases.
+`bun test ./tests` covers suspend (flow and known landing), resume, discard, expiry and the empty cases.
 
 ## Depends On
 

@@ -1,15 +1,11 @@
 import { appendContextual, createService } from '@owlmeans/context'
 import type { RedisResource } from '@owlmeans/redis-resource'
-import type { ResourceRecord } from '@owlmeans/resource'
 import { OtpUnavailable } from './errors.js'
-import { OTP_CHALLENGE_STORE, OTP_RESOURCE } from './consts.js'
-import type {
-  OtpChallenge, OtpChallengeOutcome, OtpChallengeStore, OtpConfig, OtpContext,
-} from './types.js'
-import { OtpChallengeOutcome as Outcome } from './types.js'
+import { OTP_CHALLENGE_STORE, OTP_RESOURCE, type OtpChallengeOutcome, OtpChallengeOutcome as Outcome } from './consts.js'
+import type { OtpChallengeStore, OtpConfig, OtpContext } from './types.js'
+import { REDIS_VERIFY_SCRIPT } from './consts.local.js'
+import type { ChallengeResourceRecord, Clock, StoredChallenge } from './types.local.js'
 
-type Clock = () => number
-type StoredChallenge = OtpChallenge & { failedAttempts: number, expiresAt: number }
 
 /** Real in-memory challenge store with synchronous consume/update semantics. */
 export const makeMemoryOtpChallengeStore = (
@@ -46,30 +42,6 @@ export const makeMemoryOtpChallengeStore = (
     },
   })
 }
-
-interface ChallengeResourceRecord extends ResourceRecord { id: string }
-
-const REDIS_VERIFY_SCRIPT = `
-local raw = redis.call('GET', KEYS[1])
-if not raw then return 0 end
-local record = cjson.decode(raw)
-if record.emailKey == ARGV[1] and record.codeHash == ARGV[2] then
-  redis.call('DEL', KEYS[1])
-  return 1
-end
-record.failedAttempts = tonumber(record.failedAttempts or 0) + 1
-if record.failedAttempts >= tonumber(ARGV[3]) then
-  redis.call('DEL', KEYS[1])
-  return -2
-end
-local ttl = redis.call('PTTL', KEYS[1])
-if ttl <= 0 then
-  redis.call('DEL', KEYS[1])
-  return 0
-end
-redis.call('SET', KEYS[1], cjson.encode(record), 'XX', 'PX', ttl)
-return -1
-`
 
 /** Redis challenge store: compare, attempt increment, exhaustion, and consume are one operation. */
 export const makeRedisOtpChallengeStore = (

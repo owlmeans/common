@@ -1,23 +1,19 @@
 import { appendContextual } from '@owlmeans/context'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import type { AuthCredentials, AuthPayload, Profile } from '@owlmeans/auth'
-import { ALL_SCOPES } from '@owlmeans/auth'
+import { type AuthCredentials, type AuthPayload, type Profile, ALL_SCOPES } from '@owlmeans/auth'
 import type { ProviderProfileDetails } from '@owlmeans/oidc'
 import type { Criteria } from '@owlmeans/resource'
-import type {
-  AccountMeta, IdentityAccountResource, IdentityProfileResource, IdentityCredentialsResource, IdentityLinkingService,
-  IdentityResourcesOptions,
-} from './types.js'
-import type { IdentityCredentials, IdentityProfile } from './types.js'
-import type { EntityResolverService } from '@owlmeans/auth-common'
-import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
+import type { AccountMeta, IdentityAccountResource, IdentityProfileResource, IdentityCredentialsResource, IdentityLinkingService, IdentityResourcesOptions, IdentityCredentials, IdentityProfile } from './types.js'
+import { type EntityResolverService, ENTITY_RESOLVER } from '@owlmeans/auth-common'
 import {
   AUTH_IDENTITY_ACCOUNT, AUTH_IDENTITY_PROFILE, AUTH_IDENTITY_CREDENTIALS, AUTH_IDENTITY_LINKING, DEFAULT_APP_SERVICE,
 } from './consts.js'
 import { identityEvents } from './events.js'
-import { credentialKeyOf, credentialOf, ensureAccount, ensureProfile, profileIdOf } from './identity.js'
+import { identityOf } from './identity.js'
+import { identityKeyHelper } from './keys.js'
+import { logger } from '@owlmeans/log'
+import type { ServiceContext } from './types.local.js'
 
-type Context = ServerContext<ServerConfig>
+const log = logger('server-auth-identity')
 
 /**
  * The deployment's own sign-in over the identity store: every payload names the row of THIS
@@ -34,7 +30,7 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
    * id onto the wire, where a consumer would mistake it for a slug and compose names from it.
    */
   const slugOf = async (entityId: string): Promise<string | undefined> => {
-    const ctx = service.ctx as Context
+    const ctx = service.ctx as ServiceContext
     const entity = await ctx.service<EntityResolverService>(ENTITY_RESOLVER).byId(entityId)
 
     return entity?.slug
@@ -51,27 +47,27 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
 
   const service: IdentityLinkingService = appendContextual<IdentityLinkingService>(AUTH_IDENTITY_LINKING, {
     getLinkedProfile: async (details: ProviderProfileDetails): Promise<AuthPayload | null> => {
-      const ctx = service.ctx as Context
-      const account = (await credentialOf(ctx, details))?.account
+      const ctx = service.ctx as ServiceContext
+      const account = (await identityOf(ctx).credentialOf(details))?.account
       if (account == null) return null
 
       // A method that is linked but has no row of THIS app yet answers "not linked": the caller's
       // `linkProfile` then writes the row, on the account the method already belongs to.
       const profile = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE).load({
-        profileId: profileIdOf(app, account.id), entityId: account.entityId,
+        profileId: identityKeyHelper.profileIdOf(app, account.id), entityId: account.entityId,
       })
 
       return profile != null ? await payloadOf(details.type, profile) : null
     },
 
     linkProfile: async (details: ProviderProfileDetails, meta: AccountMeta): Promise<AuthPayload> => {
-      const ctx = service.ctx as Context
-      const { account, registered } = await ensureAccount(ctx, {
+      const ctx = service.ctx as ServiceContext
+      const { account, registered } = await identityOf(ctx).ensureAccount({
         email: meta.username, ...(details.username != null ? { name: details.username } : {}),
       }, details)
       // The person is the owner of their personal organization — and, for a deployment's own app,
       // its user with every scope there.
-      const profile = await ensureProfile(ctx, {
+      const profile = await identityOf(ctx).ensureProfile({
         account, service: app, entityId: account.entityId, owner: true, scopes: [ALL_SCOPES],
       })
 
@@ -96,7 +92,7 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
     },
 
     linkCredentials: async (details: ProviderProfileDetails): Promise<AuthPayload> => {
-      const ctx = service.ctx as Context
+      const ctx = service.ctx as ServiceContext
       if (details.profileId != null) {
         const row = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
           .load({ profileId: details.profileId })
@@ -106,12 +102,15 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
         if (account == null) {
           throw new Error('Cannot link credentials: profile not found')
         }
-        const linked = (await credentialOf(ctx, details))?.account
+        const linked = (await identityOf(ctx).credentialOf(details))?.account
         if (linked != null && linked.id !== account.id) {
+          log.warn('Credential link refused: the method signs into another account', {
+            method: details.type, service: details.service, accountId: account.id, reason: 'linked-elsewhere',
+          }, { event: 'auth.refused' })
           throw new Error('Cannot link credentials: the method signs into another account')
         }
         // By the account's own address, so the method is attached to exactly this account.
-        await ensureAccount(ctx, { email: account.email }, details)
+        await identityOf(ctx).ensureAccount({ email: account.email }, details)
       }
 
       const result = await service.getLinkedProfile(details)
@@ -123,15 +122,15 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
     },
 
     unlinkCredentials: async (details: ProviderProfileDetails): Promise<void> => {
-      const ctx = service.ctx as Context
+      const ctx = service.ctx as ServiceContext
       const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
-      const cred = await credsResource.load(credentialKeyOf(details))
+      const cred = await credsResource.load(identityKeyHelper.credentialKeyOf(details))
       if (cred?.id == null) return
       await credsResource.delete(cred.id)
     },
 
     getOwnerProfiles: async (entityId: string): Promise<Profile[]> => {
-      const ctx = service.ctx as Context
+      const ctx = service.ctx as ServiceContext
       const { items: profiles } = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
         .list({ entityId, service: app }, { size: 0 })
       const entitySlug = await slugOf(entityId)
@@ -148,12 +147,12 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
     },
 
     getOwnerCredentials: async (userId: string, entityId?: string, type?: string): Promise<AuthCredentials | undefined> => {
-      const ctx = service.ctx as Context
+      const ctx = service.ctx as ServiceContext
       const account = await ctx.resource<IdentityAccountResource>(AUTH_IDENTITY_ACCOUNT).load(userId)
       if (account == null) return undefined
 
       const profile = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE).load({
-        profileId: profileIdOf(app, account.id), entityId: entityId ?? account.entityId,
+        profileId: identityKeyHelper.profileIdOf(app, account.id), entityId: entityId ?? account.entityId,
       })
       if (profile == null) return undefined
 

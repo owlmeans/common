@@ -1,7 +1,7 @@
 import { assertContext, createLazyService } from '@owlmeans/context'
 import type { ConfigRecord } from '@owlmeans/context'
 import { DEFAULT_ALIAS } from './consts.js'
-import { DEFAULT_ALIAS as CONFIG_RESOURCE, fromConfigRecord } from '@owlmeans/config'
+import { DEFAULT_ALIAS as CONFIG_RESOURCE, configHelper } from '@owlmeans/config'
 import type { ConfigResource } from '@owlmeans/config'
 import type { FlowService, ResolvePair } from './types.js'
 import type { Flow, FlowConfigRecord, WithFlowConfig } from '@owlmeans/flow'
@@ -72,7 +72,7 @@ export const makeBasicFlowService = (alias: string = DEFAULT_ALIAS): FlowService
     const configRes = ctx.resource<ConfigResource>(CONFIG_RESOURCE)
     const flowConfigs = await configRes.list({ recordType: FLOW_RECORD })
     await Promise.all(flowConfigs.items.map(
-      item => fromConfigRecord<ConfigRecord, FlowConfigRecord>(item)
+      item => configHelper.fromConfigRecord<ConfigRecord, FlowConfigRecord>(item)
     ).map(async flow => {
       Object.values(flow.steps).forEach(step => {
         if (step.service.startsWith('$')) {

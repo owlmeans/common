@@ -1,57 +1,9 @@
-import { SchemaConflict } from '@owlmeans/planning'
-import type { SchemaStore, ScopedSchemaRecord, Unsubscribe } from '@owlmeans/planning'
-import type { Pool } from 'pg'
+import { SchemaConflict, type SchemaStore, type ScopedSchemaRecord } from '@owlmeans/planning'
 import { SCHEMA_HEAD_KEY, SCHEMA_HEAD_KIND } from '../consts.js'
-import { clientRunner, col, insertOf, recordOf } from '../sql.js'
-import type { PlanningTables, SqlContext, SqlRunner } from '../sql.js'
-import type { PlanningBus } from './bus.js'
-
-/** The scope's uniqueness expression — the one the `…_scope` index is built on. */
-const scopeTarget = (sql: SqlContext): string => {
-  const spec = sql.tables.schema
-  return `(${col(spec, 'entityId')}, COALESCE(${col(spec, 'project')}, ''), ${col(spec, 'kind')}, ${col(spec, 'key')})`
-}
-
-/**
- * Bump an organization's schema revision — its private `head` row, created at 1 — and answer the
- * new value. Runs inside the write's own transaction, so the revision moves exactly when it commits.
- */
-export const bumpRevision = async (sql: SqlContext, entityId: string, at: string, id: () => string): Promise<number> => {
-  const spec = sql.tables.schema
-  const statement = insertOf(spec, {
-    id: id(), entityId, kind: SCHEMA_HEAD_KIND, key: SCHEMA_HEAD_KEY, version: 1, rev: 1, definition: {}, createdAt: at,
-  }, {
-    as: 'existing',
-    tail: `ON CONFLICT ${scopeTarget(sql)} DO UPDATE SET ${col(spec, 'rev')} = COALESCE(existing.${col(spec, 'rev')}, 0) + 1,`
-      + ` ${col(spec, 'updatedAt')} = EXCLUDED.${col(spec, 'createdAt')} RETURNING ${col(spec, 'rev')} AS rev`,
-  })
-  const rows = await sql.runner.query<{ rev: number }>(statement.text, statement.params)
-  return Number(rows[0]?.rev ?? 0)
-}
-
-/** Remove the layers of the given projects inside a transaction; answers how many records went. */
-export const purgeSchemaLayers = async (sql: SqlContext, entityId: string, projects: readonly string[]): Promise<number> => {
-  if (projects.length === 0) {
-    return 0
-  }
-  const spec = sql.tables.schema
-  return (await sql.runner.query(
-    `DELETE FROM ${spec.qualified} WHERE ${col(spec, 'entityId')} = $1 AND ${col(spec, 'project')} = ANY($2) RETURNING ${col(spec, 'id')}`,
-    [entityId, [...projects]]
-  )).length
-}
-
-export interface SchemaPortDeps {
-  sql: () => Promise<SqlContext>
-  pool: () => Promise<Pool>
-  tables: () => Promise<PlanningTables>
-  bus: PlanningBus
-  ids: () => string
-  now: () => string
-  /** Every local watcher, told after a write of this process commits. */
-  touched: (entityId: string) => void
-  watch: (listener: (entityId: string) => void) => Unsubscribe
-}
+import { sqlHelper } from '../sql.js'
+import type { SqlContext, SqlRunner } from '../types.js'
+import { schemaSqlOf } from './schema-sql.js'
+import type { SchemaPortDeps } from './types.js'
 
 /**
  * The data-defined schema port over `planning-schema`.
@@ -62,6 +14,8 @@ export interface SchemaPortDeps {
  * so every lookup of a resolved layer sees a write committed anywhere.
  */
 export const makeSchemaPort = (deps: SchemaPortDeps): SchemaStore => {
+  const { clientRunner, col, insertOf, recordOf } = sqlHelper
+
   const transaction = async <R>(run: (sql: SqlContext) => Promise<R>): Promise<R> => {
     const client = await (await deps.pool()).connect()
     const tables = await deps.tables()
@@ -111,13 +65,14 @@ export const makeSchemaPort = (deps: SchemaPortDeps): SchemaStore => {
 
     put: async record => {
       const written = await transaction(async sql => {
+        const schemaSql = schemaSqlOf(sql)
         const spec = sql.tables.schema
-        const rev = await bumpRevision(sql, record.entityId, deps.now(), deps.ids)
+        const rev = await schemaSql.bumpRevision(record.entityId, deps.now(), deps.ids)
         const values = { ...record, id: record.id ?? deps.ids(), rev, retired: record.retired === true ? true : undefined }
         let rows: Record<string, unknown>[]
         if (record.version === 1) {
           const insert = insertOf(spec, values as unknown as Record<string, unknown>, {
-            tail: `ON CONFLICT ${scopeTarget(sql)} DO NOTHING RETURNING *`,
+            tail: `ON CONFLICT ${schemaSql.scopeTarget()} DO NOTHING RETURNING *`,
           })
           rows = await sql.runner.query(insert.text, insert.params)
         } else {
@@ -145,9 +100,10 @@ export const makeSchemaPort = (deps: SchemaPortDeps): SchemaStore => {
 
     purge: async where => {
       const count = await transaction(async sql => {
-        const purged = await purgeSchemaLayers(sql, where.entityId, [where.project])
+        const schemaSql = schemaSqlOf(sql)
+        const purged = await schemaSql.purgeSchemaLayers(where.entityId, [where.project])
         if (purged > 0) {
-          await bumpRevision(sql, where.entityId, deps.now(), deps.ids)
+          await schemaSql.bumpRevision(where.entityId, deps.now(), deps.ids)
           await deps.bus.notify(sql.runner, { t: 's', e: where.entityId })
         }
         return purged
@@ -172,3 +128,11 @@ export const makeSchemaPort = (deps: SchemaPortDeps): SchemaStore => {
     watch: listener => deps.watch(listener),
   }
 }
+
+/** @deprecated compat:factory-refactor — use `schemaSqlOf(sql).bumpRevision(…)` */
+export const bumpRevision = async (sql: SqlContext, entityId: string, at: string, id: () => string): Promise<number> =>
+  await schemaSqlOf(sql).bumpRevision(entityId, at, id)
+
+/** @deprecated compat:factory-refactor — use `schemaSqlOf(sql).purgeSchemaLayers(…)` */
+export const purgeSchemaLayers = async (sql: SqlContext, entityId: string, projects: readonly string[]): Promise<number> =>
+  await schemaSqlOf(sql).purgeSchemaLayers(entityId, projects)

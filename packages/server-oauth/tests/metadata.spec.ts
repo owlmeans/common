@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { authorizationServerMetadata, protectedResourceChallenge, protectedResourceMetadata } from '../src/metadata.js'
+import { makeOAuthMetadataHelper } from '../src/metadata.js'
 import { makeTestContext, TEST_ISSUER, TEST_MCP_RESOURCE, TEST_RESOURCE } from './context.js'
 
 describe('authorizationServerMetadata', () => {
   test('advertises PKCE S256, both grants, and the token-less auth method', () => {
     const context = makeTestContext()
-    const metadata = authorizationServerMetadata(context)
+    const metadata = makeOAuthMetadataHelper(context).authorizationServerMetadata()
 
     expect(metadata.issuer).toBe(TEST_ISSUER)
     expect(metadata.code_challenge_methods_supported).toEqual(['S256'])
@@ -21,13 +21,13 @@ describe('authorizationServerMetadata', () => {
   test('omits registration_endpoint when DCR is turned off', () => {
     const context = makeTestContext({ allowDynamicRegistration: false })
 
-    expect(authorizationServerMetadata(context).registration_endpoint).toBeUndefined()
+    expect(makeOAuthMetadataHelper(context).authorizationServerMetadata().registration_endpoint).toBeUndefined()
   })
 
   test('omits client_id_metadata_document_supported\'s true when CIMD is turned off', () => {
     const context = makeTestContext({ allowClientIdMetadataDocuments: false })
 
-    expect(authorizationServerMetadata(context).client_id_metadata_document_supported).toBe(false)
+    expect(makeOAuthMetadataHelper(context).authorizationServerMetadata().client_id_metadata_document_supported).toBe(false)
   })
 })
 
@@ -35,10 +35,10 @@ describe('protectedResourceMetadata', () => {
   test('answers the root resource and a sub-path resource by their own configured path', () => {
     const context = makeTestContext()
 
-    expect(protectedResourceMetadata(context, '')).toEqual({
+    expect(makeOAuthMetadataHelper(context).protectedResourceMetadata('')).toEqual({
       resource: TEST_RESOURCE, authorization_servers: [TEST_ISSUER], bearer_methods_supported: ['header'],
     })
-    expect(protectedResourceMetadata(context, '/mcp')).toEqual({
+    expect(makeOAuthMetadataHelper(context).protectedResourceMetadata('/mcp')).toEqual({
       resource: TEST_MCP_RESOURCE, authorization_servers: [TEST_ISSUER], bearer_methods_supported: ['header'],
     })
   })
@@ -46,7 +46,7 @@ describe('protectedResourceMetadata', () => {
   test('answers null for a path nothing was configured for', () => {
     const context = makeTestContext()
 
-    expect(protectedResourceMetadata(context, '/unknown')).toBeNull()
+    expect(makeOAuthMetadataHelper(context).protectedResourceMetadata('/unknown')).toBeNull()
   })
 })
 
@@ -54,7 +54,7 @@ describe('protectedResourceChallenge', () => {
   test('is a well-formed Bearer challenge naming the resource metadata URL', () => {
     const context = makeTestContext()
 
-    expect(protectedResourceChallenge(context, '/mcp')).toBe(
+    expect(makeOAuthMetadataHelper(context).protectedResourceChallenge('/mcp')).toBe(
       `Bearer resource_metadata="${TEST_ISSUER}/.well-known/oauth-protected-resource/mcp"`
     )
   })
@@ -62,7 +62,7 @@ describe('protectedResourceChallenge', () => {
   test('puts error before resource_metadata, correctly comma-separated after the scheme', () => {
     const context = makeTestContext()
 
-    expect(protectedResourceChallenge(context, '', { error: 'invalid_token' })).toBe(
+    expect(makeOAuthMetadataHelper(context).protectedResourceChallenge('', { error: 'invalid_token' })).toBe(
       `Bearer error="invalid_token", resource_metadata="${TEST_ISSUER}/.well-known/oauth-protected-resource"`
     )
   })

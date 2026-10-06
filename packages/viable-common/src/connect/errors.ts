@@ -1,4 +1,5 @@
 import { ResilientError } from '@owlmeans/error'
+import type { ConnectConfirmation, ConnectConfirmationAction } from './errors/types.js'
 
 export class ConnectError extends ResilientError {
   public static override typeName = `ViableConnect${ResilientError.typeName}`
@@ -191,6 +192,79 @@ export class ConnectConsentRequired extends ConnectError {
   }
 }
 
+/** A packed number read back: anything unreadable is `0`, never `NaN`. */
+const packedNumber = (value: string | undefined): number => {
+  const parsed = Number(value ?? 0)
+
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+/**
+ * A conversion verb would spend the plan's conversion or credits, and the caller has not said that a
+ * person agreed (`confirm: true`): a start that would use the organization's `conversions` unit, or a
+ * stage whose estimate reaches past what is left of the conversion limit into credit limits or
+ * topped-up credits. Nothing was started. The caller tells the person what it costs and repeats the
+ * call with `confirm: true` once they agree — unlike {@link ConnectConsentRequired}, this is agreed
+ * to in the conversation, not in the browser.
+ *
+ * Packed like the other two refusals a connector phrases for a person, because only `type` and
+ * `message` survive a marshal:
+ * `confirmation-required:<action>:<cap>:<spent>:<estimate>:<fromAllowance>:<fromCreditLimits>:<moneyUsd>`.
+ */
+export class ConnectConfirmationRequired extends ConnectError {
+  public static override typeName = `ConfirmationRequired${ConnectError.typeName}`
+  /** A precondition only a person can meet, not a fault: answered 428. */
+  public static httpStatus = 428
+
+  public action: ConnectConfirmationAction = 'convert-start'
+  public cap = 0
+  public spent = 0
+  public estimate = 0
+  public fromAllowance = 0
+  public fromCreditLimits = 0
+  public moneyUsd = 0
+
+  /** Build the packed message a caller passes to the constructor. */
+  static encode(fields: ConnectConfirmation): string {
+    return [
+      fields.action, fields.cap, fields.spent, fields.estimate, fields.fromAllowance, fields.fromCreditLimits,
+      fields.moneyUsd,
+    ].map(value => typeof value === 'number' && !Number.isFinite(value) ? 0 : value).join(':')
+  }
+
+  /** Read the packed fields back — what follows the marker, the inverse of {@link encode}. */
+  static decode(packed: string): ConnectConfirmation {
+    const [action, cap, spent, estimate, fromAllowance, fromCreditLimits, moneyUsd] = packed.split(':')
+
+    return {
+      action: (action ?? '') as ConnectConfirmationAction,
+      cap: packedNumber(cap),
+      spent: packedNumber(spent),
+      estimate: packedNumber(estimate),
+      fromAllowance: packedNumber(fromAllowance),
+      fromCreditLimits: packedNumber(fromCreditLimits),
+      moneyUsd: packedNumber(moneyUsd),
+    }
+  }
+
+  constructor(message: string = 'error') {
+    super(`confirmation-required:${message}`)
+    this.type = ConnectConfirmationRequired.typeName
+    this.applyFields()
+  }
+
+  private applyFields(): void {
+    const marker = 'confirmation-required:'
+    const at = this.message.lastIndexOf(marker)
+    if (at < 0) return
+    Object.assign(this, ConnectConfirmationRequired.decode(this.message.slice(at + marker.length)))
+  }
+
+  override finalizeUnmarshal(): void {
+    this.applyFields()
+  }
+}
+
 ResilientError.registerErrorClass(ConnectError)
 ResilientError.registerErrorClass(ConnectSessionNotFound)
 ResilientError.registerErrorClass(ConnectSessionGone)
@@ -200,3 +274,4 @@ ResilientError.registerErrorClass(LocalSlotUnsupported)
 ResilientError.registerErrorClass(ConnectOpUnknown)
 ResilientError.registerErrorClass(ConnectOutOfCredits)
 ResilientError.registerErrorClass(ConnectConsentRequired)
+ResilientError.registerErrorClass(ConnectConfirmationRequired)

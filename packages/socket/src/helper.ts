@@ -1,20 +1,6 @@
 import { MessageType } from './consts.js'
 import type { CallMessage, EventMessage, Message, AuthMessage } from './types.js'
-
-export const isMessage = <P, T extends Message<P>>(msg: string | T, nonSystem?: boolean): msg is T =>
-  typeof msg === 'object' && 'type' in msg && 'payload' in msg
-  && (nonSystem === undefined || nonSystem === (msg.type !== MessageType.System))
-
-export const isEventMessage = <P>(msg: string | Message<P>, system?: boolean): msg is EventMessage<P> =>
-  isMessage(msg) && [MessageType.Event, MessageType.System].includes(msg.type)
-  && (system === undefined || system === (msg.type === MessageType.System))
-
-export const isCallMessage = <P extends any[]>(msg: string | Message<unknown>): msg is CallMessage<P> =>
-  isMessage(msg) && msg.type === MessageType.Call
-
-export const isAuthMessage = <P>(msg: string | Message<P>): msg is AuthMessage<P> =>
-  isMessage(msg) && msg.type === MessageType.Auth
-
+import type { SocketMessageHelper } from './helper/types.js'
 
 // export const prepareLongCalls = (connection: Connection, longTimeout = CALL_TIMEOUT * 10) => {
 //   const _connection = connection as WithLongCalls
@@ -37,3 +23,29 @@ export const isAuthMessage = <P>(msg: string | Message<P>): msg is AuthMessage<P
 // interface WithLongCalls extends Connection {
 //   [long_calls]: boolean
 // }
+
+export const createSocketMessageHelper = (): SocketMessageHelper => {
+  const isMessage = <P, T extends Message<P>>(msg: string | T, nonSystem?: boolean): msg is T =>
+    typeof msg === 'object' && 'type' in msg && 'payload' in msg
+    && (nonSystem === undefined || nonSystem === (msg.type !== MessageType.System))
+
+  const isEventMessage = <P>(msg: string | Message<P>, system?: boolean): msg is EventMessage<P> =>
+    isMessage(msg) && [MessageType.Event, MessageType.System].includes(msg.type)
+    && (system === undefined || system === (msg.type === MessageType.System))
+
+  const isCallMessage = <P extends any[]>(msg: string | Message<unknown>): msg is CallMessage<P> =>
+    isMessage(msg) && msg.type === MessageType.Call
+
+  const isAuthMessage = <P>(msg: string | Message<P>): msg is AuthMessage<P> =>
+    isMessage(msg) && msg.type === MessageType.Auth
+
+  return { isMessage, isEventMessage, isCallMessage, isAuthMessage }
+}
+
+export const socketMessageHelper = createSocketMessageHelper()
+
+/** @deprecated compat:factory-refactor — use `socketMessageHelper.isMessage(…)` */
+export const isMessage = <P, T extends Message<P>>(msg: string | T, nonSystem?: boolean): msg is T => socketMessageHelper.isMessage<P, T>(msg, nonSystem)
+
+/** @deprecated compat:factory-refactor — use `socketMessageHelper.isEventMessage(…)` */
+export const isEventMessage = <P>(msg: string | Message<P>, system?: boolean): msg is EventMessage<P> => socketMessageHelper.isEventMessage<P>(msg, system)

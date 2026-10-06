@@ -12,7 +12,7 @@ ED25519 and XChaCha20 cryptographic key operations: generation, signing, verific
 ## Installation
 
 ```bash
-bun add @owlmeans/basic-keys@^0.1.18-rc.45
+bun add @owlmeans/basic-keys@^0.1.18-rc.48
 ```
 
 ## Usage
@@ -32,19 +32,19 @@ const address = pair.exportAddress()        // derive address from public key
 Load from an existing public key:
 
 ```typescript
-import { fromPubKey, matchAddress } from '@owlmeans/basic-keys'
+import { keyHelper } from '@owlmeans/basic-keys'
 
-const model = fromPubKey('ed25519:ABC123...')
-const isMatch = matchAddress(knownAddress, publicKeyStr)
+const model = keyHelper.fromPubKey('ed25519:ABC123...')
+const isMatch = keyHelper.matchAddress(knownAddress, publicKeyStr)
 ```
 
 Pack authentication credentials for a request:
 
 ```typescript
-import { packAuthCredentials, unpackAuthCredentials } from '@owlmeans/basic-keys'
+import { authCredentialsHelper } from '@owlmeans/basic-keys'
 
-const signed = await packAuthCredentials(authObj, extraData, keyPairModel)
-const { isValid, extras } = await unpackAuthCredentials(signed, keyPairModel)
+const signed = await authCredentialsHelper.packAuthCredentials(authObj, extraData, keyPairModel)
+const { isValid, extras } = await authCredentialsHelper.unpackAuthCredentials(signed, keyPairModel)
 ```
 
 ## API
@@ -53,19 +53,19 @@ const { isValid, extras } = await unpackAuthCredentials(signed, keyPairModel)
 
 Creates a `KeyPairModel` from an existing `KeyPair` object, encoded private key string, or algorithm type string. Generates a new ED25519 key pair when called with no arguments.
 
-### `fromPubKey(pubKey, type?): KeyPairModel`
+### `keyHelper.fromPubKey(pubKey, type?): KeyPairModel`
 
 Creates a verify-only `KeyPairModel` from a public key string. Supports `"type:key"` format.
 
-### `matchAddress(address, pubKey): boolean`
+### `keyHelper.matchAddress(address, pubKey): boolean`
 
 Returns true if `address` was derived from `pubKey`.
 
-### `packAuthCredentials(auth, extra, signer): Promise<AuthCredentials>`
+### `authCredentialsHelper.packAuthCredentials(auth, extra, signer): Promise<AuthCredentials>`
 
 Signs auth credentials, optionally embedding extra data in the credential field.
 
-### `unpackAuthCredentials(auth, verifier?): Promise<UnpackedAuthCredentials>`
+### `authCredentialsHelper.unpackAuthCredentials(auth, verifier?): Promise<UnpackedAuthCredentials>`
 
 Extracts and optionally verifies signed auth credentials. Returns `isValid` boolean when a verifier is provided.
 
@@ -89,7 +89,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

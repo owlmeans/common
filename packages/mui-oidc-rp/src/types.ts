@@ -1,10 +1,12 @@
 import type { InitializedService } from '@owlmeans/context'
 import type { AppConfig, AppContext } from '@owlmeans/web-client'
-import type { OIDCAuthInitParams, WithSharedConfig } from '@owlmeans/oidc'
+import { type OIDCAuthInitParams, type WithSharedConfig, oidcProtocols } from '@owlmeans/oidc'
 import type { OidcAuthPurposes } from './consts.js'
 import type { FlowModel, FlowPayload } from '@owlmeans/flow'
 import type { ResourceRecord } from '@owlmeans/resource'
 import type { AuthToken } from '@owlmeans/auth'
+import type { ClientProtocolEntrypoint } from '@owlmeans/client-entrypoint'
+import { authProtocols } from '@owlmeans/auth-common'
 
 export interface OidcAuthService extends InitializedService {
   dispatch: (params: Record<string, string>) => Promise<boolean>
@@ -37,3 +39,8 @@ export interface Context<C extends Config = Config> extends AppContext<C> { }
 export interface OidcInteraction extends ResourceRecord {
   authUrl: string 
 }
+
+export type OidcEntrypoint =
+  | ClientProtocolEntrypoint<typeof oidcProtocols.init>
+  | ClientProtocolEntrypoint<typeof oidcProtocols.authenticate>
+  | ClientProtocolEntrypoint<typeof authProtocols.dispatcher>

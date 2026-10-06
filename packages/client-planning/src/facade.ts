@@ -1,14 +1,13 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import {
-  CommitFailed, CommitState, DEFAULT_COMMIT_TIMEOUT, PlanningError, PlanningUnsupported, WorkcardKind, WorkcardNotFound,
-  encodeRelationshipQuery, encodeSpecificationQuery, encodeSummaryQuery, encodeTransitionQuery,
-  encodeWorkcardQuery, modelOf,
+  CommitFailed, CommitState, DEFAULT_COMMIT_TIMEOUT, modelOf, PlanningError, PlanningUnsupported, wireHelper,
+  WorkcardKind, WorkcardNotFound,
 } from '@owlmeans/planning'
 import type {
   PlanningFacade, PlanningProtocols, PlanningScope, TransitionReceipt,
   TransitionReceiptView, Workcard, WorkcardModel,
 } from '@owlmeans/planning'
-import { applyReceipt } from './events.js'
+import { planningMirrorOf } from './events.js'
 import type { RemoteFacadeOptions } from './types.js'
 
 /**
@@ -74,34 +73,34 @@ export const makeRemoteFacade = <C extends BasicConfig, T extends BasicContext<C
       },
 
       list: async query => await context.entrypoint(protocols.card.list).call({
-        query: encodeWorkcardQuery(query), timeout,
+        query: wireHelper.encodeWorkcardQuery(query), timeout,
       }),
 
       count: async query => {
         const { page: _page, size: _size, sort: _sort, ...where } = query ?? {}
         const answer = await context.entrypoint(protocols.card.list).call({
-          query: encodeWorkcardQuery({ ...where, page: 0, size: 1 }), timeout,
+          query: wireHelper.encodeWorkcardQuery({ ...where, page: 0, size: 1 }), timeout,
         })
 
         return answer.total
       },
 
       summary: async (parents, query) => await context.entrypoint(protocols.card.summary).call({
-        query: encodeSummaryQuery({ ...query, parents }), timeout,
+        query: wireHelper.encodeSummaryQuery({ ...query, parents }), timeout,
       }),
     },
 
     specifications: {
       current: async (parent, category) => {
         const answer = await context.entrypoint(protocols.card.specifications).call({
-          params: { id: parent }, query: encodeSpecificationQuery({ category }), timeout,
+          params: { id: parent }, query: wireHelper.encodeSpecificationQuery({ category }), timeout,
         })
 
         return answer.items[0] ?? null
       },
 
       list: async (parent, query) => await context.entrypoint(protocols.card.specifications).call({
-        params: { id: parent }, query: encodeSpecificationQuery(query), timeout,
+        params: { id: parent }, query: wireHelper.encodeSpecificationQuery(query), timeout,
       }),
 
       get: async id => await context.entrypoint(protocols.spec.get).call({ params: { id }, timeout }),
@@ -117,7 +116,7 @@ export const makeRemoteFacade = <C extends BasicConfig, T extends BasicContext<C
 
     relationships: {
       list: async query => await context.entrypoint(protocols.link.list).call({
-        query: encodeRelationshipQuery(query), timeout,
+        query: wireHelper.encodeRelationshipQuery(query), timeout,
       }),
     },
 
@@ -133,7 +132,7 @@ export const makeRemoteFacade = <C extends BasicConfig, T extends BasicContext<C
         }
 
         return await context.entrypoint(protocols.card.transitions).call({
-          params: { id: query.card }, query: encodeTransitionQuery(query), timeout,
+          params: { id: query.card }, query: wireHelper.encodeTransitionQuery(query), timeout,
         })
       },
     },
@@ -146,7 +145,7 @@ export const makeRemoteFacade = <C extends BasicConfig, T extends BasicContext<C
       const view = await context.entrypoint(protocols.execute).call({ body, timeout })
       const stores = opts.stores?.()
       if (stores != null) {
-        await applyReceipt(stores, view)
+        await planningMirrorOf(stores).applyReceipt(view)
       }
       const receipt = receiptOf(view)
       if (executeOpts?.wait === true) {

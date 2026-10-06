@@ -8,7 +8,7 @@ import { connectProtocols } from '../src/connect/entrypoints.js'
 import { connectRef } from '../src/connect/references.js'
 import {
   ConnectCapabilitiesSchema, ConnectConvertCreateBodySchema, ConnectConvertProceedBodySchema,
-  ConnectInquiryParamsSchema, ConnectPipelineResumeBodySchema, InquiryAnswerSchema
+  ConnectConvertStartBodySchema, ConnectInquiryParamsSchema, ConnectPipelineResumeBodySchema, InquiryAnswerSchema
 } from '../src/connect/schemas.js'
 import { ConnectExecutor } from '../src/connect/consts.js'
 import { InquiryKind } from '@owlmeans/llm-common'
@@ -39,6 +39,7 @@ describe('viable-common - the conversion additions to the connector contract', (
       ['InquiryAnswerSchema', InquiryAnswerSchema],
       ['ConnectInquiryParamsSchema', ConnectInquiryParamsSchema],
       ['ConnectConvertCreateBodySchema', ConnectConvertCreateBodySchema],
+      ['ConnectConvertStartBodySchema', ConnectConvertStartBodySchema],
       ['ConnectConvertProceedBodySchema', ConnectConvertProceedBodySchema],
       ['ConnectPipelineResumeBodySchema', ConnectPipelineResumeBodySchema],
       ['ConnectCapabilitiesSchema', ConnectCapabilitiesSchema],
@@ -79,6 +80,25 @@ describe('viable-common - the conversion additions to the connector contract', (
     expect(create({})).toBe(true)
     expect(proceed({ decision: ConversionDecision.Extract })).toBe(true)
     expect(proceed({ decision: 'teleport' })).toBe(false)
+  })
+
+  test('start and proceed carry the person\'s confirmation, and nothing else new', () => {
+    const ajv = compiler()
+    const start = ajv.compile(ConnectConvertStartBodySchema as never)
+    const proceed = ajv.compile(ConnectConvertProceedBodySchema as never)
+
+    expect(start({})).toBe(true)
+    expect(start({ confirm: true })).toBe(true)
+    // An unset optional serialised as `null` is "not confirmed", never a refused body.
+    expect(start({ confirm: null })).toBe(true)
+    expect(start({ confirm: 'yes' })).toBe(false)
+    expect(start({ restart: true })).toBe(false)
+    expect(proceed({ decision: ConversionDecision.Implement, confirm: true })).toBe(true)
+    expect(proceed({ decision: ConversionDecision.Implement, confirm: 1 })).toBe(false)
+  })
+
+  test('the start declares its body, so a confirmation reaches the handler', () => {
+    expect(entrypointOf(connect.convert.start).contract?.requestSchemas.body).toEqual(ConnectConvertStartBodySchema as never)
   })
 
   test('capabilities accept an executor kind this platform has never heard of', () => {

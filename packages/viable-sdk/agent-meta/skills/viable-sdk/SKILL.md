@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.40"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.45"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -27,18 +27,18 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 | `makeSdkContext({ apiUrl, token, service?, onRejected? })` | A client context authenticated by one token — a literal or a thunk — with the connector protocols and the planning tree bound and the planning client registered |
 | `makeRemoteConnectorApi(context)` | `ConnectorApi` over HTTP; its `planning` is the context's planning client facade |
 | `openSession(opts)` → `SessionRuntime` | One attached session: the operation loop, the task queue, `stats` |
-| `renderTaskEnvelope(task, { harness })` · `parseTaskResult(task, raw)` | What the parent agent is told; what its answer is checked against |
+| `makeTaskEnvelopeModel(task)` — `.renderTaskEnvelope({ harness })` · `.parseTaskResult(raw)` | What the parent agent is told; what its answer is checked against |
 | `makeModelTaskDriver({ models })` · `TaskDriver` | A reference parent agent backed by a chat model (tests, CLIs) |
-| `installHarness(dir, harness, opts?)` · `describeHarness(harness)` · `WORKING_RULE` | Set a coding agent up; preview it first |
-| `catalogue` · `visibleTools(host)` · `toolByName` · `registerCatalogue(server, deps)` · `serverInstructions({ host })` | The tools and how they reach an MCP server |
-| `renderProjectStatus`, `renderStoryStatus(status, { landing? })`, `renderPipelineStatus`, `conversionNext` | Domain status as concise lines ending in the next valid action |
-| `resolveStory(deps, projectId, ref)` · `storyQuery(projectId, filter?)` · `renderStories(items, page, total)` · `STORY_ORDER` · `isLandingStory(card)` · `LANDING_MARK` · `LANDING_NOTE` | The story tools' reading of planning cards |
-| `PROJECT_SETTINGS` · `projectSettingOf(key)` · `settingsPatch(args)` · `renderProjectSettings(projectId, settings)` · `settingsReach(target)` | The project-settings tools: each setting's label and rule, the patch a call asks for, the rendering |
+| `harnessHelper` — `.installHarness(dir, harness, opts?)` · `.describeHarness(harness)`; `WORKING_RULE` | Set a coding agent up; preview it first |
+| `catalogue` · `catalogueHelper` (`.visibleTools(host)` · `.toolByName`) · `registerCatalogue(server, deps)` · `serverInstructions({ host })` | The tools and how they reach an MCP server |
+| `statusTextHelper` — `.renderProjectStatus`, `.renderStoryStatus(status, { landing? })`, `.renderPipelineStatus`, `.conversionNext` | Domain status as concise lines ending in the next valid action |
+| `storyHelper` — `.resolveStory(deps, projectId, ref)` · `.storyQuery(projectId, filter?)` · `.renderStories(items, page, total)` · `.isLandingStory(card)`; `STORY_ORDER` · `LANDING_MARK` · `LANDING_NOTE` | The story tools' reading of planning cards |
+| `PROJECT_SETTINGS` · `settingsHelper` — `.projectSettingOf(key)` · `.settingsPatch(args)` · `.renderProjectSettings(projectId, settings)` · `.settingsReach(target)` | The project-settings tools: each setting's label and rule, the patch a call asks for, the rendering |
 | `PLATFORM_CATALOGUE` (`pipelines`, `features`, `capabilities`) · `renderPlatform(catalogue, host)` · `GENERATED_SUMMARY` | What `describe_platform` renders, and the one-sentence product summary `describe_capabilities` ends with |
-| `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` · `ToolDeps` · `anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks` | The host description and the availability predicates |
-| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `dispatchGitCommand`, `verifyTarget`/`forgetIntegrity`, `targetPaths`/`apiPath`/`webPath`/`workerPath`, `backendEnv`/`frontendEnv`, `classifyTargetHealth`/`readTargetHealth`, `runBootCheck`, `confineToProject`, the spawn helpers | The publisher's workload, on somebody's laptop |
-| `./run`: `runLocal`, `stopLocal`, `localStatus`, `createLocalServer`, `startApi`/`startWorker`/`restartApi`/`stopProcess`, `readRun`/`writeRun`/`clearRun` | Building and running the generated app locally |
-| `readMarker`/`writeMarker`/`discoverProject`/`isViableTree` · `readEnv`/`writeEnv`/`envStatus`/`replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
+| `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` · `ToolDeps` · `toolHostHelper` (`anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks`) | The host description and the availability predicates |
+| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `makeLocalGitHelper(dir).dispatchGitCommand`, `integrityHelper` (`verifyTarget`/`forgetIntegrity`), `makeLayoutHelper(dir)` (`targetPaths`/`apiPath`/`webPath`/`workerPath`), `makeTargetEnvHelper(dir)` (`backendEnv`/`frontendEnv`), `healthHelper` (`classifyTargetHealth`/`readTargetHealth`), `runBootCheck`, `confineToProject`, `spawnHelper` | The publisher's workload, on somebody's laptop |
+| `./run`: `makeLocalRunHelper(dir)` (`runLocal`, `stopLocal`, `localStatus`), `createLocalServer`, `makeRunStateHelper(dir)` (`startApi`/`startWorker`/`restartApi`, `readRun`/`writeRun`/`clearRun`), `runProcessHelper.stopProcess` | Building and running the generated app locally |
+| `makeMarkerHelper(dir)` (`readMarker`/`writeMarker`/`discoverProject`/`isViableTree`) · `makeProjectEnvHelper(dir)` (`readEnv`/`writeEnv`/`envStatus`) · `dotenvHelper.replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
 | `SdkError`, `SdkAuthError`, `SdkMisconfigured`, `SdkUnsupported` | Registered `ResilientError` classes |
 | `ENV_TOKEN`, `ENV_API_URL`, `ENV_MCP_URL`, `ENV_TARGET`, `ENV_LLM`, `ENV_HARNESS`, `ENV_PROJECT_DIR` · `DEFAULT_MCP_URL` · `resolveMcpUrl(values)` · `TOOL_DEADLINE_MS` (45 s) · `COMMIT_WAIT_MS` (20 s) · `COMMIT_POLL_SEC` · `STORY_PAGE_SIZE` · `NEXT_TASK_WAIT_MS` · `PULL_WAIT_MS` | Configuration and deadlines |
 
@@ -106,13 +106,13 @@ without the capability is refused at the boundary rather than by a check somewhe
 
 `ConnectorApi` has exactly one member per connector route plus the planning facade — the session
 (`openSession`, `closeSession`, `pullOps`, `submitOp`), projects, branding, story status, files,
-pipeline state, conversion (`create`, `check`, `start`, `proceed`, `status`, `purge`) and inquiry
-answers. There is no capability view, no session read or heartbeat and no conversion cancel, and a
+pipeline state, conversion (`create`, `check`, `start(projectId, body?)`, `proceed(projectId, body)`
+— the bodies are the route's, `confirm` included —, `status`, `purge`) and inquiry answers. There is no capability view, no session read or heartbeat and no conversion cancel, and a
 project's inference settings are not a connector call: a person sets them in the browser, through
 the platform's own API. A member is added together with the route in `connectProtocols` and its
 `connectRef` entry — never one without the others.
 
-## A SESSION belongs to a host that stays; `sessionCapable` is what says so
+## A SESSION belongs to a host that stays; `toolHostHelper.sessionCapable` is what says so
 
 A session is a connector ATTACHED — a process that drains the project's operations and holds a model
 task until its answer comes back. The URL-configured host answers one request and forgets, so
@@ -120,8 +120,9 @@ opening one there would claim the project's single connector slot, **supersede t
 legitimately holding it**, and be abandoned before the first operation was delivered.
 
 So `ensureSession` — what `confirm_project`, `reinitialize_project`, `develop_story`,
-`modify_project` and `resume_pipeline` call before returning their job — opens one only on a
-`sessionCapable` host, and `next_task`/`submit_task_result` are available on `performsModelTasks`
+`modify_project` and `resume_pipeline` call before returning their job, and `apply_planning_kit`
+before its write — opens one only on a
+`toolHostHelper.sessionCapable` host, and `next_task`/`submit_task_result` are available on `.performsModelTasks`
 (delegated **and** session-capable) rather than on the account setting alone. `serverInstructions`
 reads the same predicate: a parent told to call `next_task` when the tool is not in its list is a
 parent that waits for a run nobody will advance. A host that cannot serve the delegated mode says so
@@ -133,9 +134,9 @@ leaves the reader with nothing to do about it.
 
 ## A tool that cannot work in a mode is HIDDEN, not failing
 
-`ToolDefinition.availability` and `visibleTools(host)` decide the catalogue a parent actually sees. A
+`ToolDefinition.availability` and `catalogueHelper.visibleTools(host)` decide the catalogue a parent actually sees. A
 tool a host cannot serve is a tool the parent tries once, is refused, and remembers as broken — so
-the list it reads is exactly the set of things that work for it. Predicates: `anyHost`,
+the list it reads is exactly the set of things that work for it. Predicates (`toolHostHelper`): `anyHost`,
 `localTarget`, `cloudTarget`, `withExecutor`, `delegatedLlm`.
 
 ## 45 seconds is the ceiling, so long operations return domain status
@@ -162,13 +163,13 @@ platform's in-process host. The scope a call answers for is the CREDENTIAL's; a 
 
 | Tool | Facade call |
 |---|---|
-| `list_stories` | `cards.list({ ...storyQuery(project, { status, area }), page, size, sort: STORY_ORDER })` → `renderStories` |
+| `list_stories` | `cards.list({ ...storyHelper.storyQuery(project, { status, area }), page, size, sort: STORY_ORDER })` → `storyHelper.renderStories` |
 | `search_stories` | the same with `{ q }` |
 | `create_story` | `execute({ action: create, card: { kind: card, type: VIABLE_STORY_TYPE, parent, title, fields: { primary: false } } }, { wait: true, timeout: COMMIT_WAIT_MS })` |
-| `update_story` | `resolveStory` → `execute({ card, action: update, changes: { title }, expectSeq: head ?? seq }, { wait: true, … })` |
-| `delete_story` | `resolveStory` → `execute({ card, action: delete }, { wait: true, … })` → the project-lock poll |
-| `develop_story` | `resolveStory` → `execute({ card, action: transit, transition: start }, { wait: true, … })`, tolerating `CommitTimeout` → `story.status(project, card.id)` |
-| `story_status` | `resolveStory` → the card, its development run, pending inquiry, warning and landing mark |
+| `update_story` | `storyHelper.resolveStory` → `execute({ card, action: update, changes: { title }, expectSeq: head ?? seq }, { wait: true, … })` |
+| `delete_story` | `storyHelper.resolveStory` → `execute({ card, action: delete }, { wait: true, … })` → the project-lock poll |
+| `develop_story` | `storyHelper.resolveStory` → `execute({ card, action: transit, transition: start }, { wait: true, … })`, tolerating `CommitTimeout` → `story.status(project, card.id)` |
+| `story_status` | `storyHelper.resolveStory` → the card, its development run, pending inquiry, warning and landing mark |
 
 Rules the table rests on:
 
@@ -177,7 +178,7 @@ Rules the table rests on:
   on `confirm_project`, the project status line and the design-system section of `project_status`),
   never substituted.
 - **`storyId` accepts a code or an id**, because `list_stories` prints the CODE — the handle every
-  generated file names a story by. `resolveStory` asks for both at once, the id wins, a code is also
+  generated file names a story by. `storyHelper.resolveStory` asks for both at once, the id wins, a code is also
   tried uppercased, and neither answers for a story of another project (`ProjectStoryNotFound`).
 - **Development is the story's `start`, not a call of its own.** The platform begins the run once that
   move COMMITS, and refuses it there too (the flow, one story in progress, the balance). The wait is
@@ -191,13 +192,13 @@ Rules the table rests on:
   placeholder screens still being retired under the project lock, so `delete_story` keeps its two
   unlocked observations.
 - **Stories are read in `order`, then `createdAt`**: `order` is the analysis's flow ordinal (a
-  connective story sits at a fraction between two steps). `renderStories` keeps the line shape a parent
+  connective story sits at a fraction between two steps). `storyHelper.renderStories` keeps the line shape a parent
   already reads — `code · status[ · primary][ · landing gate][ · area]` over the narrative — under a
   header counting the page by intrinsic state. A new fact is a new FLAG beside `primary`; the area
   stays last.
 - **The landing gate story is read off the card the tool already holds** (`fields.landing`, at most
   one per project, decided by the platform at initialization — a connector never sets it). The list
-  flags it; `story_status` and `develop_story` pass the resolved card to `renderStoryStatus`, which
+  flags it; `story_status` and `develop_story` pass the resolved card to `statusTextHelper.renderStoryStatus`, which
   adds `LANDING_NOTE` under the status line, and their structured result gains `landing: true`. No
   second call and no change to `connect.story.status`: that route carries the run, not the card's
   fields. It is said because developing that story also replaces the guest-home sketch with the real
@@ -220,11 +221,11 @@ tag — through `ConnectorApi.projectBranding(projectId)` and
 `saveProjectBranding(projectId, patch)` (`connect.project.branding.get` / `.save`,
 `ConnectProjectBranding` / `ConnectProjectBrandingSave` from `@owlmeans/viable-common`).
 
-- **A save is a PATCH.** `settingsPatch` keeps exactly the settings the call named, trimmed; an
+- **A save is a PATCH.** `settingsHelper.settingsPatch` keeps exactly the settings the call named, trimmed; an
   omitted one keeps its stored value, and an EMPTY string is sent as given — for the Google tag that
   is the removal, for the others a value the platform refuses. A call naming none is refused locally
   and saves nothing. The answer is the merged record the platform stored, led by where the change
-  shows (`settingsReach`): a cloud preview is rebuilt, production takes it at the next Publish; a
+  shows (`settingsHelper.settingsReach`): a cloud preview is rebuilt, production takes it at the next Publish; a
   local project gets it in its `.env` and `run_local` builds with it.
 - **The connector states the rules and checks none of them.** `PROJECT_SETTINGS[].rule` is the web
   save's validation in words — never-empty copyright and organization; an `https://` address without
@@ -243,6 +244,20 @@ tag — through `ConnectorApi.projectBranding(projectId)` and
 - **The credit switch is not reachable.** It is a paid capability with its own gated route;
   neither the record nor the patch carries it.
 
+## Planning kits are described, then applied; the platform writes and rebuilds
+
+A planning kit is a ready set of card types and status flows for one kind of work-management
+product, which the platform writes into the target's common package (`PLANNING`).
+`describe_planning_kits` (`ConnectorApi.project.kitDescribe(projectId)`, GET
+`connect.project.kit.describe` → `{ kits: PlanningKitView[] }`) lists each kit's purpose, container,
+types with their main flow and each flow's statuses; it opens no session. `apply_planning_kit`
+(`project.kitApply(projectId, { kit, types? })`, POST `connect.project.kit.apply` →
+`{ applied, skipped, warnings }`) refuses a call without `kit` locally, attaches the connector first
+(`ensureSession`: the write is a file operation a local project's connector answers), runs in
+`answering`, and answers what was written, left out and warned. `types` keeps those kit type keys;
+omitted keeps all. Both are offered on every host, in the `planning-kits` capability group. The SDK
+never renders the literals or rebuilds — the platform does, inside the 45-second ceiling.
+
 ## `describe_platform` also says what a generated application CARRIES
 
 `PLATFORM_CATALOGUE.features` holds facts about the product the runs produce — the landing gate, the
@@ -254,29 +269,55 @@ same facts in one sentence, because it is read at the same moment by a parent th
 `describe_platform`; the two sit side by side in `platform.ts`. The pipelines' `stages` name the steps
 a run can stop at (`landing` and `legal` in init, `landing` in story development).
 
-## A balance or consent refusal is phrased for a person, and pushed through `notify`
+## A balance, consent or confirmation refusal is phrased for a person, and pushed through `notify`
 
-`registerCatalogue`'s catch special-cases the two refusals only a PERSON can resolve
-(`@owlmeans/viable-common` `connect/errors.ts`), by `instanceof`:
+`refusalHelper.personRefusalPhrase(e, retry?)` (`tools/refusal.ts`) phrases the three refusals only a PERSON can
+resolve (`@owlmeans/viable-common` `connect/errors.ts`), by `instanceof`, and answers `null` for
+anything else. Both `registerCatalogue`'s catch and the conversion tools' `answering` use it, so a
+conversion's balance refusal reads exactly like any other tool's:
 
 - `ConnectOutOfCredits` — rather than the raw `viable-connect:out-of-credits:...` marker, the tool
   result reads as a sentence: what it needed, what the account has, and a link to top up.
 - `ConnectConsentRequired` — the EU spend consent: "Nothing was started", why (credits bought less
   than 14 days ago may only be used once a person expressly asks, the purchase still withdrawable up
   to the last day), the `consentUrl` to open and confirm in the browser, and that the call must NOT
-  be retried automatically — only after the user says they confirmed (`consentRequiredPhrase(url,
-  deadline)` in `tools/refusal.ts`, shared with the stored-text entry below).
+  be retried automatically — only after the user says they confirmed (`refusalHelper.consentRequiredPhrase(url,
+  deadline)`, shared with the stored-text entry below).
+- `ConnectConfirmationRequired` — a conversion step that would use the plan's conversion or spend
+  credits (`refusalHelper.confirmationRequiredPhrase(fields, retry?)`): "Nothing was started"; for a start, what the
+  plan's conversion covers (free up to `cap` credits, the conversion limit; beyond it credit limits
+  first, then topped-up credits; every stage quoted and asked first); for a stage, its estimate
+  split ("580,000 from the conversion limit, 150,000 from the organization's credit limits, $2.40
+  of topped-up credits" — credit limits as credits, topped-up credits as money) and what the limit
+  has used and left. Then: tell the user exactly this, and only after they agree make the call it
+  prints — never `confirm: true` on the model's own. Every variant names the conversion limit (a
+  conversion with no plan unit "has no conversion limit").
 
 Their fields travel packed into the message (only `type` and `message` survive the platform's
-internal HTTP hop) and are read back with `finalizeUnmarshal()`. Both are also handed to the
+internal HTTP hop) and are read back with `finalizeUnmarshal()`. All three are also handed to the
 optional `ToolDeps.notify?('warning', text)`, which a host wires to its own out-of-band channel —
 the stdio `viable-mcp` host sends an MCP `notifications/message`; the platform's stateless `/mcp`
 host has no channel and omits it, so `notify` is always best-effort and optional. Every other
-error returns through `refusalPhrase` and never calls `notify`.
+error returns through `refusalHelper.refusalPhrase` and never calls `notify`.
+
+**A conversion's confirmation is answered inside its tool, with the exact call to repeat**
+(`confirming` in `catalogue.ts`): `convert_project` / `proceed_conversion` print
+`<tool> {"projectId":…[,"decision":…,"note":…],"confirm":true}` — the project NAMED, because the
+URL-configured host keeps no attachment between calls and a bare repeat of `convert_project` there
+would file a second conversion (the start is what a confirmation stops; the create before it is
+never repeated). Both take `confirm` (`z.boolean().default(false)`, described), sent only when the
+parent passed `true`, and their descriptions explain the conversion limit (1,000,000 credits today),
+the spend order and that a delegated conversion is never asked — so a parent can say it before it is
+refused. A production body carries only the status: a bare `api:client:status:428` to a call sent
+WITHOUT `confirm` is answered with `refusalHelper.unconfirmedConversionPhrase(retry)` (the confirmation, and the
+consent as what a second refusal of the confirmed call would mean); to a confirmed call it can only
+be the consent and falls to `REFUSALS`. `serverInstructions` says the same in one sentence of the
+workflow paragraph.
 
 The same refusals also arrive where no class survives, and `REFUSALS` phrases them by marker:
 `viable-connect:consent-required:` (a stored run error; the URL and deadline parsed from the
-detail), `performance-consent-required` (the web refusal inside a planning `commit-failed:` or a
+detail), `viable-connect:confirmation-required:` (`ConnectConfirmationRequired.decode` of the
+detail, the generic "same arguments and confirm: true" repeat), `performance-consent-required` (the web refusal inside a planning `commit-failed:` or a
 stored error — no URL, so "Billing in the OwlMeans web application") — both ABOVE the planning
 markers, because the consent is what the person acts on — and, for a production body that carries
 only an incident id (`@owlmeans/api` `ApiStatusError`), `api:client:status:428` (the consent
@@ -320,7 +361,7 @@ was wrong, and the story failed with `retry-exceeded` having never been told. `t
 all three shapes and still throws for an answer carrying no call at all — an empty answer is a bad
 answer, and the retry is the right response to it.
 
-The same rule is why `parseTaskResult` refuses with a described reason rather than a stack trace:
+The same rule is why `makeTaskEnvelopeModel(task).parseTaskResult` refuses with a described reason rather than a stack trace:
 whatever comes back becomes a model's next prompt, so it has to be readable by one.
 
 ## A redelivered model task must NOT be handed over twice
@@ -358,7 +399,7 @@ conversation, then the requested result shape: the outer handoff instruction and
 preserve the mode: a `text` task returns the requested source or text and never a JSON tool-call
 array; that array belongs only to `tools` mode.
 
-**`parseTaskResult` refuses a malformed answer locally**, and returns a `problem` rather than
+**`makeTaskEnvelopeModel(task).parseTaskResult` refuses a malformed answer locally**, and returns a `problem` rather than
 throwing. The refusal is worth more than the parse: an answer that reaches the platform malformed
 costs a whole retry — another task, another subagent, another wait — while one caught here is a
 sentence the parent can act on immediately, with the subagent's context still open. It unfences,
@@ -391,7 +432,7 @@ environment otherwise hides the credentials file). The result is safe to commit.
 into every harness's instruction file, so the four cannot drift into four different protocols.
 
 **The server command is written once, too.** Every harness configuration starts the connector from
-`MCP_COMMAND` in `src/harness/templates.ts` — viable-mcp through `npx -y`, pinned with a caret at the
+`MCP_COMMAND` in `src/harness/consts.local.ts` — viable-mcp through `npx -y`, pinned with a caret at the
 viable-mcp release, on ONE line with its `npx` so the release pin audit reads it as an install
 command and moves it with every viable-mcp bump. Never a tag (`@next` is refused by that audit) and
 never a per-harness literal: three copies spelled `@next` while the fourth carried the pin.
@@ -410,7 +451,7 @@ forgotten after every command that changes the tree.
 
 Five rules the local half adds, each learned from a defect:
 
-- **`backendEnv` reads the root `.env` and `frontendEnv` the web package's own — the file split IS
+- **`makeTargetEnvHelper(dir).backendEnv` reads the root `.env` and `.frontendEnv` the web package's own — the file split IS
   the leak boundary.** The publisher has an allow-list (`frontendEnvVars`/`frontendSecrets`); here
   the two files are never merged in either direction, because `FRONTEND_ENV_KEYS` announces
   everything in the frontend set to the bundler and a merge would compile `OIDC_SECRET` and
@@ -456,7 +497,7 @@ outside the block is yours — false for the one value the platform cannot suppl
 line the setup guide tells people to write. The application connected to the placeholder no matter
 what its owner put in the file.
 
-`writeEnv` therefore reads the file with the block cut out, and replaces any block line assigning a
+`makeProjectEnvHelper(dir).writeEnv` therefore reads the file with the block cut out, and replaces any block line assigning a
 key the user already assigns with a comment saying so. The rule is about VALUES, not lines: a key the
 user has not claimed is still the platform's to set, and a key they later delete goes back to the
 platform on the next push.
@@ -486,17 +527,17 @@ TARGET's own "the api port is already in use", which reads as a defect in the ge
 than as a leftover.
 
 Two rules, both ported from the publisher because a laptop needs them more than a pod does:
-- `killGroupAndWait` never returns early on the child's own exit code. The child is a shell wrapping
+- `spawnHelper.killGroupAndWait` never returns early on the child's own exit code. The child is a shell wrapping
   `bun`, so a signal the shell dies from leaves `bun` alive while `exitCode` says gone; the wait
   polls the GROUP instead of the child's exit event.
-- `reclaimPort` runs before a spawn as well as after one, and matches on the script AND the process
+- `spawnHelper.reclaimPort` runs before a spawn as well as after one, and matches on the script AND the process
   marker (`--viable-api`, `--viable-worker`, `--viable-boot-check`) — never a port alone, and never
   a marker alone, since reclaiming sends SIGKILL and a marker on its own matches any command line
   that merely mentions it.
 
 ## Running the generated app locally
 
-`runLocal` builds and starts the api, the worker (when the project has one) and a local server that
+`makeLocalRunHelper(dir).runLocal` builds and starts the api, the worker (when the project has one) and a local server that
 holds the web port and proxies `/api` to the api process on the same origin — the generated app's
 configuration assumes one origin, and splitting them across two loopback ports would put its CORS
 setup in the path of a developer's first page load. There is no respawn ladder, no reconciler and no
@@ -515,14 +556,17 @@ reader looking for a database that was never configured.
 `bun test ./tests` — offline: the envelope and its parser, the harness installer, the tool catalogue,
 the `registerCatalogue` out-of-credits, consent and planning-refusal phrasing and `notify` wiring
 (`mcp-catalogue.spec.ts`; the consent marker, the bare 428/402 statuses and a consent inside a
-commit failure in `catalogue.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
+commit failure in `catalogue.spec.ts`; the conversion confirmation — schemas and descriptions, the
+start and stage phrasing, the repeat call naming a freshly filed project, the stored marker, the
+bare 428 either side of `confirm`, the confirmed call's balance and consent refusals and the MCP
+boundary — in `conversion-confirmation.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
 block. The story tools run over a REAL `@owlmeans/server-planning` service (memory store, the Viable
 types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`,
-the landing mark included; the settings tools over a recorded `ConnectorApi` (order of session and
-save, the patch sent, the phrased `AuthenPayloadError`). `platform.spec.ts` pins that every tool a
+the landing mark included; the settings and planning-kit tools over a recorded `ConnectorApi` (order of
+session and save or apply, the patch or kit body sent, the phrased refusal). `platform.spec.ts` pins that every tool a
 pipeline, feature or group names exists and every tool is in a group; `planning-wiring.spec.ts` pins
-the planning aliases and paths a context binds, and `remote.spec.ts` drives the remote facade and the
-settings routes through a captured transport to pin their paths and deadlines, and pins that the remote
+the planning aliases and paths a context binds, and `remote.spec.ts` drives the remote facade, the
+settings and the kit routes through a captured transport to pin their paths and deadlines, and pins that the remote
 `ConnectorApi` has no member without a connector route and every connector alias is bound.
 
 ## Depends On

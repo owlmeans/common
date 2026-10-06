@@ -3,16 +3,21 @@ import { ProjectArea } from '../areas/consts.js'
 import { ConnectLlm, CONNECT_INQUIRY_MAX_TEXT } from '../connect/consts.js'
 import { ModelRole } from '../execution/consts.js'
 import {
-  ArchitectureCase, ConversionStage, ConvertibilityReason, ConvertibilityVerdict, EstimateSlice,
-  OriginKind, OriginState, PurposeEvidenceSource, StackFamily, StackId, TaxonomyKind, WorkspaceKind
+  ArchitectureCase, ConversionStage, OriginKind, OriginState, PurposeEvidenceSource, StackFamily, StackId,
+  TaxonomyKind, WorkspaceKind
 } from './consts.js'
 import type {
-  AreaAlignment, ArchitectureVerdict, ConversionAnswer, ConversionEstimate,
-  ConversionInventorySummary, ConversionStackRef, ConversionStructure, ConverterLlmBody,
-  ConverterProjectLlmBody, DesignInference, OriginFlow, OriginFlowList, OriginProof,
-  ProjectOrigin, PurposeInference, SeedDetection, StackConfirmation, StoryEstimateBand, StoryProof,
-  TaxonomyEntry, TaxonomyEntryList, TaxonomyRoleList
-} from './types.js'
+  AreaAlignment, DesignInference, OriginFlow, OriginFlowList, PurposeInference, StoryProof
+} from './analysis/types.js'
+import type { SeedDetection } from './census/types.js'
+import type { ArchitectureVerdict, StackConfirmation } from './detection/types.js'
+import type { ConversionEstimate, StoryEstimateBand } from './estimate/types.js'
+import type {
+  ConversionAnswer, ConversionInventorySummary, ConversionStackRef, ConversionStructure, ConverterLlmBody,
+  ConverterProjectLlmBody
+} from './record/types.js'
+import type { TaxonomyEntry, TaxonomyEntryList, TaxonomyRoleList } from './taxonomy/types.js'
+import type { OriginProof, ProjectOrigin } from './types.js'
 
 /**
  * Two populations of schema live in this file, and they are written differently on purpose.
@@ -659,7 +664,3 @@ export const ConverterProjectLlmBodySchema = {
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConverterProjectLlmBody>
 
-/** The reasons a convertibility verdict can carry, for a consumer building its own enum check. */
-export const ConvertibilityReasonValues = Object.values(ConvertibilityReason)
-export const ConvertibilityVerdictValues = Object.values(ConvertibilityVerdict)
-export const EstimateSliceValues = Object.values(EstimateSlice)

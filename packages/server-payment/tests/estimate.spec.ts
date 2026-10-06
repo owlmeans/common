@@ -1,15 +1,17 @@
 import { describe, expect, test } from 'bun:test'
 import { PaygateError, TaxBehavior, TaxEstimateStatus, TaxType } from '@owlmeans/payment'
-import { makeEstimateCache, estimateStripePrice } from '../src/plugins/estimate.js'
-import { gateway, paygateCustomers } from '../src/utils.js'
 import { CREDITS_PRODUCT, makeFakeContext, PLANS_PRODUCT, PRO } from './fake-stripe.js'
 import type { FakeContext } from './fake-stripe.js'
+import { EUR_SETTLEMENT, makeRightsContext } from './consumer-fixtures.js'
+import { paymentAccessOf } from '../src/access.js'
+import { estimateOf } from '../src/plugins/estimate.js'
+import { makeEstimateCache } from '../src/plugins/estimate/cache.js'
 
 const withCustomer = async (
   fake: FakeContext, entityId: string, country: string, taxIds: Array<{ type: string, value: string, country: string }> = [],
   taxExempt: string = 'none',
 ) => {
-  await paygateCustomers(fake.ctx).create({ paygate: 'stripe', externalId: `cus_${entityId}`, entityId })
+  await paymentAccessOf(fake.ctx).paygateCustomers().create({ paygate: 'stripe', externalId: `cus_${entityId}`, entityId })
   fake.state.customers[`cus_${entityId}`] = {
     id: `cus_${entityId}`, object: 'customer', address: { country }, tax_exempt: taxExempt,
     tax_ids: { object: 'list', data: taxIds },
@@ -24,7 +26,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
       pricing: estimatingPolicy, stripe: { taxRates: { PL: [{ type: 'vat', percentage: '23' }] } },
     })
     const cache = makeEstimateCache()
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'PL',
     }, cache)
     expect(result).toEqual(expect.objectContaining({
@@ -41,7 +43,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
       pricing: estimatingPolicy, stripe: { taxRates: { PL: [{ type: 'vat', percentage: '23' }] } },
     })
     const cache = makeEstimateCache()
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: CREDITS_PRODUCT, country: 'PL',
     }, cache)
     // the credit unit's default preset is 1_000, grossed up to 1_021 by its own amount policy
@@ -53,7 +55,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
   test('no request country and no paygate customer: `location-required`, zero Stripe calls', async () => {
     const fake = await makeFakeContext({ pricing: estimatingPolicy })
     const cache = makeEstimateCache()
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'unknown-entity', productSku: PLANS_PRODUCT, planSku: PRO,
     }, cache)
     expect(result.tax.status).toBe(TaxEstimateStatus.LocationRequired)
@@ -65,7 +67,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
       pricing: estimatingPolicy, stripe: { taxRates: { DE: [{ type: 'vat', percentage: '19' }] } },
     })
     await withCustomer(fake, 'entity-1', 'DE')
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO,
     }, makeEstimateCache())
     expect(result.country).toBe('DE')
@@ -78,7 +80,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
       pricing: estimatingPolicy, stripe: { taxRates: { PL: [{ type: 'vat', percentage: '23' }] } },
     })
     await withCustomer(fake, 'entity-1', 'PL', [{ type: 'eu_vat', value: 'DE123456789', country: 'DE' }])
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO,
     }, makeEstimateCache())
     // taxed, not reverse-charged — the DE tax id never reached the calculation
@@ -91,7 +93,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
       pricing: estimatingPolicy, stripe: { taxRates: { DE: [{ type: 'vat', percentage: '19' }] } },
     })
     await withCustomer(fake, 'entity-1', 'DE', [{ type: 'eu_vat', value: 'DE123456789', country: 'DE' }])
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO,
     }, makeEstimateCache())
     expect(result.tax.status).toBe(TaxEstimateStatus.ReverseCharge)
@@ -101,7 +103,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
 
   test('an unconfigured country (no registration) reads `none`', async () => {
     const fake = await makeFakeContext({ pricing: estimatingPolicy })
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'FR',
     }, makeEstimateCache())
     expect(result.tax.status).toBe(TaxEstimateStatus.None)
@@ -110,7 +112,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
 
   test('a jurisdiction Stripe Tax does not cover reads `at-checkout`', async () => {
     const fake = await makeFakeContext({ pricing: estimatingPolicy, stripe: { taxUnsupportedCountries: ['CU'] } })
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'CU',
     }, makeEstimateCache())
     expect(result.tax.status).toBe(TaxEstimateStatus.AtCheckout)
@@ -119,12 +121,12 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
   test('a Stripe invalid-request error (e.g. US missing a postal code) reads `at-checkout`, and the outcome is cached', async () => {
     const fake = await makeFakeContext({ pricing: estimatingPolicy, stripe: { taxInvalidCountries: ['US'] } })
     const cache = makeEstimateCache()
-    const first = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const first = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'US',
     }, cache)
     expect(first.tax.status).toBe(TaxEstimateStatus.AtCheckout)
     const callsAfterFirst = fake.state.calls.filter(name => name === 'tax.calculations.create').length
-    await estimateStripePrice(fake.ctx, fake.stripe, {
+    await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'US',
     }, cache)
     expect(fake.state.calls.filter(name => name === 'tax.calculations.create')).toHaveLength(callsAfterFirst)
@@ -134,12 +136,12 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
     const fake = await makeFakeContext({ pricing: estimatingPolicy, stripe: { taxRates: { PL: [{ type: 'vat', percentage: '23' }] } } })
     const cache = makeEstimateCache()
     const params = { entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'PL' }
-    await estimateStripePrice(fake.ctx, fake.stripe, params, cache)
-    await estimateStripePrice(fake.ctx, fake.stripe, params, cache)
+    await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, params, cache)
+    await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, params, cache)
     expect(fake.state.taxCalculations).toHaveLength(1)
 
     await withCustomer(fake, 'entity-2', 'PL', [{ type: 'eu_vat', value: 'PL123456789', country: 'PL' }])
-    await estimateStripePrice(fake.ctx, fake.stripe, { ...params, entityId: 'entity-2' }, cache)
+    await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, { ...params, entityId: 'entity-2' }, cache)
     expect(fake.state.taxCalculations).toHaveLength(2)
   })
 
@@ -155,8 +157,8 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
         return await original(...args)
       }
     const params = { entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'PL' }
-    await expect(estimateStripePrice(fake.ctx, fake.stripe, params, cache)).rejects.toThrow('connection reset')
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, params, cache)
+    await expect(estimateOf(fake.ctx).estimateStripePrice(fake.stripe, params, cache)).rejects.toThrow('connection reset')
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, params, cache)
     expect(result.tax.status).toBe(TaxEstimateStatus.Taxed)
   })
 
@@ -165,7 +167,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
       pricing: estimatingPolicy,
       stripe: { taxRates: { PL: [{ type: 'vat', percentage: '23' }] }, fxRates: { pln: { exchangeRate: 0.25, fxFeeRate: 0.02 } } },
     })
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'PL',
     }, makeEstimateCache())
     expect(result.local).toEqual({ currency: 'pln', exchangeRate: 0.25, fxFeeRate: 0.02 })
@@ -185,7 +187,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
         },
       },
     })
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'PL',
     }, makeEstimateCache())
     expect(result.local?.currency).toBe('pln')
@@ -196,11 +198,44 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
     ])
   })
 
+  test('a top-up CHARGED in the settlement currency (an EU buyer) carries its local line, via USD → EUR → local', async () => {
+    // The amount plan is estimated in its policy currency (USD) but its session is converted to the
+    // region's EUR, which Adaptive Pricing localizes — so the estimate must show the local total too.
+    const fake = await makeRightsContext({
+      pricing: { ...EUR_SETTLEMENT, currency: { adaptive: true, estimate: true } },
+      stripe: {
+        taxRates: { PL: [{ type: 'vat', percentage: '23' }] },
+        fxRates: {
+          usd: { exchangeRate: 0.853568, referenceRate: 0.8726 },
+          pln: { exchangeRate: 0.22, referenceRate: 0.224, fxFeeRate: 0.02 },
+        },
+      },
+    })
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
+      entityId: 'entity-1', productSku: CREDITS_PRODUCT, country: 'PL',
+    }, makeEstimateCache())
+    expect(result.currency).toBe('usd')
+    expect(result.local?.currency).toBe('pln')
+    expect(result.local?.exchangeRate).toBeCloseTo(0.22 / 0.8726)
+  })
+
+  test('a top-up charged in exact USD (outside the EU) carries no local line, with no FX call', async () => {
+    const fake = await makeRightsContext({
+      pricing: { ...EUR_SETTLEMENT, currency: { adaptive: true, estimate: true } },
+      stripe: { fxRates: { gbp: { exchangeRate: 1.27, referenceRate: 1.17 } } },
+    })
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
+      entityId: 'entity-1', productSku: CREDITS_PRODUCT, country: 'GB',
+    }, makeEstimateCache())
+    expect(result.local).toBeUndefined()
+    expect(fake.state.rawRequests.filter(request => request.path === '/v1/fx_quotes')).toHaveLength(0)
+  })
+
   test('omits `local` when the FX Quotes call fails, without failing the estimate', async () => {
     const fake = await makeFakeContext({
       pricing: estimatingPolicy, stripe: { taxRates: { PL: [{ type: 'vat', percentage: '23' }] }, fxUnavailable: true },
     })
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'PL',
     }, makeEstimateCache())
     expect(result.tax.status).toBe(TaxEstimateStatus.Taxed)
@@ -209,7 +244,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
 
   test('omits `local` for a US billing country (same currency as the integration currency), with no FX call', async () => {
     const fake = await makeFakeContext({ pricing: estimatingPolicy })
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'US',
     }, makeEstimateCache())
     expect(result.local).toBeUndefined()
@@ -224,7 +259,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
       },
       stripe: { taxRates: { PL: [{ type: 'vat', percentage: '23' }] }, fxRates: { pln: { exchangeRate: 0.25 } } },
     })
-    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+    const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'PL',
     }, makeEstimateCache())
     expect(result.local).toBeUndefined()
@@ -233,7 +268,7 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
 
   test('an unmanaged gateway throws PaygateError before ever reaching Stripe', async () => {
     const fake = await makeFakeContext({ pricing: estimatingPolicy })
-    await expect(gateway(fake.ctx).estimatePrice(fake.ctx, {
+    await expect(paymentAccessOf(fake.ctx).gateway().estimatePrice(fake.ctx, {
       entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO,
     })).rejects.toBeInstanceOf(PaygateError)
   })

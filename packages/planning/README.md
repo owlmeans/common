@@ -9,20 +9,21 @@ the executor with `@owlmeans/server-planning` and reads remotely with `@owlmeans
 ## Installation
 
 ```sh
-bun add @owlmeans/planning@^0.1.18-rc.15 ajv ajv-formats
+bun add @owlmeans/planning@^0.1.18-rc.19 ajv ajv-formats
 ```
 
 ## Concepts
 
 - **Transition** — the only way a record changes: an append-only event; a card is the fold of its
-  transitions in `seq` order (`applyTransition`).
+  transitions in `seq` order (`applyHelper.applyTransition`).
 - **Workcard** — base fields at the top level (`title`, `status`, `parent`, `parents`, `labels`,
   `order`); a type's own fields under `fields`, validated by the type's schema.
 - **Status flow** — shareable data declaring statuses (each mapped to `planned`, `in-progress` or
   `closed`) and named transitions; a type may run several flows.
 - **Specification** — a document workcard held in a slot the parent type declares; a revisioned
   slot revises one record in place.
-- **Wire query** — the scalar form a query travels in over HTTP (`encode*Query` / `decode*Query`).
+- **Wire query** — the scalar form a query travels in over HTTP (`wireHelper.encode*Query` /
+  `wireHelper.decode*Query`).
 
 ## Usage
 
@@ -69,13 +70,13 @@ export const planningProtocols = makePlanningProtocols({
 Encode a query on the client, decode it in a handler:
 
 ```ts
-import { criteriaOf, decodeWorkcardQuery, encodeWorkcardQuery } from '@owlmeans/planning'
+import { queryHelper, wireHelper } from '@owlmeans/planning'
 
-const query = encodeWorkcardQuery({ parent: projectId, status: ['todo', 'doing'], sort: ['order'] })
+const query = wireHelper.encodeWorkcardQuery({ parent: projectId, status: ['todo', 'doing'], sort: ['order'] })
 const page = await context.entrypoint(planningProtocols.card.list).call({ query })
 
 // server side
-const where = criteriaOf(decodeWorkcardQuery(req.query), { entityId })
+const where = queryHelper.criteriaOf(wireHelper.decodeWorkcardQuery(req.query), { entityId })
 ```
 
 Create a card and read it back through a facade — in process the one of `@owlmeans/server-planning`
@@ -107,10 +108,10 @@ await task.update({ title: 'Renamed' }) // expectSeq defaults to the record's he
 Fold transitions yourself (a mirror, a test, a store):
 
 ```ts
-import { applyRelationship, applyTransition } from '@owlmeans/planning'
+import { applyHelper } from '@owlmeans/planning'
 
-const card = transitions.reduce((current, transition) => applyTransition(current, transition), undefined)
-const links = transitions.reduce(applyRelationship, [])
+const card = transitions.reduce((current, transition) => applyHelper.applyTransition(current, transition), undefined)
+const links = transitions.reduce(applyHelper.applyRelationship, [])
 ```
 
 ## API
@@ -125,23 +126,35 @@ const links = transitions.reduce(applyRelationship, [])
   `PlanningService`, `PlanningDefinitions`.
 - Data-defined types and flows: `ScopedSchemaRecord`, `ScopedSchemaWhere`, `ScopedSchemaBundle`,
   `ScopedSchemaRegistry`, `SchemaDeclarations`, `SchemaWriteOptions`, `SchemaDefineRequest`,
-  `SchemaDefineReply`, `resolveScopedBundle`, `scopedRegistryOf`, `assertTypeSchema`,
-  `assertFlowSchema`, `assertOverridable`, `flowInUse`.
+  `SchemaDefineReply`, and `scopedSchemaHelper` (`resolveScopedBundle`, `scopedRegistryOf`,
+  `assertTypeSchema`, `assertFlowSchema`, `assertOverridable`, `flowInUse`, `schemaRecordKey`,
+  `schemaKeyOf`).
 - Enums and constants: `WorkcardKind`, `IntrinsicStatus`, `IntrinsicPolicy`, `TransitionAction`,
   `CommitState`, `SpecificationFormat`, `CodeStyle`, `CodeScope`, `PlanningSchemaKind`,
   `SchemaOrigin`, `SchemaWriteMode`, `PLANNING_SERVICE`, `PLANNING_PATH`, `PLANNING_COMMIT_EVENT`,
-  `planningAliases`, `planningDefinitionAliases`, limits (`TITLE_MAX`, …).
-- Fold and changes: `applyTransition`, `applyRelationship`, `computeChanges`, `isEmptyChange`,
-  `assertMutable`, `mergeFields`, `applyUnset`.
-- Status: `intrinsicOf`, `initialStatusOf`, `ruleOf`, `canTransit`, `transitionsFrom`,
-  `initialFlowsOf`, `resolveIntrinsic`, `primaryFlowOf`, `isTerminal`.
-- Query: `criteriaOf`, `listOptionsOf`, `specCriteriaOf`, `linkWhereOf`, `transitionWhereOf`,
-  `summaryOf`, `encode/decodeWorkcardQuery`, `encode/decodeSummaryQuery`,
-  `encode/decodeTransitionQuery`, `encode/decodeSpecificationQuery`,
-  `encode/decodeRelationshipQuery`.
-- Codes, specifications, validation: `mintCode`, `codeScopeOf`, `slotOf`, `currentSpecification`,
-  `nextRevision`, `specificationTypeOf`, `makeAjv`, `validateFields`, `validateCard`,
-  `validateSpecificationBody`.
+  limits (`TITLE_MAX`, …); `planningAliasHelper` (`planningAliases`, `planningDefinitionAliases`).
+- Helpers — each a ready object (`xxxHelper`) built by its `createXxxHelper()`, its interface
+  exported beside it:
+  - `applyHelper` — the fold: `applyTransition`, `applyRelationship`.
+  - `changesHelper` — `computeChanges`, `isEmptyChange`, `assertMutable`, `mergeFields`,
+    `applyUnset`, `sameValue`.
+  - `cardHelper` — `isProject`, `isCard`, `isSpecification`, `normalizeParents`, `cardDefaults`,
+    `isPending`, `parentOf`, `projectOf`.
+  - `statusHelper` — `intrinsicOf`, `initialStatusOf`, `ruleOf`, `canTransit`, `transitionsFrom`,
+    `initialFlowsOf`, `resolveIntrinsic`, `primaryFlowOf`, `flowIdsOf`, `statusDefinitionOf`,
+    `isTerminal`.
+  - `queryHelper` — `criteriaOf`, `listOptionsOf`, `specCriteriaOf`, `linkWhereOf`,
+    `transitionWhereOf`, `summaryOf`.
+  - `wireHelper` — `encode/decodeWorkcardQuery`, `encode/decodeSummaryQuery`,
+    `encode/decodeTransitionQuery`, `encode/decodeSpecificationQuery`,
+    `encode/decodeRelationshipQuery`, `encode/decodeList`, `encode/decodeSort`.
+  - `codeHelper` — `mintCode`, `codeScopeOf`, `slugOf`.
+  - `specificationHelper` — `slotOf`, `currentSpecification`, `nextRevision`, `isRevisioned`,
+    `bodyCharsOf`, `specificationTypeOf`.
+  - `validateHelper` — `validateFields`, `validateCard`, `validateSpecificationBody`,
+    `invalidFieldKeys`, `ajvErrorText`; and `makeAjv`.
+- The former plain functions (`applyTransition`, `criteriaOf`, `encodeWorkcardQuery`, …) remain as
+  deprecated delegates to these helpers.
 - Registry, protocols, models: `makeSchemaRegistry`, `makePlanningProtocols`, `makeWorkcardModel`,
   `makeProjectModel`, `makeSpecificationModel`, `modelOf`.
 - Errors: `PlanningError`, `WorkcardNotFound`, `UnknownWorkcardType`, `UnknownStatusFlow`,
@@ -188,7 +201,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

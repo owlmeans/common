@@ -1,47 +1,22 @@
-import type {
-  Criteria, FirstOptions, ListOptions, ListResult, SubscribeOptions, Ttl, Unsubscribe, WriteOptions
-} from '@owlmeans/resource'
-import {
-  applyQuery, filterRecords, firstMatch, MisshapedRecord, UnsupportedArgumentError,
-  UnsupportedMethodError
-} from '@owlmeans/resource'
-import { DEFAULT_DB_ALIAS } from '@owlmeans/redis-resource'
-import type { RedisDbService } from '@owlmeans/redis-resource'
-import type { FlowSpec, JobEvent, JobRecord } from '@owlmeans/queue'
-import {
-  DEFAULT_ALIAS, DEFAULT_JOB_TIMEOUT, JobEventType, JobState, QueueTimeout, UnknownJob
-} from '@owlmeans/queue'
+import { type Criteria, type FirstOptions, type ListOptions, type ListResult, type SubscribeOptions, type Ttl, type Unsubscribe, type WriteOptions, MisshapedRecord, UnsupportedArgumentError, UnsupportedMethodError, recordQueryHelper } from '@owlmeans/resource'
+import { DEFAULT_DB_ALIAS, type RedisDbService } from '@owlmeans/redis-resource'
+import { type FlowSpec, type JobEvent, type JobRecord, DEFAULT_ALIAS, DEFAULT_JOB_TIMEOUT, JobEventType, JobState, QueueTimeout, UnknownJob } from '@owlmeans/queue'
 import { appendContextual, assertContext } from '@owlmeans/context'
 import { ResilientError } from '@owlmeans/error'
-import type { Job, QueueEventsListener } from 'bullmq'
-import { FlowProducer, Queue, QueueEvents, QueueEventsProducer } from 'bullmq'
+import { logThrottle, logger } from '@owlmeans/log'
+import { type ConnectionOptions, type Job, FlowProducer, Queue, QueueEvents, QueueEventsProducer } from 'bullmq'
 import type { Config, Context, RedisQueueResource } from './types.js'
 import {
   LISTED_STATES, PUBLISHED_EVENT, PUBLISHED_EVENT_MAX, WAIT_TIMEOUT_MARKER
 } from './consts.js'
-import {
-  bullOptionsOf, declaredJob, flowJobOf, jobRecordOf, jobStateOf, mergeJobOptions, queueConnection
-} from './utils/index.js'
+import { declaredJob, flowJobOf, jobRecordHelper, queueConnectionHelper } from './utils/index.js'
+import type { QueueConnection } from './utils/index.js'
+import type { JobQueue, PublishedListener } from './types.local.js'
 
-/**
- * The queue named by the job type it carries rather than by the payload type.
- *
- * bullmq derives its data, result and name types from the first argument, and it derives them
- * through a conditional that a bare type parameter leaves unresolved — naming the job itself is
- * what lets `add` and `getJob` speak in `D` and `R` instead of in `any`.
- */
-type JobQueue<D, R> = Queue<Job<D, R, string>>
+const log = logger('redis-queue')
 
 /** The resource alias one queue is registered under. */
 export const queueResourceAlias = (queue: string): string => `${DEFAULT_ALIAS}:${queue}`
-
-/**
- * An event this driver published itself, carried under a name of its own so that a hand-made
- * event can never be mistaken for one the broker wrote.
- */
-interface PublishedListener extends QueueEventsListener {
-  [PUBLISHED_EVENT]: (args: { payload: string }, id: string) => void
-}
 
 /**
  * One bullmq queue, addressed as a resource.
@@ -59,7 +34,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
 ): RedisQueueResource<D, R> => {
   const location = `redis-queue:${queue}`
 
-  let connection: Promise<Awaited<ReturnType<typeof queueConnection>>> | undefined
+  let connection: Promise<QueueConnection> | undefined
   let bull: Promise<JobQueue<D, R>> | undefined
   let events: Promise<QueueEvents> | undefined
   let flow: Promise<FlowProducer> | undefined
@@ -74,15 +49,20 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
   const watched = <T extends { on: (event: 'error', listener: (error: Error) => void) => unknown }>(
     subject: T
   ): T => {
-    subject.on('error', error => console.error(`${location}: connection error`, error))
+    // A broken connection reports on every reconnect attempt: one line per window is enough.
+    subject.on('error', error => {
+      if (logThrottle(`${location}:connection`)) {
+        log.error('Queue connection error', { queue, error })
+      }
+    })
 
     return subject
   }
 
-  const connect = async (): Promise<Awaited<ReturnType<typeof queueConnection>>> => {
+  const connect = async (): Promise<QueueConnection> => {
     if (connection == null) {
       const redis = context().service<RedisDbService>(serviceAlias)
-      connection = queueConnection(redis, dbAlias).catch(error => {
+      connection = queueConnectionHelper.queueConnection(redis, dbAlias).catch(error => {
         connection = undefined
         throw error
       })
@@ -106,7 +86,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
   const bullEvents = async (): Promise<QueueEvents> => {
     if (events == null) {
       events = connect().then(
-        ({ blocking, prefix }) => watched(new QueueEvents(queue, { connection: blocking, prefix }))
+        ({ blocking, prefix }) => watched(new QueueEvents(queue, { connection: blocking as unknown as ConnectionOptions, prefix }))
       )
     }
 
@@ -136,7 +116,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
   const readJob = async (id: string): Promise<JobRecord<D, R> | null> => {
     const job = await (await bullQueue()).getJob(id)
 
-    return job == null ? null : jobRecordOf(queue, job, jobStateOf(await job.getState()))
+    return job == null ? null : jobRecordHelper.jobRecordOf(queue, job, jobRecordHelper.jobStateOf(await job.getState()))
   }
 
   /**
@@ -148,7 +128,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
     const records: Array<JobRecord<D, R>> = []
     for (const state of LISTED_STATES) {
       const jobs = await bullQ.getJobs([state])
-      jobs.forEach(job => records.push(jobRecordOf(queue, job, jobStateOf(state))))
+      jobs.forEach(job => records.push(jobRecordHelper.jobRecordOf(queue, job, jobRecordHelper.jobStateOf(state))))
     }
 
     return records
@@ -169,7 +149,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
       return await readJob(id)
     }
 
-    return firstMatch(await readAll(), idOrWhere as Criteria<any>, opts)
+    return recordQueryHelper.firstMatch(await readAll(), idOrWhere as Criteria<any>, opts)
   }
 
   /** Close a subscription once its lifetime runs out — seconds from now, or an instant. */
@@ -223,7 +203,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
         throw new UnsupportedArgumentError('page-without-size')
       }
 
-      return applyQuery(await readAll(), where, opts)
+      return recordQueryHelper.applyQuery(await readAll(), where, opts)
     },
 
     count: async (where?: Criteria<any>): Promise<number> => {
@@ -231,7 +211,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
         return await (await bullQueue()).getJobCountByTypes(...LISTED_STATES)
       }
 
-      return filterRecords(await readAll(), where).length
+      return recordQueryHelper.filterRecords(await readAll(), where).length
     },
 
     /**
@@ -257,14 +237,14 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
 
       const declared = declaredJob(
         context().cfg, queue, record.name,
-        mergeJobOptions(record.id != null ? { id: record.id } : undefined, record.opts)
+        jobRecordHelper.mergeJobOptions(record.id != null ? { id: record.id } : undefined, record.opts)
       )
 
-      const job = await (await bullQueue()).add(declared.name, data, bullOptionsOf(declared.opts))
+      const job = await (await bullQueue()).add(declared.name, data, jobRecordHelper.bullOptionsOf(declared.opts))
 
       // Freshly added, so the state is what the options say rather than something to read back:
       // a delayed job waits on its timer, everything else waits for a worker.
-      return jobRecordOf(
+      return jobRecordHelper.jobRecordOf(
         queue, job, (declared.opts.delay ?? 0) > 0 ? JobState.Delayed : JobState.Waiting
       )
     },
@@ -293,7 +273,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
 
       await job.updateData(data)
 
-      return jobRecordOf(queue, job, jobStateOf(await job.getState()))
+      return jobRecordHelper.jobRecordOf(queue, job, jobRecordHelper.jobStateOf(await job.getState()))
     },
 
     /** Enqueues when the id is free, rewrites the payload when it is taken. */
@@ -312,7 +292,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
       if (job == null) {
         return null
       }
-      const record = jobRecordOf(queue, job, jobStateOf(await job.getState()))
+      const record = jobRecordHelper.jobRecordOf(queue, job, jobRecordHelper.jobStateOf(await job.getState()))
       await job.remove()
 
       return record
@@ -341,7 +321,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
         throw new UnsupportedArgumentError('purge:empty-criteria')
       }
       const bullQ = await bullQueue()
-      const matched = filterRecords(await readAll(), where)
+      const matched = recordQueryHelper.filterRecords(await readAll(), where)
 
       let removed = 0
       for (const record of matched) {
@@ -395,7 +375,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
     flow: async (root: FlowSpec<D>): Promise<JobRecord<D, R>> => {
       const node = await (await bullFlow()).add(flowJobOf(context().cfg, root, queue))
 
-      return jobRecordOf(queue, node.job, JobState.Waiting)
+      return jobRecordHelper.jobRecordOf(queue, node.job, JobState.Waiting)
     },
 
     counts: async (): Promise<Record<JobState, number>> => {
@@ -409,7 +389,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
         [JobState.Unknown]: 0,
       }
       Object.entries(raw).forEach(([type, count]) => {
-        counts[jobStateOf(type)] += count
+        counts[jobRecordHelper.jobStateOf(type)] += count
       })
 
       return counts
@@ -531,7 +511,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
         try {
           await (await opened).close()
         } catch (error) {
-          console.error(`${location}: failed to close`, error)
+          log.error('Queue failed to close', { queue, error })
         }
       }
     }

@@ -1,9 +1,4 @@
-import { contract, protocol, schema, typed } from '@owlmeans/entrypoint'
-import { backend, route, RouteMethod } from '@owlmeans/route'
-import { GUARD_ED25519 } from '@owlmeans/server-app'
 import { INTERNAL_PAYGATE, LIMIT_GATE } from '@owlmeans/payment'
-import type { JSONSchemaType } from 'ajv'
-
 export { INTERNAL_PAYGATE, LIMIT_GATE }
 
 export const STRIPE_PAYGATE_ALIAS = 'stripe'
@@ -20,6 +15,13 @@ export const STRIPE_SIGNATURE = 'Stripe-Signature'
  * with `declarePaymentPricing({ stripe: { fxApiVersion } })` once Stripe moves the API or renames
  * the preview.
  */
+/**
+ * The Stripe API version every client of this package is pinned to (the one stripe-node 17 defaulted to).
+ * Moving it re-creates the stored webhook endpoints with their payload shapes, so it moves together with
+ * the readers of `current_period_*`, an invoice's subscription and a credit note's refund.
+ */
+export const STRIPE_PINNED_API_VERSION = '2025-02-24.acacia'
+
 export const STRIPE_FX_QUOTES_API_VERSION = '2025-07-30.preview'
 export const GATEWAY_SERVICE = 'payment-gateway'
 export const PAYMENT_OBSERVER = 'payment-observer'
@@ -105,52 +107,3 @@ export const WEBHOOK_EVENTS: readonly string[] = Object.freeze([
   'charge.dispute.created', 'charge.dispute.closed', 'charge.dispute.funds_withdrawn',
   'charge.dispute.funds_reinstated',
 ])
-
-export interface PaygateParams { paygate: string }
-export interface ResyncResult { ok: boolean }
-export interface ResyncSubscriptionsResult { scanned: number; updated: number }
-
-const PaygateParamsSchema = schema<PaygateParams>({
-  type: 'object', properties: { paygate: { type: 'string' } }, required: ['paygate'],
-  additionalProperties: false,
-} as JSONSchemaType<PaygateParams>)
-const ResyncResultSchema = schema<ResyncResult>({
-  type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'],
-  additionalProperties: false,
-} as JSONSchemaType<ResyncResult>)
-const ResyncSubscriptionsResultSchema = schema<ResyncSubscriptionsResult>({
-  type: 'object',
-  properties: { scanned: { type: 'number' }, updated: { type: 'number' } },
-  required: ['scanned', 'updated'],
-  additionalProperties: false,
-} as JSONSchemaType<ResyncSubscriptionsResult>)
-
-const aliases = {
-  base: 'payment-gate',
-  webhook: 'payment-gate:webhook',
-  resync: 'payment-gate:resync',
-  resyncSubscriptions: 'payment-gate:resync-subscriptions',
-} as const
-const base = protocol(route(aliases.base, '/payment-gate', backend()), contract())
-
-/** Embedded gateway protocol tree; the alias strings are private adapter details. */
-export const paymentGate = {
-  base,
-  /** Public: Stripe signs the raw body, so no application guard may sit in front of it. */
-  webhook: protocol(
-    route(aliases.webhook, '/webhook/:paygate', backend({ parent: base, method: RouteMethod.POST })),
-    contract.request({ params: PaygateParamsSchema }, typed<undefined>()),
-  ),
-  /** Re-sync products, prices, the portal configuration and the webhook endpoint. */
-  resync: protocol(
-    route(aliases.resync, '/resync', backend({ parent: base, method: RouteMethod.POST })),
-    contract(ResyncResultSchema),
-    { guards: GUARD_ED25519 },
-  ),
-  /** Re-read every live paygate subscription and apply it as a webhook would. */
-  resyncSubscriptions: protocol(
-    route(aliases.resyncSubscriptions, '/resync-subscriptions', backend({ parent: base, method: RouteMethod.POST })),
-    contract(ResyncSubscriptionsResultSchema),
-    { guards: GUARD_ED25519 },
-  ),
-} as const

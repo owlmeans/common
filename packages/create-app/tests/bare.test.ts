@@ -47,6 +47,7 @@ describe('create-app — bare scaffolding', () => {
       'sources/common/src/schemas.ts',
       'sources/api/src/consts.ts',
       'sources/api/src/app',
+      'sources/api/src/models',
       'sources/web/src/screens/about.tsx',
       'sources/web/src/screens/session.tsx',
     ]) {
@@ -82,6 +83,29 @@ describe('create-app — bare scaffolding', () => {
     ]) {
       expect(existsSync(join(dir, kept))).toBe(true)
     }
+  })
+
+  test('sets the log level per runtime environment, never in the shared config', () => {
+    const common = read('sources/common/src/config.ts')
+    expect(common).not.toContain('cfg.debug')
+    expect(common).not.toContain('process.env')
+    expect(common).not.toContain('import.meta.env')
+
+    expect(read('sources/api/src/config.ts')).toContain(
+      "cfg.log = { level: process.env.LOG_LEVEL || 'info', debug: process.env.LOG_DEBUG ?? '' }"
+    )
+    expect(read('sources/web/src/config.ts')).toContain(
+      "cfg.log = { level: env.VITE_LOG_LEVEL || (env.PROD ? 'info' : 'debug'), debug: env.VITE_LOG_DEBUG ?? '' }"
+    )
+    expect(read('sources/web/src/vite-env.d.ts')).toContain('readonly VITE_LOG_LEVEL?: string')
+    expect(read('sources/api/src/index.ts')).toContain("log.error('Start failed', error)")
+
+    for (const pkg of ['sources/api/package.json', 'sources/web/package.json']) {
+      expect(JSON.parse(read(pkg)).dependencies['@owlmeans/log']).toMatch(/^\^0\.1\.18-rc\.\d+$/)
+    }
+    expect(read('.gitignore').split('\n')).toContain('.env')
+    expect(read('AGENTS.md')).toContain('## Logging (mandatory)')
+    expect(read('AGENTS.md')).toContain('- `/logging` —')
   })
 
   test('carries the slug, name, language and description into the output', () => {

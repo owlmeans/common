@@ -6,8 +6,9 @@ import type {
 } from '@owlmeans/payment'
 import { AmountCheckoutDialog, PriceEstimateSummary, usePriceEstimate } from '../../src/index.js'
 import {
-  CancellationForm, PerformanceConsentDialog, PerformanceConsentProvider, SubscriptionStartDialog, WithdrawalDialog,
-  WithdrawalForm, WithdrawalFunctionButton, isConsentDeclined, useCancellation, useConsentGate, useWithdrawal,
+  CancellationForm, PerformanceConsentDialog, PerformanceConsentProvider, SubscriptionStartDialog,
+  WithdrawalDialog, WithdrawalForm, WithdrawalFunctionButton, useCancellation, useConsentGate,
+  useWithdrawal, consentRefusalHelper,
 } from '../../src/consumer/index.js'
 import {
   BLOCKED_LIMIT, LINKS, PER_PURCHASE_LIMIT, POLICY, cancellationReceipt, consentView, lockedEstimate, publicReceipt,
@@ -36,7 +37,7 @@ const ConsentCase = () => {
     <Output id="consent-result" value={result} />
     <Output id="dialog-state" value={open ? 'open' : 'closed'} />
     <PerformanceConsentDialog
-      open={open} onOpenChange={setOpen} view={consentView(lng)} links={LINKS}
+      open={open} onOpenChange={setOpen} view={consentView(lng, params.get('context'))} links={LINKS}
       onConfirm={body => { setResult(body); setOpen(false) }}
       onDecline={() => { setResult('declined'); setOpen(false) }}
     />
@@ -49,7 +50,7 @@ const StartCase = () => {
   return <main className="p-6">
     <Output id="start-result" value={result} />
     <SubscriptionStartDialog
-      open={open} onOpenChange={setOpen} view={startView(lng)} planTitle="Pro" links={LINKS}
+      open={open} onOpenChange={setOpen} view={startView(lng, params.get('context'))} planTitle="Pro" links={LINKS}
       price={<span>€20.00 / month</span>}
       onConfirm={body => { setResult(body); setOpen(false) }}
       onDecline={() => { setResult('declined'); setOpen(false) }}
@@ -145,7 +146,7 @@ const GateButtons = () => {
       })
       setResult(`ok:${made}`)
     } catch (e) {
-      setResult(isConsentDeclined(e) ? `declined:${made}` : `error:${made}`)
+      setResult(consentRefusalHelper.isConsentDeclined(e) ? `declined:${made}` : `error:${made}`)
     }
   }
   const ensure = async () => { setResult(`ensure:${String(await gate.ensure())}`) }

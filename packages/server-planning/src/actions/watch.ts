@@ -1,10 +1,14 @@
+import { logger } from '@owlmeans/log'
 import { PLANNING_COMMIT_EVENT } from '@owlmeans/planning'
 import type { CommitEvent, CommitFeedQuery, PlanningProtocols } from '@owlmeans/planning'
 import { connection } from '@owlmeans/server-socket'
 import type { EventMessage } from '@owlmeans/socket'
 import { MessageType } from '@owlmeans/socket'
 import type { Context, PlanningHandlerOptions } from '../types.js'
-import { handlerFacade } from '../utils/index.js'
+import { planningHandlerOf } from '../utils/handler.js'
+import type { RequestHandler } from './types.js'
+
+const log = logger('planning:watch')
 
 const text = (value: unknown): string | undefined =>
   value == null || value === '' ? undefined : `${value}`
@@ -18,8 +22,8 @@ const text = (value: unknown): string | undefined =>
  */
 export const watchCommits = (
   protocol: PlanningProtocols['commit']['events'], opts?: PlanningHandlerOptions
-): ReturnType<typeof connection> => connection<typeof protocol, Context>(protocol, async (conn, ctx, req) => {
-  const facade = await handlerFacade(ctx, req, opts)
+): RequestHandler => connection<typeof protocol, Context>(protocol, async (conn, ctx, req) => {
+  const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
   const query = (req.query ?? {}) as CommitFeedQuery
   const frame = opts?.event ?? PLANNING_COMMIT_EVENT
   const filter = {
@@ -32,7 +36,7 @@ export const watchCommits = (
       const enriched = event.record !== undefined ? event : { ...event, record: await facade.cards.load(event.card) }
       await conn.notify(frame, enriched)
     } catch (e) {
-      console.error('Planning commit notify error:', e)
+      log.warn('Planning commit notify failed', e)
     }
   }, filter)
 
@@ -45,7 +49,7 @@ export const watchCommits = (
       try {
         unsubscribe()
       } catch (e) {
-        console.error('Planning commit unsubscribe error:', e)
+        log.warn('Planning commit unsubscribe failed', e)
       }
     }
   })

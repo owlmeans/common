@@ -1,21 +1,16 @@
 
-import type { AuthPlugin } from '@owlmeans/server-auth/manager/plugins'
-import { assertType } from '@owlmeans/server-auth/manager/plugins'
-import type { Config, Context, OidcClientService } from '../../types.js'
-import { GOOGLE_CLIENT_AUTH, GOOGLE_SERVICE } from '@owlmeans/oidc'
-import type { OidcProviderDescriptor, ProviderProfileDetails } from '@owlmeans/oidc'
+import { type AuthPlugin, authPluginHelper } from '@owlmeans/server-auth/manager/plugins'
+import type { Config, Context, OidcClientService, AccountLinkingService } from '../../types.js'
+import { GOOGLE_CLIENT_AUTH, GOOGLE_SERVICE, type OidcProviderDescriptor, type ProviderProfileDetails } from '@owlmeans/oidc'
 import { base64urlnopad as base64 } from '@scure/base'
-import { randomBytes } from '@noble/hashes/utils'
-import { sha256 } from '@noble/hashes/sha256'
+import { randomBytes } from '@noble/hashes/utils.js'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthManagerError, AuthRole } from '@owlmeans/auth'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
-import { cache, verifierId, exchangeId } from '../../utils/cache.js'
-import type { AccountLinkingService } from '../../types.js'
+import { oidcCacheOf } from '../../utils/cache.js'
 import { DEFAULT_ALIAS } from '../../consts.js'
+import { GOOGLE_AUTH_ENDPOINT, GOOGLE_TOKEN_ENDPOINT, GOOGLE_USERINFO_ENDPOINT } from './consts.local.js'
 
-const GOOGLE_AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth'
-const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
-const GOOGLE_USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo'
 
 export const googleClientPlugin = <C extends Config, T extends Context<C>>(context: T, service: string = GOOGLE_SERVICE): AuthPlugin => {
   const getGoogleConfig = async (): Promise<Required<Pick<OidcProviderDescriptor, 'clientId' | 'secret'>> & OidcProviderDescriptor> => {
@@ -31,7 +26,7 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
     type: GOOGLE_CLIENT_AUTH,
 
     init: async request => {
-      assertType(request.type, plugin)
+      authPluginHelper.assertType(request.type, plugin)
 
       const google = await getGoogleConfig()
 
@@ -40,12 +35,13 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
       }
 
       const verifier = base64.encode(randomBytes(32))
-      const challenge = base64.encode(sha256(verifier))
+      const challenge = base64.encode(sha256(new TextEncoder().encode(verifier)))
       // Use a random state for cache lookup on callback
       const state = base64.encode(randomBytes(16))
 
-      await cache<C, T>(context).create({
-        id: verifierId(state),
+      const oidcCache = oidcCacheOf(context)
+      await oidcCache.resource().create({
+        id: oidcCache.verifierId(state),
         verifier,
         client: google.clientId,
         redirectUri: request.source,
@@ -89,7 +85,8 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
       }
 
       // Look up the PKCE verifier using the state parameter
-      const verification = await cache<C, T>(context).take(verifierId(state))
+      const oidcCache = oidcCacheOf(context)
+      const verification = await oidcCache.resource().take(oidcCache.verifierId(state))
       if (verification == null || verification.verifier == null) {
         throw new AuthenFailed()
       }
@@ -171,8 +168,8 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
 
       // Generate exchange token for the auth manager to issue final bearer
       const exchangeToken = base64.encode(randomBytes(32))
-      await cache<C, T>(context).create(
-        { id: exchangeId(exchangeToken), payload: tokens as any },
+      await oidcCache.resource().create(
+        { id: oidcCache.exchangeId(exchangeToken), payload: tokens as any },
         { ttl: AUTHEN_TIMEFRAME / 1000 }
       )
 

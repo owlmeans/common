@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { AIMessage, HumanMessage } from '@langchain/core/messages'
-import {
-  coerceToSchema, LlmRetryExceededError, normalizeInput, parseJsonContent, registerFatalError,
-  spectate, withRetry,
-} from '@owlmeans/llm'
+import { LlmRetryExceededError, normalizeInput, spectate, jsonHelper, retryHelper } from '@owlmeans/llm'
 import { recordingSpectator } from './context.js'
 
 describe('helpers/messages — input normalization', () => {
@@ -27,31 +24,31 @@ describe('helpers/messages — input normalization', () => {
 
 describe('helpers/json — recovering JSON a model emitted as content', () => {
   test('parses plain JSON', () => {
-    expect(parseJsonContent('{"a":1}')).toEqual({ a: 1 })
+    expect(jsonHelper.parseJsonContent('{"a":1}')).toEqual({ a: 1 })
   })
 
   test('unwraps a markdown fence', () => {
-    expect(parseJsonContent('```json\n{"a":1}\n```')).toEqual({ a: 1 })
-    expect(parseJsonContent('```\n[1,2]\n```')).toEqual([1, 2])
+    expect(jsonHelper.parseJsonContent('```json\n{"a":1}\n```')).toEqual({ a: 1 })
+    expect(jsonHelper.parseJsonContent('```\n[1,2]\n```')).toEqual([1, 2])
   })
 
   test('salvages an object from surrounding prose', () => {
-    expect(parseJsonContent('Sure! Here it is: {"a":1} — hope that helps')).toEqual({ a: 1 })
+    expect(jsonHelper.parseJsonContent('Sure! Here it is: {"a":1} — hope that helps')).toEqual({ a: 1 })
   })
 
   test('salvages an array from surrounding prose', () => {
-    expect(parseJsonContent('Result: ["x","y"] done')).toEqual(['x', 'y'])
+    expect(jsonHelper.parseJsonContent('Result: ["x","y"] done')).toEqual(['x', 'y'])
   })
 
   test('reads structured content blocks', () => {
-    expect(parseJsonContent([{ type: 'text', text: '{"a":' }, { type: 'text', text: '1}' }])).toEqual({ a: 1 })
+    expect(jsonHelper.parseJsonContent([{ type: 'text', text: '{"a":' }, { type: 'text', text: '1}' }])).toEqual({ a: 1 })
   })
 
   test('returns null when there is nothing parseable', () => {
-    expect(parseJsonContent('no json here')).toBeNull()
-    expect(parseJsonContent('')).toBeNull()
-    expect(parseJsonContent(null)).toBeNull()
-    expect(parseJsonContent(42)).toBeNull()
+    expect(jsonHelper.parseJsonContent('no json here')).toBeNull()
+    expect(jsonHelper.parseJsonContent('')).toBeNull()
+    expect(jsonHelper.parseJsonContent(null)).toBeNull()
+    expect(jsonHelper.parseJsonContent(42)).toBeNull()
   })
 })
 
@@ -62,8 +59,8 @@ describe('helpers/json — reconciling a model answer with its schema', () => {
       type: 'object',
       properties: { files: { type: 'array', items: { type: 'string' } } },
     }
-    expect(coerceToSchema({ files: '["a","b"]' }, schema)).toEqual({ files: ['a', 'b'] })
-    expect(coerceToSchema({ files: '[]' }, schema)).toEqual({ files: [] })
+    expect(jsonHelper.coerceToSchema({ files: '["a","b"]' }, schema)).toEqual({ files: ['a', 'b'] })
+    expect(jsonHelper.coerceToSchema({ files: '[]' }, schema)).toEqual({ files: [] })
   })
 
   test('coerces stringified scalars to their declared type', () => {
@@ -71,22 +68,22 @@ describe('helpers/json — reconciling a model answer with its schema', () => {
       type: 'object',
       properties: { count: { type: 'integer' }, ok: { type: 'boolean' }, ratio: { type: 'number' } },
     }
-    expect(coerceToSchema({ count: '7', ok: 'true', ratio: '0.5' }, schema))
+    expect(jsonHelper.coerceToSchema({ count: '7', ok: 'true', ratio: '0.5' }, schema))
       .toEqual({ count: 7, ok: true, ratio: 0.5 })
   })
 
   // A value that cannot be coerced is kept, so validation reports the real problem.
   test('keeps an uncoercible value untouched', () => {
     const schema = { type: 'object', properties: { count: { type: 'integer' } } }
-    expect(coerceToSchema({ count: 'seven' }, schema)).toEqual({ count: 'seven' })
+    expect(jsonHelper.coerceToSchema({ count: 'seven' }, schema)).toEqual({ count: 'seven' })
   })
 
   // Also observed: a `string[]` field filled with `[{ path: '…' }]`.
   test('unwraps a scalar the model over-wrapped in an object', () => {
     const schema = { type: 'array', items: { type: 'string' } }
-    expect(coerceToSchema([{ path: 'src/a.ts' }, { value: 'src/b.ts' }], schema))
+    expect(jsonHelper.coerceToSchema([{ path: 'src/a.ts' }, { value: 'src/b.ts' }], schema))
       .toEqual(['src/a.ts', 'src/b.ts'])
-    expect(coerceToSchema([{ onlyOne: 'src/c.ts' }], schema)).toEqual(['src/c.ts'])
+    expect(jsonHelper.coerceToSchema([{ onlyOne: 'src/c.ts' }], schema)).toEqual(['src/c.ts'])
   })
 
   test('walks nested structures', () => {
@@ -99,20 +96,20 @@ describe('helpers/json — reconciling a model answer with its schema', () => {
         },
       },
     }
-    expect(coerceToSchema({ items: [{ n: '1' }, { n: '2' }] }, schema))
+    expect(jsonHelper.coerceToSchema({ items: [{ n: '1' }, { n: '2' }] }, schema))
       .toEqual({ items: [{ n: 1 }, { n: 2 }] })
   })
 
   test('leaves conforming values and unknown schemas alone', () => {
-    expect(coerceToSchema({ a: 1 }, { type: 'object', properties: { a: { type: 'integer' } } })).toEqual({ a: 1 })
-    expect(coerceToSchema('x', undefined)).toBe('x')
+    expect(jsonHelper.coerceToSchema({ a: 1 }, { type: 'object', properties: { a: { type: 'integer' } } })).toEqual({ a: 1 })
+    expect(jsonHelper.coerceToSchema('x', undefined)).toBe('x')
   })
 })
 
 describe('helpers/retry', () => {
   test('returns the first success and reports the attempt index', async () => {
     const attempts: number[] = []
-    const result = await withRetry({ retries: 5 }, async i => {
+    const result = await retryHelper.withRetry({ retries: 5 }, async i => {
       attempts.push(i)
       if (i < 2) throw new Error('transient')
       return 'ok'
@@ -125,7 +122,7 @@ describe('helpers/retry', () => {
     const failure = new Error('always')
     let thrown: unknown
     try {
-      await withRetry({ retries: 3 }, async () => { throw failure })
+      await retryHelper.withRetry({ retries: 3 }, async () => { throw failure })
     } catch (e) {
       thrown = e
     }
@@ -137,20 +134,17 @@ describe('helpers/retry', () => {
   test('a per-call fatal predicate aborts immediately', async () => {
     let calls = 0
     const boom = new Error('unrecoverable')
-    await expect(withRetry(
-      { retries: 5, fatal: e => e === boom ? boom : null },
-      async () => { calls += 1; throw boom }
-    )).rejects.toThrow('unrecoverable')
+    await expect(retryHelper.withRetry({ retries: 5, fatal: e => e === boom ? boom : null }, async () => { calls += 1; throw boom })).rejects.toThrow('unrecoverable')
     expect(calls).toBe(1)
   })
 
   // This is how a host registers "budget exhausted" so a model call stops retrying.
   test('a globally registered resolver aborts every retry loop', async () => {
     class SpecBudgetError extends Error { }
-    registerFatalError(e => e instanceof SpecBudgetError ? e : null)
+    retryHelper.registerFatalError(e => e instanceof SpecBudgetError ? e : null)
 
     let calls = 0
-    await expect(withRetry({ retries: 5 }, async () => {
+    await expect(retryHelper.withRetry({ retries: 5 }, async () => {
       calls += 1
       throw new SpecBudgetError('out of budget')
     })).rejects.toThrow('out of budget')

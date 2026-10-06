@@ -1,20 +1,27 @@
 {
   "performance-consent": {
     "title": "¿Empezar a usar sus créditos ahora?",
+    "title_included": "¿Usar ahora sus créditos recargados?",
     "intro": "Compras todavía dentro del plazo de desistimiento: {{count}}. El último plazo de desistimiento finaliza el {{deadline}}.",
+    "intro_included": "Compras todavía dentro del plazo de desistimiento: {{count}}. El último plazo de desistimiento finaliza el {{deadline}}. Los límites de créditos incluidos en su plan siempre se utilizan primero; esto se aplica a los créditos que ha recargado una vez agotados esos límites.",
     "purchase": "Créditos comprados el {{date}} ({{amount}}): como consumidor en la UE puede desistir de esta compra hasta el {{deadline}} inclusive.",
     "request": "Solicito expresamente y acepto expresamente que {{trader}} comience a prestar ahora el servicio de pago —el trabajo de IA y el contenido digital que produce— antes de que finalice el plazo de desistimiento.",
+    "request_included": "Solicito expresamente y acepto expresamente que {{trader}} comience a prestar ahora el servicio de pago —el trabajo de IA y el contenido digital que produce— antes de que finalice el plazo de desistimiento, pagado con los créditos que he recargado una vez agotados los límites de créditos incluidos en mi plan, que siempre se utilizan primero.",
     "acknowledgement": "Reconozco que, respecto de los créditos que utilice, mi derecho de desistimiento se extingue una vez realizado ese trabajo, y que, si desisto, solo se me reembolsan los créditos que no haya utilizado.",
     "checkbox": "Solicito expresamente y acepto expresamente que {{trader}} comience a prestar ahora el servicio de pago —el trabajo de IA y el contenido digital que produce— antes de que finalice el plazo de desistimiento. Reconozco que, respecto de los créditos que utilice, mi derecho de desistimiento se extingue una vez realizado ese trabajo, y que, si desisto, solo se me reembolsan los créditos que no haya utilizado.",
+    "checkbox_included": "Solicito expresamente y acepto expresamente que {{trader}} comience a prestar ahora el servicio de pago —el trabajo de IA y el contenido digital que produce— antes de que finalice el plazo de desistimiento, pagado con los créditos que he recargado una vez agotados los límites de créditos incluidos en mi plan, que siempre se utilizan primero. Reconozco que, respecto de los créditos que utilice, mi derecho de desistimiento se extingue una vez realizado ese trabajo, y que, si desisto, solo se me reembolsan los créditos que no haya utilizado.",
     "confirm": "Empezar ahora",
     "decline": "Ahora no"
   },
   "subscription-start": {
     "title": "¿Empezar ahora los servicios {{plan}}?",
     "intro": "Como consumidor en la UE puede desistir de esta suscripción en un plazo de 14 días. Solo comenzamos los servicios antes de que finalice ese plazo si usted lo solicita expresamente.",
-    "request": "Solicito expresamente y acepto expresamente que {{trader}} comience ahora los servicios de plataforma {{plan}} y realice el trabajo de IA pagado con los créditos incluidos cada vez que yo lo inicie, antes de que finalice el plazo de desistimiento de 14 días.",
-    "acknowledgement": "Reconozco que, si desisto, pago los servicios de plataforma prestados hasta ese momento, de forma proporcional al tiempo transcurrido, y que mi derecho de desistimiento se extingue respecto de los créditos incluidos que haya utilizado; todo lo demás se me reembolsa.",
-    "checkbox": "Solicito expresamente y acepto expresamente que {{trader}} comience ahora los servicios de plataforma {{plan}} y realice el trabajo de IA pagado con los créditos incluidos cada vez que yo lo inicie, antes de que finalice el plazo de desistimiento de 14 días. Reconozco que, si desisto, pago los servicios de plataforma prestados hasta ese momento, de forma proporcional al tiempo transcurrido, y que mi derecho de desistimiento se extingue respecto de los créditos incluidos que haya utilizado; todo lo demás se me reembolsa.",
+    "request": "Solicito expresamente y acepto expresamente que {{trader}} comience los servicios {{plan}} —incluido el trabajo de IA dentro del uso previsto en el plan— ahora, antes de que finalice el plazo de desistimiento de 14 días.",
+    "request_units": "Solicito expresamente y acepto expresamente que {{trader}} comience ahora los servicios de plataforma {{plan}} y realice el trabajo de IA pagado con los créditos incluidos cada vez que yo lo inicie, antes de que finalice el plazo de desistimiento de 14 días.",
+    "acknowledgement": "Reconozco que, si desisto, pago los servicios prestados hasta ese momento, de forma proporcional a los días transcurridos, y que todo lo demás se me reembolsa.",
+    "acknowledgement_units": "Reconozco que, si desisto, pago los servicios de plataforma prestados hasta ese momento, de forma proporcional al tiempo transcurrido, y que mi derecho de desistimiento se extingue respecto de los créditos incluidos que haya utilizado; todo lo demás se me reembolsa.",
+    "checkbox": "Solicito expresamente y acepto expresamente que {{trader}} comience los servicios {{plan}} —incluido el trabajo de IA dentro del uso previsto en el plan— ahora, antes de que finalice el plazo de desistimiento de 14 días. Reconozco que, si desisto, pago los servicios prestados hasta ese momento, de forma proporcional a los días transcurridos, y que todo lo demás se me reembolsa.",
+    "checkbox_units": "Solicito expresamente y acepto expresamente que {{trader}} comience ahora los servicios de plataforma {{plan}} y realice el trabajo de IA pagado con los créditos incluidos cada vez que yo lo inicie, antes de que finalice el plazo de desistimiento de 14 días. Reconozco que, si desisto, pago los servicios de plataforma prestados hasta ese momento, de forma proporcional al tiempo transcurrido, y que mi derecho de desistimiento se extingue respecto de los créditos incluidos que haya utilizado; todo lo demás se me reembolsa.",
     "confirm": "Continuar al pago",
     "decline": "Cancelar"
   },
@@ -92,7 +99,8 @@
     "start": {
       "subject": "Confirmación: su solicitud de empezar los servicios {{plan}}",
       "body": "El {{date}} (UTC), antes de suscribirse a {{plan}}, nos hizo la siguiente declaración:\n\n«{{statement}}»",
-      "rule": "Si desiste dentro del plazo de desistimiento, paga los servicios de plataforma prestados hasta ese momento, de forma proporcional al tiempo transcurrido, y su derecho de desistimiento se extingue respecto de los créditos incluidos que haya utilizado; todo lo demás se le reembolsa."
+      "rule": "Si desiste dentro del plazo de desistimiento, paga los servicios prestados hasta ese momento, de forma proporcional a los días transcurridos; todo lo demás se le reembolsa.",
+      "rule_units": "Si desiste dentro del plazo de desistimiento, paga los servicios de plataforma prestados hasta ese momento, de forma proporcional al tiempo transcurrido, y su derecho de desistimiento se extingue respecto de los créditos incluidos que haya utilizado; todo lo demás se le reembolsa."
     },
     "purchase": {
       "subject": "Confirmación del pedido {{contractRef}}",

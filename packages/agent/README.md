@@ -40,8 +40,8 @@ const agent = context.agents().agent({ exec, tools })
 | `memoryGraphPlugin` | Durable notes filed by subsystem, with links — index injected, content pulled by tool |
 | `memoryEventsPlugin` | A bounded, ordered record of what happened |
 
-Both memory plugins also export a plain API (`memoryGraph`, `memoryEvents`) usable with no agent at
-all, so a pipeline helper writes to the same store an agent reads.
+Both memory plugins also export a plain API (`makeMemoryGraphApi`, `makeMemoryEventsApi`) usable
+with no agent at all, so a pipeline helper writes to the same store an agent reads.
 
 ## Things worth knowing before you change it
 
@@ -49,7 +49,7 @@ all, so a pipeline helper writes to the same store an agent reads.
 provider will not put a cache breakpoint on. Volatile material anywhere above it invalidates the
 prefix that every call sharing a persona pays for.
 
-**`safeInvokeTool` must never throw.** A rejected LangGraph task aborts the whole superstep: every
+**`toolHelper.safeInvokeTool` must never throw.** A rejected LangGraph task aborts the whole superstep: every
 sibling tool call in the same parallel batch dies with it, discarding work they had already
 finished. A tool failure comes back as `{ error }` the model can read and correct.
 
@@ -84,7 +84,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

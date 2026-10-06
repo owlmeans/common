@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/basic-keys",
-  "version": "0.1.18-rc.45",
+  "version": "0.1.18-rc.48",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -40,18 +40,18 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-auth": "^0.1.18-rc.43",
-    "@types/bun": "^1.4.0",
+    "@owlmeans/test-auth": "^0.1.18-rc.46",
+    "@types/bun": "^1.4.2",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@noble/ciphers": "^1.2.1",
-    "@noble/curves": "^1.6.0",
-    "@noble/hashes": "^1.5.0",
-    "@owlmeans/auth": "^0.1.18-rc.38",
-    "@scure/base": "^2.3.0",
-    "canonicalize": "^2.0.0"
+    "@noble/ciphers": "^2.4.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "@owlmeans/auth": "^0.1.18-rc.40",
+    "@scure/base": "^2.4.0",
+    "canonicalize": "^5.1.0"
   },
   "publishConfig": {
     "access": "public"

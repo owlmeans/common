@@ -1,7 +1,7 @@
 import { LimitKind } from '@owlmeans/payment'
 import { Progress } from '@/components/ui/progress'
 import { PromoNote, useEntitlementCopy } from './copy.js'
-import { limitStatusOf } from './selectors.js'
+import { entitlementSelectorHelper } from './selectors.js'
 import type { LimitMeterProps } from './types.js'
 
 const classes = (...names: Array<string | false | null | undefined>): string =>
@@ -13,7 +13,7 @@ const classes = (...names: Array<string | false | null | undefined>): string =>
  */
 export const LimitMeter = ({ limit, label, showReset = true, compact = false, className }: LimitMeterProps) => {
   const copy = useEntitlementCopy()
-  const status = limitStatusOf(limit)!
+  const status = entitlementSelectorHelper.limitStatusOf(limit)!
   const included = limit.limit > 0
   const usage = !included
     ? copy.text('limit.not-included')

@@ -45,6 +45,10 @@ service({
 }, base)
 base.security = { unsecure: true }
 ;(base as { i18n?: unknown }).i18n = { defaultLng: lng, fallbackLng: lng }
+// The app starts in a persisted choice first and the BROWSER's language second — headless Chromium
+// says `en-US`, which beats `fallbackLng`. Stored the way `setLanguage` stores a person's choice
+// (`owlmeans-lng`), so `?lng` wins on every load, whatever an earlier page of this context chose.
+try { localStorage.setItem('owlmeans-lng', lng) } catch (_) { /* storage blocked: stays on the browser's */ }
 
 // `ready` stays false: the Router compiles the entrypoint tree into routes ONLY while the context
 // is un-initialized.

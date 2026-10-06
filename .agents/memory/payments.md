@@ -23,9 +23,10 @@ updated: 2026-09
 - Entitlements (rules: `entitlements` skill): ranked plans (`rank`, `free`, `gateways`),
   `PlanCapability` + `LimitDeclaration` (`window` day/month UTC, `lifetime`, `occupancy`), promos
   `{until, grandfather?}`; capabilities `[scope:]perm[>=n]` under `ENTITLEMENT_GATE`, limits
-  `limit:<key>[>=n]` under `LIMIT_GATE`; `limit` is a reserved scope `hasEntitlement` refuses.
-  `CapabilityRequired` / `LimitExhausted` extend `AuthForbidden` (403); the consumer-rights refusals
-  (428/409) and `CheckoutLimitExceeded` (409) declare their status and never extend it.
+  `limit:<key>[>=n]` under `LIMIT_GATE`; `limit` is a reserved scope
+  `entitlementParamHelper.hasEntitlement` refuses. `CapabilityRequired` / `LimitExhausted` extend
+  `AuthForbidden` (403); the consumer-rights refusals (428/409) and `CheckoutLimitExceeded` (409)
+  declare their status and never extend it.
 - Protocols: `payment` declares no fixed checkout/portal protocols (applications declare them over
   its body schemas) but ships two factories — `makeConsumerRightsProtocols` (guarded account
   subtree, optional unguarded public subtree + sticky screens) and `makeCheckoutReadProtocols`
@@ -39,8 +40,9 @@ updated: 2026-09
 
 ## Invariants
 
-- An entity's plan parameters are read from `resolveEffectivePlan` / the entitlement view, never
-  from the catalogue by sku: a subscription row's `overrides` are merged only there.
+- An entity's plan parameters are read from `catalogueOf(ctx).resolveEffectivePlan` / the
+  entitlement view, never from the catalogue by sku: a subscription row's `overrides` are merged
+  only there.
 - Public HTTP bodies carry `entitySlug`; the server boundary resolves the stable `entityId` before
   calling the in-process gateway or persisting Stripe metadata. Protocol objects pass through
   client/server code; aliases appear only at registry and broker adapters.
@@ -52,7 +54,7 @@ updated: 2026-09
 
 - A consent or limit refusal recognised in development never opens its dialog in production →
   a production error body is only the incident id, so the class never arrives → recognise it by
-  class/marker OR status (`httpStatusOf(e) === 428`, `@owlmeans/api/status`).
+  class/marker OR status (`apiStatusHelper.httpStatusOf(e) === 428`, `@owlmeans/api/status`).
 
 ## Pointers
 

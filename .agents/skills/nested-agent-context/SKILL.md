@@ -62,6 +62,20 @@ Root project instructions continue to apply to:
 For everything else inside the child project, the **child's own
 instructions take precedence**.
 
+### Step 5 — Rebuild what you changed, then reload its consumers
+
+A linked library is consumed through its `build/` — every package's `main`, `types` and `exports`
+point there — so an edit under `libraries/*` (common, internal, viable-agent or any other linked
+repo) reaches no consumer, test, fixture or generated target until that repo is rebuilt:
+
+- Build the changed packages in their own repo (`bun run build` at its root, or the package's own
+  `bun run build`, which builds its dependencies with `tsc -b`), upstream first: common → internal →
+  viable-agent → the consumer. A package that depends on what changed is rebuilt with it.
+- Then reload whatever runs the consumer. A running process keeps the build it loaded at start, and
+  `bun --watch` watches the consumer's own `src/`, never a library's `build/`. In the viable
+  environment the reload is `sh deploy/redeploy.sh`; a pipeline or e2e run before it uses old code.
+- A consumer's tests read the same `build/`: rebuild before running them, or they test the old code.
+
 ## Script reference
 
 The bundled script is `.agents/skills/nested-agent-context/scripts/nested-agent-context.sh`

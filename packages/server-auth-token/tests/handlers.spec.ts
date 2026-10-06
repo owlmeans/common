@@ -7,8 +7,8 @@ import {
   listAccessTokens as bindListAccessTokens,
   revokeAccessToken as bindRevokeAccessToken,
 } from '../src/handlers/index.js'
-import { hashAccessToken } from '../src/hash.js'
-import { issueAccessToken } from '../src/handlers/index.js'
+import { tokenHashHelper } from '../src/hash.js'
+import { accessTokenIssuerOf } from '../src/handlers/index.js'
 import { makeTestContext, seedProfile, seedToken, TEST_ENTITY, TEST_PREFIX, TEST_PROFILE, TEST_USER } from './context.js'
 
 /**
@@ -58,7 +58,7 @@ describe('@owlmeans/server-auth-token — minting', () => {
     // The view a caller sees carries no hash at all.
     expect((issued.record as unknown as AccessTokenRecord).hash).toBeUndefined()
 
-    const stored = await context.resource<any>(AUTH_TOKEN_RESOURCE).load({ hash: hashAccessToken(issued.token) })
+    const stored = await context.resource<any>(AUTH_TOKEN_RESOURCE).load({ hash: tokenHashHelper.hashAccessToken(issued.token) })
     expect(stored).not.toBeNull()
     expect(stored.hash).not.toBe(issued.token)
   })
@@ -110,10 +110,10 @@ describe('@owlmeans/server-auth-token — issueAccessToken (the OAuth server\'s 
     const context = await makeTestContext()
     const subject = { entityId: TEST_ENTITY, profileId: TEST_PROFILE, userId: TEST_USER, role: AuthRole.User, scopes: ['*'] }
 
-    const withAudience = await issueAccessToken(context, subject, { name: 'mcp', audience: ['https://api.example.com/mcp'] })
+    const withAudience = await accessTokenIssuerOf(context).issueAccessToken(subject, { name: 'mcp', audience: ['https://api.example.com/mcp'] })
     expect(withAudience.record.audience).toEqual(['https://api.example.com/mcp'])
 
-    const withoutAudience = await issueAccessToken(context, subject, { name: 'hand-minted' })
+    const withoutAudience = await accessTokenIssuerOf(context).issueAccessToken(subject, { name: 'hand-minted' })
     expect(withoutAudience.record.audience).toBeUndefined()
   })
 
@@ -121,9 +121,9 @@ describe('@owlmeans/server-auth-token — issueAccessToken (the OAuth server\'s 
     const context = await makeTestContext()
     const subject = { entityId: TEST_ENTITY, profileId: TEST_PROFILE, userId: TEST_USER, role: AuthRole.User, scopes: ['projects:read'] }
 
-    await expect(issueAccessToken(context, subject, { name: 'x', scopes: ['projects:write'] })).rejects.toThrow()
+    await expect(accessTokenIssuerOf(context).issueAccessToken(subject, { name: 'x', scopes: ['projects:write'] })).rejects.toThrow()
 
-    const issued = await issueAccessToken(context, subject, { name: 'x', expiresIn: 60 * 60 * 24 * 400 })
+    const issued = await accessTokenIssuerOf(context).issueAccessToken(subject, { name: 'x', expiresIn: 60 * 60 * 24 * 400 })
     const ttlMs = new Date(issued.record.expiresAt!).getTime() - Date.now()
     expect(ttlMs).toBeLessThanOrEqual(366 * 24 * 60 * 60 * 1000)
   })
@@ -133,10 +133,10 @@ describe('@owlmeans/server-auth-token — listing and revoking', () => {
   test('a list shows the caller\'s own tokens and never a hash', async () => {
     const context = await makeTestContext()
     await seedProfile(context)
-    await seedToken(context, hashAccessToken('tst_one'), { id: 'one', name: 'one' })
-    await seedToken(context, hashAccessToken('tst_two'), { id: 'two', name: 'two' })
+    await seedToken(context, tokenHashHelper.hashAccessToken('tst_one'), { id: 'one', name: 'one' })
+    await seedToken(context, tokenHashHelper.hashAccessToken('tst_two'), { id: 'two', name: 'two' })
     // Somebody else's token, in the same store.
-    await seedToken(context, hashAccessToken('tst_other'), {
+    await seedToken(context, tokenHashHelper.hashAccessToken('tst_other'), {
       id: 'other', name: 'other', profileId: 'someone-else',
     })
 
@@ -149,7 +149,7 @@ describe('@owlmeans/server-auth-token — listing and revoking', () => {
   test('revoking marks the record and is idempotent', async () => {
     const context = await makeTestContext()
     await seedProfile(context)
-    await seedToken(context, hashAccessToken('tst_one'), { id: 'one' })
+    await seedToken(context, tokenHashHelper.hashAccessToken('tst_one'), { id: 'one' })
 
     await invoke(revokeAccessToken, context, { ...session(), params: { id: 'one' } })
     const first = await context.resource<any>(AUTH_TOKEN_RESOURCE).load('one')
@@ -164,7 +164,7 @@ describe('@owlmeans/server-auth-token — listing and revoking', () => {
   test('another profile\'s token answers exactly as an unknown id does', async () => {
     const context = await makeTestContext()
     await seedProfile(context)
-    await seedToken(context, hashAccessToken('tst_other'), { id: 'other', profileId: 'someone-else' })
+    await seedToken(context, tokenHashHelper.hashAccessToken('tst_other'), { id: 'other', profileId: 'someone-else' })
 
     await expect(
       invoke(revokeAccessToken, context, { ...session(), params: { id: 'other' } })
@@ -177,7 +177,7 @@ describe('@owlmeans/server-auth-token — listing and revoking', () => {
   test('a token may never revoke a token', async () => {
     const context = await makeTestContext()
     await seedProfile(context)
-    await seedToken(context, hashAccessToken('tst_one'), { id: 'one' })
+    await seedToken(context, tokenHashHelper.hashAccessToken('tst_one'), { id: 'one' })
 
     await expect(invoke(
       revokeAccessToken, context,

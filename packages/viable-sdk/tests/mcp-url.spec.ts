@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { DEFAULT_MCP_URL, ENV_MCP_URL, resolveMcpUrl } from '../src/consts.js'
+import { DEFAULT_MCP_URL, ENV_MCP_URL } from '../src/consts.js'
+import { resolveMcpUrl } from '../src/utils.js'
 
 describe('@owlmeans/viable-sdk — the /mcp URL', () => {
   test('defaults to the production platform', () => {

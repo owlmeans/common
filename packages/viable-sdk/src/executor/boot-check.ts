@@ -1,9 +1,9 @@
-import { spawn as nodeSpawn } from 'node:child_process'
-import type { ChildProcess } from 'node:child_process'
+import { spawn as nodeSpawn, type ChildProcess } from 'node:child_process'
 
-import { readTargetHealth } from './health.js'
-import type { TargetHealthReading } from './health.js'
-import { delay, killGroupAndWait, reclaimPort, waitForPortFree } from './spawn.js'
+import { healthHelper } from './health.js'
+import { spawnHelper } from './spawn.js'
+import { STARTUP_LOG_CAP, WATCHDOG_MS } from './consts.local.js'
+import type { BootCheckDeps, BootCheckJob, BootCheckReport } from './types.js'
 
 /**
  * Boot the generated backend for real, in isolation, and report what happened.
@@ -16,37 +16,6 @@ import { delay, killGroupAndWait, reclaimPort, waitForPortFree } from './spawn.j
  * It runs the real thing, but never the live one: a second process, on its own port, against a
  * scratch schema, killed on every exit path.
  */
-
-/** How far the boot got. `ready` is the only success. */
-export type BootCheckPhase = 'build' | 'schema' | 'boot' | 'ready'
-
-export interface BootCheckReport {
-  ok: boolean
-  phase: BootCheckPhase
-  /** The classifier's reason plus the captured startup log, or null when the boot succeeded. */
-  error: string | null
-  dbOk?: boolean
-}
-
-export interface BootCheckDeps {
-  port: number
-  /** Argv marker that tells this instance apart from the live one for process matching. */
-  marker: string
-  cwd: string
-  env: Record<string, string>
-  bootId: string
-  /** Omitted to reuse the artifacts already on disk. */
-  build?: () => Promise<string | null>
-  readHealth?: (port: number, bootId: string, timeoutMs: number) => Promise<TargetHealthReading>
-  spawn?: typeof nodeSpawn
-  ddlWindowMs?: number
-  readyWindowMs?: number
-  readyPollMs?: number
-  /** Whole-run cap, so a wedged boot cannot outlive the caller's deadline. */
-  timeoutMs?: number
-}
-
-const STARTUP_LOG_CAP = 16_384
 
 /**
  * DELIBERATE DIFFERENCE from the publisher: no `resetSchema` step, and therefore no `schema`
@@ -62,7 +31,7 @@ const STARTUP_LOG_CAP = 16_384
 export const runBootCheck = async (deps: BootCheckDeps): Promise<BootCheckReport> => {
   const {
     port, marker, cwd, env, bootId, build,
-    readHealth = readTargetHealth,
+    readHealth = healthHelper.readTargetHealth,
     spawn = nodeSpawn,
     ddlWindowMs = 10_000,
     readyWindowMs = 90_000,
@@ -86,7 +55,7 @@ export const runBootCheck = async (deps: BootCheckDeps): Promise<BootCheckReport
     // Before the spawn, not only after it. The leftover this reclaims belongs to a run that never
     // finished, so it is already holding the port by the time anything asks for a fresh check —
     // and the target refuses to start on a taken port rather than stealing it, correctly.
-    if (!await waitForPortFree(port, 2_000)) await reclaimPort(port, marker)
+    if (!await spawnHelper.waitForPortFree(port, 2_000)) await spawnHelper.reclaimPort(port, marker)
 
     child = spawn('bun', ['dist/index.js', marker], {
       cwd,
@@ -106,7 +75,7 @@ export const runBootCheck = async (deps: BootCheckDeps): Promise<BootCheckReport
     // is for. A target that survives it may still be degraded, which is what the poll asks about.
     const ddlDeadline = Date.now() + ddlWindowMs
     while (Date.now() < ddlDeadline && !exited) {
-      await delay(200)
+      await spawnHelper.delay(200)
     }
     if (exited) {
       return { ok: false, phase: 'boot', error: `The target backend exited while initializing:\n${log}` }
@@ -126,7 +95,7 @@ export const runBootCheck = async (deps: BootCheckDeps): Promise<BootCheckReport
       if (health.terminal) {
         return { ok: false, phase: 'boot', error: `${reason}\n${log}`.trim(), dbOk: health.dbOk }
       }
-      await delay(readyPollMs)
+      await spawnHelper.delay(readyPollMs)
     }
 
     return { ok: false, phase: 'boot', error: `${reason}\n${log}`.trim() }
@@ -137,7 +106,7 @@ export const runBootCheck = async (deps: BootCheckDeps): Promise<BootCheckReport
     // and one left holding the database would be indistinguishable from the live backend.
     if (child != null) {
       try {
-        await killGroupAndWait(child)
+        await spawnHelper.killGroupAndWait(child)
       } catch {
         // Already gone.
       }
@@ -147,35 +116,12 @@ export const runBootCheck = async (deps: BootCheckDeps): Promise<BootCheckReport
       // detached child alive, and every later check then fails with the target's own "the api port
       // is already in use" — which reads as a defect in the generated app rather than as a stray
       // process from a run that never finished.
-      if (!await waitForPortFree(port)) await reclaimPort(port, marker)
+      if (!await spawnHelper.waitForPortFree(port)) await spawnHelper.reclaimPort(port, marker)
     } catch {
       // Nothing else to do — the next check reclaims by marker anyway.
     }
   }
 }
-
-export interface BootCheckStatus {
-  running: boolean
-  startedAt: number | null
-  report: BootCheckReport | null
-}
-
-export interface BootCheckJob {
-  /** Start a check, or join the one already running. `true` when this call started it. */
-  start: (run: () => Promise<BootCheckReport>) => boolean
-  status: () => BootCheckStatus
-  /** The running check, for the legacy blocking caller. */
-  pending: () => Promise<BootCheckReport> | null
-}
-
-/**
- * Outer bound on one boot-check job.
- *
- * `runBootCheck` caps its own ready poll but not the build in front of it, so this is the only
- * thing that guarantees a poller eventually reads `running: false` — a check that outlives it is
- * abandoned, not awaited.
- */
-const WATCHDOG_MS = 600_000
 
 /**
  * The job behind `BootCheck` / `BootCheckStatus`.

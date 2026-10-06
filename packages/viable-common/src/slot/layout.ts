@@ -1,55 +1,8 @@
 import { TargetLayout } from '../integrity/index.js'
-import { packageForRole, resolveTopology, topologyOf } from '../topology/index.js'
+import { topologyHelper } from '../topology/resolve.js'
 import { SubProject } from './consts.js'
-
-/**
- * Where each role lives, for one layout. Directory names are target-root-relative.
- *
- * The pure half of layout resolution. Whoever holds the tree — the publisher over a pod volume,
- * the connector over a directory on a developer's machine — adds the two filesystem probes that
- * pick the layout and turn these names into absolute paths. The TABLES are shared so the two
- * cannot disagree about what a role means.
- */
-export interface TargetPaths {
-  layout: TargetLayout
-  /** The directory holding the workspace packages — `packages` or `sources`. */
-  dir: string
-  /** The package whose `dist/index.js` runs as the target's HTTP server. */
-  api: string
-  /** The package whose `dist/` is served to a browser. */
-  web: string
-  /** The shared library the other two compile against. */
-  common: string
-  /**
-   * The package whose `dist/index.js` runs as the target's queue worker, when the target has one.
-   *
-   * Absent for v1, which had no such package and never will — a target's tree is the one it was
-   * initialized with. Present for v2 as a NAME, not as a promise: every caller checks the disk
-   * before acting on it.
-   */
-  worker?: string
-  /**
-   * Every package a full build runs, in dependency order.
-   *
-   * Longer than the three roles for v2, whose `backend` is a library that both `api` and `worker`
-   * import. A caller skips whatever is not on disk — a target need not have a worker.
-   */
-  build: string[]
-  /**
-   * The packages built with `tsc -b` and consumed through their `build/` output, in dependency
-   * order — never bundled, so their output has to be on disk at RUN time, not only at build time.
-   *
-   * The bundled packages keep every dependency external, so `bun dist/index.js` resolves
-   * `project-backend` from `node_modules` at startup, follows its `main` to `build/index.js` — and
-   * if nothing built it, Bun answers `Cannot find package 'project-backend'` and the target exits 1
-   * with a message that names a dependency rather than a missing build.
-   *
-   * v1 got away without this list: it had ONE library and the template shipped its `build/`
-   * prebuilt. v2 deleted those artifacts and added a second library, so every path that builds a
-   * target has to build these first or it can never start.
-   */
-  libraries: string[]
-}
+import type { TargetPaths } from './types.js'
+import type { SlotLayoutHelper } from './layout/types.js'
 
 /**
  * Where every role lives, per layout — DERIVED from that layout's topology.
@@ -63,8 +16,8 @@ export interface TargetPaths {
  * The VALUES are unchanged, and `topology.spec.ts` pins them against the tables they replaced.
  */
 const pathsOfTopology = (layout: TargetLayout): TargetPaths => {
-  const topology = resolveTopology(topologyOf(layout))
-  const dirOf = (role: SubProject): string | undefined => packageForRole(topology, role)?.name
+  const topology = topologyHelper.resolveTopology(topologyHelper.topologyOf(layout))
+  const dirOf = (role: SubProject): string | undefined => topologyHelper.packageForRole(topology, role)?.name
 
   return {
     layout,
@@ -100,10 +53,10 @@ export const LAYOUTS: Record<TargetLayout, TargetPaths> = {
  * so an unmapped role falls back to its own name here, which is that same visible failure.
  */
 const roleDirsOfTopology = (layout: TargetLayout): Record<SubProject, string> => {
-  const topology = resolveTopology(topologyOf(layout))
+  const topology = topologyHelper.resolveTopology(topologyHelper.topologyOf(layout))
 
   return Object.values(SubProject).reduce<Record<SubProject, string>>((dirs, role) => {
-    dirs[role] = packageForRole(topology, role)?.name ?? role
+    dirs[role] = topologyHelper.packageForRole(topology, role)?.name ?? role
 
     return dirs
   }, {} as Record<SubProject, string>)
@@ -114,28 +67,17 @@ export const ROLE_DIRS: Record<TargetLayout, Record<SubProject, string>> = {
   [TargetLayout.V2]: roleDirsOfTopology(TargetLayout.V2),
 }
 
-/**
- * The one marker per layout, chosen because it exists in that layout and in no other.
- *
- * `sources/api` cannot appear in a v1 tree and `packages/backend` cannot appear in a v2 one, so a
- * single `stat` settles it. Deliberately not `sources/` alone: v1 packages each have their own
- * `src`, and a directory name that differs by one letter is not something to hang a runtime path
- * resolution on. Ordered — the first marker found wins.
- */
-export const LAYOUT_MARKERS: Array<[TargetLayout, string]> = [
-  [TargetLayout.V2, 'sources/api'],
-  [TargetLayout.V1, 'packages/backend'],
-]
+export const createSlotLayoutHelper = (): SlotLayoutHelper => {
+  const subprojectDirOf = (layout: TargetLayout, role: SubProject): string =>
+    ROLE_DIRS[layout][role] ?? role
 
-/**
- * Resolve a wire-level role to the directory it names in a given layout.
- *
- * An unknown value — a role from a sender newer than this reader — falls back to the role's own
- * name, which is the honest guess for a layout whose packages are named after their roles, and
- * which fails visibly rather than resolving to some other package's directory.
- */
+  const pathsOf = (layout: TargetLayout): TargetPaths => LAYOUTS[layout]
+
+  return { subprojectDirOf, pathsOf }
+}
+
+export const slotLayoutHelper = createSlotLayoutHelper()
+
+/** @deprecated compat:factory-refactor — use `slotLayoutHelper.subprojectDirOf(…)` */
 export const subprojectDirOf = (layout: TargetLayout, role: SubProject): string =>
-  ROLE_DIRS[layout][role] ?? role
-
-/** Where every role lives, for a layout already decided. */
-export const pathsOf = (layout: TargetLayout): TargetPaths => LAYOUTS[layout]
+  slotLayoutHelper.subprojectDirOf(layout, role)

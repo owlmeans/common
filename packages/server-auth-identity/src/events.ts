@@ -4,6 +4,9 @@ import { AUTH_IDENTITY_EVENTS } from './consts.js'
 import type {
   EntityCreatedCallback, IdentityContext, IdentityEventsService, ProfileCreatedCallback,
 } from './types.js'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-auth-identity')
 
 export const makeIdentityEventsService = (
   alias: string = AUTH_IDENTITY_EVENTS
@@ -22,7 +25,7 @@ export const makeIdentityEventsService = (
       try {
         await callback(event, service.assertCtx<IdentityContext['cfg'], IdentityContext>())
       } catch (error) {
-        console.error(`${alias}: ${what} listener failed`, error)
+        log.error('Identity event listener failed', { alias, listener: what, error })
       }
     }
   }

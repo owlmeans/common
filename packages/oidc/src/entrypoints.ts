@@ -4,7 +4,7 @@ import type { AuthToken } from '@owlmeans/auth'
 import {
   DISPATCHER_OIDC, DISPATCHER_OIDC_INIT, DISPATCHER_OIDC_ORGANIZATION, DISPATCHER_OIDC_ORGANIZATIONS, OIDC_GUARD,
 } from './consts.js'
-import { OIDCAuthInitParamsSchema, OIDCClientAuthPayloadSchema, OidcOrganizationSwitchSchema } from './models.js'
+import { OIDCAuthInitParamsSchema, OIDCClientAuthPayloadSchema, OidcOrganizationSwitchSchema } from './schemas.js'
 import type { OidcOrganizationList } from './types.js'
 
 /** Shared OIDC browser-to-server protocols, bound by the relying-party packages. */

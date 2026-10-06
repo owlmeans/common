@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { landingGatePreferenceOf, LandingGatePreference } from '../src/blueprint/index.js'
 import type { Blueprint } from '../src/blueprint/index.js'
-import { ViableSkill } from '../src/skills/consts.js'
-import { ViablePersona } from '../src/skills/roles.js'
+import { ViablePersona, ViableSkill } from '../src/skills/consts.js'
 
 /** Just enough of a blueprint to read a preference from — the shape a test builds. */
 const base = (extra: Partial<Blueprint> = {}): Blueprint => ({

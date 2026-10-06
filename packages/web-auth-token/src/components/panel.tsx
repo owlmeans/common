@@ -1,5 +1,4 @@
-import { useCallback, useId, useState } from 'react'
-import type { FC, FormEvent } from 'react'
+import { useCallback, useId, useState, type FC, type FormEvent } from 'react'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import { AUTH_TOKEN_NAME_MAX } from '@owlmeans/auth-token'
 import { Check, Copy, Loader2, Plus, Trash2 } from 'lucide-react'
@@ -23,20 +22,9 @@ import {
 } from '../@/components/ui/table.js'
 
 import { AUTH_TOKEN_I18N, DAY_SECONDS, TOKEN_EXPIRY_CHOICES, TOKEN_EXPIRY_NEVER } from '../consts.js'
-import { formatMoment, tokenStatus } from '../helpers.js'
-import type { AccessTokenStatus, AccessTokensPanelProps } from '../types.js'
-
-/**
- * A revoked token stays in the list so its name still resolves, and it must not read like a
- * working one — so only `active` gets the filled badge, and the two dead states are quiet.
- */
-const STATUS_VARIANT: Record<AccessTokenStatus, 'default' | 'secondary' | 'outline'> = {
-  active: 'default',
-  expired: 'secondary',
-  revoked: 'outline',
-}
-
-const COLUMNS = 7
+import { accessTokenViewHelper } from '../helpers.js'
+import type { AccessTokensPanelProps } from '../types.js'
+import { COLUMNS, STATUS_VARIANT } from './consts.local.js'
 
 /**
  * The access-token management surface.
@@ -163,7 +151,7 @@ export const AccessTokensPanel: FC<AccessTokensPanelProps> = ({
                 </TableCell>
               </TableRow>
               : items.map(item => {
-                const status = tokenStatus(item)
+                const status = accessTokenViewHelper.tokenStatus(item)
 
                 return <TableRow
                   key={item.id ?? item.display}
@@ -172,9 +160,9 @@ export const AccessTokensPanel: FC<AccessTokensPanelProps> = ({
                 >
                   <TableCell className="font-mono text-xs">{item.display}</TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell>{formatMoment(item.createdAt, lng) ?? ''}</TableCell>
-                  <TableCell>{formatMoment(item.lastUsedAt, lng) ?? t('never-used')}</TableCell>
-                  <TableCell>{formatMoment(item.expiresAt, lng) ?? t('never')}</TableCell>
+                  <TableCell>{accessTokenViewHelper.formatMoment(item.createdAt, lng) ?? ''}</TableCell>
+                  <TableCell>{accessTokenViewHelper.formatMoment(item.lastUsedAt, lng) ?? t('never-used')}</TableCell>
+                  <TableCell>{accessTokenViewHelper.formatMoment(item.expiresAt, lng) ?? t('never')}</TableCell>
                   <TableCell>
                     <Badge variant={STATUS_VARIANT[status]}>{t(`status.${status}`)}</Badge>
                   </TableCell>

@@ -1,18 +1,11 @@
 import { resolve } from 'node:path'
-import type { CliArgs } from './args.js'
+import type { CliArgs, InstallItem, RunResult } from './types.js'
 import { discover } from './discover.js'
 import { detectLinked } from './linked.js'
 import { planInstall } from './plan.js'
 import { applyInstall } from './apply.js'
-import { confirm, closeReadline, isTTY } from './prompt.js'
-import type { InstallAction, InstallItem } from './plan.js'
-
-const ACTION_LABEL: Record<InstallAction, string> = {
-  'install': 'install',
-  'skip-uptodate': 'up-to-date',
-  'update': 'update',
-  'conflict': 'CONFLICT',
-}
+import { promptUtils } from './prompt.js'
+import { ACTION_LABEL } from './consts.local.js'
 
 const padEnd = (s: string, n: number): string => s + ' '.repeat(Math.max(0, n - s.length))
 
@@ -41,13 +34,6 @@ const printTable = (items: InstallItem[]): void => {
   }
   process.stdout.write('\n')
 }
-
-export type RunResult =
-  | { code: 0 }
-  | { code: 2; message: string }  // CLI parse
-  | { code: 3; message: string }  // nothing found
-  | { code: 4; message: string }  // linked refusal
-  | { code: 5; message: string }  // unresolved conflicts
 
 export const run = async (args: CliArgs): Promise<RunResult> => {
   const targetDir = resolve(args.dir)
@@ -101,27 +87,27 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
 
   if (toWrite.length === 0 && conflicts.length === 0) {
     process.stdout.write('Everything up to date.\n')
-    closeReadline()
+    promptUtils.closeReadline()
     return { code: 0 }
   }
 
   // 6. Interactive: confirm per conflict, or if not --yes confirm overall
   const resolvedItems = [...items]
 
-  if (isTTY() && !args.yes && toWrite.length > 0) {
-    const ok = await confirm(`Install ${toWrite.length} file(s) into ${targetDir}?`)
+  if (promptUtils.isTTY() && !args.yes && toWrite.length > 0) {
+    const ok = await promptUtils.confirm(`Install ${toWrite.length} file(s) into ${targetDir}?`)
     if (!ok) {
       process.stdout.write('Aborted.\n')
-      closeReadline()
+      promptUtils.closeReadline()
       return { code: 0 }
     }
   }
 
   // Per-conflict prompts in interactive mode
-  if (isTTY() && conflicts.length > 0) {
+  if (promptUtils.isTTY() && conflicts.length > 0) {
     for (const item of resolvedItems) {
       if (item.action !== 'conflict') continue
-      const ok = await confirm(
+      const ok = await promptUtils.confirm(
         `  ${item.entry.name} has local edits — overwrite ${item.targetPath}?`,
       )
       if (ok) {
@@ -131,7 +117,7 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
     }
   }
 
-  closeReadline()
+  promptUtils.closeReadline()
 
   const remainingConflicts = resolvedItems.filter(i => i.action === 'conflict')
   if (remainingConflicts.length > 0) {
@@ -144,7 +130,7 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
     process.stdout.write(`Pass --force to overwrite.\n\n`)
 
     // In non-interactive --yes mode with remaining conflicts, exit 5
-    if (!isTTY() && !args.yes && !args.force) {
+    if (!promptUtils.isTTY() && !args.yes && !args.force) {
       return { code: 5, message: 'unresolved conflicts' }
     }
   }

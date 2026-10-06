@@ -3,7 +3,7 @@ import fs from 'fs-extra'
 import os from 'node:os'
 import path from 'node:path'
 import { ConnectHarness } from '@owlmeans/viable-common'
-import { describeHarness, installHarness } from '../src/harness/index.js'
+import { harnessHelper } from '../src/harness/index.js'
 
 const dirs: string[] = []
 const tmp = async (): Promise<string> => {
@@ -23,7 +23,7 @@ const read = async (dir: string, file: string): Promise<string> =>
 describe('viable-sdk — setting a coding agent up', () => {
   test('Claude Code gets a low-effort subagent and the working rule', async () => {
     const dir = await tmp()
-    const { written } = await installHarness(dir, ConnectHarness.ClaudeCode)
+    const { written } = await harnessHelper.installHarness(dir, ConnectHarness.ClaudeCode)
 
     expect(written).toContain('.claude/agents/viable-worker.md')
     const worker = await read(dir, '.claude/agents/viable-worker.md')
@@ -34,21 +34,27 @@ describe('viable-sdk — setting a coding agent up', () => {
 
   test('every harness starts the same caret-pinned viable-mcp, never a tag', async () => {
     const manifest = await fs.readJson(path.resolve(import.meta.dir, '../../viable-mcp/package.json'))
-    const spec = `@owlmeans/viable-mcp@^${manifest.version as string}`
-    const configs = Object.values(ConnectHarness).flatMap(harness => describeHarness(harness))
+    const configs = Object.values(ConnectHarness).flatMap(harness => harnessHelper.describeHarness(harness))
       .filter(file => file.content.includes('@owlmeans/viable-mcp'))
 
     // Claude Code (.mcp.json), Codex (TOML snippet), Copilot (.vscode/mcp.json), OpenCode.
     expect(configs.length).toBe(4)
-    for (const file of configs) {
-      const specs = file.content.match(/@owlmeans\/viable-mcp@[^\s"'\]]+/g) ?? []
-      expect({ file: file.path, specs }).toEqual({ file: file.path, specs: [spec] })
-    }
+    const specs = configs.map(file => ({
+      file: file.path, specs: file.content.match(/@owlmeans\/viable-mcp@[^\s"'\]]+/g) ?? [],
+    }))
+    const [spec] = specs[0].specs
+    for (const found of specs) expect(found).toEqual({ file: found.file, specs: [spec] })
+    expect(spec).toMatch(/^@owlmeans\/viable-mcp@\^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/)
+    // A release that does not ship this package leaves a range that still admits the new version
+    // in place (the release harness's frozen-package rule), so "admits" is the contract, not "equals".
+    const range = spec.slice('@owlmeans/viable-mcp@'.length)
+    expect({ range, admits: Bun.semver.satisfies(manifest.version as string, range) })
+      .toEqual({ range, admits: true })
   })
 
   test('every harness is told the same protocol', async () => {
     for (const harness of Object.values(ConnectHarness)) {
-      const files = describeHarness(harness)
+      const files = harnessHelper.describeHarness(harness)
       const all = files.map(file => file.content).join('\n')
 
       expect(all).toContain('next_task')
@@ -61,10 +67,10 @@ describe('viable-sdk — setting a coding agent up', () => {
 
   test('installing twice changes nothing', async () => {
     const dir = await tmp()
-    await installHarness(dir, ConnectHarness.ClaudeCode)
+    await harnessHelper.installHarness(dir, ConnectHarness.ClaudeCode)
     const before = await read(dir, 'AGENTS.md')
 
-    const second = await installHarness(dir, ConnectHarness.ClaudeCode)
+    const second = await harnessHelper.installHarness(dir, ConnectHarness.ClaudeCode)
 
     expect(second.written).toEqual([])
     expect(await read(dir, 'AGENTS.md')).toBe(before)
@@ -74,13 +80,13 @@ describe('viable-sdk — setting a coding agent up', () => {
     const dir = await tmp()
     await fs.outputFile(path.join(dir, 'AGENTS.md'), '# My project\n\nRun the tests before committing.\n')
 
-    await installHarness(dir, ConnectHarness.ClaudeCode)
+    await harnessHelper.installHarness(dir, ConnectHarness.ClaudeCode)
     const merged = await read(dir, 'AGENTS.md')
     expect(merged).toContain('Run the tests before committing.')
     expect(merged).toContain('next_task')
 
     // A second install rewrites the block in place rather than appending a duplicate.
-    await installHarness(dir, ConnectHarness.ClaudeCode)
+    await harnessHelper.installHarness(dir, ConnectHarness.ClaudeCode)
     const again = await read(dir, 'AGENTS.md')
     expect(again.split('viable:begin')).toHaveLength(2)
     expect(again).toContain('Run the tests before committing.')
@@ -90,7 +96,7 @@ describe('viable-sdk — setting a coding agent up', () => {
     const dir = await tmp()
     await fs.outputJson(path.join(dir, '.mcp.json'), { mcpServers: { other: { command: 'x' } } })
 
-    await installHarness(dir, ConnectHarness.ClaudeCode, { mcpConfig: true })
+    await harnessHelper.installHarness(dir, ConnectHarness.ClaudeCode, { mcpConfig: true })
 
     const config = await fs.readJson(path.join(dir, '.mcp.json'))
     expect(config.mcpServers.other).toEqual({ command: 'x' })
@@ -100,7 +106,7 @@ describe('viable-sdk — setting a coding agent up', () => {
   test('no file ever contains the token — only a reference to the variable', async () => {
     const dir = await tmp()
     for (const harness of Object.values(ConnectHarness)) {
-      await installHarness(dir, harness, { mcpConfig: true })
+      await harnessHelper.installHarness(dir, harness, { mcpConfig: true })
     }
 
     const files = await fs.readdir(dir, { recursive: true }) as string[]
@@ -115,8 +121,8 @@ describe('viable-sdk — setting a coding agent up', () => {
 
   test('the token is optional in every configuration — a browser sign-in needs none', async () => {
     const dir = await tmp()
-    await installHarness(dir, ConnectHarness.ClaudeCode, { mcpConfig: true })
-    await installHarness(dir, ConnectHarness.Copilot, { mcpConfig: true })
+    await harnessHelper.installHarness(dir, ConnectHarness.ClaudeCode, { mcpConfig: true })
+    await harnessHelper.installHarness(dir, ConnectHarness.Copilot, { mcpConfig: true })
 
     // An unset `${VIABLE_API_TOKEN}` makes Claude Code refuse the whole file; the empty default
     // keeps it loading, and the server ignores an empty value so `~/.owlmeans` is still read.
@@ -133,12 +139,12 @@ describe('viable-sdk — setting a coding agent up', () => {
     const dir = await tmp()
     await fs.outputFile(path.join(dir, '.mcp.json'), '{ this is being edited')
 
-    await expect(installHarness(dir, ConnectHarness.ClaudeCode, { mcpConfig: true })).rejects.toThrow()
+    await expect(harnessHelper.installHarness(dir, ConnectHarness.ClaudeCode, { mcpConfig: true })).rejects.toThrow()
   })
 
   test('the MCP entry is left alone unless it was asked for', async () => {
     const dir = await tmp()
-    const { written, skipped } = await installHarness(dir, ConnectHarness.ClaudeCode)
+    const { written, skipped } = await harnessHelper.installHarness(dir, ConnectHarness.ClaudeCode)
 
     expect(written).not.toContain('.mcp.json')
     expect(skipped).toContain('.mcp.json')

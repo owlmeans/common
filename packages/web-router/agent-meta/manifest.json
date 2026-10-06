@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/web-router",
-  "version": "0.1.18-rc.46",
-  "generatedAt": "2026-10-03T11:19:50.800Z",
+  "version": "0.1.18-rc.49",
+  "generatedAt": "2026-10-05T21:03:06.413Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

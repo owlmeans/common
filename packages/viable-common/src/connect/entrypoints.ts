@@ -3,45 +3,26 @@ import { route, RouteMethod } from '@owlmeans/route'
 import { connect } from './consts.js'
 import {
   ConnectAttachBodySchema, ConnectConfirmBodySchema, ConnectConvertCreateBodySchema,
-  ConnectConvertProceedBodySchema, ConnectCreateBodySchema, ConnectInquiryParamsSchema,
+  ConnectConvertProceedBodySchema, ConnectConvertStartBodySchema, ConnectCreateBodySchema,
+  ConnectInquiryParamsSchema, ConnectKitApplyBodySchema,
   ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
   ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectBrandingSaveSchema,
   ConnectProjectIdSchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema, ConnectPullQuerySchema,
   ConnectStoryParamsSchema, InquiryAnswerSchema,
 } from './schemas.js'
+import type { ConnectProjectBranding, ConnectProjectBrandingSave } from './branding/types.js'
 import type {
-  ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
-  ConnectCreateBody, ConnectInquiryAnswerBody, ConnectModifyBody,
-  ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectBranding,
-  ConnectProjectBrandingSave, ConnectSessionOpen,
-  ConnectPipelineState, ConnectProjectStatus, ConnectPullQuery, ConnectSessionParams,
-  ConnectStoryStatus, ConversionStatusView, ConvertCheck,
-} from './types.js'
-import type { ConnectOpResult } from './ops.js'
-
-/**
- * What the platform injects when it mounts the connector routes.
- *
- * The names of the guard and the gates belong to the deployment, not to the contract: a connector
- * API on another platform would guard the same paths with its own vocabulary. Everything else —
- * paths, methods, schemas, parents — is fixed here so a client cannot address them differently.
- */
-export interface ConnectEntrypointOptions {
-  /** The guard alias every connector route carries. */
-  guard: string
-  /** The gate alias and parameters that decide project ownership. */
-  gate?: { alias: string, params: string[] }
-  /**
-   * The gate that decides whether the caller may use the local-LLM mode.
-   *
-   * Applied to the one route that turns it on — opening a delegated session. Everything else is
-   * free: `cloud` is the default, and a project's own override is the platform's browser surface,
-   * not the connector's.
-   */
-  localLlm?: { alias: string, params: string[] }
-  /** Path prefix; defaults to `/connect`. */
-  path?: string
-}
+  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody, ConversionStatusView, ConvertCheck
+} from './conversion/types.js'
+import type { ConnectEntrypointOptions } from './entrypoints/types.js'
+import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } from './kit/types.js'
+import type { ConnectInquiryAnswerBody, ConnectOpResult } from './ops/types.js'
+import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
+import type {
+  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectProjectStatus,
+  ConnectStoryStatus
+} from './project/types.js'
+import type { ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams } from './session/types.js'
 
 /**
  * Declare the connector's HTTP surface — exactly the routes a connector calls: the session (long
@@ -143,6 +124,24 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       }),
       contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectModifyBody>(ConnectModifyBodySchema) }, typed<ConnectProjectStatus>())
     ),
+    // Planning kits: one path, read and applied under the owned base like every project route.
+    kit: {
+      describe: protocol(
+        route(connect.project.kit.describe, '/project/:id/kits', {
+          parent: base, method: RouteMethod.GET,
+        }),
+        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectKitDescribe>()),
+      ),
+      apply: protocol(
+        route(connect.project.kit.apply, '/project/:id/kits', {
+          parent: base, method: RouteMethod.POST,
+        }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+          body: typed<ConnectKitApplyBody>(ConnectKitApplyBodySchema),
+        }, typed<ConnectKitApplyResult>()),
+      ),
+    },
     // Under `base` like every sibling — the guard and the ownership gate — and never under the
     // paid gate: saving branding is free, and the paid credit switch is not reachable from here.
     branding: {
@@ -197,7 +196,10 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     ),
     start: protocol(
       route(connect.convert.start, '/convert/:id/start', { parent: base, method: RouteMethod.POST }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConversionStatusView>()),
+      contract.request({
+        params: typed<{ id: string }>(ConnectProjectIdSchema),
+        body: typed<ConnectConvertStartBody>(ConnectConvertStartBodySchema),
+      }, typed<ConversionStatusView>()),
     ),
     proceed: protocol(
       route(connect.convert.proceed, '/convert/:id/proceed', { parent: base, method: RouteMethod.POST }),

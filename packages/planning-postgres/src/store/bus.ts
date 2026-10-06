@@ -1,53 +1,18 @@
-import type { CommitEvent, Unsubscribe } from '@owlmeans/planning'
-import { advisoryKey, quoteIdent } from '@owlmeans/postgres-resource'
-import { Client } from 'pg'
-import type { ClientConfig, Notification, Pool } from 'pg'
+import { logThrottle, logger } from '@owlmeans/log'
+import type { CommitEvent } from '@owlmeans/planning'
+import { Client, type ClientConfig, type Notification, type Pool } from 'pg'
 import { BUS_BACKOFF, NOTIFY_PAYLOAD_MAX } from '../consts.js'
-import type { SqlRunner } from '../sql.js'
+import type { BusFrame, PlanningBus, PlanningBusOptions } from './types.js'
+import { pgNameHelper } from '@owlmeans/postgres-resource'
 
-/** A settled commit, without its record — the card is re-read where one is needed. */
-export interface CommitFrame {
-  p: string
-  t: 'c'
-  e: Omit<CommitEvent, 'record'>
-}
-
-/** A write of an organization's data-defined schemas. */
-export interface SchemaFrame {
-  p: string
-  t: 's'
-  e: string
-}
-
-export type BusFrame = CommitFrame | SchemaFrame
-
-export interface PlanningBus {
-  enabled: boolean
-  /** NOTIFY a frame inside a transaction — delivered only if it commits. A no-op when disabled. */
-  notify: (runner: SqlRunner, frame: Omit<CommitFrame, 'p'> | Omit<SchemaFrame, 'p'>) => Promise<void>
-  onCommit: (listener: (event: CommitEvent) => void | Promise<void>) => Unsubscribe
-  onSchema: (listener: (entityId: string) => void) => Unsubscribe
-  /** Open the LISTEN connection if it is not open (lazily, on the first subscription or wait). */
-  ensure: () => void
-  connected: () => boolean
-  close: () => Promise<void>
-}
-
-export interface PlanningBusOptions {
-  enabled: boolean
-  processId: string
-  /** The qualified transition table — what the channel name is derived from. */
-  table: () => Promise<string>
-  /** The pool whose configuration the dedicated connection copies. */
-  pool: () => Promise<Pool>
-}
+const log = logger('planning-postgres:bus')
 
 /**
  * The channel of one transition table: `planning_` and a short hash of its qualified name, so two
  * schemas in one database never hear each other.
  */
 export const planningChannel = (qualified: string): string => {
-  const [first, second] = advisoryKey(`planning-channel:${qualified}`)
+  const [first, second] = pgNameHelper.advisoryKey(`planning-channel:${qualified}`)
   return `planning_${(first >>> 0).toString(16).padStart(8, '0')}${(second >>> 0).toString(16).padStart(8, '0')}`
 }
 
@@ -103,7 +68,7 @@ export const makePlanningBus = (opts: PlanningBusOptions): PlanningBus => {
     if (frame.t === 'c') {
       for (const listener of [...commitListeners]) {
         void Promise.resolve().then(() => listener(frame.e as CommitEvent))
-          .catch(error => console.error('planning-postgres: commit listener failed:', error))
+          .catch(error => log.error('Planning commit listener failed', error))
       }
       return
     }
@@ -112,7 +77,7 @@ export const makePlanningBus = (opts: PlanningBusOptions): PlanningBus => {
         try {
           listener(frame.e)
         } catch (error) {
-          console.error('planning-postgres: schema listener failed:', error)
+          log.error('Planning schema listener failed', error)
         }
       }
     }
@@ -129,7 +94,9 @@ export const makePlanningBus = (opts: PlanningBusOptions): PlanningBus => {
       return
     }
     if (error != null) {
-      console.warn('planning-postgres: commit bus connection lost, reconnecting:', error instanceof Error ? error.message : error)
+      if (logThrottle('planning-postgres:bus:lost')) {
+        log.warn('Planning commit bus connection lost, reconnecting', { backoff, error })
+      }
     }
     retry = setTimeout(() => { retry = undefined; bus.ensure() }, backoff)
     backoff = Math.min(backoff * 2, BUS_BACKOFF[1])
@@ -159,7 +126,7 @@ export const makePlanningBus = (opts: PlanningBusOptions): PlanningBus => {
     client = target
     try {
       await target.connect()
-      await target.query(`LISTEN ${quoteIdent(listen)}`)
+      await target.query(`LISTEN ${pgNameHelper.quoteIdent(listen)}`)
       live = true
       backoff = BUS_BACKOFF[0]
     } catch (error) {

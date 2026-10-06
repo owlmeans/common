@@ -1,13 +1,11 @@
-import { createService } from '@owlmeans/context'
-import type { BasicContext } from '@owlmeans/context'
+import { createService, type BasicContext } from '@owlmeans/context'
 import { AUTH_SESSION_MANAGER, AUTH_SESSION_TTL } from './consts.js'
 import { subjectId } from './identity.js'
 import type {
   AuthSessionDecision, AuthSessionManager, AuthSessionManagerOptions, AuthSessionSelector,
   AuthSessionSubject, RegisterAuthSession
 } from './types.js'
-
-const missing: AuthSessionDecision = { state: 'missing' }
+import { missing } from './consts.local.js'
 
 /**
  * Process-local implementation for development and generated targets. It deliberately loses

@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import {
-  introspectTable, makePostgresResource, PgAutoSync, planSync, PostgresCastRequired,
+  makePgIntrospectHelper, makePostgresResource, PgAutoSync, pgDiffHelper, PostgresCastRequired,
 } from '@owlmeans/postgres-resource'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
 import type { ResourceRecord } from '@owlmeans/resource'
@@ -236,8 +236,8 @@ describe('@owlmeans/postgres — reconciling a table already at its shape', () =
     const client = await pool.connect()
     try {
       const table = second.resource.table
-      const live = await introspectTable(client, table.schema, table.table, table.qualified)
-      expect(planSync(table, live).statements.map(statement => statement.sql)).toEqual([])
+      const live = await makePgIntrospectHelper(client).introspectTable(table.schema, table.table, table.qualified)
+      expect(pgDiffHelper.planSync(table, live).statements.map(statement => statement.sql)).toEqual([])
     } finally {
       client.release()
     }

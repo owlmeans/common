@@ -1,13 +1,6 @@
-import { toConfigRecord } from '@owlmeans/server-app'
-import { plugin, PLUGIN_RECORD } from '@owlmeans/config'
-import {
-  assertAmountCheckoutPolicy, assertPricingPolicy, assertQuantityCheckoutPolicy, CAPABILITY_LIMIT_SCOPE,
-  CheckoutPricingMode, CONSUMER_RIGHTS_RECORD_ID, CONSUMER_RIGHTS_RECORD_TYPE, ConsumerRightsError, LimitKind,
-  LimitMisdeclared, LimitWindow, makeConsumerRightsPolicy, PLAN_RECORD_PREFIX, PLAN_RECORD_TYPE, PaymentError,
-  PlanDuration, PlanRankConflict, PlanStatus, PRICING_POLICY_RECORD_ID, PRICING_POLICY_RECORD_TYPE,
-  PRODUCT_RECORD_PREFIX, PRODUCT_RECORD_TYPE, ProductError,
-} from '@owlmeans/payment'
-import type { ConsumerRightsPolicy, LimitDeclaration, PlanWithdrawalComponent } from '@owlmeans/payment'
+
+import { plugin, PLUGIN_RECORD, configHelper } from '@owlmeans/config'
+import { CAPABILITY_LIMIT_SCOPE, CheckoutPricingMode, CONSUMER_RIGHTS_RECORD_ID, CONSUMER_RIGHTS_RECORD_TYPE, ConsumerRightsError, LimitKind, LimitMisdeclared, makeConsumerRightsPolicy, PLAN_RECORD_PREFIX, PLAN_RECORD_TYPE, PaymentError, PlanRankConflict, PlanStatus, PRICING_POLICY_RECORD_ID, PRICING_POLICY_RECORD_TYPE, PRODUCT_RECORD_PREFIX, PRODUCT_RECORD_TYPE, ProductError, type ConsumerRightsPolicy, type LimitDeclaration, type PlanWithdrawalComponent, checkoutPricingHelper, priceEstimateHelper } from '@owlmeans/payment'
 import {
   CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG, STRIPE_PAYGATE_ALIAS, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG,
   STRIPE_PRICING_PLUGIN_CONFIG,
@@ -16,6 +9,7 @@ import type {
   Config, ConsumerRightsDef, PaymentPlan, PaymentPlanDef, PaymentProduct, PaymentProductDef, PortalBrandingDef,
   PricingDef, StripeSecretsDef,
 } from './types.js'
+import { CURRENCY, LIMIT_KINDS, LIMIT_WINDOWS } from './consts.local.js'
 
 export const declarePaymentProduct = (cfg: Config, def: PaymentProductDef): void => {
   cfg.records = cfg.records ?? []
@@ -25,14 +19,11 @@ export const declarePaymentProduct = (cfg: Config, def: PaymentProductDef): void
     gateways: def.gateways ?? [STRIPE_PAYGATE_ALIAS], capabilities: def.capabilities,
     taxCode: def.taxCode, unitLabel: def.unitLabel,
   }
-  cfg.records.push({ ...toConfigRecord(product), recordType: PRODUCT_RECORD_TYPE, id: `${PRODUCT_RECORD_PREFIX}:${def.sku}` })
+  cfg.records.push({ ...configHelper.toConfigRecord(product), recordType: PRODUCT_RECORD_TYPE, id: `${PRODUCT_RECORD_PREFIX}:${def.sku}` })
 }
 
 const isSafeCount = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
-
-const LIMIT_KINDS = Object.values(LimitKind) as string[]
-const LIMIT_WINDOWS = Object.values(LimitWindow) as string[]
 
 const assertLimitDeclaration = (key: string, limit: LimitDeclaration): void => {
   if (!LIMIT_KINDS.includes(limit.kind)) {
@@ -81,7 +72,7 @@ export const declarePaymentPlan = (cfg: Config, def: PaymentPlanDef): void => {
   const pricingMode = def.pricingMode
   if (pricingMode === CheckoutPricingMode.Amount) {
     if (def.amountPolicy == null) throw new TypeError(`Amount checkout plan '${def.sku}' requires amountPolicy`)
-    assertAmountCheckoutPolicy(def.amountPolicy)
+    checkoutPricingHelper.assertAmountCheckoutPolicy(def.amountPolicy)
   }
   const quantityPolicy = def.quantityPolicy ?? (
     def.minQuantity != null || def.maxQuantity != null || def.defaultQuantity != null
@@ -92,7 +83,7 @@ export const declarePaymentPlan = (cfg: Config, def: PaymentPlanDef): void => {
       }
       : undefined
   )
-  if (quantityPolicy != null) assertQuantityCheckoutPolicy(quantityPolicy)
+  if (quantityPolicy != null) checkoutPricingHelper.assertQuantityCheckoutPolicy(quantityPolicy)
   const currencyPrices = currencyPricesOf(def)
   assertWithdrawalComponents(def)
 
@@ -110,10 +101,8 @@ export const declarePaymentPlan = (cfg: Config, def: PaymentPlanDef): void => {
     ...(currencyPrices != null ? { currencyPrices } : {}),
     ...(def.withdrawal != null ? { withdrawal: { components: def.withdrawal.components.map(item => ({ ...item })) } } : {}),
   }
-  cfg.records.push({ ...toConfigRecord(plan), recordType: PLAN_RECORD_TYPE, id: `${PLAN_RECORD_PREFIX}:${def.sku}` })
+  cfg.records.push({ ...configHelper.toConfigRecord(plan), recordType: PLAN_RECORD_TYPE, id: `${PLAN_RECORD_PREFIX}:${def.sku}` })
 }
-
-const CURRENCY = /^[a-z]{3}$/
 
 /** `currencyPrices` normalized to lowercase codes; each a positive amount of whole minor units. */
 const currencyPricesOf = (def: PaymentPlanDef): Record<string, number> | undefined => {
@@ -159,44 +148,6 @@ const assertWithdrawalComponents = (def: PaymentPlanDef): void => {
   }
 }
 
-/** Every plan declared into a configuration. */
-export const declaredPlansOf = (cfg: Config): PaymentPlan[] =>
-  (cfg.records ?? []).filter(record => record.recordType === PLAN_RECORD_TYPE) as unknown as PaymentPlan[]
-
-/**
- * Cross-plan rules a single declaration cannot see:
- *
- * - at most one free plan per rank;
- * - no two paid plans of one product at the same rank (one-time `consumable` plans are never an
- *   entity's plan and are not ranked against each other).
- *
- * A limit key MAY change kind between plans (lifetime on one, a monthly window on another): counters
- * are keyed by `(entity, key, window)` and the window is derived from the kind, so each kind keeps its
- * own counter and a lifetime count still sticks to the entity across plan changes.
- *
- * @throws PlanRankConflict
- */
-export const assertPlanDeclarations = (cfg: Config): void => {
-  const plans = declaredPlansOf(cfg)
-  const freeRanks = new Set<number>()
-  const paidRanks = new Set<string>()
-  for (const plan of plans) {
-    const rank = plan.rank ?? 0
-    if (plan.free === true) {
-      if (freeRanks.has(rank)) {
-        throw new PlanRankConflict(`free:${rank}`)
-      }
-      freeRanks.add(rank)
-    } else if (plan.duration !== PlanDuration.Consumable) {
-      const key = `${plan.productSku}:${rank}`
-      if (paidRanks.has(key)) {
-        throw new PlanRankConflict(key)
-      }
-      paidRanks.add(key)
-    }
-  }
-}
-
 /**
  * Where the Stripe secrets live. A value that looks like a path is read into the configuration at
  * boot. The webhook secret is an optional override of the one the managed endpoint stores.
@@ -232,26 +183,39 @@ export const portalBranding = (cfg: Config, def: PortalBrandingDef): void => {
  */
 export const declarePaymentPricing = (cfg: Config, def: PricingDef): void => {
   const { stripe, ...policy } = def
-  assertPricingPolicy(policy)
+  priceEstimateHelper.assertPricingPolicy(policy)
   cfg.records = (cfg.records ?? []).filter(record => record.id !== PRICING_POLICY_RECORD_ID)
   cfg.records.push({
-    ...toConfigRecord(policy), recordType: PRICING_POLICY_RECORD_TYPE, id: PRICING_POLICY_RECORD_ID,
+    ...configHelper.toConfigRecord(policy), recordType: PRICING_POLICY_RECORD_TYPE, id: PRICING_POLICY_RECORD_ID,
   })
   if (stripe != null) {
     const settlementCurrency = stripe.settlementCurrency?.toLowerCase()
     if (settlementCurrency != null && !/^[a-z]{3}$/.test(settlementCurrency)) {
       throw new PaymentError('pricing-policy:settlement-currency')
     }
-    const subscriptionPaymentMethodTypes = stripe.subscriptionPaymentMethodTypes?.map(type => type.toLowerCase())
-    if (subscriptionPaymentMethodTypes != null && (subscriptionPaymentMethodTypes.length === 0
-      || subscriptionPaymentMethodTypes.some(type => !/^[a-z][a-z0-9_]*$/.test(type))
-      || new Set(subscriptionPaymentMethodTypes).size !== subscriptionPaymentMethodTypes.length)) {
-      throw new PaymentError('pricing-policy:subscription-payment-methods')
+    const normalizeMethods = (methods: string[]): string[] => {
+      const normalized = methods.map(type => type.toLowerCase())
+      if (normalized.length === 0 || normalized.some(type => !/^[a-z][a-z0-9_]*$/.test(type))
+        || new Set(normalized).size !== normalized.length) {
+        throw new PaymentError('pricing-policy:subscription-payment-methods')
+      }
+      return normalized
+    }
+    const subscriptionPaymentMethodTypes = stripe.subscriptionPaymentMethodTypes != null
+      ? normalizeMethods(stripe.subscriptionPaymentMethodTypes) : undefined
+    const subscriptionPaymentMethodTypesByCurrency: Record<string, string[]> = {}
+    for (const [key, methods] of Object.entries(stripe.subscriptionPaymentMethodTypesByCurrency ?? {})) {
+      const currency = key.toLowerCase()
+      if (!/^[a-z]{3}$/.test(currency) || Object.hasOwn(subscriptionPaymentMethodTypesByCurrency, currency)) {
+        throw new PaymentError('pricing-policy:subscription-payment-methods-currency')
+      }
+      subscriptionPaymentMethodTypesByCurrency[currency] = normalizeMethods(methods)
     }
     plugin(cfg, {
       ...stripe,
       ...(settlementCurrency != null ? { settlementCurrency } : {}),
       ...(subscriptionPaymentMethodTypes != null ? { subscriptionPaymentMethodTypes } : {}),
+      ...(stripe.subscriptionPaymentMethodTypesByCurrency != null ? { subscriptionPaymentMethodTypesByCurrency } : {}),
     }, STRIPE_PRICING_PLUGIN_CONFIG)
   }
 }
@@ -281,7 +245,7 @@ export const declareConsumerRights = (cfg: Config, def: ConsumerRightsDef): Cons
   }
   cfg.records = (cfg.records ?? []).filter(record => record.id !== CONSUMER_RIGHTS_RECORD_ID)
   cfg.records.push({
-    ...toConfigRecord(policy), recordType: CONSUMER_RIGHTS_RECORD_TYPE, id: CONSUMER_RIGHTS_RECORD_ID,
+    ...configHelper.toConfigRecord(policy), recordType: CONSUMER_RIGHTS_RECORD_TYPE, id: CONSUMER_RIGHTS_RECORD_ID,
   })
   const plugins = (cfg as unknown as Record<string, Array<{ id?: string }> | undefined>)[PLUGIN_RECORD]
   if (plugins != null) {

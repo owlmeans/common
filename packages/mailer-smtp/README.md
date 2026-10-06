@@ -7,13 +7,13 @@ SMTP transport for the OwlMeans `MailerService` contract, built on [nodemailer](
 - `makeSmtpMailerService(alias?)` — `MailerService` implementation reading `cfg.smtp`
 - `SmtpSettings` / `SmtpConfig` — the config block; numbers and booleans also accept their string form, because config values mounted from files always arrive as text
 - `verify()` — open a session and authenticate without sending, for health checks and tests
-- `toTransportOptions()` / `toMailOptions()` — the pure translations into nodemailer's shapes
+- `makeSmtpSettingsModel(smtp).toTransportOptions()` / `.toMailOptions(message)` — the pure translations into nodemailer's shapes; `assertSmtpSettings()` validates the block
 - Works with any SMTP relay; Mailgun, SES and Postmark all expose one
 
 ## Installation
 
 ```bash
-bun add @owlmeans/mailer-smtp@^0.1.18-rc.40
+bun add @owlmeans/mailer-smtp@^0.1.18-rc.43
 ```
 
 ## Usage
@@ -65,7 +65,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

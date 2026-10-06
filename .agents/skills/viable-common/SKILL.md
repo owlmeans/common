@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.41"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.45"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -30,11 +30,11 @@ execution state and card fields name.
 
 | Subpath | What it declares |
 |---|---|
-| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyOf`, `tenantedArea`, `TENANCY_QUOTE_MAX`); `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor`, `LAYOUT_TOPOLOGIES`, `resolveTopology`, `packageForRole` — meaning in `/blueprints`); the BA shapes (`mergeConnectingStories`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType`; the agent-output taxonomy (`classifyAgentMessage`, `isAgentMessageHidden` — `/agent-presentation`) and the spectator entry types |
-| `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` / `SlotDatabaseCommand` sets; `SlotDatabaseInfo`, `SlotDatabaseQueryArgs` / `SlotDatabaseQueryResult`, `DATABASE_READ_LIMITS`; the per-command deadlines and timeouts (`commandDeadline`, `commandTimeout`), `SubProject`, `LAYOUTS` / `ROLE_DIRS` / `subprojectDirOf`, `WorkloadKind`, the target ports and process markers, `slotOrigin` / `targetRedirectUrisForOrigin` |
-| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave`, `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
-| `./convert` | `ConversionStage`/`Status`/`Decision` and the `stageAfter`/`decisionFor`/`canEnter` transitions, `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
-| `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `detectTargetLayout`, `verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES`, `isLegacyLayout`, `targetPackageName` |
+| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyHelper` (`tenancyOf`, `tenantedArea`), `TENANCY_QUOTE_MAX`); `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind` / `WorkKind`, `CASE_QUOTE_MAX`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor`, `LAYOUT_TOPOLOGIES`, `topologyHelper` (`resolveTopology`, `packageForRole`) — meaning in `/blueprints`); the BA shapes (`connectingStoryHelper.mergeConnectingStories`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `moderationVerdictHelper.decideModeration`; the `docs/` metadata paths; `PreviewEventType` (error kinds plus `Analytics` — an analytics event a target's web posted through the preview reporter's channel; the target-side plugins live in `@owlmeans/viable-log`) and the `OwlMeansAnalyticsPayload` shape; the agent-output taxonomy (`agentPresentationHelper` — `classifyAgentMessage`, `isAgentMessageHidden`; `/agent-presentation`) and the spectator entry types |
+| `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` / `SlotDatabaseCommand` sets; `SlotDatabaseInfo`, `SlotDatabaseQueryArgs` / `SlotDatabaseQueryResult`, `DATABASE_READ_LIMITS`; the per-command deadlines and timeouts (`slotCommandHelper` — `commandDeadline`, `commandTimeout`), `SubProject`, `LAYOUTS` / `ROLE_DIRS` / `slotLayoutHelper.subprojectDirOf`, `WorkloadKind`, the target ports and process markers, `slotOriginHelper` (`slotOrigin` / `targetRedirectUrisForOrigin`) |
+| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave`, the planning-kit views (`PlanningKitView`, `ConnectKitDescribe`, `ConnectKitApplyBody`, `ConnectKitApplyResult` and their `*Schema`s), `ModelTier` + `modelTierHelper` (`tierOfRole`/`clampTier`), `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the convert bodies (`ConnectConvertCreateBody`, `ConnectConvertStartBody`, `ConnectConvertProceedBody`), the `Connect*` error family with `ConnectConfirmation` / `ConnectConfirmationAction`, `connectProtocols(opts)` and every `*Schema` behind them |
+| `./convert` | `ConversionStage`/`Status`/`Decision` and the `conversionStageHelper` transitions (`stageAfter`/`decisionFor`/`canEnter`), `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`censusHelper` — `fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
+| `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `targetLayoutHelper` (`detectTargetLayout`, `isLegacyLayout`, `targetPackageName`), `targetIntegrityHelper.verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES` |
 | `./intent` | `intent` (the four aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants, `IntentDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
 
 ## The planning module
@@ -97,7 +97,7 @@ the wire and in target files — a parent agent's vocabulary, which never change
 | project `id` / story `id` | `id` (a card id) |
 | project `alias` / `name` / `description` | `code` / `title` / `description` |
 | project `specification` / `vision` / `designSystem` | specification bodies, categories `specification` / `vision` / `design-system` |
-| project `formerAliases`, `language`, `blueprint`, `blueprintCase`, `gameKind`, `target`, `origin`, `connectLlmMode`, `converterLlmMode` | `fields.*` |
+| project `formerAliases`, `language`, `blueprint`, `blueprintCase`, `gameKind`, `workKind`, `caseQuote`, `target`, `origin`, `connectLlmMode`, `converterLlmMode` | `fields.*` |
 | the landing-gate decision | project `fields.landing` — `{ story: code \| null, at }` |
 | the tenancy decision | project `fields.tenancy` — `ViableTenancyDecision` `{ operators, users, quotes?, by: 'model' \| 'owner', at }` |
 | story narrative (`story`) / `code` / `status` | `title` / `code` / `status` (same strings) |
@@ -108,7 +108,7 @@ the wire and in target files — a parent agent's vocabulary, which never change
 
 `area` and `primary` are required in `ViableStoryFieldsSchema`; a create without an area still
 validates, because validation runs after the planning middlewares and the viable plugin fills the
-area of a narrative a person wrote. `storyFieldsOf` answers an absent area as `guest` and an
+area of a narrative a person wrote. `viableCardHelper.storyFieldsOf` answers an absent area as `guest` and an
 absent flag as `false`.
 
 ### The landing gate on the cards
@@ -121,12 +121,12 @@ full-scale screen after signing in (`/target-areas`). Two fields record it:
   is never written, since `null` would read as a decided "none" that nothing asks again. `at`
   carries no `format` because the planning registry compiles without ajv-formats.
 - story `fields.landing: true` marks the chosen card — at most one per project — and is what design
-  and development key on. `storyWriteInputOf` copies it into `StoryWriteInput.landing` only when
+  and development key on. `viableCardHelper.storyWriteInputOf` copies it into `StoryWriteInput.landing` only when
   set, so `StoryMeta.landing` appears only in that story's `docs/stories/<code>.md`; like `primary`
   it is the CARD's and is never passed in `StoryWriteContent`.
 
-`withLandingSentence` appends `LANDING_STORY_SENTENCE` to the chosen narrative — a note for people
-reading the board, never the authority. It is idempotent (`hasLandingSentence`,
+`landingSentenceHelper.withLandingSentence` appends `LANDING_STORY_SENTENCE` to the chosen narrative — a note for people
+reading the board, never the authority. It is idempotent (`.hasLandingSentence`,
 whitespace-insensitive), joins with one space, and never pushes a title past `TITLE_MAX`: a
 narrative with no room is returned uncut.
 
@@ -144,9 +144,9 @@ application, the project owner's, that every person acts in.
   is refused.
 - It reaches a run only through `BlueprintRef.tenancy`, and only when a flag is on; resolution
   alone writes it into `experience.tenancy` — never a blueprint or a case table. Read it through
-  `tenancyOf(blueprint)`: `NO_TENANCY` (frozen, both off) for no blueprint, layer, key or an
+  `tenancyHelper.tenancyOf(blueprint)`: `NO_TENANCY` (frozen, both off) for no blueprint, layer, key or an
   unreadable value — only a literal `true` turns a flag on.
-- `tenantedArea(area, tenancy)` — `user` follows `users`, `operator` follows `operators`; `guest`
+- `tenancyHelper.tenantedArea(area, tenancy)` — `user` follows `users`, `operator` follows `operators`; `guest`
   and `admin` (the project owner, above every tenant) are never tenanted.
 - Classification, the access policy, per-record kinds and the IAM client config live in
   `@owlmeans/viable` (`/target-tenancy`).
@@ -164,13 +164,13 @@ The co-located `*.spec.md` / `*.ux.md` / `*.ui.md` files of a target are FILES, 
 prose lives in the `design` payload — so no type declares a `ux` or `ui` slot.
 
 A story CODE (`US-XXXXX`) is the target's vocabulary: every file, registry entry and widget stamp
-names the code, and a card id never reaches a target file — `storyWriteInputOf` refuses a card
+names the code, and a card id never reaches a target file — `viableCardHelper.storyWriteInputOf` refuses a card
 with no code (`ProjectStoryMissconfigured('no-code')`). A project's code is its alias, minted by
 the platform's name ladder; the slug policy only guards uniqueness.
 
 `follows`, `shares-widget` and `shares-screen` run story → story. Only `follows` is WRITTEN: a
 connective story follows the flow story it was anchored after, created in the same transition from
-`MergedStoryDraft.after` (the clamped 1-based position, filled by `mergeConnectingStories` alone).
+`MergedStoryDraft.after` (the clamped 1-based position, filled by `connectingStoryHelper.mergeConnectingStories` alone).
 The `shares-*` types are declared only — the `scaffold` specification is their single authority.
 
 ### The write channel
@@ -178,7 +178,7 @@ The `shares-*` types are declared only — the `scaffold` specification is their
 `ViableChannel` (`web`, `connect`, `agent`, `pipeline`) is what a planning write carries on
 `PlanningScope.channel` and records on `actor.channel`. It is never read from the wire: the API
 services derive `connect` from an access-token request and `web` from everything else; the agent's
-own writes are `agent` or `pipeline`. Three rules ask `isUserChannel`:
+own writes are `agent` or `pipeline`. Three rules ask `viableCardHelper.isUserChannel`:
 
 - the balance refusal — `ConnectOutOfCredits` for `connect`, `AgentOutOfTokens` otherwise;
 - re-formatting a narrative through the analyst — `web`/`connect` only;
@@ -187,11 +187,11 @@ own writes are `agent` or `pipeline`. Three rules ask `isUserChannel`:
 
 ### Card helpers and the design port
 
-`isViableProject` / `isViableStory` check kind AND type. `projectBriefOf(project, specs)` assembles
+`viableCardHelper.isViableProject` / `.isViableStory` check kind AND type. `viableSpecHelper.projectBriefOf(project, specs)` assembles
 the `AgentProject` brief (highest revision per part, `''` for an unwritten part, `alias` from the
-code). `userStoryOf(card, design?)` builds the coders' aggregate — the card wins on narrative,
-code, area and actor, the design supplies entities and screens; `userStoryOfDesign(design)` is the
-design-only reading. `storyDraftOf(card)` feeds the analysis prompts and moderation.
+code). `viableCardHelper.userStoryOf(card, design?)` builds the coders' aggregate — the card wins on narrative,
+code, area and actor, the design supplies entities and screens; `storyDesignHelper.userStoryOfDesign(design)` is the
+design-only reading. `viableCardHelper.storyDraftOf(card)` feeds the analysis prompts and moderation.
 `ExecutionState.projectCard` and `TaskExecutionState.card` carry the cards as plain data.
 
 `StoryDesignPort` is addressed by CARD id — `current(cardId)` and
@@ -225,6 +225,18 @@ schema, and a count the model should respect lives in the `description` and is c
 never as `minItems`/`maxItems`. The descriptions are what the planning model reads; `gate.target`
 is filled by code and described as such.
 
+**One reading of the landing page.** What a guest home draws is decided by the pure
+`landingPlanHelper` beside the schema, never re-derived by a consumer: `landingBandsOf` (the bands, in `LANDING_BAND_ORDER`,
+one presence rule each), `landingMenuOf` (the header menu: present bands only, page order, capped,
+padded to `LANDING_MENU.min`) and `homeSlotsOf` (the buttons a home link can attach to; a gate with
+fields removes `LANDING_GATE_SLOTS`). The optional bands (`useCases`, `differentiator`, `approach`,
+`about`) each carry a `basis` copied word for word from a source and checked downstream;
+`testimonials` is optional; `links` absent/`null` means undecided, `[]` decided none.
+`linksDecided` (optional, nullable, strings) lists the story codes whose links were decided at
+DEVELOPMENT time — a decision of no control included; absent on a plan whose links the planner
+decided. It is written by code only, so `ScaffoldPlanAnswerSchema` leaves it out of what the model
+is offered while the stored `ScaffoldPlanSchema` validates it.
+
 **A field that crosses a version skew carries no `enum`.** Users run `viable-mcp` from a moving
 `npx` range against a separately deployed platform, so `ConnectCapabilitiesSchema.executors.items`
 is a bare string: a newer executor kind is an unused capability on an older platform, never a
@@ -242,7 +254,7 @@ DEPLOYMENT's parts are injected: the guard alias, the ownership gate, and the pa
 |---|---|
 | `session` | `open` POST `/session`, `openDelegated` POST `/session/delegated`, `close` POST `/session/:sessionId/close` |
 | `op` | `pull` GET `/session/:sessionId/ops` (the long poll), `submit` POST `/session/:sessionId/ops/:opId` |
-| `project` | `create` POST / `list` GET `/project`, `attach` POST `/project/attach`, `confirm`, `status`, `reinit`, `modify` under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding` |
+| `project` | `create` POST / `list` GET `/project`, `attach` POST `/project/attach`, `confirm`, `status`, `reinit`, `modify` under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding`, `kit.describe` GET / `kit.apply` POST `/project/:id/kits` |
 | `story` | `status` GET `/project/:id/story/:storyId/status` |
 | `files` | `list` GET `/project/:id/files` |
 | `convert` | `create` POST `/convert`, `check` GET `/convert/:id/check`, `start`, `proceed`, `purge` POST `/convert/:id/…`, `status` GET `/convert/:id` |
@@ -261,6 +273,10 @@ DEPLOYMENT's parts are injected: the guard alias, the ownership gate, and the pa
   `ConnectProjectStatus.project` flattens the project card into a parent agent's names (`name` =
   title, `alias` = code, the three brief bodies) plus `status` and `intrinsic`;
   `ConnectConfirmBody` carries the three brief parts including `designSystem`.
+- `convert.start` and `convert.proceed` carry `confirm?: boolean` (`ConnectConvertStartBody(Schema)`
+  — the start's whole body — and `ConnectConvertProceedBody(Schema)`): a PERSON agreed to what the
+  step costs. The platform refuses a step that would use the plan's conversion or spend credits
+  without it (`ConnectConfirmationRequired`); a `null` is "not confirmed", never a refused body.
 - Branding routes hang under `base` (guard + ownership gate, no paid gate). The save body
   (`ConnectProjectBrandingSaveSchema`) is a PATCH of strings with structural bounds only
   (`CONNECT_BRANDING_*_MAX`, each equal to its platform twin); value acceptability is the
@@ -290,7 +306,7 @@ different ones) and the manager web agree on every address, schema and step. Pla
 - **`intentFlow` is walked on both sides and never becomes the live flow model.** `compose`
   (initial, the site) →`handoff`→ `land` (initial, the landing) →`review`→ `review` (`HOME`), plus
   the EXPLICIT `land` →`sign-in`→ `sign-in` (`DISPATCHER`) →`next`→ `review`. A signed-out visitor
-  is parked with `suspendFlow` at `sign-in`. The parameter is `?ref=` — never `?flow=` (`web-flow`
+  is parked with `flowLandingOf(context).suspendFlow` at `sign-in`. The parameter is `?ref=` — never `?flow=` (`web-flow`
   parses it on every page load) and never `?intent=` (the login surrogate window owns it).
 - **CORS is not declared here**: the routes ride the global `origin: '*'` (no credentials);
   `makeIntentProtocols` carries a `TODO(cors)` naming the origins to keep if that is restricted.
@@ -321,11 +337,18 @@ on the type only; the Google tag's CSP hosts never travel in it — the publishe
 (`technology`, `stack`, `template`, `createApp`, `packages`) and one OPTIONAL `experience` layer —
 what the product does for its users, changing no dependency and no coder prompt. Read `experience`
 only through a total helper: `landingGatePreferenceOf` (`LandingGatePreference.Allow` for no layer,
-no key or an unknown value) and `tenancyOf`. An execution carries a `BlueprintRef` — `id`,
+no key or an unknown value) and `tenancyHelper.tenancyOf`. An execution carries a `BlueprintRef` — `id`,
 optional `case`, optional `tenancy`, an override patch — never a resolved blueprint.
 
-`BlueprintCase` (`web`, `scalable`, `ai-pipeline`, `ai-agent`, `game`) and `GameKind` are what
-`fields.blueprintCase` / `fields.gameKind` carry. What a case MEANS (`BLUEPRINT_CASES`,
+`BlueprintCase` (`web`, `scalable`, `ai-pipeline`, `ai-agent`, `game`, `work-management`,
+`work-management-tenanted`) and `GameKind` are what `fields.blueprintCase` / `fields.gameKind`
+carry. `work-management-tenanted` is never classified directly: code picks it from
+`work-management` when the project's tenancy decision has a flag on. `WorkKind` (`project`, `crm`,
+`service-desk`, `inventory`, `recruiting`, `field-service`, `process`) is `fields.workKind` — which
+ready-made card types and flows a work-management product starts from, changing no dependency —
+and `fields.caseQuote` (≤ `CASE_QUOTE_MAX`) is the requester's sentence that case was verified
+against. `TemplateLayer.seeds` names case seed directories under the overlay's `.cases/`, copied
+over the staged tree in order (names, never paths; a variant lists its base seed first). What a case MEANS (`BLUEPRINT_CASES`,
 `applyBlueprintCase`, `applyBlueprintPatch` / `freezeBlueprint`, `joinPersonaSkills`, the
 classification schema) lives in `@owlmeans/viable` (`/blueprints`, `/blueprint-cases`); that table
 is `Record<BlueprintCase, …>`, so a new member fails to compile there until it has a row.
@@ -361,7 +384,7 @@ skips an unresolved alias — a missing body is a rule no model receives.
 - **`SubProject`** — a ROLE vocabulary mapped per layout (`ROLE_DIRS`), never joined onto a path.
   Both generations arrive on the wire, so the enum stays total over what any live agent sends, and
   no role but `Common` resolves to the `common` directory.
-- **`ConversionStage`** — advanced only through `stageAfter` / `canEnter` / `decisionFor`; a
+- **`ConversionStage`** — advanced only through `conversionStageHelper.stageAfter` / `.canEnter` / `.decisionFor`; a
   transition computed at a call site re-enters a stage already paid for.
 - **`ModerationCategory`** — a wire contract with eight languages of wording behind it; a fifth
   shape is PHRASED into one of the four, never added.
@@ -377,7 +400,7 @@ one allowed difference is stated: the platform's two keep what a volume it owns 
 SDK's keeps what a DEVELOPER owns (`.viable`, the two `.env` files).
 
 `docs/conversion/` is addressed only through the path builders (`CONVERSION_*_FILE`,
-`conversionStoryDoc`, `conversionSeedDoc`) — the purge reads them back, and a path spelled at a
+`conversionDocHelper.conversionStoryDoc`, `.conversionSeedDoc`) — the purge reads them back, and a path spelled at a
 call site is a file the purge leaves behind.
 
 ## The inquiry vocabulary is a deliberate COPY; the ceiling is not
@@ -396,16 +419,23 @@ silently at the smaller; never introduce a local cap.
 
 `ConnectError` and its family (`ConnectSessionNotFound`, `ConnectSessionGone`, `ConnectOpTimeout`,
 `ConnectOpRefused`, `LocalSlotUnsupported`, `ConnectOpUnknown`, `ConnectOutOfCredits`,
-`ConnectConsentRequired`) are `ResilientError` classes with `viable-connect:` markers. The two
-refusals a connector phrases for a person pack their fields into the message (only `type` and
-`message` survive a marshal), are built with `static encode(...)` and rebuilt in
-`finalizeUnmarshal()`:
+`ConnectConsentRequired`, `ConnectConfirmationRequired`) are `ResilientError` classes with
+`viable-connect:` markers. The three refusals a connector phrases for a person pack their fields
+into the message (only `type` and `message` survive a marshal), are built with `static encode(...)`
+and rebuilt in `finalizeUnmarshal()`:
 
 - `ConnectOutOfCredits` — `out-of-credits:<gate>:<requiredUsd>:<balanceUsd>:<encodeURIComponent(topUpUrl)>`;
 - `ConnectConsentRequired` — `consent-required:<gate>:<deadline epoch ms | 0>:<encodeURIComponent(consentUrl)>`
   (`0` = unknown; epoch ms and the URL last because ISO dates and URLs contain colons). It is the
   connector's face of the EU spend consent (`PerformanceConsentRequired` on the web, `/payment`):
-  only a PERSON gives it, in the browser at `consentUrl`.
+  only a PERSON gives it, in the browser at `consentUrl`;
+- `ConnectConfirmationRequired` — `confirmation-required:<action>:<cap>:<spent>:<estimate>:<fromAllowance>:<fromCreditLimits>:<moneyUsd>`,
+  `encode(fields: ConnectConfirmation)` and its inverse `decode(packed)` (an unreadable number reads
+  back as `0`, never `NaN`). A conversion verb (`action`: `convert-start` / `convert-proceed`) would
+  use the plan's conversion or spend credits: `cap` and `spent` are the conversion limit and what the
+  conversion used of it (`0` with no plan unit), `estimate` the stage's, split into `fromAllowance`
+  and `fromCreditLimits` (credits) and `moneyUsd` (topped-up credits, the only money figure). A person
+  agrees in the CONVERSATION and the caller repeats the call with `confirm: true`.
 
 `ConnectSessionGone` is registered FATAL on the agent side: the step fails as an OUTCOME, so the
 run row records where it stopped and `pipeline.resume` picks it up when a connector returns.
@@ -424,7 +454,7 @@ refuses an exported class whose status was not decided:
 | Status | Classes |
 |---|---|
 | 402 | `ConnectOutOfCredits` |
-| 428 | `ConnectConsentRequired` |
+| 428 | `ConnectConsentRequired`, `ConnectConfirmationRequired` |
 | 404 | `ProjectNotFound`, `ProjectStoryNotFound`, `ConnectSessionNotFound`, `ConnectOpUnknown` |
 | 409 | `ProjectAgentOccupied`, `ProjectStoryMissconfigured`, `ConnectSessionGone` (no connector attached), `LocalSlotUnsupported` |
 | 422 | `ConnectOpRefused` |
@@ -440,16 +470,16 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 
 | File | Pins |
 |---|---|
-| `planning.spec.ts` | the two flows and transition tables, type declarations, slots, code policies, reserved types outside `cardTypes`, field schemas (null optionals, refused strays and closed-set values), landing fields and sentence, the tenancy decision, card helpers, the `follows` anchor, refusal type names after a marshal |
-| `tenancy.spec.ts` | `NO_TENANCY` frozen, `tenancyOf` defaults and the literal-`true` rule, `tenantedArea` |
+| `planning.spec.ts` | the two flows and transition tables, type declarations, slots, code policies, reserved types outside `cardTypes`, field schemas (null optionals, refused strays and closed-set values), landing fields and sentence, the tenancy decision, the work kind and bounded case quote, card helpers, the `follows` anchor, refusal type names after a marshal |
+| `tenancy.spec.ts` | `NO_TENANCY` frozen, `tenancyHelper.tenancyOf` defaults and the literal-`true` rule, `.tenantedArea` |
 | `access-schema.spec.ts` | the model-facing access schema: model keys only, byte-identical |
-| `scaffold.spec.ts` | old- and new-shape plans passing the schema and slot, `null` optionals, no `minItems` |
+| `scaffold.spec.ts` | old- and new-shape plans passing the schema and slot, `null` optionals, no `minItems`, closed anchors/slots, the landing helpers |
 | `blueprint.spec.ts` · `branding.spec.ts` | `landingGatePreferenceOf` defaults · the build env and metadata vocabulary |
-| `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid gate on the delegated session alone, no socket or story route, branding body · conversion routes, an unknown executor kind accepted |
+| `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid gate on the delegated session alone, no socket or story route, branding body, the kit routes and their closed shapes · conversion routes, the start's body and both verbs' `confirm`, an unknown executor kind accepted |
 | `convert.spec.ts` | the three structural walks over the barrel, nullable enums under Ajv, census classifiers, stage transitions |
-| `design.spec.ts` | the design aggregate, staleness ranking, schema refusals, `userStoryOfDesign` |
-| `error-status.spec.ts` · `connect-errors.spec.ts` | declared statuses through a marshal · packed refusal fields fresh and after a round trip |
-| `intent.spec.ts` | the four declarations without guards, schema cases incl. crafted refs, the flow walk and `suspendFlow` payload, error statuses |
+| `design.spec.ts` | the design aggregate, staleness ranking, schema refusals, `storyDesignHelper.userStoryOfDesign` |
+| `error-status.spec.ts` · `connect-errors.spec.ts` | declared statuses through a marshal · packed refusal fields fresh and after a round trip, the confirmation's `decode` |
+| `intent.spec.ts` | the four declarations without guards, schema cases incl. crafted refs, the flow walk and `flowLandingOf(context).suspendFlow` payload, error statuses |
 | `presentation.spec.ts` | the agent-output classifier (`/agent-presentation`) |
 
 ## Depends On
@@ -468,7 +498,7 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 
 - [[viable-sdk]] · [[viable-mcp]] — the connector SDK written against these contracts, and its npx
   stdio server
-- [[flow]] · [[client-flow]] — the model `intentFlow` is walked with, and `suspendFlow`
+- [[flow]] · [[client-flow]] — the model `intentFlow` is walked with, and `flowLandingOf(context).suspendFlow`
 - [[inquiry]] · [[llm-common]] — the primitive `InquiryPayload` mirrors; the model runtime's contracts
 - [[planning]] — the workcard model the planning module builds on
 - DOMAIN meaning lives downstream (`target-areas`, `target-tenancy`, `scaffolding`,

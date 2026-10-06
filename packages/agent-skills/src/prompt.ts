@@ -1,25 +1,32 @@
-import { createInterface } from 'node:readline/promises'
+import { createInterface, type Interface } from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
+import type { PromptUtils } from './prompt/types.js'
 
-let rl: ReturnType<typeof createInterface> | null = null
+export const createPromptUtils = (): PromptUtils => {
+  let rl: Interface | null = null
 
-const getReadline = (): ReturnType<typeof createInterface> => {
-  if (rl == null) {
-    rl = createInterface({ input: stdin, output: stdout })
+  const getReadline = (): Interface => {
+    if (rl == null) {
+      rl = createInterface({ input: stdin, output: stdout })
+    }
+    return rl
   }
-  return rl
-}
 
-export const closeReadline = (): void => {
-  if (rl != null) {
-    rl.close()
-    rl = null
+  const closeReadline = (): void => {
+    if (rl != null) {
+      rl.close()
+      rl = null
+    }
   }
+
+  const confirm = async (question: string): Promise<boolean> => {
+    const answer = await getReadline().question(`${question} [y/N] `)
+    return answer.trim().toLowerCase() === 'y' || answer.trim().toLowerCase() === 'yes'
+  }
+
+  const isTTY = (): boolean => process.stdin.isTTY === true
+
+  return { closeReadline, confirm, isTTY }
 }
 
-export const confirm = async (question: string): Promise<boolean> => {
-  const answer = await getReadline().question(`${question} [y/N] `)
-  return answer.trim().toLowerCase() === 'y' || answer.trim().toLowerCase() === 'yes'
-}
-
-export const isTTY = (): boolean => process.stdin.isTTY === true
+export const promptUtils = createPromptUtils()

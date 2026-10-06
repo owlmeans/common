@@ -1,75 +1,18 @@
 import { entrypointRef } from '@owlmeans/entrypoint'
-import type { RegisteredEntrypoint, RequestShape } from '@owlmeans/entrypoint'
-import type { EntrypointReference } from '@owlmeans/context'
 import { connect } from './consts.js'
-import type { ConnectOp, ConnectOpResult } from './ops.js'
+import type { ConnectProjectBranding, ConnectProjectBrandingSave } from './branding/types.js'
 import type {
-  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectConvertCreateBody,
-  ConnectConvertProceedBody, ConnectInquiryAnswerBody, ConnectModifyBody, ConnectOpSubmission,
-  ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState, ConnectProjectBranding,
-  ConnectProjectBrandingSave, ConnectProjectStatus, ConnectProjectSummary, ConnectPullQuery,
-  ConnectSessionOpen, ConnectSessionParams, ConnectSessionView, ConnectStoryStatus,
-  ConversionStatusView, ConvertCheck,
-} from './types.js'
-
-type ConnectReference<Request extends RequestShape, Response> =
-  EntrypointReference<RegisteredEntrypoint<Request, Response>>
-
-export interface ConnectReferences {
-  session: {
-    open: ConnectReference<{ body: ConnectSessionOpen }, ConnectSessionView>
-    openDelegated: ConnectReference<{ body: ConnectSessionOpen }, ConnectSessionView>
-    close: ConnectReference<{ params: ConnectSessionParams }, ConnectSessionView>
-  }
-  op: {
-    pull: ConnectReference<{ params: ConnectSessionParams, query: ConnectPullQuery }, ConnectOp[]>
-    submit: ConnectReference<{
-      params: { sessionId: string, opId: string }, body: ConnectOpResult
-    }, ConnectOpSubmission>
-  }
-  project: {
-    create: ConnectReference<{ body: ConnectCreateBody }, ConnectProjectStatus>
-    confirm: ConnectReference<{ params: { id: string }, body: ConnectConfirmBody }, ConnectProjectStatus>
-    list: ConnectReference<{}, ConnectProjectSummary[]>
-    status: ConnectReference<{ params: { id: string } }, ConnectProjectStatus>
-    attach: ConnectReference<{ body: ConnectAttachBody }, ConnectProjectStatus>
-    reinit: ConnectReference<{ params: { id: string } }, ConnectProjectStatus>
-    modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>
-    branding: {
-      get: ConnectReference<{ params: { id: string } }, ConnectProjectBranding>
-      save: ConnectReference<{
-        params: { id: string }, body: ConnectProjectBrandingSave
-      }, ConnectProjectBranding>
-    }
-  }
-  story: {
-    status: ConnectReference<{ params: { id: string, storyId: string } }, ConnectStoryStatus>
-  }
-  files: {
-    list: ConnectReference<{ params: { id: string } }, string[]>
-  }
-  convert: {
-    create: ConnectReference<{ body: ConnectConvertCreateBody }, ConversionStatusView>
-    check: ConnectReference<{ params: { id: string } }, ConvertCheck>
-    start: ConnectReference<{ params: { id: string } }, ConversionStatusView>
-    proceed: ConnectReference<{
-      params: { id: string }, body: ConnectConvertProceedBody
-    }, ConversionStatusView>
-    status: ConnectReference<{ params: { id: string } }, ConversionStatusView>
-    purge: ConnectReference<{ params: { id: string } }, ConversionStatusView>
-  }
-  inquiry: {
-    answer: ConnectReference<{
-      params: { id: string, inquiryId: string }, body: ConnectInquiryAnswerBody
-    }, unknown>
-  }
-  pipeline: {
-    state: ConnectReference<{ params: ConnectPipelineParams }, ConnectPipelineState>
-    resume: ConnectReference<{
-      params: ConnectPipelineParams, body: ConnectPipelineResumeBody
-    }, ConnectPipelineState>
-  }
-}
+  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody, ConversionStatusView, ConvertCheck
+} from './conversion/types.js'
+import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } from './kit/types.js'
+import type { ConnectInquiryAnswerBody, ConnectOp, ConnectOpResult, ConnectOpSubmission } from './ops/types.js'
+import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
+import type {
+  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectProjectStatus,
+  ConnectProjectSummary, ConnectStoryStatus
+} from './project/types.js'
+import type { ConnectReferences } from './references/types.js'
+import type { ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams, ConnectSessionView } from './session/types.js'
 
 /**
  * Typed references for adapter packages that address the connector dynamically.  Applications
@@ -96,6 +39,12 @@ export const connectRef: ConnectReferences = {
     attach: entrypointRef<{ body: ConnectAttachBody }, ConnectProjectStatus>(connect.project.attach),
     reinit: entrypointRef<{ params: { id: string } }, ConnectProjectStatus>(connect.project.reinit),
     modify: entrypointRef<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>(connect.project.modify),
+    kit: {
+      describe: entrypointRef<{ params: { id: string } }, ConnectKitDescribe>(connect.project.kit.describe),
+      apply: entrypointRef<{
+        params: { id: string }, body: ConnectKitApplyBody
+      }, ConnectKitApplyResult>(connect.project.kit.apply),
+    },
     branding: {
       get: entrypointRef<{ params: { id: string } }, ConnectProjectBranding>(connect.project.branding.get),
       save: entrypointRef<{
@@ -111,7 +60,9 @@ export const connectRef: ConnectReferences = {
   convert: {
     create: entrypointRef<{ body: ConnectConvertCreateBody }, ConversionStatusView>(connect.convert.create),
     check: entrypointRef<{ params: { id: string } }, ConvertCheck>(connect.convert.check),
-    start: entrypointRef<{ params: { id: string } }, ConversionStatusView>(connect.convert.start),
+    start: entrypointRef<{
+      params: { id: string }, body: ConnectConvertStartBody
+    }, ConversionStatusView>(connect.convert.start),
     proceed: entrypointRef<{
       params: { id: string }, body: ConnectConvertProceedBody
     }, ConversionStatusView>(connect.convert.proceed),

@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs'
+import { PACKAGE_NAME, UNKNOWN_VERSION } from './consts.local.js'
 
-const PACKAGE_NAME = '@owlmeans/viable-mcp'
-const UNKNOWN_VERSION = '0.0.0'
 
 /**
  * The version this server reports to a host (`serverInfo.version`) and files with its connector

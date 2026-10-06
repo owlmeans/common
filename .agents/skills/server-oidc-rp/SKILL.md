@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-oidc-rp
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-rp": "^0.1.18-rc.52"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-rp": "^0.1.18-rc.55"` in `dependencies`
 
 ## Key Exports
 
@@ -22,13 +22,13 @@ user-invocable: false
 | `requestedScope(extraScopes?)` | The `scope` of an authorization request — base scopes plus the provider's extras, deduplicated |
 | `createGateModel(ctx)` | The UMA2 permission model — `loadPermissions(auth, params)` |
 | `extractPermissionSets(claim)` | Shape-validates a `permissions` claim into `OidcPermissionSetClaim[]` (bindings kept), or `undefined` |
-| `extractOrganizations(claim)` | Shape-validates an `organizations` claim; `undefined` = no claim (a client without the scope) |
-| `pickOrganization(orgs, { entityKey?, entitySlug? })` | The acting organization — see "Organizations" |
-| `actingPermissionSets(sets, entitySlug?)` | The sets a browser token may carry: unbound ones plus the acting organization's, binding stripped |
-| `actingAuth(user, org, sets?)` | `user` re-shaped for `org`: its slug, groups and flattened sets, nothing of the previous organization |
-| `resolvedEntityOf(org)` | `{ id: entityKey, slug: entitySlug, iamKey: entityKey }` |
-| `organizationItemOf(org, acting?)` | The switch's key-less view of one organization |
-| `sessionRecord(context, token)` | The `:token:` record behind a wrapped token's `token`; `AuthorizationError('record')` when gone |
+| `oidcOrganizationHelper.extractOrganizations(claim)` | Shape-validates an `organizations` claim; `undefined` = no claim (a client without the scope) |
+| `oidcOrganizationHelper.pickOrganization(orgs, { entityKey?, entitySlug? })` | The acting organization — see "Organizations" |
+| `oidcOrganizationHelper.actingPermissionSets(sets, entitySlug?)` | The sets a browser token may carry: unbound ones plus the acting organization's, binding stripped |
+| `oidcOrganizationHelper.actingAuth(user, org, sets?)` | `user` re-shaped for `org`: its slug, groups and flattened sets, nothing of the previous organization |
+| `oidcOrganizationHelper.resolvedEntityOf(org)` | `{ id: entityKey, slug: entitySlug, iamKey: entityKey }` |
+| `oidcOrganizationHelper.organizationItemOf(org, acting?)` | The switch's key-less view of one organization |
+| `oidcCacheOf(context).sessionRecord(token)` | The `:token:` record behind a wrapped token's `token`; `AuthorizationError('record')` when gone |
 | `OIDCAuthCache` | The cache record type (verifier, exchange and session records share it) |
 | `authService` | The service entrypoint aliases: `authService.provider.list`, `authService.auth.update` |
 | `DEFAULT_ALIAS` | `'oidc-client'` — the relying-party service alias |
@@ -167,10 +167,10 @@ A client granted `ORGANIZATIONS_SCOPE` (`@owlmeans/oidc`) receives the subject's
 claim and the full `permissions` claim, bound sets carrying `entitySlug`. The session acts in ONE
 organization at a time:
 
-- **Sign-in** (`authenticate`): `pickOrganization(orgs, { entitySlug: requested })` — the slug the
+- **Sign-in** (`authenticate`): `oidcOrganizationHelper.pickOrganization(orgs, { entitySlug: requested })` — the slug the
   browser sent to `init` when the subject is a member, else the claim's `home`, else the first. An
   empty claim refuses the sign-in (`AuthenFailed('entity')`). The token carries that organization's
-  `entitySlug`, `groups` and `actingPermissionSets(sets, slug)`; the record keeps `acting`,
+  `entitySlug`, `groups` and `oidcOrganizationHelper.actingPermissionSets(sets, slug)`; the record keeps `acting`,
   `entity`, `organizations` and the raw `sets`. The handler answers `{ token }` alone.
 - **No `organizations` claim** (a client without the scope): a single-organization session —
   `entitySlug = cfg.entityId`, the claim's unbound sets, no `acting`, no entity attached.
@@ -183,7 +183,7 @@ organization at a time:
   freshness shortcut too — and the guard attaches it, because the relying party of a tenanted client
   has no registry to resolve the slug from.
 - **The switch** (`listOrganizations`, `switchOrganization`, bound by `oidcEntrypoints` behind
-  `OIDC_GUARD`) reads the record the guard just refreshed. `GET` lists `organizationItemOf` items
+  `OIDC_GUARD`) reads the record the guard just refreshed. `GET` lists `oidcOrganizationHelper.organizationItemOf` items
   (never `entityKey`); `POST { entitySlug }` re-signs the token for that organization, sets `acting`
   and answers `{ token }`. An organization the record does not list — or any, for a session without
   the claim — is `AuthForbidden(ORGANIZATION_REFUSAL)`.

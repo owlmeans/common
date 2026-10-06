@@ -1,6 +1,6 @@
 ---
 name: server-auth-identity
-description: How to use @owlmeans/server-auth-identity — the Mongo-backed identity store shared by a deployment's own sign-in and the apps it hosts. One account per e-mail (every sign-in method a credential on it), a personal organization per account, profile rows per (account, app, organization) with a computed profileId, organization groups, the IdentityLinkingService for the deployment's own app, the ensureAccount / ensureProfile primitives, the EntityResolverService with field-level rename/mintName, and the identity-events seam (entity created, profile created). Auto-invoked when importing appendAuthIdentityResources, an identity resource alias, IdentityLinkingService, ensureAccount/ensureProfile/profileIdOf, the org group helpers, the entity resolver or identityEvents.
+description: How to use @owlmeans/server-auth-identity — the Mongo-backed identity store shared by a deployment's own sign-in and the apps it hosts. One account per e-mail (every sign-in method a credential on it), a personal organization per account, profile rows per (account, app, organization) with a computed profileId, organization groups, the IdentityLinkingService for the deployment's own app, the identityOf(ctx) ensureAccount / ensureProfile primitives, the EntityResolverService with field-level rename/mintName, and the identity-events seam (entity created, profile created). Auto-invoked when importing appendAuthIdentityResources, an identity resource alias, IdentityLinkingService, identityOf/identityKeyHelper, the org group helpers (orgGroupsOf), the entity resolver or identityEvents.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-auth-identity
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-identity": "^0.1.18-rc.44"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-identity": "^0.1.18-rc.47"` in `dependencies`
 
 The identity store a deployment owns when it does not delegate identity to an external IAM. It
 answers *who is this person* (account + credentials), *what are they in this app and organization*
@@ -21,11 +21,11 @@ serves the deployment's own app and every app it hosts (a platform's generated t
 | Export | Description |
 |--------|-------------|
 | `appendAuthIdentityResources(context, dbAlias?, { service? })` | Register the four resources, the linking service for app `service` (default `DEFAULT_APP_SERVICE`), the entity resolver and — unless one is already registered — the identity-events service |
-| `profileIdOf(service, accountId)` | The computed profile id of an (account, app) — `"{service}:{22 Base58 chars of sha256}"` |
-| `ensureAccount(ctx, { email, name? }, details?)` | The person's account: by the method's credential, then by e-mail, else registered with a personal organization; attaches `details` as a credential |
-| `ensureProfile(ctx, { account, service, entityId, owner?, role?, scopes?, permissions?, groups?, managed? })` | Find-or-create the row of (account, app, organization); ensures the primary row first |
-| `credentialKeyOf(details)`, `credentialOf(ctx, details)`, `normalizeEmail(email)` | A method's unique credential key; its stored row and account; the stored address form |
-| `listOrgGroups(ctx, entityId, service)`, `putOrgGroup(ctx, entityId, group)`, `removeOrgGroup(ctx, entityId, service, key)` | An organization's groups of one app — guarded field-level writes, unique per (`service`, `key`) |
+| `identityKeyHelper.profileIdOf(service, accountId)` | The computed profile id of an (account, app) — `"{service}:{22 Base58 chars of sha256}"` |
+| `identityOf(ctx).ensureAccount({ email, name? }, details?)` | The person's account: by the method's credential, then by e-mail, else registered with a personal organization; attaches `details` as a credential |
+| `identityOf(ctx).ensureProfile({ account, service, entityId, owner?, role?, scopes?, permissions?, groups?, managed? })` | Find-or-create the row of (account, app, organization); ensures the primary row first |
+| `identityKeyHelper.credentialKeyOf(details)`, `identityOf(ctx).credentialOf(details)`, `identityKeyHelper.normalizeEmail(email)` | A method's unique credential key; its stored row and account; the stored address form |
+| `orgGroupsOf(ctx)` — `.listOrgGroups(entityId, service)`, `.putOrgGroup(entityId, group)`, `.removeOrgGroup(entityId, service, key)` | An organization's groups of one app — guarded field-level writes, unique per (`service`, `key`) |
 | `makeOrgEntityResource`, `makeIdentityAccountResource`, `makeIdentityProfileResource`, `makeIdentityCredentialsResource` | Mongo resource makers (`dbAlias?`) |
 | `makeIdentityLinkingService({ service? })` | The `IdentityLinkingService` for one app |
 | `makeEntityResolverService(alias?)` | The `EntityResolverService`, cached 30 s per resolved value (slim references only) |
@@ -49,7 +49,7 @@ serves the deployment's own app and every app it hosts (a platform's generated t
 | `OrgGroup` | `service`, `key`, `title?`, `managed?`, `permissions`, `bundles?` (`{ filter?, permissions? }`) | Members are the rows naming `key` in `groups`; one app never writes another app's group |
 
 **The primary row** of an (account, app) is its row in the account's main organization. It exists
-whenever any row of that pair does — `ensureProfile` creates it FIRST, as owner of the personal
+whenever any row of that pair does — `identityOf(ctx).ensureProfile` creates it FIRST, as owner of the personal
 organization — because it is what says whether the person may use the app at all.
 
 **`profileId` is computed, never minted.** Two first sign-ins racing write the same key and the
@@ -77,7 +77,7 @@ Registering the resolver is the signal that the deployment HAS organizations: wi
 resource's native `collection.updateOne`), never the whole document** — a replace from a stale read
 erases the groups or names another writer added since. The resolver's `rename` is guarded on the slug
 it read (`formerSlugs` moves only with it), `mintName` on the name still being unset (first minter
-wins, both answer what was stored), `putOrgGroup` replaces the matching element (`groups.$`) or
+wins, both answer what was stored), `orgGroupsOf(ctx).putOrgGroup` replaces the matching element (`groups.$`) or
 pushes where none matches (`$not: { $elemMatch }`) and retries if a concurrent put won.
 
 ## Usage
@@ -107,8 +107,8 @@ payload ??= await linking.linkProfile(details, { username: verifiedEmail })
 
 - `getLinkedProfile` — credential → account → the own app's row in the main organization. A method
   that is linked but has no row of THIS app answers `null`, and the caller's `linkProfile` writes it.
-- `linkProfile(details, { username })` — `ensureAccount` with `username` as the e-mail (the login
-  must have verified it) and `details.username` as the display name, then `ensureProfile` for the own
+- `linkProfile(details, { username })` — `identityOf(ctx).ensureAccount` with `username` as the e-mail (the login
+  must have verified it) and `details.username` as the display name, then `identityOf(ctx).ensureProfile` for the own
   app in the main organization (`owner: true`, `scopes: ['*']`). A second method of a known person
   adds a credential; a person known from another app gets this app's row in their existing
   organization.
@@ -121,21 +121,22 @@ payload ??= await linking.linkProfile(details, { username: verifiedEmail })
 ### Write rows for a hosted app
 
 ```typescript
-import { ensureAccount, ensureProfile } from '@owlmeans/server-auth-identity'
+import { identityOf } from '@owlmeans/server-auth-identity'
 
-const { account } = await ensureAccount(ctx, { email }, { type: 'email-otp', service: 'email', clientId, userId: email })
-const row = await ensureProfile(ctx, { account, service: clientId, entityId: account.entityId, owner: true })
+const identity = identityOf(ctx)
+const { account } = await identity.ensureAccount({ email }, { type: 'email-otp', service: 'email', clientId, userId: email })
+const row = await identity.ensureProfile({ account, service: clientId, entityId: account.entityId, owner: true })
 ```
 
-`ensureAccount` writes no row — which app a person is a user of is the caller's to say. Hosted-app
-rows carry `scopes: []` (the default); never give them the own app's wildcard. `ensureProfile`
+`identityOf(ctx).ensureAccount` writes no row — which app a person is a user of is the caller's to say. Hosted-app
+rows carry `scopes: []` (the default); never give them the own app's wildcard. `identityOf(ctx).ensureProfile`
 returns an existing row unchanged: it never rewrites owner, groups or grants.
 
 ### Read rows in a gate or handler
 
 ```typescript
 const profile = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-  .load({ entityId: requireEntityKey(req), profileId: req.auth.profileId })
+  .load({ entityId: makeEntityScope(req).requireEntityKey(), profileId: req.auth.profileId })
 if (profile == null || profile.service !== MY_APP) throw new AuthForbidden('profile')
 ```
 
@@ -151,14 +152,14 @@ identityEvents(context)?.onProfileCreated(async (event, ctx) => {
 ```
 
 - **`onProfileCreated`** — `{ entityId, entitySlug, accountId, profileId, service, owner }`, fired
-  by `ensureProfile` when the PRIMARY row of an (account, app) is created, by the create that won
+  by `identityOf(ctx).ensureProfile` when the PRIMARY row of an (account, app) is created, by the create that won
   only. Once per (account, app); a further organization's row announces nothing. Key app-level
   provisioning here and filter on `service`.
 - **`onEntityCreated`** — `EntityCreatedEvent` (`entityId`, `entitySlug`, `iamKey`, `accountId`,
   `profileId`, `username`, login `type`, provider `service`, the owner row's app as
-  `profileService`, `createdAt`), fired by `linkProfile` when `ensureAccount` registered the person
-  (`registered`), after the owner row exists. A caller registering through `ensureAccount` +
-  `ensureProfile` itself announces with `propagateEntityCreated`.
+  `profileService`, `createdAt`), fired by `linkProfile` when `identityOf(ctx).ensureAccount` registered the person
+  (`registered`), after the owner row exists. A caller registering through `identityOf(ctx).ensureAccount` +
+  `.ensureProfile` itself announces with `propagateEntityCreated`.
 - Listeners run in registration order, each awaited; a throwing listener is logged and never fails
   the sign-in, and the next one still runs — so whatever a listener provisions needs a periodic
   backfill. `identityEvents(ctx)` is `null` where the service is not registered.
@@ -174,7 +175,7 @@ identityEvents(context)?.onProfileCreated(async (event, ctx) => {
 | One method attached twice at once | credentials (`type`, `userId`, `credential`) unique | Duplicate ignored |
 | One row created twice at once | profile (`profileId`, `entityId`) unique | Loser loads the winner's row; only the winner announces |
 
-A credential row pointing at a deleted account is removed by `ensureAccount`, so the method can be
+A credential row pointing at a deleted account is removed by `identityOf(ctx).ensureAccount`, so the method can be
 attached again.
 
 ## Resource indexes
@@ -206,13 +207,13 @@ across organizations, not inside one.
   a guarded `collection.updateOne`.
 - **`IdentityLinkingService` is compatible with `AccountLinkingService`** of
   `@owlmeans/server-oidc-rp` but declared independently (acyclic dependencies).
-- **The address is the identity.** Whoever calls `ensureAccount` / `linkProfile` with an address is
+- **The address is the identity.** Whoever calls `identityOf(ctx).ensureAccount` / `linkProfile` with an address is
   handed that person's account, so every caller must have verified it (a verified provider claim, a
   proven code, a full-trust key).
 - `mintSlug` throws `entity:slug-exhausted`; `rename` throws `entity:slug-malformed:<slug>`,
   `entity:slug-taken:<slug>` (a name any entity has ever answered to, or a unique-index race) and
   `entity:rename-contended:<id>`; `mintName` refuses an empty, dotted or `$` key
-  (`entity:name-key-malformed:<key>`); `putOrgGroup` throws `UnknownRecordError` for a missing
+  (`entity:name-key-malformed:<key>`); `orgGroupsOf(ctx).putOrgGroup` throws `UnknownRecordError` for a missing
   organization.
 - The resolver caches every name a hit was found under for 30 s (`OrgEntityRef` only); a rename is
   visible to other replicas within that window, survivable because the old slug keeps resolving.
@@ -221,7 +222,7 @@ across organizations, not inside one.
 
 - **`@owlmeans/server-auth`** — verifies the bearer token; re-reads the row through this package.
 - **`@owlmeans/auth-common`** — declares `EntityResolverService`, `ENTITY_RESOLVER`, `OrgEntityRef`
-  and the `entityKeyOf` / `requireEntityKey` / `attachEntity` helpers.
+  and `makeEntityScope(req)` with its `entityKeyOf` / `requireEntityKey` / `attachEntity`.
 - **`@owlmeans/server-oidc-rp`** — the relying party that calls the linking service on a callback.
 - **`@owlmeans/server-auth-otp`** — the e-mail-OTP plugin resolves its user through a linking service.
 - **`@owlmeans/iam-integrated`** — the IAM over the same store: hosted apps' rows, groups and grants.
@@ -230,6 +231,6 @@ across organizations, not inside one.
 
 - `@owlmeans/auth`, `@owlmeans/auth-common`, `@owlmeans/oidc`, `@owlmeans/context`,
   `@owlmeans/resource`, `@owlmeans/server-context`
-- `@owlmeans/basic-ids` — random keys and word slugs; `@scure/base` + `node:crypto` — `profileIdOf`
-- `@owlmeans/mongo-resource` — resources, declared references and indexes, `criteriaToFilter`
+- `@owlmeans/basic-ids` — random keys and word slugs; `@scure/base` + `node:crypto` — `identityKeyHelper.profileIdOf`
+- `@owlmeans/mongo-resource` — resources, declared references and indexes, `mongoCriteriaHelper.criteriaToFilter`
 - `mongodb` (peer)

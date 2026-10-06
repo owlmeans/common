@@ -1,5 +1,6 @@
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { InitializedService } from '@owlmeans/context'
+import { OtpChallengeOutcome } from './consts.js'
 
 export interface ThrottleRule {
   limit: number
@@ -20,13 +21,6 @@ export interface OtpChallenge {
   id: string
   emailKey: string
   codeHash: string
-}
-
-export enum OtpChallengeOutcome {
-  Verified = 'verified',
-  Invalid = 'invalid',
-  Exhausted = 'exhausted',
-  Missing = 'missing',
 }
 
 export interface OtpChallengeStore extends InitializedService {

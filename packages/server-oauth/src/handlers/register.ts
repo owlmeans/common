@@ -1,12 +1,7 @@
-import { OAuthError, OAuthInvalidClient } from '@owlmeans/oauth'
-import type { ClientRegistrationRequest, ClientRegistrationResponse } from '@owlmeans/oauth'
-import { registerDcrClient } from '../clients.js'
+import { OAuthError, OAuthInvalidClient, type ClientRegistrationRequest } from '@owlmeans/oauth'
+import { oauthClientsOf } from '../clients.js'
 import type { OAuthServerContext } from '../types.js'
-
-export interface RegisterOutcome {
-  status: number
-  body: ClientRegistrationResponse | { error: string, error_description?: string }
-}
+import type { RegisterOutcome } from './types.js'
 
 /**
  * `POST /oauth/register` — RFC 7591, public clients only. Offered as a fallback for a host that
@@ -21,7 +16,7 @@ export const handleRegister = async (context: OAuthServerContext, body: unknown)
   }
 
   try {
-    const record = await registerDcrClient(context, body as ClientRegistrationRequest)
+    const record = await oauthClientsOf(context).registerDcrClient(body as ClientRegistrationRequest)
 
     return {
       status: 201,

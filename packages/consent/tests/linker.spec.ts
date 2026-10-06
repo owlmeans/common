@@ -1,16 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test'
-import {
-  CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_KEY, CONSENT_LANGUAGE_KEY, CONSENT_MARKETING,
-  DEFAULT_CONSENT_CATEGORIES,
-} from '../src/consts.js'
-import { consentBootstrapScript } from '../src/gtm.js'
-import {
-  consentLinker, consentLinkerScript, decodeConsentLink, encodeConsentLink, stripConsentLinkParam, writeConsentLanguage,
-  CONSENT_LINK_MAX_AGE, CONSENT_LINK_PARAM,
-} from '../src/linker.js'
-import { adoptConsentLanguage, consentDomains, decorateConsentUrl, registerConsentPlugin } from '../src/plugins.js'
+import { CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_KEY, CONSENT_LANGUAGE_KEY, CONSENT_MARKETING, DEFAULT_CONSENT_CATEGORIES, CONSENT_LINK_MAX_AGE, CONSENT_LINK_PARAM } from '../src/consts.js'
+import { consentModeHelper } from '../src/gtm.js'
+import { consentLinkHelper } from '../src/linker.js'
+import { consentPluginHelper } from '../src/plugins.js'
 import { makeConsentStore } from '../src/store.js'
-import { readConsent, writeConsent } from '../src/storage.js'
+import { consentStorageHelper } from '../src/storage.js'
 import type { ConsentRecord } from '../src/types.js'
 
 /** A minimal browser: storage, a settable referrer, and a `location`/`history` pair that actually
@@ -78,8 +72,8 @@ beforeEach(() => {
 describe('encodeConsentLink / decodeConsentLink', () => {
   test('round-trips a record through the optional categories only', () => {
     const record: ConsentRecord = { [CONSENT_ESSENTIAL]: true, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false }
-    const encoded = encodeConsentLink(record)
-    const decoded = decodeConsentLink(encoded)
+    const encoded = consentLinkHelper.encodeConsentLink(record)
+    const decoded = consentLinkHelper.decodeConsentLink(encoded)
 
     expect(decoded?.v).toBe(2)
     expect(decoded?.c).toEqual({ [CONSENT_ANALYTICS]: 1, [CONSENT_MARKETING]: 0 })
@@ -87,26 +81,26 @@ describe('encodeConsentLink / decodeConsentLink', () => {
   })
 
   test('rejects garbage rather than throwing', () => {
-    expect(decodeConsentLink('not-base64url-json')).toBeNull()
-    expect(decodeConsentLink('')).toBeNull()
+    expect(consentLinkHelper.decodeConsentLink('not-base64url-json')).toBeNull()
+    expect(consentLinkHelper.decodeConsentLink('')).toBeNull()
   })
 
   test('rejects a payload of the wrong version', () => {
     const bad = Buffer.from(JSON.stringify({ v: 1, c: {}, t: nowSeconds() })).toString('base64url')
 
-    expect(decodeConsentLink(bad)).toBeNull()
+    expect(consentLinkHelper.decodeConsentLink(bad)).toBeNull()
   })
 })
 
 describe('consentLinker().decorate', () => {
-  const plugin = consentLinker()
+  const plugin = consentLinkHelper.consentLinker()
   const record: ConsentRecord = { [CONSENT_ESSENTIAL]: true, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false }
 
   test('decorates a listed, foreign host', () => {
     const decorated = plugin.decorate!(new URL('https://site.test/legal/cookies'), record, linkerOpts)
 
     expect(decorated).not.toBeNull()
-    const payload = decodeConsentLink(decorated!.searchParams.get(CONSENT_LINK_PARAM)!)
+    const payload = consentLinkHelper.decodeConsentLink(decorated!.searchParams.get(CONSENT_LINK_PARAM)!)
     expect(payload?.c[CONSENT_ANALYTICS]).toBe(1)
   })
 
@@ -132,8 +126,8 @@ describe('consentLinker().decorate', () => {
 })
 
 describe('consentLinker().adopt — every trust rule', () => {
-  const plugin = consentLinker()
-  const valid = () => encodeConsentLink({ [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
+  const plugin = consentLinkHelper.consentLinker()
+  const valid = () => consentLinkHelper.encodeConsentLink({ [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
 
   test('adopts a fresh, referred, fully-covered decision', () => {
     env.goto(`https://platform.test/dispatcher?owlcc=${valid()}`, 'https://site.test/')
@@ -199,21 +193,21 @@ describe('consentLinker().adopt — every trust rule', () => {
 describe('stripConsentLinkParam', () => {
   test('removes only the parameter, keeping the rest and the hash', () => {
     env.goto('https://platform.test/dispatcher?owlcc=abc&next=%2Fhome&ref=site#panel')
-    stripConsentLinkParam(linkerOpts)
+    consentLinkHelper.stripConsentLinkParam(linkerOpts)
 
     expect(env.href()).toBe('https://platform.test/dispatcher?next=%2Fhome&ref=site#panel')
   })
 
   test('is a no-op with no parameter present', () => {
     env.goto('https://platform.test/dispatcher?next=%2Fhome')
-    stripConsentLinkParam(linkerOpts)
+    consentLinkHelper.stripConsentLinkParam(linkerOpts)
 
     expect(env.href()).toBe('https://platform.test/dispatcher?next=%2Fhome')
   })
 
   test('is a no-op with no linker configured', () => {
     env.goto('https://platform.test/dispatcher?owlcc=abc')
-    stripConsentLinkParam({})
+    consentLinkHelper.stripConsentLinkParam({})
 
     expect(env.href()).toBe('https://platform.test/dispatcher?owlcc=abc')
   })
@@ -221,8 +215,8 @@ describe('stripConsentLinkParam', () => {
 
 describe('consentDomains / decorateConsentUrl (registry level)', () => {
   test('discloses the current host plus every plugin-named domain, deduplicated', () => {
-    registerConsentPlugin(consentLinker())
-    const domains = consentDomains(linkerOpts)
+    consentPluginHelper.registerConsentPlugin(consentLinkHelper.consentLinker())
+    const domains = consentPluginHelper.consentDomains(linkerOpts)
 
     expect(domains).toContain('platform.test')
     expect(domains).toContain('site.test')
@@ -230,18 +224,18 @@ describe('consentDomains / decorateConsentUrl (registry level)', () => {
   })
 
   test('decorateConsentUrl applies the registered plugin to a plain URL', () => {
-    registerConsentPlugin(consentLinker())
+    consentPluginHelper.registerConsentPlugin(consentLinkHelper.consentLinker())
     const record: ConsentRecord = { [CONSENT_ESSENTIAL]: true, [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: false }
-    const decorated = decorateConsentUrl('https://site.test/legal/cookies', record, linkerOpts)
+    const decorated = consentPluginHelper.decorateConsentUrl('https://site.test/legal/cookies', record, linkerOpts)
 
     expect(decorated.searchParams.has(CONSENT_LINK_PARAM)).toBe(true)
   })
 
   test('registering the same alias twice replaces rather than duplicates', () => {
-    registerConsentPlugin(consentLinker())
-    registerConsentPlugin(consentLinker())
+    consentPluginHelper.registerConsentPlugin(consentLinkHelper.consentLinker())
+    consentPluginHelper.registerConsentPlugin(consentLinkHelper.consentLinker())
     const record: ConsentRecord = { [CONSENT_ESSENTIAL]: true }
-    const decorated = decorateConsentUrl('https://site.test/', record, linkerOpts)
+    const decorated = consentPluginHelper.decorateConsentUrl('https://site.test/', record, linkerOpts)
 
     // A duplicate `decorate` implementation would still be idempotent (same value both times), so
     // what this actually guards is that the registry never grows unbounded per alias.
@@ -252,7 +246,7 @@ describe('consentDomains / decorateConsentUrl (registry level)', () => {
 describe('the store, with a linker configured', () => {
   test('adopts on init when nothing is stored yet, and applies it', () => {
     const record = { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false }
-    env.goto(`https://platform.test/dispatcher?owlcc=${encodeConsentLink(record)}`, 'https://site.test/')
+    env.goto(`https://platform.test/dispatcher?owlcc=${consentLinkHelper.encodeConsentLink(record)}`, 'https://site.test/')
 
     const store = makeConsentStore()
     store.init({ silent: true, linker: { domains: DOMAINS } })
@@ -261,7 +255,7 @@ describe('the store, with a linker configured', () => {
     expect(store.get().record?.[CONSENT_ANALYTICS]).toBe(true)
     expect(store.granted(CONSENT_ESSENTIAL)).toBe(true)
     // Written through, not just held in memory — a second page load must see it too.
-    expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
+    expect(consentStorageHelper.readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
   })
 
   test('strips the parameter from the URL either way', () => {
@@ -274,9 +268,9 @@ describe('the store, with a linker configured', () => {
   })
 
   test('never overwrites a decision this document already made', () => {
-    writeConsent({ [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: false })
+    consentStorageHelper.writeConsent({ [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: false })
     const incoming = { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: true }
-    env.goto(`https://platform.test/dispatcher?owlcc=${encodeConsentLink(incoming)}`, 'https://site.test/')
+    env.goto(`https://platform.test/dispatcher?owlcc=${consentLinkHelper.encodeConsentLink(incoming)}`, 'https://site.test/')
 
     const store = makeConsentStore()
     store.init({ silent: true, linker: { domains: DOMAINS } })
@@ -297,7 +291,7 @@ describe('the store, with a linker configured', () => {
 
 describe('consentBootstrapScript with a linker: order and shape', () => {
   test('the linker fragment sits after the default push and before the storage read', () => {
-    const script = consentBootstrapScript({ linker: { domains: DOMAINS } })
+    const script = consentModeHelper.consentBootstrapScript({ linker: { domains: DOMAINS } })
     const defaultAt = script.indexOf("'consent','default'")
     const linkerAt = script.indexOf('URLSearchParams')
     const storageAt = script.indexOf('w.localStorage.getItem')
@@ -308,11 +302,11 @@ describe('consentBootstrapScript with a linker: order and shape', () => {
   })
 
   test('emits nothing extra with no linker configured', () => {
-    expect(consentBootstrapScript()).not.toContain('URLSearchParams')
+    expect(consentModeHelper.consentBootstrapScript()).not.toContain('URLSearchParams')
   })
 
   test('escapes "<" inside embedded strings', () => {
-    const script = consentLinkerScript({ linker: { domains: ['<script>evil.test'] } })
+    const script = consentLinkHelper.consentLinkerScript({ linker: { domains: ['<script>evil.test'] } })
 
     expect(script).not.toContain('<script>evil.test')
     expect(script).toContain('\\u003cscript>evil.test')
@@ -322,31 +316,31 @@ describe('consentBootstrapScript with a linker: order and shape', () => {
 describe('consentLinkerScript, executed', () => {
   test('adopts a valid link and strips the parameter, via new Function', () => {
     const record = { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false }
-    env.goto(`https://platform.test/dispatcher?owlcc=${encodeConsentLink(record)}`, 'https://site.test/')
+    env.goto(`https://platform.test/dispatcher?owlcc=${consentLinkHelper.encodeConsentLink(record)}`, 'https://site.test/')
 
-    const script = consentLinkerScript({ linker: { domains: DOMAINS } })
+    const script = consentLinkHelper.consentLinkerScript({ linker: { domains: DOMAINS } })
     // eslint-disable-next-line no-new-func
     new Function(script)()
 
     expect(env.href()).toBe('https://platform.test/dispatcher')
-    expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
+    expect(consentStorageHelper.readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
   })
 
   test('never overwrites an existing record, and still strips', () => {
-    writeConsent({ [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: false })
+    consentStorageHelper.writeConsent({ [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: false })
     const incoming = { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: true }
-    env.goto(`https://platform.test/dispatcher?owlcc=${encodeConsentLink(incoming)}`, 'https://site.test/')
+    env.goto(`https://platform.test/dispatcher?owlcc=${consentLinkHelper.encodeConsentLink(incoming)}`, 'https://site.test/')
 
-    const script = consentLinkerScript({ linker: { domains: DOMAINS } })
+    const script = consentLinkHelper.consentLinkerScript({ linker: { domains: DOMAINS } })
     // eslint-disable-next-line no-new-func
     new Function(script)()
 
     expect(env.href()).toBe('https://platform.test/dispatcher')
-    expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(false)
+    expect(consentStorageHelper.readConsent()?.[CONSENT_ANALYTICS]).toBe(false)
   })
 
   test('is an empty string with no linker configured', () => {
-    expect(consentLinkerScript({})).toBe('')
+    expect(consentLinkHelper.consentLinkerScript({})).toBe('')
   })
 })
 
@@ -370,7 +364,7 @@ describe('language: the link parameter', () => {
 
   test('carries the page language as `l`, lower-cased, when the sender turned it on', () => {
     env.lang('PL')
-    const decoded = decodeConsentLink(encodeConsentLink({ [CONSENT_ANALYTICS]: true }, withLanguage))
+    const decoded = consentLinkHelper.decodeConsentLink(consentLinkHelper.encodeConsentLink({ [CONSENT_ANALYTICS]: true }, withLanguage))
 
     expect(decoded?.l).toBe('pl')
     expect(decoded?.c).toEqual({ [CONSENT_ANALYTICS]: 1, [CONSENT_MARKETING]: 0 })
@@ -379,20 +373,20 @@ describe('language: the link parameter', () => {
   test('carries no `l` when the sender did not turn it on, whatever the page says', () => {
     env.lang('pl')
 
-    expect(decodeConsentLink(encodeConsentLink({ [CONSENT_ANALYTICS]: true }, linkerOpts))?.l).toBeUndefined()
+    expect(consentLinkHelper.decodeConsentLink(consentLinkHelper.encodeConsentLink({ [CONSENT_ANALYTICS]: true }, linkerOpts))?.l).toBeUndefined()
   })
 
   test('carries no `l` for a page with no usable language', () => {
     for (const lang of ['', 'not a language!', '12']) {
       env.lang(lang)
 
-      expect(decodeConsentLink(encodeConsentLink(null, withLanguage))?.l).toBeUndefined()
+      expect(consentLinkHelper.decodeConsentLink(consentLinkHelper.encodeConsentLink(null, withLanguage))?.l).toBeUndefined()
     }
   })
 
   test('encodes no decision at all as an empty `c`', () => {
     env.lang('de')
-    const decoded = decodeConsentLink(encodeConsentLink(null, withLanguage))
+    const decoded = consentLinkHelper.decodeConsentLink(consentLinkHelper.encodeConsentLink(null, withLanguage))
 
     expect(decoded?.c).toEqual({})
     expect(decoded?.l).toBe('de')
@@ -402,7 +396,7 @@ describe('language: the link parameter', () => {
     const raw = Buffer.from(JSON.stringify({
       v: 2, c: { [CONSENT_ANALYTICS]: 1 }, t: nowSeconds(), l: '../../etc',
     })).toString('base64url')
-    const decoded = decodeConsentLink(raw)
+    const decoded = consentLinkHelper.decodeConsentLink(raw)
 
     expect(decoded).not.toBeNull()
     expect(decoded?.l).toBeUndefined()
@@ -411,7 +405,7 @@ describe('language: the link parameter', () => {
 })
 
 describe('language: consentLinker().decorate', () => {
-  const plugin = consentLinker()
+  const plugin = consentLinkHelper.consentLinker()
   const withLanguage = { linker: { domains: DOMAINS, language: {} } }
   const record: ConsentRecord = { [CONSENT_ESSENTIAL]: true, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false }
 
@@ -420,14 +414,14 @@ describe('language: consentLinker().decorate', () => {
     const decorated = plugin.decorate!(new URL('https://site.test/start'), null, withLanguage)
 
     expect(decorated).not.toBeNull()
-    const payload = decodeConsentLink(decorated!.searchParams.get(CONSENT_LINK_PARAM)!)
+    const payload = consentLinkHelper.decodeConsentLink(decorated!.searchParams.get(CONSENT_LINK_PARAM)!)
     expect(payload?.l).toBe('uk')
     expect(payload?.c).toEqual({})
   })
 
   test('carries the decision and the language together', () => {
     env.lang('pl')
-    const payload = decodeConsentLink(
+    const payload = consentLinkHelper.decodeConsentLink(
       plugin.decorate!(new URL('https://site.test/start'), record, withLanguage)!.searchParams.get(CONSENT_LINK_PARAM)!
     )
 
@@ -455,12 +449,12 @@ describe('language: consentLinker().decorate', () => {
 })
 
 describe('language: consentLinker().adoptLanguage', () => {
-  const plugin = consentLinker()
+  const plugin = consentLinkHelper.consentLinker()
   const receiving = { linker: { domains: DOMAINS, language: { supported: ['en', 'pl', 'de', 'fr'] } } }
   const carried = (lang: string, record: ConsentRecord | null = null): string => {
     env.lang(lang)
 
-    return encodeConsentLink(record, { linker: { domains: DOMAINS, language: {} } })
+    return consentLinkHelper.encodeConsentLink(record, { linker: { domains: DOMAINS, language: {} } })
   }
   const arrive = (owlcc: string, referrer = 'https://site.test/') => {
     env.goto(`https://platform.test/dispatcher?owlcc=${owlcc}`, referrer)
@@ -526,11 +520,11 @@ describe('language: consentLinker().adoptLanguage', () => {
   })
 
   test('registry: adoptConsentLanguage asks the registered plugin', () => {
-    registerConsentPlugin(consentLinker())
+    consentPluginHelper.registerConsentPlugin(consentLinkHelper.consentLinker())
     arrive(carried('pl'))
 
-    expect(adoptConsentLanguage(receiving)).toBe('pl')
-    expect(adoptConsentLanguage(linkerOpts)).toBeNull()
+    expect(consentPluginHelper.adoptConsentLanguage(receiving)).toBe('pl')
+    expect(consentPluginHelper.adoptConsentLanguage(linkerOpts)).toBeNull()
   })
 })
 
@@ -538,7 +532,7 @@ describe('language: strictly necessary, stored whatever the cookie decision is',
   const receiving = { silent: true, linker: { domains: DOMAINS, language: { supported: ['en', 'pl', 'de'] } } }
   const arrive = (lang: string, record: ConsentRecord | null = null, referrer = 'https://site.test/') => {
     env.lang(lang)
-    const owlcc = encodeConsentLink(record, { linker: { domains: DOMAINS, language: {} } })
+    const owlcc = consentLinkHelper.encodeConsentLink(record, { linker: { domains: DOMAINS, language: {} } })
     env.goto(`https://platform.test/dispatcher?owlcc=${owlcc}`, referrer)
     env.lang('en')
   }
@@ -551,9 +545,9 @@ describe('language: strictly necessary, stored whatever the cookie decision is',
     for (const record of [null, refused, accepted, withRetiredKey]) {
       env.reset()
       if (record != null) {
-        writeConsent(record)
+        consentStorageHelper.writeConsent(record)
       }
-      expect(writeConsentLanguage('pl', receiving)).toBe(true)
+      expect(consentLinkHelper.writeConsentLanguage('pl', receiving)).toBe(true)
       expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
     }
   })
@@ -563,7 +557,7 @@ describe('language: strictly necessary, stored whatever the cookie decision is',
     const setItem = storage.setItem
     storage.setItem = () => { throw new Error('blocked') }
     try {
-      expect(writeConsentLanguage('pl', receiving)).toBe(false)
+      expect(consentLinkHelper.writeConsentLanguage('pl', receiving)).toBe(false)
     } finally {
       // The mock storage is shared by every test in the file.
       storage.setItem = setItem
@@ -607,7 +601,7 @@ describe('language: strictly necessary, stored whatever the cookie decision is',
     test('a stored decision of any kind lets the link\'s language through, and still wins over its decision', () => {
       for (const stored of [refused, accepted, withRetiredKey]) {
         env.reset()
-        writeConsent(stored)
+        consentStorageHelper.writeConsent(stored)
         arrive('pl', { [CONSENT_ANALYTICS]: !stored[CONSENT_ANALYTICS], [CONSENT_MARKETING]: true })
 
         const store = makeConsentStore()
@@ -669,9 +663,9 @@ describe('language: strictly necessary, stored whatever the cookie decision is',
   })
 
   describe('the inline fragment', () => {
-    const run = (opts: Parameters<typeof consentLinkerScript>[0] = receiving) => {
+    const run = (opts: Parameters<typeof consentLinkHelper.consentLinkerScript>[0] = receiving) => {
       // eslint-disable-next-line no-new-func
-      new Function(consentLinkerScript(opts))()
+      new Function(consentLinkHelper.consentLinkerScript(opts))()
     }
     const all = { linker: { domains: DOMAINS, language: { supported: ['en', 'pl', 'de', 'fr'] } } }
 
@@ -680,7 +674,7 @@ describe('language: strictly necessary, stored whatever the cookie decision is',
       run()
 
       expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
-      expect(readConsent()).toBeNull()
+      expect(consentStorageHelper.readConsent()).toBeNull()
       expect(env.href()).toBe('https://platform.test/dispatcher')
     })
 
@@ -689,26 +683,26 @@ describe('language: strictly necessary, stored whatever the cookie decision is',
       run(all)
 
       expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('fr')
-      expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
+      expect(consentStorageHelper.readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
     })
 
     test('a link that carries "reject all" adopts the decision and stores the language', () => {
       arrive('fr', refused)
       run(all)
 
-      expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(false)
+      expect(consentStorageHelper.readConsent()?.[CONSENT_ANALYTICS]).toBe(false)
       expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('fr')
     })
 
     test('a stored record of any kind lets the language through, and the link\'s decision never overwrites it', () => {
       for (const stored of [refused, accepted, withRetiredKey]) {
         env.reset()
-        writeConsent(stored)
+        consentStorageHelper.writeConsent(stored)
         arrive('de', { [CONSENT_ANALYTICS]: !stored[CONSENT_ANALYTICS], [CONSENT_MARKETING]: true })
         run()
 
         expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('de')
-        expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(stored[CONSENT_ANALYTICS])
+        expect(consentStorageHelper.readConsent()?.[CONSENT_ANALYTICS]).toBe(stored[CONSENT_ANALYTICS])
       }
     })
 
@@ -755,14 +749,14 @@ describe('language: strictly necessary, stored whatever the cookie decision is',
     })
 
     test('a page that only sends carries no language code at all', () => {
-      const script = consentLinkerScript({ linker: { domains: DOMAINS, language: {} } })
+      const script = consentLinkHelper.consentLinkerScript({ linker: { domains: DOMAINS, language: {} } })
 
       expect(script).not.toContain(CONSENT_LANGUAGE_KEY)
-      expect(consentLinkerScript(linkerOpts)).toBe(script)
+      expect(consentLinkHelper.consentLinkerScript(linkerOpts)).toBe(script)
     })
 
     test('the bootstrap embeds it, after the defaults and before its own storage read', () => {
-      const script = consentBootstrapScript(receiving)
+      const script = consentModeHelper.consentBootstrapScript(receiving)
 
       expect(script.indexOf(CONSENT_LANGUAGE_KEY)).toBeGreaterThan(script.indexOf("'consent','default'"))
       // The fragment reads storage itself (to know whether a decision exists) before it writes the
@@ -771,7 +765,7 @@ describe('language: strictly necessary, stored whatever the cookie decision is',
     })
 
     test('escapes "<" in a configured language too', () => {
-      const script = consentLinkerScript({ linker: { domains: DOMAINS, language: { supported: ['<b>'], storageKey: '<k>' } } })
+      const script = consentLinkHelper.consentLinkerScript({ linker: { domains: DOMAINS, language: { supported: ['<b>'], storageKey: '<k>' } } })
 
       expect(script).not.toContain('<b>')
       expect(script).not.toContain('<k>')

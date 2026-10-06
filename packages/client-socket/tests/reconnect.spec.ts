@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import type { Server } from 'bun'
-import { connect } from '../src/helper.js'
+import { socketClientHelper } from '../src/helper.js'
 import { makeConnection } from '../src/utils/connection.js'
 import { appendSocketStatus } from '../src/status.js'
 import { SocketSystemEvent } from '@owlmeans/socket'
-import type { EventMessage } from '@owlmeans/socket'
+import type { Connection, EventMessage } from '@owlmeans/socket'
 import { makeTestContext } from './context.js'
 
 /**
@@ -64,7 +64,7 @@ const waitFor = async (check: () => boolean, timeout: number, step = 20): Promis
   }
 }
 
-const systemEvents = (connection: Awaited<ReturnType<typeof connect>>): string[] => {
+const systemEvents = (connection: Connection): string[] => {
   const seen: string[] = []
   connection.listen(async message => {
     if (typeof message === 'object' && (message as EventMessage<unknown>).type === 'system') {
@@ -80,7 +80,7 @@ describe('@owlmeans/client-socket — reconnect', () => {
     const port = initial.port
 
     const ctx = makeTestContext({ reconnect: { minDelay: 50, maxDelay: 150, stableAfter: 200, budget: 30_000 } })
-    const connection = await connect(() => `ws://localhost:${port}`, ctx)
+    const connection = await socketClientHelper.connect(() => `ws://localhost:${port}`, ctx)
     const events = systemEvents(connection)
 
     // Register an observer BEFORE the drop — it must still be the one that fires after the
@@ -143,7 +143,7 @@ describe('@owlmeans/client-socket — reconnect', () => {
     const port = initial.port
 
     const ctx = makeTestContext({ reconnect: { minDelay: 50, maxDelay: 150 } })
-    const connection = await connect(() => `ws://localhost:${port}`, ctx)
+    const connection = await socketClientHelper.connect(() => `ws://localhost:${port}`, ctx)
     const events = systemEvents(connection)
 
     await connection.close()
@@ -160,7 +160,7 @@ describe('@owlmeans/client-socket — reconnect', () => {
     const ctx = makeTestContext({
       reconnect: { heartbeat: 60, pongTimeout: 30, minDelay: 20, maxDelay: 40, budget: 10_000 }
     })
-    const connection = await connect(() => `ws://localhost:${silent.port}`, ctx)
+    const connection = await socketClientHelper.connect(() => `ws://localhost:${silent.port}`, ctx)
     const events = systemEvents(connection)
 
     await waitFor(() => events.includes(SocketSystemEvent.Disconnected), 3_000)
@@ -176,7 +176,7 @@ describe('@owlmeans/client-socket — reconnect', () => {
     const ctx = makeTestContext({
       reconnect: { heartbeat: 100, pongTimeout: 50, minDelay: 20, maxDelay: 40, budget: 10_000 }
     })
-    const connection = await connect(() => `ws://localhost:${port}`, ctx)
+    const connection = await socketClientHelper.connect(() => `ws://localhost:${port}`, ctx)
     const events = systemEvents(connection)
     let observed = 0
     connection.observe('probe', async () => { observed += 1 })
@@ -213,7 +213,7 @@ describe('@owlmeans/client-socket — reconnect', () => {
     ctx.configure()
     await ctx.init()
 
-    await expect(connect(() => 'ws://127.0.0.1:1', ctx)).rejects.toBeTruthy()
+    await expect(socketClientHelper.connect(() => 'ws://127.0.0.1:1', ctx)).rejects.toBeTruthy()
 
     expect(ctx.socketStatus().state()).toBe('lost')
   }, 5_000)
@@ -229,7 +229,7 @@ describe('@owlmeans/client-socket — reconnect', () => {
     ctx.configure()
     await ctx.init()
 
-    const connection = await connect(() => `ws://localhost:${port}`, ctx)
+    const connection = await socketClientHelper.connect(() => `ws://localhost:${port}`, ctx)
     const events = systemEvents(connection)
     let observed = 0
     connection.observe('probe', async () => { observed += 1 })
@@ -271,7 +271,7 @@ describe('@owlmeans/client-socket — reconnect', () => {
     ctx.configure()
     await ctx.init()
 
-    const connection = await connect(() => `ws://localhost:${port}`, ctx)
+    const connection = await socketClientHelper.connect(() => `ws://localhost:${port}`, ctx)
     const events = systemEvents(connection)
 
     stopServer()
@@ -358,7 +358,7 @@ describe('@owlmeans/client-socket — reconnect', () => {
     ctx.configure()
     await ctx.init()
 
-    await expect(connect(() => 'ws://127.0.0.1:1', ctx)).rejects.toBeTruthy()
+    await expect(socketClientHelper.connect(() => 'ws://127.0.0.1:1', ctx)).rejects.toBeTruthy()
     expect(ctx.socketStatus().state()).toBe('lost')
 
     let retried = 0

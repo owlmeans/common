@@ -62,3 +62,63 @@ export const LOGIN_METHOD_QUERY = 'method'
 
 /** Where a browser records that it agreed to one exact set of legal documents. */
 export const LOGIN_TERMS_STORAGE = '_owlmeans-login-terms'
+
+/**
+ * Bound on a single step's `pending` check, or a landing hook's `landed` call.
+ *
+ * A step/hook that hangs must never HANG sign-in itself — both `continueLogin` and
+ * `landAfterLogin` treat a timeout exactly like a rejection, resolving within this budget either
+ * way. What that resolves TO is fail-open ("not pending") for an ordinary step, and fail-closed
+ * ("pending") for one that declared itself `required` — see `continueLogin`'s `onBroken`.
+ */
+export const LOGIN_STEP_TIMEOUT = 5_000
+
+/** Where a browser records the last token a landing hook has already run for. */
+export const LOGIN_LANDED_STORAGE = '_owlmeans-login-landed'
+
+/** What a dispatcher does once `login().resume(...)` has answered. */
+export enum ResumeAction {
+  /** The plugin took it over — the browser is leaving, or the window is closing. */
+  Stop = 'stop',
+  /** Render the outcome to the user; there is nothing further to do automatically. */
+  Render = 'render',
+  /** Ordinary tab: keep the session and carry on to the application. */
+  Navigate = 'navigate',
+}
+
+/** What a stage did, and therefore what the caller must do next. */
+export enum LoginOutcome {
+  /** The plugin took the flow over and it is finished. The caller does nothing more. */
+  Handled = 'handled',
+  /** The plugin did nothing — the caller carries on with its ordinary continuation. */
+  Passed = 'passed',
+  /** The browser is leaving this document. The caller must not navigate or render. */
+  Redirected = 'redirected',
+  /** Cannot proceed without a fresh user gesture — the caller renders a sign-in control. */
+  Gesture = 'gesture',
+  /** Authenticated, but with no channel back to the window that started it. */
+  Orphaned = 'orphaned',
+  /** The attempt ended with no token (the user closed the window, or the provider refused it). */
+  Failed = 'failed',
+  /**
+   * A window this flow needed could not be opened at all — `window.open` returned `null`, which is
+   * the browser's own popup blocker, not a flow failure. Distinct from {@link Failed}: a caller
+   * with nowhere inline to render (a header "Log in"/"Log out" control, not the sign-in screen)
+   * needs to know specifically that a fresh click reopening the SAME control will not help, and
+   * that the browser is already showing its own blocked-popup affordance somewhere.
+   */
+  Blocked = 'blocked',
+}
+
+/** Why a surrogate window was opened. */
+export enum LoginIntent {
+  Login = 'login',
+  Logout = 'logout',
+}
+
+/**
+ * How long a sign-in aimed at a screen (`LoginRequest.target`) keeps that screen parked: long
+ * enough for a sign-in with an emailed code, short enough that a tab abandoned mid-way never lands
+ * a later, unrelated sign-in on it.
+ */
+export const LOGIN_TARGET_TTL = 30 * 60 * 1000

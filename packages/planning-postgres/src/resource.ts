@@ -1,6 +1,5 @@
 import type { Relationship, Transition } from '@owlmeans/planning'
-import { getDeclaration, makePostgresResource, PgIndexMethod, pgIdentifier } from '@owlmeans/postgres-resource'
-import type { PgIndexSpec, PostgresResource } from '@owlmeans/postgres-resource'
+import { makePostgresResource, PgIndexMethod, type PostgresResource, pgDeclarationHelper, pgNameHelper } from '@owlmeans/postgres-resource'
 import type { ResourceMaker, ResourceRecord } from '@owlmeans/resource'
 import { RES_PLANNING_CARD, RES_PLANNING_LINK, RES_PLANNING_SCHEMA, RES_PLANNING_TRANSITION } from './consts.js'
 import {
@@ -10,8 +9,7 @@ import type {
   PlanningCardRecord, PlanningCardResource, PlanningLinkResource, PlanningPostgresAliases, PlanningSchemaResource,
   PlanningSchemaRow, PlanningTransitionResource,
 } from './types.js'
-
-type IndexList = Array<[suffix: string, spec: PgIndexSpec]>
+import type { IndexList } from './types.local.js'
 
 /**
  * Declare the indexes a maker owns — each only once. The declaration is keyed by alias at module
@@ -19,8 +17,8 @@ type IndexList = Array<[suffix: string, spec: PgIndexSpec]>
  * index would make the compiler warn about a duplicate on every boot.
  */
 const declareIndexes = <T extends ResourceRecord>(resource: PostgresResource<T>, alias: string, indexes: IndexList): void => {
-  const table = pgIdentifier(alias)
-  const declared = getDeclaration(alias).indexes
+  const table = pgNameHelper.pgIdentifier(alias)
+  const declared = pgDeclarationHelper.getDeclaration(alias).indexes
   for (const [suffix, spec] of indexes) {
     const name = `${table}_${suffix}`
     if (!declared.some(index => index.name === name)) {
@@ -30,7 +28,7 @@ const declareIndexes = <T extends ResourceRecord>(resource: PostgresResource<T>,
 }
 
 /** The index names a table carries, by suffix — what the store matches a unique violation on. */
-export const planningIndexName = (alias: string, suffix: string): string => `${pgIdentifier(alias)}_${suffix}`
+export const planningIndexName = (alias: string, suffix: string): string => `${pgNameHelper.pgIdentifier(alias)}_${suffix}`
 
 /**
  * `planning-card` — projects, cards and specifications in ONE table, routed by `kind` at the query

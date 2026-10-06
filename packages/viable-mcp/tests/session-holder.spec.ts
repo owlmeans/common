@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { makeSessionHolder } from '../src/session-holder.js'
-import type { HeldSession } from '../src/session-holder.js'
+import type { HeldSession } from '../src/types.js'
 
 interface Fake extends HeldSession {
   projectId: string | null

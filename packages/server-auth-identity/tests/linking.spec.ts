@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { AuthenticationType, AuthRole } from '@owlmeans/auth'
-import { ensureAccount, ensureProfile, profileIdOf } from '../src/identity.js'
+import { identityOf } from '../src/identity.js'
+import { identityKeyHelper } from '../src/keys.js'
 import { DEFAULT_APP_SERVICE } from '../src/consts.js'
 import { details, makeIdentityContext } from './context.js'
 
@@ -21,7 +22,7 @@ describe('linkProfile', () => {
     expect(stores.accounts.rows).toHaveLength(1)
     expect(stores.profiles.rows).toHaveLength(1)
     expect(stores.profiles.rows[0]).toMatchObject({
-      profileId: profileIdOf('viable', account!.id), userId: account!.id, service: 'viable', entityId: entity!.id,
+      profileId: identityKeyHelper.profileIdOf('viable', account!.id), userId: account!.id, service: 'viable', entityId: entity!.id,
       owner: true, role: AuthRole.User, scopes: ['*'], permissions: [],
     })
     expect(stores.profiles.rows[0]!.credential).toBeUndefined()
@@ -29,7 +30,7 @@ describe('linkProfile', () => {
       type: 'google-oauth', userId: 'google-oauth:google:google-sub', credential: 'service:google-oauth:google', accountId: account!.id,
     })])
     expect(payload).toEqual({
-      type: 'google-oauth', role: AuthRole.User, userId: account!.id, profileId: profileIdOf('viable', account!.id),
+      type: 'google-oauth', role: AuthRole.User, userId: account!.id, profileId: identityKeyHelper.profileIdOf('viable', account!.id),
       entitySlug: entity!.slug, scopes: ['*'],
     })
   })
@@ -64,15 +65,15 @@ describe('linkProfile', () => {
   test("another app's row of the same person is never the answer — the own app's row is ensured", async () => {
     const { ctx, linking, stores } = await makeIdentityContext({ service: 'viable' })
     // The person first registered at a target app, with an e-mail code.
-    const { account } = await ensureAccount(ctx, { email: 'person@example.org' }, details('email-otp', 'person@example.org', 'email'))
-    const target = await ensureProfile(ctx, { account, service: 'shop-taskly', entityId: account.entityId, owner: true })
+    const { account } = await identityOf(ctx).ensureAccount({ email: 'person@example.org' }, details('email-otp', 'person@example.org', 'email'))
+    const target = await identityOf(ctx).ensureProfile({ account, service: 'shop-taskly', entityId: account.entityId, owner: true })
 
     // The target's method is linked to the account, but this app has no row yet: not linked here.
     expect(await linking.getLinkedProfile(details('email-otp', 'person@example.org', 'email'))).toBeNull()
 
     const payload = await linking.linkProfile(details('google-oauth', 'sub'), { username: 'person@example.org' })
 
-    expect(payload.profileId).toBe(profileIdOf('viable', account.id))
+    expect(payload.profileId).toBe(identityKeyHelper.profileIdOf('viable', account.id))
     expect(payload.profileId).not.toBe(target.profileId)
     expect(stores.accounts.rows).toHaveLength(1)
     expect(stores.entities.rows).toHaveLength(1)
@@ -137,13 +138,13 @@ describe('owner reads', () => {
     const owner = await linking.linkProfile(details('google-oauth', 'owner'), { username: 'owner@example.org' })
     const entityId = stores.entities.rows[0]!.id
     // A member of the same organization, and the owner's row of another app there.
-    const { account: member } = await ensureAccount(ctx, { email: 'member@example.org' })
-    await ensureProfile(ctx, { account: member, service: 'viable', entityId, scopes: ['*'] })
-    await ensureProfile(ctx, { account: stores.accounts.rows[0] as never, service: 'shop-taskly', entityId })
+    const { account: member } = await identityOf(ctx).ensureAccount({ email: 'member@example.org' })
+    await identityOf(ctx).ensureProfile({ account: member, service: 'viable', entityId, scopes: ['*'] })
+    await identityOf(ctx).ensureProfile({ account: stores.accounts.rows[0] as never, service: 'shop-taskly', entityId })
 
     const profiles = await linking.getOwnerProfiles(entityId)
 
-    expect(profiles.map(profile => profile.id).sort()).toEqual([owner.profileId!, profileIdOf('viable', member.id)].sort())
+    expect(profiles.map(profile => profile.id).sort()).toEqual([owner.profileId!, identityKeyHelper.profileIdOf('viable', member.id)].sort())
     expect(profiles.every(profile => profile.entitySlug === owner.entitySlug)).toBe(true)
   })
 

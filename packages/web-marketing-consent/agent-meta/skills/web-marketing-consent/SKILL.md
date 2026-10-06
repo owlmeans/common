@@ -8,14 +8,14 @@ user-invocable: false
 # @owlmeans/web-marketing-consent
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-marketing-consent": "^0.1.18-rc.12"` in `dependencies`
-**Contracts:** `@owlmeans/marketing-consent` — the catalogue, `consentStatus`, the protocol tree
+**Install:** `"@owlmeans/web-marketing-consent": "^0.1.18-rc.15"` in `dependencies`
+**Contracts:** `@owlmeans/marketing-consent` — the catalogue, `marketingConsentHelper.consentStatus`, the protocol tree
 **Server half:** `@owlmeans/server-marketing-consent` — `serveMarketingConsentEntrypoints` binds the
 same `status`/`save`/`terms` protocols this package calls
 **Login seam:** `@owlmeans/client-auth`'s `LoginStep`/`LoginLandingHook` registries (`./login`)
 **Cookies:** none — this package never reads or writes `@owlmeans/consent`'s cookie record (see "Cookies are a separate surface")
 
-Read `@owlmeans/marketing-consent`'s own skill first (the catalogue, `consentStatus`'s decision
+Read `@owlmeans/marketing-consent`'s own skill first (the catalogue, `marketingConsentHelper.consentStatus`'s decision
 table, the protocol tree) and `@owlmeans/server-marketing-consent`'s (the service, `subjectOf`, the
 append-only log) — this package builds on both and repeats nothing they already document.
 
@@ -29,7 +29,7 @@ append-only log) — this package builds on both and repeats nothing they alread
 | `makeMarketingConsentClient(protocols, opts?)` · `appendMarketingConsentClient(ctx, protocols, opts?)` | Build/register the `MarketingConsentClientService` |
 | `MarketingConsentClientService` | `status(opts?)`, `save(request)`, `recordTerms(acceptance)`, `last()`, `preferences()` — see "Fail open, always" |
 | `marketingConsentStep(client, entrypointAlias, opts?)` | The `LoginStep` — `opts.confirmsTerms` moves the Terms row here (see "Terms mode" below); pending while `status().pending` is true and this sign-in has not skipped it |
-| `isMarketingConsentSkipped(ctx)` · `markMarketingConsentSkipped(ctx)` | The skip marker's read/write half — keyed per sign-in (`Auth.sessionId`, else the raw token), never a credential |
+| `marketingConsentSkipOf(ctx)` — `.isSkipped()` · `.markSkipped()` | The skip marker's read/write half — keyed per sign-in (`Auth.sessionId`, else the raw token), never a credential |
 | `termsRecorder(client, locale?)` | The terms-acceptance `LoginLandingHook` |
 | `appendMarketingConsent(ctx, opts)` | The ONE call an app makes — wires the client, the step and the terms hook: `{ protocols, config?, step?, terms?: boolean \| 'step', preferences?, locale? }` — see "Terms mode" |
 | `marketingConsentEntrypoints(protocols)` | `[bindScreen(protocols.screen, handler(MarketingConsentScreen))]` |
@@ -64,7 +64,7 @@ appendMarketingConsent(context, { protocols: marketingConsentProtocols })
 2. `opts.step !== false` — `login.registerStep(marketingConsentStep(client, opts.protocols.screen.alias,
    { confirmsTerms: opts.terms === 'step' && opts.step !== false }))`.
 3. `opts.terms !== false` — **always** registers `termsRecorder(client, opts.locale)`, even in
-   `'step'` mode: the hook itself reads `termsDeferred(ctx)` (`@owlmeans/client-auth/login`) and
+   `'step'` mode: the hook itself reads `loginTermsHelper.termsDeferred(ctx)` (`@owlmeans/client-auth/login`) and
    no-ops once that is true, rather than `append.ts` deciding it eagerly — see "Terms mode" below
    for why. `opts.terms: 'step'` together with `opts.step: false` behaves like `true` (no step
    left to confirm on).
@@ -77,7 +77,7 @@ only the step.
 ## Terms mode — moving the confirmation off the sign-in screen
 
 `appendMarketingConsent(ctx, { ..., terms: 'step' })` moves the Terms confirmation from the sign-in
-screen onto THIS step instead — `@owlmeans/client-auth/login`'s `termsDeferred(ctx)` is what the
+screen onto THIS step instead — `@owlmeans/client-auth/login`'s `loginTermsHelper.termsDeferred(ctx)` is what the
 sign-in screen (`FallbackLoginScreen`, `web-panel`'s `LoginScreen`) checks to remove its own
 checkbox; see that package's `login-methods` skill for the sign-in side. The privacy notice is
 UNAFFECTED either way — it renders on the sign-in screen (as `[data-login-privacy]`/
@@ -92,7 +92,7 @@ unconfirmed.
   a `pending` that throws or times out is read as PENDING (see `login-plugins`'s `required`
   exception), not "not pending".
 - `pending` itself: pending `status == null` (the read failed) `|| status.terms?.version !==
-  resolveTerms(ctx.cfg...terms).version`. Reads the terms configuration FRESH from `ctx.cfg` on
+  loginTermsHelper.resolveTerms(ctx.cfg...terms).version`. Reads the terms configuration FRESH from `ctx.cfg` on
   every call, never a value captured once at `appendMarketingConsent` time — `apiConfigMiddleware`
   can still be merging it in when this step registers.
 - **Skip is never offered while the Terms row is on screen.** `useMarketingConsent`'s `terms.needed`
@@ -100,12 +100,12 @@ unconfirmed.
 - A failed `client.recordTerms(...)` shows its OWN error (`termsError`/`[data-marketing-consent-
   terms-error]`) and the person stays — there is no fallback here, unlike an item `save()` failure.
 
-`termsAcceptanceOf(resolved, locale?)` (`@owlmeans/client-auth/login`) builds the body — the SAME
+`loginTermsHelper.termsAcceptanceOf(resolved, locale?)` (`@owlmeans/client-auth/login`) builds the body — the SAME
 helper `termsRecorder` uses for the sign-in-screen path, so the wire shape never forks between the
 two places a person might confirm.
 
 `opts.config` (`MarketingConsentConfig`) is accepted for symmetry with the server's
-`appendMarketingConsentService({ config })` call but is NOT read here — `resolveMarketingConsents`
+`appendMarketingConsentService({ config })` call but is NOT read here — `marketingConsentHelper.resolveMarketingConsents`
 only ever runs where the catalogue is enumerated (the server); this package's UI reads the
 ALREADY-RESOLVED `MarketingConsentStatusItem.definition` back off the status response and never
 re-resolves the catalogue client-side.
@@ -114,7 +114,7 @@ re-resolves the catalogue client-side.
 
 `MARKETING_CONSENT_I18N` here is a re-export of `@owlmeans/marketing-consent`'s OWN constant
 (`'marketing-consent'`) — this package does NOT register a second resource for its `screen.*`/
-`preferences.*` strings. `@owlmeans/i18n`'s `addI18nLib` pushes a new resource ENTRY rather than
+`preferences.*` strings. `@owlmeans/i18n`'s `i18nHelper.addI18nLib` pushes a new resource ENTRY rather than
 replacing one, and `client-i18n`'s `useI18nResource` merges every entry for a given
 `(lng, resource, ns)` with `i18n.addResourceBundle(lng, ns, data, true, true)` (deep merge) before
 it is ever read. The domain package's bundle (`group.*`, `consent.*`, `link.*`, `errors.*`) and
@@ -123,7 +123,7 @@ cleanly. `ConsentFields` (the shared select-all/list body) reads BOTH halves thr
 `t(item.definition.labelKey, ...)` for a domain key, `t('screen.updated', ...)` and
 `t('screen.last-updated', ...)` for ours, `t('link.default', 'Learn more')` for the domain
 package's own link fallback text. An application adds its own consents' words to the same resource
-(`addI18nLib(lng, 'marketing-consent', { consent: { … } })`) or gives a custom definition per-language
+(`i18nHelper.addI18nLib(lng, 'marketing-consent', { consent: { … } })`) or gives a custom definition per-language
 `label`/`description` records.
 
 ## Fail open, always
@@ -132,8 +132,8 @@ package's own link fallback text. An application adds its own consents' words to
 (`AuthService.authenticated()` — no args, returns the token or `null` — checked before every call)
 and NEVER throws into a caller: any rejected/thrown network call is swallowed, returning `null`
 (`status`, `save`) or `false` (`recordTerms`) instead. A broken consent read/write must never block
-sign-in or break the app — the same discipline `@owlmeans/web-oauth`'s `landAfterLogin`/
-`continueLogin` already apply to a step/hook that hangs or throws (bound-and-swallow, timeout
+sign-in or break the app — the same discipline `@owlmeans/web-oauth`'s `loginLandingOf(ctx).landAfterLogin`/
+`.continueLogin` already apply to a step/hook that hangs or throws (bound-and-swallow, timeout
 included).
 
 `status(opts?)` also caches: `opts.fresh !== true` and an already-cached `last()` skips the network
@@ -146,27 +146,27 @@ post-sign-in decision must never be stale.
 `marketingConsentStep(client, entrypointAlias, opts?)`'s `pending` is fail-open by DEFAULT — a
 fetch failure means not-pending, because a broken read must never permanently trap a signed-in
 person on a screen they cannot get past — except in Terms mode, which is the deliberate exception
-above. It also checks `isMarketingConsentSkipped(ctx)`: pending items with THIS sign-in already
+above. It also checks `marketingConsentSkipOf(ctx).isSkipped()`: pending items with THIS sign-in already
 skipped read as not-pending, so a skip is honoured for the rest of the sign-in (a `/dispatcher`
 revisit included) and forgotten the moment a new one starts. `entrypointAlias` is
-`protocols.screen.alias` — `continueLogin`'s `LoginStep.entrypoint` is where the dispatcher sends
+`protocols.screen.alias` — `loginLandingOf(ctx).continueLogin`'s `LoginStep.entrypoint` is where the dispatcher sends
 the browser while the step is pending.
 
 `termsRecorder` is a `LoginLandingHook`, run once per freshly landed token by
-`landAfterLogin` (see `@owlmeans/client-auth`'s `./login` skill for the bound-and-swallow contract
+`loginLandingOf(ctx).landAfterLogin` (see `@owlmeans/client-auth`'s `./login` skill for the bound-and-swallow contract
 they share with every other landing hook):
 
-- **`termsRecorder`** (priority 100, runs first) — no-ops once `termsDeferred(ctx)` is true (the
-  step confirms it instead). Otherwise, if `resolveTerms(ctx.cfg...terms)` is required and
-  `termsAccepted(resolved)` (the LOCAL `localStorage` marker `@owlmeans/client-auth`'s sign-in
+- **`termsRecorder`** (priority 100, runs first) — no-ops once `loginTermsHelper.termsDeferred(ctx)` is true (the
+  step confirms it instead). Otherwise, if `.resolveTerms(ctx.cfg...terms)` is required and
+  `.termsAccepted(resolved)` (the LOCAL `localStorage` marker `@owlmeans/client-auth`'s sign-in
   screen already set before the flow was allowed to start), posts
-  `client.recordTerms(termsAcceptanceOf(resolved, locale))`. Reads the terms configuration fresh
+  `client.recordTerms(loginTermsHelper.termsAcceptanceOf(resolved, locale))`. Reads the terms configuration fresh
   from `ctx.cfg` on every landing, never a value captured once at `appendMarketingConsent` time. A
   config with terms disabled, or a person who has not yet locally accepted, records nothing.
 
 `MarketingConsentBody`'s own "Save and continue"/"Skip for now" buttons call
-`useContinueLogin()({ after: MARKETING_CONSENT_LOGIN_STEP })` directly — that is `continueLogin`,
-NOT `landAfterLogin`, so clicking through this step never re-runs `termsRecorder` (it only fires
+`useContinueLogin()({ after: MARKETING_CONSENT_LOGIN_STEP })` directly — that is `loginLandingOf(ctx).continueLogin`,
+NOT `.landAfterLogin`, so clicking through this step never re-runs `termsRecorder` (it only fires
 once, on the token that just landed, before this step's screen was ever reached).
 
 ## The step, its frame and the settings card
@@ -201,7 +201,7 @@ states, in this order — `screen.tsx`'s own docblock spells out each one's mark
    reads as an ordinary primary action. Skip is always offered here.
 4. **unreadable, nothing else to show** (default mode only — Terms mode's `terms.needed` would
    already be true instead) — one error sentence, Skip.
-5. **nothing pending** — renders nothing; a `useEffect` calls `continueLogin` itself. A visitor
+5. **nothing pending** — renders nothing; a `useEffect` calls `loginLandingOf(ctx).continueLogin` itself. A visitor
    never has to click through an empty screen.
 
 A "Sign out" link (`useLogout()`) renders whenever a Terms row is up, or while still loading in
@@ -295,7 +295,7 @@ bare `role="alert"`, no fixed id), `data-marketing-consent-terms-error` (a faile
 distinct from the items' own error), `data-marketing-consent-preferences-save`. `-all`/`-item`/
 `-updated`/`-revised` are the SAME attributes in both the step and `MarketingConsentPreferences` —
 the two are never mounted on one page at once. Do not rename them; `@owlmeans/test-ui`'s
-`answerMarketingConsent` reads them.
+`makePageHelper(page).answerMarketingConsent` reads them.
 
 ## The `@source` line — a consumer rule
 
@@ -331,7 +331,7 @@ only the server absent, the same harness shape as `@owlmeans/web-oauth`'s:
   `/\/api\/.*marketing-consent\//`; `statusView(overrides?)` builds a `MarketingConsentStatusView`
   from `STANDARD_MARKETING_CONSENTS` (every standard key is `opt-in`, so the un-overridden default
   IS "nothing checked"), and `withDefinition(key, patch)` swaps part of one item's definition (links,
-  custom text). `?lng=` really switches the interface language (`setLanguage` before the first
+  custom text). `?lng=` really switches the interface language (`i18nInstanceHelper.setLanguage` before the first
   render), so a non-English row is testable.
 - A signed-in visit is `?bearer=<makeBearer(USER)>`, written to IndexedDB (`idb-keyval`) BEFORE
   `createRoot(...).render(...)` — **wait for a rendered marker** (`#home`, `[data-marketing-consent-save]`)
@@ -392,7 +392,7 @@ does not own is a store it does not write, in either direction.
 ## Scope: the landing path only
 
 Strict Terms mode applies only while a sign-in is actually LANDING through
-`landAfterLogin`/`continueLogin` — a deep link straight to another screen, the back button, or a
+`loginLandingOf(ctx).landAfterLogin`/`.continueLogin` — a deep link straight to another screen, the back button, or a
 session minted before this mode was ever turned on all bypass it, same as every other `LoginStep`.
 Nothing in this package adds a standing guard elsewhere in the app; if one is ever wanted (a layout
 that refuses to render until `client.status()` shows no pending terms), it is the CONSUMING
@@ -400,12 +400,12 @@ application's own addition, not something this package should grow.
 
 ## Related
 
-- `@owlmeans/marketing-consent` — the catalogue, `consentStatus`'s decision table, the protocol
+- `@owlmeans/marketing-consent` — the catalogue, `marketingConsentHelper.consentStatus`'s decision table, the protocol
   tree (read its skill first; this package repeats nothing it already documents)
 - `@owlmeans/server-marketing-consent` — the service and handlers this package's `status`/`save`/
   `terms` calls reach
-- `@owlmeans/client-auth` (`./login`) — `LoginStep`/`LoginLandingHook`, `landAfterLogin`/
-  `continueLogin`/`useContinueLogin`, `resolveTerms`/`termsAccepted` — the seam this package plugs
+- `@owlmeans/client-auth` (`./login`) — `LoginStep`/`LoginLandingHook`, `loginLandingOf(ctx).landAfterLogin`/
+  `.continueLogin`/`useContinueLogin`, `loginTermsHelper.resolveTerms`/`.termsAccepted` — the seam this package plugs
   into; read its skill for the bound-and-swallow contract every step/hook shares
 - `@owlmeans/consent` / `@owlmeans/web-consent` — the cookie dialog and its record: a sibling this
   package deliberately never touches (see "Cookies are a separate surface")

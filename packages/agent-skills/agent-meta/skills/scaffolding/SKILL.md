@@ -20,14 +20,14 @@ the framework shape is [[getting-started]].
 npm create @owlmeans/app@latest my-app
 bun create @owlmeans/app my-app
 yarn create @owlmeans/app my-app
-npx @owlmeans/create-app@^0.1.18-rc.55 my-app
+npx @owlmeans/create-app@^0.1.18-rc.59 my-app
 ```
 
 By default it copies the template, runs `git init`, installs dependencies, and **deploys agent
 guidance** into the project (`.agents/skills/`). `@owlmeans/agent-skills` is a dependency of the
 scaffolder and runs in-process, so the deploy happens whatever `--pm` is. With `--no-install` it
 still runs — the installer's own bundled extras give the project its general/harness guidance;
-only the package-specific skills wait for `npx @owlmeans/agent-skills@^0.1.18-rc.46` after the
+only the package-specific skills wait for `npx @owlmeans/agent-skills@^0.1.18-rc.50` after the
 install.
 
 Flags: `--name <name>`, `--slug <slug>`, `--lang <code>` (default `en`), `--description <text>`,
@@ -91,7 +91,7 @@ Follow **Option B** in the
 [OwlMeans getting-started guide](https://github.com/owlmeans/common/blob/main/docs/getting-started.md): create the bun
 workspace, then `common` (shared `entrypoints.ts`/schemas/config), `api` (`@owlmeans/server-app` +
 `appendStaticResource` handlers + `main`), and `web` (`@owlmeans/web-panel` + shadcn `@`-provided
-primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills@^0.1.18-rc.46` to add agent guidance.
+primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills@^0.1.18-rc.50` to add agent guidance.
 
 ## What gets generated
 
@@ -104,9 +104,11 @@ my-app/
 ├── .agents/scripts/link-skills.sh  # links local + installed-package skills for every agent
 ├── .agents/linked-skills/  # generated on install, git-ignored — see below
 ├── .agents/memory/MEMORY.md      # starter shared memory graph index
-├── sources/common/         # consts, types, schemas, config, entrypoints.ts
-├── sources/api/            # context.ts (appendStaticResource), app/session/*, entrypoints.ts, index.ts
+├── sources/common/         # consts, types, schemas, config (no log level), entrypoints.ts
+├── sources/api/            # config.ts (cfg.log from LOG_*), context.ts (appendStaticResource),
+│                           # app/session/*, entrypoints.ts, index.ts
 └── sources/web/            # vite + tailwind v4, components/ui/*, layout, nav, screens, render.tsx
+                            # config.ts (cfg.log from VITE_LOG_*), vite-env.d.ts
                             # context.ts registers a @owlmeans/state resource the screens read
 ```
 
@@ -134,6 +136,23 @@ is never edited or committed — re-run the script instead.
 Memory lives **only** in `.agents/memory/` (see [[agent-memory]]; [[memory-recompact]] folds a
 per-agent memory directory back into it).
 
+**Logging is `@owlmeans/log`, its level set per environment** ([[logging]], [[log]]). The shared
+`sources/common/src/config.ts` runs in Bun and in the browser, so it reads no environment and sets
+no log level — and never `cfg.debug = { all: true }`, which does not control logging and must not
+reach production. Each runtime sets `cfg.log` in its own `config.ts`, behind a type-only
+`import type {} from '@owlmeans/log'` that gives the config its `log` field:
+
+| Runtime | Source | Default |
+|---|---|---|
+| api | `LOG_LEVEL`, `LOG_DEBUG` from the Bun runtime (`sources/api/.env` is read by Bun) | `info` |
+| web | `VITE_LOG_LEVEL`, `VITE_LOG_DEBUG` at build time (typed in `vite-env.d.ts`, `sources/web/.env`) | `debug` under `vite`, `info` in a build |
+
+`*_DEBUG` lists scopes forced to debug (`*` for all); the generated `.gitignore` keeps `.env`
+files out of git. Both `package.json`s depend on `@owlmeans/log`; the api's `index.ts` reports a
+failed start with `log.error('Start failed', error)` and exits. No explicit `appendLog`: the
+server and client contexts already apply `cfg.log`. The generated `AGENTS.md` carries a mandatory
+**Logging** section pointing at [[logging]].
+
 **Routing is OwlMeans-native.** The generated app has no `react-router` dependency and no
 `react-router` override: `makeContext` registers `@owlmeans/web-router` and `PanelApp` resolves
 its compiler from the active plugin, so `render.tsx` passes no `provide` prop. Layouts take
@@ -154,7 +173,7 @@ subscribed as a live query through `useStoreList`; the fetch calls the entrypoin
 
 `AGENTS.md` carries the same four mandatory sections as a real OwlMeans monorepo — **Git
 Workflow**, **Reporting**, **Memory** (the `.agents/memory/` graph store), **Self-Education** —
-plus the mandatory [[reuse-code]] section and a **project-purpose placeholder**
+plus the mandatory [[reuse-code]] and **Logging** sections and a **project-purpose placeholder**
 (`<!-- OWLMEANS:PROJECT-PURPOSE -->`). On the first agent session that block instructs the agent to
 ask the user what the project is for and replace it. Claude Code reads `AGENTS.md` itself
 (no `CLAUDE.md`) and keeps the gitignored `.claude/skills/` symlinks fresh through a `SessionStart`
@@ -168,6 +187,6 @@ project has it even before the installer runs: [[agent-memory]], [[memory-promot
 [[getting-started]]. Regenerate the seed with `sync-agent-meta --seed-only` in the library-manager;
 never hand-edit a seeded copy. The installer adds the remaining general skills
 ([[scaffolding]], [[router-plugins]], [[shadcn-web]], [[shadcn-versions]], [[consent]],
-[[login-methods]], [[login-plugins]], [[agent-skills]]) and every package-specific one. After adding any `@owlmeans/*` dependency, re-run `npx @owlmeans/agent-skills@^0.1.18-rc.46`
+[[login-methods]], [[login-plugins]], [[agent-skills]]) and every package-specific one. After adding any `@owlmeans/*` dependency, re-run `npx @owlmeans/agent-skills@^0.1.18-rc.50`
 — discovery scans **every** `node_modules/@owlmeans` in the workspace (root and nested under
 `sources/*`), so package-specific skills are picked up even though bun nests them.

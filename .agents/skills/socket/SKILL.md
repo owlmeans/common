@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/socket
 
 **Layer:** Core
-**Install:** `"@owlmeans/socket": "^0.1.18-rc.37"` in `dependencies`
+**Install:** `"@owlmeans/socket": "^0.1.18-rc.40"` in `dependencies`
 
 Contracts and one implementation-free connection model. It knows nothing about WebSockets: the
 browser side is `@owlmeans/client-socket`, the Fastify side `@owlmeans/server-socket`, and each
@@ -23,7 +23,7 @@ that make it concrete. Both halves of an application therefore speak the same fr
 | `Message<T>` | The frame — `{ type, payload, id?, sender?, recipient?, dt?, rawData? }` |
 | `CallMessage<T>` / `EventMessage<T>` / `AuthMessage<T>` | The three frames that add a field: `method` + `timeout`, `event`, `stage` |
 | `MessageType` | `Call` `Result` `Error` `Request` `Response` `Event` `Message` `Auth` `System` |
-| `isMessage` / `isEventMessage` / `isCallMessage` / `isAuthMessage` | Type guards — `isMessage(msg, true)` excludes system frames, `isEventMessage(msg, true)` keeps only them |
+| `socketMessageHelper` — `.isMessage` / `.isEventMessage` / `.isCallMessage` / `.isAuthMessage` | Type guards — `socketMessageHelper.isMessage(msg, true)` excludes system frames, `.isEventMessage(msg, true)` keeps only them |
 | `ConnectionListener` / `CallHendler` / `RequestHandler` / `CallResolver` | The callback shapes |
 | `SocketSystemEvent` | The `event` values a `MessageType.System` frame carries — see below |
 | `SOCKET_HEARTBEAT_TIMEOUT_CODE` | `4000` — the close code `client-socket`'s carrier uses when it force-closes a socket that has gone silent |
@@ -129,7 +129,7 @@ an unhandled rejected promise. Keep sensitive actions behind the carrier's authe
 
 - `@owlmeans/error` — `ResilientError`, which every socket error registers with
 - `@owlmeans/auth` — `AuthenticationStage`, the vocabulary the auth frames carry
-- `@owlmeans/basic-ids` — `uuid` for call and request ids
+- `@owlmeans/basic-ids` — `idHelper.uuid` for call and request ids
 
 ## Related
 

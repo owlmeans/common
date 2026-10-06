@@ -31,7 +31,7 @@ export const ReCaptchaAuthUIPlugin: AuthenticationRenderer = ({ stage, control }
   const content = () => {
     switch (config?.value != null ? stage : null) {
       case AuthenticationStage.Authenticate:
-        return <Stack direction="column" sx={style} justifyContent="center" alignItems="center">
+        return <Stack direction="column" sx={{ ...style, justifyContent: 'center', alignItems: 'center' }}>
           <Text name="guideline" center />
           <Box sx={{ pt: 2 }}>
             <ReCAPTCHA sitekey={config?.value as string ?? ''} onChange={finish}
@@ -44,7 +44,7 @@ export const ReCaptchaAuthUIPlugin: AuthenticationRenderer = ({ stage, control }
   }
 
   return <PanelContext ns="lib" prefix="re-captcha" resource="client-panel-auth">
-    <Stack direction="column" justifyContent="center" alignItems="center">
+    <Stack direction="column" sx={{ justifyContent: 'center', alignItems: 'center' }}>
       {content()}
       {loading && <LinearProgress sx={loadingStyle} />}
     </Stack>

@@ -1,22 +1,10 @@
 import type { FC } from 'react'
 import {
-  CONSENT_COOKIE_DAYS, CONSENT_KEY, DEFAULT_CONSENT_CATEGORIES,
-  defaultConsentTranslate, interpolate, openConsent,
+  CONSENT_COOKIE_DAYS, CONSENT_KEY, DEFAULT_CONSENT_CATEGORIES, consentStore, consentI18nHelper,
 } from '@owlmeans/consent'
-import type { ConsentService } from '@owlmeans/consent'
-import { cn, disclosedDomains } from '../lib/utils.js'
+import { webConsentUtils } from '../lib/utils.js'
 import type { CookiePolicyProps } from '../types.js'
-
-type Translate = (key: string, defaultValue: string) => string
-
-interface ServiceListProps {
-  services: ConsentService[]
-  /** The category's own label, already resolved — it names the list for assistive technology. */
-  label: string
-  /** The category key, for tests and CSS; absent for the trailing group of unmatched services. */
-  category?: string
-  t: Translate
-}
+import type { ServiceListProps } from './types.local.js'
 
 /**
  * The services one category gates, as a nested list inside that category's item.
@@ -27,7 +15,7 @@ interface ServiceListProps {
  */
 const ServiceList: FC<ServiceListProps> = ({ services, label, category, t }) =>
   <ul
-    aria-label={interpolate(t('policyServicesOf', 'Services — {{category}}'), { category: label })}
+    aria-label={consentI18nHelper.interpolate(t('policyServicesOf', 'Services — {{category}}'), { category: label })}
     data-cookie-policy-services={category ?? ''}
   >
     {services.map((service, index) => <li key={`${service.name}-${index}`} data-cookie-policy-service>
@@ -50,7 +38,7 @@ const ServiceList: FC<ServiceListProps> = ({ services, label, category, t }) =>
       </dl>
       {service.privacyHref != null && service.privacyHref !== '' && <a
         href={service.privacyHref} target="_blank" rel="noopener noreferrer"
-      >{interpolate(t('policyServicePrivacy', '{{provider}} privacy policy'),
+      >{consentI18nHelper.interpolate(t('policyServicePrivacy', '{{provider}} privacy policy'),
         { provider: service.provider })}</a>}
     </li>)}
   </ul>
@@ -75,16 +63,16 @@ const ServiceList: FC<ServiceListProps> = ({ services, label, category, t }) =>
  */
 export const CookiePolicy: FC<CookiePolicyProps> = props => {
   const categories = props.categories ?? DEFAULT_CONSENT_CATEGORIES
-  const t = props.translate ?? defaultConsentTranslate(props.locale)
+  const t = props.translate ?? consentI18nHelper.defaultConsentTranslate(props.locale)
   const storageKey = props.storageKey ?? CONSENT_KEY
   const days = props.cookieDays ?? CONSENT_COOKIE_DAYS
   const services = props.services ?? []
   const keys = new Set(categories.map(category => category.key))
   const other = services.filter(service => !keys.has(service.category))
   const otherLabel = t('policyOtherServices', 'Other services')
-  const domains = disclosedDomains(props.linker)
+  const domains = webConsentUtils.disclosedDomains(props.linker)
 
-  return <article className={cn('prose prose-sm max-w-2xl', props.className)} data-cookie-policy>
+  return <article className={webConsentUtils.cn('prose prose-sm max-w-2xl', props.className)} data-cookie-policy>
     <h1>{t('policyTitle', 'Cookie Policy')}</h1>
     <p>{t('policyIntro', 'This page describes the cookies and similar storage this application uses, and how you can control them.')}</p>
 
@@ -109,7 +97,7 @@ export const CookiePolicy: FC<CookiePolicyProps> = props => {
       </li>}
     </ul>
 
-    <p>{interpolate(
+    <p>{consentI18nHelper.interpolate(
       t('policyStorage', 'Your choice is stored in this browser under "{{key}}", both in local storage and as a cookie.'),
       { key: storageKey }
     )}</p>
@@ -121,13 +109,13 @@ export const CookiePolicy: FC<CookiePolicyProps> = props => {
       </ul>
     </>}
 
-    <p>{interpolate(
+    <p>{consentI18nHelper.interpolate(
       t('policyRetention', 'The record is kept for {{days}} days, after which you will be asked again.'),
       { days }
     )}</p>
 
     {props.operator != null && props.operator !== '' && <p>
-      {interpolate(t('policyOperator', 'This application is operated by {{operator}}.'),
+      {consentI18nHelper.interpolate(t('policyOperator', 'This application is operated by {{operator}}.'),
         { operator: props.operator })}
       {' '}
       {t('policyContact', 'See their privacy policy and terms for how they handle your data.')}
@@ -145,7 +133,7 @@ export const CookiePolicy: FC<CookiePolicyProps> = props => {
 
     <p>
       <button
-        type="button" onClick={() => openConsent('reopen')} data-cookie-policy-manage
+        type="button" onClick={() => consentStore.open('reopen')} data-cookie-policy-manage
         className="not-prose inline-flex min-h-11 items-center justify-center rounded-full border-[1.5px] border-foreground bg-transparent px-6 py-2.5 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-ring"
       >
         {t('manage', 'Manage preferences')}

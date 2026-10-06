@@ -7,7 +7,7 @@ Helpers exported here:
 - `makeFixtureKeyPair(seed?)` — deterministic Ed25519 `KeyPairModel`.
 - `makeMemoryTrustedResource(records?)` — `Resource<TrustedRecord>` satisfying `trust()` lookups against the `TRUSTED` config resource.
 - `makeMockGuard({ alias?, auth?, allow? })` — `GuardService` that resolves to a chosen `Auth`. Implements `match`, `handle`, `authenticated`.
-- `withAuth(ctx, auth)` — convenience that registers a mock guard with a chosen `Auth` on the context.
+- `appendMockGuard(ctx, auth, alias?)` — convenience that registers a mock guard with a chosen `Auth` on the context.
 - `signMockEnvelope(msg, type, kind?, kp?)` — wraps `makeEnvelopeModel` with a fixture keypair to produce a signed envelope.
 - `makeBearer(auth, kp?)` — `ED25519-BASIC-TOKEN <encoded>` header value for unit tests of header parsing.
 - Canonical fixtures: `SUPERUSER`, `USER`, `SERVICE` `Auth` payloads.
@@ -20,7 +20,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

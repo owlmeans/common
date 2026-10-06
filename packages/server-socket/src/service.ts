@@ -7,11 +7,14 @@ import { canServerModule } from './utils/server.js'
 import { fastifyWebsocket } from '@fastify/websocket'
 import type { WebSocket } from '@fastify/websocket'
 import {
-  authorize, errorExposure, executeResponse, extractContext, handleError, populateContext, provideRequest
+  authorize, httpErrorHelper, makeRequestContextHelper, payloadHelper
 } from '@owlmeans/server-api/utils'
 import { EntrypointOutcome, provideResponse } from '@owlmeans/entrypoint'
 import type { AbstractRequest, GateService } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
+import { logger, logThrottle } from '@owlmeans/log'
+
+const log = logger('server-socket')
 
 export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketService => {
   const service: SocketService = createService<SocketService>(alias, {
@@ -24,7 +27,8 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
 
       await api.server.register(async server => {
         server.addHook('preHandler', async (req, reply) => {
-          const context = extractContext(req, service.ctx as Context, alias)
+          const requestContext = makeRequestContextHelper(req)
+          const context = requestContext.extractContext(service.ctx as Context, alias)
           await context?.entrypoints<ServerEntrypoint<Request>>()
             .filter(module => canServerModule(context, module) && !module.route.isIntermediate())
             .reduce<Promise<Context>>(async (ctx, module) => {
@@ -40,27 +44,27 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
 
               try {
                 const response = provideResponse(reply)
-                const request = provideRequest(module.alias, req, true)
+                const request = payloadHelper.provideRequest(module.alias, req, true)
 
                 const authorized = await authorize(context, module, req, reply)
                 context = authorized[0]
                 module = authorized[1]
 
-                populateContext(req, context)
+                requestContext.populateContext(context)
 
                 // @TODO there code duplication with server-api
                 const gates = module.getGates()
                 for (const [srv, params] of gates) {
                   const gate: GateService = context.service(srv)
                   await gate.assert(request, response, params)
-                  executeResponse(response, reply, true)
+                  payloadHelper.executeResponse(response, reply, true)
                 }
               } catch (error) {
                 if (module.fixer != null) {
                   const fixer: FixerService = context.service(module.fixer)
                   fixer.handle(reply, ResilientError.ensure(error as Error))
                 } else {
-                  handleError(error as Error, reply, errorExposure(context.cfg))
+                  httpErrorHelper.handleError(error as Error, reply, httpErrorHelper.errorExposure(context.cfg))
                 }
               }
 
@@ -83,10 +87,10 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
               headers: module.filter?.headers ?? {}
             }, websocket: true
           }, (conn, req) => {
-            const request = provideRequest(module.alias, req, true)
+            const request = payloadHelper.provideRequest(module.alias, req, true)
             request.body = conn
 
-            conn.on('error', (error: Error) => console.error('WebSocket error: ', error))
+            conn.on('error', (error: Error) => log.error('WebSocket error', { route: module.alias, error }))
 
             void module.handle<AbstractRequest<WebSocket>>(request, {
               resolve: (value, outcome) => {
@@ -96,8 +100,13 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
                 }
               },
               reject: error => {
-                console.error('Connection rejected: ', error)
-                conn.close(1011, ResilientError.ensure(error).marshal().message)
+                const refusal = ResilientError.ensure(error)
+                const details = { route: module.alias, reason: refusal.type, error }
+                log.debug('Connection rejected', details)
+                if (logThrottle(`socket.refused:${module.alias}:${refusal.type}`, 60_000)) {
+                  log.warn('Connection rejected', details, { event: 'socket.refused' })
+                }
+                conn.close(1011, refusal.marshal().message)
               }
             })
 

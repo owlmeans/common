@@ -1,10 +1,10 @@
-import { AuthenFailed, AuthorizationError, AuthRole, AuthUnavailable } from '@owlmeans/auth'
+import { AuthenFailed, AuthError, AuthorizationError, AuthRole, AuthUnavailable } from '@owlmeans/auth'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { createService } from '@owlmeans/context'
 import type { CommonTokenSetParams, OIDCTokenUpdate, WrappedOIDCService, WrappedOIDCUpdate } from '@owlmeans/oidc'
 import { ORGANIZATIONS_CLAIM, WRAPPED_OIDC } from '@owlmeans/oidc'
-import { cache, managedId, sessionTtl } from './utils/cache.js'
+import { oidcCacheOf } from './utils/cache.js'
 import type { OIDCAuthCache } from './utils/types.js'
 import type { Config, Context, OidcClientService, OidcTokenSetParameters } from './types.js'
 import { authService, DEFAULT_ALIAS, OIDC_WRAP_FRESHNESS } from './consts.js'
@@ -12,16 +12,17 @@ import days from 'dayjs'
 import { decodeJwt } from 'jose'
 import { PERMISSIONS_CLAIM } from '@owlmeans/oidc'
 import { extractPermissionSets } from './utils/permissions.js'
-import {
-  actingAuth, actingPermissionSets, extractOrganizations, pickOrganization, resolvedEntityOf,
-} from './utils/organization.js'
-import { signWrapped } from './utils/wrapped.js'
+import { oidcOrganizationHelper } from './utils/organization.js'
+import { oidcWrappedOf } from './utils/wrapped.js'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { TRUSTED } from '@owlmeans/config'
 import { AUTH_SRV_KEY } from '@owlmeans/server-auth'
 import { trust } from '@owlmeans/auth-common/utils'
 import { AUTH_SESSION_MANAGER } from '@owlmeans/server-auth-session'
 import type { AuthSessionDecision, AuthSessionManager } from '@owlmeans/server-auth-session'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-oidc-rp')
 
 /** Provider errors which affirm that this access token is no longer usable. */
 const isInvalidProviderToken = (error: unknown): boolean => {
@@ -53,6 +54,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
   const service: WrappedOIDCService = createService<WrappedOIDCService>(WRAPPED_OIDC, {
     update: async (token, thr) => {
       const ctx = service.assertCtx<Config, Context>()
+      const oidcCache = oidcCacheOf(ctx)
       token = typeof token === 'string' ? token : token?.token
       if (token == null) {
         throw new AuthorizationError('token')
@@ -62,11 +64,11 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
       const user = envelope.message()
 
       try {
-        const record = await cache(ctx).get(managedId(user.token))
+        const record = await oidcCache.resource().get(oidcCache.managedId(user.token))
         if (record == null || record.payload == null) {
           throw new AuthorizationError('record')
         }
-        const remainingTtl = sessionTtl(record.expiresAt)
+        const remainingTtl = oidcCache.sessionTtl(record.expiresAt)
 
         const manager = ctx.hasService(AUTH_SESSION_MANAGER)
           ? ctx.service<AuthSessionManager>(AUTH_SESSION_MANAGER)
@@ -123,9 +125,9 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
           }
 
           if (updatedAuth.challenge !== user.token) {
-            await cache(ctx).delete(managedId(user.token))
+            await oidcCache.resource().delete(oidcCache.managedId(user.token))
             updatedUser.token = updatedAuth.challenge
-            record.id = managedId(updatedUser.token)
+            record.id = oidcCache.managedId(updatedUser.token)
             updatedUser.sessionId = record.id
           }
 
@@ -146,11 +148,11 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
             else updatedUser.authorizationVersion = registered.version
           }
 
-          const issued = await signWrapped(ctx, updatedUser)
+          const issued = await oidcWrappedOf(ctx).signWrapped(updatedUser)
 
           record.payload = update.tokenSet as OidcTokenSetParameters
 
-          await cache(ctx).save(record, { ttl: remainingTtl })
+          await oidcCache.resource().save(record, { ttl: remainingTtl })
 
           return updateOf(issued, record)
         } else if (record.payload != null) {
@@ -232,10 +234,10 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
               // frozen key across renames. Gone from the provider's answer means the subject left
               // it — never a silent move into another organization.
               const organizations = claims != null
-                ? extractOrganizations(claims[ORGANIZATIONS_CLAIM])
+                ? oidcOrganizationHelper.extractOrganizations(claims[ORGANIZATIONS_CLAIM])
                 : record.organizations
               const acting = organizations != null
-                ? pickOrganization(organizations, { entityKey: record.acting })
+                ? oidcOrganizationHelper.pickOrganization(organizations, { entityKey: record.acting })
                 : undefined
               if (acting == null) {
                 throw new AuthorizationError('entity')
@@ -243,10 +245,10 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
 
               record.organizations = organizations
               record.sets = sets ?? record.sets
-              record.entity = resolvedEntityOf(acting)
-              updatedUser = actingAuth(updatedUser, acting, record.sets)
+              record.entity = oidcOrganizationHelper.resolvedEntityOf(acting)
+              updatedUser = oidcOrganizationHelper.actingAuth(updatedUser, acting, record.sets)
             } else if (sets != null) {
-              updatedUser.permissions = actingPermissionSets(sets)
+              updatedUser.permissions = oidcOrganizationHelper.actingPermissionSets(sets)
               updatedUser.permissioned = true
             }
 
@@ -267,11 +269,11 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
               else updatedUser.authorizationVersion = registered.version
             }
 
-            const issued = await signWrapped(ctx, updatedUser)
+            const issued = await oidcWrappedOf(ctx).signWrapped(updatedUser)
 
             record.payload = tokenSet as OidcTokenSetParameters
 
-            await cache(ctx).save(record, { ttl: remainingTtl })
+            await oidcCache.resource().save(record, { ttl: remainingTtl })
 
             return updateOf(issued, record)
           }
@@ -282,8 +284,11 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
           // browser session would turn a recoverable outage into forced reauthentication.
           throw err
         }
-        console.error(err)
-        await cache(ctx).delete(managedId(user.token))
+        log.warn('OIDC session rejected; its record is dropped', {
+          reason: err instanceof AuthError ? err.message : 'revalidation-failed', userId: user.userId,
+          ...(err instanceof AuthError ? {} : { error: err }),
+        }, { event: 'auth.refused' })
+        await oidcCache.resource().delete(oidcCache.managedId(user.token))
         if (thr) {
           if (err instanceof AuthorizationError) {
             throw err

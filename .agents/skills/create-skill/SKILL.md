@@ -110,7 +110,7 @@ every session, so it has a budget: **≤ 40 000 chars**, checked by `sh .agents/
 from the repo root. A line enters it only as:
 
 1. a mandatory rule that must hold before any skill is loaded (git, reporting, environments,
-   naming) — stated in one or two lines, with the detail in a skill;
+   naming, code structure) — stated in one or two lines, with the detail in a skill;
 2. one line of the package map or the command list;
 3. one line of the skills index: `` - `/name` — when to load it ``, ≤ 160 chars.
 

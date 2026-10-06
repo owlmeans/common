@@ -55,9 +55,11 @@ export interface CheckoutLimitNoteProps {
   className?: string
 }
 
+// Kept as a type: `RequestShape` declares `body` loosely and this narrows it, which interface `extends` refuses.
 /** The request of a price-estimate protocol: its body is a `PriceEstimateBody`. */
 export type PriceEstimateRequest = RequestShape & { body: PriceEstimateBody }
 
+// Kept as a type: it extends its own type parameter, which an interface cannot.
 type PriceEstimateCall<Request extends PriceEstimateRequest> = Omit<Request, 'body'> & {
   body?: Omit<Request['body'], 'country'>
 }
@@ -101,8 +103,9 @@ export interface PlanStatusLine {
 export type PromoInscription = 'free-until' | 'grandfathered' | 'ended'
 
 /** The request of a portal protocol: its body is a `PortalLinkBody`. */
-export type PortalRequest = RequestShape & { body: PortalLinkBody }
+export interface PortalRequest extends RequestShape { body: PortalLinkBody }
 
+// Kept as a type: it extends its own type parameter, which an interface cannot.
 type PortalCall<Request extends PortalRequest> = Omit<Request, 'body'> & {
   body?: Omit<Request['body'], 'flow'>
 }
@@ -152,3 +155,60 @@ export interface CapabilityListProps {
   onlyGranted?: boolean
   className?: string
 }
+
+export interface EntitlementCopy {
+  text: (key: string, values?: Record<string, string>) => string
+  day: (date: Date | string | null | undefined) => string
+  count: (value: number) => string
+}
+
+export interface CountrySelectProps {
+  /** ISO 3166-1 alpha-2, or `''` for the placeholder. */
+  value: string
+  onChange: (country: string) => void
+  /** Defaults to the `estimate.country` string (also the field's own label). */
+  label?: string
+  id?: string
+  className?: string
+  /** The country cannot be changed here — a billing country locked by the first purchase. */
+  disabled?: boolean
+  /** A line under the picker — why it is disabled, typically. */
+  note?: ReactNode
+}
+
+export interface PriceEstimateAmountProps {
+  control: Pick<PriceEstimateControl, 'estimate' | 'loading' | 'failed'>
+  /** The amount to show tax and a total for — may differ from the estimate's own reference amount. */
+  subtotalMinor: number
+  currency: string
+  /** Appended after the total row, e.g. `"/ month"`. */
+  suffix?: string
+  className?: string
+}
+
+export interface PriceEstimateSummaryProps {
+  control: PriceEstimateControl
+  /** The amount the summary shows tax and a total for — may differ from the estimate's own reference amount. */
+  subtotalMinor: number
+  currency: string
+  /** Appended after the total row, e.g. `"/ month"`. */
+  suffix?: string
+  className?: string
+}
+
+export interface UsePriceEstimateOptions {
+  /** Fetch (and refetch on a country change) only while `true` — a closed dialog costs nothing. */
+  enabled: boolean
+  ttlMs?: number
+  /**
+   * Controls the country from outside (several estimates sharing one picker — a plan comparison
+   * table). Given: the hook never owns `useState` for it, never preselects from `source:
+   * 'customer'` (the owner does, once, for whichever estimate answers first), and the returned
+   * control's `onCountryChange` calls this back instead of an internal setter. Absent (the
+   * default): the hook is self-contained, exactly as a standalone dialog needs.
+   */
+  country?: string
+  onCountryChange?: (country: string) => void
+}
+
+export type CheckoutTarget = '_self' | '_blank'

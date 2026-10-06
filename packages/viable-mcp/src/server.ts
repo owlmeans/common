@@ -1,28 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { ConnectTarget } from '@owlmeans/viable-common'
-import {
-  discoverProject, makeRemoteConnectorApi, makeSdkContext, openSession, registerCatalogue,
-  serverInstructions, ToolHostKind
-} from '@owlmeans/viable-sdk'
-import type { ConnectorApi, SessionRuntime, ToolDeps, ToolHost } from '@owlmeans/viable-sdk'
+import { makeRemoteConnectorApi, makeSdkContext, openSession, registerCatalogue, serverInstructions, ToolHostKind, type ConnectorApi, type SessionRuntime, type ToolDeps, type ToolHost, makeMarkerHelper } from '@owlmeans/viable-sdk'
 import { makeLocalSlotExecutor } from '@owlmeans/viable-sdk/executor'
 import { sessionCapabilities } from './capabilities.js'
-import type { McpConfig } from './config.js'
+import type { McpConfig, BuiltServer } from './types.js'
 import { makeCredentials } from './credentials.js'
 import { makeSessionHolder } from './session-holder.js'
 import { VERSION } from './version.js'
-
-export interface BuiltServer {
-  server: McpServer
-  close: () => Promise<void>
-}
-
-/**
- * Well inside `TOOL_DEADLINE_MS` (45 s): a tool call that trips this waits this long for an
- * already-pending sign-in to finish before it gives up and reports `SignInRequired`, leaving room
- * for the round trip the platform call itself still needs to make once a token exists.
- */
-const SIGN_IN_WAIT_MS = 20_000
+import { SIGN_IN_WAIT_MS } from './consts.local.js'
 
 /**
  * Wrap every method `target` exposes (recursively, through its own namespace objects — `api.session`,
@@ -98,7 +83,7 @@ export const makeViableMcpServer = async (cfg: McpConfig): Promise<BuiltServer> 
   // A project that was worked on here before says so in its own directory, so a connector started
   // in it picks up where the last one left off rather than asking the user which project this is.
   if (local) {
-    const found = await discoverProject(cfg.projectDir).catch(() => null)
+    const found = await makeMarkerHelper(cfg.projectDir).discoverProject().catch(() => null)
     if (found?.marker != null) {
       attached = found.marker.projectId
       log(`attached to ${found.marker.slug} (${found.marker.projectId}) from ${found.dir}`)

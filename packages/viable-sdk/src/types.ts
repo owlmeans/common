@@ -1,9 +1,10 @@
 import type { PlanningFacade } from '@owlmeans/planning'
 import type {
-  ConnectCapabilities, ConnectConvertCreateBody, ConnectHarness,
+  ConnectCapabilities, ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody,
+  ConnectHarness, ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe,
   ConnectLlm, ConnectMarker, ConnectOp, ConnectOpResult, ConnectOpSubmission, ConnectPipelineState,
   ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus, ConnectSessionView,
-  ConnectStoryStatus, ConnectTarget, ConversionDecision,
+  ConnectStoryStatus, ConnectTarget,
   ConversionStatusView, ConvertCheck, InquiryAnswerPayload, InquiryPayload, ModelTask,
   ModelTaskResult, SlotCommandPayload,
 } from '@owlmeans/viable-common'
@@ -44,6 +45,16 @@ export interface ConnectorApi {
     attach: (args: { projectId?: string, slug?: string }) => Promise<ConnectProjectStatus>
     reinit: (projectId: string) => Promise<ConnectProjectStatus>
     modify: (projectId: string, prompt: string) => Promise<ConnectProjectStatus>
+    /**
+     * The planning kits the project can take: ready sets of card types and status flows, each
+     * for one kind of work-management product.
+     */
+    kitDescribe: (projectId: string) => Promise<ConnectKitDescribe>
+    /**
+     * Write one kit's card types and flows into the project's common package (`types` keeps only
+     * those type keys). The platform rebuilds the preview itself; the answer says what was written.
+     */
+    kitApply: (projectId: string, body: ConnectKitApplyBody) => Promise<ConnectKitApplyResult>
   }
 
   /**
@@ -97,8 +108,9 @@ export interface ConnectorApi {
   convert: {
     create: (args: ConnectConvertCreateBody) => Promise<ConversionStatusView>
     check: (projectId: string) => Promise<ConvertCheck>
-    start: (projectId: string) => Promise<ConversionStatusView>
-    proceed: (projectId: string, decision: ConversionDecision, note?: string) => Promise<ConversionStatusView>
+    /** `body.confirm`: a person agreed to what the start uses (`ConnectConfirmationRequired` otherwise). */
+    start: (projectId: string, body?: ConnectConvertStartBody) => Promise<ConversionStatusView>
+    proceed: (projectId: string, body: ConnectConvertProceedBody) => Promise<ConversionStatusView>
     status: (projectId: string) => Promise<ConversionStatusView>
     purge: (projectId: string) => Promise<ConversionStatusView>
   }

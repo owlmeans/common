@@ -1,30 +1,25 @@
-import { randomBytes } from '@noble/hashes/utils'
+import { randomBytes } from '@noble/hashes/utils.js'
 import { base64urlnopad } from '@scure/base'
-import { sha256 } from '@noble/hashes/sha256'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { OAUTH_CODE_VERIFIER_MAX } from './consts.js'
+import type { PkcePair } from './types.js'
+import type { PkceHelper } from './pkce/types.js'
 
-/**
- * PKCE (RFC 7636), S256 only.
- *
- * OAuth 2.1 requires `S256` "when technically capable" — every runtime this family targets (a
- * browser, Node, Bun) carries `SubtleCrypto`-equivalent hashing, so the plain method is never
- * offered.
- */
-export interface PkcePair {
-  verifier: string
-  challenge: string
+export const createPkceHelper = (): PkceHelper => {
+  const createPkcePair = (): PkcePair => {
+    const verifier = base64urlnopad.encode(randomBytes(Math.floor(OAUTH_CODE_VERIFIER_MAX * 3 / 4)))
+      .slice(0, OAUTH_CODE_VERIFIER_MAX)
+
+    return { verifier, challenge: challengeFor(verifier) }
+  }
+
+  const challengeFor = (verifier: string): string =>
+    base64urlnopad.encode(sha256(new TextEncoder().encode(verifier)))
+
+  const verifyPkce = (verifier: string, challenge: string): boolean =>
+    challengeFor(verifier) === challenge
+
+  return { createPkcePair, challengeFor, verifyPkce }
 }
 
-/** A verifier of the maximum allowed length: more entropy costs nothing here. */
-export const createPkcePair = (): PkcePair => {
-  const verifier = base64urlnopad.encode(randomBytes(Math.floor(OAUTH_CODE_VERIFIER_MAX * 3 / 4)))
-    .slice(0, OAUTH_CODE_VERIFIER_MAX)
-
-  return { verifier, challenge: challengeFor(verifier) }
-}
-
-export const challengeFor = (verifier: string): string =>
-  base64urlnopad.encode(sha256(new TextEncoder().encode(verifier)))
-
-export const verifyPkce = (verifier: string, challenge: string): boolean =>
-  challengeFor(verifier) === challenge
+export const pkceHelper = createPkceHelper()

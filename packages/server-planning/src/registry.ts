@@ -1,34 +1,10 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { ResilientError } from '@owlmeans/error'
-import { DEFAULT_PLUGIN_ORDER, PlanningRefused } from '@owlmeans/planning'
-import type {
-  CommitEvent, PlanningExecContext, PlanningHookContext, PlanningPlugin, PlanningSchemaRegistry,
-  PlanningStore, TransitionExecution, WorkcardDraft,
-} from '@owlmeans/planning'
-import type { StoreRoute } from './store/types.js'
+import { logger } from '@owlmeans/log'
+import { DEFAULT_PLUGIN_ORDER, PlanningRefused, type PlanningPlugin, type PlanningSchemaRegistry, type PlanningStore } from '@owlmeans/planning'
+import type { PluginRegistry } from './types.js'
 
-export interface PluginRegistry {
-  /** Register, or replace the plugin of the same `name`. Its schemas are contributed now. */
-  use: (plugin: PlanningPlugin) => void
-  /** Every plugin, `order` ascending (registration order among equals). */
-  plugins: () => PlanningPlugin[]
-  /** The owning plugins that supply a store, in plugin order, each store resolved once. */
-  routes: (ctx?: BasicContext<BasicConfig>) => StoreRoute[]
-  /** The first owning plugin's store for a type, else `fallback`. */
-  storeFor: (type: string | undefined, fallback: PlanningStore, ctx?: BasicContext<BasicConfig>) => PlanningStore
-  /** The first plugin answering a code wins. */
-  mintCode: (
-    draft: WorkcardDraft, taken: (code: string) => Promise<boolean>, contextOf: (plugin: PlanningPlugin) => PlanningExecContext
-  ) => Promise<string | undefined>
-  /** The `before` chain; answers the execution the chain left. */
-  before: (
-    exec: TransitionExecution, contextOf: (plugin: PlanningPlugin) => PlanningExecContext
-  ) => Promise<TransitionExecution>
-  /** The `after` chain; a failing hook is logged and the chain goes on. */
-  after: (event: CommitEvent, contextOf: (plugin: PlanningPlugin) => PlanningHookContext) => Promise<void>
-  /** Bumps on every `use` — what a cached composite store is keyed by. */
-  version: () => number
-}
+const log = logger('planning')
 
 const messageOf = (error: unknown): string => error instanceof Error ? error.message : `${error}`
 
@@ -131,7 +107,7 @@ export const makePluginRegistry = (
         try {
           await plugin.after(event, contextOf(plugin))
         } catch (error) {
-          console.error(`planning: after hook of ${plugin.name} failed on ${event.transition}:`, error)
+          log.error('Planning after hook failed', { plugin: plugin.name, transition: event.transition, error })
         }
       }
     },

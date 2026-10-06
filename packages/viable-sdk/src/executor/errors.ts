@@ -1,5 +1,5 @@
 import type { TargetIntegrityReport } from '@owlmeans/viable-common'
-import { formatIntegrityReport } from '@owlmeans/viable-common'
+import { targetIntegrityHelper } from '@owlmeans/viable-common'
 
 /**
  * What the local executor throws, and why so little of it does.
@@ -84,6 +84,6 @@ export class TargetIntegrityError extends Error {
   public override readonly name = 'TargetIntegrityError'
 
   constructor(public readonly report: TargetIntegrityReport) {
-    super(`The project in this directory is not a Viable application:\n${formatIntegrityReport(report)}`)
+    super(`The project in this directory is not a Viable application:\n${targetIntegrityHelper.formatIntegrityReport(report)}`)
   }
 }

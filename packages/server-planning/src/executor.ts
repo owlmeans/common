@@ -1,20 +1,18 @@
-import { uuid } from '@owlmeans/basic-ids'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { PlanningError, PlanningUnsupported, WorkcardConflict } from '@owlmeans/planning'
-import type {
-  ExecuteOptions, PlanningExecContext, PlanningFacade, PlanningPlugin, PlanningStore, Transition,
-  TransitionExecution, TransitionReceipt,
-} from '@owlmeans/planning'
-import { changeSetOf, transitionOf } from './executor/changes.js'
-import { assignCode } from './executor/code.js'
-import { withCreator } from './executor/creator.js'
-import { makeReceipt } from './executor/receipt.js'
-import { normalizeExecution, projectFor, resolveExecution } from './executor/resolve.js'
-import type { Resolved } from './executor/resolve.js'
-import { validateExecution } from './executor/validate.js'
-import type { PlanningRuntime } from './service.js'
 
-export { assertCreatorFixed, creatorOf, withCreator } from './executor/creator.js'
+import type { BasicConfig, BasicContext } from '@owlmeans/context'
+import { PlanningError, PlanningUnsupported, WorkcardConflict, type ExecuteOptions, type PlanningExecContext, type PlanningFacade, type PlanningPlugin, type PlanningStore, type Transition, type TransitionExecution, type TransitionReceipt } from '@owlmeans/planning'
+import { changesUtils } from './executor/changes.js'
+import { codeUtils } from './executor/code.js'
+import { creatorHelper } from './executor/creator.js'
+import { makeReceipt } from './executor/receipt.js'
+import type { Resolved } from './executor/types.js'
+import { validateExecution } from './executor/validate.js'
+import type { PlanningRuntime } from './types.js'
+import { resolveUtilsOf } from './executor/resolve.js'
+import { idHelper } from '@owlmeans/basic-ids'
+
+export { assertCreatorFixed, createCreatorHelper, creatorHelper, creatorOf, withCreator } from './executor/creator.js'
+export type * from './executor/creator/types.js'
 
 const isoNow = (): string => new Date().toISOString()
 
@@ -67,10 +65,10 @@ const currentReceipt = async (
 /**
  * THE write path. Nothing is appended before step 11, so every refusal leaves the log untouched.
  *
- * 1 normalize (a create's `createdBy` defaults to the scope's subject — {@link withCreator}) →
+ * 1 normalize (a create's `createdBy` defaults to the scope's subject — `creatorHelper.withCreator`) →
  * 2 scope → 3 idempotency (a known `key` answers its first receipt, before any validation) →
  * 4 resolve → 5 the plugins' `before` chain (re-resolved once when it moved the type or the parent)
- * → 6 validate (a `createdBy` in `changes`/`unset` is refused — {@link assertCreatorFixed}) →
+ * → 6 validate (a `createdBy` in `changes`/`unset` is refused — `creatorHelper.assertCreatorFixed`) →
  * 7 allocate the card id → 8 code → 9 changes (an update changing nothing answers
  * the current receipt and appends nothing) → 10 seq, a CAS against the head → 11 append →
  * 12 request the projection → 13 receipt → 14 `wait`.
@@ -82,8 +80,9 @@ export const executeTransition = async (
 ): Promise<TransitionReceipt> => {
   const scope = facade.scope
   const at = (runtime.options.now ?? isoNow)()
+  const resolve = resolveUtilsOf(runtime)
 
-  let exec = withCreator(normalizeExecution(input), scope)
+  let exec = creatorHelper.withCreator(resolve.normalizeExecution(input), scope)
 
   if (scope.entityId == null || scope.entityId === '') {
     throw new PlanningError('malformed:scope-without-entity')
@@ -96,12 +95,12 @@ export const executeTransition = async (
     }
   }
 
-  let resolved = await resolveExecution(runtime, facade, exec)
+  let resolved = await resolve.resolveExecution(facade, exec)
 
   const before = identityOf(exec)
-  exec = normalizeExecution(await runtime.registry.before(exec, execContextOf(runtime, facade, resolved)))
+  exec = resolve.normalizeExecution(await runtime.registry.before(exec, execContextOf(runtime, facade, resolved)))
   if (identityOf(exec) !== before) {
-    resolved = await resolveExecution(runtime, facade, exec)
+    resolved = await resolve.resolveExecution(facade, exec)
   }
 
   await validateExecution(runtime, facade, exec, resolved)
@@ -113,12 +112,12 @@ export const executeTransition = async (
   }
 
   const cardId = resolved.create
-    ? store.newId?.() ?? runtime.options.ids?.() ?? uuid()
+    ? store.newId?.() ?? runtime.options.ids?.() ?? idHelper.uuid()
     : resolved.card!.id!
 
-  exec = await assignCode(exec, resolved, scope, runtime.registry, execContextOf(runtime, facade, resolved))
+  exec = await codeUtils.assignCode(exec, resolved, scope, runtime.registry, execContextOf(runtime, facade, resolved))
 
-  const { set, empty } = changeSetOf(exec, resolved, resolved.schemas, at)
+  const { set, empty } = changesUtils.changeSetOf(exec, resolved, resolved.schemas, at)
   if (empty) {
     return await currentReceipt(store, resolved, scope.entityId, opts)
   }
@@ -128,9 +127,9 @@ export const executeTransition = async (
     throw new WorkcardConflict(`${cardId}:create:${seq}`)
   }
 
-  const transition = transitionOf({
+  const transition = changesUtils.transitionOf({
     exec, resolved, scope, set, cardId, seq, at,
-    project: projectFor(resolved, exec, cardId),
+    project: resolve.projectFor(resolved, exec, cardId),
   })
 
   let appended: Transition

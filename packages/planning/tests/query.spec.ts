@@ -1,13 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { applyQuery } from '@owlmeans/resource'
 import { IntrinsicStatus, WorkcardKind } from '../src/consts.js'
 import { PlanningError } from '../src/errors.js'
-import {
-  criteriaOf, decodeSummaryQuery, decodeWorkcardQuery, encodeSummaryQuery, encodeWorkcardQuery, listOptionsOf,
-  summaryOf,
-} from '../src/helpers/query.js'
 import type { Workcard, WorkcardQuery } from '../src/types.js'
 import { AT, ENTITY } from './fixtures.js'
+import { queryHelper } from '../src/helpers/query.js'
+import { wireHelper } from '../src/helpers/wire.js'
+import { recordQueryHelper } from '@owlmeans/resource'
 
 const card = (id: string, extra: Partial<Workcard>): Workcard => ({
   id, kind: WorkcardKind.Card, type: 'test:story', entityId: ENTITY, title: `Card ${id}`, parent: 'p1',
@@ -23,11 +21,11 @@ const CARDS = [
 ]
 
 const ids = (query: WorkcardQuery): string[] =>
-  applyQuery(CARDS, criteriaOf(query, { entityId: ENTITY }), listOptionsOf(query)).items.map(item => item.id!)
+  recordQueryHelper.applyQuery(CARDS, queryHelper.criteriaOf(query, { entityId: ENTITY }), queryHelper.listOptionsOf(query)).items.map(item => item.id!)
 
 describe('criteriaOf', () => {
   test('translates the table, always scoped to the entity and omitting what is undefined', () => {
-    expect(criteriaOf({
+    expect(queryHelper.criteriaOf({
       kind: WorkcardKind.Card, type: ['test:story', 'test:task'], parent: 'p1', within: 'p2', status: undefined,
       labels: ['ui'], ids: ['a'], flow: { id: 'test:story', status: ['planned'] }, fields: { area: 'user' },
       code: 'US-AAA', updatedSince: AT,
@@ -60,30 +58,30 @@ describe('wire queries', () => {
       flow: { id: 'test:story', status: ['planned', 'failed'] }, fields: { area: 'user', primary: true },
       q: 'sign in', page: 1, size: 20, sort: ['order', { field: 'updatedAt', order: 'desc' }],
     }
-    const wire = encodeWorkcardQuery(query)
+    const wire = wireHelper.encodeWorkcardQuery(query)
 
     expect(Object.values(wire).every(value => typeof value === 'string' || typeof value === 'number')).toBe(true)
     expect(wire.sort).toBe('order,-updatedAt')
-    expect(criteriaOf(decodeWorkcardQuery(wire), { entityId: ENTITY })).toEqual(criteriaOf(query, { entityId: ENTITY }))
-    expect(listOptionsOf(decodeWorkcardQuery(wire))).toEqual({ page: 1, size: 20, sort: ['order', { field: 'updatedAt', order: 'desc' }] })
+    expect(queryHelper.criteriaOf(wireHelper.decodeWorkcardQuery(wire), { entityId: ENTITY })).toEqual(queryHelper.criteriaOf(query, { entityId: ENTITY }))
+    expect(queryHelper.listOptionsOf(wireHelper.decodeWorkcardQuery(wire))).toEqual({ page: 1, size: 20, sort: ['order', { field: 'updatedAt', order: 'desc' }] })
   })
 
   test('decode accepts what a transport may have split already, and coerces numbers', () => {
-    expect(decodeWorkcardQuery({ status: ['planned', 'failed'], size: '10', labels: 'ui' } as never))
+    expect(wireHelper.decodeWorkcardQuery({ status: ['planned', 'failed'], size: '10', labels: 'ui' } as never))
       .toEqual({ status: ['planned', 'failed'], size: 10, labels: ['ui'] })
-    expect(decodeSummaryQuery(encodeSummaryQuery({ parents: ['p1', 'p2'], type: 'test:story' })))
+    expect(wireHelper.decodeSummaryQuery(wireHelper.encodeSummaryQuery({ parents: ['p1', 'p2'], type: 'test:story' })))
       .toEqual({ parents: ['p1', 'p2'], type: 'test:story' })
   })
 
   test('a value that does not decode is a malformed query', () => {
-    expect(() => decodeWorkcardQuery({ fields: '{broken' })).toThrow(PlanningError)
-    expect(() => decodeWorkcardQuery({ size: 'many' } as never)).toThrow('malformed:query:size')
+    expect(() => wireHelper.decodeWorkcardQuery({ fields: '{broken' })).toThrow(PlanningError)
+    expect(() => wireHelper.decodeWorkcardQuery({ size: 'many' } as never)).toThrow('malformed:query:size')
   })
 })
 
 describe('summaryOf', () => {
   test('counts direct children per parent by intrinsic state, with no key for a parent without any', () => {
-    expect(summaryOf(CARDS.filter(item => item.entityId === ENTITY), ['p1', 'p3'])).toEqual({
+    expect(queryHelper.summaryOf(CARDS.filter(item => item.entityId === ENTITY), ['p1', 'p3'])).toEqual({
       p1: { total: 2, planned: 1, 'in-progress': 0, closed: 1 },
     })
   })

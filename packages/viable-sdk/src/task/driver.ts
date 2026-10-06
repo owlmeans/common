@@ -1,46 +1,12 @@
-import { ModelTaskMode, ModelTaskResultKind, ModelTaskRole } from '@owlmeans/viable-common'
-import type { ModelTask, ModelTaskResult } from '@owlmeans/viable-common'
-
-/**
- * Something that can answer a model task without a coding agent in front of it.
- *
- * Two consumers, and both are the reason it is an interface rather than a function on the session:
- * the end-to-end tests, which have to play the parent agent deterministically, and the CLI this
- * SDK exists to make possible, where the "parent agent" is the CLI's own model.
- */
-export interface TaskDriver {
-  answer: (task: ModelTask) => Promise<ModelTaskResult>
-}
-
-/** The minimum a chat model must offer to stand in for a parent agent. */
-export interface DriverModel {
-  invoke: (messages: Array<{ role: string, content: string }>) => Promise<string>
-}
-
-export interface LangchainLikeModel {
-  invoke: (messages: unknown) => Promise<{ content: unknown }>
-  bindTools?: (tools: unknown[], kwargs?: unknown) => LangchainLikeModel
-}
-
-export interface ModelDriverOptions {
-  /** One model per tier. A tier with no model falls back to the first one given. */
-  models: Partial<Record<string, LangchainLikeModel>>
-}
+import { ModelTaskMode, ModelTaskResultKind } from '@owlmeans/viable-common'
+import { ROLE_TO_LC } from './consts.local.js'
+import type { LangchainLikeModel, ModelDriverOptions, TaskDriver } from './types.js'
 
 const textOf = (content: unknown): string => typeof content === 'string'
   ? content
   : Array.isArray(content)
     ? content.map(part => (part as { text?: string }).text ?? '').join('')
     : String(content ?? '')
-
-const ROLE_TO_LC: Record<ModelTaskRole, string> = {
-  [ModelTaskRole.System]: 'system',
-  [ModelTaskRole.User]: 'user',
-  [ModelTaskRole.Assistant]: 'assistant',
-  // A chat model called without the tool definitions cannot receive a tool turn; the content is
-  // what mattered anyway, and presenting it as a user turn keeps the conversation readable.
-  [ModelTaskRole.Tool]: 'user',
-}
 
 /**
  * A reference parent agent, backed by a chat model.

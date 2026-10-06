@@ -4,7 +4,7 @@ import {
 } from '@owlmeans/queue'
 import type { Config as QueueConfig, QueueWorkerService, ScheduleDeclaration } from '@owlmeans/queue'
 import { Queue } from 'bullmq'
-import { SCHEDULE_PREFIX, syncSchedules } from '@owlmeans/redis-queue'
+import { SCHEDULE_PREFIX, queueScheduleHelper } from '@owlmeans/redis-queue'
 import type { Context } from '@owlmeans/redis-queue'
 import { gate, makeSuite, pause, until } from './context.js'
 import type { BootOptions, Booted } from './context.js'
@@ -157,16 +157,16 @@ describe('@owlmeans/redis-queue — schedules', () => {
 
     const bull = new Queue('direct', { connection: booted.client, prefix: booted.keys })
     try {
-      expect((await syncSchedules(bull, cfg(yearly), 'direct')).upserted).toEqual(['yearly'])
-      expect((await syncSchedules(bull, cfg(yearly), 'direct')).unchanged).toEqual(['yearly'])
+      expect((await queueScheduleHelper.syncSchedules(bull, cfg(yearly), 'direct')).upserted).toEqual(['yearly'])
+      expect((await queueScheduleHelper.syncSchedules(bull, cfg(yearly), 'direct')).unchanged).toEqual(['yearly'])
 
-      const moved = await syncSchedules(bull, cfg({ ...yearly, pattern: '0 0 2 1 *' }), 'direct')
+      const moved = await queueScheduleHelper.syncSchedules(bull, cfg({ ...yearly, pattern: '0 0 2 1 *' }), 'direct')
       expect(moved.upserted).toEqual(['yearly'])
       const schedulers = await bull.getJobSchedulers(0, -1)
       expect(schedulers.map(scheduler => [scheduler.key, scheduler.pattern]))
         .toEqual([[`${SCHEDULE_PREFIX}yearly`, '0 0 2 1 *']])
 
-      const dropped = await syncSchedules(bull, declareQueue({ queue: {} } as QueueConfig, 'direct', ['yearly']), 'direct')
+      const dropped = await queueScheduleHelper.syncSchedules(bull, declareQueue({ queue: {} } as QueueConfig, 'direct', ['yearly']), 'direct')
       expect(dropped.removed).toEqual(['yearly'])
     } finally {
       await bull.close()
