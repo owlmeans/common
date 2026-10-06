@@ -3,7 +3,7 @@ import type { HeadScripts, HeadScriptsOptions } from './types.js'
 
 export * from './helper.js'
 
-export type { GtmOptions } from '@owlmeans/web-gtm'
+export type { GoogleTagOptions, GtmOptions } from '@owlmeans/web-gtm'
 export type { ConsentOptions, ConsentCategory } from '@owlmeans/consent'
 
 export type { AstroHelper, HeadScripts, HeadScriptsOptions } from './types.js'

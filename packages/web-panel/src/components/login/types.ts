@@ -1,6 +1,6 @@
 import type { LoginScreenProps } from '@owlmeans/client-auth/login'
 import type { ComponentType, ReactNode } from 'react'
-import type { LoginCreditModel, LoginTermsModel } from '@owlmeans/client-panel/auth'
+import type { LoginCreditModel, LoginProviderModel, LoginTermsModel } from '@owlmeans/client-panel/auth'
 
 export interface LoginScreenSetup extends Omit<LoginScreenProps, 'translate'> {
   /** The one thing an application is expected to supply. */
@@ -22,3 +22,9 @@ export interface LoginTermsProps {
 }
 
 export type LoginPrivacyNoticeProps = LoginTermsProps
+
+export interface LoginProviderNoteProps {
+  model: LoginProviderModel
+  translate: (key: string, defaultValue: string) => string
+  className?: string
+}

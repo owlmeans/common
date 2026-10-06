@@ -14,7 +14,7 @@ Embedded OIDC identity provider — wraps the `oidc-provider` library as an OwlM
 ## Installation
 
 ```bash
-bun add @owlmeans/server-oidc-provider@^0.1.18-rc.50
+bun add @owlmeans/server-oidc-provider@^0.1.18-rc.51
 ```
 
 ## Usage
@@ -72,7 +72,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.49
+npx @owlmeans/agent-skills@^0.1.18-rc.51
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,10 +1,20 @@
 import type { ConsentOptions } from '@owlmeans/consent'
-import type { GtmOptions } from '@owlmeans/web-gtm'
+import type { GoogleTagOptions } from '@owlmeans/web-gtm'
 
 export interface HeadScripts {
-  /** Inline `<script>` content for `<head>`. Consent defaults first, then the container. */
+  /**
+   * Inline `<script>` content for `<head>`: the consent defaults, the ads-redaction flags, then the
+   * tag loader — gated behind consent in `'basic'` mode, immediate in `'advanced'`. Safe to stamp
+   * with `set:html` as it is.
+   */
   head: string
-  /** `<noscript>` content for the top of `<body>`. Empty when no container is configured. */
+  /**
+   * `<noscript>` content for the top of `<body>`. Empty when no container is configured, when the
+   * id is not a Tag Manager container (gtag.js has no frame), and in `'basic'` mode — a browser
+   * without JavaScript cannot have granted anything, so a frame would load the container without
+   * consent. Stamp it as `<noscript set:html={tags.noscript} />` rather than writing the frame by
+   * hand.
+   */
   noscript: string
   /**
    * The standalone adopt-and-strip fragment (`consentLinkerScript`) — empty unless
@@ -21,7 +31,8 @@ export interface HeadScripts {
 
 /** What a page's head is built from: a tag container to load, and the consent settings it obeys. */
 export interface HeadScriptsOptions {
-  gtm?: GtmOptions
+  /** The Google tag to load: `GTM-…`, `G-…`, `GT-…`, `AW-…` or `DC-…`; its `mode` defaults to `'basic'`. */
+  gtm?: GoogleTagOptions
   consent?: ConsentOptions
 }
 
@@ -32,6 +43,14 @@ export interface AstroHelper {
    *
    * Pass no `gtm` and it is just the consent defaults — which a site still wants, because a stored
    * decision has to reach any tag the page loads later.
+   *
+   * Throws when `gtm.id` is not a loadable Google tag id, so a mistyped id fails the build instead
+   * of shipping pages with no tag.
+   *
+   * In `'basic'` mode (the default) the tag loads only after a consenting visit, so a page counts
+   * as tagged in the tag manager's coverage report only once a consenting visitor has opened it.
+   * A script that redirects BEFORE `head` runs leaves the URL it redirected away from untagged —
+   * so never redirect from a URL that already names its locale.
    */
   owlHeadScripts: (opts?: HeadScriptsOptions) => HeadScripts
   /**

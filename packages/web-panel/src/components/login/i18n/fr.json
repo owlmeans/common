@@ -1,0 +1,10 @@
+{
+  "login": {
+    "provider": {
+      "title": "Connexion à {{product}}",
+      "top": "Cette application est hébergée par {{operator}} pour le compte de {{product}}. Vous vous connectez avec {{provider}}.",
+      "inline": "La connexion est assurée par {{provider}} pour le compte de {{product}}.",
+      "more": "En savoir plus"
+    }
+  }
+}

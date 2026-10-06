@@ -4,12 +4,14 @@ import { Button } from '../../@/components/ui/button.js'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../@/components/ui/card.js'
 import { cn } from '../../@/lib/utils.js'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
-import { useLoginMethods } from '@owlmeans/client-panel/auth'
+import { loginProviderHelper, useLoginMethods } from '@owlmeans/client-panel/auth'
 import { type LoginMethod, type LoginScreenProps, loginResumeHelper } from '@owlmeans/client-auth/login'
 import { LoginMethodIcon } from './icons.js'
 import { LoginPrivacyNotice, LoginTerms } from './terms.js'
 import { LoginCredit } from './credit.js'
+import { LoginProviderNote } from './provider.js'
 import { VARIANT } from './consts.local.js'
+import './i18n.js'
 
 /**
  * The sign-in screen: which identity provider, confirmed against which documents.
@@ -33,6 +35,83 @@ export const LoginScreen: FC<LoginScreenProps> = props => {
   const Logo = props.Logo
   const attemptError = model.busy == null ? loginResumeHelper.loginAttemptError(model.outcome) : null
 
+  const provider = model.provider
+  const title = props.title ?? (provider != null
+    ? loginProviderHelper.fill(t('login.provider.title', 'Sign in to {{product}}'), provider)
+    : t('login.title', 'Sign in'))
+
+  const card = <Card className={cn('w-full max-w-sm', props.containerClassName)}>
+    <CardHeader className="items-center gap-2 text-center">
+      {Logo != null && <div className="flex justify-center pb-2">
+        {isValidElement(Logo) ? Logo : typeof Logo === 'function'
+          ? <Logo className="h-10 w-auto" /> : Logo}
+      </div>}
+      <CardTitle className="text-xl">{title}</CardTitle>
+      <CardDescription>
+        {props.subtitle ?? t('login.subtitle', 'Choose how you would like to continue.')}
+      </CardDescription>
+    </CardHeader>
+
+    <CardContent className="flex flex-col gap-4">
+      {model.methods.length < 1
+        ? <p role="status" className="text-sm text-muted-foreground text-center">
+          {t('login.empty', 'No sign-in method is configured for this application.')}
+        </p>
+        : <div className="flex flex-col gap-2">
+          {model.methods.map((method: LoginMethod) => <Button
+            key={method.id}
+            type="button"
+            data-login-method={method.id}
+            variant={VARIANT[method.emphasis ?? 'secondary'] ?? 'outline'}
+            // `aria-disabled`, never `disabled`. A disabled button swallows the click, so a user
+            // who has not confirmed the terms would press it and be told nothing at all — the
+            // screen would simply seem broken. Blocking happens in the handler, which then says
+            // why.
+            aria-disabled={model.blocked || undefined}
+            data-blocked={model.blocked ? 'true' : undefined}
+            // `cursor-pointer` explicitly: the package's private shadcn button stays compatible
+            // with the older primitive style too. Stating it here keeps the sign-in control
+            // visibly actionable independently of a consumer's shadcn setup.
+            className={cn(
+              'w-full justify-center gap-2 cursor-pointer',
+              model.blocked && 'opacity-60'
+            )}
+            autoFocus={method.id === model.primary?.id}
+            onClick={() => model.select(method)}
+          >
+            {model.busy === method.id
+              ? <Loader2 className="size-4 animate-spin" />
+              : <LoginMethodIcon name={method.icon} className="size-4" />}
+            {method.label ?? t(`login.method.${method.i18nKey ?? method.id}`, method.id)}
+          </Button>)}
+        </div>}
+
+      {/* On the owner's own domain the disclosure is one line under the methods — the place a
+          person looks just before choosing one. */}
+      {provider?.placement === 'inline' && <LoginProviderNote model={provider} translate={t} />}
+
+      {/* Terms mode: the checkbox lives on a post-login step instead (`termsDeferred`) — this
+          screen shows the privacy disclosure alone and blocks nothing on it. */}
+      {model.terms.required && (model.terms.deferred
+        ? <LoginPrivacyNotice model={model.terms} translate={t} locale={props.locale} />
+        : <LoginTerms model={model.terms} translate={t} locale={props.locale} />)}
+
+      {/*
+        A thrown message first, because it names the actual fault; otherwise whatever the
+        finished outcome means for someone still looking at this screen. An attempt that ends
+        without moving the document MUST say so — silence here reads as a dead button.
+      */}
+      {(model.error ?? attemptError) != null
+        && <p role="alert" data-login-error className="text-sm text-destructive text-center">
+          {model.error ?? t(attemptError as string, 'Sign-in did not complete. Please try again.')}
+        </p>}
+    </CardContent>
+
+    <div className="px-6">
+      {props.footer ?? <LoginCredit model={model.credit} translate={t} />}
+    </div>
+  </Card>
+
   // The viewport height is set INLINE, and deliberately.
   //
   // A percentage minimum (`min-h-full`) resolves against a parent that has a height, and this
@@ -45,78 +124,38 @@ export const LoginScreen: FC<LoginScreenProps> = props => {
   // rule, by contrast, is invisible — the screen looks nearly right and is silently uncentred.
   //
   // `props.style` still wins, because a class-based override no longer can.
+  //
+  // The platform's own hosts put the provider disclosure in a strip across the top of the page —
+  // the FIRST child of the screen — and centre the card in a stage that takes the rest of the
+  // height. Every layout-bearing property of that variant is inline too, for the same reason.
+  if (provider?.placement === 'top') {
+    return <div
+      data-login-screen
+      style={{
+        minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+        justifyContent: 'flex-start', padding: 0, ...props.style,
+      }}
+      className={cn('w-full', props.className)}
+    >
+      <LoginProviderNote model={provider} translate={t} />
+      <div
+        data-login-stage
+        style={{
+          display: 'flex', flex: '1 1 auto', alignItems: 'center', justifyContent: 'center',
+          width: '100%', padding: '1rem', boxSizing: 'border-box',
+        }}
+      >
+        {card}
+      </div>
+    </div>
+  }
+
   return <div
     data-login-screen
     style={{ minHeight: '100dvh', ...props.style }}
     className={cn('flex w-full items-center justify-center p-4', props.className)}
   >
-    <Card className={cn('w-full max-w-sm', props.containerClassName)}>
-      <CardHeader className="items-center gap-2 text-center">
-        {Logo != null && <div className="flex justify-center pb-2">
-          {isValidElement(Logo) ? Logo : typeof Logo === 'function'
-            ? <Logo className="h-10 w-auto" /> : Logo}
-        </div>}
-        <CardTitle className="text-xl">{props.title ?? t('login.title', 'Sign in')}</CardTitle>
-        <CardDescription>
-          {props.subtitle ?? t('login.subtitle', 'Choose how you would like to continue.')}
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="flex flex-col gap-4">
-        {model.methods.length < 1
-          ? <p role="status" className="text-sm text-muted-foreground text-center">
-            {t('login.empty', 'No sign-in method is configured for this application.')}
-          </p>
-          : <div className="flex flex-col gap-2">
-            {model.methods.map((method: LoginMethod) => <Button
-              key={method.id}
-              type="button"
-              data-login-method={method.id}
-              variant={VARIANT[method.emphasis ?? 'secondary'] ?? 'outline'}
-              // `aria-disabled`, never `disabled`. A disabled button swallows the click, so a user
-              // who has not confirmed the terms would press it and be told nothing at all — the
-              // screen would simply seem broken. Blocking happens in the handler, which then says
-              // why.
-              aria-disabled={model.blocked || undefined}
-              data-blocked={model.blocked ? 'true' : undefined}
-              // `cursor-pointer` explicitly: the package's private shadcn button stays compatible
-              // with the older primitive style too. Stating it here keeps the sign-in control
-              // visibly actionable independently of a consumer's shadcn setup.
-              className={cn(
-                'w-full justify-center gap-2 cursor-pointer',
-                model.blocked && 'opacity-60'
-              )}
-              autoFocus={method.id === model.primary?.id}
-              onClick={() => model.select(method)}
-            >
-              {model.busy === method.id
-                ? <Loader2 className="size-4 animate-spin" />
-                : <LoginMethodIcon name={method.icon} className="size-4" />}
-              {method.label ?? t(`login.method.${method.i18nKey ?? method.id}`, method.id)}
-            </Button>)}
-          </div>}
-
-        {/* Terms mode: the checkbox lives on a post-login step instead (`termsDeferred`) — this
-            screen shows the privacy disclosure alone and blocks nothing on it. */}
-        {model.terms.required && (model.terms.deferred
-          ? <LoginPrivacyNotice model={model.terms} translate={t} locale={props.locale} />
-          : <LoginTerms model={model.terms} translate={t} locale={props.locale} />)}
-
-        {/*
-          A thrown message first, because it names the actual fault; otherwise whatever the
-          finished outcome means for someone still looking at this screen. An attempt that ends
-          without moving the document MUST say so — silence here reads as a dead button.
-        */}
-        {(model.error ?? attemptError) != null
-          && <p role="alert" data-login-error className="text-sm text-destructive text-center">
-            {model.error ?? t(attemptError as string, 'Sign-in did not complete. Please try again.')}
-          </p>}
-      </CardContent>
-
-      <div className="px-6">
-        {props.footer ?? <LoginCredit model={model.credit} translate={t} />}
-      </div>
-    </Card>
+    {card}
   </div>
 }
 

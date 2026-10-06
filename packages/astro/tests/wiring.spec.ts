@@ -21,6 +21,45 @@ describe('@owlmeans/astro — head scripts', () => {
     expect(noscript).toBe('')
   })
 
+  test('ads redaction is declared after the defaults and before the loader', async () => {
+    // `ads_data_redaction` and `url_passthrough` are read only when set ahead of the tag, so the
+    // stamped head has to carry them in this order — the older gtm-only snippet had neither.
+    const { head } = astroHelper.owlHeadScripts({ gtm: { id: 'GTM-ASTRO01' } })
+
+    expect(head.indexOf("'consent','default'")).toBeLessThan(head.indexOf('ads_data_redaction'))
+    expect(head.indexOf('ads_data_redaction')).toBeLessThan(head.indexOf('gtm.js'))
+    expect(head).toContain("'url_passthrough',false")
+  })
+
+  test('"advanced" loads the container with no consent gate', async () => {
+    const { head } = astroHelper.owlHeadScripts({ gtm: { id: 'GTM-ASTRO01', mode: 'advanced' } })
+
+    expect(head).toContain('gtm.js')
+    expect(head).not.toContain('addEventListener')
+  })
+
+  test('an id that is not a Google tag id fails the build instead of shipping no tag', async () => {
+    expect(() => astroHelper.owlHeadScripts({ gtm: { id: 'not-a-tag' } })).toThrow('not a loadable Google tag id')
+    expect(() => astroHelper.owlHeadScripts({ gtm: { id: '' } })).toThrow()
+  })
+
+  test('a gtag id loads gtag.js and has no noscript frame, even in "advanced" mode', async () => {
+    const { head, noscript } = astroHelper.owlHeadScripts({ gtm: { id: 'G-ASTRO0001', mode: 'advanced' } })
+
+    expect(head).toContain('gtag/js')
+    expect(head).not.toContain('gtm.js')
+    expect(noscript).toBe('')
+  })
+
+  test('the head is safe to stamp inline: a closing tag in a configured value is escaped', async () => {
+    const { head } = astroHelper.owlHeadScripts({
+      gtm: { id: 'GTM-ASTRO01' },
+      consent: { storageKey: 'key</script><b>' },
+    })
+
+    expect(head).not.toContain('</script')
+  })
+
   test('without a container it is still the consent defaults, and no frame', async () => {
     // A site with no tag manager still needs the defaults on the queue: a stored decision has to
     // reach whatever the page loads later, and a page that declared nothing is a page where a

@@ -7,7 +7,7 @@ Usage:
   npm create @owlmeans/app@latest <dir> [options]
   bun create @owlmeans/app <dir> [options]
   yarn create @owlmeans/app <dir> [options]
-  npx @owlmeans/create-app@^0.1.18-rc.59 <dir> [options]
+  npx @owlmeans/create-app@^0.1.18-rc.60 <dir> [options]
 
 Generates three workspaces (common + api + web) with shadcn UI navigation and
 layout, no authentication, and a session-scoped in-memory resource on the

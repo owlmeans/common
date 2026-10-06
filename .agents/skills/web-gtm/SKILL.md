@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-gtm
 
 **Layer:** Web
-**Install:** `"@owlmeans/web-gtm": "^0.1.18-rc.35"` in `dependencies`
+**Install:** `"@owlmeans/web-gtm": "^0.1.18-rc.36"` in `dependencies`
 
 The tag half of the consent set. It emits **strings and data**, not components, and it holds no
 state — the decision lives in `@owlmeans/consent`, which this package reads through
@@ -37,6 +37,11 @@ constant so flipping the platform default later is a one-line change:
 
 Read `'basic'`'s default as the EU/DE worst-case reading of ePrivacy Art. 5(3): no third party
 receives a connection before consent.
+
+**What `'basic'` does to a tag manager's coverage report.** A page is "Tagged" only after a consenting visitor
+has loaded it; `'advanced'` is what makes every first view count. The report also records URLs it only saw as a
+referrer, so a page the visitor was redirected AWAY from before the loader ran stays "Not tagged" — keep any
+redirect off URLs that already name their locale.
 
 `googleTagHelper.gtmNoscriptFrame` returns `''` in `'basic'` mode rather than an iframe — a browser with JavaScript
 disabled cannot have granted anything, so an unauthenticated `<noscript>` frame would defeat the

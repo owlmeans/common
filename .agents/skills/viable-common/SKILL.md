@@ -1,14 +1,14 @@
 ---
 name: viable-common
-description: How to use @owlmeans/viable-common — the runtime-free contract package of the OwlMeans Viable platform. Covers planning cards and flows (including the landing-gate and tenancy fields), project/story refusals, slot commands and layouts, slot metadata keys, target integrity, connector domain statuses and routes, the intent-first hand-off (`./intent`), conversion vocabulary, blueprint layer types and the case vocabulary, the ViableSkill/ViablePersona names (never the catalogue behind them), what belongs here versus in @owlmeans/viable, generated-project analysis/design/scaffold/metadata shapes, StoryDesignPort, schema conventions, and wire-version rules. Auto-invoked when importing a viable card type or flow, a slot command, a connector or conversion type, a target-integrity helper, or any *Schema this package exports.
+description: How to use @owlmeans/viable-common — the runtime-free contract package of the OwlMeans Viable platform. Covers planning cards and flows (including the landing-gate and tenancy fields), project/story refusals, slot commands and layouts, slot metadata keys, target integrity, connector domain statuses and routes, the intent-first hand-off (`./intent`), shared legal dates (`./legal`), conversion vocabulary, blueprint layer types and case vocabulary, ViableSkill/ViablePersona names, what belongs here versus in @owlmeans/viable, generated-project analysis/design/scaffold/metadata shapes, StoryDesignPort, schema conventions, and wire-version rules. Auto-invoked when importing a viable card type or flow, a slot command, a connector or conversion type, legal dates, a target-integrity helper, or any *Schema this package exports.
 user-invocable: false
 ---
 
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.45"` in `dependencies`
-**Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` — the barrel
+**Install:** `"@owlmeans/viable-common": "^0.0.46"` in `dependencies`
+**Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
 tests that compile the schemas); it depends on the packages under Depends On and nothing else.
@@ -36,6 +36,23 @@ execution state and card fields name.
 | `./convert` | `ConversionStage`/`Status`/`Decision` and the `conversionStageHelper` transitions (`stageAfter`/`decisionFor`/`canEnter`), `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`censusHelper` — `fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `targetLayoutHelper` (`detectTargetLayout`, `isLegacyLayout`, `targetPackageName`), `targetIntegrityHelper.verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES` |
 | `./intent` | `intent` (the four aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants, `IntentDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
+| `./legal` | `OWLMEANS_LEGAL_DATES`, `LegalDocumentDates`, `LegalDocumentKey` — the public site's legal dates and the platform's legal acceptance dates |
+
+## Shared legal dates (`./legal`)
+
+Import `OWLMEANS_LEGAL_DATES` from `@owlmeans/viable-common/legal` for legal-page builds and
+platform consent configuration. This subpath has no runtime imports; it loads only the date table.
+The package barrel also re-exports it. Never import another repository's sources by path.
+
+`src/legal/consts.ts` owns the ISO `YYYY-MM-DD` effective/updated dates; `src/legal/types.ts`
+declares `LegalDocumentDates` and the complete `LegalDocumentKey` union. A new document must add
+both a key and a table row; `satisfies Record<LegalDocumentKey, LegalDocumentDates>` checks coverage.
+Format dates in the consumer's locale, keeping policy text as placeholders rather than copied dates.
+
+Changing a terms/privacy/billing/product updated date changes the platform's terms-acceptance
+digest and requires acceptance again; privacy.updated also revises marketing consent.
+Cookies, services-agreement and platform-license dates are display-only. Rebuild this package
+before the platform and static-site consumers; both must receive the same table revision.
 
 ## The planning module
 

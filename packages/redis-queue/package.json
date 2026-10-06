@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/redis-queue",
-  "version": "0.1.18-rc.36",
+  "version": "0.1.18-rc.37",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,13 +22,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/basic-ids": "^0.1.18-rc.37",
+    "@owlmeans/basic-ids": "^0.1.18-rc.38",
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/error": "^0.1.18-rc.38",
     "@owlmeans/log": "^0.1.18-rc.2",
-    "@owlmeans/queue": "^0.1.18-rc.41",
-    "@owlmeans/redis": "^0.1.18-rc.42",
-    "@owlmeans/redis-resource": "^0.1.18-rc.44",
+    "@owlmeans/queue": "^0.1.18-rc.42",
+    "@owlmeans/redis": "^0.1.18-rc.43",
+    "@owlmeans/redis-resource": "^0.1.18-rc.45",
     "@owlmeans/resource": "^0.1.18-rc.40",
     "@owlmeans/server-context": "^0.1.18-rc.43",
     "bullmq": "^6.3.11",

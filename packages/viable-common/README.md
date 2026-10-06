@@ -17,11 +17,12 @@ filesystem, no inference SDK. It is safe to import from a browser bundle.
 | `@owlmeans/viable-common/connect` | The connector protocol: sessions, operations, model tasks, questions, domain statuses, capabilities, the error family, and `connectProtocols()` — the one declaration both the platform and the SDK bind |
 | `@owlmeans/viable-common/convert` | Converting an application that already exists: the stages and their transitions, the origin and stack taxonomy, the census classifiers, and the `docs/conversion/` layout |
 | `@owlmeans/viable-common/integrity` | The target-shape manifest — what a slot is allowed to install, build and run — per target layout |
+| `@owlmeans/viable-common/legal` | `OWLMEANS_LEGAL_DATES`, `LegalDocumentDates` and `LegalDocumentKey` — shared ISO dates for the public site's policies and the platform's legal acceptance; no runtime dependencies |
 
 ## Installation
 
 ```bash
-bun add @owlmeans/viable-common@^0.0.45
+bun add @owlmeans/viable-common@^0.0.46
 ```
 
 ## Rules worth knowing before you change something
@@ -39,7 +40,7 @@ means "inherit" has no other spelling. `tests/convert.spec.ts` walks every expor
 both faults, and for draft-04 tuple `items`.
 
 **A field that crosses a version skew carries no `enum`.** A connector is installed with
-`npx -y @owlmeans/viable-mcp@^0.1.18-rc.45` and talks to a separately deployed platform, so an executor kind it
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.46` and talks to a separately deployed platform, so an executor kind it
 sends must remain an unused capability on an older platform rather than a refused session.
 
 **A ceiling exists once.** The inquiry answer cap here equals `DEFAULT_INQUIRY_ANSWER_CHARS` in
@@ -59,7 +60,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.49
+npx @owlmeans/agent-skills@^0.1.18-rc.51
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

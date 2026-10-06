@@ -4,13 +4,14 @@ import type { CommonConfig } from '@owlmeans/config'
 import { resolveCredit, LoginOutcome, LOGIN_SERVICE, loginMethodsHelper, loginTermsHelper } from '@owlmeans/client-auth/login'
 import type { LoginContext, LoginMethod, LoginService } from '@owlmeans/client-auth/login'
 import type { LoginMethodsModel, UseLoginMethodsOptions } from './types.js'
+import { loginProviderHelper } from './provider.js'
 
 /**
  * Everything a sign-in screen needs, with no opinion about how it looks.
  *
  * Headless and cross-platform, like `usePanelNav`: the rules about what may be offered, what must
- * be confirmed first and what the credit line says are the same on every platform, and only the
- * rendering differs. A renderer that re-derives any of them will drift from the one that does not.
+ * be confirmed first, what the credit line says and who is disclosed as signing the person in are
+ * the same on every platform, and only the rendering differs. A renderer that re-derives any of them will drift from the one that does not.
  */
 export const useLoginMethods = (opts?: UseLoginMethodsOptions): LoginMethodsModel => {
   const context = useContext() as unknown as LoginContext
@@ -24,6 +25,7 @@ export const useLoginMethods = (opts?: UseLoginMethodsOptions): LoginMethodsMode
   const credit = useMemo(
     () => resolveCredit(cfg?.credit, brand, context.cfg.service), [cfg, brand, context]
   )
+  const provider = useMemo(() => loginProviderHelper.resolve(cfg?.provider, brand), [cfg, brand])
 
   const [accepted, setAccepted] = useState(() => loginTermsHelper.termsAccepted(resolved))
   const [attempted, setAttempted] = useState(false)
@@ -90,6 +92,7 @@ export const useLoginMethods = (opts?: UseLoginMethodsOptions): LoginMethodsMode
       accept,
     },
     credit,
+    provider,
     blocked,
     busy,
     outcome,

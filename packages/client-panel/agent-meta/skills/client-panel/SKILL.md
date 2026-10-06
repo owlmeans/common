@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-panel
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.58"` in `dependencies`
+**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.59"` in `dependencies`
 
 ## Key Exports
 
@@ -40,9 +40,11 @@ controller; apps may override it through their own `buttons` resource.
 
 ## Subpath Exports
 
-- `./auth` — `useLoginMethods` and the login model types (`LoginMethodsModel`, `LoginTermsModel`,
-  `LoginCreditModel`, `UseLoginMethodsOptions`). Importing it also registers this package's own
-  seven-language `client-panel-auth` bundle by side effect.
+- `./auth` — `useLoginMethods`, `loginProviderHelper` and the login model types
+  (`LoginMethodsModel`, `LoginTermsModel`, `LoginCreditModel`, `LoginProviderConfig`,
+  `LoginProviderModel`, `LoginProviderPlacement`, `UseLoginMethodsOptions`). Importing it also
+  registers this package's own seven-language `client-panel-auth` bundle and the
+  `LoginScreenConfig.provider` augmentation of `@owlmeans/config` by side effect.
 - `./auth/plugins` — the shapes an auth UI plugin is written against: `Ed22519BasicAuthUIPluginForm`
   and its `Ed22519BasicAuthUIPluginFormSchema`.
 
@@ -62,6 +64,30 @@ turns `documents`/`notices` into markup with `loginTermsHelper.termsSentence`
 bound `LoginStep` confirms the terms instead of this screen. `LoginMethodsModel.blocked` folds it in
 (`required && !deferred && !accepted`) — a renderer never blocks on `required`/`accepted` alone, or
 it would re-block a screen whose confirmation moved elsewhere.
+
+### The provider disclosure — `LoginMethodsModel.provider`
+
+A sign-in screen that a third party runs for an application (a generated target signing people in
+through the platform's IAM) names both parties: who signs the person in, and on behalf of which
+product. The rules live here, headless, so every renderer discloses the same thing:
+
+- **Config** — `cfg.security.auth.login.provider?: LoginProviderConfig`
+  (`{ name, operator?, info?, placement?: 'top' | 'inline' }`), declared onto `@owlmeans/config`'s
+  `LoginScreenConfig` by module augmentation in `auth/login/provider-config.ts` (the
+  `client-auth/login/terms-config.ts` pattern), never by editing `@owlmeans/config`. The `./auth`
+  barrel re-exports it, so any import of `@owlmeans/client-panel/auth` loads the field; a program
+  that builds the literal without one adds `import type {} from '@owlmeans/client-panel/auth'`.
+- **Model** — `loginProviderHelper.resolve(cfg, brand)` → `LoginProviderModel { name, operator,
+  product, info: string | null, placement }` or `null`. Null unless the provider `name` AND the
+  product (`cfg.brand.name`) are set — a relationship with one party missing is never shown. Blank
+  strings are unset (build-time env arrives as `''`); `operator` defaults to `name`; `placement` to
+  `'inline'` (anything but `'top'` is inline); `info` survives only as an absolute `http(s)` URL or
+  a root-relative path (`//host` and `/\` are refused). `useLoginMethods().provider` carries it.
+- **Copy** — `loginProviderHelper.fill(template, model)` puts `{{provider}}`, `{{operator}}` and
+  `{{product}}` into an ALREADY-TRANSLATED sentence in one pass; names never travel as i18next
+  params. The keys (`login.provider.*`) and the markup belong to `web-panel`.
+- The disclosure is independent of the credit line: `credit.poweredBy: false` never hides who
+  signs a person in.
 
 ## Usage
 
