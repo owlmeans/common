@@ -61,9 +61,11 @@ A types file imports only types files, consts files and external packages — ne
 6. Build from clean (delete `build/` and `*.tsbuildinfo`), run the package's tests, and grep the
    tests that read source as text (`readFileSync` of a `.ts`) for the moved names.
 
-A published package that removes an export keeps a deprecated delegate in its `compat.ts`
-(`/** @deprecated compat:factory-refactor use xOf(ctx).fn() */`) until its version line changes; no
-code in the OwlMeans repositories may import it.
+A published package that removes an export keeps a deprecated delegate at the end of the module
+that exported it (`/** @deprecated compat:factory-refactor use xOf(ctx).fn() */`) until its version
+line changes — never gathered into one `compat.ts`, because a subpath export (`pkg/login`) resolves
+that module, not the package root. No code in the OwlMeans repositories may import it; a private
+package drops its delegates once nothing imports them.
 
 ## Binding: choosing the target
 
