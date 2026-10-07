@@ -17,7 +17,7 @@ filesystem, no inference SDK. It is safe to import from a browser bundle.
 | `@owlmeans/viable-common/connect` | The connector protocol: sessions, operations, model tasks, questions, domain statuses, capabilities, the error family, and `connectProtocols()` — the one declaration both the platform and the SDK bind |
 | `@owlmeans/viable-common/convert` | Converting an application that already exists: the stages and their transitions, the origin and stack taxonomy, the census classifiers, and the `docs/conversion/` layout |
 | `@owlmeans/viable-common/integrity` | The target-shape manifest — what a slot is allowed to install, build and run — per target layout |
-| `@owlmeans/viable-common/legal` | `OWLMEANS_LEGAL_DATES`, `LegalDocumentDates` and `LegalDocumentKey` — shared ISO dates for the public site's policies and the platform's legal acceptance; no runtime dependencies |
+| `@owlmeans/viable-common/legal` | `OWLMEANS_LEGAL_DATES`, active `LegalDocumentDates`, `PendingLegalDocumentDates`, `LegalDocumentDateMetadata` and `LegalDocumentKey` — shared active ISO dates and explicit pending metadata; no runtime dependencies |
 
 ## Installation
 

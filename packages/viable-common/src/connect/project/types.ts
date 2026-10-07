@@ -1,6 +1,7 @@
 import type { ConnectTarget, ConnectWaitReason } from '../consts.js'
 import type { InquiryPayload } from '../ops/types.js'
 import type { ConnectSessionView } from '../session/types.js'
+import type { ConnectSlotState } from '../slot/types.js'
 
 export interface ConnectRunStatus {
   runId: string
@@ -37,19 +38,9 @@ export interface ConnectProjectStatus {
     vision?: string
     designSystem?: string
   }
-  slot?: {
-    id: string
-    kind: string
-    status: string
-    slug: string
-    host?: string
-    initialized?: boolean
-    lastError?: string
-    buildWarning?: string
-    backendWarning?: string
-  }
+  slot?: ConnectSlotState
   production?: { id: string, status: string, host?: string }
-  agent: { locked: boolean, task?: string, lockedAt?: string }
+  agent: ConnectAgentLock
   run?: ConnectRunStatus
   waitingFor?: ConnectWaitReason
   pendingInquiry?: InquiryPayload
@@ -57,6 +48,16 @@ export interface ConnectProjectStatus {
   /** Set for a local target: the connector should not offer cloud-only operations. */
   local: boolean
   updatedAt: string
+}
+
+/**
+ * The project's agent lock as a connector reads it — held while a run, a conversion stage or a
+ * kit apply works on the project. `task` and `lockedAt` are set only while it is held.
+ */
+export interface ConnectAgentLock {
+  locked: boolean
+  task?: string
+  lockedAt?: string
 }
 
 /** A story card composed with its deterministic development run. */
@@ -104,6 +105,11 @@ export interface ConnectAttachBody {
 export interface ConnectCreateBody {
   prompt: string
   target?: ConnectTarget
+  /**
+   * The caller's unattached delegated session; its pre-card checks are performed by that session's
+   * parent. Absent, the platform performs them.
+   */
+  sessionId?: string
 }
 
 /**

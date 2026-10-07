@@ -1,7 +1,8 @@
 import { z } from 'zod'
-import { type ConnectHarness, type ConnectLlm, type ConnectTarget, ConnectWaitReason, type ConnectProjectBranding } from '@owlmeans/viable-common'
+import { type ConnectHarness, type ConnectLlm, type ConnectTarget, ConnectWaitReason, type ConnectProjectBrandingFields } from '@owlmeans/viable-common'
 import type { ConnectorApi, LocalExecutor, SessionRuntime } from '../types.js'
 import { ToolHostKind } from './consts.js'
+import type { InflightCalls } from './inflight/types.js'
 
 export interface ToolHost {
   kind: ToolHostKind
@@ -25,6 +26,25 @@ export interface ToolDeps {
   /** What project the connector is currently working on, and how it is remembered. */
   attached: () => string | null
   attach: (projectId: string) => void
+  /**
+   * Forget the attached project, so the next `session()` opens an UNATTACHED session — what a
+   * delegated create sends as its `sessionId`. Absent on a host that holds no session.
+   */
+  detach?: () => void
+  /**
+   * Close the held session and forget it, so nothing is delivered to a project that is going away.
+   * Absent on a host that holds no session; where it is absent but a session is current, a tool
+   * closes that session itself.
+   */
+  release?: () => Promise<void>
+  /**
+   * The platform calls still running after their tool answered — the delegated mode's handover.
+   *
+   * Held here, beside the server, and never on the session: a session is reopened whenever the
+   * connector moves to another project, and a call outliving that move is exactly the one whose
+   * answer must still reach the parent. `registerCatalogue` supplies one when the host passes none.
+   */
+  inflight?: InflightCalls
   log: (line: string) => void
   /**
    * Push a message to the host's own channel, independent of the tool result text.
@@ -55,19 +75,40 @@ export interface ToolDefinition<I extends z.ZodRawShape = z.ZodRawShape> {
    * things that work in its mode.
    */
   availability: (host: ToolHost) => boolean
+  /**
+   * What the tool does to the world, as the MCP host shows it to the person approving a call: a
+   * read, an irreversible change, a change that may be repeated safely. Hints only — every refusal
+   * that matters is still the platform's — but a host that asks before a destructive call asks here.
+   */
+  annotations: ToolAnnotations
   run: (args: Record<string, unknown>, deps: ToolDeps) => Promise<ToolResult>
+}
+
+/** The MCP tool annotations a catalogue entry declares (`ToolAnnotations` in the MCP schema). */
+export interface ToolAnnotations {
+  /** It changes nothing. */
+  readOnlyHint?: boolean
+  /** It may destroy or irreversibly replace something — the host should confirm it. */
+  destructiveHint?: boolean
+  /** Repeating it with the same arguments does nothing more. */
+  idempotentHint?: boolean
+  /** It reaches beyond the platform this server talks to. */
+  openWorldHint?: boolean
+}
+
+/** What one tool call answers on the MCP wire. */
+export interface McpToolAnswer {
+  content: Array<{ type: 'text', text: string }>
+  structuredContent?: object
+  isError?: boolean
 }
 
 /** The minimum of an MCP server this adapter needs. Typed structurally so the SDK stays optional. */
 export interface McpServerLike {
   registerTool: (
     name: string,
-    config: { title?: string, description?: string, inputSchema?: unknown },
-    cb: (args: Record<string, unknown>) => Promise<{
-      content: Array<{ type: 'text', text: string }>
-      structuredContent?: object
-      isError?: boolean
-    }>
+    config: { title?: string, description?: string, inputSchema?: unknown, annotations?: ToolAnnotations },
+    cb: (args: Record<string, unknown>) => Promise<McpToolAnswer>
   ) => unknown
 }
 
@@ -163,7 +204,7 @@ export interface RefusalPhrase {
  * as, so a parent is told the rule before it tries and again, for the one field, when it broke it.
  */
 export interface ProjectSetting {
-  key: keyof ConnectProjectBranding
+  key: keyof ConnectProjectBrandingFields
   /** How a status line names it. */
   label: string
   rule: string

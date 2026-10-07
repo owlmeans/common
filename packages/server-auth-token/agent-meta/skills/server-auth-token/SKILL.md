@@ -22,10 +22,10 @@ user-invocable: false
 | `prefixOf(context, opts?)` | The deployment's prefix: guard options → config → default |
 | `tokenHashHelper` — `.hashAccessToken(token)` · `.mintAccessToken(prefix)` | The stored form; one minted `{ token, hash, display }` |
 | `withAuthTokenCoguard(protocolTree, guard?)` | Return the same-shaped immutable tree with the guard appended to every already-guarded protocol |
-| `listAccessTokens` · `createAccessToken` · `revokeAccessToken` | The three handlers |
+| `listAccessTokens(protocol)` · `createAccessToken(protocol)` · `revokeAccessToken(protocol, { allowAccessTokens? })` | The three handlers; only revoke takes an option (`RevokeAccessTokenOptions`) |
 | `accessTokenIssuerOf(ctx).issueAccessToken(subject, request)` | Mint one token for `{ entityId, userId, profileId, role, scopes }` — what `createAccessToken` does over an HTTP body, and what an OAuth token endpoint calls over a session it verified itself. `request` is `CreateAccessToken` plus `audience?: string[]` |
 | `refuseTokenAuth(req, what)` | The one "interactive session only" check — throws `AuthForbidden` when `req.auth.type` is an access token |
-| `AuthTokenGuardOptions` (`prefix`, `denyAliases`, `touchInterval`, `resourceAlias`, `profileAlias`, `resources`) · `IssueAccessTokenSubject` · `IssueAccessTokenRequest` · `AuthTokenConfig` · `AccessTokenResource` | Types |
+| `AuthTokenGuardOptions` (`prefix`, `denyAliases`, `touchInterval`, `resourceAlias`, `profileAlias`, `resources`) · `IssueAccessTokenSubject` · `IssueAccessTokenRequest` · `RevokeAccessTokenOptions` · `AuthTokenConfig` · `AccessTokenResource` | Types |
 
 ## Wiring
 
@@ -94,13 +94,23 @@ timestamp is never a reason to fail a request, and awaiting it would put a datab
 critical path of every authenticated call. It answers one question — "is this token still in use?" —
 and is not an access log.
 
-## A token may never mint or revoke a token
+## A token may never mint a token; it revokes one only where the deployment opts in
 
 Minting is the one operation that turns a stolen credential into a permanent one: a token that can
-create tokens survives the revocation of the token that leaked. `createAccessToken`, `revokeAccessToken` and any other minting path (an OAuth consent approval calls
-`refuseTokenAuth` before it snapshots the subject) refuse a request whose `auth.type` is `AuthroizationType.AuthToken`, and a
+create tokens survives the revocation of the token that leaked. `createAccessToken` and any other
+minting path (an OAuth consent approval calls `refuseTokenAuth` before it snapshots the subject)
+refuse a request whose `auth.type` is `AuthroizationType.AuthToken` — always, with no option — and a
 deployment additionally names those routes in the guard's **deny list**, so the refusal is a 401 at
 the boundary rather than a check every future handler has to remember.
+
+`revokeAccessToken(protocol)` refuses a token the same way by default. `revokeAccessToken(protocol,
+{ allowAccessTokens: true })` admits one — for a deployment's coding-agent surface that lets a person
+clean up their own tokens (Viable's connector binds it on `connect.account.tokens.revoke`, while the
+browser's own `/tokens/:id` route stays session-only and on the deny list). The option widens the
+CREDENTIAL only: the token revoked must still be the caller's own profile in its own organization
+(`makeEntityScope(req).requireEntityKey()`), a foreign or unknown id still answers `AuthForbidden`
+alike, and a token may revoke itself. Revoking never creates a credential, so it cannot make a
+stolen token permanent; at worst it signs the person's other agents out.
 
 Minting only ever narrows: asking for a scope the caller does not hold is **refused**, not silently
 dropped — a token that quietly grants less than it was asked for fails later, somewhere else, with
@@ -133,7 +143,7 @@ works.
 ## Tests
 
 `bun test ./tests` in the package — what the guard claims, what it resolves (including that a token
-can never outrank its profile), the mint/list/revoke rules, `accessTokenIssuerOf(ctx).issueAccessToken` parity with the route, audience admission, and the coguard's four properties.
+can never outrank its profile), the mint/list/revoke rules (the revoke option: own profile and organization only, minting still refused), `accessTokenIssuerOf(ctx).issueAccessToken` parity with the route, audience admission, and the coguard's four properties.
 
 ## Depends On
 

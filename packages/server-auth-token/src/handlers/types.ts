@@ -29,3 +29,12 @@ export interface AccessTokenIssuer {
    */
   issueAccessToken: (subject: IssueAccessTokenSubject, payload: IssueAccessTokenRequest) => Promise<IssuedAccessToken>
 }
+
+/** How a deployment binds `revokeAccessToken`. */
+export interface RevokeAccessTokenOptions {
+  /**
+   * Let an access token revoke one of its own person's tokens (itself included). Defaults to
+   * `false`: only an interactive session revokes. Ownership is checked the same either way.
+   */
+  allowAccessTokens?: boolean
+}

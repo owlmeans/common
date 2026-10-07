@@ -2,7 +2,7 @@
   "name": "@owlmeans/viable-common",
   "version": "0.0.46",
   "license": "MIT",
-  "description": "Runtime-free contracts of the OwlMeans Viable platform — the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary, the connector protocol and the conversion vocabulary, and the intent-first hand-off from the public site to the platform.",
+  "description": "Runtime-free contracts of the OwlMeans Viable platform \u2014 the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary, the connector protocol, the owner console's IAM contract and the conversion vocabulary, and the intent-first hand-off from the public site to the platform.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -62,6 +62,13 @@
       "default": "./build/intent/index.js",
       "module": "./build/intent/index.js",
       "types": "./build/intent/index.d.ts"
+    },
+    "./iam-console": {
+      "import": "./build/iam-console/index.js",
+      "require": "./build/iam-console/index.js",
+      "default": "./build/iam-console/index.js",
+      "module": "./build/iam-console/index.js",
+      "types": "./build/iam-console/index.d.ts"
     }
   },
   "devDependencies": {
@@ -75,10 +82,12 @@
   "dependencies": {
     "@owlmeans/agent-common": "^0.1.18-rc.48",
     "@owlmeans/auth": "^0.1.18-rc.40",
+    "@owlmeans/auth-common": "^0.1.18-rc.48",
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/entrypoint": "^0.1.18-rc.41",
     "@owlmeans/error": "^0.1.18-rc.38",
     "@owlmeans/flow": "^0.1.18-rc.45",
+    "@owlmeans/iam": "^0.1.18-rc.51",
     "@owlmeans/llm-common": "^0.1.18-rc.39",
     "@owlmeans/planning": "^0.1.18-rc.20",
     "@owlmeans/resource": "^0.1.18-rc.40",

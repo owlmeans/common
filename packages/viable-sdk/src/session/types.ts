@@ -14,3 +14,9 @@ export interface Waiting<T> {
   resolve: (item: T | null) => void
   timer: ReturnType<typeof setTimeout>
 }
+
+/** A caller told when an item is queued, without taking it. */
+export interface Watching {
+  resolve: (ready: boolean) => void
+  timer: ReturnType<typeof setTimeout>
+}

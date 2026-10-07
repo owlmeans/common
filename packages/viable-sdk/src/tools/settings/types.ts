@@ -1,7 +1,13 @@
-import type { ConnectProjectBranding, ConnectProjectBrandingSave, ConnectTarget } from '@owlmeans/viable-common'
+import type {
+  ConnectBrandingCredit, ConnectConfigScope, ConnectOrganizationBranding, ConnectProjectBranding,
+  ConnectProjectBrandingSave, ConnectTarget,
+} from '@owlmeans/viable-common'
 import type { ProjectSetting } from '../types.js'
 
-/** A project's settings — the copyright line, the organization, the legal links, the Google tag. */
+/**
+ * A project's settings — the copyright line, the organization, the legal links, the Google tag, the
+ * platform credit — and the organization's defaults they start from.
+ */
 export interface SettingsHelper {
   /** The setting a wire field names, if it is one. */
   projectSettingOf: (key: string) => ProjectSetting | undefined
@@ -18,15 +24,22 @@ export interface SettingsHelper {
    *
    * A relative link is annotated rather than left bare: `/terms` reads like a value somebody forgot
    * to finish, and a parent that "fixed" it into an absolute address would point a project's legal
-   * links away from the pages the platform generated for it.
+   * links away from the pages the platform generated for it. The credit line says what is delivered
+   * and, where it differs, what was asked for and why — a lapsed plan shows the credit while keeping
+   * the request.
    */
-  renderProjectSettings: (projectId: string, settings: ConnectProjectBranding) => string
+  renderProjectSettings: (projectId: string, settings: ConnectProjectBranding, scope?: ConnectConfigScope) => string
+  /** The platform credit in one line: shown or hidden, and what the plan allows. */
+  creditLine: (credit: ConnectBrandingCredit) => string
+  /** The organization's defaults, ending in the next valid actions. */
+  renderOrganizationBranding: (branding: ConnectOrganizationBranding) => string
   /**
-   * Where a saved change shows, said once for both tools that need it.
+   * Where a saved change shows, said once for every tool that needs it.
    *
    * The platform applies an owner's change to the PREVIEW by a configuration push, which rebuilds it
    * — for a local project that push is the `.env` this connector writes, and nothing is published.
-   * Production is never changed by a save; it takes the stored values at the next Publish.
+   * Production is never changed by a save of the preview's set; a save of production's own set
+   * (`scope: production`) is taken at the next Publish.
    */
-  settingsReach: (target: ConnectTarget) => string
+  settingsReach: (target: ConnectTarget, scope?: ConnectConfigScope) => string
 }

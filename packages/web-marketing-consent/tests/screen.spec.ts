@@ -471,6 +471,130 @@ describe('marketing-consent screen — signed in', () => {
 })
 
 describe('marketing-consent screen — Terms mode (appendMarketingConsent({ terms: \'step\' }))', () => {
+  test('required-only bulk selection preserves optional choices and records refusal in the actual UI language', async () => {
+    const { page, calls, lastTermsBody, lastSaveBody, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
+      signedIn: true, termsMode: true, bulkSelection: 'required', localizedHrefs: true,
+      stubs: {
+        status: { json: statusView() }, terms: { json: { ok: true } },
+        save: { json: { ok: true, status: statusView() } },
+      },
+    })
+    try {
+      const all = page.locator('[data-marketing-consent-all]')
+      const terms = page.locator('[data-marketing-consent-terms]')
+      await all.waitFor({ state: 'visible', timeout: 45_000 })
+      await page.evaluate(async () => await (window as unknown as {
+        __mc: { language: (value: string) => Promise<void> },
+      }).__mc.language('pl'))
+      await page.getByText('Zaznacz wymagane umowy', { exact: true }).waitFor({ state: 'visible' })
+      expect(await page.locator('[data-marketing-consent-all-frame]').innerText()).toContain('Zaznacz wymagane umowy')
+      for (const key of ['terms', 'billing', 'privacy', 'cookies']) {
+        expect(await page.locator(`[data-login-document="${key}"]`).getAttribute('href'))
+          .toBe(`https://example.test/pl/${key}`)
+      }
+
+      await all.check()
+      expect(await terms.isChecked()).toBe(true)
+      for (const key of keys) {
+        expect(await page.locator(`[data-marketing-consent-item="${key}"]`).isChecked()).toBe(false)
+      }
+
+      const email = page.locator('[data-marketing-consent-item="marketing.email"]')
+      await email.check()
+      await all.uncheck()
+      expect(await terms.isChecked()).toBe(false)
+      expect(await email.isChecked()).toBe(true)
+      expect(await all.evaluate(node => (node as HTMLInputElement).indeterminate)).toBe(false)
+      await email.uncheck()
+      await all.check()
+      await page.locator('[data-marketing-consent-save]').click()
+      await page.waitForURL(url => url.pathname === '/', { timeout: 30_000 })
+
+      expect(calls).toEqual(['GET status', 'POST terms', 'POST save'])
+      expect(lastTermsBody()?.locale).toBe('pl')
+      expect(lastTermsBody()?.documents).toEqual([
+        { key: 'terms', href: 'https://example.test/pl/terms', revisedAt: '2026-05-30' },
+        { key: 'billing', href: 'https://example.test/pl/billing' },
+      ])
+      expect(lastTermsBody()?.notices).toEqual([
+        { key: 'privacy', href: 'https://example.test/pl/privacy', revisedAt: '2026-05-30' },
+        { key: 'cookies', href: 'https://example.test/pl/cookies' },
+      ])
+      expect(lastSaveBody()?.locale).toBe('pl')
+      expect(lastSaveBody()?.decisions.every(entry => entry.granted === false)).toBe(true)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('a live switch to French records the same translated documents and notices the screen displays', async () => {
+    const { page, lastTermsBody, lastSaveBody, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
+      signedIn: true, termsMode: true, bulkSelection: 'required', localizedHrefs: true,
+      stubs: {
+        status: { json: statusView({
+          'marketing.email': withDefinition('marketing.email', { links: [{
+            href: 'https://example.test/privacy#marketing', labelKey: 'link.privacy',
+            hrefMap: { fr: 'https://example.test/fr/privacy#marketing' },
+          }] }),
+        }) }, terms: { json: { ok: true } },
+        save: { json: { ok: true, status: statusView() } },
+      },
+    })
+    try {
+      const terms = page.locator('[data-marketing-consent-terms]')
+      await terms.waitFor({ state: 'visible', timeout: 45_000 })
+      const canonicalVersion = await terms.getAttribute('data-version')
+      if (canonicalVersion == null) throw new Error('The required agreement must identify its canonical version')
+      expect(await page.locator('[data-login-document="terms"]').getAttribute('href'))
+        .toBe('https://example.test/terms')
+      expect(await page.locator('[data-marketing-consent-link][href="https://example.test/privacy#marketing"]').count())
+        .toBeGreaterThan(0)
+      await page.evaluate(async () => await (window as unknown as {
+        __mc: { language: (value: string) => Promise<void> },
+      }).__mc.language('fr'))
+      await page.locator('[data-login-document="terms"][href="https://example.test/fr/terms"]')
+        .waitFor({ state: 'visible' })
+      for (const key of ['terms', 'billing', 'privacy', 'cookies']) {
+        expect(await page.locator(`[data-login-document="${key}"]`).getAttribute('href'))
+          .toBe(`https://example.test/fr/${key}`)
+      }
+      expect(await terms.getAttribute('data-version')).toBe(canonicalVersion)
+      expect(await page.locator('[data-marketing-consent-link][href="https://example.test/fr/privacy#marketing"]').count())
+        .toBeGreaterThan(0)
+      await terms.check()
+      await page.locator('[data-marketing-consent-save]').click()
+      await page.waitForURL(url => url.pathname === '/', { timeout: 30_000 })
+      expect(lastTermsBody()?.version).toBe(canonicalVersion)
+      expect(lastTermsBody()?.locale).toBe('fr')
+      const evidence = [...lastTermsBody()!.documents, ...lastTermsBody()!.notices!] as Array<{ key: string, href: string }>
+      expect(evidence.map(({ key, href }) => ({ key, href }))).toEqual([
+        { key: 'terms', href: 'https://example.test/fr/terms' },
+        { key: 'billing', href: 'https://example.test/fr/billing' },
+        { key: 'privacy', href: 'https://example.test/fr/privacy' },
+        { key: 'cookies', href: 'https://example.test/fr/cookies' },
+      ])
+      expect(lastSaveBody()?.locale).toBe('fr')
+      expect(lastSaveBody()?.decisions.every(entry => entry.granted === false)).toBe(true)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('required-only mode has no bulk optional-purpose control once the required agreements are current', async () => {
+    const { page, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
+      signedIn: true, termsMode: true, bulkSelection: 'required',
+      stubs: { status: { json: statusView({}, { terms: { version: 'harness-terms-v1' } }) } },
+    })
+    try {
+      await page.locator('[data-marketing-consent-save]').waitFor({ state: 'visible', timeout: 45_000 })
+      expect(await page.locator('[data-marketing-consent-item]').count()).toBe(keys.length)
+      expect(await page.locator('[data-marketing-consent-terms]').count()).toBe(0)
+      expect(await page.locator('[data-marketing-consent-all]').count()).toBe(0)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
   test('the lead-in asks for the terms first while the Terms row is on the screen', async () => {
     const { page, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
       signedIn: true, termsMode: true, stubs: { status: { json: statusView() } },

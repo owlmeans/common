@@ -1,4 +1,4 @@
-import { ConnectWaitReason, ConversionDecision, ConversionStatus, type ConnectPipelineState, type ConnectProjectStatus, type ConnectStoryStatus, type ConversionStatusView, conversionStageHelper } from '@owlmeans/viable-common'
+import { ConnectWaitReason, ConversionDecision, ConversionStatus, type ConnectPipelineState, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type ConversionStatusView, conversionStageHelper } from '@owlmeans/viable-common'
 import { refusalHelper } from './refusal.js'
 import { LANDING_NOTE } from './consts.js'
 import type { StoryStatusExtra } from './types.js'
@@ -57,6 +57,18 @@ export const createStatusTextHelper = (): StatusTextHelper => {
     return lines.join('\n')
   }
 
+  const renderSlot = (slot: ConnectSlotView): string => {
+    const lines = [
+      `${slot.kind} · ${slot.status}` + (slot.host != null ? ` · ${slot.host}` : '')
+      + (slot.projectId != null ? ` · project ${slot.projectId}` : '') + ` · slot ${slot.id}`,
+    ]
+    for (const warning of [slot.lastError, slot.buildWarning, slot.backendWarning]) {
+      if (warning != null && warning !== '') lines.push(`  warning: ${refusalHelper.refusalPhrase(warning)}`)
+    }
+
+    return lines.join('\n')
+  }
+
   const renderStoryStatus = (status: ConnectStoryStatus, extra: StoryStatusExtra = {}): string => {
     const lines = [
       `${status.story.code} · ${status.story.title}`,
@@ -110,7 +122,7 @@ export const createStatusTextHelper = (): StatusTextHelper => {
     }
   }
 
-  return { renderProjectStatus, renderStoryStatus, renderPipelineStatus, conversionNext }
+  return { renderProjectStatus, renderStoryStatus, renderPipelineStatus, conversionNext, renderSlot }
 }
 
 export const statusTextHelper = createStatusTextHelper()

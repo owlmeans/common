@@ -5,6 +5,8 @@ import type { LoginContext } from '../types.js'
 export interface ResolvedTermsDocument {
   key: string
   href: string
+  /** Published translations, selected at render/record time; `href` remains canonical. */
+  hrefMap?: Record<string, string>
   /** A caller's own label, already resolved to one string — only ever set for a custom document. */
   label?: string
   /** A locale map for the label, when the config supplied one — resolved by the renderer, not here. */
@@ -82,6 +84,8 @@ export interface LoginTermsHelper {
   termsLabelResolver: (
     translate: (key: string, defaultValue: string) => string, locale: string | undefined
   ) => (doc: ResolvedTermsDocument) => string
+  /** Explicit locale destination, then base language, then canonical href; never rewrites paths. */
+  termsHrefOf: (doc: ResolvedTermsDocument, locale?: string) => string
   /**
    * What a sign-in-time terms acceptance sends the server — structurally
    * `@owlmeans/marketing-consent`'s `TermsAcceptance`, so `client.recordTerms(termsAcceptanceOf(...))`

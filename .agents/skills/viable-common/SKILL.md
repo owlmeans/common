@@ -8,7 +8,7 @@ user-invocable: false
 
 **Layer:** Cross-cutting domain (contracts only)
 **Install:** `"@owlmeans/viable-common": "^0.0.46"` in `dependencies`
-**Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` — the barrel
+**Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
 tests that compile the schemas); it depends on the packages under Depends On and nothing else.
@@ -32,11 +32,12 @@ execution state and card fields name.
 |---|---|
 | `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyHelper` (`tenancyOf`, `tenantedArea`), `TENANCY_QUOTE_MAX`); `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind` / `WorkKind`, `CASE_QUOTE_MAX`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor`, `LAYOUT_TOPOLOGIES`, `topologyHelper` (`resolveTopology`, `packageForRole`) — meaning in `/blueprints`); the BA shapes (`connectingStoryHelper.mergeConnectingStories`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `moderationVerdictHelper.decideModeration`; the `docs/` metadata paths; `PreviewEventType` (error kinds plus `Analytics` — an analytics event a target's web posted through the preview reporter's channel; the target-side plugins live in `@owlmeans/viable-log`) and the `OwlMeansAnalyticsPayload` shape; the agent-output taxonomy (`agentPresentationHelper` — `classifyAgentMessage`, `isAgentMessageHidden`; `/agent-presentation`) and the spectator entry types |
 | `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` / `SlotDatabaseCommand` sets; `SlotDatabaseInfo`, `SlotDatabaseQueryArgs` / `SlotDatabaseQueryResult`, `DATABASE_READ_LIMITS`; the per-command deadlines and timeouts (`slotCommandHelper` — `commandDeadline`, `commandTimeout`), `SubProject`, `LAYOUTS` / `ROLE_DIRS` / `slotLayoutHelper.subprojectDirOf`, `WorkloadKind`, the target ports and process markers, `slotOriginHelper` (`slotOrigin` / `targetRedirectUrisForOrigin`) |
-| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave`, the planning-kit views (`PlanningKitView`, `ConnectKitDescribe`, `ConnectKitApplyBody`, `ConnectKitApplyResult` and their `*Schema`s), `ModelTier` + `modelTierHelper` (`tierOfRole`/`clampTier`), `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the convert bodies (`ConnectConvertCreateBody`, `ConnectConvertStartBody`, `ConnectConvertProceedBody`), the `Connect*` error family with `ConnectConfirmation` / `ConnectConfirmationAction`, `connectProtocols(opts)` and every `*Schema` behind them |
+| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave` / `ConnectProjectBrandingFields` / `ConnectBrandingCredit` / `ConnectBrandingCreditBody`, the configuration contract (`ConnectScopeQuery`, `ConnectConfigScope`, `ConnectProjectConfig`, `ConnectConfigVariable`, `ConnectFrontendVariable`, `ConnectConfigValue`, `ConnectConfigSaveBody`, `CONNECT_CONFIG_*`), the organization's defaults (`ConnectOrganizationBranding(Save)`, `ConnectBrandingBackfill`), the planning-kit views (`PlanningKitView`, `ConnectKitDescribe`, `ConnectKitApplyBody`, `ConnectKitApplyResult` and their `*Schema`s), `ModelTier` + `modelTierHelper` (`tierOfRole`/`clampTier`), `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the convert bodies (`ConnectConvertCreateBody`, `ConnectConvertStartBody`, `ConnectConvertProceedBody` + `ConnectConvertProceedUpdate`), `ConnectAgentLock`, `ConnectPaidGate` + `ConnectGateRef` + `ConnectEntrypointOptions`, the call collection (`CONNECT_CALL_HEADER`, `CONNECT_CALL_ACCEPT_MS`, `CONNECT_CALL_COLLECT_WAIT_SEC`, `CONNECT_CALL_LOST_MS`, `ConnectCallState`, `ConnectCallPending`, `ConnectCallResult`, `ConnectCallCollectParams` / `ConnectCallCollectQuery` and their `*Schema`s), the `Connect*` error family with `ConnectConfirmation` / `ConnectConfirmationAction`, `connectProtocols(opts)` and every `*Schema` behind them |
 | `./convert` | `ConversionStage`/`Status`/`Decision` and the `conversionStageHelper` transitions (`stageAfter`/`decisionFor`/`canEnter`), `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`censusHelper` — `fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `targetLayoutHelper` (`detectTargetLayout`, `isLegacyLayout`, `targetPackageName`), `targetIntegrityHelper.verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES` |
 | `./intent` | `intent` (the four aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants, `IntentDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
-| `./legal` | `OWLMEANS_LEGAL_DATES`, `LegalDocumentDates`, `LegalDocumentKey` — the public site's legal dates and the platform's legal acceptance dates |
+| `./iam-console` | The owner console's IAM contract both doors share (the browser's `back.iam`, the connector's `connect.iam`): the route params (`IamProjectParams`, `IamProjectUserParams`, `IamOrganizationParams`, `IamMemberParams`, `IamGroupParams`), `IamScoped`, the bodies (`IamDefinitionUpdate`, `IamStaffSync`, `IamAssignGrant` / `IamRevokeGrant`, `IamGrantsQuery`, `IamProjectUserInvite` / `Update`, `IamOrganizationEdit`, `IamProjectMemberInvite` / `Update`, `IamGroupCreate` / `Edit`, `IamGroupMembersChange`), the answers (`IamListResponse` + `external`, `IamUsersResponse`, `IamPermissionsResponse` + `IamTenancy`, …, `IamStaffSyncResponse`), every `Iam*Schema` (with `IamScopedSchema`, `IamGroupRefSchema`), `IAM_REFUSED`, and the `@owlmeans/iam` vocabulary re-exported (`IamDefaultClass`, `IamGrantMode`, `IamGrantOrigin`, `IamRemovalPolicy`, `IAM_AREAS`, `IAM_MEMBERS_GROUP`, the record types). The refusal's CLASS (`IamRefused`, 409) is the platform's |
+| `./legal` | `OWLMEANS_LEGAL_DATES`, `LegalDocumentDates`, `PendingLegalDocumentDates`, `LegalDocumentDateMetadata`, `LegalDocumentKey` — active dates and pending metadata for public legal sources and acceptance |
 
 ## Shared legal dates (`./legal`)
 
@@ -44,15 +45,22 @@ Import `OWLMEANS_LEGAL_DATES` from `@owlmeans/viable-common/legal` for legal-pag
 platform consent configuration. This subpath has no runtime imports; it loads only the date table.
 The package barrel also re-exports it. Never import another repository's sources by path.
 
-`src/legal/consts.ts` owns the ISO `YYYY-MM-DD` effective/updated dates; `src/legal/types.ts`
-declares `LegalDocumentDates` and the complete `LegalDocumentKey` union. A new document must add
-both a key and a table row; `satisfies Record<LegalDocumentKey, LegalDocumentDates>` checks coverage.
+`src/legal/consts.ts` owns active ISO `YYYY-MM-DD` effective/updated dates and pending entries with
+`status: 'pending'`, `effective: null`, `updated: null`. `src/legal/types.ts` declares active and
+pending shapes, their `LegalDocumentDateMetadata` union, and the complete `LegalDocumentKey` union.
+A new document must add both a key and a table row;
+`satisfies Record<LegalDocumentKey, LegalDocumentDateMetadata>` checks coverage.
 Format dates in the consumer's locale, keeping policy text as placeholders rather than copied dates.
 
-Changing a terms/privacy/billing/product updated date changes the platform's terms-acceptance
-digest and requires acceptance again; privacy.updated also revises marketing consent.
-Cookies, services-agreement and platform-license dates are display-only. Rebuild this package
-before the platform and static-site consumers; both must receive the same table revision.
+The Platform accepts `terms` and `platform-license` (combined subscription/billing), with privacy
+disclosed separately; product-use rules live in Terms. `billing` and `product` preserve historical
+acceptance dates as compatibility aliases. New DPA (`data-processing-agreement`), subprocessor
+(`subprocessors`) and company-notice (`company-information`) entries remain pending until release.
+Render an explicit pending notice for a pending entry; never send null to a date formatter or
+substitute a preparation date. Optional purposes carry independent wording revisions in the consuming
+app, so editing privacy alone must not enlarge an existing grant. Legal-date activation is coordinated
+with publication and the configured acceptance digest. Rebuild this package before the platform and
+static-site consumers; both must receive the same table revision.
 
 ## The planning module
 
@@ -114,7 +122,7 @@ the wire and in target files — a parent agent's vocabulary, which never change
 | project `id` / story `id` | `id` (a card id) |
 | project `alias` / `name` / `description` | `code` / `title` / `description` |
 | project `specification` / `vision` / `designSystem` | specification bodies, categories `specification` / `vision` / `design-system` |
-| project `formerAliases`, `language`, `blueprint`, `blueprintCase`, `gameKind`, `workKind`, `caseQuote`, `target`, `origin`, `connectLlmMode`, `converterLlmMode` | `fields.*` |
+| project `formerAliases`, `language`, `blueprint`, `blueprintCase`, `gameKind`, `workKind`, `caseQuote`, `target`, `origin`, `connectLlmMode` | `fields.*` |
 | the landing-gate decision | project `fields.landing` — `{ story: code \| null, at }` |
 | the tenancy decision | project `fields.tenancy` — `ViableTenancyDecision` `{ operators, users, quotes?, by: 'model' \| 'owner', at }` |
 | story narrative (`story`) / `code` / `status` | `title` / `code` / `status` (same strings) |
@@ -263,25 +271,53 @@ refused session. Apply this to what a newer connector may send an older platform
 
 `connectProtocols(opts)` is the connector's whole immutable HTTP tree — aliases, paths, methods,
 contracts, parents. The platform and the SDK bind their own materializations of it; only the
-DEPLOYMENT's parts are injected: the guard alias, the ownership gate, and the paid local-LLM gate
-(on `session.openDelegated` alone). One base (`/connect` unless `path` says otherwise); `connect`
-(aliases) and `connectRef` (typed references) name the same set:
+DEPLOYMENT's parts are injected (`ConnectEntrypointOptions`): the guard alias, the ownership `gate`,
+the `accountGate` and the `paid` map — `Partial<Record<ConnectPaidGate, ConnectGateRef>>`, the gate
+of each kind of spend (`LocalLlm`, `Whitelabel`, `CustomDomain`, `ProductionStandalone`,
+`PublishedSites`). A route declares its KIND (`paidGate(kind)` inside the factory); the deployment
+names the gate service and parameters, so a connector route carries exactly its browser twin's gate.
+`localLlm` is the deprecated alias of `paid[LocalLlm]`, read only when the map names none. Two roots:
+`base` (`/connect` unless `path` says otherwise, the ownership gate) and `account.base`
+(`<path>/account`, the account gate) — a root of its own, never a child of `base`, because
+`getGates()` keeps one gate per service and the two ownership gates share one. `connect` (aliases)
+and `connectRef` (typed references) name the same set, the two bases aside:
 
 | Branch | Routes |
 |---|---|
+| `account` | `base` — the organization's and the person's own records, the account gate inherited; `branding.get` GET / `.save` POST `/branding` (`ConnectOrganizationBranding { organizationName, copyright }`, the save a PATCH `ConnectOrganizationBrandingSave`), `branding.backfill` POST `/branding/backfill` → `ConnectBrandingBackfill { projects }`; `llm.get` GET / `llm.set` POST `/llm` (`ConnectLlmBody` → `ConnectProfileSettingsView { llmMode, canUseLocal }`, the set the `LocalLlm` paid gate); `tokens.list` GET `/access-tokens` → `ConnectAccessTokenList` (`ConnectAccessToken` — no secret, no hash, no owner ids, `oauth`), `tokens.revoke` POST `/access-tokens/:id/revoke` (`ConnectAccessTokenParams` ≤ `CONNECT_TOKEN_ID_MAX`) → `ConnectAccessTokenRevoked` — NO create, and never under `/tokens`; `privacy.status` GET `/privacy` → `ConnectPrivacyChoices { pending, items: ConnectPrivacyChoice[] }` (`granted` = the SAVED answer), `privacy.withdraw` POST `/privacy/withdraw` (`ConnectPrivacyWithdrawBody { keys }`, 1–`CONNECT_PRIVACY_KEYS_MAX` unique keys ≤ `CONNECT_PRIVACY_KEY_MAX`, no field a grant could travel in) — NO grant or terms; `intent.pickup` POST `/intent/pickup` (`ConnectIntentPickupBody { ref }`, the guest pickup's ref shape) → `ConnectIntentPickup { prompt }`; `iam.users` GET `/iam/users` → `IamUsersResponse` — every end user of every app the organization owns, read-only; `notifications` GET `/notifications` (`ConnectFeedQuery`) → `ConnectFeedPage` — the organization's notices |
 | `session` | `open` POST `/session`, `openDelegated` POST `/session/delegated`, `close` POST `/session/:sessionId/close` |
 | `op` | `pull` GET `/session/:sessionId/ops` (the long poll), `submit` POST `/session/:sessionId/ops/:opId` |
-| `project` | `create` POST / `list` GET `/project`, `attach` POST `/project/attach`, `confirm`, `status`, `reinit`, `modify`, `rename` (`ConnectRenameBody { name, description? }` — the name, brief and code, never the address) under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding`, `kit.describe` GET / `kit.apply` POST `/project/:id/kits` |
+| `project` | `create` POST / `list` GET `/project`, `attach` POST `/project/attach`, `confirm`, `status`, `reinit`, `modify`, `rename` (`ConnectRenameBody { name, description? }` — the name, brief and code, never the address) under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding`, `branding.credit` POST `/project/:id/branding/credit` (`ConnectBrandingCreditBody { hideCredit }`, the `Whitelabel` paid gate), `branding.copyDefaults` POST `/project/:id/branding/copy-defaults` — all four with `?scope=` (`ConnectScopeQuery`), `kit.describe` GET / `kit.apply` POST `/project/:id/kits`, `destroy` DELETE `/project/:id` → `ConnectProjectSummary`, `unlock` POST `/project/:id/unlock` → `ConnectAgentLock { locked, task?, lockedAt? }` (also `ConnectProjectStatus.agent`) — both ownership only, `llm.get` GET / `llm.set` POST `/project/:id/llm` (`ConnectProjectLlmBody { llmMode: ConnectLlm \| null }` — `null` inherits — → `ConnectProjectSettings { llmMode, effective, canUseLocal }`, the set the `LocalLlm` paid gate); `activity` GET `/project/:id/activity` (`ConnectActivityQuery` — a feed query + `detail`) → `ConnectFeedPage` |
+| `config` | `get` GET / `save` POST `/project/:id/config` (`?scope=`; the save `ConnectConfigSaveBody { backend?, frontend? }` — lists of `ConnectConfigValue { name, value }`, a name matching `CONNECT_CONFIG_NAME_PATTERN` ≤ `CONNECT_CONFIG_NAME_MAX`, a value ≤ `CONNECT_CONFIG_VALUE_MAX`, ≤ `CONNECT_CONFIG_SAVE_MAX` per side), `recollect` POST `/project/:id/config/recollect` → `ConnectProjectConfig { scope, backend: ConnectConfigVariable[], frontend: ConnectFrontendVariable[] }` — ownership only |
 | `story` | `status` GET `/project/:id/story/:storyId/status` |
-| `files` | `list` GET `/project/:id/files` |
+| `files` | `list` GET `/project/:id/files`; `get` GET / `save` POST / `remove` DELETE `/project/:id/files/content` (`ConnectFileQuery { path }` ≤ `CONNECT_FILE_PATH_MAX` in the query; the save body `ConnectFileSaveBody { path, content }` — the whole file) → `ConnectFileContent { path, content }` / `ConnectFileWritten { path, buildWarning? }`; `meta` GET `/project/:id/files/meta` (`ConnectFileMetaQuery { kind: MetadataListKind, category?: SpecCategory }`, the category a nullable enum carrying `null`) → `string[]` — ownership only; `changes` GET `/project/:id/files/changes` (`ConnectFeedQuery`) → `ConnectFileChanges` (a feed page + `watching`) |
+| `sandbox` | `run`, `restart`, `stop`, `rebuild` POST `/project/:id/sandbox/<verb>` → `ConnectSlotView` — the PREVIEW workload, ownership only |
+| `slot` | `list` GET `/slot` → `ConnectSlotView[]` — the organization's workloads, ownership only |
+| `git` | `status` GET `/project/:id/git` → `ConnectGitState { connection: ConnectGithubConnection \| null, git: ConnectGitStatus \| null }`; `log` GET `/project/:id/git/log` → `ConnectGitCommit[]`; `commit` POST `…/git/commit` (`ConnectGitCommitBody { message }` ≤ `CONNECT_GIT_MESSAGE_MAX`) → `ConnectGitCommitResult`; `discard` POST `…/git/discard` → `ConnectGitStatus`; `revert` POST `…/git/revert` (`ConnectGitRevertBody { hash }`, `CONNECT_GIT_HASH_PATTERN`) → `ConnectGitRevertResult { commit, dbWarning? }` — ownership only |
+| `github` | `authorize` POST `/project/:id/github/authorize` → `ConnectGithubAuthorize { authorizeUrl }` (the address the PERSON opens — NO completion route exists); `publish` POST `…/github/publish` (`ConnectGithubPublishBody { repoName?, private?, existing?: { owner, repo } }`) → `ConnectGithubConnection`; `push` / `pull` POST → `ConnectGitSyncResult`; `disconnect` POST → `{ connection: null }`; `repos` GET `…/github/repos` (`ConnectGithubRepoQuery { page?, search? }`) → `ConnectGithubRepoList`; `branches` GET `…/github/branches` (`ConnectGithubBranchQuery { owner, repo, page? }`) → `ConnectGithubBranchList`; `link` POST `…/github/link` (`ConnectGithubLinkBody { owner, repo, branch? }`) → `ConnectGithubLinked` — ownership only; names ≤ `CONNECT_GITHUB_NAME_MAX`, branch ≤ `CONNECT_GITHUB_BRANCH_MAX`, page ≤ `CONNECT_GITHUB_PAGE_MAX`, search ≤ `CONNECT_GITHUB_SEARCH_MAX` |
+| `production` | `status` GET `/project/:id/production` → `ConnectProductionStatus { workload: ConnectSlotState \| null, domain: ConnectProductionDomain \| null }`; `publish` (the `PublishedSites` paid gate — a LIMIT gate), `restart`, `stop` POST `…/production/<verb>` → `ConnectProductionStatus`; `domain.attach` POST `…/production/domain/attach` (`ConnectProductionDomainBody { domain }` — `CONNECT_DOMAIN_MIN`…`CONNECT_DOMAIN_MAX`, `CONNECT_DOMAIN_PATTERN`; the `CustomDomain` paid gate), `domain.verify` / `domain.detach` POST → `ConnectProductionDomain \| null`; `auth.get` GET `…/production/auth` → `ConnectProductionAuth { clientId, issuerUrl, secretSet, redirectUris, generatedHost, customDomain? }` and `auth.redirects` POST `…/production/auth/redirects` (`ConnectProductionRedirectsBody { redirects }` — ≤ `CONNECT_REDIRECTS_MAX` addresses of ≤ `CONNECT_REDIRECT_URI_MAX`) → `ConnectProductionRedirects { redirectUris }`, both the `ProductionStandalone` paid gate. The production workload, never the preview; NO `run` verb (a stopped site comes back by `restart`) and NO secret or reveal anywhere |
+| `iam` | The generated app's sign-in, the owner console's twins under `/project/:id/iam` — ownership only, NO paid kind: `permissions` GET `…/permissions` (`ConnectScopeQuery`) → `IamPermissionsResponse`, `defaultUpdate` POST `…/permissions/default` (`IamDefinitionUpdate`); `grants.list` GET `…/grants` (`IamGrantsQuery`), `.assign` POST `…/grants`, `.revoke` POST `…/grants/revoke` (`IamAssignGrant` / `IamRevokeGrant` — one subject); `users.list` GET / `.invite` POST `…/users`, `.update` POST `…/users/:profileId`, `.remove` POST `…/users/:profileId/remove` (`IamScoped` body); `organizations.list` GET `…/organizations`, `.update` POST `…/organizations/:entitySlug`, `.members` GET / `.addMember` POST `…/:entitySlug/members`, `.updateMember` POST `…/members/:profileId`, `.removeMember` POST `…/members/:profileId/remove`; `groups.list` GET / `.ensure` POST `…/:entitySlug/groups`, `.update` POST `…/groups/:group`, `.remove` POST `…/groups/:group/remove`, `.members` GET / `.addMembers` POST `…/groups/:group/members`, `.removeMembers` POST `…/members/remove`. Params `ConnectIam{User,Organization,Member,Group}Params` (`id` = the project). Every write a POST with `scope` in its body; every read `scope` in the query; NO staff-sync twin |
 | `convert` | `create` POST `/convert`, `check` GET `/convert/:id/check`, `start`, `proceed`, `purge` POST `/convert/:id/…`, `status` GET `/convert/:id` |
 | `inquiry` | `answer` POST `/project/:id/inquiry/:inquiryId` |
 | `pipeline` | `state` GET `/pipeline/:id/:runId`, `resume` POST `/pipeline/:id/:runId/resume` |
+| `call` | `collect` GET `/call/:callId` (query `wait` ≤ `CONNECT_CALL_COLLECT_WAIT_SEC`) → `ConnectCallResult` — under `base` (guard + ownership gate), never the paid gate |
 
-- No socket, capability view, session read, heartbeat, conversion cancel or inference-settings
-  route exists. A project's inference modes are set by the browser through the platform's own API;
-  `ConnectProjectSettings`, `ConnectProjectLlmBody(Schema)`, `ConverterProjectLlmBody(Schema)` stay
-  here as that API's shapes.
+- No socket, capability view, session read, heartbeat, conversion cancel, token create, consent
+  grant or terms route exists. A project has ONE inference setting — the person's preference
+  (`account.llm`) and a project override (`project.llm`, `null` inherits) — read and written through
+  the same shapes (`ConnectProfileSettings(View)`, `ConnectProjectSettings`, `ConnectLlmBody`,
+  `ConnectProjectLlmBody(Schema)`) by the browser's API and the connector alike; both writes carry
+  the `LocalLlm` paid gate. The setting is a DEFAULT (the browser's, a URL-configured host's): a stdio
+  connector's own `llm` is what its session attached with. A conversion carries no mode of
+  its own: like every run it follows the session that drives it, and `ViableProjectFieldsSchema`
+  refuses any other inference key on a card.
+- Who performs the model calls is the connector's `llm` and nothing else: `ConnectExecutor.Model`
+  is advertised exactly when it is `local` (every model call is then the parent's), never in the
+  cloud mode; `Human` is advertised always.
+- `project.create` (`ConnectCreateBody`) and `convert.create` (`ConnectConvertCreateBody`) carry
+  `sessionId?` — the caller's UNATTACHED delegated session; its pre-card checks are performed by
+  that session's parent, and absent the platform performs them. A nullable id like every other
+  (`{ ...idValue, nullable: true }`), and both bodies stay `additionalProperties: false`.
 - A new route is added here first (alias, declaration, `connectRef` entry), then bound in every
   runtime that serves or calls it — a route declared on one side alone is an unexplained 404. Raw
   aliases stay private to declaration modules; consumers receive protocol objects.
@@ -294,10 +330,60 @@ DEPLOYMENT's parts are injected: the guard alias, the ownership gate, and the pa
   — the start's whole body — and `ConnectConvertProceedBody(Schema)`): a PERSON agreed to what the
   step costs. The platform refuses a step that would use the plan's conversion or spend credits
   without it (`ConnectConfirmationRequired`); a `null` is "not confirmed", never a refused body.
-- Branding routes hang under `base` (guard + ownership gate, no paid gate). The save body
-  (`ConnectProjectBrandingSaveSchema`) is a PATCH of strings with structural bounds only
-  (`CONNECT_BRANDING_*_MAX`, each equal to its platform twin); value acceptability is the
-  platform's rule on the MERGED record. The platform credit is a paid capability with its own route.
+  The proceed body also carries `update?: ConnectConvertProceedUpdate` — `name`, `description`,
+  `specification`, `vision`, `designSystem`, closed, never the alias — the person's edits to what
+  the analysis drafted, which the platform accepts only with the decision that starts the extraction.
+- **A workload crosses the wire as a projection.** `ConnectSlotState` (`id`, `kind`, `status`,
+  `slug`, `host?`, `initialized?`, `lastError?`, `buildWarning?`, `backendWarning?` — `kind` and
+  `status` plain strings for the version skew) is `ConnectProjectStatus.slot`; `ConnectSlotView` adds
+  `projectId?` for the sandbox answers and the workload list. Never a namespace, workload, volume or
+  key: those are the deployment's infrastructure names.
+- Branding routes hang under `base` (guard + ownership gate). The save body
+  (`ConnectProjectBrandingSaveSchema`) is a PATCH of the text fields (`ConnectProjectBrandingFields`)
+  with structural bounds only (`CONNECT_BRANDING_*_MAX`, each equal to its platform twin); value
+  acceptability is the platform's rule on the MERGED record. The platform credit is READ-ONLY on
+  `ConnectProjectBranding.credit` (`ConnectBrandingCredit { hidden, requested, entitled }`, optional
+  for a platform that predates it) and changes only through `branding.credit`, a project route
+  declaring a paid kind (`Whitelabel`), beside `session.openDelegated`, the two preference writes and
+  the production routes.
+- **Git crosses as self-contained mirrors** (`connect/git/types.ts`): the same fields as the
+  platform's `@owlmeans/git/model` and `GithubConnection`, no git dependency here, every status a
+  plain string (version skew). NO shape carries the GitHub token, and no body has a field one could
+  travel in (`additionalProperties: false`).
+- **Production crosses as projections** (`connect/production/types.ts`): the workload as the slot
+  state, the domain with its two DNS records (`customDomain` → `cnameTarget`, `dcvName` → `dcvValue`)
+  and the provider's raw states, every status a plain string. The production sign-in's client secret
+  has NO field: `ConnectProductionAuth.secretSet` says whether one exists. Each paid route declares
+  its kind (`PublishedSites`, `CustomDomain`, `ProductionStandalone`), so every paid kind is in use.
+- **The owner console's IAM is ONE contract for both doors** (`./iam-console`, re-exported by the
+  barrel): the browser's `back.iam` routes and the connector's `connect.iam` twins validate the SAME
+  body schemas, so a field cannot be admitted by one and refused by the other. Every object is closed —
+  an organization travels by `entitySlug`, a group by key, never a record id; a grant names exactly one
+  subject (`OneSubject`); its nullable enums carry `null`. `IamRefused` stays the platform's class; the
+  marker it writes (`IAM_REFUSED`) is declared here.
+- **The browser's sockets are cursor feeds here** (`connect/feed/types.ts`): `ConnectFeedRecord`
+  (`kind: ConnectFeedKind`, `at`, `run?`, `projectId?`, `storyId?`, `slotId?`, `action?`, `agent?`,
+  bounded `text?`, small `data?`) — a projection, never the record behind it; `ConnectFeedEntry` adds its
+  `id`; `ConnectFeedPage { cursor, entries, gap }`. A cursor is a stream id
+  (`CONNECT_FEED_CURSOR_PATTERN`, ≤ `CONNECT_FEED_CURSOR_MAX`; `CONNECT_FEED_START` = `0-0`), a page
+  ≤ `CONNECT_FEED_LIMIT_MAX` (default `CONNECT_FEED_LIMIT_DEFAULT`), a hold ≤ `CONNECT_FEED_WAIT_MAX_SEC`
+  (20 s). `ConnectFeedDetail` (`progress` | `thinking`) is a nullable enum carrying `null`. The three
+  feed routes are GETs with no paid kind — the tree still declares NO socket.
+- `ConnectScopeQuery` (`ConnectScopeQuerySchema`) names `ephemeral` (the default — the preview's set)
+  or `production` (its own set, taken at a Publish) — a nullable enum carrying `null`, never `local`.
+- **A backend variable's VALUE never crosses the connector.** `ConnectConfigVariable` is `{ name, set }`
+  only; a frontend variable (`ConnectFrontendVariable`) adds its public `value` — it is baked into the
+  bundle every visitor loads.
+- **Request now, collect later.** In the delegated mode a write may wait on a model call the
+  connector's own parent performs, longer than an edge holds a response. The connector names every
+  non-GET request with `CONNECT_CALL_HEADER` (`x-viable-call`, a UUID it generated and reuses on a
+  retry); the platform holds a named call `CONNECT_CALL_ACCEPT_MS` (20 s), then answers 202
+  (`EntrypointOutcome.Accepted`) with `ConnectCallPending { pending: <id> }`; `call.collect` holds up
+  to `CONNECT_CALL_COLLECT_WAIT_SEC` (25 s) per poll and answers `ConnectCallResult { state, outcome?,
+  value?, error? }` — `settled` carries the value the call would have answered with (the empty schema
+  `{}`, never `nullable` without a type) or `error`, the call's failure as `ResilientError.marshal`
+  writes it; a pending call whose heartbeat is older than `CONNECT_CALL_LOST_MS` (90 s) is `lost`.
+  The collection is transport, not domain: no `ConnectorApi` member and no generic job endpoint.
 - Long work is read through its domain view — `ConnectProjectStatus`, `ConnectStoryStatus`,
   `ConversionStatusView`, `ConnectPipelineState` — each composing its record, run, pending inquiry
   and `waitingFor` reason; none exposes a generic operation id. A new long-running domain extends
@@ -435,7 +521,8 @@ silently at the smaller; never introduce a local cap.
 ## Errors: declared here, phrased where they are read
 
 `ConnectError` and its family (`ConnectSessionNotFound`, `ConnectSessionGone`, `ConnectOpTimeout`,
-`ConnectOpRefused`, `LocalSlotUnsupported`, `ConnectOpUnknown`, `ConnectOutOfCredits`,
+`ConnectOpRefused`, `LocalSlotUnsupported`, `ConnectOpUnknown`, `ConnectCallLost` (`call-lost:<callId>`
+— a collected call's outcome was never recorded), `ConnectOutOfCredits`,
 `ConnectConsentRequired`, `ConnectConfirmationRequired`) are `ResilientError` classes with
 `viable-connect:` markers. The three refusals a connector phrases for a person pack their fields
 into the message (only `type` and `message` survive a marshal), are built with `static encode(...)`
@@ -474,6 +561,7 @@ refuses an exported class whose status was not decided:
 | 428 | `ConnectConsentRequired`, `ConnectConfirmationRequired` |
 | 404 | `ProjectNotFound`, `ProjectStoryNotFound`, `ConnectSessionNotFound`, `ConnectOpUnknown` |
 | 409 | `ProjectAgentOccupied`, `ProjectStoryMissconfigured`, `ConnectSessionGone` (no connector attached), `LocalSlotUnsupported` |
+| 410 | `ConnectCallLost` (the outcome is gone, not late) |
 | 422 | `ConnectOpRefused` |
 | none (500) | the bases, `ConnectOpTimeout` (a peer's fault), `ProjectPermissionError` (never thrown; a permission refusal extends `AuthForbidden`) |
 
@@ -487,12 +575,13 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 
 | File | Pins |
 |---|---|
-| `planning.spec.ts` | the two flows and transition tables, type declarations, slots, code policies, reserved types outside `cardTypes`, field schemas (null optionals, refused strays and closed-set values), landing fields and sentence, the tenancy decision, the work kind and bounded case quote, card helpers, the `follows` anchor, refusal type names after a marshal |
+| `planning.spec.ts` | the two flows and transition tables, type declarations, slots, code policies, reserved types outside `cardTypes`, field schemas (null optionals, refused strays and closed-set values, no `converterLlmMode`), landing fields and sentence, the tenancy decision, the work kind and bounded case quote, card helpers, the `follows` anchor, refusal type names after a marshal |
 | `tenancy.spec.ts` | `NO_TENANCY` frozen, `tenancyHelper.tenancyOf` defaults and the literal-`true` rule, `.tenantedArea` |
 | `access-schema.spec.ts` | the model-facing access schema: model keys only, byte-identical |
 | `scaffold.spec.ts` | old- and new-shape plans passing the schema and slot, `null` optionals, no `minItems`, closed anchors/slots, the landing helpers |
 | `blueprint.spec.ts` · `branding.spec.ts` | `landingGatePreferenceOf` defaults · the build env and metadata vocabulary |
-| `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid gate on the delegated session alone, no socket or story route, branding body, the kit routes and their closed shapes · conversion routes, the start's body and both verbs' `confirm`, an unknown executor kind accepted |
+| `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid kinds on the delegated session, the two preference writes and the credit switch alone, the account inference/token/privacy/intent routes and their closed bodies, the configuration routes and their closed bodies, the git and GitHub routes under the base with no paid gate and no completion route and their closed bodies, the production routes under the base each with its own paid kind, no secret or run verb, and their closed bodies, the IAM routes' count and addresses, the scope query, the account branding routes, no socket or story route, the create body's `sessionId`, branding body, the kit routes and their closed shapes, the collect route under the base and its timing constants, the pending/params/query/result shapes, the three feed routes (owned base / account base, GET, no paid gate, no socket) and the feed query shapes · conversion routes, the create body's `sessionId`, the start's body and both verbs' `confirm`, an unknown executor kind accepted |
+| `iam-console.spec.ts` | the owner-console schemas (one subject, closed bodies, `null` in nullable enums), the 22 `connect.iam` routes under the base with no paid gate, the customer-wide listing under the account base, POST writes with `scope` in the body and reads with it in the query, the connector's IAM params |
 | `convert.spec.ts` | the three structural walks over the barrel, nullable enums under Ajv, census classifiers, stage transitions |
 | `design.spec.ts` | the design aggregate, staleness ranking, schema refusals, `storyDesignHelper.userStoryOfDesign` |
 | `error-status.spec.ts` · `connect-errors.spec.ts` | declared statuses through a marshal · packed refusal fields fresh and after a round trip, the confirmation's `decode` |
@@ -505,6 +594,8 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 - `@owlmeans/resource` — the `ResourceError` base of the project refusals
 - `@owlmeans/entrypoint`, `@owlmeans/route` — the entrypoint declarations
 - `@owlmeans/error` — the `Connect*` error family
+- `@owlmeans/iam` — the owner console's IAM vocabulary `./iam-console` re-exports (public, runtime-light:
+  `auth`, `context`, `entrypoint`, `error`, `oidc`, `route`); `@owlmeans/auth-common` — `ENTITY_SLUG_PATTERN`
 - `@owlmeans/llm-common` — `ExecutionEffort`/`ExecutionLevel`, `LlmPurpose`, the spectator
   contracts, and the inquiry ceilings this package's copies are pinned to
 - `@owlmeans/agent-common` — the run and pipeline contracts (re-exported `AgentRunStatus`)

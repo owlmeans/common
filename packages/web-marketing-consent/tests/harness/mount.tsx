@@ -35,6 +35,8 @@ import type { MarketingConsentClientService } from '../../src/index.js'
  *                       (`appendMarketingConsent({ terms: 'step' })`), with a terms configuration
  *                       so `resolved != null` — a version, a required document, a privacy URL and
  *                       the revision date the Terms row shows.
+ *   `?bulk=required`   bulk selection controls required agreements only
+ *   `?localized=1`     add billing/cookies and explicit PL/FR publication destinations
  */
 const params = new URLSearchParams(window.location.search)
 
@@ -43,6 +45,7 @@ const API = `${SERVICE}-api`
 const API_BASE = `${SERVICE}:api:base`
 const lng = params.get('lng') ?? 'en'
 const termsMode = params.get('terms') === 'step'
+const localizedHrefs = params.get('localized') === '1'
 
 const origin = window.location
 const base = service({
@@ -60,12 +63,25 @@ base.security = {
           required: true, version: 'harness-terms-v1',
           terms: 'https://example.test/terms', privacy: 'https://example.test/privacy',
           revisions: { terms: '2026-05-30', privacy: '2026-05-30' }, showRevision: true,
+          ...(localizedHrefs ? {
+            cookies: 'https://example.test/cookies', billing: 'https://example.test/billing',
+            localizedHrefs: {
+              terms: { pl: 'https://example.test/pl/terms', fr: 'https://example.test/fr/terms' },
+              privacy: { pl: 'https://example.test/pl/privacy', fr: 'https://example.test/fr/privacy' },
+              cookies: { pl: 'https://example.test/pl/cookies', fr: 'https://example.test/fr/cookies' },
+              billing: { pl: 'https://example.test/pl/billing', fr: 'https://example.test/fr/billing' },
+            },
+          } : {}),
         },
       },
     },
   } : {}),
 }
-;(base as { i18n?: unknown }).i18n = { defaultLng: lng, fallbackLng: lng }
+// This host explicitly supports eight languages, like the Platform. The generic i18n default
+// supports seven and would correctly reject a post-mount switch to French in this fixture.
+;(base as { i18n?: unknown }).i18n = {
+  defaultLng: lng, fallbackLng: lng, supportedLngs: ['en', 'pl', 'ru', 'be', 'uk', 'es', 'de', 'fr'],
+}
 
 // `ready` stays false: the Router compiles the entrypoint tree into routes ONLY while the context
 // is un-initialized.
@@ -78,7 +94,10 @@ context.serviceRoute(API, true)
 const apiBase = openProtocol(route(API_BASE, '/', backend({ service: API })))
 const mcProtocols = makeMarketingConsentProtocols({ parent: API_BASE })
 
-appendMarketingConsent(context as never, { protocols: mcProtocols, terms: termsMode ? 'step' : true })
+appendMarketingConsent(context as never, {
+  protocols: mcProtocols, terms: termsMode ? 'step' : true,
+  bulkSelection: params.get('bulk') === 'required' ? 'required' : undefined,
+})
 
 const home = openProtocol(route(HOME, '/', frontend({ default: true })))
 const prefsRoute = openProtocol(route('prefs-screen', '/prefs', frontend()))
@@ -105,6 +124,7 @@ context.registerEntrypoints([
 
 /** What the specs read back from the page — the real service and auth store, never a copy. */
 ;(window as unknown as { __mc: unknown }).__mc = {
+  language: (value: string) => i18nInstanceHelper.setLanguage(value),
   token: async () => await context.auth().authenticated(),
   status: async (fresh?: boolean) =>
     await context.service<MarketingConsentClientService>(MARKETING_CONSENT_CLIENT_SERVICE).status({ fresh }),

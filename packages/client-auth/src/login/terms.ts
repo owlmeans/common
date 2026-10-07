@@ -116,9 +116,27 @@ export const createLoginTermsHelper = (): LoginTermsHelper => {
       required: cfg?.required ?? true,
       terms, privacy, cookies,
       version: cfg?.version ?? digest(digestInput),
-      documents, notices, showRevision,
+      // Translations are alternate destinations for this canonical revision, not a new agreement.
+      documents: documents.map(doc => withLocalizedHrefs(doc, cfg)),
+      notices: notices.map(doc => withLocalizedHrefs(doc, cfg)),
+      showRevision,
       ...(revisedAt != null ? { revisedAt } : {}),
     }
+  }
+
+  const withLocalizedHrefs = (doc: ResolvedTermsDocument, cfg?: LoginTermsConfig): ResolvedTermsDocument => {
+    const hrefMap = cfg?.localizedHrefs?.[doc.key]
+
+    return hrefMap != null ? { ...doc, hrefMap } : doc
+  }
+
+  const termsHrefOf = (doc: ResolvedTermsDocument, locale?: string): string => {
+    const localized = locale != null
+      ? doc.hrefMap?.[locale] ?? doc.hrefMap?.[locale.toLowerCase()]
+        ?? doc.hrefMap?.[locale.split('-')[0].toLowerCase()]
+      : undefined
+
+    return typeof localized === 'string' && localized.trim() !== '' ? localized : doc.href
   }
 
   const termsAccepted = (resolved: ResolvedTerms | null): boolean => {
@@ -168,8 +186,8 @@ export const createLoginTermsHelper = (): LoginTermsHelper => {
   const termsAcceptanceOf = (
     resolved: Pick<ResolvedTerms, 'documents' | 'notices' | 'version'>, locale?: string
   ): LoginTermsAcceptance => ({
-    documents: resolved.documents.map(doc => ({ key: doc.key, href: doc.href, revisedAt: doc.revisedAt })),
-    notices: resolved.notices.map(doc => ({ key: doc.key, href: doc.href, revisedAt: doc.revisedAt })),
+    documents: resolved.documents.map(doc => ({ key: doc.key, href: termsHrefOf(doc, locale), revisedAt: doc.revisedAt })),
+    notices: resolved.notices.map(doc => ({ key: doc.key, href: termsHrefOf(doc, locale), revisedAt: doc.revisedAt })),
     version: resolved.version,
     ...(locale != null ? { locale } : {}),
   })
@@ -200,7 +218,7 @@ export const createLoginTermsHelper = (): LoginTermsHelper => {
         if (part.type === 'element') {
           const doc = docs[cursor++]
 
-          return { text: part.value, href: doc.href, documentKey: doc.key }
+          return { text: part.value, href: termsHrefOf(doc, locale), documentKey: doc.key }
         }
 
         return { text: part.value }
@@ -212,7 +230,7 @@ export const createLoginTermsHelper = (): LoginTermsHelper => {
       if (index > 0) {
         parts.push({ text: index === docs.length - 1 ? ' and ' : ', ' })
       }
-      parts.push({ text: labels[index], href: doc.href, documentKey: doc.key })
+      parts.push({ text: labels[index], href: termsHrefOf(doc, locale), documentKey: doc.key })
     })
 
     return parts
@@ -245,7 +263,7 @@ export const createLoginTermsHelper = (): LoginTermsHelper => {
       } else {
         const doc = byKey(token)
         if (doc != null) {
-          parts.push({ text: resolveLabel(doc), href: doc.href, documentKey: doc.key })
+          parts.push({ text: resolveLabel(doc), href: termsHrefOf(doc, locale), documentKey: doc.key })
         }
       }
 
@@ -259,7 +277,7 @@ export const createLoginTermsHelper = (): LoginTermsHelper => {
   }
 
   return {
-    resolveTerms, termsAccepted, acceptTerms, termsLabelResolver, termsAcceptanceOf, termsDeferred, termsSentence,
+    resolveTerms, termsAccepted, acceptTerms, termsLabelResolver, termsHrefOf, termsAcceptanceOf, termsDeferred, termsSentence,
   }
 }
 

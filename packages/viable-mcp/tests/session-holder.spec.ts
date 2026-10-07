@@ -77,6 +77,22 @@ describe('the one session a connector holds', () => {
     expect(opened).toHaveLength(2)
   })
 
+  test('a delegated create moves a project session to an unattached one, then onto the new project', async () => {
+    // The platform hands a create's pre-card checks only to a session that names no project, so a
+    // connector attached elsewhere is detached first — and attached to what the create filed after.
+    const { holder, opened } = holderOver()
+
+    const previous = await holder.get('p-old')
+    const unattached = await holder.get(null)
+    const created = await holder.get('p-new')
+
+    expect(previous.closed).toBe(true)
+    expect(unattached.projectId).toBeNull()
+    expect(unattached.closed).toBe(true)
+    expect(created.projectId).toBe('p-new')
+    expect(opened).toHaveLength(3)
+  })
+
   test('releasing closes what is open and forgets it', async () => {
     const { holder, opened } = holderOver()
 

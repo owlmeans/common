@@ -253,3 +253,62 @@ describe('termsAcceptanceOf', () => {
     expect(loginTermsHelper.termsAcceptanceOf(resolved)).not.toHaveProperty('locale')
   })
 })
+
+describe('explicit localized document destinations', () => {
+  const cfg: LoginTermsConfig = {
+    terms: 'https://a.test/terms', privacy: 'https://a.test/privacy', cookies: 'https://a.test/cookies',
+    billing: 'https://a.test/billing',
+    revisions: { terms: '2026-05-30', privacy: '2026-05-30', billing: '2026-10-04' },
+  }
+  const localizedHrefs = {
+    terms: { pl: 'https://a.test/pl/warunki', fr: 'https://a.test/fr/conditions' },
+    billing: { pl: 'https://a.test/pl/abonament', fr: 'https://a.test/fr/abonnement' },
+    privacy: { pl: 'https://a.test/pl/prywatnosc', fr: 'https://a.test/fr/confidentialite' },
+    cookies: { pl: 'https://a.test/pl/cookies', fr: 'https://a.test/fr/cookies' },
+  }
+
+  test('translated paths leave the canonical digest and document revisions unchanged', () => {
+    const canonical = loginTermsHelper.resolveTerms(cfg)!
+    const localized = loginTermsHelper.resolveTerms({ ...cfg, localizedHrefs })!
+
+    expect(localized.version).toBe(canonical.version)
+    for (const locale of ['pl', 'fr']) {
+      const acceptance = loginTermsHelper.termsAcceptanceOf(localized, locale)
+      expect(acceptance.version).toBe(canonical.version)
+      expect(acceptance.documents.map(doc => doc.revisedAt)).toEqual(canonical.documents.map(doc => doc.revisedAt))
+      expect(acceptance.notices.map(doc => doc.revisedAt)).toEqual(canonical.notices.map(doc => doc.revisedAt))
+    }
+    expect(localized.documents.map(doc => doc.href)).toEqual(canonical.documents.map(doc => doc.href))
+  })
+
+  test('rendered lists, legacy placeholders and recorded evidence select the same PL/FR URLs', () => {
+    const resolved = loginTermsHelper.resolveTerms({ ...cfg, localizedHrefs })!
+    for (const locale of ['pl', 'fr']) {
+      const parts = loginTermsHelper.termsSentence('{{documents}}; {{notices}}', resolved, locale, label)
+      const evidence = loginTermsHelper.termsAcceptanceOf(resolved, locale)
+      expect(parts.filter(part => part.href != null).map(({ documentKey, href }) => ({ key: documentKey, href })))
+        .toEqual([...evidence.documents, ...evidence.notices].map(({ key, href }) => ({ key, href })))
+      expect(evidence.documents[0].href).toBe(localizedHrefs.terms[locale as 'pl' | 'fr'])
+      expect(evidence.notices[0].href).toBe(localizedHrefs.privacy[locale as 'pl' | 'fr'])
+      const legacy = loginTermsHelper.termsSentence('{{terms}} {{privacy}} {{cookies}}', resolved, locale, label)
+      expect(legacy.filter(part => part.href != null).map(part => part.href))
+        .toEqual([evidence.documents[0].href, ...evidence.notices.map(doc => doc.href)])
+      for (const doc of [...evidence.documents, ...evidence.notices]) {
+        expect(Object.keys(doc).sort()).toEqual(['href', 'key', 'revisedAt'])
+      }
+    }
+  })
+
+  test('unmapped/default locales retain canonical destinations; regional tags use a configured base language', () => {
+    const canonical = loginTermsHelper.resolveTerms(cfg)!
+    const resolved = loginTermsHelper.resolveTerms({ ...cfg, localizedHrefs })!
+    for (const locale of [undefined, 'en', 'it']) {
+      expect(loginTermsHelper.termsAcceptanceOf(resolved, locale))
+        .toEqual(loginTermsHelper.termsAcceptanceOf(canonical, locale))
+    }
+    expect(loginTermsHelper.termsHrefOf(resolved.documents[0], 'pl-PL')).toBe(localizedHrefs.terms.pl)
+    expect(loginTermsHelper.termsHrefOf(resolved.documents[0], 'fr-FR')).toBe(localizedHrefs.terms.fr)
+    // Omitted maps never rewrite a customer application's URLs, even in a non-English UI.
+    expect(loginTermsHelper.termsHrefOf(canonical.documents[0], 'pl')).toBe(cfg.terms!)
+  })
+})

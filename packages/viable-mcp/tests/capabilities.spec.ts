@@ -16,7 +16,8 @@ const capsOf = async (...args: string[]): Promise<ReturnType<typeof sessionCapab
   ))
 
 const DISK = [ConnectExecutor.Files, ConnectExecutor.Shell, ConnectExecutor.Git]
-const ALWAYS = [ConnectExecutor.Model, ConnectExecutor.Human]
+const ALWAYS = [ConnectExecutor.Human]
+const DELEGATED = [ConnectExecutor.Model]
 
 /** Order is not part of the contract; the SET is. */
 const sorted = (executors: ConnectExecutor[]): ConnectExecutor[] => [...executors].sort()
@@ -35,20 +36,24 @@ describe('@owlmeans/viable-mcp — what this connector says it can do', () => {
     // Closed sets rather than containment: an executor claimed by mistake is an operation queued
     // for a connector that will never answer it, which containment checks cannot catch.
     expect(await executorsOf('--target', 'local', '--llm', 'cloud')).toEqual(sorted([...DISK, ...ALWAYS]))
-    expect(await executorsOf('--target', 'local', '--llm', 'local')).toEqual(sorted([...DISK, ...ALWAYS]))
+    expect(await executorsOf('--target', 'local', '--llm', 'local')).toEqual(sorted([...DISK, ...ALWAYS, ...DELEGATED]))
     expect(await executorsOf('--target', 'cloud', '--llm', 'cloud')).toEqual(sorted(ALWAYS))
-    expect(await executorsOf('--target', 'cloud', '--llm', 'local')).toEqual(sorted(ALWAYS))
+    expect(await executorsOf('--target', 'cloud', '--llm', 'local')).toEqual(sorted([...ALWAYS, ...DELEGATED]))
   })
 
-  test('a model and a person can be reached in every mode', async () => {
-    // Unconditional on purpose. A coding agent is a model with a person in front of it whatever it
-    // was started with — a run that finds no `human` executor assumes an answer instead of asking
-    // for one, and a `model` executor gated on the delegated mode made the converter's own floor
-    // unreachable for an ordinary session, moving every conversion onto the platform's models.
+  test('a person can be reached in every mode, a model only in the delegated one', async () => {
+    // A coding agent has a person in front of it whatever it was started with — a run that finds
+    // no `human` executor assumes an answer instead of asking for one. Who performs the model calls
+    // is the llm flag and nothing else: all of them in the delegated mode, none in the cloud mode
+    // (a conversion's included), so `model` is claimed exactly when `llm` is `local`.
     for (const mode of MODES) {
       const executors = (await capsOf(...mode)).executors
       expect(executors).toContain(ConnectExecutor.Human)
-      expect(executors).toContain(ConnectExecutor.Model)
+      if (mode[mode.indexOf('--llm') + 1] === 'local') {
+        expect(executors).toContain(ConnectExecutor.Model)
+      } else {
+        expect(executors).not.toContain(ConnectExecutor.Model)
+      }
     }
   })
 

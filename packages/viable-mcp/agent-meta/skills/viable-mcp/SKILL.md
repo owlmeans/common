@@ -143,17 +143,66 @@ leaves a session filed on the platform that nothing will ever close, and only th
 
 For a local target the directory's `.viable/connect.json` is read at startup, so a connector started
 in a project that was worked on before picks up where the last one left off rather than asking the
-user which project this is. Capabilities are reported honestly per mode: a cloud target offers no
-executors at all.
+user which project this is. Capabilities are reported honestly per mode (`sessionCapabilities`):
+the disk executors (`files`, `shell`, `git`) follow the target — a cloud target offers none of
+them —, `model` is advertised exactly when `llm=local`, and `human` always.
 
-`serverInstructions` (from the SDK) states the workflow and the two rules that are not discoverable
-from a tool list — long operations are jobs, and in the delegated mode this session performs the
-platform's model calls — so a parent that read only that could still drive the platform correctly.
+A delegated create needs a session that names NO project (`viable-sdk`'s handover): `deps.detach()`
+sets the attached project to `null`, so the holder retires a project session and opens an unattached
+one, whose id the create sends; attaching the new project afterwards re-opens onto it.
+
+Deleting the attached project is the other move off a project: `deps.release` is the holder's own
+`release` (close the held session — awaiting one still opening — and forget it), and `delete_project`
+calls it and then `deps.detach()` BEFORE the platform's delete, so nothing is delivered to a project
+that is going away and the next tool opens a fresh session. A host without `release` would close
+`currentSession()` itself and leave the holder believing it still holds one.
+
+`serverInstructions` (from the SDK) states the workflow, one line mapping every capability family the
+host offers (never naming a hidden tool), and the rules that are not discoverable from a tool list —
+long operations are jobs read through domain status and cursor feeds, an irreversible tool needs the
+user's agreement as `confirm: true`, billing, token creation, consent grants, connector approval and
+the GitHub authorization's completion stay in the browser, and in the delegated mode this session
+performs EVERY model call of the platform (a tool blocked on one answers with the task) — so a parent
+that read only that could still drive the platform correctly. The deps also carry one `createInflightCalls()`
+registry for the life of the process: the handover's calls outlive every session the holder reopens.
 
 ## Modes
 
 `target=local, llm=cloud` is the default: the project lives in the user's working directory, the
-model calls are the platform's and billed to their credits. `VIABLE_API_URL` points the server at a
+model calls are the platform's — every one of them, a conversion's included — and billed to their
+credits; the task loop (`next_task`/`submit_task_result`) is not offered. `--llm local` makes every
+model call the parent's: the session opens through the gated delegated route, `model` is advertised,
+the task loop and the handover are on, and `makeSdkContext({ llm: cfg.llm })` turns on the SDK's
+request-now-collect-later transport: every write is named with `x-viable-call`, an early `{ pending }`
+answer is collected through `connect.call.collect`, and each request and collect hop keeps
+`TOOL_DEADLINE_MS` (the context and `makeRemoteConnectorApi` both get it in every mode) — a call
+waiting on the parent's own model call lasts as long as that task, never bounded by one HTTP
+request or the edge (see [[viable-sdk]]). `--target cloud` keeps the project's tree and preview on
+the platform, so the catalogue offers the slot's file tools (`list_files` with its metadata kinds,
+`read_file`, `write_file`, `delete_file`), `preview_control` and the git and GitHub tools
+(`git_status`, `git_history`, `git_commit`, `git_discard`, `git_revert`, `connect_github` — an address
+the person opens; the authorization completes in their browser, never here —, `publish_to_github`,
+`github_sync`, `disconnect_github`, `github_repositories`, `link_github_origin`; the GitHub token is
+never answered) and the production tools (`production_status`, `publish_production` — with
+`confirm: true` —, `production_control`, `custom_domain` with the DNS records to create,
+`production_auth` — never the client secret —, `set_production_redirects`) and `file_changes` (the
+slot tree's changes by cursor) instead of the local run tools;
+`list_slots` (the organization's workloads) is offered in every mode, and so are the platform-side
+records: the project settings with the read-only credit and `set_platform_credit`, the
+configuration variables (`project_configuration` — a backend value never shown —,
+`update_project_configuration`, `recollect_configuration`) and the organization's defaults
+(`organization_branding`, `update_organization_branding`, `backfill_project_branding`), the
+person's own records (`inference_settings`, `set_inference_mode` — the default only, never this
+server's own `--llm` —, `list_access_tokens`, `revoke_access_token`, `privacy_choices`,
+`withdraw_marketing_consent`, `pickup_intent`; nothing mints a token or gives a consent) and the
+generated app's sign-in — the IAM is the platform's for a local project too (`app_users` — with `all`,
+every app of the organization —, `manage_app_user`, `app_permissions`, `set_app_permission_default`,
+`app_grants`, `manage_app_grant`, `app_organizations`, `manage_app_organization`, `app_groups`,
+`manage_app_group`; a removal or a group deletion only with `confirm: true`) and the cursor feeds
+that replace the browser's sockets (`project_activity`, `notifications` — each answers its cursor and
+the call that reads on; no socket is ever opened); a write
+that ends in a configuration push opens the session first, so a local target's `.env` is written
+through this server. `VIABLE_API_URL` points the server at a
 self-hosted or development deployment, which is what every end-to-end test does. It is that
 deployment's PUBLIC API origin — path-less, the host that serves the connector, planning, `/mcp`
 and the OAuth authorization server, `https://api-<web host>` for an OwlMeans Viable dev
@@ -164,9 +213,14 @@ sign-in and `/oauth/revoke` run against the same origin, and it is the token's i
 
 `bun test ./tests` — `config.spec.ts` (flag > environment > file precedence, empty environment values, `url`), `stdio.spec.ts` (the built
 binary over a real stdio transport, against an unreachable API: what the server announces — the
-default mode's core, local, settings and planning-kit tools — answers
+default mode's core, local, settings and planning-kit tools, the manual story moves, the project delete
+and the lock release, the activity and notice feeds (and no `file_changes`), and NO task loop; the cloud
+target's `file_changes` and production tools; the delegated mode's
+task loop and its instructions — answers
 and contains before its first successful call; no token → it starts and an API tool answers with a sign-in refusal) and `session-holder.spec.ts` (re-binding, the
-single-flight guard, and recovery from a failed open — all offline, over a fake opener).
+single-flight guard, the project → unattached → new project moves of a delegated create, and recovery
+from a failed open — all offline, over a fake opener); `capabilities.spec.ts` pins the executor set of
+each of the four modes.
 
 `stdio.spec.ts` needs `build/bin.js`, so `bun run build` comes first. Every spec that reads configuration
 sets `OWLMEANS_CREDENTIALS` to a temp path — the developer's real `~/.owlmeans` must never leak in. An

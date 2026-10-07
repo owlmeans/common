@@ -27,6 +27,12 @@ declare module '@owlmeans/config' {
   interface LoginTermsConfig {
     /** `documents[].key` (or a custom document's own key) → the ISO date it was last revised. */
     revisions?: Record<string, string>
+    /**
+     * Document/notice key → locale → published href. Opt-in; omitted locales use the canonical
+     * href. Renderers and acceptance evidence resolve the same current locale, while these
+     * translated destinations leave the canonical agreement version and revisions unchanged.
+     */
+    localizedHrefs?: Record<string, Record<string, string>>
     /** Off by default. A bare string is `{ href }`. */
     billing?: string | { href: string, revisedAt?: string } | false
     /** Off by default. `name` is interpolated into the `login.terms.product` translation. */

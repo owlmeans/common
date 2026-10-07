@@ -249,7 +249,7 @@ ONE label resolver and ONE wire-shape builder every renderer/recorder of a terms
 `web-marketing-consent`'s own Terms box and `termsRecorder` all import them rather than keeping a
 second hand-copied `DEFAULT_LABEL`/`resolveLabelFor`.
 
-**`billing`, `product`, custom `documents`, per-document `revisions` and `showRevision`** are
+**`billing`, `product`, custom `documents`, per-document `revisions`, `showRevision` and `localizedHrefs`** are
 `LoginTermsConfig` fields added by TypeScript module augmentation in
 `@owlmeans/client-auth/login/terms-config.ts` — never by editing `@owlmeans/config` itself, whose
 ~85 dependents all sit in one release closure. Importing anything from `@owlmeans/client-auth/login`
@@ -261,6 +261,13 @@ document's `label` may be a plain string or a locale map, resolved by the RENDER
 `resolveTerms`, which stays locale-free) against the current language, falling back to the map's
 first value. `showRevision` surfaces the latest `revisedAt` among `documents` as
 `[data-login-revised]`, off by default.
+
+`localizedHrefs` is an opt-in document/notice-key → locale → published-href map. `resolveTerms`
+keeps each canonical `href` and attaches the matching `hrefMap`; these translations do not enter
+the digest or change revisions. `loginTermsHelper.termsHrefOf(doc, locale?)` selects a configured
+exact locale, then its base language, then the canonical href. Both `termsSentence` (including legacy
+placeholders) and `termsAcceptanceOf` use it with the current UI locale, so recorded document/notice
+URLs match the links shown. A missing map leaves customer/generated-app behavior unchanged.
 
 The control is a **native `<input type="checkbox">`** inside the existing `label` primitive:
 `web-panel` ships no `checkbox` primitive, and forcing every consumer to vendor one plus its Radix

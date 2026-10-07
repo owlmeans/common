@@ -1,17 +1,44 @@
 import type { JSONSchemaType } from 'ajv'
+import { SpecCategory } from '../ba/consts.js'
 import { ConversionDecision, OriginKind } from '../convert/consts.js'
+import { MetadataListKind } from '../metadata/consts.js'
 import {
   CONNECT_BRANDING_COPYRIGHT_MAX, CONNECT_BRANDING_GOOGLE_TAG_MAX,
-  CONNECT_BRANDING_ORGANIZATION_MAX, CONNECT_BRANDING_URL_MAX, CONNECT_INQUIRY_MAX_TEXT,
-  ConnectHarness, ConnectLlm, ConnectOpErrorKind, ConnectSessionStatus, ConnectTarget,
-  ConnectTransport, ModelTaskResultKind
+  CONNECT_BRANDING_ORGANIZATION_MAX, CONNECT_BRANDING_URL_MAX, CONNECT_CALL_COLLECT_WAIT_SEC, CONNECT_FILE_PATH_MAX,
+  CONNECT_CONFIG_NAME_MAX, CONNECT_CONFIG_NAME_PATTERN, CONNECT_CONFIG_SAVE_MAX, CONNECT_CONFIG_VALUE_MAX,
+  CONNECT_GIT_HASH_PATTERN, CONNECT_GIT_MESSAGE_MAX, CONNECT_GITHUB_BRANCH_MAX, CONNECT_GITHUB_NAME_MAX,
+  CONNECT_GITHUB_PAGE_MAX, CONNECT_GITHUB_SEARCH_MAX, CONNECT_DOMAIN_MAX, CONNECT_DOMAIN_MIN, CONNECT_DOMAIN_PATTERN,
+  CONNECT_REDIRECT_URI_MAX, CONNECT_REDIRECTS_MAX,
+  CONNECT_INQUIRY_MAX_TEXT, CONNECT_PRIVACY_KEY_MAX, CONNECT_PRIVACY_KEYS_MAX, CONNECT_TOKEN_ID_MAX, ConnectCallState, ConnectHarness, ConnectLlm, ConnectOpErrorKind,
+  ConnectSessionStatus, ConnectTarget, ConnectTransport, ModelTaskResultKind,
+  CONNECT_FEED_CURSOR_MAX, CONNECT_FEED_CURSOR_PATTERN, CONNECT_FEED_LIMIT_MAX, CONNECT_FEED_WAIT_MAX_SEC, ConnectFeedDetail,
 } from './consts.js'
-import type { ConnectProjectBrandingSave } from './branding/types.js'
+import { WorkloadKind } from '../slot/consts.js'
+import { INTENT_REF_LENGTH, INTENT_REF_PATTERN } from '../intent/consts.js'
+import type {
+  ConnectAccessTokenParams, ConnectIntentPickupBody, ConnectOrganizationBrandingSave, ConnectPrivacyWithdrawBody,
+} from './account/types.js'
+import type { ConnectBrandingCreditBody, ConnectProjectBrandingSave } from './branding/types.js'
+import type { ConnectConfigSaveBody, ConnectScopeQuery } from './config/types.js'
+import type {
+  ConnectCallCollectParams, ConnectCallCollectQuery, ConnectCallPending, ConnectCallResult
+} from './call/types.js'
 import type { ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody } from './conversion/types.js'
+import type { ConnectFileMetaQuery, ConnectFileQuery, ConnectFileSaveBody } from './files/types.js'
+import type { ConnectActivityQuery, ConnectFeedQuery } from './feed/types.js'
+import type {
+  ConnectGitCommitBody, ConnectGitRevertBody, ConnectGithubBranchQuery, ConnectGithubLinkBody, ConnectGithubPublishBody,
+  ConnectGithubRepoQuery,
+} from './git/types.js'
 import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe, PlanningKitView } from './kit/types.js'
 import type { ConnectOpResult, InquiryAnswerPayload } from './ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody } from './pipeline/types.js'
 import type { ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody } from './project/types.js'
+import type { ConnectProductionDomainBody, ConnectProductionRedirectsBody } from './production/types.js'
+import type {
+  ConnectIamGroupParams, ConnectIamMemberParams, ConnectIamOrganizationParams, ConnectIamUserParams,
+} from './iam/types.js'
+import { EntitySlugSchema, GroupKeySchema, ProfileIdSchema } from '../iam-console/consts.local.js'
 import type { ConnectPullQuery, ConnectSession, ConnectSessionOpen, ConnectSessionParams } from './session/types.js'
 import type { ConnectLlmBody, ConnectProjectLlmBody } from './settings/types.js'
 
@@ -150,6 +177,45 @@ export const ConnectPullQuerySchema = {
   additionalProperties: false,
 } as JSONSchemaType<ConnectPullQuery>
 
+/** The early answer to a delegated write: the call id it named, still running. */
+export const ConnectCallPendingSchema = {
+  type: 'object',
+  properties: { pending: idValue },
+  required: ['pending'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectCallPending>
+
+export const ConnectCallCollectParamsSchema = {
+  type: 'object',
+  properties: { callId: idValue },
+  required: ['callId'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectCallCollectParams>
+
+export const ConnectCallCollectQuerySchema = {
+  type: 'object',
+  properties: { wait: { type: 'integer', minimum: 0, maximum: CONNECT_CALL_COLLECT_WAIT_SEC, nullable: true } },
+  required: [],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectCallCollectQuery>
+
+/**
+ * What a collect answers. `value` is any JSON the call would have answered with — the empty schema,
+ * never `nullable` without a `type` (see ConnectOpResultSchema.value); `error` is the call's failure
+ * as `ResilientError.marshal` writes it, stack included, so its ceiling is generous.
+ */
+export const ConnectCallResultSchema = {
+  type: 'object',
+  properties: {
+    state: { type: 'string', enum: Object.values(ConnectCallState) },
+    outcome: { type: 'string', maxLength: 32, nullable: true },
+    value: {},
+    error: { type: 'string', maxLength: 65_536, nullable: true },
+  },
+  required: ['state'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectCallResult>
+
 /** Every project-scoped connector route addresses the project by `:id`. */
 export const ConnectProjectIdSchema = {
   type: 'object',
@@ -157,6 +223,38 @@ export const ConnectProjectIdSchema = {
   required: ['id'],
   additionalProperties: false,
 } as JSONSchemaType<{ id: string }>
+
+/**
+ * The connector's IAM paths: the project as `id`, then the subject, the organization (its slug —
+ * never its record id) and the group key, each bounded exactly like the browser's twin.
+ */
+export const ConnectIamUserParamsSchema = {
+  type: 'object',
+  properties: { id: idValue, profileId: ProfileIdSchema },
+  required: ['id', 'profileId'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectIamUserParams>
+
+export const ConnectIamOrganizationParamsSchema = {
+  type: 'object',
+  properties: { id: idValue, entitySlug: EntitySlugSchema },
+  required: ['id', 'entitySlug'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectIamOrganizationParams>
+
+export const ConnectIamMemberParamsSchema = {
+  type: 'object',
+  properties: { id: idValue, entitySlug: EntitySlugSchema, profileId: ProfileIdSchema },
+  required: ['id', 'entitySlug', 'profileId'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectIamMemberParams>
+
+export const ConnectIamGroupParamsSchema = {
+  type: 'object',
+  properties: { id: idValue, entitySlug: EntitySlugSchema, group: GroupKeySchema },
+  required: ['id', 'entitySlug', 'group'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectIamGroupParams>
 
 export const ConnectOpParamsSchema = {
   type: 'object',
@@ -177,6 +275,7 @@ export const ConnectCreateBodySchema = {
   properties: {
     prompt: { type: 'string', minLength: 1, maxLength: 16384 },
     target: { type: 'string', enum: [...Object.values(ConnectTarget), null], nullable: true },
+    sessionId: { ...idValue, nullable: true },
   },
   required: ['prompt'],
   additionalProperties: false,
@@ -382,6 +481,7 @@ export const ConnectConvertCreateBodySchema = {
       required: ['kind'],
       additionalProperties: false,
     },
+    sessionId: { ...idValue, nullable: true },
   },
   required: [],
   additionalProperties: false,
@@ -402,6 +502,19 @@ export const ConnectConvertProceedBodySchema = {
     decision: { type: 'string', enum: Object.values(ConversionDecision) },
     note: { type: 'string', maxLength: 4096, nullable: true },
     confirm: { type: 'boolean', nullable: true },
+    update: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        name: { type: 'string', minLength: 1, maxLength: 128, nullable: true },
+        description: { type: 'string', maxLength: 16384, nullable: true },
+        specification: { type: 'string', maxLength: 262144, nullable: true },
+        vision: { type: 'string', maxLength: 16384, nullable: true },
+        designSystem: { type: 'string', maxLength: 262144, nullable: true },
+      },
+      required: [],
+      additionalProperties: false,
+    },
   },
   required: ['decision'],
   additionalProperties: false,
@@ -448,6 +561,94 @@ export const ConnectProjectBrandingSaveSchema = {
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConnectProjectBrandingSave>
 
+/**
+ * `?scope=` of a configuration or branding route: the preview's set (absent) or production's own.
+ * Never `local` — a local target's configuration is its preview set, written into its `.env`.
+ */
+export const ConnectScopeQuerySchema = {
+  type: 'object',
+  properties: {
+    scope: { type: 'string', enum: [WorkloadKind.Ephemeral, WorkloadKind.Production, null], nullable: true },
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectScopeQuery>
+
+export const ConnectBrandingCreditBodySchema = {
+  type: 'object',
+  properties: { hideCredit: { type: 'boolean' } },
+  required: ['hideCredit'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectBrandingCreditBody>
+
+/** One variable a save sets: an environment variable name and its value (`''` unsets it). */
+const configValue = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: CONNECT_CONFIG_NAME_MAX, pattern: CONNECT_CONFIG_NAME_PATTERN },
+    value: { type: 'string', maxLength: CONNECT_CONFIG_VALUE_MAX },
+  },
+  required: ['name', 'value'],
+  additionalProperties: false,
+} as const
+
+export const ConnectConfigSaveBodySchema = {
+  type: 'object',
+  properties: {
+    backend: { type: 'array', items: configValue, maxItems: CONNECT_CONFIG_SAVE_MAX, nullable: true },
+    frontend: { type: 'array', items: configValue, maxItems: CONNECT_CONFIG_SAVE_MAX, nullable: true },
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectConfigSaveBody>
+
+/** The organization's defaults as a patch — the manager's own bounds, neither field empty. */
+export const ConnectOrganizationBrandingSaveSchema = {
+  type: 'object',
+  properties: {
+    organizationName: {
+      type: 'string', minLength: 1, maxLength: CONNECT_BRANDING_ORGANIZATION_MAX, nullable: true,
+    },
+    copyright: { type: 'string', minLength: 1, maxLength: CONNECT_BRANDING_COPYRIGHT_MAX, nullable: true },
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectOrganizationBrandingSave>
+
+/** The token a revoke names: one id, bounded like every token route's. */
+export const ConnectAccessTokenParamsSchema = {
+  type: 'object',
+  properties: { id: { type: 'string', minLength: 1, maxLength: CONNECT_TOKEN_ID_MAX } },
+  required: ['id'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectAccessTokenParams>
+
+/**
+ * A withdrawal: the consent keys to write `granted: false` for. There is no `granted` field to
+ * send — the body cannot express a grant at all. Which keys exist is the platform's catalogue.
+ */
+export const ConnectPrivacyWithdrawBodySchema = {
+  type: 'object',
+  properties: {
+    keys: {
+      type: 'array', minItems: 1, maxItems: CONNECT_PRIVACY_KEYS_MAX, uniqueItems: true,
+      items: { type: 'string', minLength: 1, maxLength: CONNECT_PRIVACY_KEY_MAX },
+    },
+  },
+  required: ['keys'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectPrivacyWithdrawBody>
+
+/** A stashed prompt's reference — exactly the guest pickup's shape, so a crafted value is refused. */
+export const ConnectIntentPickupBodySchema = {
+  type: 'object',
+  properties: {
+    ref: { type: 'string', minLength: INTENT_REF_LENGTH, maxLength: INTENT_REF_LENGTH, pattern: INTENT_REF_PATTERN },
+  },
+  required: ['ref'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectIntentPickupBody>
+
 export const ModelTaskResultSchema = {
   type: 'object',
   properties: {
@@ -487,3 +688,153 @@ export const ModelTaskResultSchema = {
   required: ['taskId', 'kind'],
   additionalProperties: false,
 } as any
+
+/** A file of a cloud target, by its path relative to the project root. */
+const filePath = { type: 'string', minLength: 1, maxLength: CONNECT_FILE_PATH_MAX } as const
+
+export const ConnectFileQuerySchema = {
+  type: 'object',
+  properties: { path: filePath },
+  required: ['path'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectFileQuery>
+
+/** The whole content of one file; an empty string is an empty file. */
+export const ConnectFileSaveBodySchema = {
+  type: 'object',
+  properties: { path: filePath, content: { type: 'string' } },
+  required: ['path', 'content'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectFileSaveBody>
+
+export const ConnectFileMetaQuerySchema = {
+  type: 'object',
+  properties: {
+    kind: { type: 'string', enum: Object.values(MetadataListKind) },
+    category: { type: 'string', enum: [...Object.values(SpecCategory), null], nullable: true },
+  },
+  required: ['kind'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectFileMetaQuery>
+
+/** A GitHub owner or repository name — the web's own bound. */
+const githubName = { type: 'string', minLength: 1, maxLength: CONNECT_GITHUB_NAME_MAX } as const
+/**
+ * A picker page. A query arrives as a string and the API server coerces it to the declared type, so
+ * this says what it is; bounded on both ends, because the number reaches GitHub.
+ */
+const githubPage = { type: 'number', minimum: 1, maximum: CONNECT_GITHUB_PAGE_MAX, nullable: true } as const
+
+export const ConnectGitCommitBodySchema = {
+  type: 'object',
+  properties: { message: { type: 'string', minLength: 1, maxLength: CONNECT_GIT_MESSAGE_MAX } },
+  required: ['message'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectGitCommitBody>
+
+export const ConnectGitRevertBodySchema = {
+  type: 'object',
+  properties: { hash: { type: 'string', pattern: CONNECT_GIT_HASH_PATTERN } },
+  required: ['hash'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectGitRevertBody>
+
+export const ConnectGithubPublishBodySchema = {
+  type: 'object',
+  properties: {
+    repoName: { ...githubName, nullable: true },
+    private: { type: 'boolean', nullable: true },
+    existing: {
+      type: 'object',
+      properties: { owner: githubName, repo: githubName },
+      required: ['owner', 'repo'],
+      additionalProperties: false,
+      nullable: true,
+    },
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectGithubPublishBody>
+
+export const ConnectGithubRepoQuerySchema = {
+  type: 'object',
+  properties: {
+    page: githubPage,
+    search: { type: 'string', maxLength: CONNECT_GITHUB_SEARCH_MAX, nullable: true },
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectGithubRepoQuery>
+
+export const ConnectGithubBranchQuerySchema = {
+  type: 'object',
+  properties: { owner: githubName, repo: githubName, page: githubPage },
+  required: ['owner', 'repo'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectGithubBranchQuery>
+
+export const ConnectGithubLinkBodySchema = {
+  type: 'object',
+  properties: {
+    owner: githubName,
+    repo: githubName,
+    branch: { type: 'string', minLength: 1, maxLength: CONNECT_GITHUB_BRANCH_MAX, nullable: true },
+  },
+  required: ['owner', 'repo'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectGithubLinkBody>
+
+/** A custom domain to attach: a DNS host name, the web's own rule. */
+export const ConnectProductionDomainBodySchema = {
+  type: 'object',
+  properties: {
+    domain: { type: 'string', minLength: CONNECT_DOMAIN_MIN, maxLength: CONNECT_DOMAIN_MAX, pattern: CONNECT_DOMAIN_PATTERN },
+  },
+  required: ['domain'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectProductionDomainBody>
+
+/** The whole list of standalone redirect addresses — bounded; an empty list clears it. */
+export const ConnectProductionRedirectsBodySchema = {
+  type: 'object',
+  properties: {
+    redirects: {
+      type: 'array',
+      maxItems: CONNECT_REDIRECTS_MAX,
+      items: { type: 'string', maxLength: CONNECT_REDIRECT_URI_MAX },
+    },
+  },
+  required: ['redirects'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectProductionRedirectsBody>
+
+/** A feed cursor — the `after` a previous read answered. */
+const feedCursor = {
+  type: 'string', minLength: 3, maxLength: CONNECT_FEED_CURSOR_MAX, pattern: CONNECT_FEED_CURSOR_PATTERN, nullable: true,
+} as const
+
+/** The properties every feed read's query shares. */
+const feedQueryProperties = {
+  after: feedCursor,
+  limit: { type: 'integer', minimum: 1, maximum: CONNECT_FEED_LIMIT_MAX, nullable: true },
+  wait: { type: 'integer', minimum: 0, maximum: CONNECT_FEED_WAIT_MAX_SEC, nullable: true },
+} as const
+
+/** A feed read's query: after which entry, how many, how long to hold. */
+export const ConnectFeedQuerySchema = {
+  type: 'object',
+  properties: feedQueryProperties,
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectFeedQuery>
+
+/** The project activity read's query: a feed query and its detail (`null` is the default, progress). */
+export const ConnectActivityQuerySchema = {
+  type: 'object',
+  properties: {
+    ...feedQueryProperties,
+    detail: { type: 'string', enum: [...Object.values(ConnectFeedDetail), null], nullable: true },
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectActivityQuery>

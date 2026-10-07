@@ -62,6 +62,11 @@ describe('viable-sdk — setting a coding agent up', () => {
       // The isolation is the point of the whole loop; a harness told to answer inline in the main
       // conversation would poison its own context with somebody else's prompts.
       expect(all).toMatch(/CLEAN subagent|isolated/)
+      // One switch: the delegated mode performs every model call, the cloud mode none — no
+      // "a conversion's by default" half-rule a parent could act on in the cloud mode.
+      expect(all).toContain('EVERY model call')
+      expect(all).toContain('not call that tool again')
+      expect(all).not.toContain('by default')
     }
   })
 

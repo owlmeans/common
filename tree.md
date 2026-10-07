@@ -82,11 +82,11 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `entrypoint`, `error`, `i18n`, `resource`, `route`
 - [`planning`](packages/planning) → `auth`, `basic-ids`, `context`, `entrypoint`, `error`, `i18n`, `queue`, `resource`, `route`
 - [`oidc`](packages/oidc) → `auth`, `auth-common`, `basic-envelope`, `config`, `context`, `entrypoint`, `resource`, `route`
-- [`viable-common`](packages/viable-common) → `agent-common`, `entrypoint`, `error`, `llm-common`, `route`
+- [`viable-common`](packages/viable-common) → `agent-common`, `auth`, `auth-common`, `context`, `entrypoint`, `error`, `flow`, `iam`, `llm-common`, `planning`, `resource`, `route`
 
 > **Note.** `agent-common` carries both the agent run-lifecycle records and the runtime-free PIPELINE declaration (`PipelineSpec`/`PipelineRun`); `agent` holds two runtimes over LangGraph — the ReAct loop on the functional API and `makePipeline`, a resumable `StateGraph`. Its storage is PORTS only; the durable Mongo half is `@owlmeans/agent-checkpoint` in the `internal` monorepo.
 >
-> **Note.** `llm-common` declares the `ModelProvider.Delegated` contracts (`DelegatedTask`, `DelegatedResult`, `DelegateTransport`) but holds no runtime for them: the `BaseChatModel` that performs such a call outside the process is `@owlmeans/llm-delegate` in the `internal` monorepo. `viable-common` is the runtime-free contract package (slot commands, the connector protocol, target integrity, the conversion vocabulary) that the OwlMeans Viable platform, its SDK and its MCP host all read.
+> **Note.** `llm-common` declares the `ModelProvider.Delegated` contracts (`DelegatedTask`, `DelegatedResult`, `DelegateTransport`) but holds no runtime for them: the `BaseChatModel` that performs such a call outside the process is `@owlmeans/llm-delegate` in the `internal` monorepo. `viable-common` is the runtime-free contract package (slot commands, the connector protocol, the owner console's IAM contract over `iam`, target integrity, the conversion vocabulary) that the OwlMeans Viable platform, its SDK and its MCP host all read.
 >
 > **Note.** `log` is the one logging system (levels, scopes, redaction, console override, plugins) — it depends on `context` only, so every layer above may import it; `web-log` is its consent-gated browser analytics plugin and `viable-log` a generated app's link to the OwlMeans Viable platform (two plugins and the stdout/preview contract). `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it. `mailer` is the abstract mail contract — `mailer-smtp` and `server-mailer-mailgun` drive it. `consent` holds the consent policy and Consent Mode signalling that `web-consent`, `web-gtm` and `astro` render. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
 
@@ -244,11 +244,11 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 - **L3**: `basic-keys`, `config`, `entrypoint`, `server-mailer-mailgun`, `socket`, `state`, `static-resource`, `storage-common`
 - **L4**: `api-config`, `auth-token`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
 - **L5**: `agent-common`, `oauth`, `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
-- **L6**: `agent`, `api-config-client`, `cli-auth`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`, `viable-common`
-- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-oidc-provider`, `server-wl`, `viable-sdk`, `web-db`
-- **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-mcp`, `web-wl`, `{server-auth | server-socket}`
-- **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oauth`, `server-oidc-rp`, `web-auth-token`, `web-flow`
-- **L10**: `client-auth`, `server-iam`, `server-payment`
+- **L6**: `agent`, `api-config-client`, `cli-auth`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`
+- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-oidc-provider`, `server-wl`, `web-db`
+- **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-common`, `web-wl`, `{server-auth | server-socket}`
+- **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oauth`, `server-oidc-rp`, `viable-sdk`, `web-auth-token`, `web-flow`
+- **L10**: `client-auth`, `server-iam`, `server-payment`, `viable-mcp`
 - **L11**: `client-job`, `client-panel`, `client-payment`, `web-client`, `web-oauth`
 - **L12**: `mui-oidc-rp`, `mui-panel`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `web-panel`, `web-payment`
 - **L13**: `client-iam`

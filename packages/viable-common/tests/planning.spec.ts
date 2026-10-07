@@ -246,6 +246,14 @@ describe('viable-common - the viable field schemas', () => {
     expect(project({ alias: 'slot-booker' })).toBe(false)
   })
 
+  test('a project carries ONE inference setting: a conversion has no mode of its own', () => {
+    // A conversion follows the session that drives it, like every other run; a card still
+    // carrying the removed per-conversion key is refused rather than silently kept.
+    expect(project({ connectLlmMode: 'local' })).toBe(true)
+    expect(project({ converterLlmMode: 'local' })).toBe(false)
+    expect(project({ converterLlmMode: null })).toBe(false)
+  })
+
   test('a project records a work kind from the closed set and a bounded case quote', () => {
     expect(project({ blueprintCase: 'work-management', workKind: 'crm', caseQuote: 'A CRM for ski resorts.' })).toBe(true)
     expect(project({ workKind: null, caseQuote: null })).toBe(true)

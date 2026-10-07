@@ -74,18 +74,24 @@ describe('@owlmeans/viable-mcp — the built server over stdio', () => {
   test('it starts and announces itself without reaching the platform', async () => {
     const offered = await names(server)
 
-    // The default mode: the project on this machine, and the platform paying for the model calls
-    // of everything but a conversion — whose calls this session collects with the same two tools.
+    // The default mode: the project on this machine, and the platform performing every model call
+    // itself — a conversion's included — so there is no task loop to offer.
     for (const tool of [
       'describe_capabilities', 'create_project', 'confirm_project', 'project_status', 'list_stories',
-      'develop_story', 'story_status', 'run_local', 'local_status', 'install_harness', 'next_task',
-      'submit_task_result', 'project_settings', 'update_project_settings', 'describe_planning_kits',
-      'apply_planning_kit',
+      'develop_story', 'story_status', 'run_local', 'local_status', 'install_harness',
+      'project_settings', 'update_project_settings', 'describe_planning_kits', 'apply_planning_kit',
+      'next_question', 'answer_question', 'reset_story', 'complete_story', 'delete_project',
+      'unlock_project_agent', 'project_activity', 'notifications',
     ]) {
       expect(offered).toContain(tool)
     }
-    // Hidden rather than offered-and-refused: this project's files are here, not in a slot.
+    // Hidden rather than offered-and-refused: this project's files are here, not in a slot, and a
+    // cloud-mode session is never handed a model call to perform.
     expect(offered).not.toContain('list_files')
+    expect(offered).not.toContain('production_status')
+    expect(offered).not.toContain('file_changes')
+    expect(offered).not.toContain('next_task')
+    expect(offered).not.toContain('submit_task_result')
   }, 30_000)
 
   test('it reports the version its own manifest declares', async () => {
@@ -149,7 +155,11 @@ describe('@owlmeans/viable-mcp — the mode decides what is offered', () => {
 
       expect(offered).toContain('next_task')
       expect(offered).toContain('submit_task_result')
-      expect(started.client.getInstructions() ?? '').toContain('llm=local')
+      const instructions = started.client.getInstructions() ?? ''
+      expect(instructions).toContain('llm=local')
+      // Every model call is the parent's, and a tool blocked on one answers with it.
+      expect(instructions).toContain('EVERY model call')
+      expect(instructions).toContain('NOT finished')
     } finally {
       await started.close()
     }
@@ -161,6 +171,11 @@ describe('@owlmeans/viable-mcp — the mode decides what is offered', () => {
       const offered = await names(started)
 
       expect(offered).toContain('list_files')
+      // The published production site is the platform's too.
+      expect(offered).toContain('production_status')
+      expect(offered).toContain('publish_production')
+      // The slot's own tree is watched there, and read by cursor.
+      expect(offered).toContain('file_changes')
       expect(offered).not.toContain('run_local')
     } finally {
       await started.close()

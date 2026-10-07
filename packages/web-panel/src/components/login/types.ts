@@ -16,7 +16,7 @@ export interface LoginCreditProps {
 export interface LoginTermsProps {
   model: LoginTermsModel
   translate: (key: string, defaultValue: string) => string
-  /** The current language, for `Intl.ListFormat` and a document's own locale-keyed label. */
+  /** The current language, for `Intl.ListFormat`, document labels and explicit translated hrefs. */
   locale?: string
   className?: string
 }

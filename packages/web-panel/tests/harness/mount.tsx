@@ -87,10 +87,18 @@ const method = (id: string, over?: Partial<LoginMethod>): LoginMethod => ({
 })
 
 /** The sign-in screen, with the terms confirmation the configuration requires. */
-const LoginHarness: FC = () => <LoginScreen
-  Logo={() => <span id="login-logo">logo</span>}
-  translate={(_key, defaultValue) => defaultValue}
-/>
+const LoginHarness: FC = () => {
+  const [locale, setLocale] = useState<string | undefined>(localizedTerms ? 'pl' : undefined)
+
+  return <>
+    {localizedTerms && <button id="login-language-fr" onClick={() => setLocale('fr')}>Français</button>}
+    <LoginScreen
+      Logo={() => <span id="login-logo">logo</span>}
+      translate={(_key, defaultValue) => defaultValue}
+      locale={locale}
+    />
+  </>
+}
 
 // `?header=broken` simulates the layout-restyle bug this harness pins: a `headerClassName`
 // carrying an invalid Tailwind v4 arbitrary-value background (v3 syntax, silently dropped) and a
@@ -118,6 +126,8 @@ const themeToggle = new URLSearchParams(window.location.search).get('themeToggle
 // confirmation — the shape that pins the "still exactly one checkbox" and "documents render
 // outside the notice" rules even when there is more than terms+privacy to show.
 const extendedTerms = new URLSearchParams(window.location.search).get('terms') === 'extended'
+// `?terms=localized` selects known translated destinations using the live screen locale.
+const localizedTerms = new URLSearchParams(window.location.search).get('terms') === 'localized'
 // `?defer=bound` registers a step that CONFIRMS the terms, bound to a real screen — the sign-in
 // screen must then show no checkbox, only the privacy notice, and block nothing.
 // `?defer=unbound` registers the same step but never binds its entrypoint — the checkbox must
@@ -281,6 +291,16 @@ base.security = {
       // is given, and blocking must SAY so rather than swallow the click.
       terms: {
         required: true, terms: 'https://example.test/terms', privacy: 'https://example.test/privacy',
+        ...(localizedTerms ? {
+          billing: { href: 'https://example.test/billing', revisedAt: '2026-10-04' },
+          cookies: 'https://example.test/cookies', showRevision: true,
+          localizedHrefs: {
+            terms: { pl: 'https://example.test/pl/terms', fr: 'https://example.test/fr/terms' },
+            billing: { pl: 'https://example.test/pl/billing', fr: 'https://example.test/fr/billing' },
+            privacy: { pl: 'https://example.test/pl/privacy', fr: 'https://example.test/fr/privacy' },
+            cookies: { pl: 'https://example.test/pl/cookies', fr: 'https://example.test/fr/cookies' },
+          },
+        } : {}),
         ...(extendedTerms ? {
           billing: { href: 'https://example.test/billing', revisedAt: '2026-01-01' },
           product: { name: 'Harness', href: 'https://example.test/product' },

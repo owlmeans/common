@@ -16,7 +16,7 @@
  * The operation id is kept beside each item and never shown to the parent. It is what an answer is
  * routed back on, and a parent that could name one could answer an operation it was never given.
  */
-import type { Waiting } from './types.js'
+import type { Waiting, Watching } from './types.js'
 
 export class OpQueue<T extends { id: string }> {
   private readonly queue: T[] = []
@@ -41,6 +41,14 @@ export class OpQueue<T extends { id: string }> {
    */
   private readonly held = new Map<string, T>()
   private readonly waiting: Array<Waiting<T>> = []
+  /** Callers told when an item is QUEUED, without taking it — see {@link OpQueue.available}. */
+  private readonly watching: Watching[] = []
+
+  /**
+   * @param order Which queued item goes first; absent, the oldest. Applied only among items that
+   *   are queued — one pushed while a caller waits goes straight to that caller.
+   */
+  constructor(private readonly order?: (a: T, b: T) => number) {}
 
   /** @returns whether the item was accepted — `false` for a redelivery of one already handed over. */
   push(item: T, opId: string): boolean {
@@ -51,39 +59,88 @@ export class OpQueue<T extends { id: string }> {
     this.seen.add(item.id)
     const next = this.waiting.shift()
     if (next != null) {
-      clearTimeout(next.timer)
       next.resolve(item)
 
       return true
     }
     this.queue.push(item)
+    for (const watcher of this.watching.splice(0)) watcher.resolve(true)
 
     return true
   }
 
-  /** The next item, or null once `waitMs` elapses. Never rejects: nothing to do is not a failure. */
-  async take(waitMs: number): Promise<T | null> {
-    const ready = this.queue.shift()
+  /**
+   * The next item, or null once `waitMs` elapses or `signal` aborts. Never rejects: nothing to do
+   * is not a failure.
+   *
+   * An aborted wait is REMOVED, not merely ignored. A caller that gave up — a tool that answered on
+   * something else first — would otherwise leave a waiter behind that swallows the next item: handed
+   * out to nobody, held as outstanding, and never shown to the parent that has to perform it.
+   */
+  async take(waitMs: number, signal?: AbortSignal): Promise<T | null> {
+    const ready = this.shiftReady()
     if (ready != null) {
       this.held.set(ready.id, ready)
 
       return ready
     }
-    if (waitMs <= 0) return null
+    if (waitMs <= 0 || signal?.aborted === true) return null
 
     return await new Promise<T | null>(resolve => {
+      const leave = (): void => {
+        clearTimeout(entry.timer)
+        signal?.removeEventListener('abort', abandon)
+        const at = this.waiting.indexOf(entry)
+        if (at >= 0) this.waiting.splice(at, 1)
+      }
+      const abandon = (): void => {
+        leave()
+        resolve(null)
+      }
       const entry: Waiting<T> = {
         resolve: item => {
+          leave()
           if (item != null) this.held.set(item.id, item)
           resolve(item)
         },
-        timer: setTimeout(() => {
-          const at = this.waiting.indexOf(entry)
-          if (at >= 0) this.waiting.splice(at, 1)
-          resolve(null)
-        }, waitMs),
+        timer: setTimeout(abandon, waitMs),
       }
+      signal?.addEventListener('abort', abandon, { once: true })
       this.waiting.push(entry)
+    })
+  }
+
+  /**
+   * Whether an item is queued, waiting up to `waitMs` for one; consumes nothing.
+   *
+   * For a caller that races an item against something else and must not take one it may not use:
+   * it learns one is there, then takes it with `take(0)` — which may still answer null when another
+   * caller was quicker, so the race goes on.
+   */
+  async available(waitMs: number, signal?: AbortSignal): Promise<boolean> {
+    if (this.queue.length > 0) return true
+    if (waitMs <= 0 || signal?.aborted === true) return false
+
+    return await new Promise<boolean>(resolve => {
+      const leave = (): void => {
+        clearTimeout(entry.timer)
+        signal?.removeEventListener('abort', abandon)
+        const at = this.watching.indexOf(entry)
+        if (at >= 0) this.watching.splice(at, 1)
+      }
+      const abandon = (): void => {
+        leave()
+        resolve(false)
+      }
+      const entry: Watching = {
+        resolve: ready => {
+          leave()
+          resolve(ready)
+        },
+        timer: setTimeout(abandon, waitMs),
+      }
+      signal?.addEventListener('abort', abandon, { once: true })
+      this.watching.push(entry)
     })
   }
 
@@ -107,5 +164,15 @@ export class OpQueue<T extends { id: string }> {
 
   size(): number {
     return this.queue.length
+  }
+
+  private shiftReady(): T | undefined {
+    if (this.order == null || this.queue.length < 2) return this.queue.shift()
+    let first = 0
+    for (let at = 1; at < this.queue.length; at++) {
+      if (this.order(this.queue[at]!, this.queue[first]!) < 0) first = at
+    }
+
+    return this.queue.splice(first, 1)[0]
   }
 }

@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 324 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
-    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.2",
     "@types/connect": "^3.4.38",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
@@ -35,7 +37,9 @@
     "@owlmeans/basic-envelope": "^0.1.18-rc.47",
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/entrypoint": "^0.1.18-rc.41",
+    "@owlmeans/error": "^0.1.18-rc.38",
     "@owlmeans/log": "^0.1.18-rc.2",
+    "@owlmeans/route": "^0.1.18-rc.35",
     "@owlmeans/server-api": "^0.1.18-rc.52",
     "@owlmeans/server-auth": "^0.1.18-rc.55",
     "@owlmeans/server-context": "^0.1.18-rc.43",

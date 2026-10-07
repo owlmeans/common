@@ -1,4 +1,4 @@
-import type { ConnectPipelineState, ConnectProjectStatus, ConnectStoryStatus, ConversionStatusView } from '@owlmeans/viable-common'
+import type { ConnectPipelineState, ConnectProjectStatus, ConnectSlotView, ConnectStoryStatus, ConversionStatusView } from '@owlmeans/viable-common'
 import type { StoryStatusExtra } from '../types.js'
 
 /** Every domain status as text a parent agent reads — each one ending in the next valid action. */
@@ -9,6 +9,11 @@ export interface StatusTextHelper {
   renderStoryStatus: (status: ConnectStoryStatus, extra?: StoryStatusExtra) => string
   /** A pipeline run's state as a parent reads it, ending in the next valid action. */
   renderPipelineStatus: (state: ConnectPipelineState) => string
+  /**
+   * One workload in one line — kind, status, address, project — then one line per warning it
+   * carries, each phrased like a refusal.
+   */
+  renderSlot: (slot: ConnectSlotView) => string
   /** The next valid action of a conversion, from what it waits for and the stage it is at. */
   conversionNext: (view: ConversionStatusView) => string
 }

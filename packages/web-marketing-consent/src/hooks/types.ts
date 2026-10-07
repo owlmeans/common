@@ -1,5 +1,6 @@
 import type { MarketingConsentStatusItem } from '@owlmeans/marketing-consent'
 import type { ResolvedTermsDocument } from '@owlmeans/client-auth/login'
+import type { MarketingConsentBulkSelection } from '../types.js'
 
 export interface MarketingConsentGroup {
   key: string
@@ -49,6 +50,7 @@ export interface UseMarketingConsentModel {
    * standing settings card lets a person revisit and change any decision, not only the ones
    * currently outstanding. */
   groups: MarketingConsentGroup[]
+  bulkSelection: MarketingConsentBulkSelection
   allChecked: boolean
   allIndeterminate: boolean
   toggleAll: (checked: boolean) => void
@@ -88,6 +90,6 @@ export interface UseMarketingConsentModel {
 
 export interface UseMarketingConsentOptions {
   source?: 'sign-in' | 'settings'
-  /** The UI's current language, sent alongside a recorded Terms acceptance. */
+  /** The UI's current language, sent with both Terms acceptance and optional-purpose decisions. */
   locale?: string
 }
