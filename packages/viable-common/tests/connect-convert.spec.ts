@@ -78,6 +78,10 @@ describe('viable-common - the conversion additions to the connector contract', (
     })).toBe(true)
     // A local target the connector is already attached to fetches nothing.
     expect(create({})).toBe(true)
+    // The caller's unattached delegated session performs the pre-card checks; a stray key is refused.
+    expect(create({ name: 'Deskflow', sessionId: 'session-1' })).toBe(true)
+    expect(create({ sessionId: '' })).toBe(false)
+    expect(create({ llmMode: 'local' })).toBe(false)
     expect(proceed({ decision: ConversionDecision.Extract })).toBe(true)
     expect(proceed({ decision: 'teleport' })).toBe(false)
   })
@@ -146,8 +150,8 @@ describe('viable-common - the conversion additions to the connector contract', (
   })
 
   test('the conversion routes hang under the connector base and carry no paid gate', () => {
-    // Delegated inference is the DEFAULT for a conversion, not an experimental capability — so
-    // unlike the delegated session, nothing here sits behind the local-LLM gate.
+    // A conversion carries no inference mode of its own: its model calls follow the session that
+    // drives it, and that session's open is the one place the local-LLM gate sits.
     expect(entrypointOf(connect.session.openDelegated).gate?.alias).toBe('test-paid-llm')
 
     const gated = [...Object.values(connect.convert), connect.inquiry.answer]

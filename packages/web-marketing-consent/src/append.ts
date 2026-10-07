@@ -19,7 +19,9 @@ import { marketingConsentStep } from './step.js'
 export const appendMarketingConsent = <C extends ClientConfig, T extends ClientContext<C>>(
   context: T, opts: MarketingConsentAppendOptions,
 ): T => {
-  appendMarketingConsentClient(context, opts.protocols, { preferences: opts.preferences })
+  appendMarketingConsentClient(context, opts.protocols, {
+    preferences: opts.preferences, bulkSelection: opts.bulkSelection,
+  })
   const client = context.service<MarketingConsentClientService>(MARKETING_CONSENT_CLIENT_SERVICE)
 
   const login = ensureLoginService(context)

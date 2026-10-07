@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { ConnectTarget } from '@owlmeans/viable-common'
-import { makeRemoteConnectorApi, makeSdkContext, openSession, registerCatalogue, serverInstructions, ToolHostKind, type ConnectorApi, type SessionRuntime, type ToolDeps, type ToolHost, makeMarkerHelper } from '@owlmeans/viable-sdk'
+import { createInflightCalls, makeRemoteConnectorApi, makeSdkContext, TOOL_DEADLINE_MS, openSession, registerCatalogue, serverInstructions, ToolHostKind, type ConnectorApi, type SessionRuntime, type ToolDeps, type ToolHost, makeMarkerHelper } from '@owlmeans/viable-sdk'
 import { makeLocalSlotExecutor } from '@owlmeans/viable-sdk/executor'
 import { sessionCapabilities } from './capabilities.js'
 import type { McpConfig, BuiltServer } from './types.js'
@@ -50,8 +50,15 @@ export const makeViableMcpServer = async (cfg: McpConfig): Promise<BuiltServer> 
   // needs one calls `credentials.require()` itself and signs in lazily — the server announces
   // its tools and answers the offline ones either way.
   const credentials = makeCredentials(cfg, log)
+  // In the delegated mode a platform call may wait on a model call this server's own parent
+  // performs. The context names every write and collects an early `{ pending }` answer, so each
+  // request and collect hop keeps the tool deadline while the call itself lasts as long as the
+  // platform's model task does: the tool answers with the task (the handover), the call goes on.
+  const timeout = TOOL_DEADLINE_MS
   const context = await makeSdkContext({
     apiUrl: cfg.apiUrl,
+    timeout,
+    llm: cfg.llm,
     token: async () => (await credentials.token()) ?? '',
     // A 401 on the token this holder is currently presenting means it is dead — forgotten here
     // (if it came from the file) so the next `require()` signs in again, or reported (if an
@@ -66,7 +73,7 @@ export const makeViableMcpServer = async (cfg: McpConfig): Promise<BuiltServer> 
   // browser sign-in, `require()`'s own wait keeps the tool call inside the host's deadline, and
   // `SignInRequired` — timed out, not denied — surfaces to the calling agent as an ordinary
   // refusal it can read and act on (open the URL, wait, try again).
-  const api: ConnectorApi = withSignIn(makeRemoteConnectorApi(context), () => credentials.require(SIGN_IN_WAIT_MS))
+  const api: ConnectorApi = withSignIn(makeRemoteConnectorApi(context, { timeout }), () => credentials.require(SIGN_IN_WAIT_MS))
 
   const local = cfg.target === ConnectTarget.Local
   const executor = local ? makeLocalSlotExecutor(cfg.projectDir) : undefined
@@ -124,6 +131,11 @@ export const makeViableMcpServer = async (cfg: McpConfig): Promise<BuiltServer> 
     ...(local ? { dir: cfg.projectDir } : {}),
     attached: () => attached,
     attach: projectId => { attached = projectId },
+    // The next session opens with no project — what a delegated create names as its `sessionId`.
+    detach: () => { attached = null },
+    // Close the held session and forget it — what a project's deletion does before it deletes.
+    release: holder.release,
+    inflight: createInflightCalls(),
     log,
     notify: (level, text) => {
       void server.sendLoggingMessage({ level, logger: 'viable', data: text }).catch(

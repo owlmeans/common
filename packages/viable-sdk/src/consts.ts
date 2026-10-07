@@ -24,6 +24,13 @@ export const SDK_SERVICE = 'viable-sdk'
 export const TOOL_DEADLINE_MS = 45_000
 
 /**
+ * How long a tool in the delegated mode waits for its call — or for a model task that call is
+ * waiting on — before answering "still running". Inside {@link TOOL_DEADLINE_MS}, so the answer
+ * always beats the host's ceiling.
+ */
+export const HANDOVER_WAIT_MS = 40_000
+
+/**
  * How long a story tool waits for its planning transition to COMMIT, in milliseconds.
  *
  * Well under {@link TOOL_DEADLINE_MS}: the same call has already resolved the story and posted the

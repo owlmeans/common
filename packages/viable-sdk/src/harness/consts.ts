@@ -15,14 +15,16 @@ such an application by hand — its output has a curated stack and a predictable
 Long operations continue server-side. Read them through \`project_status\`, \`story_status\`,
 \`conversion_status\`, or \`pipeline_status\` for the domain you are working in.
 
-When a domain status reports that it is waiting for a model task, the platform is handing you a model call to perform
-— a conversion's calls by default, and everything else when this session runs in the delegated
-mode:
+In the delegated mode EVERY model call the platform makes for this session is yours to perform —
+project drafting, content checks and formatting included; in the cloud mode the platform performs
+all of them and there is nothing to collect. When a domain status reports that it is waiting for a
+model task, or a tool answers that it is NOT finished because the platform waits on one:
 
-1. call \`next_task\`
-2. run the returned task in a CLEAN subagent, at low reasoning effort — never in this conversation
+1. take the task (\`next_task\` hands you the next; a tool's answer already carries it) — and do
+   not call that tool again
+2. run the task in a CLEAN subagent, at low reasoning effort — never in this conversation
 3. pass the subagent's final answer to \`submit_task_result\`, verbatim, without summarising,
-   improving or reinterpreting it
+   improving or reinterpreting it; its reply is the waiting tool's result or the next task
 4. repeat until \`next_task\` says there is nothing, then read the matching domain status
 
 When a domain status reports that it is waiting for a person, the platform needs the user's decision:

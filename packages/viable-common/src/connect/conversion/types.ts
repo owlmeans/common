@@ -20,6 +20,11 @@ export interface ConnectConvertCreateBody {
    * session opened on, and there is nothing to fetch.
    */
   origin?: { kind: OriginKind, repoUrl?: string, branch?: string }
+  /**
+   * The caller's unattached delegated session; its pre-card checks are performed by that session's
+   * parent. Absent, the platform performs them.
+   */
+  sessionId?: string
 }
 
 /**
@@ -44,6 +49,26 @@ export interface ConnectConvertProceedBody {
    * `ConnectConfirmationRequired` — its estimate split packed — and nothing runs.
    */
   confirm?: boolean
+  /**
+   * The person's edits to what the analysis drafted, written before the stage starts — accepted
+   * only with the decision that starts the EXTRACTION, the stage that classifies the text again.
+   * Refused with any other decision, because an edit no moderation check will read must not drive
+   * the stories generated from it.
+   */
+  update?: ConnectConvertProceedUpdate
+}
+
+/**
+ * What a person may change on a conversion before its extraction — the project's name and
+ * description and its three brief parts. Never its alias: the preview hostname, the slot and the
+ * OIDC client were composed from it at import.
+ */
+export interface ConnectConvertProceedUpdate {
+  name?: string
+  description?: string
+  specification?: string
+  vision?: string
+  designSystem?: string
 }
 
 /**

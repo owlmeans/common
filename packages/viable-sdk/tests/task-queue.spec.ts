@@ -73,4 +73,60 @@ describe('the model tasks waiting for a parent agent', () => {
     expect(queue.opIdOf('t1')).toBeNull()
     expect(queue.outstandingById('t1')).toBeNull()
   })
+
+  test('a wait given up on is removed, so it cannot swallow the next task', async () => {
+    // A tool that answered on something else first abandons its wait. Left behind, that waiter
+    // would take the next task — handed out to nobody, held as outstanding, never shown.
+    const queue = new TaskQueue()
+    const stop = new AbortController()
+    const abandoned = queue.take(5_000, stop.signal)
+    stop.abort()
+
+    expect(await abandoned).toBeNull()
+    queue.push(task('t1'), 'op1')
+    expect(queue.outstandingById('t1')).toBeNull()
+    expect((await queue.take(0))?.id).toBe('t1')
+  })
+
+  test('an already aborted wait takes nothing', async () => {
+    const queue = new TaskQueue()
+    const stop = new AbortController()
+    stop.abort()
+    queue.push(task('t1'), 'op1')
+
+    // A queued task is still taken at once; the abort only ends a WAIT.
+    expect((await queue.take(5_000, stop.signal))?.id).toBe('t1')
+    expect(await queue.take(5_000, stop.signal)).toBeNull()
+  })
+
+  test('availability is told without taking anything', async () => {
+    const queue = new TaskQueue()
+    const ready = queue.available(5_000)
+    queue.push(task('t1'), 'op1')
+
+    expect(await ready).toBe(true)
+    expect(queue.size()).toBe(1)
+    expect(await queue.available(0)).toBe(true)
+    expect((await queue.take(0))?.id).toBe('t1')
+    expect(await queue.available(0)).toBe(false)
+
+    const stop = new AbortController()
+    const watching = queue.available(5_000, stop.signal)
+    stop.abort()
+    expect(await watching).toBe(false)
+  })
+
+  test('the task that expires first is handed out first', async () => {
+    // A synchronous check inside a blocked call expires in seconds; a run's call in minutes.
+    const queue = new TaskQueue()
+    const later = { ...task('run'), expiresAt: new Date(Date.now() + 30 * 60_000).toISOString() }
+    const sooner = { ...task('check'), expiresAt: new Date(Date.now() + 80_000).toISOString() }
+    queue.push(later as ModelTask, 'op1')
+    queue.push(sooner as ModelTask, 'op2')
+    queue.push(task('undated'), 'op3')
+
+    expect((await queue.take(0))?.id).toBe('check')
+    expect((await queue.take(0))?.id).toBe('run')
+    expect((await queue.take(0))?.id).toBe('undated')
+  })
 })

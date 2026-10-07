@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { ConnectHarness, ConnectLlm, ConnectTarget } from '@owlmeans/viable-common'
 
-import { catalogue } from '../src/tools/catalogue.js'
+import { catalogue, catalogueHelper } from '../src/tools/catalogue.js'
+import { serverInstructions } from '../src/tools/mcp.js'
 import { renderPlatform } from '../src/tools/platform.js'
 import { PLATFORM_CATALOGUE, ToolHostKind } from '../src/tools/consts.js'
 import type { PlatformCatalogue, ToolHost } from '../src/tools/types.js'
@@ -98,6 +99,45 @@ describe('viable-sdk — describe_platform', () => {
     }
   })
 
+  test('every tool belongs to exactly one group, and every group explains its absence', () => {
+    // A tool named by two groups is offered twice in the rendering and refused twice where hidden;
+    // a group without an absence sentence leaves a hole where a host hides it.
+    const ids = PLATFORM_CATALOGUE.capabilities.map(one => one.id)
+    expect(new Set(ids).size).toBe(ids.length)
+
+    const owners = new Map<string, string[]>()
+    for (const group of PLATFORM_CATALOGUE.capabilities) {
+      expect(group.absent.trim()).not.toBe('')
+      for (const tool of group.tools) owners.set(tool, [...owners.get(tool) ?? [], group.id])
+    }
+    for (const tool of catalogue) {
+      if (tool.name === 'describe_platform') continue
+      expect([tool.name, owners.get(tool.name)?.length]).toEqual([tool.name, 1])
+    }
+  })
+
+  test('the server instructions name every family a host offers, and none it hides', () => {
+    // The instructions are the first text a parent reads; a family missing there is one a parent
+    // that never calls describe_platform does not know it has.
+    const hosts = [host(), host({ llm: ConnectLlm.Cloud }), host({ target: ConnectTarget.Cloud }), url, urlDelegated]
+    for (const one of hosts) {
+      const instructions = serverInstructions({ host: one })
+      const offered = new Set(catalogueHelper.visibleTools(one).map(tool => tool.name))
+      for (const group of PLATFORM_CATALOGUE.capabilities) {
+        const visible = group.tools.filter(tool => offered.has(tool))
+        if (visible.length === 0) continue
+        expect([group.id, visible.some(tool => new RegExp(`\\b${tool}\\b`).test(instructions))])
+          .toEqual([group.id, true])
+      }
+      for (const tool of catalogue) {
+        if (offered.has(tool.name)) continue
+        expect([tool.name, new RegExp(`\\b${tool.name}\\b`).test(instructions)]).toEqual([tool.name, false])
+      }
+      expect(instructions).toContain('confirm: true')
+      expect(instructions).toContain('except billing')
+    }
+  })
+
   test('the conversion group starts a conversion before it checks one', () => {
     // The order inside a group is the order a parent reads it in, and this one is a workflow: a
     // check reports what the INTAKE found, so the platform refuses it until a conversion exists.
@@ -152,17 +192,22 @@ describe('viable-sdk — describe_platform', () => {
     }
   })
 
-  test('a session the platform pays for is still told a conversion\'s calls are its own', () => {
-    // The one place the two halves of the rule meet: the account setting decides who performs the
-    // platform's stories and free flight, a conversion delegates to whoever can hold a session. A
-    // parent told flatly that the platform performs everything stops polling next_task, and the
-    // conversion sits blocked until its deadline.
+  test('one switch decides who performs the model calls: all of them, or none', () => {
+    // The delegated session is told every model call is its own — drafting, checks and formatting
+    // included — and is offered the loop that collects them.
+    const delegated = renderPlatform(PLATFORM_CATALOGUE, host())
+
+    expect(delegated).toContain('every model call the platform makes for this session is yours to perform')
+    expect(delegated).toContain('next_task, submit_task_result')
+
+    // A cloud session performs none, a conversion's included, so it is neither told otherwise nor
+    // offered a loop that would only ever answer "nothing".
     const billed = renderPlatform(PLATFORM_CATALOGUE, host({ llm: ConnectLlm.Cloud }))
 
-    expect(billed).toContain('except a conversion\'s')
-    expect(billed).toContain('next_task, submit_task_result')
-    // And the URL host, which can hold nothing, is told the opposite.
-    expect(renderPlatform(PLATFORM_CATALOGUE, url)).toContain('this session cannot collect one')
+    expect(billed).toContain('the platform performs every model call itself, a conversion\'s included')
+    expect(billed).not.toContain('next_task, submit_task_result')
+    expect(billed).not.toContain('yours to perform')
+    expect(billed).toContain('this session runs in the cloud model mode')
   })
 
   test('a host that cannot hold a session is never told the calls are its own', () => {

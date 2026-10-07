@@ -6,6 +6,16 @@ export interface LegalDocumentDates {
   updated: string
 }
 
+/** A publication source awaiting activation; preparation dates are not effective dates. */
+export interface PendingLegalDocumentDates {
+  status: 'pending'
+  effective: null
+  updated: null
+}
+
+export type LegalDocumentDateMetadata = LegalDocumentDates | PendingLegalDocumentDates
+
 /** The complete document set; the date table must cover every key. */
 // Kept as a type: a union of the document keys.
-export type LegalDocumentKey = 'terms' | 'privacy' | 'cookies' | 'services-agreement' | 'platform-license' | 'billing' | 'product'
+export type LegalDocumentKey = 'terms' | 'privacy' | 'cookies' | 'services-agreement' | 'platform-license'
+  | 'data-processing-agreement' | 'subprocessors' | 'company-information' | 'billing' | 'product'

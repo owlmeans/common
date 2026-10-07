@@ -1,8 +1,9 @@
-import { IntrinsicStatus, WorkcardKind, type Workcard, type WorkcardQuery } from '@owlmeans/planning'
-import { isViableStory, ProjectStoryNotFound, storyFieldsOf, VIABLE_STORY_TYPE, type ViableStoryCard } from '@owlmeans/viable-common'
+import { CommitTimeout, IntrinsicStatus, TransitionAction, WorkcardKind, type Workcard, type WorkcardQuery } from '@owlmeans/planning'
+import { isViableStory, ProjectStoryNotFound, storyFieldsOf, VIABLE_STORY_TYPE, type ViableStoryCard, type ViableStoryTransition } from '@owlmeans/viable-common'
+import { COMMIT_WAIT_MS } from '../consts.js'
 import type { ToolDeps, StoryFilter } from './types.js'
 import { LANDING_MARK } from './consts.js'
-import type { StoryHelper } from './stories/types.js'
+import type { StoryHelper, StoryTransit } from './stories/types.js'
 
 export const createStoryHelper = (): StoryHelper => {
   const storyQuery = (projectId: string, filter: StoryFilter = {}): WorkcardQuery => ({
@@ -40,6 +41,24 @@ export const createStoryHelper = (): StoryHelper => {
     throw new ProjectStoryNotFound(ref)
   }
 
+  const transit = async (
+    deps: Pick<ToolDeps, 'api' | 'log'>, projectId: string, ref: string, transition: ViableStoryTransition, cause: string,
+  ): Promise<StoryTransit> => {
+    const card = await resolveStory(deps, projectId, ref)
+    try {
+      await deps.api.planning.execute({
+        card: card.id!,
+        action: TransitionAction.Transit,
+        transition,
+        cause,
+      }, { wait: true, timeout: COMMIT_WAIT_MS })
+    } catch (e) {
+      if (!(e instanceof CommitTimeout)) throw e
+      deps.log(`${cause}: the ${transition} of ${card.code ?? card.id} has not committed yet; answering from story status`)
+    }
+
+    return { card, status: await deps.api.story.status(projectId, card.id!) }
+  }
 
   const isLandingStory = (card: Workcard): boolean => storyFieldsOf(card).landing === true
 
@@ -69,7 +88,7 @@ export const createStoryHelper = (): StoryHelper => {
             + `${item.fields?.area != null ? ` · ${fields.area}` : ''}\n      ${item.title.slice(0, 160)}`
         }).join('\n')
 
-  return { storyQuery, resolveStory, isLandingStory, renderStories }
+  return { storyQuery, resolveStory, transit, isLandingStory, renderStories }
 }
 
 export const storyHelper = createStoryHelper()

@@ -185,11 +185,14 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     {
       id: 'projects',
       title: 'Projects',
-      what: 'Create one, read what was drafted, list what this account has, and point the'
-        + ' connector at an existing one.',
+      what: 'Create one, read what was drafted, list what this account has and every workload it runs'
+        + ' (previews, production sites, local targets), point the connector at an existing one,'
+        + ' release a lock a crashed run left behind, and delete a project — the last two only once the'
+        + ' user agreed (confirm: true).',
       tools: [
         'describe_capabilities', 'create_project', 'confirm_project', 'project_status',
-        'list_projects', 'attach_project', 'reinitialize_project', 'rename_project',
+        'list_projects', 'list_slots', 'attach_project', 'reinitialize_project', 'rename_project',
+        'unlock_project_agent', 'delete_project',
       ],
       absent: 'no project tools are offered here',
     },
@@ -197,10 +200,63 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       id: 'settings',
       title: 'Project settings',
       what: 'Read and change what a person edits on the project\'s control panel: the copyright'
-        + ' line, the organization name, the Terms and Privacy links and the Google tag. A save'
-        + ' rebuilds the preview; production takes it at the next Publish.',
-      tools: ['project_settings', 'update_project_settings'],
+        + ' line, the organization name (or the organization\'s defaults copied in), the Terms and'
+        + ' Privacy links and the Google tag, and hide or show the platform credit where the plan'
+        + ' includes white label. A save rebuilds the preview; production takes it at the next Publish,'
+        + ' or production\'s own set is addressed with scope: production.',
+      tools: ['project_settings', 'update_project_settings', 'set_platform_credit'],
       absent: 'project settings are changed in the web application from here',
+    },
+    {
+      id: 'configuration',
+      title: 'Configuration variables',
+      what: 'The environment variables the generated application declares, backend and frontend:'
+        + ' which still need a value, set them, and let the platform find new ones in the sources. A'
+        + ' backend value is a secret and is never shown back; a frontend value is public.',
+      tools: ['project_configuration', 'update_project_configuration', 'recollect_configuration'],
+      absent: 'configuration variables are set in the web application from here',
+    },
+    {
+      id: 'organization',
+      title: 'The organization\'s branding defaults',
+      what: 'The organization name and copyright line new projects start with: read and change them,'
+        + ' and fill the projects whose settings are still blank.',
+      tools: ['organization_branding', 'update_organization_branding', 'backfill_project_branding'],
+      absent: 'the organization\'s defaults are changed in the web application\'s Settings from here',
+    },
+    {
+      id: 'inference',
+      title: 'Who performs the model calls',
+      what: 'Read and change the user\'s default inference mode and one project\'s override: cloud (the'
+        + ' platform\'s own models, billed in credits) or local (the connected coding agent performs them —'
+        + ' a plan capability). It is the default of the web application and the URL-configured connector;'
+        + ' a stdio connector already running keeps its --llm.',
+      tools: ['inference_settings', 'set_inference_mode'],
+      absent: 'the inference mode is changed in the web application\'s Settings from here',
+    },
+    {
+      id: 'access-tokens',
+      title: 'The user\'s access tokens',
+      what: 'List the user\'s own access tokens and revoke one once the user agreed (confirm: true). A new'
+        + ' token is never created here — only in the web application.',
+      tools: ['list_access_tokens', 'revoke_access_token'],
+      absent: 'access tokens are managed in the web application\'s Settings from here',
+    },
+    {
+      id: 'privacy',
+      title: 'The user\'s marketing consents',
+      what: 'Read the marketing consents the user was asked for and withdraw any of them. Giving one is'
+        + ' the user\'s own choice in the web application.',
+      tools: ['privacy_choices', 'withdraw_marketing_consent'],
+      absent: 'marketing consents are changed in the web application\'s Settings from here',
+    },
+    {
+      id: 'intent',
+      title: 'A prompt typed on the public site',
+      what: 'Collect, once, the project idea a visitor typed on the OwlMeans public site, by the code of the'
+        + ' /start?ref=… address it opened — then create_project with it once the user confirms.',
+      tools: ['pickup_intent'],
+      absent: 'a prompt typed on the public site is picked up by opening its address in the browser from here',
     },
     {
       id: 'planning-kits',
@@ -216,10 +272,11 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       title: 'User stories',
       what: 'User stories are planning CARDS: each has a code, a status in the story flow'
         + ' (planned → in-progress → completed | failed), an area and a place in the flow order.'
-        + ' List, search, add, reword and delete them, and ask for one to be implemented.',
+        + ' List, search, add, reword and delete them, ask for one to be implemented, put one back to'
+        + ' planned, and mark one in progress as completed.',
       tools: [
         'list_stories', 'search_stories', 'create_story', 'update_story', 'delete_story',
-        'develop_story', 'story_status',
+        'develop_story', 'reset_story', 'complete_story', 'story_status',
       ],
       absent: 'no story tools are offered here',
     },
@@ -230,6 +287,16 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' currently doing.',
       tools: ['pipeline_status', 'resume_pipeline', 'session_status'],
       absent: 'no run tools are offered here',
+    },
+    {
+      id: 'feeds',
+      title: 'Following the work as it happens',
+      what: 'What the web application streams to the browser, read by cursor: a project\'s agent activity'
+        + ' (runs, steps, card and preview changes, proposals, and on request the model\'s own words), the'
+        + ' organization\'s notices, and — for a project whose tree lives in its own slot — its file changes.'
+        + ' Each call answers a cursor; pass it back as after, with wait up to 20 s, to read what comes next.',
+      tools: ['project_activity', 'notifications', 'file_changes'],
+      absent: 'the work is followed through its domain status tools from here',
     },
     {
       id: 'free-flight',
@@ -248,8 +315,9 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       // things is how a parent invents a third behaviour.
       id: 'conversion',
       title: 'Converting an application you already have',
-      what: 'Start a conversion of a codebase you already have, decide at each stage, read where it'
-        + ' stands and what the intake made of the tree, and delete the origin afterwards.',
+      what: 'Start a conversion of a codebase you already have, decide at each stage (the user\'s edits'
+        + ' to the drafted name and specification travel with the extraction), read where it stands and'
+        + ' what the intake made of the tree, and delete the origin afterwards.',
       tools: [
         'convert_project', 'proceed_conversion', 'conversion_status', 'check_convertible',
         'purge_origin',
@@ -259,12 +327,13 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     {
       id: 'model-tasks',
       title: 'Performing the platform\'s model calls',
-      what: 'The platform hands a model call to you as a task to run in a clean subagent, and'
-        + ' spends none of the account\'s credits on it — a conversion\'s calls by default, and'
-        + ' everything else in the delegated mode.',
+      what: 'In the delegated mode EVERY model call the platform makes for this session — project'
+        + ' drafting, content checks and formatting included — is handed to you as a task to run in a'
+        + ' clean subagent, and none of the account\'s credits are spent on it. A tool whose call'
+        + ' waits on one answers with the task; submitting it replies with that tool\'s result.',
       tools: ['next_task', 'submit_task_result'],
-      absent: 'this server holds no session, so a task cannot be delivered through it — the'
-        + ' platform performs its own model calls instead',
+      absent: 'the platform performs every model call itself — this session runs in the cloud model'
+        + ' mode, or holds no session a task could be delivered through',
     },
     {
       id: 'questions',
@@ -293,9 +362,61 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     {
       id: 'files',
       title: 'The generated sources',
-      what: 'Read what the platform generated for a project whose tree lives in its own slot.',
-      tools: ['list_files'],
-      absent: 'the sources are on this machine — read them directly',
+      what: 'For a project whose tree lives in its own slot: list its sources and its metadata documents'
+        + ' (stories, specifications, docs/), read a file, write one whole and delete one — a write or a'
+        + ' delete rebuilds the preview, and a delete only once the user agreed (confirm: true).',
+      tools: ['list_files', 'read_file', 'write_file', 'delete_file'],
+      absent: 'the sources are on this machine — read and edit them directly',
+    },
+    {
+      id: 'preview',
+      title: 'The preview',
+      what: 'Start, restart, stop or rebuild a project\'s preview — never its published production site.',
+      tools: ['preview_control'],
+      absent: 'a local project runs on this machine — run_local and stop_local start and stop it',
+    },
+    {
+      id: 'git',
+      title: 'Git and GitHub',
+      what: 'For a project whose tree lives in its own slot: its git status and history, commit, discard and'
+        + ' go back to an earlier commit (both only once the user agreed, confirm: true); connect GitHub (an'
+        + ' address the user opens in their browser — the authorization ends there), publish to a new or'
+        + ' existing repository, push and pull, list the user\'s repositories and branches, record the'
+        + ' repository an import comes from, and disconnect. The GitHub access itself is never shown.',
+      tools: [
+        'git_status', 'git_history', 'git_commit', 'git_discard', 'git_revert', 'connect_github',
+        'publish_to_github', 'github_sync', 'disconnect_github', 'github_repositories', 'link_github_origin',
+      ],
+      absent: 'the sources and their git repository are on this machine — use git there directly',
+    },
+    {
+      id: 'production',
+      title: 'The published production site',
+      what: 'For a project whose tree lives in its own slot: the production site\'s status, publish the'
+        + ' current sources to it (only once the user agreed, confirm: true — a publish holds one of the'
+        + ' plan\'s published sites), restart or stop it, attach a custom domain (with the DNS records the'
+        + ' user creates), verify and detach it, and read and set the standalone sign-in a self-hosted copy'
+        + ' uses. A custom domain and the standalone sign-in are paid features; the sign-in\'s client secret'
+        + ' is never shown here. Never the preview — that is preview_control.',
+      tools: [
+        'production_status', 'publish_production', 'production_control', 'custom_domain', 'production_auth',
+        'set_production_redirects',
+      ],
+      absent: 'a local project has no production site on the platform — it is deployed from this machine',
+    },
+    {
+      id: 'app-sign-in',
+      title: 'The generated application\'s users and permissions',
+      what: 'The sign-in the platform runs for a generated application — the preview\'s or, with scope:'
+        + ' production, the published site\'s: its end users (invite, update, remove — a removal only once the'
+        + ' user agreed), its permissions and who holds them by default, grants to one user or one group, the'
+        + ' organizations it has people in and their members, and their groups (a deletion only once the user'
+        + ' agreed). Also every end user of every application of this organization, read-only.',
+      tools: [
+        'app_users', 'manage_app_user', 'app_permissions', 'set_app_permission_default', 'app_grants',
+        'manage_app_grant', 'app_organizations', 'manage_app_organization', 'app_groups', 'manage_app_group',
+      ],
+      absent: 'the application\'s sign-in is not managed through this server',
     },
   ],
 

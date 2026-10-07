@@ -63,6 +63,7 @@ export const useMarketingConsent = (opts?: UseMarketingConsentOptions): UseMarke
   const context = useContext()
   const loginContext = context as unknown as LoginContext
   const client = context.service<MarketingConsentClientService>(MARKETING_CONSENT_CLIENT_SERVICE)
+  const bulkSelection = client.bulkSelection ?? 'all'
 
   const signIn = opts?.source === 'sign-in'
   const deferred = signIn && loginTermsHelper.termsDeferred(loginContext)
@@ -142,10 +143,11 @@ export const useMarketingConsent = (opts?: UseMarketingConsentOptions): UseMarke
   const termsNeeded = deferred && resolved != null && (unreadable || statusTermsVersion !== resolved.version)
   const optionalOnly = !termsNeeded && items.length > 0
 
-  // Select-all speaks for every row on screen — the Terms row too while it is up. Ticking it is a
-  // deliberate act on a control whose row sits right below it, exactly like ticking the row itself.
-  const rows = items.length + (termsNeeded ? 1 : 0)
-  const ticked = items.filter(item => draft[item.definition.key] === true).length + (termsNeeded && termsTicked ? 1 : 0)
+  // A host can restrict this control to required agreements. Optional choices then contribute
+  // neither to its state nor to its action, even if the person has selected one individually.
+  const rows = (bulkSelection === 'all' ? items.length : 0) + (termsNeeded ? 1 : 0)
+  const ticked = (bulkSelection === 'all' ? items.filter(item => draft[item.definition.key] === true).length : 0)
+    + (termsNeeded && termsTicked ? 1 : 0)
   const allChecked = rows > 0 && ticked === rows
   const allIndeterminate = ticked > 0 && ticked < rows
 
@@ -155,13 +157,15 @@ export const useMarketingConsent = (opts?: UseMarketingConsentOptions): UseMarke
   }, [])
 
   const toggleAll = useCallback((checked: boolean) => {
-    setDraft(Object.fromEntries(items.map(item => [item.definition.key, checked])))
+    if (bulkSelection === 'all') {
+      setDraft(Object.fromEntries(items.map(item => [item.definition.key, checked])))
+    }
     if (termsNeeded) {
       setTermsTicked(checked)
       setTermsAttempted(false)
     }
     setPristine(false)
-  }, [items, termsNeeded])
+  }, [items, termsNeeded, bulkSelection])
 
   const tick = useCallback((value: boolean) => {
     setTermsTicked(value)
@@ -205,6 +209,7 @@ export const useMarketingConsent = (opts?: UseMarketingConsentOptions): UseMarke
     const result = await client.save({
       decisions: items.map(item => ({ key: item.definition.key, granted: draft[item.definition.key] === true })),
       source: opts?.source ?? 'settings',
+      locale: opts?.locale,
       gpc,
     })
     setSaving(false)
@@ -228,7 +233,7 @@ export const useMarketingConsent = (opts?: UseMarketingConsentOptions): UseMarke
   }, [loginContext])
 
   return {
-    loading, unreadable, saving, error, termsError, gpc, groups, allChecked, allIndeterminate,
+    loading, unreadable, saving, error, termsError, gpc, groups, bulkSelection, allChecked, allIndeterminate,
     toggleAll, toggle, pristine, optionalOnly, deferred,
     terms: {
       needed: termsNeeded,

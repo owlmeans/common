@@ -10,7 +10,8 @@ export interface InlineHelper {
   localized: (record: Record<string, string> | undefined, locale?: string) => string | undefined
   /**
    * What a definition's links read as: a per-language label, then the label key, then the generic
-   * "Learn more" — so a link is always something a person can read.
+   * "Learn more" — so a link is always something a person can read. Explicit `hrefMap` destinations
+   * use the current locale/base language, falling back to canonical `href` without path rewriting.
    */
   resolveLinks: (definition: MarketingConsentDefinition, t: Translate, locale?: string) => InlineLink[]
   /**

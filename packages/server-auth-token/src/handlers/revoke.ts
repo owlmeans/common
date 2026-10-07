@@ -4,11 +4,23 @@ import { makeEntityScope } from '@owlmeans/auth-common'
 import { handlers } from '@owlmeans/server-api'
 import type { AuthTokenContext } from '../types.js'
 import { refuseTokenAuth } from './refuse.js'
+import type { RevokeAccessTokenOptions } from './types.js'
 import { tokenRecordUtils } from './utils.js'
 
-export const revokeAccessToken = (protocol: AuthTokenEntrypoints['revoke']) => handlers<AuthTokenContext>().params(protocol, async (payload, context, req) => {
+/**
+ * Revoke one of the caller's own tokens.
+ *
+ * By default only a credential a person produced in a browser may revoke. `allowAccessTokens`
+ * admits an access token too — a deployment's coding-agent surface that lets the person clean up
+ * their own tokens — and changes nothing else: still the caller's OWN profile in their OWN
+ * organization, and a foreign token still answers exactly as an unknown id does. Revoking never
+ * mints, so it cannot turn a stolen token into a lasting one; minting stays refused regardless.
+ */
+export const revokeAccessToken = (
+  protocol: AuthTokenEntrypoints['revoke'], opts: RevokeAccessTokenOptions = {},
+) => handlers<AuthTokenContext>().params(protocol, async (payload, context, req) => {
   const ctx = context as AuthTokenContext
-  refuseTokenAuth(req, 'token-revoke')
+  if (opts.allowAccessTokens !== true) refuseTokenAuth(req, 'token-revoke')
 
   const entityId = makeEntityScope(req).requireEntityKey()
   const profileId = req.auth?.profileId

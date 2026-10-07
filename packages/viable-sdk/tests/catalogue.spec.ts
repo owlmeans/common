@@ -24,15 +24,16 @@ const host = (patch: Partial<ToolHost> = {}): ToolHost => ({
 const names = (h: ToolHost): string[] => catalogueHelper.visibleTools(h).map(tool => tool.name)
 
 describe('viable-sdk — what a parent agent is offered', () => {
-  test('the model-task loop appears wherever a session can hold one, in either llm mode', () => {
-    // Not gated on the llm mode: a conversion's model calls are the parent's by default whatever
-    // the account setting says, so a `cloud` session hidden from these tools would leave a run
-    // blocked on a task it has no way to collect.
-    for (const llm of [ConnectLlm.Cloud, ConnectLlm.Local]) {
-      const offered = names(host({ llm }))
-      expect(offered).toContain('next_task')
-      expect(offered).toContain('submit_task_result')
-    }
+  test('the model-task loop appears only where this session performs the model calls', () => {
+    // The delegated stdio session performs every model call the platform makes for it.
+    const delegated = names(host({ llm: ConnectLlm.Local }))
+    expect(delegated).toContain('next_task')
+    expect(delegated).toContain('submit_task_result')
+
+    // A cloud session performs none — a conversion's included — so the loop is hidden there.
+    const billed = names(host({ llm: ConnectLlm.Cloud }))
+    expect(billed).not.toContain('next_task')
+    expect(billed).not.toContain('submit_task_result')
 
     // And nowhere a host forgets between calls: a task is handed out once and answered minutes
     // later, which a URL-configured host cannot do in either mode.
@@ -50,9 +51,140 @@ describe('viable-sdk — what a parent agent is offered', () => {
     }
   })
 
-  test('the file tools appear only where the platform holds the files', () => {
-    expect(names(host({ target: ConnectTarget.Cloud }))).toContain('list_files')
-    expect(names(host({ target: ConnectTarget.Local }))).not.toContain('list_files')
+  test('the file and preview tools appear only where the platform holds the files, on both hosts', () => {
+    const cloudOnly = ['list_files', 'read_file', 'write_file', 'delete_file', 'preview_control']
+    for (const kind of [ToolHostKind.Stdio, ToolHostKind.Http]) {
+      const executor = kind === ToolHostKind.Stdio
+      for (const tool of cloudOnly) {
+        expect([kind, tool, names(host({ kind, hasExecutor: executor, target: ConnectTarget.Cloud })).includes(tool)])
+          .toEqual([kind, tool, true])
+      }
+    }
+    for (const tool of cloudOnly) {
+      expect(names(host({ target: ConnectTarget.Local }))).not.toContain(tool)
+    }
+    // The organization's workloads are a platform record: every host, every target.
+    expect(names(host({ target: ConnectTarget.Local }))).toContain('list_slots')
+    expect(names(host({ kind: ToolHostKind.Http, hasExecutor: false, target: ConnectTarget.Cloud }))).toContain('list_slots')
+  })
+
+  test('list_files switches to the metadata listing by kind, the category only with meta', async () => {
+    const tool = catalogue.find(entry => entry.name === 'list_files')!
+    const calls: unknown[] = []
+    const deps = {
+      host: host({ target: ConnectTarget.Cloud }),
+      api: {
+        files: {
+          list: async (projectId: string) => { calls.push(['list', projectId]); return ['a.ts'] },
+          meta: async (projectId: string, query: unknown) => { calls.push(['meta', projectId, query]); return ['docs/stories/s1.md'] },
+        },
+      },
+      attached: () => 'p1', log: () => undefined,
+    } as unknown as ToolHostDeps
+
+    expect((await tool.run({}, deps)).structured).toEqual({ projectId: 'p1', total: 1, files: ['a.ts'] })
+    const stories = await tool.run({ kind: 'stories', category: 'ux' }, deps)
+    expect(stories.text).toContain('1 stories document(s)')
+    expect(stories.structured).toEqual({ projectId: 'p1', kind: 'stories', total: 1, files: ['docs/stories/s1.md'] })
+    await tool.run({ kind: 'meta', category: 'ux' }, deps)
+    await tool.run({ kind: 'all' }, deps)
+    expect(calls).toEqual([
+      ['list', 'p1'],
+      ['meta', 'p1', { kind: 'stories' }],
+      ['meta', 'p1', { kind: 'meta', category: 'ux' }],
+      ['meta', 'p1', { kind: 'all' }],
+    ])
+  })
+
+  test('read_file answers the content; write_file attaches first and names a failed rebuild', async () => {
+    const read = catalogue.find(entry => entry.name === 'read_file')!
+    const write = catalogue.find(entry => entry.name === 'write_file')!
+    const order: string[] = []
+    const deps = {
+      host: host({ target: ConnectTarget.Cloud }),
+      api: {
+        files: {
+          get: async (_projectId: string, path: string) => ({ path, content: 'export const a = 1\n' }),
+          save: async (projectId: string, path: string, content: string) => {
+            order.push(`save:${projectId}:${path}:${content}`)
+            return { path, buildWarning: 'Rollup failed: missing export' }
+          },
+        },
+      },
+      session: async () => { order.push('session'); return {} as never },
+      currentSession: () => null,
+      attached: () => 'p1',
+      attach: (projectId: string) => { order.push(`attach:${projectId}`) },
+      log: () => undefined,
+    } as unknown as ToolHostDeps
+
+    const file = await read.run({ path: 'src/a.ts' }, deps)
+    expect(file.text).toBe('export const a = 1\n')
+    expect(file.structured).toEqual({ projectId: 'p1', path: 'src/a.ts', length: 19 })
+    expect((await read.run({}, deps)).isError).toBe(true)
+
+    const written = await write.run({ projectId: 'p2', path: 'src/a.ts', content: 'x' }, deps)
+    expect(order).toEqual(['attach:p2', 'session', 'save:p2:src/a.ts:x'])
+    expect(written.text).toContain('Wrote src/a.ts.')
+    expect(written.text).toContain('Rollup failed: missing export')
+    expect((await write.run({ path: 'src/a.ts' }, deps)).isError).toBe(true)
+  })
+
+  test('delete_file deletes nothing without confirm; preview_control maps each action to its control', async () => {
+    const remove = catalogue.find(entry => entry.name === 'delete_file')!
+    const preview = catalogue.find(entry => entry.name === 'preview_control')!
+    const calls: string[] = []
+    const slot = { id: 's1', projectId: 'p1', kind: 'ephemeral', status: 'serving', slug: 'shop', host: 'shop.example.org' }
+    const control = (verb: string) => async (projectId: string) => { calls.push(`${verb}:${projectId}`); return slot }
+    const deps = {
+      host: host({ kind: ToolHostKind.Http, hasExecutor: false, target: ConnectTarget.Cloud }),
+      api: {
+        files: { remove: async (projectId: string, path: string) => { calls.push(`remove:${projectId}:${path}`); return { path } } },
+        sandbox: { run: control('run'), restart: control('restart'), stop: control('stop'), rebuild: control('rebuild') },
+      },
+      attached: () => 'p1', log: () => undefined,
+    } as unknown as ToolHostDeps
+
+    expect((await remove.run({ path: 'src/a.ts' }, deps)).isError).toBe(true)
+    expect(calls).toEqual([])
+    expect((await remove.run({ path: 'src/a.ts', confirm: true }, deps)).text).toBe('Deleted src/a.ts. The preview was rebuilt.')
+
+    for (const action of ['start', 'restart', 'stop', 'rebuild']) {
+      const result = await preview.run({ action }, deps)
+      expect(result.text).toContain('ephemeral · serving · shop.example.org')
+      expect(result.structured).toEqual({ projectId: 'p1', slot })
+    }
+    expect(calls).toEqual(['remove:p1:src/a.ts', 'run:p1', 'restart:p1', 'stop:p1', 'rebuild:p1'])
+  })
+
+  test('list_slots renders every workload with its warnings', async () => {
+    const tool = catalogue.find(entry => entry.name === 'list_slots')!
+    const result = await tool.run({}, {
+      host: host(),
+      api: {
+        slot: {
+          list: async () => [
+            { id: 's1', projectId: 'p1', kind: 'ephemeral', status: 'serving', slug: 'shop', buildWarning: 'Rollup failed' },
+            { id: 's2', projectId: 'p1', kind: 'production', status: 'published', slug: 'shop-prod', host: 'shop.com' },
+          ],
+        },
+      },
+      log: () => undefined,
+    } as unknown as ToolHostDeps)
+
+    expect(result.text).toContain('2 workload(s)')
+    expect(result.text).toContain('production · published · shop.com · project p1 · slot s2')
+    expect(result.text).toContain('warning: Rollup failed')
+    expect(result.structured).toEqual(expect.objectContaining({ total: 2 }))
+  })
+
+  test('a protected file and a missing workload are refused in a sentence', () => {
+    expect(refusalHelper.refusalPhrase(
+      'target-integrity:package.json is part of the project\'s build configuration and cannot be edited'
+    )).toContain('neither write_file nor delete_file may change it')
+    expect(refusalHelper.refusalPhrase('target-integrity:3 files outside the manifest'))
+      .toContain('not a Viable application')
+    expect(refusalHelper.refusalPhrase('viable-slot:not-found:dev:p1')).toContain('project_status')
   })
 
   test('the cloud file tool returns the platform source listing', async () => {
@@ -350,6 +482,48 @@ describe('the story tools speak planning', () => {
     expect(connector.order.slice(0, 2)).toEqual([`session:${project.id}`, 'execute:delete'])
     expect(connector.checks()).toBeGreaterThanOrEqual(4)
     expect(await suite.planning.cards.load(story.id!)).toBeNull()
+  })
+
+  test('reset_story and complete_story move the story through its flow, then read its status', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.', {
+      moves: [ViableStoryTransition.Start],
+    })
+    const connector = connectorFor(suite, project.id!)
+
+    const completed = await toolNamed('complete_story').run({ storyId: story.code }, connector.deps)
+    expect(completed.isError).not.toBe(true)
+    expect((await suite.planning.cards.get(story.id!)).status).toBe(ViableStoryStatus.Completed)
+
+    const reset = await toolNamed('reset_story').run({ storyId: story.code }, connector.deps)
+    expect(reset.isError).not.toBe(true)
+    expect((await suite.planning.cards.get(story.id!)).status).toBe(ViableStoryStatus.Planned)
+    expect(connector.order).toEqual([
+      `session:${project.id}`, 'execute:transit:complete', `story-status:${project.id}:${story.id}`,
+      `session:${project.id}`, 'execute:transit:reset', `story-status:${project.id}:${story.id}`,
+    ])
+
+    // Only a story in progress completes: the flow refuses, and no status read hides it.
+    const refused = connectorFor(suite, project.id!)
+    await expect(toolNamed('complete_story').run({ storyId: story.code }, refused.deps))
+      .rejects.toBeInstanceOf(IllegalTransition)
+    expect(refused.order.some(entry => entry.startsWith('story-status:'))).toBe(false)
+  })
+
+  test('reset_story and complete_story answer from story status when the commit is late', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+    for (const name of ['reset_story', 'complete_story']) {
+      const late = connectorFor(suite, project.id!, {
+        execute: async () => { throw new CommitTimeout('transition-1') },
+      })
+      const answered = await toolNamed(name).run({ storyId: story.code }, late.deps)
+
+      expect([name, answered.isError === true]).toEqual([name, false])
+      expect(late.order.at(-1)).toBe(`story-status:${project.id}:${story.id}`)
+    }
   })
 
   test('list_stories reads the flow order, filters by the area field, and counts the page', async () => {
@@ -844,6 +1018,26 @@ describe('a conversion tool opens its session before the platform reads anything
       name: 'Ledger', target: ConnectTarget.Local, origin: { kind: OriginKind.Local },
     }])
     expect(order).toEqual(['create', 'attach:p1', 'session:p1', 'start:p1'])
+  })
+
+  test('in the delegated mode the create names the unattached session the checks go to', async () => {
+    const { deps, order, created } = depsFor({ attached: null })
+    const opened = deps.session
+    Object.assign(deps, {
+      host: host({ llm: ConnectLlm.Local }),
+      session: async () => {
+        await opened()
+
+        return { session: { id: `s-${deps.attached() ?? 'none'}` } }
+      },
+    })
+
+    await toolNamed('convert_project').run({ name: 'Ledger' }, deps)
+
+    expect(created).toEqual([{
+      sessionId: 's-none', name: 'Ledger', target: ConnectTarget.Local, origin: { kind: OriginKind.Local },
+    }])
+    expect(order).toEqual(['session:none', 'create', 'attach:p1', 'session:p1', 'start:p1'])
   })
 
   test('with no directory a repository is cloned by the platform instead', async () => {
@@ -1387,6 +1581,168 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
       expect([entry.marker, phrase.trim().endsWith('.')]).toEqual([entry.marker, true])
       // A phrase that repeated its own marker would put the wire text back in front of the reader.
       expect([entry.marker, phrase.includes(entry.marker)]).toEqual([entry.marker, false])
+    }
+  })
+})
+
+describe('viable-sdk — deleting a project and releasing its lock', () => {
+  const lifecycleDeps = (opts: { attached?: string | null, host?: ToolHost } = {}) => {
+    const order: string[] = []
+    let attached = opts.attached === undefined ? 'p1' : opts.attached
+    const deps = {
+      host: opts.host ?? host({ target: ConnectTarget.Cloud }),
+      api: {
+        project: {
+          destroy: async (projectId: string) => {
+            order.push(`destroy:${projectId}`)
+            return { id: projectId, name: 'Shop', alias: 'shop' }
+          },
+          unlock: async (projectId: string) => {
+            order.push(`unlock:${projectId}`)
+            return { locked: false }
+          },
+        },
+      },
+      session: async () => { order.push('session'); return {} as never },
+      currentSession: () => null,
+      attached: () => attached,
+      attach: (projectId: string) => { attached = projectId },
+      detach: () => { order.push('detach'); attached = null },
+      release: async () => { order.push('release') },
+      log: () => undefined,
+    } as unknown as ToolHostDeps
+
+    return { deps, order, attached: () => attached }
+  }
+  const run = async (name: string, args: Record<string, unknown>, deps: ToolHostDeps) =>
+    await catalogue.find(tool => tool.name === name)!.run(args, deps)
+
+  test('delete_project deletes nothing without confirm: true, and never the attached project by default', async () => {
+    const { deps, order } = lifecycleDeps()
+
+    const unconfirmed = await run('delete_project', { projectId: 'p1' }, deps)
+    expect(unconfirmed.isError).toBe(true)
+    expect(unconfirmed.text).toContain('confirm: true')
+
+    const unnamed = await run('delete_project', { confirm: true }, deps)
+    expect(unnamed.isError).toBe(true)
+    expect(unnamed.text).toContain('projectId')
+    expect(order).toEqual([])
+    // The schema says so before any call: the project is required.
+    const input = catalogue.find(tool => tool.name === 'delete_project')!.input as Record<string, { safeParse: (v: unknown) => { success: boolean } }>
+    expect(input.projectId.safeParse(undefined).success).toBe(false)
+    expect(input.confirm.safeParse(undefined).success).toBe(false)
+  })
+
+  test('delete_project on the attached project closes and detaches the session first, then deletes', async () => {
+    const attachedHere = lifecycleDeps()
+    const deleted = await run('delete_project', { projectId: 'p1', confirm: true }, attachedHere.deps)
+
+    expect(deleted.isError).not.toBe(true)
+    expect(deleted.text).toContain('Deleted Shop (p1)')
+    expect(attachedHere.order).toEqual(['release', 'detach', 'destroy:p1'])
+    expect(attachedHere.attached()).toBeNull()
+
+    // Another project: the attached session is left alone.
+    const elsewhere = lifecycleDeps()
+    await run('delete_project', { projectId: 'p2', confirm: true }, elsewhere.deps)
+    expect(elsewhere.order).toEqual(['destroy:p2'])
+    expect(elsewhere.attached()).toBe('p1')
+
+    // The URL-configured host holds no session: nothing to close.
+    const url = lifecycleDeps({ host: host({ kind: ToolHostKind.Http, target: ConnectTarget.Cloud, hasExecutor: false }) })
+    await run('delete_project', { projectId: 'p1', confirm: true }, url.deps)
+    expect(url.order).toEqual(['destroy:p1'])
+  })
+
+  test('unlock_project_agent releases the lock only with confirm: true, on the attached project by default', async () => {
+    const { deps, order } = lifecycleDeps()
+
+    expect((await run('unlock_project_agent', {}, deps)).isError).toBe(true)
+    expect(order).toEqual([])
+
+    const released = await run('unlock_project_agent', { confirm: true }, deps)
+    expect(released.isError).not.toBe(true)
+    expect(released.text).toContain('released')
+    expect(order).toEqual(['unlock:p1'])
+  })
+
+  test('both are offered on every host, in the projects group', () => {
+    for (const mode of [host(), host({ kind: ToolHostKind.Http, target: ConnectTarget.Cloud, hasExecutor: false })]) {
+      expect(names(mode)).toContain('delete_project')
+      expect(names(mode)).toContain('unlock_project_agent')
+      expect(names(mode)).toContain('reset_story')
+      expect(names(mode)).toContain('complete_story')
+    }
+  })
+})
+
+describe('viable-sdk — tool annotations', () => {
+  test('every tool declares what it does to the world, and the irreversible ones say so', () => {
+    for (const tool of catalogue) {
+      expect([tool.name, typeof tool.annotations.readOnlyHint]).toEqual([tool.name, 'boolean'])
+      expect([tool.name, typeof tool.annotations.destructiveHint]).toEqual([tool.name, 'boolean'])
+      // A read never destroys.
+      if (tool.annotations.readOnlyHint === true) {
+        expect([tool.name, tool.annotations.destructiveHint]).toEqual([tool.name, false])
+      }
+    }
+    const destructive = catalogue.filter(tool => tool.annotations.destructiveHint === true).map(tool => tool.name).sort()
+    expect(destructive).toEqual([
+      'delete_file', 'delete_project', 'delete_story', 'disconnect_github', 'git_discard', 'git_revert',
+      'manage_app_grant', 'manage_app_group', 'manage_app_organization', 'manage_app_user', 'production_control', 'publish_production', 'purge_origin', 'reinitialize_project', 'revoke_access_token',
+      'unlock_project_agent', 'write_file',
+    ])
+    for (const name of [
+      'project_status', 'list_projects', 'story_status', 'conversion_status', 'list_files', 'read_file', 'list_slots',
+      'inference_settings', 'list_access_tokens', 'privacy_choices', 'git_status', 'git_history', 'github_repositories',
+      'production_status', 'production_auth', 'app_users', 'app_permissions', 'app_grants', 'app_organizations',
+      'app_groups', 'project_activity', 'notifications', 'file_changes',
+    ]) {
+      expect(catalogue.find(tool => tool.name === name)!.annotations.readOnlyHint).toBe(true)
+    }
+  })
+
+  test('registerCatalogue hands each tool\'s annotations to the MCP server', () => {
+    const configs = new Map<string, { annotations?: unknown }>()
+    const server: McpServerLike = { registerTool: (name, config) => { configs.set(name, config) } }
+    registerCatalogue(server, {
+      host: host({ target: ConnectTarget.Cloud }), api: {} as never, session: async () => ({}) as never,
+      currentSession: () => null, attached: () => null, attach: () => undefined, log: () => undefined,
+    } as unknown as ToolHostDeps)
+
+    expect(configs.get('delete_project')?.annotations).toEqual(expect.objectContaining({ destructiveHint: true }))
+    expect(configs.get('project_status')?.annotations).toEqual(expect.objectContaining({ readOnlyHint: true }))
+    expect([...configs.values()].every(config => config.annotations != null)).toBe(true)
+  })
+})
+
+describe('viable-sdk — the plan\'s refusals and the integrations\' are phrased for a person', () => {
+  test('a capability the plan lacks and a limit with no room are person refusals, named and dated', () => {
+    const capability = refusalHelper.personRefusalPhrase(
+      new Error('auth:forbidden:entitlement:capability-required:feature:branding--whitelabel'))
+    expect(capability).toContain('hiding the OwlMeans credit')
+    expect(capability).toContain('Billing')
+    expect(capability).not.toContain('capability-required')
+
+    const limit = refusalHelper.personRefusalPhrase(
+      new Error('auth:forbidden:entitlement:limit-exhausted:published-sites:1/1:2026-11-01T00:00:00.000Z'))
+    expect(limit).toContain('published sites limit is used up (1 of 1, renewed on 2026-11-01)')
+    expect(refusalHelper.personRefusalPhrase(new Error('something else'))).toBeNull()
+    // The same refusal stored as text reads the same.
+    expect(refusalHelper.refusalPhrase('entitlement:limit-exhausted:published-sites:1/1')).toContain('published sites')
+  })
+
+  test('the GitHub, domain and IAM refusals are sentences, not markers', () => {
+    for (const [marker, expected] of [
+      ['github:not-connected', 'no GitHub connection'],
+      ['github:not-published', 'not linked to a GitHub repository'],
+      ['oauth:invalid-or-expired-state', 'authorization expired'],
+      ['viable-domain:taken:shop.example.com', 'shop.example.com'],
+      ['viable-api:iam-refused:last-owner', 'last-owner'],
+    ] as const) {
+      const phrase = refusalHelper.refusalPhrase(new Error(marker))
+      expect([marker, phrase.includes(expected)]).toEqual([marker, true])
     }
   })
 })

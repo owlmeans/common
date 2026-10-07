@@ -1,7 +1,7 @@
 import { ResilientError } from '@owlmeans/error'
 import { ConnectConfirmationRequired, ConnectConsentRequired, ConnectOutOfCredits, type ConnectConfirmation } from '@owlmeans/viable-common'
 import { settingsHelper } from './settings.js'
-import { MARKER_SHAPE, MODERATION, STACK_FRAME } from './consts.local.js'
+import { CAPABILITY_LABELS, LIMIT_EXHAUSTED_FIELDS, MARKER_SHAPE, MODERATION, PROTECTED_FILE_DETAIL, STACK_FRAME } from './consts.local.js'
 import { UNKNOWN_REFUSAL, UNPHRASED_REFUSAL } from './consts.js'
 import type { RefusalPhrase } from './types.js'
 import type { RefusalHelper } from './refusal/types.js'
@@ -75,6 +75,36 @@ export const createRefusalHelper = (): RefusalHelper => {
     + ' first confirm in Billing in the OwlMeans web application, in the browser — do not retry until they say'
     + ' they did.'
 
+  const capabilityRequiredPhrase = (params: string): string => {
+    const named = params.split('|').map(param => param.trim()).filter(param => param !== '')
+      .map(param => CAPABILITY_LABELS[param] ?? param)
+
+    return `Nothing was changed: this needs ${named.length > 0 ? named.join(' or ') : 'a feature'} that the`
+      + ' organization\'s plan does not include. Tell the user; the plan is changed in Billing in the'
+      + ' OwlMeans web application, and nothing you do here unlocks it.'
+  }
+
+  const limitExhaustedPhrase = (packed: string): string => {
+    const match = LIMIT_EXHAUSTED_FIELDS.exec(packed.trim())
+    if (match == null) {
+      return 'Nothing was started: one of the plan\'s limits has no room left. Tell the user; they free'
+        + ' one up or change the plan in Billing in the OwlMeans web application.'
+    }
+    const [, key = '', used = '0', limit = '0', resets] = match
+    const renews = resets != null && !Number.isNaN(new Date(resets).getTime())
+      ? `, renewed on ${new Date(resets).toISOString().slice(0, 10)}` : ''
+
+    return `Nothing was started: the plan's ${key.replace(/-/g, ' ')} limit is used up (${used} of ${limit}${renews}).`
+      + ' Tell the user; they free one up or change the plan in Billing in the OwlMeans web application.'
+  }
+
+  /** What follows `marker` in a refusal's message, or `null` when the message does not carry it. */
+  const detailOf = (message: string, marker: string): string | null => {
+    const at = message.indexOf(marker)
+
+    return at < 0 ? null : message.slice(at + marker.length).trim()
+  }
+
   const personRefusalPhrase = (e: unknown, retry?: string): string | null => {
     if (e instanceof ConnectOutOfCredits) {
       return `Not enough balance to do this — it needs about $${e.requiredUsd.toFixed(2)} and the account has `
@@ -86,6 +116,15 @@ export const createRefusalHelper = (): RefusalHelper => {
     }
     if (e instanceof ConnectConfirmationRequired) {
       return confirmationRequiredPhrase(e, retry)
+    }
+    const message = refusalMessage(e)
+    const capability = detailOf(message, 'capability-required:')
+    if (capability != null) {
+      return capabilityRequiredPhrase(capability)
+    }
+    const limit = detailOf(message, 'limit-exhausted:')
+    if (limit != null) {
+      return limitExhaustedPhrase(limit)
     }
 
     return null
@@ -269,8 +308,18 @@ export const createRefusalHelper = (): RefusalHelper => {
     },
     {
       marker: 'target-integrity:',
-      phrase: files => 'The files in this project are not a Viable application, so nothing will be'
-        + ' built or started from them.' + (files !== '' ? `\n${files}` : ''),
+      // A write or delete of a protected file (`<path> is part of … and cannot be edited`) is a
+      // refusal of that ONE file; anything else is the whole tree failing the shape check.
+      phrase: files => files.endsWith(PROTECTED_FILE_DETAIL)
+        ? `${files}: it decides how the project is built and started, so neither write_file nor`
+          + ' delete_file may change it. Describe the change to modify_project instead, if it is needed at all.'
+        : 'The files in this project are not a Viable application, so nothing will be'
+          + ' built or started from them.' + (files !== '' ? `\n${files}` : ''),
+    },
+    {
+      marker: 'viable-slot:not-found:',
+      phrase: () => 'This project has no workload for that yet — its preview is created when the project'
+        + ' is confirmed. Read project_status.',
     },
     {
       marker: 'legacy-target:',
@@ -328,8 +377,9 @@ export const createRefusalHelper = (): RefusalHelper => {
     {
       marker: 'planning:illegal-transition:',
       phrase: move => `That move is not open from the status the story is in${aside(move)}. A story in`
-        + ' progress is already being developed — read story_status; a completed one is reset'
-        + ' in the web application before it is developed again. story_status says where it stands.',
+        + ' progress is already being developed — read story_status; only a story in progress can be'
+        + ' completed, and a completed one is put back with reset_story before it is developed again.'
+        + ' story_status says where it stands.',
     },
     {
       marker: 'planning:workcard-conflict:',
@@ -372,6 +422,69 @@ export const createRefusalHelper = (): RefusalHelper => {
       marker: 'out-of-tokens:story-budget',
       phrase: () => 'The account balance will not cover developing a story. It is topped up in the'
         + ' web application.',
+    },
+
+    // ── A plan, rather than a fault ──────────────────────────────────────────────────────────────
+    // Thrown, both are phrased by `personRefusalPhrase` and notified; these answer the same refusal
+    // stored as text or wrapped in another one.
+    {
+      marker: 'capability-required:',
+      phrase: params => capabilityRequiredPhrase(params),
+    },
+    {
+      marker: 'limit-exhausted:',
+      phrase: packed => limitExhaustedPhrase(packed),
+    },
+
+    // ── GitHub, production domains and the app's own sign-in ─────────────────────────────────────
+    {
+      marker: 'github:not-connected',
+      phrase: () => 'This project has no GitHub connection, or its access was revoked. connect_github gives'
+        + ' the user an address to authorize it in their browser; once they finished there, call this tool again.',
+    },
+    {
+      marker: 'github:not-published',
+      phrase: () => 'This project is not linked to a GitHub repository yet, so there is nothing to push'
+        + ' to or pull from. Publish it to a repository first (publish_to_github).',
+    },
+    {
+      marker: 'oauth:invalid-or-expired-state',
+      phrase: () => 'The GitHub authorization expired or was already used. Call connect_github again'
+        + ' and let the user finish it in the browser.',
+    },
+    {
+      marker: 'viable-domain:taken:',
+      phrase: domain => `That domain${domain !== '' ? ` (${domain})` : ''} is already attached to another`
+        + ' project\'s production site. Detach it there first, or use another domain.',
+    },
+    {
+      marker: 'iam-refused:',
+      phrase: code => `The application's sign-in refused this change on its own terms${aside(code)} — a`
+        + ' managed group or permission, the last owner, or an organization with nobody in it. Nothing'
+        + ' was changed.',
+    },
+
+    // ── The person's own records ─────────────────────────────────────────────────────────────────
+    {
+      marker: 'viable-intent:expired:',
+      phrase: () => 'That code answers no prompt: a prompt typed on the public site waits only two minutes,'
+        + ' and is gone once it was picked up. Nothing was collected — ask the user what they want built,'
+        + ' or to type it on the site again.',
+    },
+    {
+      marker: 'viable-intent:throttled:',
+      phrase: retry => `Too many prompt pickups from this address just now${retry !== '' ? ` — try again in ${retry} s` : ''}.`
+        + ' Nothing was collected.',
+    },
+    {
+      marker: 'marketing-consent:unknown:',
+      phrase: () => 'One of those consents is not one this account has, so nothing was withdrawn —'
+        + ' privacy_choices lists them by key.',
+    },
+    {
+      marker: 'authorization:forbidden:token',
+      phrase: () => 'None of the user\'s own access tokens has that id, so nothing was revoked —'
+        + ' list_access_tokens shows them.',
     },
 
     // ── The project is busy ──────────────────────────────────────────────────────────────────────
@@ -417,6 +530,14 @@ export const createRefusalHelper = (): RefusalHelper => {
     {
       marker: 'viable-connect:op-refused:',
       phrase: detail => `The connector ran the operation and refused it${aside(detail)}.`,
+    },
+    {
+      // A delegated write answered early whose outcome the platform never recorded.
+      marker: 'viable-connect:call-lost:',
+      phrase: () => 'The platform lost the outcome of this call: the process running it stopped before'
+        + ' it recorded an answer, so it may or may not have taken effect. Do not repeat it blindly —'
+        + ' first read the matching status tool (project_status for a project, story_status for a story,'
+        + ' conversion_status for a conversion), then repeat the call only if nothing changed.',
     },
     {
       marker: 'viable-connect:op-unknown:',
@@ -552,8 +673,8 @@ export const createRefusalHelper = (): RefusalHelper => {
   }
 
   return {
-    consentRequiredPhrase, confirmationRequiredPhrase, unconfirmedConversionPhrase, personRefusalPhrase,
-    refusalMessage, refusalPhrase, refusals,
+    consentRequiredPhrase, confirmationRequiredPhrase, unconfirmedConversionPhrase, capabilityRequiredPhrase,
+    limitExhaustedPhrase, personRefusalPhrase, refusalMessage, refusalPhrase, refusals,
   }
 }
 

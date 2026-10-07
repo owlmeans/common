@@ -94,6 +94,23 @@ export class ConnectOpUnknown extends ConnectError {
 }
 
 /**
+ * A delegated write answered early (`{ pending }`) whose outcome was never recorded: the platform
+ * process holding it stopped and its heartbeat went stale (`CONNECT_CALL_LOST_MS`). Whether it took
+ * effect is unknown, so it is read from the domain's status before anything is repeated. The message
+ * carries the call id. Answered 410 — the outcome is gone, not merely late.
+ */
+export class ConnectCallLost extends ConnectError {
+  public static override typeName = `CallLost${ConnectError.typeName}`
+  /** The call's outcome is gone: answered 410. */
+  public static httpStatus = 410
+
+  constructor(message: string = 'error') {
+    super(`call-lost:${message}`)
+    this.type = ConnectCallLost.typeName
+  }
+}
+
+/**
  * The organization cannot pay for the action a connector just asked for.
  *
  * Only `type` and `message` survive a marshal/unmarshal round trip, so the fields a caller needs
@@ -272,6 +289,7 @@ ResilientError.registerErrorClass(ConnectOpTimeout)
 ResilientError.registerErrorClass(ConnectOpRefused)
 ResilientError.registerErrorClass(LocalSlotUnsupported)
 ResilientError.registerErrorClass(ConnectOpUnknown)
+ResilientError.registerErrorClass(ConnectCallLost)
 ResilientError.registerErrorClass(ConnectOutOfCredits)
 ResilientError.registerErrorClass(ConnectConsentRequired)
 ResilientError.registerErrorClass(ConnectConfirmationRequired)

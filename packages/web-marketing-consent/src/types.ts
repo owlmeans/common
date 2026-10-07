@@ -2,6 +2,8 @@ import type { MarketingConsentConfig, MarketingConsentEntrypoints, MarketingCons
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import type { LazyService } from '@owlmeans/context'
 
+export type MarketingConsentBulkSelection = 'all' | 'required'
+
 export interface MarketingConsentAppendOptions {
   /** From `makeMarketingConsentProtocols(...)` — the app builds this once and shares it between
    * this call and its own server-side `serveMarketingConsentEntrypoints`/`bindAll` wiring. */
@@ -29,12 +31,17 @@ export interface MarketingConsentAppendOptions {
   /** Entrypoint alias of a host's own "Privacy choices" settings screen, for
    * `MarketingConsentClientService.preferences()`. */
   preferences?: string
+  /** Default `all`. `required` limits the bulk control to the Terms confirmation and never
+   * selects or withdraws an optional purpose; settings then offers individual choices only. */
+  bulkSelection?: MarketingConsentBulkSelection
   locale?: string
 }
 
 export type MarketingConsentClientContext = ClientContext<ClientConfig>
 
 export interface MarketingConsentClientService extends LazyService {
+  /** Optional for hosts supplying an older/custom client; omitted means `all`. */
+  readonly bulkSelection?: MarketingConsentBulkSelection
   /**
    * The current status, or `null` on any fetch failure (or while signed out — this service NEVER
    * calls the API while signed out). `opts.fresh` forces a network round trip; without it, an
@@ -55,6 +62,7 @@ export interface MarketingConsentClientService extends LazyService {
 export interface MakeMarketingConsentClientOptions {
   alias?: string
   preferences?: string
+  bulkSelection?: MarketingConsentBulkSelection
 }
 
 export interface MarketingConsentStepOptions {

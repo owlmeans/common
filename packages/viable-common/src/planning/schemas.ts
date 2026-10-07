@@ -33,7 +33,6 @@ export const ViableProjectFieldsSchema = {
     target: { type: 'string', enum: [...Object.values(ConnectTarget), null], nullable: true },
     origin: { ...ProjectOriginSchema, nullable: true },
     connectLlmMode: { type: 'string', enum: [...Object.values(ConnectLlm), null], nullable: true },
-    converterLlmMode: { type: 'string', enum: [...Object.values(ConnectLlm), null], nullable: true },
     // `story: null` is a DECIDED "no gate" and must stay spellable; an absent `landing` is "never
     // decided". `at` carries no `format`: the planning registry compiles without ajv-formats.
     landing: {

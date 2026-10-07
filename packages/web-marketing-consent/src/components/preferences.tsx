@@ -24,7 +24,7 @@ export const MarketingConsentPreferences: FC<MarketingConsentPreferencesProps> =
   const libT = useI18nLib(MARKETING_CONSENT_I18N)
   const t = translate ?? libT
   const [locale] = useLanguage()
-  const model = useMarketingConsent({ source: 'settings' })
+  const model = useMarketingConsent({ source: 'settings', locale })
   const [saved, setSaved] = useState(false)
 
   const onSave = async (): Promise<void> => {

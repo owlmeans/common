@@ -26,7 +26,7 @@ describe('MarketingConsentPreferences — a host settings card', () => {
 
   test('saving does not navigate, and calls onSaved once it succeeds', async () => {
     const { page, calls, lastSaveBody, close } = await open('/prefs', {
-      signedIn: true,
+      signedIn: true, bulkSelection: 'required',
       stubs: {
         status: { json: statusView() },
         save: { json: { ok: true, status: statusView({ [keys[0]]: { status: 'current', granted: true } }) } },
@@ -35,6 +35,10 @@ describe('MarketingConsentPreferences — a host settings card', () => {
     try {
       await page.locator('[data-marketing-consent-preferences-save]').waitFor({ state: 'visible', timeout: 45_000 })
 
+      await page.evaluate(async () => await (window as unknown as {
+        __mc: { language: (value: string) => Promise<void> },
+      }).__mc.language('fr'))
+      await page.getByRole('button', { name: 'Enregistrer', exact: true }).waitFor({ state: 'visible' })
       await page.locator(`[data-marketing-consent-item="${keys[0]}"]`).click()
       await page.locator('[data-marketing-consent-preferences-save]').click()
 
@@ -45,6 +49,8 @@ describe('MarketingConsentPreferences — a host settings card', () => {
       expect(new URL(page.url()).pathname).toBe('/prefs')
       expect(calls).toEqual(['GET status', 'POST save'])
       expect(lastSaveBody()?.source).toBe('settings')
+      expect(lastSaveBody()?.locale).toBe('fr')
+      expect(await page.locator('[data-marketing-consent-all]').count()).toBe(0)
     } finally {
       await close()
     }

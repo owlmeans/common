@@ -2,6 +2,7 @@ import { assertContext, createService } from '@owlmeans/context'
 import type { SocketService } from './types.js'
 import type { Config, Context, Request } from '@owlmeans/server-api'
 import { DEFAULT_ALIAS } from './consts.js'
+import { CLOSE_REASON_LIMIT } from './consts.local.js'
 import type { FixerService, ServerEntrypoint } from '@owlmeans/server-entrypoint'
 import { canServerModule } from './utils/server.js'
 import { fastifyWebsocket } from '@fastify/websocket'
@@ -15,6 +16,20 @@ import { ResilientError } from '@owlmeans/error'
 import { logger, logThrottle } from '@owlmeans/log'
 
 const log = logger('server-socket')
+
+/**
+ * A close reason is at most 123 UTF-8 bytes (RFC 6455): longer is cut by one transport and thrown
+ * on by another, so the marshalled refusal is clipped on a character boundary to fit.
+ */
+const closeReason = (reason: string): string => {
+  const encoder = new TextEncoder()
+  let clipped = reason
+  while (encoder.encode(clipped).length > CLOSE_REASON_LIMIT) {
+    clipped = clipped.slice(0, -1)
+  }
+
+  return clipped
+}
 
 export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketService => {
   const service: SocketService = createService<SocketService>(alias, {
@@ -94,7 +109,12 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
 
             void module.handle<AbstractRequest<WebSocket>>(request, {
               resolve: (value, outcome) => {
-                conn.send(typeof value === 'string' ? value : JSON.stringify(value))
+                // A connection handler that only wires listeners resolves with nothing. There is no
+                // message to send then, and an empty frame is not one: the transport refuses it, and
+                // the refusal would close a socket that is just getting started.
+                if (value !== undefined && value !== null) {
+                  conn.send(typeof value === 'string' ? value : JSON.stringify(value))
+                }
                 if (outcome === EntrypointOutcome.Ok) {
                   conn.close()
                 }
@@ -106,7 +126,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
                 if (logThrottle(`socket.refused:${module.alias}:${refusal.type}`, 60_000)) {
                   log.warn('Connection rejected', details, { event: 'socket.refused' })
                 }
-                conn.close(1011, refusal.marshal().message)
+                conn.close(1011, closeReason(refusal.marshal({ includeStack: false }).message))
               }
             })
 

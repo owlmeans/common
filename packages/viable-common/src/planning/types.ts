@@ -37,8 +37,6 @@ export type ViableProjectFields = {
   origin?: ProjectOrigin
   /** Who performs a run's model calls on this project; absent inherits the owner's preference. */
   connectLlmMode?: ConnectLlm
-  /** Who performs a conversion's model calls on this project; absent inherits. */
-  converterLlmMode?: ConnectLlm
   /**
    * The landing-gate decision: which story a guest can start on the landing page.
    *

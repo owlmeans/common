@@ -86,6 +86,31 @@ describe('resolveLinks', () => {
 
     expect(links.map(link => link.label)).toEqual(['Własna etykieta', 'Privacy Policy', 'Learn more'])
   })
+
+  test('explicit locale destinations preserve policy fragments and leave unmapped/customer links canonical', () => {
+    const configured = definition({
+      links: [{
+        href: 'https://example.test/privacy#marketing', labelKey: 'link.privacy',
+        hrefMap: {
+          pl: 'https://example.test/pl/privacy#marketing',
+          fr: 'https://example.test/fr/privacy#marketing',
+        },
+      }, { href: 'https://customer.test/own-policy#news' }],
+    })
+    for (const locale of ['pl', 'fr', 'pl-PL', 'fr-FR']) {
+      expect(inlineHelper.resolveLinks(configured, t, locale).map(link => link.href)).toEqual([
+        `https://example.test/${locale.split('-')[0]}/privacy#marketing`,
+        'https://customer.test/own-policy#news',
+      ])
+    }
+    for (const locale of [undefined, 'en', 'it']) {
+      expect(inlineHelper.resolveLinks(configured, t, locale).map(link => link.href)).toEqual([
+        'https://example.test/privacy#marketing', 'https://customer.test/own-policy#news',
+      ])
+    }
+    expect(html(inlineHelper.rowTextOf({ ...configured, label: { en: 'See the {{link}}.' } }, t, 'fr').statement))
+      .toContain('href="https://example.test/fr/privacy#marketing"')
+  })
 })
 
 describe('rowTextOf', () => {

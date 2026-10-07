@@ -19,8 +19,8 @@ ledger's different purposes (EDPB Guidelines 05/2020 §§56/58, 75/79).
 Pure contracts, like `@owlmeans/oauth`: constants, types, AJV schemas, an immutable protocol-tree
 factory, pure resolution functions and an error family. No server, no storage, no React — a
 `@owlmeans/server-marketing-consent` (decision log, handlers) and a
-`@owlmeans/web-marketing-consent` (settings screen, sign-in step) are separate, unbuilt packages
-that would depend on this one.
+`@owlmeans/web-marketing-consent` (settings screen, sign-in step) are separate packages that depend
+on this contract.
 
 ## The 6 standard keys
 
@@ -54,6 +54,11 @@ a configuration whose links carry neither reads "…described in the Learn more"
 no links loses the sentence that points at one. Custom entries with no i18n keys give `label` /
 `description` as per-language records (`en` is the fallback) and the screen renders them the same
 way.
+
+`MarketingConsentLink.href` remains the canonical destination. Optional `hrefMap` metadata supplies
+explicit published URLs by locale, including policy fragments; web rendering selects the live locale,
+then its base language, then `href`. Translations do not change purpose revisions, grant a new purpose,
+or enter decision/Terms-save schemas. An omitted map keeps the generic/customer destination unchanged.
 
 ## Resolving an application's catalogue — `marketingConsentHelper.resolveMarketingConsents(cfg?)`
 
@@ -127,6 +132,9 @@ a `parent` inherits that route's guards/gate; no `parent` means the base MUST ca
 Passing neither throws `SyntaxError` at declaration time (a wiring mistake, not a runtime one).
 `save`'s request body is schema-checked (`SaveMarketingConsentSchema` — 1..64 decisions, `source`
 one of `'sign-in' | 'settings'`, never `'api'` or `'cookie'`); `terms`'s is `TermsAcceptanceSchema`.
+`'api'` is written only by a server calling the decision service itself on a caller's behalf — an
+API or MCP connector WITHDRAWING (`granted: false` and nothing else); giving a consent and accepting
+terms stay the person's own act on the screen, so no token-reachable route grants one.
 
 ## Errors
 
