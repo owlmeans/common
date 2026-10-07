@@ -244,6 +244,7 @@ application packages above, or add one when they need that specific feature.
 | Cross-cutting domain | [`agent`](packages/agent) | Context-aware LLM agents over LangGraph's functional API, and resumable checkpointed pipelines |
 |  | [`agent-common`](packages/agent-common) | Runtime-free agent contracts: conversation identity, the run lifecycle and pipeline declarations |
 |  | [`auth-otp`](packages/auth-otp) | Email-OTP sign-in contracts: the auth type, the service and cache names, the code length and lifetime |
+|  | [`common-inquiry`](packages/common-inquiry) | Runtime-free contract of the customer inquiry widget: the widget config, the window runtime, the multipart submission, its limits and schemas |
 |  | [`consent`](packages/consent) | The cookie-consent model, its categories, the storage contract and Consent Mode v2 signalling |
 |  | [`flow`](packages/flow) | A serializable step/transition state machine whose whole state is one string |
 |  | [`iam`](packages/iam) | The provider-agnostic IAM service, permission definitions and grants, and `hasPermission` |
@@ -315,6 +316,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`web-db`](packages/web-db) | IndexedDB-backed browser storage |
 |  | [`web-flow`](packages/web-flow) | The browser flow service that rehydrates a flow from the URL, and `useFlow()` |
 |  | [`web-gtm`](packages/web-gtm) | The Google tag head snippet with Consent Mode defaults, the id validator and the CSP host lists |
+|  | [`web-inquiry`](packages/web-inquiry) | The browser SDK of the inquiry widget: one runtime injection, open/bind/button triggers with link fallback, the open analytics event |
 |  | [`web-marketing-consent`](packages/web-marketing-consent) | The browser half of marketing consent: the privacy-choices screen, the settings card and the login step |
 |  | [`web-oauth`](packages/web-oauth) | The consent, device-code and done screens an OAuth 2.1 sign-in ends on |
 |  | [`web-oidc-provider`](packages/web-oidc-provider) | The browser state behind an embedded OIDC provider's interaction screens |

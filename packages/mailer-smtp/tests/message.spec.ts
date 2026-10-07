@@ -98,4 +98,28 @@ describe('@owlmeans/mailer-smtp — message mapping', () => {
     expect(built.html).toBe('<p>106341</p>')
     expect(built.headers['X-OwlMeans-Test']).toBe('mapping')
   })
+
+  test('attachments travel as decoded bytes under their own names and types', async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const options = makeSmtpSettingsModel(base).toMailOptions({
+      ...message,
+      attachments: [
+        { filename: 'shot.png', content: png, contentType: 'image/png' },
+        { filename: 'notes.txt', content: 'aGVsbG8=', encoding: 'base64', contentType: 'text/plain' },
+      ],
+    })
+
+    expect(options.attachments).toHaveLength(2)
+    expect(makeSmtpSettingsModel(base).toMailOptions(message).attachments).toBeUndefined()
+
+    const transport = nodemailer.createTransport({ jsonTransport: true })
+    const info = await transport.sendMail(options)
+    const built = JSON.parse(info.message as unknown as string)
+
+    expect(built.attachments.map((a: { filename: string }) => a.filename)).toEqual(['shot.png', 'notes.txt'])
+    expect(built.attachments[0].contentType).toBe('image/png')
+    expect(Buffer.from(built.attachments[0].content, 'base64')).toEqual(Buffer.from(png))
+    expect(built.attachments[1].contentType).toBe('text/plain')
+    expect(Buffer.from(built.attachments[1].content, 'base64').toString('utf8')).toBe('hello')
+  })
 })

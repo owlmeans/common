@@ -242,7 +242,8 @@ All symbols are exported from the package root (`@owlmeans/auth`); there are no 
 | `AUTHEN`, `AUTHEN_INIT`, `AUTHEN_AUTHEN`, `AUTHEN_RELY` | const | Backend authentication entrypoint aliases |
 | `CAUTHEN`, `CAUTHEN_AUTHEN`, `CAUTHEN_AUTHEN_DEFAULT`, `CAUTHEN_AUTHEN_TYPED`, `CAUTHEN_FLOW_ENTER` | const | Front-end authentication entrypoint aliases |
 | `DISPATCHER`, `DISPATCHER_AUTHEN`, `DISPATCHER_SURROGATE` | const | Dispatcher and surrogate login-window entrypoint aliases |
-| `MOD_RECAPTCHA`, `CMOD_RECAPTCHA` | const | reCAPTCHA entrypoint aliases |
+| `MOD_RECAPTCHA`, `CMOD_RECAPTCHA` | const | reCAPTCHA plugin-record ids (server secret + policy, browser site key) |
+| `RECAPTCHA_GUARD` | const | `'guard:re-captcha'` — the guard alias of a route a reCAPTCHA-proven guest calls once |
 
 ### Errors
 

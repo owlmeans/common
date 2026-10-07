@@ -5,7 +5,7 @@ Provider-agnostic email dispatch interface for the OwlMeans framework — `Maile
 ## Overview
 
 - `MailerService` — `InitializedService` with a single `send(message)` method; implementations are swapped per environment
-- `MailMessage` — `{ to, subject, text?, html? }` shape accepted by all transports
+- `MailMessage` — `{ to, subject, text?, html?, from?, replyTo?, headers?, attachments? }` shape accepted by all transports; `MailAttachment` files are decoded by `mailAttachmentHelper` and never logged
 - `MAILER_SERVICE` constant — context alias for registering and resolving the mailer service
 - Default transport logs to console (suitable for development and unit tests)
 - Production transports provided by `@owlmeans/server-mailer-mailgun` and similar packages

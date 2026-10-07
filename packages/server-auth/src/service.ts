@@ -4,7 +4,7 @@ import { AUTH_CACHE, AUTH_SRV_KEY, AUTHEN_TIMEFRAME, DEFAULT_ALIAS } from './con
 import type { AuthServiceAppend, AuthService, AuthSpent } from './types.js'
 import { assertContext, createService } from '@owlmeans/context'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
-import { type Auth, type AuthCredentials, AuthenFailed, AuthorizationError, AuthroizationType, AuthUnavailable } from '@owlmeans/auth'
+import { type Auth, type AuthCredentials, AuthenFailed, AuthenticationType, AuthorizationError, AuthroizationType, AuthUnavailable } from '@owlmeans/auth'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
 import type { Resource } from '@owlmeans/resource'
 import { createStaticResource } from '@owlmeans/static-resource'
@@ -164,7 +164,12 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       const credentials = envelope.message()
       const msg = credentials.challenge
 
-      // @TODO This operation is not atomic in case of redis store usage and scling
+      // A reCAPTCHA token proves a solved challenge, never a person: it is spent by
+      // `makeReCaptchaGuard` on the one route that takes it and never becomes a session. Refused
+      // before the spend, so a token presented here stays usable where it belongs.
+      if (envelope.type() === AuthenticationType.ReCaptcha || credentials.type === AuthenticationType.ReCaptcha) {
+        throw refuse('guest', new AuthenFailed('guest'), credentials.userId)
+      }
 
       try {
         await cache(context).create({ id: msg }, { ttl: AUTHEN_TIMEFRAME / 1000 })

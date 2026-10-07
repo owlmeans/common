@@ -48,12 +48,16 @@ A line that can fire every few seconds is `debug`, or guarded: `if (logThrottle(
 
 ### Never write
 
-Tokens, keys, passwords, authorization/cookie headers, whole request or response bodies, user prompts,
-file contents, environment values. Log ids, names, sizes, counts, statuses. `redact()` runs on every
-record's data and replaces the value of a secret-looking key (`token`, `secret`, `password`,
-`authorization`, `cookie`, `apiKey`, `credential`, `private…`, `signature`; `token` only as the END of a
-key, so `maxTokens` survives) and clips long strings and deep structures — but it cannot recognize a
-secret inside a free-text value, so do not rely on it for a dump.
+Tokens, keys, passwords, authorization/cookie headers, whole request or response bodies, query
+strings, user prompts and messages, e-mail text, file contents, environment values. Log ids, names,
+sizes, counts, statuses. `redact()` runs on every record's data and replaces the value of a
+secret-looking key (`token`, `secret`, `password`, `authorization`, `cookie`, `apiKey`, `credential`,
+`private…`, `signature`; `token` only as the END of a key, so `maxTokens` survives), writes bytes (a
+`Buffer`, a typed array, an `ArrayBuffer`) as their size (`[Uint8Array 19 bytes]`) and clips long
+strings and deep structures — but it cannot recognize a secret or a person's text inside a free-text
+value or under an innocent key (`body`, `note`, `rationale`), so never hand it a request, a body or a
+dump. A server framework's own records are made safe by its adapter: `@owlmeans/server-api` drops
+bodies, headers and queries from every Fastify record (`/server-api` § Logging).
 
 ## Console and analytics are call parameters
 

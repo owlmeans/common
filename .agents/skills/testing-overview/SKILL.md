@@ -30,9 +30,9 @@ New auth mocks belong in `@owlmeans/test-auth`, never in a package's own `tests/
 
 ## Package → category map
 
-All 101 packages, one category each.
+All 103 packages, one category each.
 
-- **A** (50): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `basic-ids`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-resource`, `client-route`, `client-socket`, `config`, `consent`, `context`, `create-app`, `entrypoint`, `error`, `flow`, `i18n`, `iam`, `image-resource`, `llm-common`, `mailer`, `payment`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-config`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `web-db`, `web-gtm`, `web-router-react-router`
+- **A** (52): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `basic-ids`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-resource`, `client-route`, `client-socket`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `entrypoint`, `error`, `flow`, `i18n`, `iam`, `image-resource`, `llm-common`, `mailer`, `payment`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-config`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `web-db`, `web-gtm`, `web-inquiry`, `web-router-react-router`
 - **B** (20): `auth`, `auth-common`, `auth-otp`, `basic-envelope`, `basic-keys`, `client-auth`, `client-did`, `client-iam`, `client-payment`, `did`, `mui-oidc-rp`, `oidc`, `server-auth`, `server-auth-otp`, `server-oidc-provider`, `server-oidc-rp`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `wled`
 - **C** (15): `kluster`, `llm` (live inference providers), `mailer-smtp`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-mailer-mailgun`, `storage-resource`
 - **D** (11): `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-client`, `web-consent`, `web-flow`, `web-panel`, `web-router`, `web-wl`
@@ -51,8 +51,8 @@ while one whose code issues real commands against the service is C even when it 
 `web-router` is D, not A: it drives the History API, so its routing behaviour is only observable in
 a browser and its specs mount a real harness in chromium. A client-side package stays in A when it
 ships no component at all — `client-config`, `client-context`, `client-entrypoint`, `client-flow`,
-`client-job`, `client-resource`, `client-route`, `client-socket`, `web-db`, `web-gtm` and
-`web-router-react-router` are services, models and adapters, so `bun test` alone covers them.
+`client-job`, `client-resource`, `client-route`, `client-socket`, `web-db`, `web-gtm`, `web-inquiry`
+and `web-router-react-router` are services, models and adapters, so `bun test` alone covers them.
 
 A new package takes the category its own behaviour implies: an external service it cannot fake ⇒ C,
 a rendered React surface ⇒ D, an authenticated identity it must stand in for ⇒ B, otherwise A.

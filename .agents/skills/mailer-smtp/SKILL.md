@@ -98,6 +98,10 @@ unusable relay fail context startup rather than exposing a later login code thro
 - Production mail selection must be explicit and use `authenticated: true, verifyOnInit: true`.
   Console mail is for local fixtures/development and must never be selected because SMTP settings
   were absent or malformed.
+- `toMailOptions` maps `MailMessage.attachments` to nodemailer's `attachments` as
+  `{ filename, content: Buffer, contentType? }` — the bytes already decoded by
+  `mailAttachmentHelper.bytesOf`, so no `encoding` is left for nodemailer to guess; absent or empty
+  = no `attachments` key.
 - Never register this in unit tests — use `makeConsoleMailerService`.
   `makeSmtpSettingsModel(smtp).toMailOptions` plus nodemailer's own `jsonTransport` cover envelope
   assertions without a socket.

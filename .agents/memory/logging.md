@@ -31,8 +31,13 @@ every app is wired without app code — which also OVERRIDES the global `console
   supervisor, the OIDC provider's dev behaviour and the client debug menu. i18next debug follows
   `logEnabled('debug', 'i18n')`.
 - **Redaction**: `token` only matches at the END of a key (`maxTokens`/`tokenCount` are usage
-  numbers, not secrets). The mailer's console transport logs at info on purpose — e2e reads login
-  codes from it; the iam-api `[iam:mail:test]` line likewise.
-- **Fastify** gets a pino-shaped adapter (`loggerInstance`) with request logging disabled; a request
-  is one debug line from `onResponse`, a failed one is classified in `handleError`
-  (5xx error / 403 warn `access.forbidden` / 401 debug `auth.refused`).
+  numbers, not secrets); bytes are written as their size. Key-based redaction never sees a person's
+  text under an innocent key — the call site must not pass it. The mailer's console transport writes
+  the envelope at info and the text only at debug; the iam-api `[iam:mail:test]` line stays info (e2e).
+- **Fastify** gets a pino-shaped adapter (`loggerInstance`, every record through `safeData`) and a
+  `LogController` subclass (5.12+, instanceof-checked). Without them Fastify's default error handler
+  logged a schema-refused request at INFO with `{ res: reply }` — reply → request → `body`, `rawBody`
+  (multipart file bytes) and the raw URL with its query: a CRM inquirer's e-mail and message reached
+  a pod log (fixed 2026-10). A request is one debug line from `onResponse`; a failed one is
+  `fastifyLogUtils.failure` (5xx error / 403 warn `access.forbidden` / 401 debug `auth.refused` /
+  other 4xx debug with code + message).

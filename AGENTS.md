@@ -89,12 +89,12 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 | Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource` |
 | AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `viable-common`, `viable-log`, `viable-sdk`, `viable-mcp` |
 | Mail | `mailer`, `mailer-smtp`, `server-mailer-mailgun` |
-| Domain | `oidc`, `iam`, `payment`, `consent`, `auth-otp`, `flow`, `wled`, `queue`, `planning` |
+| Domain | `oidc`, `iam`, `payment`, `consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `planning` |
 | Not framework | `_tpl`, `test`, `test-auth`, `test-integration`, `test-ui` |
 
 ## Key Facts
 
-- 127 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
+- 129 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
 - ESM only, output in `build/`; TypeScript `^7.0.2` (`/tsconfig`, `/bun`).
 - Versions are per package and deliberately uneven — never resynchronise (`/versions`, `/publishing`).
 - React is a peer dependency; crypto via `@noble/*` + `@scure/*`; validation via AJV + ajv-formats.

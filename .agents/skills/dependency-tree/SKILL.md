@@ -19,7 +19,7 @@ The canonical reference is `tree.md` at the repo root. Read it directly when the
 
 1. **Configuration & tooling** — `dep-config`, `agent-skills`, `create-app`
 2. **Core foundations** — environment-agnostic primitives (`context`, `log`, `error`, `auth`, `route`, `router`, `entrypoint`, `resource`, `config`, `did`, `basic-*`, `i18n`, `state`, `socket`)
-3. **Cross-cutting domain** — `flow`, `oidc`, `iam`, `payment`, `wled`, `consent`, `viable-log`, `mailer`, `auth-otp`, `llm-common`, `llm`, `agent-common`, `agent`, `planning`, `viable-common`, and the abstract `queue` contract (its `redis-queue` driver sits in the storage layer, its `server-job` / `client-job` transports in the server and client layers)
+3. **Cross-cutting domain** — `flow`, `oidc`, `iam`, `payment`, `wled`, `consent`, `common-inquiry`, `viable-log`, `mailer`, `auth-otp`, `llm-common`, `llm`, `agent-common`, `agent`, `planning`, `viable-common`, and the abstract `queue` contract (its `redis-queue` driver sits in the storage layer, its `server-job` / `client-job` transports in the server and client layers)
 4. **Auth shared** — `auth-common`
 5. **API & API config** — `api`, `api-config`, `api-config-client`, `api-config-server`
 6. **Storage & infrastructure** — `mongo*`, `redis*`, `postgres*`, `storage*`, `image-resource`, `static-resource`, `kluster`, plus the drivers behind the abstract contracts: `redis-queue`, `mailer-smtp`, `server-mailer-mailgun`
@@ -30,7 +30,7 @@ The canonical reference is `tree.md` at the repo root. Read it directly when the
 
 A prefix is not proof of a layer. `client-iam` depends on `web-client` and `web-oidc-rp`, so it is browser-only; check `tree.md` before assuming a `client-*` package is safe for React Native. `client-auth` depends on `web-flow`, so it too pulls the web layer in.
 
-`tree.md` covers the 108 framework packages. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are not framework packages and are out of scope for it.
+`tree.md` covers the 113 framework packages. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are not framework packages and are out of scope for it.
 
 ## Families that span layers
 

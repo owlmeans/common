@@ -24,9 +24,12 @@ The mechanics are the `log` skill (`@owlmeans/log`). This is what to do in appli
    `JSON.stringify(error)`. In a browser the `Error` object must reach `console.error`; the logger does
    that, and an error reporter hooked there keeps working.
 5. **Never log secrets or personal content**: tokens, keys, passwords, authorization or cookie headers,
-   request or response bodies, user text, file contents, environment values. Log ids, names, sizes,
-   counts. A catch that only logs has not told the user anything — the user-facing report is a separate
-   step (a message, a state), and `log.error` is the operator's record.
+   request or response bodies, query strings, user text (a prompt, a message, a note, a model's
+   rationale quoting it), e-mail text, file contents, environment values. Log ids, names, sizes,
+   counts, lengths — `noteLength`, not the note. A refused request is its method, path (no query),
+   status and error code/message, at debug. A catch that only logs has not told the user anything —
+   the user-facing report is a separate step (a message, a state), and `log.error` is the operator's
+   record.
 6. **Analytics are a parameter, not a second API.** `log.info('…', data, { analytics: 'event_name' })`
    hands the call to the registered analytics plugins (`@owlmeans/web-log` for a tag manager); add
    `console: false` to keep it out of the log. Only for events something should count.

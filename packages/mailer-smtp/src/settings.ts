@@ -1,4 +1,5 @@
-import type { MailMessage } from '@owlmeans/mailer'
+import { mailAttachmentHelper } from '@owlmeans/mailer'
+import type { MailAttachment, MailMessage } from '@owlmeans/mailer'
 import type { SendMailOptions, SMTPTransportOptions } from 'nodemailer'
 import { SMTP_DEFAULT_PORT } from './consts.js'
 import type { SmtpSettings } from './types.js'
@@ -30,9 +31,21 @@ export const makeSmtpSettingsModel = (smtp: SmtpSettings): SmtpSettingsModel => 
       : {}),
   })
 
+  /** One attachment as nodemailer takes it: the decoded bytes, so no encoding is left to guess. */
+  const toAttachment = (attachment: MailAttachment): NonNullable<SendMailOptions['attachments']>[number] => {
+    const bytes = mailAttachmentHelper.bytesOf(attachment)
+
+    return {
+      filename: attachment.filename,
+      content: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength),
+      ...(attachment.contentType != null ? { contentType: attachment.contentType } : {}),
+    }
+  }
+
   const toMailOptions = (message: MailMessage): SendMailOptions => {
     const headers = { ...smtp.headers, ...message.headers }
     const replyTo = message.replyTo ?? smtp.replyTo
+    const attachments = message.attachments ?? []
 
     return {
       from: message.from ?? smtp.from,
@@ -42,6 +55,7 @@ export const makeSmtpSettingsModel = (smtp: SmtpSettings): SmtpSettingsModel => 
       ...(message.html != null ? { html: message.html } : {}),
       ...(replyTo != null ? { replyTo } : {}),
       ...(Object.keys(headers).length > 0 ? { headers } : {}),
+      ...(attachments.length > 0 ? { attachments: attachments.map(toAttachment) } : {}),
     }
   }
 

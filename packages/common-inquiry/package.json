@@ -1,0 +1,48 @@
+{
+  "name": "@owlmeans/common-inquiry",
+  "version": "0.1.18-rc.0",
+  "license": "MIT",
+  "description": "Runtime-free contract of the OwlMeans customer inquiry widget — the window runtime, the widget config, the multipart submission and its limits, schemas and the config helper.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "agent-meta"
+  ],
+  "peerDependencies": {
+    "ajv": "*"
+  },
+  "peerDependenciesMeta": {
+    "ajv": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.2",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

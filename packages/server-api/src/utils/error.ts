@@ -6,7 +6,7 @@ import { AccessError, AuthFailedError } from '../errors.js'
 import { AuthForbidden, AuthorizationError } from '@owlmeans/auth'
 import { isResilientError, ResilientError, SEPARATOR } from '@owlmeans/error'
 import { randomUUID } from 'node:crypto'
-import { logger } from '@owlmeans/log'
+import { fastifyLogUtils } from './log.js'
 import type { Config, HttpErrorExposure } from '../types.js'
 import { CLIENT_ERROR_FIRST, CLIENT_ERROR_LAST, SERVER_ERROR_FIRST, SERVER_ERROR_LAST } from './consts.local.js'
 import { INCIDENT_ID_HEADER } from './consts.js'
@@ -139,42 +139,14 @@ export const createHttpErrorHelper = (): HttpErrorHelper => {
     }
   }
 
-  const http = logger('http')
-
-  /**
-   * The one log entry of a failed request, by what the failure means:
-   *
-   * | Status | Level | Why |
-   * |---|---|---|
-   * | 5xx | error | a fault — the one entry that owns type, message and stack, keyed by the incident id |
-   * | 403 | warn, `access.forbidden` | an established identity was refused; worth an operator's eye |
-   * | 401 | debug, `auth.refused` | an absent or expired credential is the ordinary shape of a sign-in |
-   * | other 4xx | debug | the caller's mistake, not the server's |
-   *
-   * The method and path are logged; the query string is not — it can carry a token.
-   */
-  const logFailure = (error: Error, reply: FastifyReply, status: number, incidentId: string): void => {
-    const request = reply.request
-    const where = { method: request?.method, path: request?.url?.split('?')[0], status, incidentId }
-    if (status >= SERVER_ERROR) {
-      http.error('Request failed', { err: error, ...where })
-    } else if (status === FORBIDDEN_ERROR) {
-      http.warn('Access forbidden', { type: (error as { type?: unknown }).type, message: error.message, ...where },
-        { event: 'access.forbidden' })
-    } else if (status === UNAUTHORIZED_ERROR) {
-      http.debug('Authentication refused', { message: error.message, ...where }, { event: 'auth.refused' })
-    } else {
-      http.debug('Request refused', { message: error.message, ...where })
-    }
-  }
-
   const handleError = (
     error: Error, reply: FastifyReply, exposure: HttpErrorExposure = 'production'
   ): void => {
     if (!reply.sent) {
       const serialized = serializeError(error, exposure)
       applyErrorHeaders(error, reply)
-      logFailure(error, reply, serialized.status, serialized.incidentId)
+      // The one record of a failed request: method, path and status — never what the caller sent.
+      fastifyLogUtils.failure(error, reply.request, serialized.status, serialized.incidentId)
       reply.header(INCIDENT_ID_HEADER, serialized.incidentId)
         .code(serialized.status)
         .send(serialized.body)
