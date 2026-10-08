@@ -34,6 +34,7 @@ export const makeMarketingConsentClient = (
   }
 
   const service: MarketingConsentClientService = createLazyService<MarketingConsentClientService>(alias, {
+    bulkSelection: opts.bulkSelection ?? 'all',
     status: async statusOpts => {
       if (!(await signedIn())) {
         return null

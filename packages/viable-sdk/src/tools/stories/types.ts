@@ -1,6 +1,12 @@
 import type { Workcard, WorkcardQuery } from '@owlmeans/planning'
-import type { ViableStoryCard } from '@owlmeans/viable-common'
+import type { ConnectStoryStatus, ViableStoryCard, ViableStoryTransition } from '@owlmeans/viable-common'
 import type { StoryFilter, ToolDeps } from '../types.js'
+
+/** A story moved through its flow: the card it was resolved to, and its domain status after. */
+export interface StoryTransit {
+  card: ViableStoryCard
+  status: ConnectStoryStatus
+}
 
 /** A project's stories as the tools look them up and print them. */
 export interface StoryHelper {
@@ -17,7 +23,20 @@ export interface StoryHelper {
    * @throws {ProjectStoryNotFound} when neither names a story of the project
    */
   resolveStory: (deps: Pick<ToolDeps, 'api'>, projectId: string, ref: string) => Promise<ViableStoryCard>
-  /** Whether a story card is the project's landing gate story. */
+  /**
+   * Move a story through its flow — the story's `start`, `reset` or `complete` — and read its
+   * domain status after.
+   *
+   * The move is a planning transition awaited to its COMMIT, because the commit is where the
+   * platform refuses it (the wrong status, another story in progress, the balance) and where a
+   * start begins its run. A commit that is merely late is no refusal: the transition is durable,
+   * so the story status is still the answer — waiting out the host's ceiling would report a slow
+   * platform as a broken server. A refusal is thrown, and no status is read to hide it.
+   */
+  transit: (
+    deps: Pick<ToolDeps, 'api' | 'log'>, projectId: string, ref: string, transition: ViableStoryTransition, cause: string,
+  ) => Promise<StoryTransit>
+    /** Whether a story card is the project's landing gate story. */
   isLandingStory: (card: Workcard) => boolean
   /**
    * One page of stories as a parent agent reads it.

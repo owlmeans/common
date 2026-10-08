@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { MarketingConsentDefinition } from '@owlmeans/marketing-consent'
+import { loginTermsHelper } from '@owlmeans/client-auth/login'
 import { TOKEN } from './consts.local.js'
 import type { InlineLink, RowText, Translate } from './types.js'
 import type { InlineHelper } from './inline/types.js'
@@ -22,7 +23,7 @@ export const createInlineHelper = (): InlineHelper => {
   const resolveLinks = (
     definition: MarketingConsentDefinition, t: Translate, locale?: string,
   ): InlineLink[] => (definition.links ?? []).map(link => ({
-    href: link.href,
+    href: loginTermsHelper.termsHrefOf({ key: definition.key, href: link.href, hrefMap: link.hrefMap }, locale),
     label: localized(link.label, locale)
       || (link.labelKey != null ? t(link.labelKey, '') : '')
       || t('link.default', 'Learn more'),

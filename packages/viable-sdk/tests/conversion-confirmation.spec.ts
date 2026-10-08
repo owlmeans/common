@@ -222,3 +222,31 @@ describe('viable-sdk — the conversion tools carry the person\'s confirmation',
     expect(notified).toEqual([['warning', result.content[0]!.text]])
   })
 })
+
+describe('viable-sdk — a conversion\'s edits travel with its extraction', () => {
+  test('proceed_conversion nests the edits it was given under update, and only those', async () => {
+    const { deps, sent } = harness(confirmation({ action: 'convert-proceed' }))
+
+    await toolNamed('proceed_conversion').run({
+      decision: ConversionDecision.Extract, confirm: true, name: 'Shop', specification: '# Shop',
+    }, deps)
+    await toolNamed('proceed_conversion').run({ decision: ConversionDecision.Extract, confirm: true }, deps)
+
+    expect(sent).toEqual([
+      ['proceed', 'p1', {
+        decision: ConversionDecision.Extract, confirm: true, update: { name: 'Shop', specification: '# Shop' },
+      }],
+      ['proceed', 'p1', { decision: ConversionDecision.Extract, confirm: true }],
+    ])
+  })
+
+  test('the call to repeat after a confirmation carries the edits too', async () => {
+    const { deps } = harness(confirmation({ action: 'convert-proceed', estimate: 850_000, fromCreditLimits: 850_000 }))
+
+    const refused = await toolNamed('proceed_conversion').run({ decision: ConversionDecision.Extract, vision: 'A shop' }, deps)
+
+    expect(refused.isError).toBe(true)
+    expect(refused.text).toContain('"vision":"A shop"')
+    expect(refused.text).toContain('"confirm":true')
+  })
+})

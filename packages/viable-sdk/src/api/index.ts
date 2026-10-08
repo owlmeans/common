@@ -1,3 +1,6 @@
 export * from './remote.js'
+export type * from './types.js'
 export * from './transport.js'
+export * from './collect.js'
+export type * from './collect/types.js'
 export type * from './transport/types.js'

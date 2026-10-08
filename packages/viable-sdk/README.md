@@ -4,7 +4,7 @@ Drive the OwlMeans Viable platform from outside it.
 
 Viable turns a description into a running full-stack application. This package is what lets
 something that is not the Viable manager do that: a coding agent through
-[`@owlmeans/viable-mcp`](../viable-mcp), a CLI, a test. It owns the four things such a client
+[`@owlmeans/viable-mcp`](https://www.npmjs.com/package/@owlmeans/viable-mcp), a CLI, a test. It owns the four things such a client
 needs and the platform cannot supply:
 
 - **a client context** that authenticates with one long-lived access token and nothing else;
@@ -80,9 +80,24 @@ the task before the platform ever sees it — with the subagent's context still 
 can retry immediately. A malformed answer that reached the platform would cost a whole new task, a
 new subagent and another wait.
 
-**The harness installer never writes the token.** Each configuration references the environment
-variable in its own syntax, so what it writes is safe to commit. `tests/harness.spec.ts` greps
-every written file for a token shape.
+**A host adds its own tools as extensions.** Tools the SDK does not implement — the agent-setup
+pair `describe_harness` / `install_harness`, for one — reach the catalogue through
+`ToolHost.extensions`. They are listed, filtered by their own `availability` and registered exactly
+like the catalogue's tools; a host that passes none offers none:
+
+```typescript
+import { registerCatalogue, toolHostHelper, ToolHostKind, type ToolDefinition, type ToolHost } from '@owlmeans/viable-sdk'
+
+const ping: ToolDefinition = {
+  name: 'ping', title: 'Ping', description: 'Answers pong.', input: {},
+  availability: toolHostHelper.anyHost,
+  annotations: { readOnlyHint: true },
+  run: async () => ({ text: 'pong' }),
+}
+
+const host: ToolHost = { kind: ToolHostKind.Stdio, target, llm, harness, hasExecutor: true, extensions: [ping] }
+registerCatalogue(server, { ...deps, host })
+```
 
 ## Tests
 

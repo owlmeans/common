@@ -7,7 +7,8 @@ import { makePlanningProtocols, type PlanningProtocols } from '@owlmeans/plannin
 import { route } from '@owlmeans/route'
 import { authMiddleware, DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { makeTokenCarrierGuard } from '@owlmeans/auth-token'
-import { connect, connectProtocols, CONNECT_TOKEN_PREFIX } from '@owlmeans/viable-common'
+import { connect, connectProtocols, CONNECT_TOKEN_PREFIX, ConnectLlm } from '@owlmeans/viable-common'
+import { appendCallCollectTransport } from '../api/collect.js'
 import { COMMIT_POLL_SEC, SDK_SERVICE, TOOL_DEADLINE_MS } from '../consts.js'
 import { SdkAuthError, SdkMisconfigured } from '../errors.js'
 import { PLANNING_BASE_ALIAS, PLANNING_BASE_PATH, UPDATE_BASE } from './consts.local.js'
@@ -91,6 +92,10 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
     onRejected: opts.onRejected,
   }))
   context.registerMiddleware(authMiddleware)
+  // ONE transport in front of the API client for every bound route — the connector's and the
+  // planning client's. In the delegated mode it names each write (`x-viable-call`) and collects an
+  // early `{ pending }` answer until the call settles; otherwise it only forwards.
+  appendCallCollectTransport(context, { delegated: opts.llm === ConnectLlm.Local })
 
   const surface = connectProtocols({ guard: DEFAULT_GUARD })
   // The story tools speak planning: the same tree the platform mounts, reached with the same token.
@@ -117,7 +122,7 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
     // No socket opener: a commit is awaited by long poll only, which is the only transport the SDK
     // speaks and the one that survives every proxy.
     poll: COMMIT_POLL_SEC,
-    timeout: TOOL_DEADLINE_MS,
+    timeout: opts.timeout ?? TOOL_DEADLINE_MS,
     // Nothing a tool does reads a flow or a type, and the bundle would otherwise be fetched in the
     // background the moment the context is ready — a network call from a server nobody has asked
     // anything yet. `model()` still loads it on first use.

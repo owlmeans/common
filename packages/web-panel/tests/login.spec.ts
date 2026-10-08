@@ -191,6 +191,28 @@ describe('@owlmeans/web-panel — the sign-in screen', () => {
     }
   }, TIMEOUT)
 
+  test('login documents and the separate privacy notice follow an explicit live PL/FR locale map', async () => {
+    const { page, close } = await open('?terms=localized')
+    try {
+      for (const key of ['terms', 'billing', 'privacy', 'cookies']) {
+        expect(await page.locator(`[data-login-document="${key}"]`).getAttribute('href'))
+          .toBe(`https://example.test/pl/${key}`)
+      }
+      expect(await page.locator('[data-login-privacy] a').count()).toBe(2)
+      expect(await page.locator('label:has([data-login-terms]) [data-login-privacy]').count()).toBe(0)
+      const revision = await page.locator('[data-login-revised]').textContent()
+      await page.locator('#login-language-fr').click()
+      for (const key of ['terms', 'billing', 'privacy', 'cookies']) {
+        expect(await page.locator(`[data-login-document="${key}"]`).getAttribute('href'))
+          .toBe(`https://example.test/fr/${key}`)
+      }
+      expect(await page.locator('[data-login-revised]').textContent()).toBe(revision)
+      expect(await page.locator('[data-login-terms]').count()).toBe(1)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
   test('[data-login-revised] is absent when the configuration never asked to show it', async () => {
     const { page, close } = await open()
     try {

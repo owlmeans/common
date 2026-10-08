@@ -196,6 +196,12 @@ describe('redaction', () => {
     expect([out.maxTokens, out.inputTokens, out.tokens, out.tokenCount]).toEqual([10, 5, 3, 2])
   })
 
+  test('bytes are written as their size, never their content', () => {
+    const bytes = new TextEncoder().encode('file-content-marker')
+    const out = redactHelper.redact({ file: bytes, raw: bytes.buffer, view: new DataView(bytes.buffer) }) as Record<string, unknown>
+    expect(out).toEqual({ file: '[Uint8Array 19 bytes]', raw: '[ArrayBuffer 19 bytes]', view: '[DataView 19 bytes]' })
+  })
+
   test('data is redacted before any sink sees it', () => {
     const memory = memoryPlugin()
     addLogPlugin(memory)

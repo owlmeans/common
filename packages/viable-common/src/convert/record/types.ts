@@ -1,5 +1,4 @@
 import type { ProjectArea } from '../../areas/consts.js'
-import type { ConnectLlm } from '../../connect/consts.js'
 import type {
   ArchitectureCase, ConversionStage, ConvertibilityReason, ConvertibilityVerdict, OriginKind, StackFamily,
   StackId, WorkspaceKind
@@ -92,14 +91,4 @@ export interface ConversionStructure {
       stories: { code: string, title: string, primary?: boolean }[]
     }[]
   }[]
-}
-
-/** Set the profile-wide converter inference mode. */
-export interface ConverterLlmBody {
-  llmMode: ConnectLlm
-}
-
-/** Set the per-project converter inference mode; `null` inherits the profile's. */
-export interface ConverterProjectLlmBody {
-  llmMode: ConnectLlm | null
 }

@@ -30,13 +30,14 @@ export const ConsentFields: FC<ConsentFieldsProps> = ({ t, model, termsT, locale
 
   const showTerms = termsT != null && model.terms.needed
   const rows = model.groups.reduce((count, group) => count + group.items.length, 0) + (showTerms ? 1 : 0)
+  const requiredOnly = model.bulkSelection === 'required'
   const note = t('screen.required-note', '* Required')
   const marked = note.startsWith('*')
 
   return (
     <div className="flex flex-col gap-5" data-marketing-consent-fields="">
-      {/* One row is nothing to select "all" of. */}
-      {rows > 1 && (
+      {/* Required-only mode never offers a bulk optional-purpose choice, including in settings. */}
+      {(requiredOnly ? showTerms : rows > 1) && (
         <label
           data-marketing-consent-all-frame=""
           className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-3 text-sm font-medium cursor-pointer"
@@ -52,7 +53,7 @@ export const ConsentFields: FC<ConsentFieldsProps> = ({ t, model, termsT, locale
             checked={model.allChecked}
             onChange={event => model.toggleAll(event.target.checked)}
           />
-          {t('screen.all', 'Select all')}
+          {requiredOnly ? t('screen.all-required', 'Select required agreements') : t('screen.all', 'Select all')}
         </label>
       )}
 

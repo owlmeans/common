@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All 111 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All 113 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -14,7 +14,7 @@ This is the canonical, machine-friendly map of every published `@owlmeans/*` pac
 
 1. [Configuration & tooling](#1-configuration--tooling) — shared TypeScript configs, scaffolder and skills installer
 2. [Core foundations](#2-core-foundations) — environment-agnostic primitives
-3. [Cross-cutting domain](#3-cross-cutting-domain) — llm, agent, queue, consent, mailer, flow, iam, payment, oidc, wled, planning
+3. [Cross-cutting domain](#3-cross-cutting-domain) — llm, agent, queue, consent, inquiry, mailer, flow, iam, payment, oidc, wled, planning
 4. [Auth shared](#4-auth-shared) — `auth-common`
 5. [API & API config](#5-api--api-config) — HTTP client and runtime config plumbing
 6. [Storage & infrastructure](#6-storage--infrastructure) — Mongo, Postgres, Redis, S3, Kubernetes, queue and mail drivers
@@ -34,11 +34,10 @@ Build configuration and the command-line tools that scaffold a project and insta
 - [`create-app`](packages/create-app) → `agent-skills`
 - [`viable-sdk`](packages/viable-sdk) → `api`, `auth`, `auth-common`, `auth-token`, `basic-ids`, `client-config`, `client-context`, `client-entrypoint`, `config`, `context`, `entrypoint`, `error`, `route`, `socket`, `viable-common`
 - [`cli-auth`](packages/cli-auth) → `error`, `oauth`
-- [`viable-mcp`](packages/viable-mcp) → `cli-auth`, `oauth`, `viable-common`, `viable-sdk`
 
 > **Note.** `cli-auth` is the Node-side half of browser sign-in for a command-line tool: the `~/.owlmeans` dotenv layer, the browser opener, the cross-process sign-in lock and the credential holder that runs the device grant against a server built on `server-oauth`. It has no React, no DOM and no framework runtime, and it builds at L6 — the tooling rule above ("builds after the packages it drives") is about who imports it, not about its level.
 >
-> **Note.** `viable-sdk` is the connector SDK an external coding agent drives the OwlMeans Viable platform with, and `viable-mcp` the npx MCP server built on it. They sit here for the same reason the two CLIs do: they drive a platform rather than being imported by framework runtime code. `viable-sdk` is Node/Bun, not React and not a browser package — see [Cross-layer notes](#cross-layer-notes).
+> **Note.** `viable-sdk` is the connector SDK an external coding agent drives the OwlMeans Viable platform with, and the closed-source `@owlmeans/viable-mcp` (built outside this repository) is the npx MCP server over it. It sits here for the same reason the two CLIs do: they drive a platform rather than being imported by framework runtime code. `viable-sdk` is Node/Bun, not React and not a browser package — see [Cross-layer notes](#cross-layer-notes).
 >
 > **Note.** `agent-skills` is the skills installer CLI and `create-app` the scaffolder; `agent-skills` pulls the agent/LLM stack because it runs skill installation through it. Their build position (L7/L8) reflects that tooling dependency, not a framework layer — see [Cross-layer notes](#cross-layer-notes).
 
@@ -73,6 +72,7 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`agent`](packages/agent) → `agent-common`, `basic-ids`, `context`, `error`, `flow`, `llm`, `llm-common`
 - [`queue`](packages/queue) → `auth`, `auth-common`, `context`, `entrypoint`, `error`, `resource`, `route`
 - [`consent`](packages/consent) → *(no `@owlmeans/*` deps)*
+- [`common-inquiry`](packages/common-inquiry) → *(no `@owlmeans/*` deps)*
 - [`viable-log`](packages/viable-log) → `log`
 - [`mailer`](packages/mailer) → `context`, `error`
 - [`flow`](packages/flow) → `auth`, `config`, `error`, `i18n`, `resource`
@@ -82,13 +82,13 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `entrypoint`, `error`, `i18n`, `resource`, `route`
 - [`planning`](packages/planning) → `auth`, `basic-ids`, `context`, `entrypoint`, `error`, `i18n`, `queue`, `resource`, `route`
 - [`oidc`](packages/oidc) → `auth`, `auth-common`, `basic-envelope`, `config`, `context`, `entrypoint`, `resource`, `route`
-- [`viable-common`](packages/viable-common) → `agent-common`, `entrypoint`, `error`, `llm-common`, `route`
+- [`viable-common`](packages/viable-common) → `agent-common`, `auth`, `auth-common`, `context`, `entrypoint`, `error`, `flow`, `iam`, `llm-common`, `planning`, `resource`, `route`
 
 > **Note.** `agent-common` carries both the agent run-lifecycle records and the runtime-free PIPELINE declaration (`PipelineSpec`/`PipelineRun`); `agent` holds two runtimes over LangGraph — the ReAct loop on the functional API and `makePipeline`, a resumable `StateGraph`. Its storage is PORTS only; the durable Mongo half is `@owlmeans/agent-checkpoint` in the `internal` monorepo.
 >
-> **Note.** `llm-common` declares the `ModelProvider.Delegated` contracts (`DelegatedTask`, `DelegatedResult`, `DelegateTransport`) but holds no runtime for them: the `BaseChatModel` that performs such a call outside the process is `@owlmeans/llm-delegate` in the `internal` monorepo. `viable-common` is the runtime-free contract package (slot commands, the connector protocol, target integrity, the conversion vocabulary) that the OwlMeans Viable platform, its SDK and its MCP host all read.
+> **Note.** `llm-common` declares the `ModelProvider.Delegated` contracts (`DelegatedTask`, `DelegatedResult`, `DelegateTransport`) but holds no runtime for them: the `BaseChatModel` that performs such a call outside the process is `@owlmeans/llm-delegate` in the `internal` monorepo. `viable-common` is the runtime-free contract package (slot commands, the connector protocol, the owner console's IAM contract over `iam`, target integrity, the conversion vocabulary) that the OwlMeans Viable platform, its SDK and its MCP host all read.
 >
-> **Note.** `log` is the one logging system (levels, scopes, redaction, console override, plugins) — it depends on `context` only, so every layer above may import it; `web-log` is its consent-gated browser analytics plugin and `viable-log` a generated app's link to the OwlMeans Viable platform (two plugins and the stdout/preview contract). `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it. `mailer` is the abstract mail contract — `mailer-smtp` and `server-mailer-mailgun` drive it. `consent` holds the consent policy and Consent Mode signalling that `web-consent`, `web-gtm` and `astro` render. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
+> **Note.** `log` is the one logging system (levels, scopes, redaction, console override, plugins) — it depends on `context` only, so every layer above may import it; `web-log` is its consent-gated browser analytics plugin and `viable-log` a generated app's link to the OwlMeans Viable platform (two plugins and the stdout/preview contract). `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it. `mailer` is the abstract mail contract — `mailer-smtp` and `server-mailer-mailgun` drive it. `consent` holds the consent policy and Consent Mode signalling that `web-consent`, `web-gtm` and `astro` render. `common-inquiry` is the runtime-free contract of the customer inquiry widget — its config, window runtime, multipart submission and limits — shared by `web-inquiry`, the widget bundle and a CRM API. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
 
 ## 4. Auth shared
 
@@ -189,6 +189,7 @@ Browser-specific React (DOM, IndexedDB) plus the Astro integration. The panel an
 - [`web-consent`](packages/web-consent) → `consent`
 - [`web-gtm`](packages/web-gtm) → `consent`
 - [`web-log`](packages/web-log) → `consent`, `log`
+- [`web-inquiry`](packages/web-inquiry) → `common-inquiry`, `log`
 - [`web-client`](packages/web-client) → `auth`, `auth-common`, `client`, `client-auth`, `client-context`, `client-entrypoint`, `client-i18n`, `client-resource`, `client-route`, `config`, `context`, `error`, `i18n`, `route`, `web-db`, `web-router`
 - [`web-flow`](packages/web-flow) → `client`, `client-context`, `client-entrypoint`, `client-flow`, `client-resource`, `context`, `error`, `flow`
 - [`web-auth`](packages/web-auth) → `auth`, `auth-common`, `basic-ids`, `basic-keys`, `client`, `client-auth`, `client-flow`, `config`, `context`, `web-client`
@@ -226,7 +227,7 @@ A handful of dependencies cross the obvious layer boundaries. They are intention
 - **Several server packages → `client-config` / `client-entrypoint`.** `server-context`, `server-app`, `server-auth` and `server-oidc-rp` mirror the client's entrypoint/config types so that route declarations and config payloads stay in sync across the wire. Server packages do not pull in any DOM or React.
 - **`client-auth` → `web-flow`.** A regular `dependency`, not an optional peer: the auth dispatcher component imports `SERVICE_PARAM` from `web-flow`, so every consumer of `client-auth` pulls the web flow package in and `client-auth` builds at L10, above `web-flow` at L9. Native applications use a native flow analogue from the [`native` monorepo](https://github.com/owlmeans/native) for the flow itself, but still carry this edge.
 - **`client-iam` → `web-client`, `web-oidc-rp`.** `client-iam` wires the IAM login and consent surface onto a browser app, so despite the `client-` prefix it is browser-only and Native applications do not consume it. Anything in it that must reach React Native belongs in `iam` or `client-auth` instead.
-- **`viable-sdk` → `api`, `client-context`, `client-entrypoint`, `auth-token`.** The connector SDK builds an OwlMeans client context so an external process authenticates and calls entrypoints exactly as a browser does — with a long-lived access token instead of a session. It is Node/Bun and pulls in no React or DOM, so despite the `client-*` edges it is not a client-layer package; it is tooling, and `viable-mcp` is the npx CLI over it.
+- **`viable-sdk` → `api`, `client-context`, `client-entrypoint`, `auth-token`.** The connector SDK builds an OwlMeans client context so an external process authenticates and calls entrypoints exactly as a browser does — with a long-lived access token instead of a session. It is Node/Bun and pulls in no React or DOM, so despite the `client-*` edges it is not a client-layer package; it is tooling, and the closed-source `@owlmeans/viable-mcp` is the npx CLI over it.
 - **OAuth sign-in: `oauth` ← `server-oauth`, `web-oauth`, `cli-auth`.** `oauth` is the shared layer — constants, schemas, the consent protocols, the `oauthFlow` definition and fetch-only client helpers usable in any runtime. `server-oauth` is the authorization server (raw Fastify routes, `server-auth-token` for issuance), `web-oauth` the consent, device-code and done screens, `cli-auth` the command-line credential holder; none of the three depends on another. `web-oauth → client-auth` is the same browser-only edge as `client-iam`: the consent screen signs a person in through the dispatcher and is returned by `client-flow`'s landing.
 - **`web-auth`, `web-oidc-rp`, `client-auth` → `client-flow`.** After sign-in the dispatcher, the supervisor plugin and the Google plugin resume a flow suspended in `client-flow` (`suspendFlow` / `resumeSuspendedFlow`) instead of always navigating home; `web-auth` gained the direct edge, `client-auth` and `web-oidc-rp` already had it.
 - **Tooling → domain (`create-app` → `agent-skills` → `agent`, `llm`).** The scaffolder and the skills installer are CLIs, not framework layers: they sit in [Configuration & tooling](#1-configuration--tooling) but build after the packages they drive. No runtime framework package depends on either.
@@ -238,16 +239,16 @@ If you add a new cross-layer dependency, document it here and explain why.
 
 Lower levels are compiled before higher ones. `bun run build` orchestrates this via workspace dependency resolution; you usually do not need to think about it. Useful when you suspect a build cycle or are reasoning about partial builds. SCCs (see [Cross-layer notes](#cross-layer-notes)) are listed as a single `{a | b | …}` group.
 
-- **L0** (no `@owlmeans/*` deps): `basic-ids`, `client-wl`, `consent`, `context`, `dep-config`, `i18n`, `llm-common`
+- **L0** (no `@owlmeans/*` deps): `basic-ids`, `client-wl`, `common-inquiry`, `consent`, `context`, `dep-config`, `i18n`, `llm-common`
 - **L1**: `error`, `log`, `route`, `router`, `web-consent`, `web-gtm`
-- **L2**: `astro`, `auth`, `auth-otp`, `llm`, `mailer`, `resource`, `server-route`, `web-router`, `web-router-react-router`
+- **L2**: `astro`, `auth`, `auth-otp`, `llm`, `mailer`, `resource`, `server-route`, `web-inquiry`, `web-router`, `web-router-react-router`
 - **L3**: `basic-keys`, `config`, `entrypoint`, `server-mailer-mailgun`, `socket`, `state`, `static-resource`, `storage-common`
 - **L4**: `api-config`, `auth-token`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
 - **L5**: `agent-common`, `oauth`, `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
-- **L6**: `agent`, `api-config-client`, `cli-auth`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`, `viable-common`
-- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-oidc-provider`, `server-wl`, `viable-sdk`, `web-db`
-- **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-mcp`, `web-wl`, `{server-auth | server-socket}`
-- **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oauth`, `server-oidc-rp`, `web-auth-token`, `web-flow`
+- **L6**: `agent`, `api-config-client`, `cli-auth`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`
+- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-oidc-provider`, `server-wl`, `web-db`
+- **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-common`, `web-wl`, `{server-auth | server-socket}`
+- **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oauth`, `server-oidc-rp`, `viable-sdk`, `web-auth-token`, `web-flow`
 - **L10**: `client-auth`, `server-iam`, `server-payment`
 - **L11**: `client-job`, `client-panel`, `client-payment`, `web-client`, `web-oauth`
 - **L12**: `mui-oidc-rp`, `mui-panel`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `web-panel`, `web-payment`
@@ -270,7 +271,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  web-panel        web-client      web-flow        web-router                 ║
  ║  web-oidc-rp      web-oidc-provider  web-auth     web-wl        web-db       ║
  ║  mui-panel        mui-oidc-rp     web-payment     web-consent    web-gtm      ║
- ║  astro                                                                       ║
+ ║  astro            web-inquiry                                                ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  CLIENT  (platform-agnostic React — web + React Native)          L0–L13      ║
  ║                                                                              ║
@@ -308,7 +309,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  CROSS-CUTTING DOMAIN  (environment-agnostic domain logic)        L0–L7      ║
  ║                                                                              ║
  ║  flow             oidc            payment          wled            iam       ║
- ║  queue            consent         mailer           auth-otp                  ║
+ ║  queue            consent         mailer           auth-otp   common-inquiry ║
  ║  llm-common       llm             agent-common     agent                     ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  CORE FOUNDATIONS  (environment-agnostic primitives)              L0–L4      ║
@@ -349,10 +350,11 @@ Dependencies flow downward: every package can only import from the layers below 
                 server-config  server-entrypoint  wled
    L3  ████████ basic-keys  config  entrypoint  server-mailer-mailgun  socket
                 state  static-resource  storage-common
-   L2  █████████ astro  auth  auth-otp  llm  mailer  resource  server-route
-                web-router  web-router-react-router
+   L2  ██████████ astro  auth  auth-otp  llm  mailer  resource  server-route
+                web-inquiry  web-router  web-router-react-router
    L1  █████ error  route  router  web-consent  web-gtm
-   L0  ███████ basic-ids  client-wl  consent  context  dep-config  i18n  llm-common
+   L0  ████████ basic-ids  client-wl  common-inquiry  consent  context  dep-config
+               i18n  llm-common
         ▲
         └── no @owlmeans/* deps — compile first
 ```

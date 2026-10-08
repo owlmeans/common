@@ -64,7 +64,7 @@ export interface Opened {
   /** Every marketing-consent API request the page made, in order — "GET status", "POST save", … */
   calls: string[]
   /** The most recent POST /save request body, parsed. */
-  lastSaveBody: () => { decisions: Array<{ key: string, granted: boolean }>, source: string } | null
+  lastSaveBody: () => { decisions: Array<{ key: string, granted: boolean }>, source: string, locale?: string } | null
   /** The most recent POST /terms request body, parsed. */
   lastTermsBody: () => { documents: unknown[], notices?: unknown[], version: string, locale?: string } | null
   close: () => Promise<void>
@@ -77,7 +77,7 @@ export interface Opened {
  */
 export const open = async (
   path: string,
-  opts: { stubs?: Stubs, signedIn?: boolean, lng?: string, termsMode?: boolean } = {},
+  opts: { stubs?: Stubs, signedIn?: boolean, lng?: string, termsMode?: boolean, bulkSelection?: 'required', localizedHrefs?: boolean } = {},
 ): Promise<Opened> => {
   const browser = await browserHelper.launchBrowser({ headless: true })
   const context = await browser.newContext()
@@ -85,7 +85,7 @@ export const open = async (
   page.setDefaultTimeout(30_000)
 
   const calls: string[] = []
-  let lastSave: { decisions: Array<{ key: string, granted: boolean }>, source: string } | null = null
+  let lastSave: { decisions: Array<{ key: string, granted: boolean }>, source: string, locale?: string } | null = null
   let lastTerms: { documents: unknown[], notices?: unknown[], version: string, locale?: string } | null = null
 
   await context.route(/\/api\/.*marketing-consent\//, async route => {
@@ -115,6 +115,8 @@ export const open = async (
   if (opts.signedIn === true) url.searchParams.set('bearer', await bearer())
   if (opts.lng != null) url.searchParams.set('lng', opts.lng)
   if (opts.termsMode === true) url.searchParams.set('terms', 'step')
+  if (opts.bulkSelection != null) url.searchParams.set('bulk', opts.bulkSelection)
+  if (opts.localizedHrefs === true) url.searchParams.set('localized', '1')
   await page.goto(url.toString(), { waitUntil: 'domcontentloaded' })
 
   return {

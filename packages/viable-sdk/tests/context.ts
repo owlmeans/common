@@ -1,13 +1,12 @@
 import { AppType, createLazyService, makeBasicContext } from '@owlmeans/context'
 import type { BasicConfig, LazyService } from '@owlmeans/context'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
-import { EntrypointOutcome, transportAlias } from '@owlmeans/entrypoint'
+import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import type { AbstractRequest, AbstractResponse, EntrypointTransport } from '@owlmeans/entrypoint'
 import { TransitionAction, WorkcardKind } from '@owlmeans/planning'
 import type {
   PlanningFacade, PlanningPlugin, PlanningService, Project, TransitionExecution, WorkcardDraft,
 } from '@owlmeans/planning'
-import { RouteProtocols } from '@owlmeans/route'
 import { appendPlanningService } from '@owlmeans/server-planning'
 import { makeMemoryPlanningStore } from '@owlmeans/server-planning/store'
 import {
@@ -112,40 +111,63 @@ export const makePlanningSuite = async (): Promise<PlanningSuite> => {
   }
 }
 
-/** One call as the transport saw it. */
+/** One call as the network would have seen it. */
 export interface CapturedCall {
   alias: string
   path: string
   query: Record<string, unknown>
   body?: unknown
   timeout?: number
+  /** The request's headers, when it carried any. */
+  headers?: Record<string, unknown>
 }
+
+const ANSWER = Symbol('captured-answer')
+
+/** An answer with an outcome of its own — `accepted(...)` is the platform's early 202. */
+export interface CapturedAnswer {
+  [ANSWER]: true
+  value: unknown
+  outcome: EntrypointOutcome
+}
+
+/** Answer a captured call with HTTP 202 (`EntrypointOutcome.Accepted`) and this body. */
+export const accepted = (value: unknown): CapturedAnswer => ({ [ANSWER]: true, value, outcome: EntrypointOutcome.Accepted })
 
 /**
  * Answer an SDK context's calls in process, recording each.
  *
- * Registered under the transport alias every client entrypoint asks for before it reaches for the
- * HTTP client, so the call travels the context's own binding — the alias, the path and the
- * deadline it was bound with — and stops where the network would begin.
+ * Registered in place of the context's API CLIENT — the service `cfg.webService` names, which the
+ * SDK's own transport forwards to — so the call travels the context's own binding and its
+ * call-collect transport (the alias, the path, the deadline and the headers it was sent with) and
+ * stops where the network would begin. An answer is resolved `Ok` unless it is a
+ * {@link CapturedAnswer}; a throw is the call's refusal.
  */
 export const captureTransport = (
   context: ClientContext<ClientConfig>,
   answer: (call: CapturedCall) => unknown
 ): CapturedCall[] => {
   const calls: CapturedCall[] = []
-  context.registerService(createLazyService<EntrypointTransport & LazyService>(transportAlias(RouteProtocols.WEB), {
-    protocol: RouteProtocols.WEB,
-    handle: (async (req: AbstractRequest, res: AbstractResponse<unknown>) => {
+  const alias = context.cfg.webService as string
+  context.registerService(createLazyService<LazyService & { handler: EntrypointTransport['handle'] }>(alias, {
+    handler: (async (req: AbstractRequest, res: AbstractResponse<unknown>) => {
+      const headers = Object.fromEntries(Object.entries(req.headers ?? {}).filter(([, value]) => value != null))
       const call: CapturedCall = {
         alias: req.alias,
         path: req.path,
         query: (req.query ?? {}) as Record<string, unknown>,
         ...(req.body !== undefined ? { body: req.body } : {}),
         ...(req.timeout != null ? { timeout: req.timeout } : {}),
+        ...(Object.keys(headers).length > 0 ? { headers } : {}),
       }
       calls.push(call)
       try {
-        res.resolve(await answer(call), EntrypointOutcome.Ok)
+        const value = await answer(call)
+        if (value != null && typeof value === 'object' && ANSWER in value) {
+          res.resolve((value as CapturedAnswer).value, (value as CapturedAnswer).outcome)
+        } else {
+          res.resolve(value, EntrypointOutcome.Ok)
+        }
       } catch (e) {
         res.reject(e as Error)
       }

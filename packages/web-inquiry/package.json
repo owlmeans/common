@@ -1,0 +1,42 @@
+{
+  "name": "@owlmeans/web-inquiry",
+  "version": "0.1.18-rc.0",
+  "license": "MIT",
+  "description": "Lightweight browser SDK of the OwlMeans customer inquiry widget — injects the widget runtime once, opens its dialog from any trigger and reports each open as an analytics event.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "agent-meta"
+  ],
+  "dependencies": {
+    "@owlmeans/common-inquiry": "^0.1.18-rc.0",
+    "@owlmeans/log": "^0.1.18-rc.3"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.2",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

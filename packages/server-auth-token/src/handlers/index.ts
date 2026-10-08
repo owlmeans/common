@@ -9,7 +9,7 @@ export * from './list.js'
 export * from './create.js'
 export * from './revoke.js'
 
-export type { IssueAccessTokenRequest, IssueAccessTokenSubject } from './types.js'
+export type { IssueAccessTokenRequest, IssueAccessTokenSubject, RevokeAccessTokenOptions } from './types.js'
 
 /** @deprecated compat:factory-refactor — use `accessTokenIssuerOf(ctx).issueAccessToken(…)` */
 export const issueAccessToken = async (

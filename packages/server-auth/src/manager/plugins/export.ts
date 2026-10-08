@@ -1,6 +1,10 @@
 
 export type * from './types.js'
+export type * from './re-captcha/types.js'
 export * from './consts.js'
+export * from './re-captcha/consts.js'
+export * from './re-captcha/policy.js'
+export * from './re-captcha/verifier.js'
 export * from './basic-ed25519.js'
 export * from './re-captcha.js'
 export * from './basic-rely.js'

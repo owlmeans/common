@@ -1,14 +1,14 @@
 ---
 name: viable-sdk
-description: How to use @owlmeans/viable-sdk — the connector SDK an external coding agent drives the OwlMeans Viable platform with — the token-authenticated client context, the two host kinds and their tool catalogue, the session operation loop, the local slot executor and local run, the model-task envelope, and the harness installer. Auto-invoked when building or changing a connector, an MCP host, a connector tool, the task envelope, or anything that executes platform slot commands on a developer's machine.
+description: How to use @owlmeans/viable-sdk — the connector SDK an external coding agent drives the OwlMeans Viable platform with — the token-authenticated client context, the two host kinds and their tool catalogue, the session operation loop, the local slot executor and local run, the model-task envelope, and the extension seam a host adds its own tools through. Auto-invoked when building or changing a connector, an MCP host, a connector tool, the task envelope, or anything that executes platform slot commands on a developer's machine.
 user-invocable: false
 ---
 
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.46"` in `dependencies`
-**Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.47"` in `dependencies`
+**Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
 and facade) — every name on the wire is declared there, so the SDK and the platform cannot spell one
@@ -23,23 +23,25 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 
 | Export | Description |
 |--------|-------------|
-| `makeSdkContext({ apiUrl, token, service?, onRejected? })` | A client context authenticated by one token — a literal or a thunk — with the connector protocols and the planning tree bound and the planning client registered |
-| `makeRemoteConnectorApi(context)` | `ConnectorApi` over HTTP; its `planning` is the context's planning client facade |
-| `openSession(opts)` → `SessionRuntime` | One attached session: the operation loop, the task queue, `stats` |
+| `makeSdkContext({ apiUrl, token, service?, timeout?, llm?, onRejected? })` | A client context authenticated by one token — a literal or a thunk — with the connector protocols and the planning tree bound, the planning client registered (`timeout` is its HTTP deadline) and the call-collect transport in front of the API client (`llm: ConnectLlm.Local` turns collection on) |
+| `createCallCollectTransport({ delegated })` → `CallCollectTransport` · `appendCallCollectTransport(context, opts)` · `CallCollectOptions` · `CollectedCall` | The context's HTTP transport (`transport:http`): request now, collect later in the delegated mode |
+| `makeRemoteConnectorApi(context, { timeout? })` · `RemoteConnectorOptions` | `ConnectorApi` over HTTP; its `planning` is the context's planning client facade; `timeout` bounds every request but the session verbs' (one request — a collected call's hops carry their own) |
+| `openSession(opts)` → `SessionRuntime` (`nextTask(waitMs, signal?)`, `taskAvailable(waitMs, signal?)`, …) | One attached session: the pull loop, the serial worker, the task queue, `stats` |
+| `createInflightCalls()` → `InflightCalls` · `makeHandoverHelper(deps)` → `HandoverHelper` (`run`/`contain`/`collect`/`report`/`pending`) | The delegated mode's handover: the calls still running after their tool answered, and how a blocked tool answers with its model task |
 | `makeTaskEnvelopeModel(task)` — `.renderTaskEnvelope({ harness })` · `.parseTaskResult(raw)` | What the parent agent is told; what its answer is checked against |
 | `makeModelTaskDriver({ models })` · `TaskDriver` | A reference parent agent backed by a chat model (tests, CLIs) |
-| `harnessHelper` — `.installHarness(dir, harness, opts?)` · `.describeHarness(harness)`; `WORKING_RULE` | Set a coding agent up; preview it first |
+| `ToolHost.extensions` · `EXTENSION_TOOLS` | Tools the hosting process adds beyond the catalogue (the agent-setup pair `describe_harness` / `install_harness` is one such extension, shipped outside this package); listed, filtered by their own `availability` and registered like the catalogue's own |
 | `catalogue` · `catalogueHelper` (`.visibleTools(host)` · `.toolByName`) · `registerCatalogue(server, deps)` · `serverInstructions({ host })` | The tools and how they reach an MCP server |
 | `statusTextHelper` — `.renderProjectStatus`, `.renderStoryStatus(status, { landing? })`, `.renderPipelineStatus`, `.conversionNext` | Domain status as concise lines ending in the next valid action |
 | `storyHelper` — `.resolveStory(deps, projectId, ref)` · `.storyQuery(projectId, filter?)` · `.renderStories(items, page, total)` · `.isLandingStory(card)`; `STORY_ORDER` · `LANDING_MARK` · `LANDING_NOTE` | The story tools' reading of planning cards |
 | `PROJECT_SETTINGS` · `settingsHelper` — `.projectSettingOf(key)` · `.settingsPatch(args)` · `.renderProjectSettings(projectId, settings)` · `.settingsReach(target)` | The project-settings tools: each setting's label and rule, the patch a call asks for, the rendering |
 | `PLATFORM_CATALOGUE` (`pipelines`, `features`, `capabilities`) · `renderPlatform(catalogue, host)` · `GENERATED_SUMMARY` | What `describe_platform` renders, and the one-sentence product summary `describe_capabilities` ends with |
-| `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` · `ToolDeps` · `toolHostHelper` (`anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks`) | The host description and the availability predicates |
+| `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` · `ToolDeps` (`detach?`, `release?`, `inflight?` beside `attach`) · `ToolAnnotations` · `toolHostHelper` (`anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks`) | The host description and the availability predicates |
 | `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `makeLocalGitHelper(dir).dispatchGitCommand`, `integrityHelper` (`verifyTarget`/`forgetIntegrity`), `makeLayoutHelper(dir)` (`targetPaths`/`apiPath`/`webPath`/`workerPath`), `makeTargetEnvHelper(dir)` (`backendEnv`/`frontendEnv`), `healthHelper` (`classifyTargetHealth`/`readTargetHealth`), `runBootCheck`, `confineToProject`, `spawnHelper` | The publisher's workload, on somebody's laptop |
 | `./run`: `makeLocalRunHelper(dir)` (`runLocal`, `stopLocal`, `localStatus`), `createLocalServer`, `makeRunStateHelper(dir)` (`startApi`/`startWorker`/`restartApi`, `readRun`/`writeRun`/`clearRun`), `runProcessHelper.stopProcess` | Building and running the generated app locally |
 | `makeMarkerHelper(dir)` (`readMarker`/`writeMarker`/`discoverProject`/`isViableTree`) · `makeProjectEnvHelper(dir)` (`readEnv`/`writeEnv`/`envStatus`) · `dotenvHelper.replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
 | `SdkError`, `SdkAuthError`, `SdkMisconfigured`, `SdkUnsupported` | Registered `ResilientError` classes |
-| `ENV_TOKEN`, `ENV_API_URL`, `ENV_MCP_URL`, `ENV_TARGET`, `ENV_LLM`, `ENV_HARNESS`, `ENV_PROJECT_DIR` · `DEFAULT_MCP_URL` · `resolveMcpUrl(values)` · `TOOL_DEADLINE_MS` (45 s) · `COMMIT_WAIT_MS` (20 s) · `COMMIT_POLL_SEC` · `STORY_PAGE_SIZE` · `NEXT_TASK_WAIT_MS` · `PULL_WAIT_MS` | Configuration and deadlines |
+| `ENV_TOKEN`, `ENV_API_URL`, `ENV_MCP_URL`, `ENV_TARGET`, `ENV_LLM`, `ENV_HARNESS`, `ENV_PROJECT_DIR` · `DEFAULT_MCP_URL` · `resolveMcpUrl(values)` · `TOOL_DEADLINE_MS` (45 s) · `HANDOVER_WAIT_MS` (40 s) · `COMMIT_WAIT_MS` (20 s) · `COMMIT_POLL_SEC` · `STORY_PAGE_SIZE` · `NEXT_TASK_WAIT_MS` · `PULL_WAIT_MS` | Configuration and deadlines |
 
 ## One credential, and the routes the server declares
 
@@ -49,7 +51,7 @@ so a path or a schema cannot be right on one end and wrong on the other. The pla
 the same way: `makePlanningProtocols({ base: { alias: 'viable:manager-api:planning', path:
 '/planning' }, guards: DEFAULT_GUARD, socketBase: <the /update base> })` — the platform's mount minus
 its ownership gate, which is the server's to apply — followed by `appendPlanningClient(context, {
-protocols, bind: false, poll: COMMIT_POLL_SEC, timeout: TOOL_DEADLINE_MS, schemas: false })`. The
+protocols, bind: false, poll: COMMIT_POLL_SEC, timeout: opts.timeout ?? TOOL_DEADLINE_MS, schemas: false })`. The
 base alias and path are literals beside the `/update` base for the same reason that one is: they
 belong to the platform, and every planning alias and path derives from them. The aliases are this
 context's registry keys only; the wire is the path, which is why the platform may register its copy
@@ -104,12 +106,26 @@ tool is written against it, so a tool cannot accidentally work in only one of th
 without the capability is refused at the boundary rather than by a check somewhere inside.
 
 `ConnectorApi` has exactly one member per connector route plus the planning facade — the session
-(`openSession`, `closeSession`, `pullOps`, `submitOp`), projects, branding, story status, files,
+(`openSession`, `closeSession`, `pullOps`, `submitOp`), projects, branding (`projectBranding(id, scope?)`,
+`saveProjectBranding(id, patch, scope?)`, `setPlatformCredit(id, hidden, scope?)`,
+`copyOrganizationBranding(id, scope?)` — a scope sent only when named), the configuration
+(`config.get(id, scope?)`, `config.save(id, body, scope?)`, `config.recollect(id)`), the
+organization's defaults (`account.branding.get()`, `.save(patch)`, `.backfill()`), the person's
+inference preference (`account.llm.get()`, `.set(mode)`) and a project's override
+(`project.llm(id)`, `project.setLlm(id, mode | null)` — `null` crosses as `null`), the person's
+tokens (`account.tokens.list()`, `.revoke(id)` — never a create), consents
+(`account.privacy.status()`, `.withdraw(keys)` — never a grant) and the intent pickup
+(`account.intent.pickup(ref)`), story status, files
+(`list`, `get(projectId, path)`, `save(projectId, path, content)`, `remove(projectId, path)`,
+`meta(projectId, { kind, category? })` — the category sent only when named), the preview's
+`sandbox` (`run`, `restart`, `stop`, `rebuild` → `ConnectSlotView`), the organization's `slot.list`,
 pipeline state, conversion (`create`, `check`, `start(projectId, body?)`, `proceed(projectId, body)`
-— the bodies are the route's, `confirm` included —, `status`, `purge`) and inquiry answers. There is no capability view, no session read or heartbeat and no conversion cancel, and a
-project's inference settings are not a connector call: a person sets them in the browser, through
-the platform's own API. A member is added together with the route in `connectProtocols` and its
-`connectRef` entry — never one without the others.
+— the bodies are the route's, `confirm` included —, `status`, `purge`) and inquiry answers. There is
+no capability view, no session read or heartbeat, no conversion cancel, no token create and no
+consent grant. A member is added together with the route in `connectProtocols` and its
+`connectRef` entry — never one without the others. The one exception is `call.collect`: it belongs to
+the context's transport (below), which collects a delegated write's outcome under whichever member
+made it.
 
 ## A SESSION belongs to a host that stays; `toolHostHelper.sessionCapable` is what says so
 
@@ -118,14 +134,21 @@ task until its answer comes back. The URL-configured host answers one request an
 opening one there would claim the project's single connector slot, **supersede the stdio connector
 legitimately holding it**, and be abandoned before the first operation was delivered.
 
-So `ensureSession` — what `confirm_project`, `reinitialize_project`, `develop_story`,
-`modify_project`, `rename_project` and `resume_pipeline` call before returning their job, and `apply_planning_kit`
-before its write — opens one only on a
-`toolHostHelper.sessionCapable` host, and `next_task`/`submit_task_result` are available on `.performsModelTasks`
-(delegated **and** session-capable) rather than on the account setting alone. `serverInstructions`
-reads the same predicate: a parent told to call `next_task` when the tool is not in its list is a
-parent that waits for a run nobody will advance. A host that cannot serve the delegated mode says so
-in one sentence instead, naming the stdio connector.
+So `ensureSession` — what `confirm_project`, `reinitialize_project`, `develop_story`, `reset_story`,
+`complete_story`,
+`modify_project`, `rename_project` and `resume_pipeline` call before returning their job, every
+story write, `update_project_settings`, `set_platform_credit`, `update_project_configuration`,
+`recollect_configuration`, `apply_planning_kit`, `write_file` (its content check is a
+model call the delegating session performs) and the conversion verbs before their
+write, and `answer_question` in the delegated mode before an answer by id resumes a run — opens one
+only on a `toolHostHelper.sessionCapable` host. `next_task`/`submit_task_result` are available on
+`.performsModelTasks` (delegated **and** session-capable) and nowhere else: in the cloud mode the
+platform performs every model call itself, a conversion's included, so there is never a task to
+collect. `next_question`/`answer_question` stay on `.sessionCapable` — a person is asked whoever
+performs the models. `serverInstructions` reads the same predicates: a parent told to call
+`next_task` when the tool is not in its list is a parent that waits for a run nobody will advance.
+A host that cannot serve the delegated mode says so in one sentence instead, naming the stdio
+connector.
 
 The in-process implementation refuses the four session verbs (`openSession`, `closeSession`,
 `pullOps`, `submitOp`) with a message naming `@owlmeans/viable-mcp`, because "unsupported" alone
@@ -136,7 +159,80 @@ leaves the reader with nothing to do about it.
 `ToolDefinition.availability` and `catalogueHelper.visibleTools(host)` decide the catalogue a parent actually sees. A
 tool a host cannot serve is a tool the parent tries once, is refused, and remembers as broken — so
 the list it reads is exactly the set of things that work for it. Predicates (`toolHostHelper`): `anyHost`,
-`localTarget`, `cloudTarget`, `withExecutor`, `delegatedLlm`.
+`localTarget`, `cloudTarget`, `withExecutor`, `delegatedLlm`, `sessionCapable`, `performsModelTasks`.
+
+Every catalogue tool but `describe_platform` belongs to EXACTLY ONE `PLATFORM_CATALOGUE.capabilities`
+group, and every group carries an `absent` sentence rendered where a host hides it. `serverInstructions`
+is the compact map a parent reads first: the workflow, ONE line naming each capability family by a few
+of its tools ("everything the web application does except billing"), the cursor rule of the feeds, the
+`confirm: true` set, the browser-only acts (payments and the plan, token creation, giving a marketing
+consent or accepting terms, approving a connector, finishing a GitHub authorization) and the mode
+rules — and it names NO tool the host hides: the files/preview, git/GitHub and production families and
+`file_changes` appear only for a cloud target, the local block says those are the machine's.
+
+## The delegated mode: every model call is the parent's, and a blocked tool hands its task over
+
+`llm=local` is the ONE switch for who performs the platform's model calls. In the delegated mode
+every one of them is this session's parent's — project drafting, every content check, story
+formatting, every run's calls and a conversion's; in the cloud mode none is. The wording says it in
+those terms everywhere it is said (`serverInstructions`, `describe_capabilities`, `describe_platform`,
+the `model-tasks` group, `CONVERSION_COST`, `WORKING_RULE`): all or none, nothing in between.
+
+A platform call can therefore stop mid-way for a model call the parent itself must perform — the
+very parent blocked on that tool. `registerCatalogue` answers that with the HANDOVER
+(`makeHandoverHelper(deps).run`) for every tool except the task/question loop and the tools that
+never reach the platform (`HANDOVER_EXEMPT`):
+
+- The call starts and races (i) finishing, (ii) a model task becoming available in the CURRENT
+  session's queue (`taskAvailable`, looked for in 1 s slices because a delegated create opens its
+  session from inside the call), (iii) `HANDOVER_WAIT_MS`. A finished call answers as it always did.
+- A task first: it is taken (`nextTask(0)`; null means another caller was quicker and the race goes
+  on) and the tool answers "`<tool>` is NOT finished — the platform is waiting on a model call you
+  must perform. Do not call `<tool>` again. Run the task below in a clean subagent at LOW reasoning
+  effort, then call submit_task_result {taskId, result}; its reply is `<tool>`'s result, or the next
+  model call it waits on." followed by the task exactly as `next_task` renders it.
+- Neither: "still running on the platform — call next_task (or read `<status tool>`)".
+- The call is never abandoned. It lives in `ToolDeps.inflight` (`createInflightCalls()`, held beside
+  the server — never on the session, which reopens whenever the connector moves), keyed by tool name
+  + canonical JSON args, so an identical repeat JOINS it. A call some tool still waits on is that
+  tool's to answer; once nobody waits it is detached, and `submit_task_result` and `next_task`,
+  after their own work, race any detached call settling, the next task and the wait, then report
+  every settled call (its text phrased exactly as the wrapper's catch phrases it; each in
+  `structuredContent.settled[]`, a refusal marked `isError` there and never on the submit itself).
+- The cloud mode and the URL host keep the plain deadline path, unchanged.
+
+**A create names an UNATTACHED session.** In the delegated mode `create_project` and
+`convert_project`'s create path first open a session with no project (`ToolDeps.detach?()` when one
+is attached, then `deps.session()`), send its id as `sessionId` (`ConnectorApi.project.create(prompt,
+target?, sessionId?)`, `ConnectConvertCreateBody.sessionId`) — the platform hands the checks it runs
+before the card exists to that session's parent — and once the platform answers with project P,
+`deps.attach(P); ensureSession(deps, P)`. A host without `detach` sends none while attached
+elsewhere. The cloud mode sends none and opens nothing.
+
+**Request now, collect later.** A delegated write may wait on a model call this very parent
+performs — create, convert create, confirm, reinit, modify, rename, a settings save, a story create or
+update (the platform formats the narrative in its planning `execute`) — for longer than an edge holds
+a response open (~100 s). So `makeSdkContext({ llm: ConnectLlm.Local })` registers ONE transport
+(`createCallCollectTransport`, under `transportAlias('http')`, which every client entrypoint asks for
+before the API client) in front of the context's API client — the connector routes and the planning
+client both go through it, with no per-method code:
+
+- every NON-GET request carries `x-viable-call: <randomUUID()>` (`CONNECT_CALL_HEADER`); a request
+  that already names one keeps it, so a retry of that request is the same call to the platform;
+- an answer `{ pending: <that id> }` (202, after the platform's `CONNECT_CALL_ACCEPT_MS` hold) becomes
+  `connect.call.collect` long polls (`wait` = `CONNECT_CALL_COLLECT_WAIT_SEC`, HTTP deadline wait +
+  10 s), repeated while `pending` (an unheld one — under 1 s — rests 1 s first) until `settled`: its
+  `value` and `outcome` resolve the original call exactly as a direct answer would have (the planning
+  facade still builds its receipt), its `error` is `ResilientError.ensure`d back into its own class;
+  `lost` throws `ConnectCallLost` (phrased in `REFUSALS`: the outcome was lost, read the matching
+  status tool before repeating);
+- a hop the LINE dropped (a transient transport error, axios's own timeout, an edge 502/503/504) is
+  asked again, up to `COLLECT_DROPPED_HOPS` in a row; any other answer — a direct value, a `pending`
+  of another id, a refusal, every GET, the cloud mode — passes through untouched.
+
+`collect` is the transport's route, not a `ConnectorApi` member. Every request and collect hop stays
+under `TOOL_DEADLINE_MS`; nothing caps the call as a whole but the platform's own model-task deadline,
+and the handover is unchanged — its in-flight promise simply lasts as long as the collection.
 
 ## 45 seconds is the ceiling, so long operations return domain status
 
@@ -147,11 +243,13 @@ ceiling without configuration. A tool that outlives its host's ceiling is report
 
 Anything that takes minutes returns the owning domain's status and continues server-side.
 `project_status`, `story_status`, `conversion_status` and `pipeline_status` compose the durable
-records and run state a parent needs. `registerCatalogue` enforces the deadline per call and
+records and run state a parent needs. `registerCatalogue` enforces the deadline per call (the
+delegated mode's handover answers within `HANDOVER_WAIT_MS` instead) and
 converts a throw into an `isError` result the model can read and act on, because an exception
 crossing the transport tells it only that something went wrong somewhere. Each status renderer
 ends with a single `next:` line so the parent follows the domain workflow and does not invent a
-polling strategy or treat a parked run as failed.
+polling strategy or treat a parked run as failed. What HAPPENED along the way is read from the cursor feeds
+(`project_activity`, below) — a feed is never the answer to where a run stands.
 
 ## The story tools speak planning
 
@@ -167,7 +265,9 @@ platform's in-process host. The scope a call answers for is the CREDENTIAL's; a 
 | `create_story` | `execute({ action: create, card: { kind: card, type: VIABLE_STORY_TYPE, parent, title, fields: { primary: false } } }, { wait: true, timeout: COMMIT_WAIT_MS })` |
 | `update_story` | `storyHelper.resolveStory` → `execute({ card, action: update, changes: { title }, expectSeq: head ?? seq }, { wait: true, … })` |
 | `delete_story` | `storyHelper.resolveStory` → `execute({ card, action: delete }, { wait: true, … })` → the project-lock poll |
-| `develop_story` | `storyHelper.resolveStory` → `execute({ card, action: transit, transition: start }, { wait: true, … })`, tolerating `CommitTimeout` → `story.status(project, card.id)` |
+| `develop_story` | `storyHelper.transit(deps, project, storyId, start, 'connector:develop-story')` |
+| `reset_story` | `storyHelper.transit(…, reset, 'connector:reset-story')` — any status back to planned |
+| `complete_story` | `storyHelper.transit(…, complete, 'connector:complete-story')` — in progress only |
 | `story_status` | `storyHelper.resolveStory` → the card, its development run, pending inquiry, warning and landing mark |
 
 Rules the table rests on:
@@ -179,10 +279,15 @@ Rules the table rests on:
 - **`storyId` accepts a code or an id**, because `list_stories` prints the CODE — the handle every
   generated file names a story by. `storyHelper.resolveStory` asks for both at once, the id wins, a code is also
   tried uppercased, and neither answers for a story of another project (`ProjectStoryNotFound`).
-- **Development is the story's `start`, not a call of its own.** The platform begins the run once that
-  move COMMITS, and refuses it there too (the flow, one story in progress, the balance). The wait is
-  `COMMIT_WAIT_MS`, well inside the tool deadline; a late commit is not a failure — the transition is
-  durable — so `develop_story` answers from `story_status` rather than outliving the host's ceiling.
+- **A story moves through its flow by ONE helper.** `storyHelper.transit(deps, projectId, ref,
+  transition, cause)` resolves the story, executes the transition awaited to its commit and answers
+  `{ card, status }` from `story.status`. Development is the story's `start`, not a call of its own:
+  the platform begins the run once that move COMMITS, and refuses it there too (the flow, one story
+  in progress, the balance). `reset_story` (`* → planned`, the manual recovery — the code generated
+  for it stays) and `complete_story` (`in-progress → completed`, nothing generated or stopped) are
+  the browser's two manual moves. The wait is `COMMIT_WAIT_MS`, well inside the tool deadline; a late
+  commit is not a failure — the transition is durable — so the tool answers from `story_status`
+  rather than outliving the host's ceiling. A refusal is thrown, and no status is read to hide it.
 - **A story a person writes goes as written, with no area.** Re-formatting the narrative and deciding
   the area are the platform's, done in its planning middleware for the `connect` channel; a connector
   that guessed an area would be a second answer. `update_story` carries only `title` and the head it
@@ -212,13 +317,184 @@ Rules the table rests on:
   is never replaced) and `api:auth:guard:auth-token` (a file token the platform refused — forgotten,
   the next call signs in). Each ends with "call this tool again".
 
+## An irreversible tool asks for `confirm: true`, and every tool declares its annotations
+
+`delete_project`, `unlock_project_agent`, `delete_file`, `purge_origin`, `git_discard`, `git_revert`,
+`disconnect_github`, `revoke_access_token` and `publish_production` take `confirm` (`z.boolean()`,
+described, NO default), and `manage_app_user`'s `remove` and `manage_app_group`'s `delete` take it as an
+optional field the action requires; each answers "Not done … ask the user" without a single platform
+call unless it is `true` — the confirmation is the TOOL's, a person agreed before the route is reached.
+`serverInstructions` names the same set in one sentence. `delete_project` also
+REQUIRES `projectId` (`z.string().min(1)`, never the attached project by default) and, on a
+session-capable host attached to that project, closes the session first (`deps.release`, else
+`currentSession()?.close()`) and `deps.detach()`es, then `api.project.destroy` → `{ id, name, alias }`;
+on a local target it says the files and `.viable/` stay. `unlock_project_agent` (`api.project.unlock`
+→ `{ locked, task?, lockedAt? }`) defaults to the attached project and says when a run took the lock
+straight back.
+
+`ToolDefinition.annotations` is REQUIRED — the MCP tool annotations a host shows the person approving
+a call — and `registerCatalogue` passes it through beside the title, description and input schema.
+The shapes live in `tools/consts.local.ts`: `READ_ONLY` (reads, statuses, descriptions), `WRITE`
+(additive changes, the task and question loop), `IDEMPOTENT_WRITE` (setting a value: settings,
+`update_story`, `reset_story`, `attach_project`, `stop_local`, `set_local_service`) and
+`DESTRUCTIVE` (`delete_project`, `delete_story`, `purge_origin`, `reinitialize_project`, `git_revert`,
+`publish_production` (it replaces the live site), and — also idempotent — `unlock_project_agent`,
+`write_file` (it replaces a file whole), `delete_file`, `git_discard`, `disconnect_github`,
+`revoke_access_token` and `production_control` (it takes the live site down or restarts it); `preview_control` and
+`link_github_origin` are `IDEMPOTENT_WRITE`); `openWorldHint` is `false` everywhere except
+`convert_project`, which may clone a repository from the internet. A new tool picks one; a read is
+never destructive (`catalogue.spec.ts` pins the destructive set).
+
+## A cloud target's files and preview are the web editor's and sandbox card's own calls
+
+All cloud-target only (`toolHostHelper.cloudTarget`), on both hosts; a local project's tree and
+process are on the user's machine, read and run directly.
+
+- **`list_files { kind?, category? }`** — no kind (or `sources`): `files.list`, the generated
+  sources; `stories` / `meta` / `all`: `files.meta` (the story documents, the specifications beside
+  the sources narrowed by `category` — sent with `meta` only — or every metadata document).
+- **`read_file { path }`** answers the content as the text, cut at `FILE_READ_CAP` (100 000
+  characters) with a note naming the full length; `structured` carries `path`, `length`, never the
+  content twice.
+- **`write_file { path, content }`** replaces the whole file; **`delete_file { path, confirm }`**
+  refuses without `confirm: true` and makes no call. Both answer "the preview was rebuilt" or,
+  when `buildWarning` came back, that the rebuild FAILED and the last good build still serves — the
+  change stands either way. A protected file (manifests, build configuration) is refused by the
+  platform as `target-integrity:<path> … cannot be edited`, phrased as that one file
+  (`PROTECTED_FILE_DETAIL`), never as the tree failing its shape check.
+- **`preview_control { action: start | restart | stop | rebuild }`** → `sandbox.run` / `restart` /
+  `stop` / `rebuild`, answered with the workload line (`statusTextHelper.renderSlot`); a rebuild
+  goes on after the answer under the project lock. Never the production site.
+- **`list_slots`** (any host, any target) — every workload of the organization, one line each plus
+  its warnings. `viable-slot:not-found:` is phrased as a project with no workload yet.
+
+## A cloud target's git and its GitHub connection are the web Git dialog's own calls
+
+All cloud-target only (`toolHostHelper.cloudTarget`), on both hosts — a local project's repository is
+on the user's machine; group `git` in `PLATFORM_CATALOGUE.capabilities`; rendered by `gitToolHelper`
+(`tools/git.ts`, words in `consts.local.ts`: `GITHUB_STATUS_WORDS`, `GIT_SYNC_WORDS`). Members
+`ConnectorApi.git.{status,log,commit,discard,revert}` and `ConnectorApi.github.{authorize,publish,push,
+pull,disconnect,repos,branches,link}` (`connect.git.*` / `connect.github.*`, the library's mirror types
+`ConnectGit*` / `ConnectGithub*` — no `@owlmeans/git` dependency, statuses are strings).
+
+- **`git_status`** (read-only): the connection line (login → repository · status words) and the
+  tree — branch, head, ahead/behind, the first `GIT_FILES_SHOWN` changed paths. `git: null` reads as
+  "the preview is not ready" with `preview_control { action: start }` as the cure — never as an error.
+- **`git_history`** (read-only), **`git_commit { message }`** (`WRITE`, trimmed, ≤ 200),
+  **`git_discard { confirm }`** and **`git_revert { hash, confirm }`** (`DESTRUCTIVE`; refused without
+  `confirm: true` before any call; the hash is lower-cased and must match `^[0-9a-f]{7,40}$`; a revert
+  is a NEW commit and its `dbWarning` is printed).
+- **`connect_github`** answers the `authorizeUrl` the USER opens in the browser where they are signed
+  in; GitHub returns to the OwlMeans web application, which completes it. No tool, route or member
+  completes an authorization (`git-tools.spec.ts` pins it), and nothing ever carries the token.
+- **`publish_to_github { repoName?, private? } | { owner, repo }`** (`WRITE`, in `answering`: the
+  `conversion:publish-origin` refusal is the tool's own sentence); half an existing repository is
+  refused locally. **`github_sync { direction: push | pull }`** answers a refused outcome
+  (`conflict`, `rejected`, `no-remote`, `auth-failed`) as `isError` with the cure; a pull rebuilds.
+- **`github_repositories { owner?, repo?, page?, search? }`** (read-only): repositories, or — with
+  both `owner` and `repo` — that repository's branches; one of the two alone is refused locally.
+  **`link_github_origin { owner, repo, branch? }`** (`IDEMPOTENT_WRITE`) records where an import comes
+  FROM. **`disconnect_github { confirm }`** (`DESTRUCTIVE`, idempotent).
+- The writes map to `git_status` for the handover's domain status (`STATUS_TOOL_OF`). The refusals
+  `github:not-connected`, `github:not-published` and `oauth:invalid-or-expired-state` name
+  `connect_github` / `publish_to_github`; `git-busy:` is the agent holding the project.
+- Specs: `tests/git-tools.spec.ts`, `remote.spec.ts` (the thirteen routes and their closed bodies).
+
+## A cloud target's production site is the web Publish dialog's own calls
+
+All cloud-target only (`toolHostHelper.cloudTarget`), on both hosts — a local project is deployed from
+its own machine; group `production` in `PLATFORM_CATALOGUE.capabilities`; rendered by
+`productionToolHelper` (`tools/production.ts`, words in `consts.local.ts`: `PRODUCTION_STATUS_WORDS`,
+`DOMAIN_STATUS_WORDS`, the actions `PRODUCTION_ACTIONS`, `DOMAIN_ACTIONS`). Members
+`ConnectorApi.production.{status,publish,restart,stop,domain.{attach,verify,detach},auth,setRedirects}`
+(`connect.production.*`). Never the preview — that is `preview_control`.
+
+- **`production_status`** (read-only): never published, or the status words and — when live — the
+  address (the custom domain once `linked`, else the generated host), the warnings, the domain line,
+  and the next step.
+- **`publish_production { confirm }`** (`DESTRUCTIVE`; refused without `confirm: true` before any
+  call) — the publish starts and goes on after the answer; **`production_control { action: restart |
+  stop }`** (`DESTRUCTIVE`, idempotent). Both in `answering`: the published-sites `limit-exhausted:`
+  refusal (a stopped site's restart takes a unit too) is the tool's own sentence.
+- **`custom_domain { action: attach | verify | detach, domain? }`** (`WRITE`, in `answering`): an attach
+  needs `domain` (trimmed, lower-cased) and answers the two DNS records the USER creates
+  (`CNAME <domain> → <cnameTarget>`, `CNAME <dcvName> → <dcvValue>`) with the provider's state of each,
+  until the domain is `linked`; `null` from an attach is "publish first". `viable-domain:taken:` and
+  `capability-required:feature:domain--custom` are phrased.
+- **`production_auth`** (read-only) prints the issuer, the client id and the redirect addresses — the
+  client secret only as set or not (`secretSet`; the user reads it in the web application).
+  **`set_production_redirects { redirects }`** (`IDEMPOTENT_WRITE`) replaces the whole list, applied on
+  the next publish.
+- The writes map to `production_status` for the handover (`STATUS_TOOL_OF`).
+- Specs: `tests/production-tools.spec.ts`, `remote.spec.ts` (the nine routes and their closed bodies).
+
+## The generated app's sign-in is the owner console's own calls
+
+Any host and any target (`toolHostHelper.anyHost`) — the IAM is the PLATFORM's, a local project's app
+included; group `app-sign-in` in `PLATFORM_CATALOGUE.capabilities`; checked and rendered by
+`iamToolHelper` (`tools/iam.ts`: `missing`, `grantBody`, `render*`; actions `APP_USER_ACTIONS`,
+`APP_GRANT_ACTIONS`, `APP_ORGANIZATION_ACTIONS`, `APP_GROUP_ACTIONS`, `IAM_ROWS_SHOWN`, `IAM_EXTERNAL`
+in `consts.local.ts`). Members `ConnectorApi.iam.{organizationUsers, permissions, setDefault,
+grants.*, users.*, organizations.*, groups.*}` over `connect.iam.*` and `connect.account.iam.users`;
+the bodies and answers are the library's owner-console types (`Iam*`, `@owlmeans/viable-common`). Every
+tool takes `scope` (`ephemeral` | `production`, absent = the preview's client): a read sends it in the
+query, a write — a removal included — in its body.
+
+- Reads (`READ_ONLY`): **`app_users { projectId?, scope?, all? }`** (`all: true` = every end user of
+  every app of the organization, read-only), **`app_permissions`** (definitions + tenancy flags),
+  **`app_grants { profileId? | group? + entitySlug }`**, **`app_organizations { entitySlug? }`** (members
+  of one when a slug is named), **`app_groups { entitySlug, group? }`** (members of one when a key is named).
+- Writes: **`set_app_permission_default { permission, defaultClass?, entityScoped? }`**
+  (`IDEMPOTENT_WRITE`); `DESTRUCTIVE`: **`manage_app_user { action: invite | update | remove }`**,
+  **`manage_app_grant { action: assign | revoke, permission, profileId | group + entitySlug,
+  resources?, mode? }`**, **`manage_app_organization { action: rename | add-member | update-member |
+  remove-member, entitySlug }`**, **`manage_app_group { action: create | update | delete | add-members |
+  remove-members, entitySlug, group }`**.
+- **Action-specific fields are checked BEFORE any call** (`iamToolHelper.missing`): an invite needs
+  `email`, an update something to change, a grant exactly ONE subject (a person, or a group with its
+  organization's `entitySlug` — never both), a group's update `title` or the WHOLE `bundles` list, the
+  members' moves `profileIds`; **`remove` and `delete` need `confirm: true`**. A refusal is `isError`
+  with nothing called.
+- A listing answered `external: true` prints `IAM_EXTERNAL` (the app's sign-in is managed in a console
+  of its own), never "nobody". `iam-refused:` (a managed group or definition, the last owner) is phrased
+  by `refusalHelper`; every tool runs in `answering`. The writes map to their read for the handover
+  (`STATUS_TOOL_OF`). No staff-synchronization tool.
+- Specs: `tests/iam-tools.spec.ts` (hosts, annotations, every refused shape with no call, the calls
+  made), `remote.spec.ts` (scope placement, the account-base listing).
+
+## What the browser streams is read by cursor
+
+The browser's sockets have no connector twin; their content does, as three read-only cursor feeds
+(group `feeds` in `PLATFORM_CATALOGUE.capabilities`, rendered by `feedToolHelper` in `tools/feed.ts`):
+**`project_activity { projectId?, after?, limit?, wait?, detail? }`** and **`notifications { after?,
+wait? }`** on any host, **`file_changes { projectId?, after?, wait? }`** on a cloud target. Members
+`ConnectorApi.project.activity`, `account.notifications`, `files.changes` over `connect.project.activity`,
+`connect.account.notifications`, `connect.files.changes`; answers `ConnectFeedPage { cursor, entries,
+gap }` (`ConnectFileChanges` adds `watching`).
+
+- **The cursor is ECHOED** in every answer's structured content (`cursor`, `gap`, `entries`), and the
+  text ends with the exact call that reads on (`feedToolHelper.nextCall`: the same arguments, `after:
+  <cursor>`, `wait: 20`). Without `after` a read answers the latest entries; an empty feed answers
+  `CONNECT_FEED_START`. A `gap` line sends the parent to the domain status, never to a replay.
+- `wait` is at most `CONNECT_FEED_WAIT_MAX_SEC` (20 s) — inside the 45 s deadline; the remote API gives
+  a held read ten seconds beyond its wait (`feedTimeout`) and sends only the query fields named.
+- `detail: thinking` adds the model's own words (coalesced excerpts); the default `progress` leaves
+  them out. One line per entry, folded and cut at `FEED_LINE_MAX`; a toast is phrased from
+  `FEED_TOAST_WORDS`, never shown as its marker. `file_changes` says when nothing watches the tree
+  (`watching: false` — `preview_control { action: start }`).
+- Every feed tool runs in `answering`. Specs: `tests/feed-tools.spec.ts` (hosts, annotations, the
+  echoed cursor and the read-on call, the gap and empty answers, the toast phrasing, `watching`, a
+  refusal answered, every kind one bounded line), `remote.spec.ts` (paths, queries, deadlines).
+
 ## The project settings are ONE record, and the platform is the only validator
 
 `project_settings` and `update_project_settings` read and change what a person edits on the project's
 control panel — the copyright line, the organization name, the Terms and Privacy links and the Google
-tag — through `ConnectorApi.projectBranding(projectId)` and
-`saveProjectBranding(projectId, patch)` (`connect.project.branding.get` / `.save`,
-`ConnectProjectBranding` / `ConnectProjectBrandingSave` from `@owlmeans/viable-common`).
+tag — through `ConnectorApi.projectBranding(projectId, scope?)` and
+`saveProjectBranding(projectId, patch, scope?)` (`connect.project.branding.get` / `.save`,
+`ConnectProjectBranding` / `ConnectProjectBrandingSave` from `@owlmeans/viable-common`). Every
+settings and configuration tool takes `scope` (`CONFIG_SCOPES`: `ephemeral` or `production`) —
+production's own set, taken at its next Publish (`settingsHelper.settingsReach(target, scope)` says so).
 
 - **A save is a PATCH.** `settingsHelper.settingsPatch` keeps exactly the settings the call named, trimmed; an
   omitted one keeps its stored value, and an EMPTY string is sent as given — for the Google tag that
@@ -226,6 +502,8 @@ tag — through `ConnectorApi.projectBranding(projectId)` and
   and saves nothing. The answer is the merged record the platform stored, led by where the change
   shows (`settingsHelper.settingsReach`): a cloud preview is rebuilt, production takes it at the next Publish; a
   local project gets it in its `.env` and `run_local` builds with it.
+- **`useOrganizationDefaults: true`** calls `copyOrganizationBranding` instead — ALONE: with any
+  other setting the tool refuses before calling anything, so one call never asks for two pushes.
 - **The connector states the rules and checks none of them.** `PROJECT_SETTINGS[].rule` is the web
   save's validation in words — never-empty copyright and organization; an `https://` address without
   credentials or a single-slash path on the application (`/terms`, `/privacy` are the generated
@@ -240,8 +518,53 @@ tag — through `ConnectorApi.projectBranding(projectId)` and
   answers.
 - **A relative link is annotated, never "fixed"**: `/terms` renders as "the generated Terms page", so
   a parent does not rewrite it into an absolute address that points away from the generated page.
-- **The credit switch is not reachable.** It is a paid capability with its own gated route;
-  neither the record nor the patch carries it.
+- **The credit is read here and switched elsewhere.** `ConnectProjectBranding.credit` renders as one
+  line (`settingsHelper.creditLine`: hidden; shown with the request kept until the plan includes
+  white label; shown and hideable; shown and not on the plan). `set_platform_credit { hidden }` →
+  `setPlatformCredit` is its own gated route: a plan without white label is a `capability-required:`
+  person refusal, phrased and notified inside the tool (`answering`). The patch never carries it.
+
+## Configuration variables: a backend value is never shown
+
+`project_configuration`, `update_project_configuration { backend?, frontend? }` (maps of
+NAME → value; `configHelper.configBody` turns them into the wire's `ConnectConfigValue` lists, a side
+the call did not name left out) and `recollect_configuration` (the platform's own model run) call
+`ConnectorApi.config.*`; `configHelper.renderConfiguration` prints a backend variable as `set` /
+`NOT SET` — never a value, even one an older platform sent — and a frontend variable with its public
+value, then what still needs one. A save's answer names the variables set and never echoes a value.
+Writes call `ensureSession` first. A refused name (`authen:payload:<NAME>` — malformed, named twice,
+or already declared on the other side) reads as a sentence naming it.
+
+## The organization's defaults
+
+`organization_branding`, `update_organization_branding { organizationName?, copyright? }` (a PATCH,
+trimmed; a call naming neither is refused locally) and `backfill_project_branding` call
+`ConnectorApi.account.branding.*` (`settingsHelper.renderOrganizationBranding`). A project keeps its
+own copy after creation: `update_project_settings { useOrganizationDefaults: true }` copies them in.
+
+## The person's own records: inference, tokens, consents, the intent pickup
+
+All `toolHostHelper.anyHost`, rendered by `accountHelper` (`tools/account.ts`); groups `inference`,
+`access-tokens`, `privacy`, `intent` in `PLATFORM_CATALOGUE.capabilities`.
+
+- `inference_settings { projectId? }` (read-only: the default, the attached or named project's
+  override and its effective mode, whether the plan allows `local`) and `set_inference_mode { level:
+  account | project, mode: cloud | local | inherit, projectId? }` (`inherit` = `null`, a project
+  only; an account `inherit` is refused locally). Both end with `INFERENCE_REACH`: the setting is the
+  default of the web application and the URL-configured host, never a stdio connector already
+  running, which keeps its `--llm` until restarted. A plan without the local mode is the
+  `capability-required:` person refusal, notified.
+- `list_access_tokens` (read-only, never a secret) and `revoke_access_token { tokenId, confirm }`
+  (destructive, idempotent; revoking this connector's own token signs it out). No tool creates a
+  token. A foreign id is phrased (`authorization:forbidden:token`).
+- `privacy_choices` (read-only, the SAVED answers: given / not given / never answered / wording
+  revised) and `withdraw_marketing_consent { keys | all }` (`all` reads the status and withdraws the
+  given ones; both together refused). No tool gives a consent. An unknown key is phrased
+  (`marketing-consent:unknown:`).
+- `pickup_intent { code }` — the ref, or the whole `/start?ref=…` address (`accountHelper.intentRefOf`);
+  answers the prompt and points at `create_project` once the user confirms. `viable-intent:expired:`
+  and `viable-intent:throttled:` are phrased.
+- Spec: `tests/account-tools.spec.ts`.
 
 ## Planning kits are described, then applied; the platform writes and rebuilds
 
@@ -268,11 +591,16 @@ same facts in one sentence, because it is read at the same moment by a parent th
 `describe_platform`; the two sit side by side in `platform.ts`. The pipelines' `stages` name the steps
 a run can stop at (`landing` and `legal` in init, `landing` in story development).
 
-## A balance, consent or confirmation refusal is phrased for a person, and pushed through `notify`
+## A balance, consent, confirmation or plan refusal is phrased for a person, and pushed through `notify`
 
-`refusalHelper.personRefusalPhrase(e, retry?)` (`tools/refusal.ts`) phrases the three refusals only a PERSON can
-resolve (`@owlmeans/viable-common` `connect/errors.ts`), by `instanceof`, and answers `null` for
-anything else. Both `registerCatalogue`'s catch and the conversion tools' `answering` use it, so a
+`refusalHelper.personRefusalPhrase(e, retry?)` (`tools/refusal.ts`) phrases the refusals only a PERSON can
+resolve — the three of `@owlmeans/viable-common` `connect/errors.ts` by `instanceof`, and the plan's
+two by MARKER, because `CapabilityRequired` / `LimitExhausted` are declared in `@owlmeans/payment`,
+which this package does not depend on — and answers `null` for anything else:
+`capability-required:<param|param>` → `capabilityRequiredPhrase` (the feature named from
+`CAPABILITY_LABELS`, the plan changed in Billing, nothing the parent does unlocks it) and
+`limit-exhausted:<key>:<used>/<limit>[:<ISO>]` → `limitExhaustedPhrase` (the limit, how full, the
+renewal day). Both also stand in `REFUSALS` for the stored-text path. Both `registerCatalogue`'s catch and the conversion tools' `answering` use it, so a
 conversion's balance refusal reads exactly like any other tool's:
 
 - `ConnectOutOfCredits` — rather than the raw `viable-connect:out-of-credits:...` marker, the tool
@@ -313,6 +641,16 @@ consent as what a second refusal of the confirmed call would mean); to a confirm
 be the consent and falls to `REFUSALS`. `serverInstructions` says the same in one sentence of the
 workflow paragraph.
 
+`proceed_conversion` also takes the person's edits flat — `name`, `description`, `specification`,
+`vision`, `designSystem` — and sends the ones given nested as `update` (`PROCEED_UPDATE_FIELDS`);
+the platform accepts them only with the decision that starts the extraction, and the printed repeat
+call carries them too.
+
+The integrations' refusals each have a sentence in `REFUSALS` as well: `github:not-connected`,
+`github:not-published`, `oauth:invalid-or-expired-state` (the GitHub authorization),
+`viable-domain:taken:` (a custom domain held by another project) and `iam-refused:` (the app's own
+sign-in refusing a console change on its terms).
+
 The same refusals also arrive where no class survives, and `REFUSALS` phrases them by marker:
 `viable-connect:consent-required:` (a stored run error; the URL and deadline parsed from the
 detail), `viable-connect:confirmation-required:` (`ConnectConfirmationRequired.decode` of the
@@ -322,12 +660,21 @@ markers, because the consent is what the person acts on — and, for a productio
 only an incident id (`@owlmeans/api` `ApiStatusError`), `api:client:status:428` (the consent
 sentence) and `api:client:status:402` (the balance sentence).
 
-## The session loop: serial, and free to redeliver
+## The session loop: a pull loop that never stops, a serial worker, and free to redeliver
 
-`openSession` pulls operations, answers them **one at a time**, and puts model tasks aside. Serial
-because the thing on the other end of a local operation is a filesystem the platform believes it is
-the only writer of — two concurrent template writes into one tree is not a throughput problem, it is
-a corrupted tree.
+`openSession` runs two loops. The PULL loop files model tasks and questions for the parent and hands
+every local operation (`SlotCommand`, `Configure`) to the WORKER, which answers them **one at a time**.
+Serial because the thing on the other end of a local operation is a filesystem the platform believes
+it is the only writer of — two concurrent template writes into one tree is not a throughput problem,
+it is a corrupted tree. Separate because a local command can take minutes (`bun install`), and a
+model task the platform is blocked on must still be delivered meanwhile. An operation queued or
+running on the worker is not queued again when it is redelivered. A pull that came back empty in
+under `FAST_PULL_MS` (1 s) is followed by `EMPTY_PULL_PAUSE_MS` (1.5 s) of rest.
+
+The task queue hands out the task with the earliest `expiresAt` first (a synchronous check expires
+in seconds, a run's call in minutes). `take(waitMs, signal?)` is cancellable and REMOVES an aborted
+waiter — a leftover one swallows the next item, held as outstanding and shown to nobody — and
+`available(waitMs, signal?)` waits for a queued item without consuming it.
 
 Results are remembered by operation id. A connector that reconnects is handed everything still
 outstanding, **including whatever it had already answered when the connection dropped**, and the
@@ -411,32 +758,17 @@ nothing new is queued but something is unanswered it NAMES the outstanding ids r
 them: re-handing would have a parent whose subagent is still working run the same task twice. A
 refused answer keeps the task outstanding for exactly the same reason.
 
-## The harness installer is idempotent by construction, and never writes the token
+## Extension tools come from the host, never from this package
 
-A section is replaced between `<!-- viable:begin -->` and `<!-- viable:end -->`, a JSON entry is
-merged under its own key, and a file whose content would not change is skipped. An instruction file
-belongs to its project: overwriting it to add a paragraph deletes whatever else was in it, and
-appending unconditionally grows a duplicate on every install. That is what makes `install_harness`
-safe to offer as a tool the agent may call whenever it is unsure. A configuration that is not valid
-JSON is **refused** — somebody is editing it, and overwriting would destroy every other server they
-had configured.
-
-**No file it writes contains the token**, and none REQUIRES one: a person who signed in with a browser
-has the token in `~/.owlmeans`, which the server reads itself. So each configuration references
-`VIABLE_API_TOKEN` in its harness's own syntax only where that cannot break a machine that never set
-it — claude-code's `.mcp.json` uses `${VIABLE_API_TOKEN:-}` (an unset `${VAR}` makes Claude Code refuse
-the whole file; the server ignores the empty value), Copilot's `.vscode/mcp.json` has no token prompt
-at all, and Codex's `env_vars` lists `VIABLE_API_TOKEN`, `OWLMEANS_CREDENTIALS` and `HOME` (its filtered
-environment otherwise hides the credentials file). The result is safe to commit. `WORKING_RULE` is written once and rendered
-into every harness's instruction file, so the four cannot drift into four different protocols.
-
-**The server command is written once, too.** Every harness configuration starts the connector from
-`MCP_COMMAND` in `src/harness/consts.local.ts` — viable-mcp through `npx -y`, pinned with a caret at the
-viable-mcp release, on ONE line with its `npx` so the release pin audit reads it as an install
-command and moves it with every viable-mcp bump. Never a tag (`@next` is refused by that audit) and
-never a per-harness literal: three copies spelled `@next` while the fourth carried the pin.
-`tests/harness.spec.ts` asserts all four configurations name the viable-mcp manifest's version, that no
-file contains a `vib_…` secret, and the optional-token shapes above.
+The catalogue is closed over what the SDK itself implements. A hosting process that offers more —
+the stdio connector adds `describe_harness` and `install_harness`, which write a coding agent's
+instruction, subagent and MCP files — hands them in as `ToolHost.extensions`. `catalogueHelper
+.visibleTools(host)` appends them to the catalogue and filters both by `availability`, so
+`registerCatalogue`, `renderPlatform` and `serverInstructions` treat an extension exactly like a
+built-in tool; a host that passes none offers none, and the platform catalogue's `harness` group
+renders as absent there. A group may name a tool only the catalogue or `EXTENSION_TOOLS` knows —
+`platform.spec.ts` holds that line. This package never imports a host's extension: the SDK is
+public, the agent-setup pair is not.
 
 ## The executor is the publisher's job, on somebody's laptop
 
@@ -552,7 +884,7 @@ reader looking for a database that was never configured.
 
 ## Tests
 
-`bun test ./tests` — offline: the envelope and its parser, the harness installer, the tool catalogue,
+`bun test ./tests` — offline: the envelope and its parser, the tool catalogue and its extension seam,
 the `registerCatalogue` out-of-credits, consent and planning-refusal phrasing and `notify` wiring
 (`mcp-catalogue.spec.ts`; the consent marker, the bare 428/402 statuses and a consent inside a
 commit failure in `catalogue.spec.ts`; the conversion confirmation — schemas and descriptions, the
@@ -561,12 +893,38 @@ bare 428 either side of `confirm`, the confirmed call's balance and consent refu
 boundary — in `conversion-confirmation.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
 block. The story tools run over a REAL `@owlmeans/server-planning` service (memory store, the Viable
 types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`,
-the landing mark included; the settings and planning-kit tools over a recorded `ConnectorApi` (order of
+the landing mark included; the settings, configuration, credit, organization (`configuration.spec.ts`:
+no backend value printed, the maps sent as lists, the white-label refusal phrased and notified, the
+defaults copy alone, the remote routes and scopes) and planning-kit tools over a recorded `ConnectorApi` (order of
 session and save or apply, the patch or kit body sent, the phrased refusal). `platform.spec.ts` pins that every tool a
-pipeline, feature or group names exists and every tool is in a group; `planning-wiring.spec.ts` pins
+pipeline, feature or group names exists, every tool is in exactly one group, every group has its
+`absent` sentence, and `serverInstructions` names a tool of every group a host offers and none it hides; `planning-wiring.spec.ts` pins
 the planning aliases and paths a context binds, and `remote.spec.ts` drives the remote facade, the
 settings and the kit routes through a captured transport to pin their paths and deadlines, and pins that the remote
-`ConnectorApi` has no member without a connector route and every connector alias is bound.
+`ConnectorApi` has no member without a connector route (the `files`, `sandbox` and `slot` members by
+name) and every connector alias is bound, and that a
+delegated create keeps the tool deadline and sends its `sessionId`. `call-collect.spec.ts` drives the
+transport through the same captured client (`captureTransport` replaces the context's API CLIENT, so
+the SDK's transport stays in front): the header only in the delegated mode and only on writes, a
+reused id, pending → collect → settled for a connector call and a planning execute, a settled error
+rethrown as its class, `lost` → `ConnectCallLost`, a dropped hop retried, ordinary answers untouched,
+and the handover over a call that went pending. `catalogue.spec.ts` also pins the manual story moves
+over the real planning service (order, the refusal, a late commit), `delete_project` / `unlock_project_agent`
+(no call without `confirm`, the required `projectId`, release → detach → destroy only for the attached
+project), the annotations (declared everywhere, the destructive set, passed through `registerCatalogue`)
+and the plan and integration phrasings, the cloud-only file and preview tools on both hosts with
+`list_slots` everywhere, `list_files`'s kind switch (the category only with `meta`), `write_file`
+attaching before its save and naming a failed rebuild, `delete_file` making no call without
+`confirm`, each `preview_control` action's member, and the protected-file and missing-workload
+phrasings; `conversion-confirmation.spec.ts` the proceed edits nested as
+`update` and repeated in the confirmed call; `remote.spec.ts` the delete and unlock routes. `handover.spec.ts` drives the delegated
+`registerCatalogue` over a real task queue: a task first is the answer and the submit replies with
+the call's result, a call first answers as before, an identical repeat joins the running call, a
+refused call is reported in `settled[]`, `next_task` names a call still running, and a delegated
+create detaches, opens an unattached session, sends its id and attaches the new project (none of it
+in the cloud mode). `task-queue.spec.ts` pins the cancellable take, the non-consuming availability
+and the expiry order; `session-worker.spec.ts` that a model task is delivered while a slow slot
+command runs and a redelivered command runs once.
 
 ## Depends On
 
@@ -580,7 +938,7 @@ settings and the kit routes through a captured transport to pin their paths and 
 
 ## Related
 
-- [[viable-mcp]] — the npx stdio server built on this
+- `@owlmeans/viable-mcp` — the npx stdio server built on this (closed-source; its skill ships in its own package)
 - [[auth-token]] — the credential and its carrier guard
 - [[client-planning]] · [[planning]] — the facade the story tools write through
 - `@owlmeans/llm-delegate` (`internal` monorepo, skill `llm-delegate`) — the other end of a model

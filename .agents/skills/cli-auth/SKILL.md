@@ -9,7 +9,7 @@ user-invocable: false
 **Layer:** Tooling (Node/Bun — no React, no DOM, no framework runtime)
 **Install:** `"@owlmeans/cli-auth": "^0.1.18-rc.16"` in `dependencies`
 **Contracts:** `@owlmeans/oauth` (discovery, device authorization, polling, revoke, `SignInRequired`)
-**Server half:** any API built on `@owlmeans/server-oauth`; **consumers:** `@owlmeans/viable-mcp`
+**Server half:** any API built on `@owlmeans/server-oauth`; **consumers:** `@owlmeans/viable-mcp` (closed-source, built outside this repository)
 
 ## Key Exports
 

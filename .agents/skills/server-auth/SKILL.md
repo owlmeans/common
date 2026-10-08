@@ -1,6 +1,6 @@
 ---
 name: server-auth
-description: How to use @owlmeans/server-auth — the server side of OwlMeans authentication. Two halves in one package - appendAuthService/makeAuthService, which verify Ed25519 bearer tokens on an ordinary API server, and the ./manager subpath, which IS the auth manager service (challenge, plugin registry, credential envelope, rely). Auto-invoked when importing the server auth guard, registering an auth plugin, or building the auth manager.
+description: How to use @owlmeans/server-auth — the server side of OwlMeans authentication. Two halves in one package - appendAuthService/makeAuthService, which verify Ed25519 bearer tokens on an ordinary API server, and the ./manager subpath, which IS the auth manager service (challenge, plugin registry, credential envelope, rely). Also the reCAPTCHA guest path - the plugin's verifier and policy record, and makeReCaptchaGuard, which spends a guest token once. Auto-invoked when importing the server auth guard or the reCAPTCHA guard, registering an auth plugin, or building the auth manager.
 user-invocable: false
 ---
 
@@ -31,6 +31,9 @@ An ordinary service imports the root. Only the auth manager imports `./manager`.
 | `AUTHEN_TIMEFRAME` | `15 * 60 * 1000` — challenge lifetime and anti-replay window, in ms |
 | `AuthService`, `AuthServiceAppend`, `AuthSpent` | Types |
 | `makeRelyModel`, `makeProviderRely`, `makeConsumerRely`, `RelyOptions` | The rely (wallet handshake) models |
+| `makeReCaptchaGuard(alias = RECAPTCHA_GUARD)` | The guard of a route a reCAPTCHA guest calls once — see "reCAPTCHA guests" |
+| `makeReCaptchaTokenHelper(ctx)`, `reCaptchaTokenOf(ctx)` | `inspect(req)` / `verify(token)` → `ReCaptchaGuest \| null` without spending; `spend(guest)` → `false` when spent before |
+| `ReCaptchaGuest`, `ReCaptchaCarrier`, `ReCaptchaTokenHelper` | Types: `{ credential, challenge, expiresAt }`, `{ headers? }`, the helper |
 
 ## Key Exports — `./manager`
 
@@ -38,7 +41,7 @@ An ordinary service imports the root. Only the auth manager imports `./manager`.
 |--------|-------------|
 | `makeContext(cfg, customize?)` | A server context preconfigured with the API server, API client, socket service and static `AUTH_CACHE` |
 | `main(ctx)` | Register the manager entrypoints, configure, init and listen |
-| `entrypoints` | `AUTHEN`, `AUTHEN_INIT`, `AUTHEN_AUTHEN`, `AUTHEN_RELY`, the api-config entrypoints and the reCAPTCHA siteverify entrypoint |
+| `entrypoints` | `AUTHEN`, `AUTHEN_INIT`, `AUTHEN_AUTHEN`, `AUTHEN_RELY` and the api-config entrypoints |
 | `authenticationInit`, `authenticate`, `rely` | Implementations bound to auth protocols: `init(request)` → challenge, `authenticate(credential)` → signed credential envelope, and the rely socket |
 | `plugins`, `registerPlugin(type, factory)` | The plugin registry (also on `./manager/plugins`) |
 | `appendSupervisorAuth(ctx, opts?)`, `setupInternalTokenCoguard(entrypoints, guard?)` | PK supervisor login — see the `supervisor-auth` skill |
@@ -60,7 +63,11 @@ one import.
 | `authPluginHelper.getPlugin(type, context)`, `authPluginHelper.assertType(type, plugin)` | Resolution; `getPlugin` throws `AuthUnknown(type)` for an unregistered type |
 | `makeBasicEd25519Plugin`, `makeReCaptchaPlugin`, `makeBasicRelyPlugin` | The plugin factories registered out of the box, for `AuthenticationType.BasicEd25519`, `ReCaptcha` and `RelyHandshake` |
 | `makeSupervisorPlugin(context, opts)` | The PK supervisor plugin factory |
-| `RecpatchaResponse`, `RecaptchaRequest`, `RelyRecord`, `AuthRedisResource` | Types |
+| `createReCaptchaVerifierService(alias = RECAPTCHA_VERIFIER, opts?)`, `appendReCaptchaVerifierService(ctx, alias?, opts?)` | Google siteverify: one `fetch` form POST (`opts.url` must be https, `opts.fetch` injectable, `opts.timeout` default 10 s) |
+| `makeReCaptchaPolicyModel(record)` | The `MOD_RECAPTCHA` record's policy: `hostnames()`, `minScore()`, `actions()`, `assert(answer)` |
+| `RECAPTCHA_VERIFIER`, `RECAPTCHA_SITEVERIFY_URL`, `RECAPTCHA_VERIFY_TIMEOUT` | `'re-captcha-verifier'`, `https://www.google.com/recaptcha/api/siteverify`, `10_000` |
+| `ReCaptchaResponse`, `ReCaptchaRequest`, `ReCaptchaVerifierService`, `ReCaptchaVerifierOptions`, `ReCaptchaFetch`, `ReCaptchaPluginConfig`, `ReCaptchaPolicyModel` | reCAPTCHA types |
+| `RelyRecord`, `AuthRedisResource` | Types |
 
 ## Usage
 
@@ -91,6 +98,57 @@ registerPlugin('my-method', context => ({
 }) as AuthPlugin)
 ```
 
+## reCAPTCHA guests
+
+A reCAPTCHA sign-in proves that a person solved a challenge — nothing about who they are.
+
+**Config.** One Backend plugin record `MOD_RECAPTCHA` holds the secret in `value` and the policy in
+extra string fields (`''` or absent = no check; each may be a file path the file config reader
+resolves); the browser's site key is a separate Frontend record `CMOD_RECAPTCHA`. Only Frontend
+records are advertised, so the secret and the policy never reach a browser.
+
+```ts
+plugin(cfg, { value: '/etc/master-secret/recaptcha-secret',
+  hostnames: 'example.org, example.com', minScore: '0.5', actions: 'inquiry' }, MOD_RECAPTCHA)
+clientPlugin(cfg, '/etc/app-config/recaptcha-site-key', CMOD_RECAPTCHA)
+```
+
+| Field | Check (refusal) |
+|---|---|
+| `value` | the siteverify secret; missing or `''` → `PluginMissconfigured('value')` before Google is asked |
+| — | Google's `success` (`AuthenFailed('recaptcha:<error-codes>')`, `recaptcha:unknown` without codes) |
+| `hostnames` | comma/space list; the answer's `hostname` equals an entry or is its subdomain (`recaptcha:hostname`) |
+| `minScore` | 0…1; a score-based answer with `score < minScore` (`recaptcha:score`); a checkbox answer has no score and passes; a non-number → `PluginMissconfigured('minScore')` |
+| `actions` | comma/space list; the answer's `action` must be one of them — an answer without one fails (`recaptcha:action`) |
+
+**Plugin.** `makeReCaptchaPlugin` asks the verifier registered under `RECAPTCHA_VERIFIER` (a test
+or proxy registers its own; without one the default siteverify `fetch` runs — Google is always
+https, `cfg.security.unsecure` does not apply). Google unreachable or answering garbage is
+`AuthUnavailable` (503), never a refusal. After a passing answer the credential keeps ONLY `type`,
+`role`, `userId`, `scopes`, `challenge`, `credential`, set to a guest: `GUEST_ID`, `AuthRole.Guest`,
+`[AUTH_SCOPE]`, type ReCaptcha. A posted `profileId`, `entitySlug`/`entityId`, `permissions`,
+`groups`, `expiresAt`, `source` or `publicKey` is dropped; `source` never changes the spend key.
+
+**Token.** The manager signs it as usual: an `AUTHEN_TIMEFRAME` envelope of type `re-captcha` whose
+`challenge` is the server-issued wrapped challenge (the spend key) and whose `credential` is the
+`AUTH_SRV_KEY` record's id. The browser sends it as `Authorization: RE-CAPTCHA <token>`.
+
+**Guard.** A route takes it with `guards: [RECAPTCHA_GUARD]` and `makeReCaptchaGuard()` registered
+in a context holding the `AUTH_SRV_KEY` trusted record (public key is enough) and a shared
+`AUTH_CACHE`. `reCaptchaTokenOf(ctx).inspect(req)` checks, without spending: envelope type, a TTL
+of at most `AUTHEN_TIMEFRAME`, signature and expiry, the auth record's stamp, type ReCaptcha, role
+Guest, `GUEST_ID`, a non-empty challenge. The guard then spends it — an atomic create-once of the
+challenge in `AUTH_CACHE` (Redis `SET NX`), the same key a bearer exchange and the integrated IAM's
+finalizer claim, so a token is spent once across the platform. A replay, or any failed check, is
+401. `req.auth` becomes a guest with `token: ''` and `expiresAt` = the token's expiry. Use
+`inspect` for a pre-parse check (before a large body is read); the route still needs the guard.
+
+**Never a session.** `AuthService.authenticate` (the dispatcher's bearer exchange) refuses a
+credential whose envelope or `type` is ReCaptcha (`AuthenFailed('guest')`) before spending it. A
+service that judges manager tokens itself (a finalizer) must check the method it expects — the
+token's type and its challenge's envelope type — not just the signature, since one key signs every
+method's token.
+
 ## Rules
 
 - The guard verifies a bearer token and populates `req.auth`. It decides nothing about ownership or
@@ -116,6 +174,8 @@ registerPlugin('my-method', context => ({
   `AuthenFailed('entity')`. Where no resolver is registered the value is passed through untouched.
 - Pair this package with `@owlmeans/server-auth-identity` when an external provider (Google, OIDC,
   email OTP) must map onto local account/profile/credential records.
+- A reCAPTCHA token is a guest token: only `makeReCaptchaGuard` accepts it, once; the bearer
+  exchange refuses it (see "reCAPTCHA guests").
 
 ## Depends On
 

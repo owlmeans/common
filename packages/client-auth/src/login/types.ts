@@ -189,7 +189,7 @@ export interface LoginScreenProps {
    */
   translate?: (key: string, defaultValue: string) => string
   /**
-   * The current language, for `Intl.ListFormat` and a custom document's own locale-keyed label.
+   * The current language, for `Intl.ListFormat`, locale-keyed document labels and explicit hrefs.
    *
    * A prop for the same reason `translate` is: a component that reaches for an i18n context
    * directly crashes the whole render in an app mounted without one.

@@ -21,17 +21,14 @@ export interface ToolHostHelper {
    */
   sessionCapable: (host: ToolHost) => boolean
   /**
-   * Whether the platform's own STORY and FREE-FLIGHT calls are this session's to perform.
+   * Whether this session performs the platform's model calls — every one of them: project drafting,
+   * content checks, story formatting, every run's calls and a conversion's.
    *
-   * That is the delegated mode and nothing else, and it needs two things at once — the account
-   * setting, and a connector able to drain the tasks it produces. A host that cannot hold a session
-   * can never do the draining, whatever the account setting says.
-   *
-   * It decides WORDING, never a tool list. A conversion hands its model calls to the parent by
-   * default on any connector that can hold a session, whatever the account setting says, so
-   * `next_task` / `submit_task_result` are offered on {@link ToolHostHelper.sessionCapable} instead —
-   * gated here they would leave an ordinary session with a conversion blocked on a task it has no
-   * tool to collect.
+   * That is the delegated mode and nothing else, and it needs two things at once — the delegated
+   * llm, and a connector able to drain the tasks it produces. A host that cannot hold a session can
+   * never do the draining, whatever the llm says. In the cloud mode the platform performs all of
+   * them, so the task loop (`next_task` / `submit_task_result`) is offered on exactly this predicate,
+   * and so is the handover a blocked tool answers with.
    */
   performsModelTasks: (host: ToolHost) => boolean
 }

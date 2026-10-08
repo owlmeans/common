@@ -30,19 +30,17 @@ export const renderPlatform = (catalogue: PlatformCatalogue, host: ToolHost): st
         ? 'the sources live on this machine'
         : 'the sources live in a platform slot'
     }), llm=${host.llm} (${
-      // Read off the offered set FIRST, and only then off the mode. A host that cannot hold a
-      // session cannot collect a task whatever the account setting says — and the setting is
-      // `local` there often enough (an entitled account gets it on the URL host too) that
-      // branching on the mode first told such a parent to poll a `next_task` it was never
-      // offered, which it reports as a broken server. Above that floor a conversion delegates to
-      // any session that can hold one, so a `cloud` session that CAN collect must not be told
-      // the platform performs everything — it would stop polling.
-      !has('next_task')
-        ? 'the platform performs its own model calls — this session cannot collect one'
+      // Read off the offered set, never off the mode alone. A host that cannot hold a session
+      // cannot collect a task whatever the account setting says — and the setting is `local` there
+      // often enough (an entitled account gets it on the URL host too) that branching on the mode
+      // told such a parent to poll a `next_task` it was never offered, which it reports as a
+      // broken server. Where the loop IS offered, every model call is the parent's.
+      has('next_task')
+        ? 'every model call the platform makes for this session is yours to perform — project'
+          + ' drafting, content checks and formatting included'
         : host.llm === ConnectLlm.Local
-          ? 'the platform\'s model calls are yours to perform'
-          : 'the platform performs its own model calls, except a conversion\'s — those are yours'
-            + ' by default'
+          ? 'the platform performs its own model calls — this session cannot collect one'
+          : 'the platform performs every model call itself, a conversion\'s included'
     }).`,
     '',
     'WHAT IT RUNS',

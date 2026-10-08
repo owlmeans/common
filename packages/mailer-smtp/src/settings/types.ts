@@ -11,6 +11,9 @@ export interface SmtpSettingsModel {
    * the volume that makes pooling worth that.
    */
   toTransportOptions: () => SMTPTransportOptions
-  /** Translate a provider-agnostic message into nodemailer's envelope, applying the config defaults. */
+  /**
+   * Translate a provider-agnostic message into nodemailer's envelope, applying the config defaults.
+   * Attachments are handed over as decoded bytes with their name and declared MIME type.
+   */
   toMailOptions: (message: MailMessage) => SendMailOptions
 }

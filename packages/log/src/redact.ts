@@ -41,6 +41,10 @@ export const createRedactHelper = (): RedactHelper => {
         return '[…]'
       }
       seen.add(object)
+      // Bytes are content (a file, an upload, a raw body): a record says how many, never which.
+      if (ArrayBuffer.isView(object) || object instanceof ArrayBuffer) {
+        return `[${object.constructor?.name ?? 'binary'} ${object.byteLength} bytes]`
+      }
       if (Array.isArray(object)) {
         const items = object.slice(0, MAX_ITEMS).map(item => redact(item, depth + 1, seen))
         return object.length > MAX_ITEMS ? [...items, `… ${object.length - MAX_ITEMS} more`] : items

@@ -29,10 +29,23 @@ export interface RefusalHelper {
    */
   unconfirmedConversionPhrase: (retry: string) => string
   /**
-   * The three refusals only a PERSON can resolve — the balance, the EU spend consent and a
-   * conversion's confirmation — in the words the model relays to them, or `null` for anything else.
-   * Matched by class: their fields travel packed in the message and are rebuilt by
-   * `finalizeUnmarshal()`. `retry` is the confirmation's call to repeat, where the caller knows it.
+   * What the model tells a PERSON when the organization's plan lacks the capability an action
+   * needs (`capability-required:<param|param>`): which feature, and that the plan is changed in the
+   * browser. Nothing a parent does unlocks it.
+   */
+  capabilityRequiredPhrase: (params: string) => string
+  /**
+   * What the model tells a PERSON when one of the plan's limits has no room left
+   * (`limit-exhausted:<key>:<used>/<limit>[:<resets at>]`): which limit, how full, when it renews.
+   */
+  limitExhaustedPhrase: (packed: string) => string
+  /**
+   * The refusals only a PERSON can resolve — the balance, the EU spend consent, a conversion's
+   * confirmation, a capability the plan lacks and a limit with no room — in the words the model
+   * relays to them, or `null` for anything else. The first three are matched by class (their fields
+   * travel packed in the message and are rebuilt by `finalizeUnmarshal()`); the plan's two by their
+   * marker, because their classes are declared in a package this one does not depend on. `retry` is
+   * the confirmation's call to repeat, where the caller knows it.
    */
   personRefusalPhrase: (e: unknown, retry?: string) => string | null
   /**

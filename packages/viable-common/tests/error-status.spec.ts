@@ -14,6 +14,7 @@ const DECLARED: Record<string, number | undefined> = {
   ConnectError: undefined,
   ConnectSessionNotFound: 404,
   ConnectOpUnknown: 404,
+  ConnectCallLost: 410,
   ConnectSessionGone: 409,
   LocalSlotUnsupported: 409,
   ConnectOpRefused: 422,
@@ -42,7 +43,7 @@ describe('viable-common refusals — declared HTTP statuses', () => {
     expect(classes.map(([name]) => name).sort()).toEqual(Object.keys(DECLARED).sort())
   })
 
-  test('balance 402, an absent target 404, a conflicting state 409, refused content 422, a consent or a confirmation only a person gives 428; faults nothing', () => {
+  test('balance 402, an absent target 404, a conflicting state 409, a lost outcome 410, refused content 422, a consent or a confirmation only a person gives 428; faults nothing', () => {
     for (const [name, Class] of classes) {
       expect([name, statusOf(new Class('x'))]).toEqual([name, DECLARED[name]])
     }

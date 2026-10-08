@@ -1,6 +1,6 @@
 import type { JSONSchemaType } from 'ajv'
 import { ProjectArea } from '../areas/consts.js'
-import { ConnectLlm, CONNECT_INQUIRY_MAX_TEXT } from '../connect/consts.js'
+import { CONNECT_INQUIRY_MAX_TEXT } from '../connect/consts.js'
 import { ModelRole } from '../execution/consts.js'
 import {
   ArchitectureCase, ConversionStage, OriginKind, OriginState, PurposeEvidenceSource, StackFamily, StackId,
@@ -13,8 +13,7 @@ import type { SeedDetection } from './census/types.js'
 import type { ArchitectureVerdict, StackConfirmation } from './detection/types.js'
 import type { ConversionEstimate, StoryEstimateBand } from './estimate/types.js'
 import type {
-  ConversionAnswer, ConversionInventorySummary, ConversionStackRef, ConversionStructure, ConverterLlmBody,
-  ConverterProjectLlmBody
+  ConversionAnswer, ConversionInventorySummary, ConversionStackRef, ConversionStructure
 } from './record/types.js'
 import type { TaxonomyEntry, TaxonomyEntryList, TaxonomyRoleList } from './taxonomy/types.js'
 import type { OriginProof, ProjectOrigin } from './types.js'
@@ -34,7 +33,7 @@ import type { OriginProof, ProjectOrigin } from './types.js'
  * `null` and the `enum` check then refuses the very same value, so the field can only ever be
  * omitted — never sent empty. Absence and `null` are not interchangeable on either side of this
  * package: a provider's structured output writes an unset optional as `null`, and a wire body
- * where `null` MEANS something (`ConverterProjectLlmBody.llmMode` — "inherit the profile's
+ * where `null` MEANS something (`ConnectProjectLlmBody.llmMode` — "inherit the profile's
  * setting") cannot express it any other way. So every `enum` beside a `nullable: true` is written
  * `[...Object.values(X), null]`, which `JSONSchemaType` types as `readonly (T | null)[]` for an
  * optional member and therefore needs no cast. `tests/convert.spec.ts` walks every exported
@@ -648,19 +647,4 @@ export const ProjectOriginSchema = {
   required: ['kind'],
   additionalProperties: false,
 } as unknown as JSONSchemaType<ProjectOrigin>
-
-export const ConverterLlmBodySchema = {
-  type: 'object',
-  properties: { llmMode: { type: 'string', enum: Object.values(ConnectLlm) } },
-  required: ['llmMode'],
-  additionalProperties: false,
-} as unknown as JSONSchemaType<ConverterLlmBody>
-
-/** `null` is a value here, not an absence: it means "inherit the profile's setting". */
-export const ConverterProjectLlmBodySchema = {
-  type: 'object',
-  properties: { llmMode: { type: 'string', enum: [...Object.values(ConnectLlm), null], nullable: true } },
-  required: ['llmMode'],
-  additionalProperties: false,
-} as unknown as JSONSchemaType<ConverterProjectLlmBody>
 

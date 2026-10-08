@@ -137,5 +137,11 @@ export const PROFILE_QUERY = 'profile'
 export const MOD_RECAPTCHA = '_external:re-captcha'
 export const CMOD_RECAPTCHA = `_client-${MOD_RECAPTCHA.slice(1)}`
 
+/**
+ * The guard of a route a reCAPTCHA-proven guest may call once: `Authorization: RE-CAPTCHA <token>`,
+ * the token the auth manager's reCAPTCHA plugin issued (`makeReCaptchaGuard` in server-auth).
+ */
+export const RECAPTCHA_GUARD = 'guard:re-captcha'
+
 export const GUEST_ID = '__guest'
 export const RELY_3RD = 'rely'

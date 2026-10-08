@@ -10,7 +10,7 @@ import { TOKEN_UPDATE } from '@owlmeans/auth-common'
 import { INCIDENT_ID_HEADER } from './utils/consts.js'
 import { DENIAL_KIND_HEADER } from '@owlmeans/api'
 import { logger } from '@owlmeans/log'
-import { fastifyLogger } from './utils/log.js'
+import { fastifyLogUtils } from './utils/log.js'
 
 import Fastify from 'fastify'
 import type { FastifyRequest } from 'fastify'
@@ -41,12 +41,16 @@ ajvErrors(ajv, { singleError: true })
 const http = logger('http')
 
 /**
- * Fastify logging through `@owlmeans/log`. Fastify's own request/response lines are dropped by the
- * adapter: a request is a debug record written once from `onResponse` (below), and a failed one is
- * classified by `handleError`, so an info-level process is not flooded with every call it serves.
+ * Fastify logging through `@owlmeans/log`, never with what a caller sent. The adapter writes every
+ * record's data through `safeData` (no body, raw body, multipart bytes, headers, cookies or query);
+ * the log controller drops Fastify's per-request pair — a request is a debug record written once
+ * from `onResponse` (below) — and logs a request Fastify itself refuses (a schema-invalid body, an
+ * unparsable payload, a size limit) like `handleError` logs a failed handler: method, path, status,
+ * error code and message.
  */
 const createFastify = () => Fastify({
-  loggerInstance: fastifyLogger(http),
+  loggerInstance: fastifyLogUtils.logger(http),
+  logController: fastifyLogUtils.controller(),
   bodyLimit,
 })
 
@@ -88,8 +92,7 @@ export const createApiServer = (alias: string): ApiServer => {
       if (http.enabled('debug')) {
         // The path only: a query string can carry a token.
         http.debug('request', {
-          method: request.method, path: request.url.split('?')[0], status: reply.statusCode,
-          ms: Math.round(reply.elapsedTime),
+          ...fastifyLogUtils.requestOf(request), status: reply.statusCode, ms: Math.round(reply.elapsedTime),
         })
       }
       done()

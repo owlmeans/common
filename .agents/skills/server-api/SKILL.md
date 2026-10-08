@@ -113,13 +113,27 @@ than reaching through `request.original` in application code.
 
 ## Logging
 
-The server logs through `@owlmeans/log`, not a second pino: Fastify gets a pino-shaped adapter as its
-`loggerInstance` (scope `http`) with its own request/response lines disabled. A request is one `debug`
-record from `onResponse` (method, path without the query, status, ms). A failed request is logged once,
-in `httpErrorHelper.handleError`, by what it means: **5xx → `error`** (the error with its stack and the incident id),
-**403 → `warn`, `event: 'access.forbidden'`**, 401 → `debug`, `event: 'auth.refused'`, any other 4xx →
-`debug`. The level and format come from `cfg.log` (`/log`); access lines at info are
-`cfg.log.debug: 'http'`.
+The server logs through `@owlmeans/log`, not a second pino, and **never with what a caller sent**: a
+request body, its raw form (`rawBody`), multipart fields and file bytes, headers (authorization,
+cookies) and query strings never reach a record. Two seams in `utils/log.ts` (`fastifyLogUtils`) hold
+that for every record Fastify or a plugin writes:
+
+| Seam | What it does |
+|---|---|
+| `loggerInstance` — the pino-shaped adapter (scope `http`) | every record's data passes `safeData`: a request object becomes `{ method, path }`, a reply `{ statusCode }`, bytes `[Buffer N bytes]`, any other class instance `[Name]`; the keys `body`, `rawBody`, `payload`, `files`, `file`, `headers`, `rawHeaders`, `query`, `querystring`, `cookies`, `cookie`, `authorization` are dropped at every depth (a number or boolean under them stays); every string — the message too — loses the query of a URL it names. Fastify's own pino serializers are ignored |
+| `logController` — a subclass of Fastify's `LogController` (5.12+; Fastify accepts only an instance of its class) | no per-request pair; a request the default error handler answers — a body the route schema refuses, an unparsable payload, a size or multipart limit, an error thrown by an intermediate's `preHandler` — goes to `failure`; a missing route is one debug `Route not found` with method and path |
+
+A request is one `debug` record from `onResponse` (method, path without the query, status, ms). A
+failed request is logged once — by `httpErrorHelper.handleError` for a handler's error, by the log
+controller for one Fastify answers itself — through `fastifyLogUtils.failure`, by what its status
+means: **5xx → `error`** (the error with its stack, the incident id when there is one), **403 → `warn`,
+`event: 'access.forbidden'`**, 401 → `debug`, `event: 'auth.refused'`, any other 4xx → `debug`
+`Request refused` with `code` (`FST_ERR_VALIDATION`, …) and message. Method, path and status only — a
+schema refusal therefore writes nothing at info. The response a refusal answers is Fastify's own
+(`{ statusCode, code, error, message }`), unchanged. The level and format come from `cfg.log`
+(`/log`); access lines at info are `cfg.log.debug: 'http'`. `tests/log-redaction.spec.ts` posts a
+schema-refused JSON and multipart body with a marker, an authorization header, a cookie and a query
+token, and asserts no record and no written line holds any of them.
 
 ## Error exposure
 
