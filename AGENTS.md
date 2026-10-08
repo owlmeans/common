@@ -87,7 +87,7 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 | Client (platform-agnostic) | `client-*` (`client-iam` and `client-auth` pull in the web layer) |
 | Web | `web-*` (incl. `web-log`), `astro`; LEGACY `mui-panel`, `mui-oidc-rp` (maintain only) |
 | Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource` |
-| AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `viable-common`, `viable-log`, `viable-sdk`, `viable-mcp` |
+| AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `viable-common`, `viable-log`, `viable-sdk` |
 | Mail | `mailer`, `mailer-smtp`, `server-mailer-mailgun` |
 | Domain | `oidc`, `iam`, `payment`, `consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `planning` |
 | Not framework | `_tpl`, `test`, `test-auth`, `test-integration`, `test-ui` |

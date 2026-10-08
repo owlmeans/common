@@ -1,6 +1,6 @@
 ---
 node: viable
-scope: "packages/viable-common/**, packages/viable-sdk/**, packages/viable-mcp/**"
+scope: "packages/viable-common/**, packages/viable-sdk/**"
 updated: 2026-10
 ---
 
@@ -8,8 +8,10 @@ updated: 2026-10
 
 Three packages that let something outside the OwlMeans Viable platform drive it:
 `viable-common` (runtime-free contracts), `viable-sdk` (the connector SDK, Node/Bun tooling), and
-`viable-mcp` (the `npx` stdio MCP server around the SDK). The platform lives in the `viable`
-product repo, which consumes all three. Related: [[llm]], [[agent]], [[versioning]].
+`viable-mcp` (the `npx` stdio MCP server around the SDK). `viable-mcp` and the agent-setup tools
+(`@owlmeans/viable-harness`) moved on 2026-10-07 to the closed-source `closed` repo, which links this
+one; the SDK reaches them only through `ToolHost.extensions`, never by import. The platform lives in
+the `viable` product repo, which consumes all three. Related: [[llm]], [[agent]], [[versioning]].
 
 ## Facts
 

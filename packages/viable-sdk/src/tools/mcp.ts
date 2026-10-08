@@ -86,7 +86,9 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     'the account (inference_settings, list_access_tokens, privacy_choices, pickup_intent)',
     'the generated application\'s own users and permissions (app_users, app_permissions, app_groups)',
     `activity feeds (project_activity, notifications${cloud ? ', file_changes' : ''})`,
-    'this agent\'s own setup (describe_harness)',
+    ...(catalogueHelper.visibleTools(host).some(tool => tool.name === 'describe_harness')
+      ? ['this agent\'s own setup (describe_harness)']
+      : []),
   ]
   const lines = [
     'This server connects you to the OwlMeans Viable platform, which builds full-stack web'

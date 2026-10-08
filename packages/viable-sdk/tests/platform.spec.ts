@@ -4,8 +4,8 @@ import { ConnectHarness, ConnectLlm, ConnectTarget } from '@owlmeans/viable-comm
 import { catalogue, catalogueHelper } from '../src/tools/catalogue.js'
 import { serverInstructions } from '../src/tools/mcp.js'
 import { renderPlatform } from '../src/tools/platform.js'
-import { PLATFORM_CATALOGUE, ToolHostKind } from '../src/tools/consts.js'
-import type { PlatformCatalogue, ToolHost } from '../src/tools/types.js'
+import { EXTENSION_TOOLS, PLATFORM_CATALOGUE, ToolHostKind } from '../src/tools/consts.js'
+import type { PlatformCatalogue, ToolDefinition, ToolHost } from '../src/tools/types.js'
 
 const host = (patch: Partial<ToolHost> = {}): ToolHost => ({
   kind: ToolHostKind.Stdio,
@@ -49,7 +49,7 @@ describe('viable-sdk — describe_platform', () => {
   })
 
   test('every tool the catalogue names is a tool that exists', () => {
-    const known = new Set(catalogue.map(tool => tool.name))
+    const known = new Set([...catalogue.map(tool => tool.name), ...EXTENSION_TOOLS])
 
     for (const pipeline of PLATFORM_CATALOGUE.pipelines) {
       expect(pipeline.startedBy.length).toBeGreaterThan(0)
@@ -174,9 +174,27 @@ describe('viable-sdk — describe_platform', () => {
     expect(rendered).toContain('NOT IN THIS SESSION')
     expect(rendered).toContain('this server holds no session')
     expect(rendered).toContain('not on this machine')
+    // The agent-setup group is an extension's: a host that adds none renders it as absent.
+    expect(rendered).toContain('this server writes no files')
+  })
+
+  test('an extension\'s tools are offered by their own availability', () => {
     // A group with one usable tool is still offered — narrowed to that tool, not hidden.
+    const extension = (name: string, availability: ToolDefinition['availability']): ToolDefinition => ({
+      name, title: name, description: name, input: {}, availability,
+      annotations: {}, run: async () => ({ text: name }),
+    })
+    const extended: ToolHost = {
+      ...url,
+      extensions: [extension('describe_harness', () => true), extension('install_harness', h => h.hasExecutor)],
+    }
+    const rendered = renderPlatform(PLATFORM_CATALOGUE, extended)
+
     expect(rendered).toContain('describe_harness')
     expect(rendered).not.toContain('install_harness')
+    expect(catalogueHelper.visibleTools(extended).map(tool => tool.name)).toContain('describe_harness')
+    expect(serverInstructions({ host: extended })).toContain('describe_harness')
+    expect(serverInstructions({ host: url })).not.toContain('describe_harness')
   })
 
   test('what the session CAN drive is named with its tools', () => {

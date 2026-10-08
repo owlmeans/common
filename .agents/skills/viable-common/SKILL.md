@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.46"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.47"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -54,8 +54,9 @@ Format dates in the consumer's locale, keeping policy text as placeholders rathe
 
 The Platform accepts `terms` and `platform-license` (combined subscription/billing), with privacy
 disclosed separately; product-use rules live in Terms. `billing` and `product` preserve historical
-acceptance dates as compatibility aliases. New DPA (`data-processing-agreement`), subprocessor
-(`subprocessors`) and company-notice (`company-information`) entries remain pending until release.
+acceptance dates as compatibility aliases. DPA (`data-processing-agreement`), subprocessor (`subprocessors`), company-notice
+(`company-information`), acceptable-use (`acceptable-use`), refund (`refund-cancellation`) and
+service-level (`service-level-agreement`) entries remain pending until coordinated release.
 Render an explicit pending notice for a pending entry; never send null to a date formatter or
 substitute a preparation date. Optional purposes carry independent wording revisions in the consuming
 app, so editing privacy alone must not enlarge an existing grant. Legal-date activation is coordinated
@@ -604,7 +605,7 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 
 ## Related
 
-- [[viable-sdk]] · [[viable-mcp]] — the connector SDK written against these contracts, and its npx
+- [[viable-sdk]] · `@owlmeans/viable-mcp` (closed-source) — the connector SDK written against these contracts, and its npx
   stdio server
 - [[flow]] · [[client-flow]] — the model `intentFlow` is walked with, and `flowLandingOf(context).suspendFlow`
 - [[inquiry]] · [[llm-common]] — the primitive `InquiryPayload` mirrors; the model runtime's contracts

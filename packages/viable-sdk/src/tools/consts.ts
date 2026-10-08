@@ -11,6 +11,13 @@ import type { PlatformCatalogue, ProjectSetting } from './types.js'
  * Every pipeline a parent can observe has an entry, with the domain status tool named by its
  * capability group.
  */
+/**
+ * Tools the platform catalogue describes but the SDK does not implement: a hosting process adds
+ * them through `ToolHost.extensions` (the agent-setup pair ships in `@owlmeans/viable-harness`).
+ * Named here so a group can list them and a host that lacks them renders the group as absent.
+ */
+export const EXTENSION_TOOLS: readonly string[] = Object.freeze(['describe_harness', 'install_harness'])
+
 export const PLATFORM_CATALOGUE: PlatformCatalogue = {
   pipelines: [
     {

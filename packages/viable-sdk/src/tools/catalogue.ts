@@ -1,10 +1,9 @@
 import { z } from 'zod'
 import { TransitionAction, WorkcardKind } from '@owlmeans/planning'
-import { ConnectConfirmationRequired, ConnectHarness, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
+import { ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
 import {
   COMMIT_WAIT_MS, HANDOVER_WAIT_MS, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
 } from '../consts.js'
-import { harnessHelper } from '../harness/helper.js'
 import { makeProjectEnvHelper } from '../project/env.js'
 import { makeSetupReportModel } from '../project/report.js'
 import { setupHelper } from '../project/setup.js'
@@ -549,57 +548,6 @@ export const catalogue: ToolDefinition[] = [
             : '')
         + `\n\n${GENERATED_SUMMARY}`,
         { tiers, subagents, effortControl, roles: byTier }
-      )
-    },
-  },
-
-  {
-    name: 'describe_harness',
-    title: 'What the harness files would say',
-    description:
-      'Preview the files install_harness would write for a coding agent, so you can read them'
-      + ' before anything is changed on disk.',
-    input: { harness: z.string().optional().describe('claude-code | codex | copilot | opencode') },
-    availability: toolHostHelper.anyHost,
-    annotations: READ_ONLY,
-    run: async (args, deps) => {
-      const harness = (args.harness as ConnectHarness) ?? deps.host.harness
-      const files = harnessHelper.describeHarness(harness)
-
-      return ok(
-        `${harness} — ${files.length} files:\n`
-        + files.map(file => `\n--- ${file.path} ---\n${file.content}`).join('\n'),
-        { harness, files: files.map(file => file.path) as unknown as Record<string, unknown> }
-      )
-    },
-  },
-
-  {
-    name: 'install_harness',
-    title: 'Set this agent up to work with the platform',
-    description:
-      'Write the instruction and subagent files this coding agent needs, into the project directory.'
-      + ' Idempotent, and it never writes your token — only a reference to the environment variable.',
-    input: {
-      dir: z.string().optional().describe('Where to write. Defaults to the project directory.'),
-      harness: z.string().optional(),
-      mcpConfig: z.boolean().optional().describe('Also write the MCP server entry'),
-    },
-    availability: toolHostHelper.withExecutor,
-    annotations: IDEMPOTENT_WRITE,
-    run: async (args, deps) => {
-      const dir = (args.dir as string) ?? deps.dir
-      if (dir == null) return fail('No directory to write to.')
-      const harness = (args.harness as ConnectHarness) ?? deps.host.harness
-      const result = await harnessHelper.installHarness(dir, harness, {
-        mcpConfig: args.mcpConfig === true,
-      })
-
-      return ok(
-        `Wrote ${result.written.length} file(s) for ${harness}:\n`
-        + result.written.map(path => `  ${path}`).join('\n')
-        + (result.skipped.length > 0 ? `\nUnchanged: ${result.skipped.join(', ')}` : ''),
-        result as unknown as Record<string, unknown>
       )
     },
   },
@@ -3427,7 +3375,7 @@ export const catalogue: ToolDefinition[] = [
 
 export const createCatalogueHelper = (): CatalogueHelper => {
   const visibleTools = (host: ToolHost): ToolDefinition[] =>
-    catalogue.filter(tool => tool.availability(host))
+    [...catalogue, ...(host.extensions ?? [])].filter(tool => tool.availability(host))
 
   const toolByName = (name: string): ToolDefinition | undefined =>
     catalogue.find(tool => tool.name === name)

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/log
 
 **Layer:** Core (depends on `@owlmeans/context` only; isomorphic — server, browser, worker)
-**Install:** `"@owlmeans/log": "^0.1.18-rc.2"` in `dependencies`
+**Install:** `"@owlmeans/log": "^0.1.18-rc.3"` in `dependencies`
 
 Everything a process says about itself goes through this package. It owns four decisions that a bare
 `console.*` leaves to chance: **how much** is written (the level), **in what form** (text or JSON on a

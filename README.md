@@ -232,7 +232,6 @@ application packages above, or add one when they need that specific feature.
 |  | [`cli-auth`](packages/cli-auth) | OAuth device-authorization sign-in for a command-line tool: the `~/.owlmeans` credentials file, a cross-process sign-in lock and a browser opener |
 |  | [`create-app`](packages/create-app) | Scaffold a fullstack OwlMeans app — its common, api and web packages — or, with `--bare`, the demo-free shell |
 |  | [`dep-config`](packages/dep-config) | Shared TypeScript configuration for `@owlmeans` packages |
-|  | [`viable-mcp`](packages/viable-mcp) | An MCP server that lets a coding agent build full-stack web applications with the OwlMeans Viable platform |
 |  | [`viable-sdk`](packages/viable-sdk) | Drive the Viable platform from outside it: the connector session, the local slot executor and the tool catalogue |
 | Core foundations | [`basic-envelope`](packages/basic-envelope) | Signed, typed, time-limited payload envelopes, serialized as a wrap or a token |
 |  | [`basic-ids`](packages/basic-ids) | Random identifiers, v4 UUIDs and human-readable word slugs |

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/log",
-  "version": "0.1.18-rc.2",
+  "version": "0.1.18-rc.3",
   "license": "MIT",
   "type": "module",
   "scripts": {

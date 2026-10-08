@@ -15,6 +15,9 @@ export const OWLMEANS_LEGAL_DATES = {
   'data-processing-agreement': { status: 'pending', effective: null, updated: null },
   subprocessors: { status: 'pending', effective: null, updated: null },
   'company-information': { status: 'pending', effective: null, updated: null },
+  'acceptable-use': { status: 'pending', effective: null, updated: null },
+  'refund-cancellation': { status: 'pending', effective: null, updated: null },
+  'service-level-agreement': { status: 'pending', effective: null, updated: null },
   // Historical acceptance aliases retained for existing records; new Platform configuration uses
   // `platform-license` for billing and Terms for product-use rules.
   billing: { effective: '2026-05-30', updated: '2026-05-30' },

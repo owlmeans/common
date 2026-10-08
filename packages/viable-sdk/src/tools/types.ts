@@ -11,6 +11,12 @@ export interface ToolHost {
   harness: ConnectHarness
   /** Whether this host can execute anything on a disk. False for the URL-configured one. */
   hasExecutor: boolean
+  /**
+   * Tools the hosting process adds beyond the built-in catalogue — the agent-setup tools of
+   * `@owlmeans/viable-harness`, for one. They are listed, filtered by their own `availability` and
+   * registered exactly like the catalogue's own, so a host that passes none offers none of them.
+   */
+  extensions?: ToolDefinition[]
 }
 
 export interface ToolDeps {

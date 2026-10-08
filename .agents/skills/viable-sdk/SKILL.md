@@ -1,14 +1,14 @@
 ---
 name: viable-sdk
-description: How to use @owlmeans/viable-sdk — the connector SDK an external coding agent drives the OwlMeans Viable platform with — the token-authenticated client context, the two host kinds and their tool catalogue, the session operation loop, the local slot executor and local run, the model-task envelope, and the harness installer. Auto-invoked when building or changing a connector, an MCP host, a connector tool, the task envelope, or anything that executes platform slot commands on a developer's machine.
+description: How to use @owlmeans/viable-sdk — the connector SDK an external coding agent drives the OwlMeans Viable platform with — the token-authenticated client context, the two host kinds and their tool catalogue, the session operation loop, the local slot executor and local run, the model-task envelope, and the extension seam a host adds its own tools through. Auto-invoked when building or changing a connector, an MCP host, a connector tool, the task envelope, or anything that executes platform slot commands on a developer's machine.
 user-invocable: false
 ---
 
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.46"` in `dependencies`
-**Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.47"` in `dependencies`
+**Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
 and facade) — every name on the wire is declared there, so the SDK and the platform cannot spell one
@@ -30,7 +30,7 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 | `createInflightCalls()` → `InflightCalls` · `makeHandoverHelper(deps)` → `HandoverHelper` (`run`/`contain`/`collect`/`report`/`pending`) | The delegated mode's handover: the calls still running after their tool answered, and how a blocked tool answers with its model task |
 | `makeTaskEnvelopeModel(task)` — `.renderTaskEnvelope({ harness })` · `.parseTaskResult(raw)` | What the parent agent is told; what its answer is checked against |
 | `makeModelTaskDriver({ models })` · `TaskDriver` | A reference parent agent backed by a chat model (tests, CLIs) |
-| `harnessHelper` — `.installHarness(dir, harness, opts?)` · `.describeHarness(harness)`; `WORKING_RULE` | Set a coding agent up; preview it first |
+| `ToolHost.extensions` · `EXTENSION_TOOLS` | Tools the hosting process adds beyond the catalogue (the agent-setup pair `describe_harness` / `install_harness` is one such extension, shipped outside this package); listed, filtered by their own `availability` and registered like the catalogue's own |
 | `catalogue` · `catalogueHelper` (`.visibleTools(host)` · `.toolByName`) · `registerCatalogue(server, deps)` · `serverInstructions({ host })` | The tools and how they reach an MCP server |
 | `statusTextHelper` — `.renderProjectStatus`, `.renderStoryStatus(status, { landing? })`, `.renderPipelineStatus`, `.conversionNext` | Domain status as concise lines ending in the next valid action |
 | `storyHelper` — `.resolveStory(deps, projectId, ref)` · `.storyQuery(projectId, filter?)` · `.renderStories(items, page, total)` · `.isLandingStory(card)`; `STORY_ORDER` · `LANDING_MARK` · `LANDING_NOTE` | The story tools' reading of planning cards |
@@ -336,7 +336,7 @@ straight back.
 a call — and `registerCatalogue` passes it through beside the title, description and input schema.
 The shapes live in `tools/consts.local.ts`: `READ_ONLY` (reads, statuses, descriptions), `WRITE`
 (additive changes, the task and question loop), `IDEMPOTENT_WRITE` (setting a value: settings,
-`update_story`, `reset_story`, `attach_project`, `stop_local`, `set_local_service`, the harness) and
+`update_story`, `reset_story`, `attach_project`, `stop_local`, `set_local_service`) and
 `DESTRUCTIVE` (`delete_project`, `delete_story`, `purge_origin`, `reinitialize_project`, `git_revert`,
 `publish_production` (it replaces the live site), and — also idempotent — `unlock_project_agent`,
 `write_file` (it replaces a file whole), `delete_file`, `git_discard`, `disconnect_github`,
@@ -758,32 +758,17 @@ nothing new is queued but something is unanswered it NAMES the outstanding ids r
 them: re-handing would have a parent whose subagent is still working run the same task twice. A
 refused answer keeps the task outstanding for exactly the same reason.
 
-## The harness installer is idempotent by construction, and never writes the token
+## Extension tools come from the host, never from this package
 
-A section is replaced between `<!-- viable:begin -->` and `<!-- viable:end -->`, a JSON entry is
-merged under its own key, and a file whose content would not change is skipped. An instruction file
-belongs to its project: overwriting it to add a paragraph deletes whatever else was in it, and
-appending unconditionally grows a duplicate on every install. That is what makes `install_harness`
-safe to offer as a tool the agent may call whenever it is unsure. A configuration that is not valid
-JSON is **refused** — somebody is editing it, and overwriting would destroy every other server they
-had configured.
-
-**No file it writes contains the token**, and none REQUIRES one: a person who signed in with a browser
-has the token in `~/.owlmeans`, which the server reads itself. So each configuration references
-`VIABLE_API_TOKEN` in its harness's own syntax only where that cannot break a machine that never set
-it — claude-code's `.mcp.json` uses `${VIABLE_API_TOKEN:-}` (an unset `${VAR}` makes Claude Code refuse
-the whole file; the server ignores the empty value), Copilot's `.vscode/mcp.json` has no token prompt
-at all, and Codex's `env_vars` lists `VIABLE_API_TOKEN`, `OWLMEANS_CREDENTIALS` and `HOME` (its filtered
-environment otherwise hides the credentials file). The result is safe to commit. `WORKING_RULE` is written once and rendered
-into every harness's instruction file, so the four cannot drift into four different protocols.
-
-**The server command is written once, too.** Every harness configuration starts the connector from
-`MCP_COMMAND` in `src/harness/consts.local.ts` — viable-mcp through `npx -y`, pinned with a caret at the
-viable-mcp release, on ONE line with its `npx` so the release pin audit reads it as an install
-command and moves it with every viable-mcp bump. Never a tag (`@next` is refused by that audit) and
-never a per-harness literal: three copies spelled `@next` while the fourth carried the pin.
-`tests/harness.spec.ts` asserts all four configurations name the viable-mcp manifest's version, that no
-file contains a `vib_…` secret, and the optional-token shapes above.
+The catalogue is closed over what the SDK itself implements. A hosting process that offers more —
+the stdio connector adds `describe_harness` and `install_harness`, which write a coding agent's
+instruction, subagent and MCP files — hands them in as `ToolHost.extensions`. `catalogueHelper
+.visibleTools(host)` appends them to the catalogue and filters both by `availability`, so
+`registerCatalogue`, `renderPlatform` and `serverInstructions` treat an extension exactly like a
+built-in tool; a host that passes none offers none, and the platform catalogue's `harness` group
+renders as absent there. A group may name a tool only the catalogue or `EXTENSION_TOOLS` knows —
+`platform.spec.ts` holds that line. This package never imports a host's extension: the SDK is
+public, the agent-setup pair is not.
 
 ## The executor is the publisher's job, on somebody's laptop
 
@@ -899,7 +884,7 @@ reader looking for a database that was never configured.
 
 ## Tests
 
-`bun test ./tests` — offline: the envelope and its parser, the harness installer, the tool catalogue,
+`bun test ./tests` — offline: the envelope and its parser, the tool catalogue and its extension seam,
 the `registerCatalogue` out-of-credits, consent and planning-refusal phrasing and `notify` wiring
 (`mcp-catalogue.spec.ts`; the consent marker, the bare 428/402 statuses and a consent inside a
 commit failure in `catalogue.spec.ts`; the conversion confirmation — schemas and descriptions, the
@@ -953,7 +938,7 @@ command runs and a redelivered command runs once.
 
 ## Related
 
-- [[viable-mcp]] — the npx stdio server built on this
+- `@owlmeans/viable-mcp` — the npx stdio server built on this (closed-source; its skill ships in its own package)
 - [[auth-token]] — the credential and its carrier guard
 - [[client-planning]] · [[planning]] — the facade the story tools write through
 - `@owlmeans/llm-delegate` (`internal` monorepo, skill `llm-delegate`) — the other end of a model
