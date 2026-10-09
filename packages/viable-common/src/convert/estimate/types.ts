@@ -22,12 +22,33 @@ export interface RolePlanEntry {
   perStory?: boolean
 }
 
+/**
+ * One plan row as the estimator projected it - the unit a quote is PRICED in.
+ *
+ * A model's price can depend on the size of one prompt (Claude Haiku 5.5 above 100K tokens, the
+ * gpt-6 family above 272K), so a role's totals alone cannot be priced: ten small calls and one huge
+ * one add up to the same tokens at different prices. `promptTokens` is what ONE call of the row
+ * sends, retries aside - a retry sends the same prompt again.
+ */
+export interface RequestEstimate {
+  step: string
+  calls: number
+  /** The input of one call: its share of the slices plus the fixed overhead. */
+  promptTokens: number
+  /** All the row's input tokens, retries included. */
+  inputTokens: number
+  /** All the row's output tokens, retries included. */
+  outputTokens: number
+}
+
 export interface RoleEstimate {
   role: ModelRole
   calls: number
   inputTokens: number
   outputTokens: number
   steps: string[]
+  /** The role's plan rows, each priced at the rate of its own prompt size. */
+  requests: RequestEstimate[]
 }
 
 /**

@@ -49,6 +49,7 @@ describe('@owlmeans/llm — anthropic thinking off switch per family', () => {
     ['claude-fable-5-1', undefined],
     ['claude-mythos-5-1', undefined],
     ['claude-haiku-4-5', undefined],
+    ['claude-haiku-5-5', ThinkingOff.Disabled],
   ]
 
   test('disableThinking sends the model\'s own off switch, or none where every switch is a 400', () => {
@@ -119,6 +120,17 @@ describe('@owlmeans/llm — anthropic effort beside the off switch', () => {
     }
   })
 
+  // Haiku 5.5: effort on every level, `disabled` only at high or below, no sampling, 512-token cache floor.
+  test('Haiku 5.5 sends effort and the disabled switch, never a sampling field', () => {
+    const model = 'claude-haiku-5-5'
+    const wire = wireOf(build({ model, disableThinking: true, effort: ModelEffort.High }), { model })
+    expect(wire.thinking).toEqual({ type: 'disabled' })
+    expect(wire.output_config).toEqual({ effort: 'high' })
+    expect(anthropicSupportHelper.rejectsSampling(model)).toBe(true)
+    expect(anthropicSupportHelper.anthropicSupportOf(model)?.default).toBe(ModelEffort.Medium)
+    expect(anthropicSupportHelper.anthropicSupportOf(model)?.cacheMinTokens).toBe(512)
+  })
+
   test('Sonnet 5 is unchanged: disabled, every level', () => {
     const wire = wireOf(build({ model: 'claude-sonnet-5', disableThinking: true, effort: ModelEffort.XHigh }), {})
     expect(wire.thinking).toEqual({ type: 'disabled' })
@@ -128,7 +140,7 @@ describe('@owlmeans/llm — anthropic effort beside the off switch', () => {
 
 describe('@owlmeans/llm — anthropic structured output per family', () => {
   const refusing = ['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-fable-5-1', 'claude-mythos-5-1']
-  const pinning = ['claude-sonnet-5', 'claude-opus-5', 'claude-fable-5', 'claude-haiku-4-5', undefined]
+  const pinning = ['claude-sonnet-5', 'claude-opus-5', 'claude-fable-5', 'claude-haiku-4-5', 'claude-haiku-5-5', undefined]
 
   test('a model that refuses a pinned tool is asked with auto and a strict tool', () => {
     for (const model of refusing) {
