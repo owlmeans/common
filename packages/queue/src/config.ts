@@ -9,7 +9,7 @@ import { queueConfigOf } from './queue-config.js'
  * them to bind. Declaring twice replaces, so a helper that runs per app is safe to call.
  */
 export const declareQueue = <C extends Config>(
-  cfg: C, name: string, jobs: string[], opts?: { worker?: QueueWorkerOptions, defaults?: JobOptions }
+  cfg: C, name: string, jobs: string[], opts?: { worker?: QueueWorkerOptions, defaults?: JobOptions, globalConcurrency?: number }
 ): C => {
   const queue: QueueDeclaration = { name, jobs, ...opts }
   const queues = cfg.queue?.queues ?? []

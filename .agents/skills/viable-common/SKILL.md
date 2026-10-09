@@ -177,6 +177,12 @@ application, the project owner's, that every person acts in.
 - Classification, the access policy, per-record kinds and the IAM client config live in
   `@owlmeans/viable` (`/target-tenancy`).
 
+### Binary slot files
+
+`SlotFileCommand.WriteBinaryFile` uses `{ filePath, base64 }` and answers `{}`. It carries image
+bytes and atomic manifests through the existing signed file-command transport. Executors validate
+and confine paths and decode bounded strict base64; text writes are not a binary transport.
+
 ### Slots, codes, relationships
 
 | Card | Category | Format | Rule |
