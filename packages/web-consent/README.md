@@ -49,7 +49,7 @@ Tailwind entry must scan the package's `src`:
 
 At the application root or layout. It opens itself when no decision is stored and renders only the
 re-open button once one is. A first-time visitor is asked with a tall bar across the bottom of a
-transparent overlay — "Cookie preferences", "Accept only mandatory", "Accept all" — and every later
+dimmed overlay — "Cookie preferences", "Accept only mandatory", "Accept all" — and every later
 opening is the preferences window; `mode="window"` asks with the window straight away.
 
 ```tsx
@@ -186,7 +186,7 @@ re-exported; import them from `@owlmeans/consent`.
 | Selector | Element |
 |---|---|
 | `[data-consent-dialog]` | whichever surface asks — the bar or the window (`data-consent-mode="bar\|window"`) |
-| `[data-consent-bar]`, `[data-consent-overlay]` | the bar, and the transparent overlay it sits on |
+| `[data-consent-bar]`, `[data-consent-overlay]` | the bar, and the dimmed overlay it sits on |
 | `[data-consent-preferences]`, `[data-consent-mandatory]`, `[data-consent-accept-all]` | the bar's three answers |
 | `[data-consent-save]`, `[data-consent-accept-all]` | the window's two actions |
 | `[data-consent-locating="first"]`, `[data-consent-spinner]` | the locating overlay and its spinner |

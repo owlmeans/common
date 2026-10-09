@@ -65,6 +65,7 @@ export const makeSuite = (label: string, opts: SuiteOptions = {}): MongoSuite =>
         productSku: PLANS_PRODUCT, sku: BURST_PLAN, duration: PlanDuration.Monthly, rank: 30, price: 90,
         recurring: { interval: 'month' },
         limits: {
+          weekly: { kind: LimitKind.Window, window: LimitWindow.SubscriptionWeek, limit: 1 },
           burst: { kind: LimitKind.Window, window: LimitWindow.Day, limit: 5 },
           seats: { kind: LimitKind.Occupancy, limit: 1 },
         },

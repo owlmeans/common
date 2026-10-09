@@ -47,7 +47,7 @@ export const makeEntitlementService = (alias: string = ENTITLEMENT_SERVICE): Ent
     const effective = await catalogueOf(ctx).resolveEffectivePlan(entityId, at)
     const declared = Object.entries(effective.plan.limits ?? {})
     const windows = new Map(declared.map(([key, declaration]) => [
-      key, planLimitHelper.windowKeyOf(declaration.kind, declaration.window, at),
+      key, planLimitHelper.windowKeyOf(declaration.kind, declaration.window, at, effective.subscription?.createdAt),
     ]))
     const usage: LimitUsage[] = []
     if (declared.length > 0) {

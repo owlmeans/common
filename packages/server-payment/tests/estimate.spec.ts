@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { PaygateError, TaxBehavior, TaxEstimateStatus, TaxType } from '@owlmeans/payment'
+import { PaygateError, PlanDuration, priceEstimateHelper, TaxBehavior, TaxEstimateStatus, TaxType } from '@owlmeans/payment'
 import { CREDITS_PRODUCT, makeFakeContext, PLANS_PRODUCT, PRO } from './fake-stripe.js'
 import type { FakeContext } from './fake-stripe.js'
 import { EUR_SETTLEMENT, makeRightsContext } from './consumer-fixtures.js'
@@ -217,6 +217,81 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
     expect(result.currency).toBe('usd')
     expect(result.local?.currency).toBe('pln')
     expect(result.local?.exchangeRate).toBeCloseTo(0.22 / 0.8726)
+  })
+
+  describe('the Adaptive Pricing conversion fee (`currency.adaptiveFeeRate`)', () => {
+    // Stripe test mode, 2026-10: 1 PLN = 0.227941 EUR before fees, 0.223382 with the FX Quotes 2% fee;
+    // Checkout showed 1 EUR = 4.5626 PLN, "includes 4% conversion fee" — 0.227941 / 1.04.
+    const PLN = { exchangeRate: 0.223382, baseRate: 0.227941, referenceRate: 0.228128, fxFeeRate: 0.02 }
+    const EUR_PRO = 'pro-eur'
+    const eurPro = {
+      catalogue: {
+        plans: [{
+          productSku: PLANS_PRODUCT, sku: EUR_PRO, duration: PlanDuration.Monthly, rank: 30, price: 18, currency: 'eur',
+          recurring: { interval: 'month' as const },
+        }],
+      },
+    }
+    const pricing = (adaptiveFeeRate?: number) => ({
+      ...EUR_SETTLEMENT,
+      currency: { adaptive: true, estimate: true, ...(adaptiveFeeRate != null ? { adaptiveFeeRate } : {}) },
+    })
+    const estimate = async (fake: FakeContext, product: string, planSku?: string) => {
+      const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
+        entityId: 'entity-1', productSku: product, ...(planSku != null ? { planSku } : {}), country: 'PL',
+      }, makeEstimateCache())
+      return { result, quoted: priceEstimateHelper.estimateOf(result.tax.subtotalMinor, result) }
+    }
+
+    test('a EUR subscription is estimated at the base rate plus the fee — what Checkout shows (€22.14 → 101.02 PLN)', async () => {
+      const fake = await makeFakeContext({
+        ...eurPro, pricing: pricing(0.04),
+        stripe: { taxRates: { PL: [{ type: 'vat', percentage: '23' }] }, fxRates: { pln: PLN } },
+      })
+      const { result, quoted } = await estimate(fake, PLANS_PRODUCT, EUR_PRO)
+      expect(result.currency).toBe('eur')
+      expect(result.local?.exchangeRate).toBeCloseTo(0.227941 / 1.04, 9)
+      expect(result.local?.fxFeeRate).toBe(0.04)
+      expect(quoted.totalMinor).toBe(2_214)
+      expect(quoted.local?.totalAmount).toBeCloseTo(101.02, 1)
+    })
+
+    test('without the fee the estimate keeps the FX Quotes rate (€22.14 → 99.11 PLN)', async () => {
+      const fake = await makeFakeContext({
+        ...eurPro, pricing: pricing(),
+        stripe: { taxRates: { PL: [{ type: 'vat', percentage: '23' }] }, fxRates: { pln: PLN } },
+      })
+      const { result, quoted } = await estimate(fake, PLANS_PRODUCT, EUR_PRO)
+      expect(result.local).toEqual({ currency: 'pln', exchangeRate: 0.223382, fxFeeRate: 0.02 })
+      expect(quoted.local?.totalAmount).toBeCloseTo(99.11, 1)
+    })
+
+    test('a top-up (USD → EUR reference rate, then the fee) applies it as well', async () => {
+      const fake = await makeRightsContext({
+        pricing: pricing(0.04),
+        stripe: {
+          taxRates: { PL: [{ type: 'vat', percentage: '23' }] },
+          fxRates: { usd: { exchangeRate: 0.853568, referenceRate: 0.8726 }, pln: PLN },
+        },
+      })
+      const { result } = await estimate(fake, CREDITS_PRODUCT)
+      expect(result.currency).toBe('usd')
+      expect(result.local?.exchangeRate).toBeCloseTo(0.227941 / 1.04 / 0.8726, 9)
+      expect(result.local?.fxFeeRate).toBe(0.04)
+    })
+
+    test('a buyer whose local currency IS the settlement currency pays no conversion fee', async () => {
+      const fake = await makeRightsContext({
+        pricing: pricing(0.04),
+        stripe: { taxRates: { DE: [{ type: 'vat', percentage: '19' }] }, fxRates: { usd: { exchangeRate: 0.853568, referenceRate: 0.8726 } } },
+      })
+      const result = await estimateOf(fake.ctx).estimateStripePrice(fake.stripe, {
+        entityId: 'entity-1', productSku: CREDITS_PRODUCT, country: 'DE',
+      }, makeEstimateCache())
+      expect(result.local?.currency).toBe('eur')
+      expect(result.local?.exchangeRate).toBeCloseTo(1 / 0.8726, 9)
+      expect(result.local?.fxFeeRate).toBeUndefined()
+    })
   })
 
   test('a top-up charged in exact USD (outside the EU) carries no local line, with no FX call', async () => {

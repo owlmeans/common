@@ -51,13 +51,14 @@ const readGpc = (): boolean => {
  * confirmation is computed only for `'sign-in'`, and only once `termsDeferred` — preferences never
  * shows it and never records it, whatever the application's `appendMarketingConsent({ terms })`.
  *
- * **Which items load also depends on `opts.source`, and this is the one place the two hosts
- * deliberately differ.** The sign-in step is a "ask only what's outstanding" gate: it loads items
- * only while `status.pending === true`, and shows nothing once everything is decided, so it never
- * re-asks a settled choice. `MarketingConsentPreferences` is a standing settings card, not a gate —
- * "changeable at any time" means every catalogue item is loaded UNCONDITIONALLY, whether or not
- * anything is currently pending, or a fully-decided account would render an empty card with
- * nothing left to revisit or withdraw.
+ * **When items load also depends on `opts.source`, and this is the one place the two hosts
+ * deliberately differ.** The sign-in step is a gate: it is shown only while something is owed — an
+ * item pending, or in Terms mode the Terms confirmation — and shows nothing once nothing is, so it
+ * never stops a person for a settled catalogue. Whenever it IS shown it loads every catalogue item,
+ * each ticked as last decided: a screen that asks for the terms alone must not hide the consents
+ * beside them. `MarketingConsentPreferences` is a standing settings card, not a gate — "changeable
+ * at any time" means every catalogue item is loaded UNCONDITIONALLY, whether or not anything is
+ * owed, or a fully-decided account would render an empty card with nothing left to revisit.
  */
 export const useMarketingConsent = (opts?: UseMarketingConsentOptions): UseMarketingConsentModel => {
   const context = useContext()
@@ -115,12 +116,14 @@ export const useMarketingConsent = (opts?: UseMarketingConsentOptions): UseMarke
       settled = true
       clearTimeout(timer)
 
-      // The sign-in step shows only items that actually need an answer — a status whose `pending`
-      // already reads false (a race with another tab, most commonly) must not draw items nobody
-      // has to decide on again. The settings card shows the WHOLE catalogue regardless: it is a
-      // standing "change these at any time" surface, not a step, and gating it on `pending` the
-      // same way would render it empty the moment every item happens to already be decided.
-      const loaded = signIn ? (status?.pending === true ? status.items : []) : (status?.items ?? [])
+      // The sign-in step is shown while an item is pending or, in Terms mode, while the Terms
+      // confirmation is owed — and whenever it is shown it lists the WHOLE catalogue, each row
+      // ticked as last decided, so a person confirming new terms still sees every consent. A step
+      // that owes nothing loads nothing and moves on. The settings card shows the whole catalogue
+      // unconditionally: it is a standing "change these at any time" surface, not a step.
+      const termsOwed = deferred && resolved != null && status?.terms?.version !== resolved.version
+      const shown = status?.pending === true || termsOwed
+      const loaded = signIn ? (shown ? status?.items ?? [] : []) : (status?.items ?? [])
       setItems(loaded)
       setDraft(Object.fromEntries(loaded.map(item => [item.definition.key, item.granted])))
       setStatusTermsVersion(status?.terms?.version)

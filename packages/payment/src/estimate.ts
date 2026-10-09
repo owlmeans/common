@@ -14,6 +14,15 @@ export const createPriceEstimateHelper = (): PriceEstimateHelper => {
     if (policy.currency.estimate && policy.currency.adaptive !== true) {
       throw new PaymentError('pricing-policy:currency-estimate-requires-adaptive')
     }
+    const feeRate = policy.currency.adaptiveFeeRate
+    if (feeRate != null) {
+      if (policy.currency.adaptive !== true) {
+        throw new PaymentError('pricing-policy:adaptive-fee-requires-adaptive')
+      }
+      if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate >= 1) {
+        throw new PaymentError('pricing-policy:adaptive-fee-rate')
+      }
+    }
     for (const ttl of [policy.tax.estimateTtlSeconds, policy.currency.estimateTtlSeconds]) {
       if (ttl != null && (!Number.isSafeInteger(ttl) || ttl < 1)) {
         throw new PaymentError('pricing-policy:ttl')

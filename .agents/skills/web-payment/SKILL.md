@@ -169,7 +169,8 @@ const team = usePriceEstimate(entry, { enabled, country, onCountryChange: setCou
   - When the estimate carries `local` (Adaptive Pricing found the country's currency), the tax and
     total show ONLY in that currency, each marked `≈` — never both currencies at once, which would
     read as two different prices for the same line. A short note explains the amount is converted
-    at Stripe's current rate and confirmed at checkout. With no `local`, the amounts show in
+    at Stripe's current rate and confirmed at checkout; the rate already carries the conversion fee
+    the pricing policy declares (`currency.adaptiveFeeRate`), the component only divides by `exchangeRate`. With no `local`, the amounts show in
     `currency` (the integration currency) with no `≈` and no note.
 - **`PriceEstimateSummary`** is `CountrySelect` bound to the control's own `country`/
   `onCountryChange` followed by `PriceEstimateAmount` — the one-estimate composition. A `locked`
