@@ -1,4 +1,5 @@
 import type { Page } from 'playwright'
+import type { ConsentGeoMock } from './consent/types.js'
 
 export interface MountOptions {
   /**
@@ -32,6 +33,11 @@ export interface MountOptions {
   waitUntil?: 'commit' | 'domcontentloaded' | 'load' | 'networkidle'
   /** Navigation timeout in ms. */
   timeout?: number
+  /**
+   * Answer the page's Cloudflare trace with this — installed BEFORE the first navigation, so the
+   * consent geo gate sees it on the very first load. See `consentGeoTestHelper.mockConsentGeo`.
+   */
+  consentGeo?: ConsentGeoMock
 }
 
 export interface Mounted {

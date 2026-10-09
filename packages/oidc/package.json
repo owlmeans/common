@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/oidc",
-  "version": "0.1.18-rc.56",
+  "version": "0.1.18-rc.57",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,9 +21,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.40",
-    "@owlmeans/auth-common": "^0.1.18-rc.48",
-    "@owlmeans/basic-envelope": "^0.1.18-rc.47",
+    "@owlmeans/auth": "^0.1.18-rc.41",
+    "@owlmeans/auth-common": "^0.1.18-rc.49",
+    "@owlmeans/basic-envelope": "^0.1.18-rc.48",
     "@owlmeans/config": "^0.1.18-rc.44",
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/entrypoint": "^0.1.18-rc.41",

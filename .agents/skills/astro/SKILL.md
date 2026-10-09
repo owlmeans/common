@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/astro
 
 **Layer:** Web (Astro)
-**Install:** `"@owlmeans/astro": "^0.1.18-rc.36"` in `dependencies`
+**Install:** `"@owlmeans/astro": "^0.1.18-rc.37"` in `dependencies`
 
 ## Why it exists
 
@@ -108,6 +108,13 @@ also RECEIVES a language (a platform link back to the site) passes `language: { 
 and `tags.adopt` then writes it before anything else runs — but only while that site holds a cookie
 decision (stored, or carried by the same link).
 Give the consent island the same object (`linker={SITE.consentLinker}`) so head and island agree.
+
+**The geo gate is the island's alone.** `geo={{ cloudflare: true }}` on `<CookieConsent client:load />`
+asks only visitors located in a consent country (the `consent` skill); the head strings need nothing
+for it — the inline bootstrap and gate already skip an automatic decision past its age. It must be
+plain data, because an island prop is serialized: a locator plugin of the site's own needs a small
+wrapper island that registers it before rendering `CookieConsent`. Legal pages, which mount no
+island, never locate anyone.
 
 `tags.adopt` is the STANDALONE adopt-and-strip fragment (`consentLinkHelper.consentLinkerScript`) — present whenever
 `consent.linker` is set, empty string otherwise, regardless of whether `gtm` is also configured.

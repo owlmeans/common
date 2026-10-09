@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/mailer",
-  "version": "0.1.18-rc.36",
-  "generatedAt": "2026-10-07T09:04:25.259Z",
+  "version": "0.1.18-rc.37",
+  "generatedAt": "2026-10-08T21:27:54.313Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

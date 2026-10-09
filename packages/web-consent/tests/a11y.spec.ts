@@ -45,12 +45,27 @@ const serious = async (page: Page): Promise<Violation[]> => {
 
 describe('@owlmeans/web-consent — accessibility', () => {
   for (const theme of ['light', 'dark']) {
-    test(`the open dialog has no serious or critical axe violation (${theme})`, async () => {
-      // A first visit, so the dialog is open — which is what every new visitor of a generated app
-      // meets before anything else on the page.
-      const { page, close } = await mountComponent({ url: `${base}/?styled=1&theme=${theme}` })
+    for (const mode of ['bar', 'window']) {
+      test(`the open ${mode} has no serious or critical axe violation (${theme})`, async () => {
+        // A first visit, so the consent surface is open — which is what every new visitor of a
+        // generated app meets before anything else on the page.
+        const { page, close } = await mountComponent({ url: `${base}/?styled=1&theme=${theme}&mode=${mode}` })
+        try {
+          await page.waitForSelector(`[data-consent-dialog][data-consent-mode="${mode}"]`)
+
+          expect(await serious(page)).toEqual([])
+        } finally {
+          await close()
+        }
+      }, TIMEOUT)
+    }
+
+    test(`the locating overlay has no serious or critical axe violation (${theme})`, async () => {
+      const { page, close } = await mountComponent({
+        url: `${base}/?styled=1&theme=${theme}&geo=US&geoDelay=8000&geoTimeout=20000`,
+      })
       try {
-        await page.waitForSelector('[data-consent-dialog]')
+        await page.waitForSelector('[data-consent-spinner]')
 
         expect(await serious(page)).toEqual([])
       } finally {
@@ -62,7 +77,7 @@ describe('@owlmeans/web-consent — accessibility', () => {
   test('each switch is named by its category and described by its text', async () => {
     // The label element around a switch holds only the drawn track, so its NAME has to come from
     // the category label by reference — the defect this pins was three unnamed checkboxes.
-    const { page, close } = await mountComponent({ url: `${base}/?styled=1` })
+    const { page, close } = await mountComponent({ url: `${base}/?styled=1&mode=window` })
     try {
       await page.waitForSelector('[data-consent-dialog]')
 
@@ -105,7 +120,7 @@ describe('@owlmeans/web-consent — accessibility', () => {
           CONSENT_KEY,
           JSON.stringify({ essential: true, analytics: true, marketing: false, v: CONSENT_SCHEMA_VERSION }),
         ] as [string, string])
-        await page.goto(`${base}/?view=policy&services=1&styled=1&theme=${theme}`, { waitUntil: 'domcontentloaded' })
+        await page.goto(`${base}/?view=policy&services=1&styled=1&theme=${theme}&geo=DE`, { waitUntil: 'domcontentloaded' })
         await page.waitForSelector('[data-cookie-policy-service]')
 
         expect(await serious(page)).toEqual([])

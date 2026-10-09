@@ -80,16 +80,16 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/agent-common": "^0.1.18-rc.48",
+    "@owlmeans/agent-common": "^0.1.18-rc.49",
     "@owlmeans/auth": "^0.1.18-rc.41",
-    "@owlmeans/auth-common": "^0.1.18-rc.48",
+    "@owlmeans/auth-common": "^0.1.18-rc.49",
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/entrypoint": "^0.1.18-rc.41",
     "@owlmeans/error": "^0.1.18-rc.38",
     "@owlmeans/flow": "^0.1.18-rc.45",
-    "@owlmeans/iam": "^0.1.18-rc.51",
+    "@owlmeans/iam": "^0.1.18-rc.52",
     "@owlmeans/llm-common": "^0.1.18-rc.39",
-    "@owlmeans/planning": "^0.1.18-rc.20",
+    "@owlmeans/planning": "^0.1.18-rc.21",
     "@owlmeans/resource": "^0.1.18-rc.40",
     "@owlmeans/route": "^0.1.18-rc.35"
   },

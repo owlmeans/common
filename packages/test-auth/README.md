@@ -5,7 +5,7 @@ The **only** OwlMeans package that ships authentication/authorization mocks. Tes
 ## Installation
 
 ```bash
-bun add -d @owlmeans/test-auth@^0.1.18-rc.47
+bun add -d @owlmeans/test-auth@^0.1.18-rc.48
 ```
 
 It depends on `@owlmeans/test`, so the env gates and fixture loader are available alongside.
@@ -128,7 +128,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

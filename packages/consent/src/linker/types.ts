@@ -4,7 +4,8 @@ import type { ConsentLinkPayload, ConsentOptions, ConsentPlugin, ConsentRecord }
 export interface ConsentLinkHelper {
   /**
    * The link parameter's value: the current document's decision as `c` (one `0`/`1` per optional
-   * category — empty while `record` is `null`, i.e. before the visitor has decided) and, when
+   * category — empty while `record` is `null`, i.e. before the visitor has decided, and for an
+   * automatic decision, which is not the visitor's to carry) and, when
    * `opts.linker.language` is set, the page's language as `l`.
    */
   encodeConsentLink: (record: ConsentRecord | null, opts?: ConsentOptions) => string
@@ -47,7 +48,7 @@ export interface ConsentLinkHelper {
    * effect — the second attempt finds the parameter already gone and does nothing.
    *
    * Mirrors `consentLinker().adopt` exactly (v2, referrer + freshness/skew + full optional coverage +
-   * no existing record), but as hand-rolled JS text rather than a call into this module — the same
+   * no existing record — or only an automatic one, which the visitor's own choice replaces), but as hand-rolled JS text rather than a call into this module — the same
    * discipline `consentBootstrapScript`/`consentGateScript` already follow, because this has to run
    * before any bundle (this module included) has loaded. The parameter is ALWAYS stripped via
    * `history.replaceState`, whether or not the trust rule accepts it: a stale or foreign `owlcc` is

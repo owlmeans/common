@@ -72,7 +72,9 @@ export const createConsentStorageHelper = (): ConsentStorageHelper => {
       }
     } catch { /* nothing to remove if storage was never available */ }
     if (typeof document !== 'undefined') {
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+      // The same `domain` the write used — a cookie is only replaced by one that names its domain.
+      const domain = opts?.cookieDomain != null ? `;domain=${opts.cookieDomain}` : ''
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/${domain}`
     }
   }
 
