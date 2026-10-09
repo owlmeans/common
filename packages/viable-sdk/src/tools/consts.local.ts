@@ -162,11 +162,11 @@ export const INFERENCE_MODE_WORDS: Readonly<Record<string, string>> = {
 
 /**
  * What an inference setting reaches, said by every inference tool: the default of the browser and
- * of the URL-configured host — never a stdio connector already running, whose mode is its `--llm`.
+ * of connector hosts. A running stdio session retains its resolved mode until restarted.
  */
-export const INFERENCE_REACH = 'This is the default the web application and the URL-configured connector use. A'
-  + ' stdio connector already running keeps the mode it was started with (--llm local|cloud); restart it'
-  + ' with the other flag to change that session.'
+export const INFERENCE_REACH = 'This is the default the web application and connector hosts use. A'
+  + ' stdio connector already running keeps its resolved mode; restart it to reload this preference.'
+  + ' An explicit --llm or VIABLE_LLM override takes precedence over the account setting.'
 
 /** The query parameter of the public site's hand-off address that carries the intent reference. */
 export const INTENT_REF_PARAM = 'ref'

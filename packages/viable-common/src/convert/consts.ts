@@ -592,7 +592,7 @@ export const CHARS_PER_TOKEN = 4
 export const SOURCE_SAMPLE_RATIO = 0.35
 /** What the estimator adds for the retries a model pass normally makes. */
 export const RETRY_FACTOR = 1.15
-export const ESTIMATE_VERSION = 1
+export const ESTIMATE_VERSION = 2
 
 /**
  * The per-story price band shown before the implementation stage starts.

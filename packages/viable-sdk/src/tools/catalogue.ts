@@ -1097,8 +1097,8 @@ export const catalogue: ToolDefinition[] = [
       'Whether the platform\'s model calls are made on its own models (cloud, billed in credits) or'
       + ' performed by the connected coding agent (local, which the organization\'s plan must include) —'
       + ' the user\'s own default and, for a project, its override and what it resolves to. This is the'
-      + ' default the web application and the URL-configured connector use; a stdio connector already'
-      + ' running keeps the mode it was started with (--llm).',
+      + ' default the web application and connector hosts use. Restart a running stdio connector to'
+      + ' reload the preference; an explicit --llm or VIABLE_LLM override takes precedence.',
     input: { projectId: z.string().optional().describe('A project to show the override of; the attached one by default.') },
     availability: toolHostHelper.anyHost,
     annotations: READ_ONLY,
@@ -1127,9 +1127,9 @@ export const catalogue: ToolDefinition[] = [
       + ' platform\'s own models, billed in credits — or local, where the connected coding agent performs'
       + ' the platform\'s model calls; mode: inherit clears a project\'s override so it follows the default.'
       + ' Every change needs a plan that includes the local mode (exactly as in the web application); without'
-      + ' it nothing changes and the answer says so. It changes the default the web application and the'
-      + ' URL-configured connector use — NOT a stdio connector already running, which keeps its --llm until'
-      + ' it is restarted with the other flag.',
+      + ' it nothing changes and the answer says so. It changes the default the web application and'
+      + ' connector hosts use. Restart a running stdio connector to reload it; explicit --llm or'
+      + ' VIABLE_LLM overrides take precedence.',
     input: {
       level: z.enum(INFERENCE_LEVELS).describe('account: the user\'s own default. project: one project\'s override.'),
       mode: z.enum(INFERENCE_MODES).describe('cloud, local, or inherit (a project only: follow the default).'),
