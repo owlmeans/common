@@ -13,7 +13,7 @@ not a browser-token store and holds no claims — tokens and their payloads stay
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-session@^0.1.18-rc.17
+bun add @owlmeans/server-auth-session@^0.1.18-rc.18
 ```
 
 ## Concepts
@@ -138,7 +138,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -22,6 +22,55 @@ const consentBootstrap = (): Plugin => ({
     html.replace('<!--owlmeans:consent-->', `<script>${consentModeHelper.consentBootstrapScript()}</script>`),
 })
 
+/**
+ * Answer `/cdn-cgi/trace` the way Cloudflare's edge does, steered by the PAGE's own query string —
+ * a same-origin fetch sends the full page URL as its referrer, so every case is still chosen by URL:
+ *
+ * - `?geo=<CC>` — a trace with `loc=<CC>`;
+ * - `?geo=fail` (and no `geo` at all) — 404, a host not behind Cloudflare;
+ * - `?geo=html` — 200 with an HTML page, an SPA serving `index.html` for every path;
+ * - `?geo=hang` — never answers;
+ * - `&geoDelay=<ms>` — answers that much later.
+ */
+const cdnTrace = (): Plugin => ({
+  name: 'owlmeans-cdn-trace',
+  configureServer: server => {
+    server.middlewares.use('/cdn-cgi/trace', (req, res) => {
+      let params = new URLSearchParams()
+      try {
+        params = new URL(req.headers.referer ?? '').searchParams
+      } catch { /* no referrer: the fail case */ }
+      const geo = params.get('geo') ?? 'fail'
+      const delay = Number(params.get('geoDelay') ?? 0)
+      const answer = (): void => {
+        if (geo === 'hang') {
+          return
+        }
+        if (geo === 'fail') {
+          res.statusCode = 404
+          res.end('not found')
+
+          return
+        }
+        res.statusCode = 200
+        if (geo === 'html') {
+          res.setHeader('content-type', 'text/html')
+          res.end('<!doctype html><html><body><div id="root"></div></body></html>')
+
+          return
+        }
+        res.setHeader('content-type', 'text/plain')
+        res.end(`fl=0f0\nh=localhost\nip=203.0.113.7\nts=0\nvisit_scheme=http\ncolo=TST\nloc=${geo}\n`)
+      }
+      if (delay > 0) {
+        setTimeout(answer, delay)
+      } else {
+        answer()
+      }
+    })
+  },
+})
+
 let url: string | null = null
 
 /**
@@ -35,7 +84,7 @@ export const getHarnessUrl = async (): Promise<string> => {
   const server = await createServer({
     configFile: false,
     root: resolve(here, './harness'),
-    plugins: [react(), tailwindcss(), consentBootstrap()],
+    plugins: [react(), tailwindcss(), consentBootstrap(), cdnTrace()],
     resolve: { dedupe: ['react', 'react-dom'] },
     server: { port: 0 },
     logLevel: 'warn'

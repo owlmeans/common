@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.47"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.48"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -551,8 +551,9 @@ All `toolHostHelper.anyHost`, rendered by `accountHelper` (`tools/account.ts`); 
   override and its effective mode, whether the plan allows `local`) and `set_inference_mode { level:
   account | project, mode: cloud | local | inherit, projectId? }` (`inherit` = `null`, a project
   only; an account `inherit` is refused locally). Both end with `INFERENCE_REACH`: the setting is the
-  default of the web application and the URL-configured host, never a stdio connector already
-  running, which keeps its `--llm` until restarted. A plan without the local mode is the
+  default of the web application and connector hosts. A running stdio connector keeps its resolved
+  mode until restarted; explicit `--llm` or `VIABLE_LLM` overrides outrank the account preference.
+  A plan without the local mode is the
   `capability-required:` person refusal, notified.
 - `list_access_tokens` (read-only, never a secret) and `revoke_access_token { tokenId, confirm }`
   (destructive, idempotent; revoking this connector's own token signs it out). No tool creates a

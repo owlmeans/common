@@ -1,9 +1,11 @@
-import type { ConsentOptions, ConsentPlugin, ConsentRecord } from '../types.js'
+import type { ConsentGeoLocation, ConsentOptions, ConsentPlugin, ConsentRecord } from '../types.js'
 
 /** The document's consent-plugin registry and the hooks run over every registered plugin. */
 export interface ConsentPluginHelper {
   /** Register a plugin. Replace-by-alias; sorted by priority (higher first) on every read. */
   registerConsentPlugin: (plugin: ConsentPlugin) => void
+  /** Remove a plugin by alias — for a test, or an application tearing a locator down. */
+  unregisterConsentPlugin: (alias: string) => void
   /** Every registered plugin, priority-sorted (higher first, ties keep insertion order). */
   consentPlugins: () => ConsentPlugin[]
   /**
@@ -30,4 +32,11 @@ export interface ConsentPluginHelper {
   adoptConsentLanguage: (opts: ConsentOptions) => string | null
   /** Run every registered plugin's `start`, in priority order. `consentStore.init` calls this once. */
   startConsentPlugins: (opts: ConsentOptions) => void
+  /**
+   * Ask every registered plugin's `locate`, in priority order, for the visitor's country: the first
+   * usable ISO alpha-2 code wins (upper-cased). A throw, or a code that names no country
+   * (`CONSENT_GEO_UNKNOWN`, anything malformed), hands over to the next locator; with none left it
+   * rejects with the last failure. Timeouts are the caller's (`consentGeoHelper.decide`).
+   */
+  locateConsent: (opts: ConsentOptions) => Promise<ConsentGeoLocation>
 }

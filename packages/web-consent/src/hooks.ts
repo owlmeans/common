@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
-import { consentStore } from '@owlmeans/consent'
+import { CONSENT_IDLE_STATE, consentStore } from '@owlmeans/consent'
 import type { ConsentOptions } from '@owlmeans/consent'
 import type { UseConsentModel } from './types.js'
 
@@ -15,8 +15,9 @@ export const useConsent = (opts?: ConsentOptions): UseConsentModel => {
     listener => consentStore.subscribe(listener),
     () => consentStore.get(),
     // On the server there is no browser to have an opinion, and rendering the dialog into static
-    // HTML would flash it for every visitor before hydration corrected them.
-    () => ({ record: null, open: false, reason: null })
+    // HTML would flash it for every visitor before hydration corrected them. One frozen object:
+    // a fresh one per call is a snapshot that never stops changing.
+    () => CONSENT_IDLE_STATE
   )
 
   useEffect(() => { consentStore.init(opts) }, [])
@@ -25,6 +26,7 @@ export const useConsent = (opts?: ConsentOptions): UseConsentModel => {
     record: state.record,
     open: state.open,
     reason: state.reason,
+    locating: state.locating,
     granted: key => consentStore.granted(key),
     save: record => consentStore.save(record),
     acceptAll: () => consentStore.acceptAll(),
@@ -38,7 +40,7 @@ export const useConsentCategory = (key: string): boolean => {
   const state = useSyncExternalStore(
     listener => consentStore.subscribe(listener),
     () => consentStore.get(),
-    () => ({ record: null, open: false, reason: null })
+    () => CONSENT_IDLE_STATE
   )
 
   return state.record != null && consentStore.granted(key)

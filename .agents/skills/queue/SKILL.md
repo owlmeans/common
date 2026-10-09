@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/queue": "^0.1.18-rc.42"` in `dependencies`
+**Install:** `"@owlmeans/queue": "^0.1.18-rc.43"` in `dependencies`
 
 Backend transport contracts only. It carries no broker code — a driver package
 (`@owlmeans/redis-queue`) implements them. Depend on this one from a shared backend package;
@@ -86,6 +86,14 @@ as the BROKER has accepted the enqueue — before any worker has picked the job 
 says the job exists and nothing about it having started. That is what a long pipeline wants; watch
 the job by its id for anything further. The default is to wait for the value, for
 `req.timeout ?? route.timeout ?? DEFAULT_JOB_TIMEOUT` (60 s).
+
+## Global concurrency
+
+`QueueDeclaration.globalConcurrency` and `declareQueue`'s options accept a positive integer.
+`worker.concurrency` is a per-worker limit; `globalConcurrency` is the broker-wide ceiling across
+all replicas consuming that queue. Declare both when a workload must have a global capacity bound.
+Every consumer must use the same declaration; leaving the option absent does not remove a ceiling
+already stored in the broker.
 
 ## Jobs are records
 

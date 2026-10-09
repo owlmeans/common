@@ -12,7 +12,7 @@ build time needs no runtime fetch — use `@owlmeans/client-config` for that. Th
 ## Installation
 
 ```bash
-bun add @owlmeans/api-config-client@^0.1.18-rc.46
+bun add @owlmeans/api-config-client@^0.1.18-rc.47
 ```
 
 The middleware imports `mergeConfig` from `@owlmeans/config`, which this package's manifest does not
@@ -115,7 +115,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

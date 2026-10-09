@@ -1,4 +1,5 @@
 import { browserHelper } from './browser.js'
+import { consentGeoTestHelper } from './consent.js'
 import type { Mounted, MountOptions } from './types.js'
 
 const buildUrl = (opts: MountOptions): string => {
@@ -26,6 +27,9 @@ const buildUrl = (opts: MountOptions): string => {
 export const mountComponent = async (opts: MountOptions): Promise<Mounted> => {
   const browser = await browserHelper.launchBrowser()
   const context = await browser.newContext()
+  if (opts.consentGeo != null) {
+    await consentGeoTestHelper.mockConsentGeo(context, opts.consentGeo)
+  }
   const page = await context.newPage()
   await page.goto(buildUrl(opts), {
     waitUntil: opts.waitUntil ?? 'domcontentloaded',

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/redis-queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.37"` in `dependencies`
+**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.38"` in `dependencies`
 
 The driver behind `@owlmeans/queue`, on BullMQ over the existing Redis connection. Contracts live
 in `queue`; nothing here belongs in an application's imports beyond the wiring call.
@@ -96,6 +96,18 @@ fails for half a minute is ordinary), `maxStalledCount` 2 rather than 1 (a worke
 mid-job leaves its jobs stalled once through no fault of the job), `stalledInterval` 30 s.
 `concurrency` is written only when declared, and `autorun` is off — `start()` binds, so nothing is
 consumed while processors are still registering.
+
+## Global concurrency
+
+Before a worker runs, a temporary BullMQ Queue applies declared `globalConcurrency` with
+`setGlobalConcurrency`, then closes its wrapper. Invalid/non-positive/non-integer values or a
+broker configuration failure close the worker and prevent it consuming. This is separate from
+local worker concurrency. The real `global-concurrency.spec.ts` uses two workers with local five
+and confirms their collective peak is five.
+
+## External docs
+
+- https://docs.bullmq.io/guide/queues/global-concurrency — setGlobalConcurrency limits collective active jobs, independently of worker-local concurrency.
 
 ## Schedules
 

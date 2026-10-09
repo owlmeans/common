@@ -76,6 +76,8 @@ export interface ScheduleDeclaration {
 
 export interface QueueDeclaration {
   name: string
+  /** Maximum active jobs across every worker consuming this queue. */
+  globalConcurrency?: number
   /**
    * The job names this queue accepts. A job the queue does not declare is refused at enqueue
    * time rather than becoming a job nothing can process.

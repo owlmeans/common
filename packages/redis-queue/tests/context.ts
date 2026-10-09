@@ -19,6 +19,7 @@ import type { Config, Context, RedisQueueResource, RedisQueueWorkerService } fro
 export const gate: IntegrationGate<RedisEnv> = gateHelper.redisGate()
 
 export interface DeclaredQueue {
+  globalConcurrency?: number
   name: string
   jobs: string[]
   worker?: QueueWorkerOptions
@@ -96,7 +97,7 @@ export const makeSuite = (label: string): QueueSuite => {
     })
 
     opts.queues.forEach(queue => declareQueue(cfg, queue.name, queue.jobs, {
-      worker: queue.worker, defaults: queue.defaults
+      worker: queue.worker, defaults: queue.defaults, globalConcurrency: queue.globalConcurrency
     }))
     opts.schedules?.forEach(schedule => declareSchedule(cfg, schedule))
     if (opts.listen != null) {

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.47"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.0"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -176,6 +176,12 @@ application, the project owner's, that every person acts in.
   and `admin` (the project owner, above every tenant) are never tenanted.
 - Classification, the access policy, per-record kinds and the IAM client config live in
   `@owlmeans/viable` (`/target-tenancy`).
+
+### Binary slot files
+
+`SlotFileCommand.WriteBinaryFile` uses `{ filePath, base64 }` and answers `{}`. It carries image
+bytes and atomic manifests through the existing signed file-command transport. Executors validate
+and confine paths and decode bounded strict base64; text writes are not a binary transport.
 
 ### Slots, codes, relationships
 
