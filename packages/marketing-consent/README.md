@@ -12,7 +12,7 @@ cookie consent is a different, unrelated surface — `@owlmeans/consent`.
 ## Installation
 
 ```bash
-bun add @owlmeans/marketing-consent@^0.1.18-rc.10
+bun add @owlmeans/marketing-consent@^0.1.18-rc.11
 ```
 
 Peer dependencies: `ajv`, `ajv-formats`.
@@ -195,7 +195,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.49
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

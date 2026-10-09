@@ -9,7 +9,7 @@ planning service runs in-process.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-planning@^0.1.18-rc.23
+bun add @owlmeans/client-planning@^0.1.18-rc.24
 ```
 
 ## Concepts
@@ -124,7 +124,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

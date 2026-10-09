@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-gtm
 
 **Layer:** Web
-**Install:** `"@owlmeans/web-gtm": "^0.1.18-rc.36"` in `dependencies`
+**Install:** `"@owlmeans/web-gtm": "^0.1.18-rc.37"` in `dependencies`
 
 The tag half of the consent set. It emits **strings and data**, not components, and it holds no
 state — the decision lives in `@owlmeans/consent`, which this package reads through
@@ -52,7 +52,10 @@ whole point of gating. It keeps emitting the iframe in `'advanced'` mode, unchan
 only appends the container's `<script>` element once `consentModeHelper.trackingGranted(consentStore.get().record,
 opts.categories)` is true — immediately if already granted, or via a one-shot `consentStore.subscribe`
 that unsubscribes itself on the first update where it becomes true. The anti-double-load guard (the
-element's own id) is unchanged.
+element's own id) is unchanged. Give it the same `geo` the consent UI has: its `init` may run first,
+and the store must know to locate the visitor rather than ask. An automatic decision (outside the
+consent countries) is an ordinary grant here — the tag loads on it — while one past its age counts
+as none, in the head gate as in the store, until the visitor is located again.
 
 None of this is new state: it is one more consumer of `@owlmeans/consent`'s existing surface —
 `consentModeHelper.trackingGranted(record, categories)` (whether a stored/applied record grants a signal-bearing,
