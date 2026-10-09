@@ -42,14 +42,14 @@ export const makeInquiryClient = (options: InquiryClientOptions): InquiryClient 
   const open: InquiryClient['open'] = async (config, opts) => {
     const runtime = await load()
     inquiryLoaderUtils.claim(url, config.id, opened)
-    runtime.open(config, opts)
+    runtime.open(config, options.email != null ? { ...opts, email: opts?.email ?? options.email } : opts)
   }
 
   const button: InquiryClient['button'] = async (config, opts) => {
     const runtime = await load()
     inquiryLoaderUtils.claim(url, config.id, opened)
 
-    return runtime.button(config, opts)
+    return runtime.button(config, options.email != null ? { ...opts, email: opts?.email ?? options.email } : opts)
   }
 
   const bind: InquiryClient['bind'] = (target, config, opts) => {

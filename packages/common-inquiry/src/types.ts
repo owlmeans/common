@@ -58,14 +58,25 @@ export interface InquiryWidgetConfig {
   language?: string
 }
 
-export interface InquiryOpenOptions {
+/** A preset reply address, resolved when the dialog opens. A missing result clears the email. */
+export type InquiryEmailValue = string | null | undefined
+
+/** A reply address or a lazy provider; a pending provider shows the widget's email spinner. */
+export type InquiryEmailPreset = string | (() => InquiryEmailValue | Promise<InquiryEmailValue>)
+
+export interface InquiryEmailOptions {
+  /** Applied on every dialog open, replacing any previously edited email. Omit to keep manual entry. */
+  email?: InquiryEmailPreset
+}
+
+export interface InquiryOpenOptions extends InquiryEmailOptions {
   /** The alias of the tab to select; an unknown alias selects the default tab. */
   tab?: string
   /** Which trigger opened the dialog (`fab`, `menu`, `pricing-card` …), reported in analytics. */
   source?: string
 }
 
-export interface InquiryButtonOptions {
+export interface InquiryButtonOptions extends InquiryEmailOptions {
   /** Default: `bottom-right`. */
   position?: InquiryButtonPosition
   /** Distance from the viewport edges in CSS pixels. */
