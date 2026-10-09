@@ -88,6 +88,7 @@ export enum SlotFileCommand {
   ReadPossibleSource = 'readPossibleSource',
   ReadSources = 'readSources',
   WriteFile = 'writeFile',
+  WriteBinaryFile = 'writeBinaryFile',
   WriteSource = 'writeSource',
   DeleteFile = 'deleteFile',
   FindFilesWithEnvVars = 'findFilesWithEnvVars',

@@ -97,6 +97,18 @@ mid-job leaves its jobs stalled once through no fault of the job), `stalledInter
 `concurrency` is written only when declared, and `autorun` is off — `start()` binds, so nothing is
 consumed while processors are still registering.
 
+## Global concurrency
+
+Before a worker runs, a temporary BullMQ Queue applies declared `globalConcurrency` with
+`setGlobalConcurrency`, then closes its wrapper. Invalid/non-positive/non-integer values or a
+broker configuration failure close the worker and prevent it consuming. This is separate from
+local worker concurrency. The real `global-concurrency.spec.ts` uses two workers with local five
+and confirms their collective peak is five.
+
+## External docs
+
+- https://docs.bullmq.io/guide/queues/global-concurrency — setGlobalConcurrency limits collective active jobs, independently of worker-local concurrency.
+
 ## Schedules
 
 Each declared schedule (`declareSchedule`, see `queue`) is one BullMQ **job scheduler** with the id

@@ -87,6 +87,14 @@ says the job exists and nothing about it having started. That is what a long pip
 the job by its id for anything further. The default is to wait for the value, for
 `req.timeout ?? route.timeout ?? DEFAULT_JOB_TIMEOUT` (60 s).
 
+## Global concurrency
+
+`QueueDeclaration.globalConcurrency` and `declareQueue`'s options accept a positive integer.
+`worker.concurrency` is a per-worker limit; `globalConcurrency` is the broker-wide ceiling across
+all replicas consuming that queue. Declare both when a workload must have a global capacity bound.
+Every consumer must use the same declaration; leaving the option absent does not remove a ceiling
+already stored in the broker.
+
 ## Jobs are records
 
 `ctx.jobs<D, R>(queue)` returns a `QueueResource<D, R>` — a `Resource<JobRecord<D, R>>` plus

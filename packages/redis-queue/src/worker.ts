@@ -251,7 +251,21 @@ export const makeRedisQueueWorker = (
         )
         observe(name, worker)
 
-        queues.set(name, new Queue(name, { connection: client, prefix }))
+        const queue = new Queue(name, { connection: client, prefix })
+        const globalConcurrency = queueConfigOf(ctx.cfg).queueOf(name).globalConcurrency
+        if (globalConcurrency != null) {
+          if (!Number.isSafeInteger(globalConcurrency) || globalConcurrency < 1) {
+            await Promise.all([worker.close(), queue.close()])
+            throw new Error(`Invalid global concurrency for ${name}`)
+          }
+          try {
+            await queue.setGlobalConcurrency(globalConcurrency)
+          } catch (error) {
+            await Promise.all([worker.close(), queue.close()])
+            throw error
+          }
+        }
+        queues.set(name, queue)
         aborts.set(name, controller)
         workers.set(name, worker)
 

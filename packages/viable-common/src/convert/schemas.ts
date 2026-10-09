@@ -488,8 +488,24 @@ export const ConversionEstimateSchema = {
           inputTokens: { type: 'number' },
           outputTokens: { type: 'number' },
           steps: { type: 'array', items: { type: 'string', maxLength: 128 } },
+          // The plan rows, each priced at the rate of its own prompt size (`RequestEstimate`).
+          requests: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                step: { type: 'string', maxLength: 128 },
+                calls: { type: 'number' },
+                promptTokens: { type: 'number' },
+                inputTokens: { type: 'number' },
+                outputTokens: { type: 'number' },
+              },
+              required: ['step', 'calls', 'promptTokens', 'inputTokens', 'outputTokens'],
+              additionalProperties: false,
+            },
+          },
         },
-        required: ['role', 'calls', 'inputTokens', 'outputTokens', 'steps'],
+        required: ['role', 'calls', 'inputTokens', 'outputTokens', 'steps', 'requests'],
         additionalProperties: false,
       },
     },

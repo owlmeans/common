@@ -4,8 +4,8 @@ import { ALL_EFFORTS, NO_XHIGH, UP_TO_HIGH } from './consts.local.js'
 
 /**
  * Model families that REJECT the sampling parameters — Claude 4.7 and later, and the whole
- * 5 family. `temperature`, `top_p` and `top_k` were removed there, and sending any of them
- * is a 400, not a silently ignored field. Matched with `startsWith`, so a dated snapshot
+ * 5 family, Haiku 5.5 included. `temperature`, `top_p` and `top_k` were removed there, and sending
+ * any of them is a 400, not a silently ignored field. Matched with `startsWith`, so a dated snapshot
  * (`claude-sonnet-5-20260114`) is covered by its base id.
  *
  * This is the Anthropic counterpart of the OpenAI plugin's `RESPONSES_API_PREFIXES`: the
@@ -20,6 +20,7 @@ export const NO_SAMPLING_PREFIXES = [
   'claude-opus-4-8',
   'claude-opus-4-7',
   'claude-sonnet-5',
+  'claude-haiku-5',
 ]
 
 /** The `thinking.type` a model takes to do no up-front thinking. */
@@ -31,19 +32,20 @@ export enum ThinkingOff {
 
 /**
  * Per-family facts of the Anthropic models that take `output_config.effort`, first prefix
- * match wins. From Anthropic's model pages (2026-09-29): `max` on every model below except Opus
- * 4.5, `xhigh` only on the first eleven, `medium` the default on Opus 5.5 and `high` everywhere
- * else. A model not listed (Haiku 4.5, Sonnet 4.5 and older) rejects the field, so it is never
- * sent there — and takes forced tool use and every older thinking shape.
+ * match wins. From Anthropic's model pages (2026-10-08): `max` on every model below except Opus
+ * 4.5, `xhigh` only on the first twelve, `medium` the default on Opus 5.5 and Haiku 5.5 and `high`
+ * everywhere else. A model not listed (Haiku 4.5, Sonnet 4.5 and older) rejects the field, so it is
+ * never sent there — and takes forced tool use and every older thinking shape.
  *
- * - **Thinking off.** Opus 5 accepts `disabled` only at `high` or below. Sonnet 5.5 refuses
+ * - **Thinking off.** Opus 5 and Haiku 5.5 accept `disabled` only at `high` or below. Sonnet 5.5 refuses
  *   `disabled` and takes `between_tools` instead, again only at `high` or below, with no other
  *   field beside it. Opus 5.5 and the Fable and Mythos 5 families always think: any off switch
  *   is a 400, so the request carries none.
  * - **Forced tool use.** Opus 5.5, Sonnet 5.5, Fable 5.1 and Mythos 5.1 answer `tool_choice`
  *   `any`/`tool` with a 400; structured output asks them with `auto`, a prompt instruction naming
  *   the tool, and `strict` when the schema allows it.
- * - **Cache minimum.** 512 tokens on the 5 family, 1024 on Sonnet 5 and Opus 4.8.
+ * - **Cache minimum.** 512 tokens on the 5 family (Haiku 5.5 included), 1024 on Sonnet 5 and Opus 4.8.
+ * - **Haiku 5.5** takes forced `tool_choice` (the reply is the call, with no thinking block before it).
  */
 export const ANTHROPIC_MODEL_SUPPORT: ReadonlyArray<AnthropicModelSupport> = [
   {
@@ -58,6 +60,10 @@ export const ANTHROPIC_MODEL_SUPPORT: ReadonlyArray<AnthropicModelSupport> = [
     prefix: 'claude-sonnet-5-5', levels: ALL_EFFORTS, default: ModelEffort.High,
     thinkingOff: ThinkingOff.BetweenTools, thinkingOffCeiling: ModelEffort.High, thinksByDefault: true,
     rejectsForcedTool: true, cacheMinTokens: 512,
+  },
+  {
+    prefix: 'claude-haiku-5-5', levels: ALL_EFFORTS, default: ModelEffort.Medium,
+    thinkingOffCeiling: ModelEffort.High, thinksByDefault: true, cacheMinTokens: 512,
   },
   {
     prefix: 'claude-fable-5-1', levels: ALL_EFFORTS, default: ModelEffort.High,
