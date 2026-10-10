@@ -1,3 +1,4 @@
+import { servePlanningResources } from './actions/resources.js'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { PlanningFacade, PlanningProtocols, PlanningScope } from '@owlmeans/planning'
@@ -17,6 +18,7 @@ import { planningHandlerOf } from './utils/handler.js'
  * that protocol afterwards.
  */
 export const servePlanningEntrypoints = (protocols: PlanningProtocols, opts?: PlanningHandlerOptions) => [
+  ...servePlanningResources(protocols, opts),
   bind(protocols.base),
   bind(protocols.schema.list, listSchemas(protocols.schema.list, opts)),
   ...(protocols.schema.define != null

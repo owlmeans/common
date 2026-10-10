@@ -78,3 +78,9 @@ export const PlanningSchemaTableSchema = tableSchema<PlanningSchemaRow>({
   createdAt: timestamp(schemaProperties.createdAt),
   updatedAt: timestamp(schemaProperties.updatedAt),
 }, requiredOf(ScopedSchemaRecordSchema))
+
+/** Separate versioned resource tables, preserving JSON fields and textual UTC timestamps. */
+export const planningRecordTableSchema = <T>(schema: object): JSONSchemaType<T> => {
+  const properties = propertiesOf(schema)
+  return tableSchema<T>({ ...properties, version: integer(properties.version), createdAt: timestamp(properties.createdAt), updatedAt: timestamp(properties.updatedAt) }, requiredOf(schema))
+}

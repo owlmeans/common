@@ -2,7 +2,7 @@
 
 The server half of `@owlmeans/planning`: the planning service and its plugin registry, the
 transition executor every write goes through, the in-memory reference store, the commit hub and the
-protocol handlers. A backend appends the service once, binds the handlers to the shared protocol
+protocol handlers, versioned auxiliary resource commands and schema-governed hierarchy. A backend appends the service once, binds the handlers to the shared protocol
 tree, and reads and writes through a scoped facade. A browser or Node client uses
 `@owlmeans/client-planning` against the same tree; a durable store implements the ports and reuses
 the `@owlmeans/server-planning/store` subpath.
@@ -10,7 +10,7 @@ the `@owlmeans/server-planning/store` subpath.
 ## Installation
 
 ```sh
-bun add @owlmeans/server-planning@^0.1.18-rc.23 @owlmeans/planning@^0.1.18-rc.20 ajv
+bun add @owlmeans/server-planning@^0.1.18-rc.30 @owlmeans/planning@^0.1.18-rc.26 ajv
 ```
 
 ## Concepts
@@ -29,6 +29,8 @@ bun add @owlmeans/server-planning@^0.1.18-rc.23 @owlmeans/planning@^0.1.18-rc.20
   `after` chain exactly once and publishes a commit event.
 - **Store** — `makeMemoryPlanningStore()` for tests and single-process tools; a durable store in
   anything with more than one process.
+- **Resource facade** — `assignees`, `teams`, `comments` and `mentions` use native versioned ports.
+  Organization units serialize dependent writes, schema changes and derived relationships.
 
 ## Usage
 
@@ -40,6 +42,8 @@ import { makePlanningProtocols } from '@owlmeans/planning'
 export const planningProtocols = makePlanningProtocols({
   base: { alias: 'app:planning', path: '/planning' },
   guards: DEFAULT_GUARD,
+  resources: true,
+  definitions: true,
 })
 ```
 
@@ -100,6 +104,36 @@ appendPlanningService(testContext, { store: makeMemoryPlanningStore({ sync: fals
 const cards = await planningHandlerOf(ctx).planningFor(req, { channel: 'web' }).cards.list({ parent: projectId })
 ```
 
+## Native planning resources
+
+Register assignee type schemas through `schemas.assigneeTypes` or the facade's definitions.
+The scoped facade exposes versioned `assignees.create/update/retire`, `teams.create/update/remove`,
+`comments.create/update/remove` and derived `mentions` reads/rebuilds. Resource updates and
+removals require `{ version: record.version }`; they do not allocate card transitions.
+
+Supply a verified `assigneeId` in the trusted scope for comment authors. Hosts may also supply
+`defaultAssigneeId`; `@owlmeans/planning-auth` resolves verified authentication subjects and groups
+to planning ids and can attribute missing card reporters. Never accept author or organization
+claims from an untrusted resource request. Human authentication requirements come from assignee
+type schemas, while nicknames identify participants only within an organization entity.
+
+Use `teams.addMember/removeMember`, `teams.attach/detach`, `teams.members`, `teams.projects` and
+`teams.assignees`. They reuse the relationship store and preserve reusable organization teams.
+Schema reference fields maintain their canonical edges and named inverse views in the same
+organization unit. Explicit relationship writes cannot contradict a field-authoritative edge.
+
+`parent`, `parents` and derived `parentType` are the hierarchy. Schema parent/child rules validate
+creates and reparenting; recursive project scope is checked before paging, including comments,
+history, specifications and relationships. Project `mode` is access-policy metadata, separate
+from status. Deleting a card removes its comments and mention cache. Project purge follows
+current ancestry and retains unrelated organization assignees, reusable teams and reparented
+survivors, even when an older log or edge caches the deleted project id.
+
+Mount `resources: true` and `definitions: true` in the shared protocol tree, then bind stock
+`servePlanningEntrypoints`. Its access resolver authorizes resource commands and conceals records
+outside scope. Stock replies remove native `entityId` metadata from known record/envelope
+positions, while application fields, schema definitions and transition changes remain opaque.
+
 ## API
 
 - Service: `appendPlanningService`, `ensurePlanningService`, `makePlanningService`,
@@ -145,6 +179,7 @@ const cards = await planningHandlerOf(ctx).planningFor(req, { channel: 'web' }).
 
 - `after` hooks run where the transition is FOLDED, once per commit — register the same plugins in
   every folding process, and never run hooks from a commit-bus subscription.
+- Organization locks are released before `after` hooks, so a hook may write into the same scope.
 - The memory store is per-process heap: wrong for multiple processes or restarts.
 - `actor` comes from the scope; a wire `actor` or `createdBy` is ignored.
 - A create's `createdBy` defaults to the scope's subject (`profileId`, else `userId`, else the
@@ -160,6 +195,9 @@ const cards = await planningHandlerOf(ctx).planningFor(req, { channel: 'web' }).
 - `opts.access` makes the resolver the only source of the organization; a `grants` object refuses
   every flag it leaves out.
 - A durable store is not done until it passes `@owlmeans/server-planning/conformance`.
+- Resource writes require their current `version`; assignee/team `fields` replace the previous
+  object, while card `changes.fields` merge. A field-backed relationship is changed through its
+  field, not by writing an independent link.
 
 ## Related packages
 
@@ -176,7 +214,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

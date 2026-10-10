@@ -1,3 +1,4 @@
+import type { BlueprintCatalogue } from '../../blueprint/catalogue/types.js'
 import type {
   ConnectAccessTokenList, ConnectAccessTokenParams, ConnectAccessTokenRevoked, ConnectBrandingBackfill, ConnectIntentPickup,
   ConnectIntentPickupBody, ConnectOrganizationBranding, ConnectOrganizationBrandingSave, ConnectPrivacyChoices,
@@ -47,6 +48,7 @@ import type { ConnectReference } from './types.local.js'
 
 export interface ConnectReferences {
   account: {
+    blueprints: ConnectReference<{}, BlueprintCatalogue>
     branding: {
       get: ConnectReference<{}, ConnectOrganizationBranding>
       save: ConnectReference<{ body: ConnectOrganizationBrandingSave }, ConnectOrganizationBranding>

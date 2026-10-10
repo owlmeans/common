@@ -84,7 +84,7 @@ describe('@owlmeans/planning-postgres — table shapes', () => {
     expect(find(RES_PLANNING_TRANSITION, 'planning_transition_card_seq')).toMatchObject({ columns: ['card', 'seq'], unique: true })
     expect(find(RES_PLANNING_TRANSITION, 'planning_transition_entity_key')).toMatchObject({ unique: true, where: '"key" IS NOT NULL' })
     expect(find(RES_PLANNING_TRANSITION, 'planning_transition_pending')?.where).toContain(`'pending'`)
-    expect(find(RES_PLANNING_LINK, 'planning_link_edge')).toMatchObject({ columns: ['from', 'to', 'type'], unique: true })
+    expect(find(RES_PLANNING_LINK, 'planning_link_edge')).toMatchObject({ expression: `"entityId", "from", "to", "type", COALESCE("fromKind", 'workcard'), COALESCE("toKind", 'workcard')`, unique: true })
     expect(find(RES_PLANNING_SCHEMA, 'planning_schema_scope')).toMatchObject({ unique: true })
     expect(find(RES_PLANNING_CARD, 'planning_card_parents')?.method).toBe('gin')
   })

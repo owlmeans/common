@@ -3,6 +3,7 @@ import type { PlanningSchemaRegistry, SpecificationSlot, Workcard } from '../../
 
 /** A record's shape, its type's `fields` and a document's body, checked against their schemas. */
 export interface ValidateHelper {
+  assertSchema: (schema: object, value: unknown) => void
   /** One line per ajv error: `/path message`. */
   ajvErrorText: (errors?: ErrorObject[] | null) => string
   /** Keys holding `.` or `$` at any depth — a document store cannot hold them. */

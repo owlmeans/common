@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.18-rc.46"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.18-rc.49"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only owns the
 provider-independent parts (streaming discipline, retries, validation, observability). Serializable
@@ -195,7 +195,11 @@ becomes a foreign type and `instanceof` starts lying.
 ## Hangs are bounded by an IDLE deadline, not a total one
 
 A stalled provider is aborted after `MODEL_STREAM_TIMEOUT_MS` (3 min) of SILENCE and surfaces as a
-retryable `LlmModelError`, so the escalator moves on. The timer re-arms on every token, so a
+retryable `LlmModelError`, so the escalator moves on. Stream creation and each iterator read race
+an independently rejecting deadline; forwarding an abort signal alone does not bound an SDK
+promise that ignores cancellation. Late values never reach the caller, late failures are observed,
+and best-effort iterator cleanup never delays timeout, terminal chunks or consumer cancellation.
+The timer re-arms on every token, so a
 long-but-productive generation is never cut off — which is why the value can be low. Set it for a
 deployment with `LlmServiceOptions.streamTimeout` where the application composes its context; a
 preset naming its own `ModelConfig.streamTimeout` keeps it. It does NOT bound a call that keeps
@@ -270,15 +274,15 @@ bug: another provider's rung asked in the primary's `tool_choice` spelling is a 
 OpenAI `reasoning.effort`, Anthropic `output_config.effort` — and not `ExecutionEffort`, which is
 this package's token-budget tier. Plugin tables are the authority (`OPENAI_EFFORT_SUPPORT` verified
 2026-09-23 against developers.openai.com/api/docs/models/*; `ANTHROPIC_MODEL_SUPPORT` verified
-2026-09-29 against platform.claude.com/docs/en/models/{sonnet-5-5,opus-5-5,fable-5-1}/whats-new-* and
-build-with-claude/effort):
+2026-10-08 against platform.claude.com/docs/en/models/{sonnet-5-5,opus-5-5,fable-5-1,haiku-5-5}/* and
+build-with-claude/{effort,prompt-caching}):
 
 | Model | Levels | Default |
 |---|---|---|
 | `gpt-6-sol`, `gpt-6-luna` | none, low, medium, high, xhigh, max | medium |
 | `gpt-6-astra` | low … max (`none` is a 400) | medium |
 | `gpt-5*` and older OpenAI | not sent — accepted sets vary per snapshot | — |
-| Claude Opus 5.5 | low … max | medium |
+| Claude Opus 5.5, Haiku 5.5 | low … max | medium |
 | Claude Sonnet 5.5, Opus 5, Fable 5.1/5, Mythos 5.1/5, Opus 4.8/4.7, Sonnet 5 | low … max | high |
 | Claude Mythos Preview, Opus 4.6, Sonnet 4.6 | low, medium, high, max (no xhigh) | high |
 | Claude Opus 4.5 | low, medium, high | high |
@@ -297,9 +301,13 @@ lives — never an inline check on one id:
 | Opus 5.5 | none: always thinks, nothing is sent, effort is the control | all | 400 | 512 |
 | Fable 5.1, Mythos 5.1 | none | all | 400 | 512 |
 | Fable 5, Mythos 5 | none | all | accepted | 512 |
-| Opus 5 | `disabled` | low … high (`thinkingOffCeiling`) | accepted | 512 |
+| Opus 5, Haiku 5.5 | `disabled` | low … high (`thinkingOffCeiling`) | accepted | 512 |
 | Sonnet 5, Opus 4.8/4.7 | `disabled` | all | accepted | 1024 |
 | Older models (Haiku 4.5, Sonnet 4.6, …) | none — they reason only when asked | per the effort table | accepted | 1024 |
+
+Haiku 5.5 (`claude-haiku-5-5`, no dated snapshot) is a 5-family model: no `temperature`/`top_p`/`top_k`
+(`NO_SAMPLING_PREFIXES` has `claude-haiku-5`), no assistant prefill, adaptive thinking on by default,
+1M window and 128K output; Haiku 4.5 is unchanged and unlisted.
 
 `anthropicSupportHelper.thinkingOffFor(config)` is the value `build` sends; `refine` carries it through `lc_kwargs` and
 reads it back to keep the ceiling, so a climbed retry stops at `high` instead of answering 400. The
@@ -456,6 +464,12 @@ pins the per-family wire (thinking switch, effort ceiling, `tool_choice`, `stric
 the retry on a text-only reply) through `ChatAnthropic.invocationParams`; `structured-schema.spec.ts`
 pins the refusal of a hidden property name before any request. `plugins.spec.ts` covers the
 `Compatible` provider offline.
+
+`internals.spec.ts` covers abort-insensitive stream creation, reads and cleanup, observed late
+failures, ignored late values, consumer cancellation and active streams exceeding multiple idle
+windows. `bun test ./tests/stream-sdk.spec.ts` exercises actual ChatOpenAI Responses against local
+HTTP fixtures: missing headers, open headers without SSE, and a productive SSE control. It checks
+socket cancellation and absence of late callbacks without spending provider tokens.
 
 ## Depends On
 

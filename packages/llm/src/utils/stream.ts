@@ -16,15 +16,39 @@ export const createStreamUtils = (): StreamUtils => {
     timeoutMs: number = MODEL_STREAM_TIMEOUT_MS,
   ): AsyncGenerator<T> {
     const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout>
+    let rejectIdle: (error: LlmModelError) => void = () => {}
+    const idle = new Promise<never>((_, reject) => { rejectIdle = reject })
+    // A consumer may pause at `yield` when the deadline fires.
+    void idle.catch(() => {})
+    let disarm = () => {}
     const arm = () => {
-      clearTimeout(timer)
-      timer = setTimeout(() => controller.abort(), timeoutMs)
+      disarm()
+      const timer = setTimeout(() => {
+        controller.abort()
+        rejectIdle(new LlmModelError(`stream-stalled:no token for ${timeoutMs}ms (idle deadline)`))
+      }, timeoutMs)
+      disarm = () => clearTimeout(timer)
+    }
+    let iterator: AsyncIterator<T> | undefined
+    let closed = false
+    const close = () => {
+      if (iterator == null || closed) return
+      closed = true
+      // SDK cancellation and iterator cleanup may themselves never settle.
+      try { void Promise.resolve(iterator.return?.()).catch(() => {}) } catch {}
     }
     arm()
     try {
-      const stream = await start(controller.signal)
-      for await (const chunk of stream) {
+      const starting = Promise.resolve().then(() => start(controller.signal)).then(stream => {
+        iterator = stream[Symbol.asyncIterator]()
+        if (controller.signal.aborted) close()
+        return iterator
+      })
+      const current = await Promise.race([starting, idle])
+      for (;;) {
+        const next = await Promise.race([Promise.resolve().then(() => current.next()), idle])
+        if (next.done) { closed = true; break }
+        const chunk = next.value
         arm() // reset the idle timer on each received token
         yield chunk
         const reason = getChunkFinishReason(chunk)
@@ -36,7 +60,9 @@ export const createStreamUtils = (): StreamUtils => {
       }
       throw e
     } finally {
-      clearTimeout(timer!)
+      disarm()
+      if (!closed) controller.abort()
+      close()
     }
   }
 

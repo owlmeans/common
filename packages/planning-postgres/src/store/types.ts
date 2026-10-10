@@ -1,4 +1,4 @@
-import type { CommitEvent, Unsubscribe } from '@owlmeans/planning'
+import type { Workcard, Transition, CommitEvent, Unsubscribe } from '@owlmeans/planning'
 import type { SqlRunner, SqlContext, PlanningCardResource, PlanningTables, PlanningPostgresLimits, PlanningLinkResource, PlanningTransitionResource } from '../types.js'
 import type { Pool } from 'pg'
 
@@ -59,6 +59,9 @@ export interface FoldContext extends SqlContext {
 }
 
 export interface FoldEngineDeps {
+  inTransaction: <R>(runner: SqlRunner, run: () => Promise<R>) => Promise<R>
+  validateProjection: (before: Workcard | null, after: Workcard | null, transition: Transition) => Promise<void>
+  projectReferences: (after: Workcard, transition: Transition) => Promise<void>
   pool: () => Promise<Pool>
   tables: () => Promise<PlanningTables>
   limits: PlanningPostgresLimits
@@ -89,6 +92,7 @@ export interface LinkPortDeps {
 }
 
 export interface SchemaPortDeps {
+  current: () => SqlRunner | undefined
   sql: () => Promise<SqlContext>
   pool: () => Promise<Pool>
   tables: () => Promise<PlanningTables>

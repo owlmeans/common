@@ -11,7 +11,7 @@ exports nothing. Nothing in the monorepo depends on it, and `@owlmeans/web-wl` r
 ## Installation
 
 ```bash
-bun add @owlmeans/client-wl@^0.1.18-rc.29
+bun add @owlmeans/client-wl@^0.1.18-rc.30
 ```
 
 The package builds and publishes; installing it adds no API. `react` is declared as a peer for the
@@ -57,7 +57,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.48
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

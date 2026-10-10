@@ -1,6 +1,6 @@
 import type { PlanningFacade } from '@owlmeans/planning'
 import type {
-  ConnectAccessTokenList, ConnectAccessTokenRevoked, ConnectIntentPickup, ConnectPrivacyChoices,
+  BlueprintCatalogue, ConnectAccessTokenList, ConnectAccessTokenRevoked, ConnectIntentPickup, ConnectPrivacyChoices,
   ConnectProfileSettingsView, ConnectProjectSettings,
   ConnectAgentLock, ConnectBrandingBackfill, ConnectCapabilities, ConnectConfigSaveBody, ConnectConfigScope,
   ConnectOrganizationBranding, ConnectOrganizationBrandingSave, ConnectProjectConfig, ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody,
@@ -150,6 +150,8 @@ export interface ConnectorApi {
 
   /** The organization's own records. */
   account: {
+    /** Installed blueprint and case catalogue; available before any project exists. */
+    blueprints: () => Promise<BlueprintCatalogue>
     /** The organization's branding defaults — what every new project starts with. */
     branding: {
       get: () => Promise<ConnectOrganizationBranding>

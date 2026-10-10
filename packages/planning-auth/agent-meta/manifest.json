@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/planning-auth",
+  "version": "0.1.0-rc.2",
+  "generatedAt": "2026-10-09T20:19:04.321Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "planning-auth",
+      "category": "package-specific",
+      "file": "skills/planning-auth/SKILL.md",
+      "canonicalPath": ".agents/skills/planning-auth/SKILL.md"
+    }
+  ]
+}

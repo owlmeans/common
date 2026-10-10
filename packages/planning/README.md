@@ -1,20 +1,20 @@
 # @owlmeans/planning
 
 Runtime-free contracts for project planning: workcards (cards, projects, specifications), typed
-relationships, shareable status flows over three intrinsic states, the transition event and its
-pure fold, the schema registry, the protocol tree and the models that behave identically on a
+relationships, assignees, teams, comments and mention caches, shareable status flows over three
+intrinsic states, the transition event and its pure fold, the schema registry, the protocol tree and the models that behave identically on a
 server and in a browser. An application depends on it from its shared contract package; it wires
 the executor with `@owlmeans/server-planning` and reads remotely with `@owlmeans/client-planning`.
 
 ## Installation
 
 ```sh
-bun add @owlmeans/planning@^0.1.18-rc.20 ajv ajv-formats
+bun add @owlmeans/planning@^0.1.18-rc.26 ajv ajv-formats
 ```
 
 ## Concepts
 
-- **Transition** — the only way a record changes: an append-only event; a card is the fold of its
+- **Transition** — the only way a workcard changes: an append-only event; a card is the fold of its
   transitions in `seq` order (`applyHelper.applyTransition`).
 - **Workcard** — base fields at the top level (`title`, `status`, `parent`, `parents`, `labels`,
   `order`); a type's own fields under `fields`, validated by the type's schema.
@@ -24,6 +24,8 @@ bun add @owlmeans/planning@^0.1.18-rc.20 ajv ajv-formats
   slot revises one record in place.
 - **Wire query** — the scalar form a query travels in over HTTP (`wireHelper.encode*Query` /
   `wireHelper.decode*Query`).
+- **Auxiliary resources** — assignees, teams, comments and mentions are separate organization
+  resources with `version` compare-and-set. They reuse the schema and relationship stores.
 
 ## Usage
 
@@ -64,6 +66,8 @@ import { makePlanningProtocols } from '@owlmeans/planning'
 export const planningProtocols = makePlanningProtocols({
   base: { alias: 'app:api:planning', path: '/planning' },
   guards: 'guard:default',
+  resources: true,
+  definitions: true,
 })
 ```
 
@@ -114,11 +118,54 @@ const card = transitions.reduce((current, transition) => applyHelper.applyTransi
 const links = transitions.reduce(applyHelper.applyRelationship, [])
 ```
 
+## Participants, comments and hierarchy
+
+An assignee has a stable id, an organization-unique normalized nickname, `kind: 'human' |
+'non-human'`, a registered `type` and schema-validated `fields`. All links use the id.
+`authentication: { provider, externalId }` may refer to any authentication system. Human types
+require it by default; a type may explicitly declare `authentication: 'optional'`. Non-human
+types default to optional authentication. Register `schemas.assigneeTypes` in a plugin, or use
+`definitions.putAssigneeType` / `definitions.define({ assigneeTypes })` for organization-wide data
+definitions. The optional `@owlmeans/planning-auth` adapter links verified identities and groups.
+
+Cards have optional top-level single-choice `reporter` and `assignee` ids. Additional participant
+fields use a type's `relationships` declaration with `field`, `toKind: PlanningResourceKind.Assignee`
+and optional `to` type restrictions, `multiple` and `inverse`. The fields are authoritative;
+planning maintains their derived relationship index. Assignee retirement preserves historical
+attribution and prevents new assignments or memberships.
+
+Use `facade.comments.create({ card, body })`; the host resolves the author from trusted
+`PlanningScope.assigneeId`. `mentionHelper.encode(assigneeId, nickname)` embeds a stable mention
+as `[@nickname](assignee:<encoded-id>)`. The separate `mentions` resource caches each mentioned
+id and source comment revision. Comment updates maintain it; reads repair interrupted updates.
+
+Teams exist independently of projects. `teams.addMember(teamId, assigneeId)` and
+`teams.attach(teamId, projectId)` use canonical typed relationships. Multiple teams may attach to
+one project, and a team may attach to multiple projects. `teams.assignees(projectId)` returns the
+deduplicated union. An optional team `externalId` links an external permission group; access grants
+and authentication membership remain the host's responsibility. Project `mode` is `opened` or
+`closed`, defaults to `opened`, and is independent of flow status.
+
+Hierarchy reuses `parent` and direct `parents`; `parentType` is derived from the primary parent.
+Declare compatible `parents: { types?, required? }` and `children: { types }` on card schemas.
+Planning rejects cycles, cross-organization parents, incompatible reparenting and ordinary-card
+deletion with children. The nearest primary project selects schemas; project ancestry governs
+access. Do not create another hierarchy or participant join store.
+
+Enable `resources: true` to mount the assignee/team/comment/mention protocol branches and
+`definitions: true` for writable schemas. Stock wire replies omit native organization `entityId`
+metadata; the authenticated host derives scope from credentials and the organization `entitySlug`.
+Custom fields and schema bodies remain opaque to wire projection.
+
 ## API
 
 - Records and declarations: `Workcard`, `Card`, `Project`, `Specification`, `Relationship`,
   `Transition`, `StatusFlowSchema`, `WorkcardTypeSchema`, `ProjectTypeSchema`, `SpecificationSlot`,
   `CodePolicy`, `RelationshipType`, `PlanningSchemaBundle`.
+- Resources: `Assignee`, `AssigneeAuthentication`, `AssigneeTypeSchema`, `Team`, `Comment`,
+  `CommentMention`, `PlanningResourceFacade`, `PlanningRecordStore`, `PlanningWriteOptions`,
+  resource drafts and queries; `AssigneeKind`, `ProjectMode`, `PlanningResourceKind`,
+  `PLANNING_TEAM_MEMBER`, `PLANNING_PROJECT_TEAM`, `mentionHelper`, `planningReplyHelper`.
 - Write path and feed: `TransitionExecution`, `WorkcardDraft`, `ExecuteRequest`,
   `TransitionReceipt`, `TransitionReceiptView`, `CommitEvent`, `CommitStatus`, `CommitSource`.
 - Ports and seam: `TransitionStore`, `ProjectionStore`, `SpecificationStore`, `RelationshipStore`,
@@ -183,8 +230,10 @@ const links = transitions.reduce(applyHelper.applyRelationship, [])
 - `WorkcardNotFound` is also the answer for another entity's card — never read it as "deleted".
 - `CommitTimeout` leaves the transition pending; it will still commit.
 - Keep schemas `$jsonSchema`-safe: no `integer`, every optional property nullable.
-- Only card types and flows are data-defined, and a code key needs `overridable: true` to be
+- Card types, flows and assignee types are data-defined, and a code key needs `overridable: true` to be
   overridden; a data-defined declaration's `version` is its compare-and-set token.
+- Auxiliary updates/removals require the record's current `version`. Their `fields` replace the
+  previous fields object; card `changes.fields` merge.
 
 ## Related packages
 
@@ -192,6 +241,7 @@ const links = transitions.reduce(applyHelper.applyRelationship, [])
 - `@owlmeans/client-planning` — remote facade, state mirror, commit waiting
 - `@owlmeans/resource` — the criteria language
 - `@owlmeans/planning-postgres` — the durable Postgres store
+- `@owlmeans/planning-auth` — optional verified identity and group mapping
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -201,7 +251,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

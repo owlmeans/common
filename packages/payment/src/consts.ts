@@ -66,7 +66,7 @@ export const TERMINAL_STATUSES: readonly SubscriptionStatus[] = Object.freeze([
 
 /** How a limit's counter renews. */
 export enum LimitKind {
-  /** Renews on a calendar UTC window (`LimitWindow`). */
+  /** Renews on the calendar UTC or subscription-anchored `LimitWindow`. */
   Window = 'window',
   /** Never renews: the counter belongs to the entity and survives plan changes. */
   Lifetime = 'lifetime',
@@ -74,11 +74,15 @@ export enum LimitKind {
   Occupancy = 'occupancy',
 }
 
-/** The calendar UTC window of a `LimitKind.Window` limit. */
+/** Calendar UTC windows, or a seven-day window anchored at subscription creation. */
 export enum LimitWindow {
   Day = 'day',
   Month = 'month',
+  SubscriptionWeek = 'subscription-week',
 }
+
+export const SUBSCRIPTION_WEEK_MS = 7 * 24 * 60 * 60 * 1000
+export const SUBSCRIPTION_WEEK_PREFIX = 'subscription-week:'
 
 /** Which paygate portal flow a portal link opens. */
 export enum PortalFlow {

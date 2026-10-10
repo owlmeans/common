@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.23"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.30"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps
@@ -29,6 +29,7 @@ CLI). React hooks over the mirror are `useStoreModel` / `useStoreList` from `@ow
 | `planningMirrorOf(stores).applyCommitEvent(event, facade?)` / `.applyReceipt(view)` / `.applyCards(cards)` | The folds |
 | `makePlanningFeed(context, opts?)` | Subscribe, seed, fold, refresh — `{ connected, seeded, error, ready, refresh, stop }` |
 | `planningContextOf(context).facade(scope?)` / `.model(card, scope?)` | The facade / a model with the schemas loaded |
+| `makePlanningFieldValidator(schema)` | CSP-safe validation of an exact served field schema; `{ validateFields }` |
 | `CARDS`, `LINKS`, `COMMITS` | Store aliases (`planning-card-state`, `planning-link-state`, `planning-commit-state`) |
 | Types | `PlanningClientOptions`, `PlanningClientService`, `WithPlanningClient`, `PlanningSocketOpener`, `RemoteCommitSource`, `RemoteDefinitions`, `RemoteDefinitionsOptions`, `PlanningStores`, `PlanningStoreAliases`, `WithPlanningStores`, `PlanningCommitRecord`, `PlanningFeed`, `PlanningFeedOptions`, `PlanningFeedState`, `SyncOptions`, `PlanningContextHelper`, `PlanningMirror`, `SyncHelper` |
 
@@ -84,7 +85,39 @@ declaration's `version`), `define`, `seed` and `retire` go through `schema.defin
 whole cache — an organization-wide write reaches every project's layer — and make the next
 `model()` reload the service's own bundle. `records` is the server's alone (`PlanningUnsupported`).
 `model(card)` of a card resolves its type in its project's layer (a project's own id, a card's
-`parent`); a specification's type is always code's. A tree without `definitions` has none of this.
+nearest primary project ancestor); a specification's type is always code's. A tree without `definitions` has none of this.
+
+## Browser field validation under CSP
+
+Bind `makePlanningFieldValidator(type.fields)` to the exact definition returned by the resolved
+organization or project bundle. Its `validateFields(fields)` returns `{ valid, errors }`; errors
+carry decoded `path`, `keyword`, `schemaPath` and a bounded value-free `message`. Construct one JSON
+fields object, validate it and send that same object. No coercion, defaults or property removal
+occurs, and the schema is left unchanged. Preserve nested money objects and calendar date strings.
+The native server validates every write again.
+
+The validator interprets schemas with `@cfworker/json-schema`, with no `eval`, `new Function` or
+network reference loading. Do not call `makeSchemaRegistry(...).validator()` or
+`.assigneeValidator()` in a browser with strict `script-src`: those remain native AJV compilers.
+Static AJV standalone compilation is suitable only when the schema cannot change after building;
+organization and project definitions require the runtime interpreter.
+
+The supported contract is Draft 7's object/array/scalar, required, enum/const, ranges, string
+length/pattern, dependencies, boolean, composition and conditional keywords; `$defs`, local/nested
+`$id` references and AJV's `nullable` are also supported. `$ref` sibling constraints are enforced as
+by native planning AJV. String formats use the same `ajv-formats` full-mode predicates, including
+real calendar dates and timezone-aware times. `nullable` adds null to the declared type while
+leaving enum and const constraints intact. All references must resolve inside the supplied field
+schema; productive recursive schemas are supported, same-instance reference cycles are refused.
+Plain JSON values and field names without dot or dollar characters are required.
+
+Preparation throws `SchemaInvalid` for malformed schemas, unresolved references, unsupported
+drafts/keywords/formats, numeric formats, `formatMinimum`/`formatMaximum` extensions and
+`multipleOf`. The latter is refused because the interpreter's epsilon and native AJV's quotient
+semantics disagree for fractional and very large numbers. Standard annotation keywords and `x-`
+annotations do not add validation. Never discard a refused constraint, invent a substitute schema,
+enable `unsafe-eval` or proceed with a ready form after preparation fails. Show the error and retain
+disabled save controls. Validation reports at most 64 errors, with paths bounded to 512 characters.
 
 ## Mounting in a target
 
@@ -227,9 +260,64 @@ clear the marker. A model's `expectSeq` default and its `WorkcardConflict` are `
 - `@owlmeans/client-entrypoint` — `bindAll`, the typed `call()`
 - `@owlmeans/state` — the mirror; `@owlmeans/socket` — `Connection`
 
+## Auxiliary mirrors and authenticated scope lifecycle
+
+With `resources: true` in the shared protocol tree, every remote facade exposes the complete
+assignee/team/comment/mention API, including versioned writes, team membership and project
+attachment. `appendPlanningStores` registers separate stock typed mirrors for all four resources.
+`makePlanningResourceFeed` seeds and polls selected resource queries; use it with the stock stores
+and `useStoreList` / `useStoreModel`. Auxiliary writes update the mirror only after success.
+Comments use trusted server authors; mentions are read-only derived cache commands.
+
+Supply `PlanningClientOptions.scopeKey` from authenticated organization entity slug, profile/user
+id, session id and authorization revision; return undefined when signed out. Before switching
+organization or signing out, **await** `service.close()` before adopting the credential. It cancels
+requests and commit waits, invalidates receipts (including already-settled receipts), stops every
+registered feed, removes socket subscriptions, closes the carrier and rejects late socket openers.
+A stale operation answers `client:scope-changed`; cancellation never rolls back an accepted server
+write. A new subscription opens a fresh carrier after close.
+
+Close drains admitted **local** mirror writes before clearing every stock store and schema cache.
+New calls during an explicit close are refused, including hosts without `scopeKey`. Concurrent
+closes share the boundary. If clearing fails, close rejects and fresh work stays blocked; retain
+the old credential and retry close explicitly. An observed identity change also cancels old work
+and queues clearing before the new identity's mirror writes. Reload schemas and create fresh feeds
+after credential adoption. Feed query scope alone is insufficient for this lifecycle.
+
+The service's `lifecycle` coordinates stock facades, receipts, feeds and schema writes. A custom
+mirror integration captures an operation with `lifecycle.run`, performs remote reads through
+`operation.wait` with `operation.signal`, then uses `lifecycle.mutate(operation, write)` for local
+writes; never hold or nest that queue over a request, socket opener or another queued mutation.
+`planningMirrorOf(stores)` accepts `{ lifecycle, operation }` as its optional last argument and
+fetches missing frame records/links before entering the queue. Direct mirror/sync helpers without
+that option are local primitives: their caller owns isolation and cleanup.
+
+Planning protocols return `PlanningReply<T>` without storage organization identifiers. Stock
+facades hydrate records, receipts, schema scopes and socket frames with `entityId: ''` only to
+preserve the shared facade shape. That value is an advisory placeholder, never an organization
+identity or a credential. Use `scopeKey` and the authenticated organization entity slug for
+identity changes and access isolation; native server records keep their verified stable scope.
+
+Resource feed reconciliation snapshots mirror versions before requesting a list. Only unchanged
+snapshot rows absent from that response are removed, so a new local write or a newer version
+survives an older in-flight poll. Stopped feeds cannot publish. Track custom feeds through
+`registerFeed` when their lifecycle must end with the planning service. Card feeds use the same
+identity fence and stop registration; component cleanup awaits `stop()` when it must observe a
+completed boundary. Stop cancels unresolved seeds and drains admitted local changes without waiting
+for the network; neither late callbacks nor authoritative deletion passes may publish afterward.
+A schema write from an old generation cannot invalidate a newer generation's cached registry.
+
+
 ## Related
 
 - `planning` — records, flows, the fold, the models
 - `server-planning` — the handlers this addresses, the executor, the commit hub
 - `client-job` — the same seed-then-fold shape for safe application-job views
 - `state` — `syncHelper.syncCards` is built on its criteria engine and `purge`
+
+## External docs
+
+- https://ajv.js.org/security.html#content-security-policy — runtime AJV requires unsafe-eval; standalone build compilation preserves strict CSP for static schemas.
+- https://www.npmjs.com/package/@cfworker/json-schema/v/4.1.1 — the interpreter supports dynamic schemas without code generation; select an explicit vocabulary and check its known limitations (4.1.1).
+- https://github.com/ajv-validator/ajv-formats#full-and-fast-validation-modes — full-mode predicates validate formats completely and are reusable through the plugin's `get` API (3.0.1).
+- https://ajv.js.org/json-schema.html#nullable-openapi — nullable expands the declared type without adding null to enum or const.

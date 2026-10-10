@@ -13,7 +13,7 @@ browser app gets the default OwlMeans router from `@owlmeans/web-router` (regist
 ## Installation
 
 ```bash
-bun add @owlmeans/router@^0.1.18-rc.33
+bun add @owlmeans/router@^0.1.18-rc.34
 ```
 
 `react` is a peer dependency — the package uses its component types only.
@@ -200,7 +200,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.49
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

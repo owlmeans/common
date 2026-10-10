@@ -89,7 +89,7 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 | Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource` |
 | AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `viable-common`, `viable-log`, `viable-sdk` |
 | Mail | `mailer`, `mailer-smtp`, `server-mailer-mailgun` |
-| Domain | `oidc`, `iam`, `payment`, `consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `planning` |
+| Domain | `oidc`, `iam`, `payment`, `consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `planning`, `planning-auth` |
 | Not framework | `_tpl`, `test`, `test-auth`, `test-integration`, `test-ui` |
 
 ## Key Facts

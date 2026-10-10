@@ -2,6 +2,7 @@ import type { AnyTypeSchema, PlanningSchemaRegistry, PlanningStore, Specificatio
 
 /** Everything the steps after resolution read about an execution. */
 export interface Resolved {
+  project?: string
   create: boolean
   /** The existing card (not a create). */
   card?: Workcard

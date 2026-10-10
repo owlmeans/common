@@ -11,7 +11,7 @@ No React, no DOM, no runtime dependencies: constants, types, JSON schemas and on
 ## Installation
 
 ```bash
-bun add @owlmeans/common-inquiry@^0.1.18-rc.0
+bun add @owlmeans/common-inquiry@^0.1.18-rc.1
 ```
 
 `ajv` is an optional peer: the schemas are typed with its `JSONSchemaType`, and a server that
@@ -65,7 +65,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

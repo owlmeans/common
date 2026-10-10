@@ -11,7 +11,7 @@ but never started.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-panel@^0.1.18-rc.72
+bun add @owlmeans/web-panel@^0.1.18-rc.74
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
@@ -413,7 +413,9 @@ consumer's CSS puts dark tokens under `.dark` AND under
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `PanelCookieConsent`, `PanelCookiePolicy` | component | `@owlmeans/web-consent` components bound to the app's language and translations |
+| `PanelCookieConsent`, `PanelCookiePolicy` | component | `@owlmeans/web-consent` components bound to the app's language, translations and `cfg.cookieConsent` (`{ mode?, geo? }` — a prop wins) |
+| `appendConsentGeoPlugin(ctx, plugin)` | function | Register the app's own country locator (`ConsentGeoPlugin`) while the context is configured; turns the geo gate on |
+| `PanelCookieConsentConfig`, `ConsentGeoPluginAppend` | type | `cfg.cookieConsent`; the `context.consentGeo()` accessor |
 | `PanelConsentMenuWidget` | component | The cookie-preferences control for a host menu or footer ("Cookie settings" — pass `label` and `className`) |
 | `appendConsentWidgetService(ctx, alias?)`, `createConsentWidgetService` | function | Ref-counted presence service over a state resource |
 | `useConsentMenuPresence()`, `useConsentWidgetPresent()` | hook | Declare that a menu shows the row; read whether one does (hides the floating button) |
@@ -496,7 +498,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

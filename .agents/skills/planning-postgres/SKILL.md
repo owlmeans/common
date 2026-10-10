@@ -1,17 +1,17 @@
 ---
 name: planning-postgres
-description: How to use @owlmeans/planning-postgres — the durable Postgres PlanningStore for @owlmeans/server-planning — the four resources (planning-card, planning-transition, planning-link, planning-schema) a target registers from resources/planning/*.ts, the service a target registers from services/planning.ts, the inline fold under a per-card advisory lock and its prelude, healing and recover(), the LISTEN/NOTIFY commit bus, the project purge, data-defined types and flows, the limits and the errors. Auto-invoked when wiring planning into a Postgres backend, touching a planning table, or diagnosing a planning commit that stays pending on Postgres.
+description: How to use @owlmeans/planning-postgres — the durable Postgres PlanningStore for @owlmeans/server-planning — its eight native resources, organization transactions and card folds, versioned auxiliary writes, schema definitions, LISTEN/NOTIFY, recovery and ancestry-based purge. Use when wiring planning into a Postgres backend or diagnosing its persistence and commits.
 user-invocable: false
 ---
 
 # @owlmeans/planning-postgres
 
 **Layer:** Infra extension
-**Install:** `"@owlmeans/planning-postgres": "^0.1.18-rc.10"` in `dependencies` (peers `pg`, `ajv`, `ajv-formats`)
+**Install:** `"@owlmeans/planning-postgres": "^0.1.18-rc.15"` in `dependencies` (peers `pg`, `ajv`, `ajv-formats`)
 
 A `PlanningStore` of `@owlmeans/server-planning` on Postgres. It owns no planning semantics: every
 write still goes through the executor, every fold through `foldHelper.foldPending`, every query
-through `queryHelper.criteriaOf` — this package supplies four tables, the transaction a fold runs
+through `queryHelper.criteriaOf` — this package supplies eight tables, the transaction a fold runs
 in, and the bus that carries commits between processes. It implements every port, the
 data-defined schema port included, so a facade over it has `definitions`.
 
@@ -19,29 +19,35 @@ data-defined schema port included, so a facade over it has `definitions`.
 
 | Export | Description |
 |--------|-------------|
-| `makePlanningCardPostgres` / `makePlanningTransitionPostgres` / `makePlanningLinkPostgres` / `makePlanningSchemaPostgres` | `ResourceMaker`s of the four tables, under the default aliases |
-| `makePlanningCardResource(alias?, dbAlias?, serviceAlias?)` (and the three twins), `makePlanningPostgresResources(aliases)` | The same resources under custom aliases |
+| `makePlanningCardPostgres` / `makePlanningTransitionPostgres` / `makePlanningLinkPostgres` / `makePlanningSchemaPostgres` | Makers of card, transition, link and schema resources |
+| `makePlanningAssigneePostgres` / `makePlanningTeamPostgres` / `makePlanningCommentPostgres` / `makePlanningMentionPostgres` | Makers of the four versioned auxiliary resources |
+| `makePlanningCardResource(alias?, dbAlias?, serviceAlias?)` (and the seven twins), `makePlanningPostgresResources(aliases)` | The same resources under custom aliases |
 | `makePostgresPlanningService(opts?, alias?)` | The planning host service over a Postgres store — a target's `makeService()` |
-| `appendPostgresPlanning(ctx, opts?, alias?)` | The four resources (each unless present), the service and `ctx.planning()` in one call |
+| `appendPostgresPlanning(ctx, opts?, alias?)` | The eight resources (each unless present), the service and `ctx.planning()` in one call |
 | `makePostgresPlanningStore({ context: () => ctx, ...opts })` | The store alone (its resources resolved on that context at the first call); `fold(card)`, `recover(opts?)`, `close()` beside the ports |
 | `PlanningPostgresOptions` | `{ aliases?, bus?, limits?, ids?, now? }`; `PostgresPlanningServiceOptions` adds the service's own (`plugins`, `schemas`, `hooks`) |
 | `DEFAULT_PLANNING_POSTGRES_LIMITS` | `{ foldBatch: 500, gapGraceMs: 30_000, healAfterMs: 1_000, recoverAfterMs: 60_000, lockTimeoutMs: 10_000 }` |
-| `RES_PLANNING_CARD` · `RES_PLANNING_TRANSITION` · `RES_PLANNING_LINK` · `RES_PLANNING_SCHEMA`, `PLANNING_POSTGRES_STORE` | `planning-card` … `planning-schema`, `planning-postgres` |
+| `RES_PLANNING_CARD` · `RES_PLANNING_TRANSITION` · `RES_PLANNING_LINK` · `RES_PLANNING_SCHEMA` | Core resource aliases |
+| `RES_PLANNING_ASSIGNEE` · `RES_PLANNING_TEAM` · `RES_PLANNING_COMMENT` · `RES_PLANNING_MENTION`, `PLANNING_POSTGRES_STORE` | Auxiliary aliases and `planning-postgres` store alias |
 | `Planning*TableSchema` | The table schemas, derived from the planning record schemas |
 | `PlanningPostgresError` | `planning-postgres:<what>` — a fault (500) |
 | `planningChannel(qualified)`, `LOST_ALLOCATION` | The bus channel of a transition table; the cause of a gap's placeholder |
 
-## The four tables
+## The eight tables
 
 | Resource | Holds | Indexes |
 |---|---|---|
 | `planning-card` | projects, cards AND specifications (routed by `kind` at the query layer) | `(entityId, kind, type)`, `(parent, order)`, GIN `(parents)`, `(parent, status)`, `(entityId, intrinsic, updatedAt)`, GIN `(labels)`, `(entityId, parent, code) WHERE code IS NOT NULL`, `(parent, category) WHERE kind = 'specification'` |
 | `planning-transition` | the append-only log | UNIQUE `(card, seq)`, UNIQUE `(entityId, key) WHERE key IS NOT NULL`, `(project, at)`, `(at) WHERE (commit->>'state') = 'pending'` |
-| `planning-link` | typed edges | UNIQUE `(from, to, type)`, `(to, type)`, `(entityId, type)`, `(project)` |
-| `planning-schema` | data-defined types and flows, and one private `kind: 'head'` row per organization (its schema revision) | UNIQUE `("entityId", COALESCE(project, ''), kind, key)`, `(entityId, rev)` |
+| `planning-link` | typed edges | UNIQUE `(entityId, from, to, type, COALESCE(fromKind, 'workcard'), COALESCE(toKind, 'workcard'))`, `(to, type)`, `(entityId, type)`, `(project)` |
+| `planning-schema` | data-defined card/assignee types and flows, plus each organization's private `kind: 'head'` revision row | UNIQUE `("entityId", COALESCE(project, ''), kind, key)`, `(entityId, rev)` |
+| `planning-assignee` | schema-validated participants and external authentication links | UNIQUE `(entityId, nicknameKey)`, UNIQUE organization/provider/subject when authenticated, `(entityId, type, retired)` |
+| `planning-team` | reusable teams and external group links | UNIQUE `(entityId, externalId) WHERE externalId IS NOT NULL`, `(entityId)` |
+| `planning-comment` | card comments with immutable trusted authors | `(entityId, card, createdAt)`, `(entityId, author)` |
+| `planning-mention` | derived stable assignee mentions with source revisions | UNIQUE `(entityId, comment, assignee)`, `(entityId, assignee)`, `(entityId, card)` |
 
 - The DDL comes from `AnyWorkcardSchema`, `TransitionSchema`, `RelationshipSchema` and
-  `ScopedSchemaRecordSchema`. **Every timestamp stays `text`**: the `date-time` format would compile
+  `ScopedSchemaRecordSchema` and the four auxiliary record schemas. **Every timestamp stays `text`**: the `date-time` format would compile
   to `timestamptz` and marshal through `Date`, which rewrites the ISO string a record carries and
   breaks the lexicographic order `updatedSince`, `at` sorts and gap ages rely on. `seq`, `head`,
   `revision` and `bodyChars` (and a schema record's `version` and `rev`) are `integer`; `body` is
@@ -54,7 +60,7 @@ data-defined schema port included, so a facade over it has `definitions`.
 
 ## Target wiring
 
-**Backs:** projects, cards and their documents as planning workcards — the transition log they are folded from, their links, and the card types and flows an application defines as data
+**Backs:** projects, cards and documents, their transition log and typed relationships, data-defined card and assignee types and flows, and separate assignee, team, comment and mention resources
 
 | Sub-project | Packages |
 |---|---|
@@ -62,8 +68,8 @@ data-defined schema port included, so a facade over it has `definitions`.
 | common | `@owlmeans/planning` |
 | api | `@owlmeans/server-planning`, `@owlmeans/planning` |
 
-The service resolves its four resources by alias, so the registration order never matters. All
-four are required: the store keeps data-defined types and flows too, and a write reads their
+The service resolves its eight resources by alias, so the registration order never matters. All
+eight are required: the store keeps data-defined types and flows too, and a write reads their
 layer.
 
 ```ts file=sources/backend/src/services/planning.ts
@@ -72,8 +78,8 @@ import type { Service } from '@owlmeans/context'
 import { PLANNING } from '__APP_SLUG__-common/planning'
 
 /**
- * The planning service over Postgres — resolves its four resources
- * (`resources/planning/{card,transition,link,schema}.ts`) by alias, so registration order never
+ * The planning service over Postgres — resolves its eight resources
+ * (`resources/planning/{card,transition,link,schema,assignee,team,comment,mention}.ts`) by alias, so registration order never
  * matters. The maker name is fixed — the generated service registry imports exactly this symbol.
  */
 export const makeService = (): Service => makePostgresPlanningService({ plugins: [PLANNING] })
@@ -265,11 +271,14 @@ what may be defined, sealing, retiring — are `planning`'s and `server-planning
 
 ## Purge
 
-A project's delete purges in the fold's own transaction (or, called directly, in one under the
-project's lock): a recursive walk over `parents @> ARRAY[id]` finds every doomed card, nested
-projects included; then links, transitions, the doomed projects' schema layers and the cards go,
-in that order. The project's own `delete` rows stay as its tombstone — a waiter still reads the
-delete committed.
+A project's delete purges in the fold's own transaction. Current card ancestry selects doomed
+cards and nested projects; their comments, mentions, documents, links, transitions, project-local
+schema layers and projections are removed. Organization assignees and reusable teams survive.
+The project's own delete transition stays as its tombstone, so a waiter still reads it committed.
+
+A reparented survivor retains its complete history, documents and edges even when their cached
+project id names its former project. Cached project values may select orphaned records, but must
+never delete surviving records.
 
 ## Querying
 
@@ -297,6 +306,27 @@ case runs here only after `server-planning` is rebuilt), `fold.spec.ts`, `bus.sp
 `sync.spec.ts` are gated on `POSTGRES_URL` (`gateHelper.postgresGate()`) and skip cleanly without
 it. Each spec file owns a throwaway schema (`makeSuite`); a fault is injected with a real trigger,
 never a mock.
+
+## Native auxiliary resources and transactional consistency
+
+Register stock `makePlanningAssigneeResource`, `makePlanningTeamResource`,
+`makePlanningCommentResource` and `makePlanningMentionResource` alongside card, transition, link
+and schema resources, or use `appendPostgresPlanning` to register all eight. The default makers
+are `makePlanningAssigneePostgres`, `makePlanningTeamPostgres`, `makePlanningCommentPostgres` and
+`makePlanningMentionPostgres`. Use one maker per application resource wrapper so discovery sees
+each alias. Aux timestamps stay text and versions are native CAS integers.
+
+Assignee nickname and provider/subject, team externalId, and comment/assignee mention pairs have
+organization-scoped native unique indexes. Edges include resource kinds; legacy null kinds mean
+workcards. All organization units acquire a transaction advisory lock, shared by card folds and
+schema writes. Native ports join the current transaction runner. Domain validation, card projection,
+field-authoritative links, comment content and derived mention maintenance commit together.
+Schema versions and resource versions are compared in SQL, not only before writing.
+
+Deleting a card removes its comments and mention cache. Project purge includes descendants and
+project-scoped schema rows, and preserves organization assignees and teams. The shared resource
+conformance suite executes against real PostgreSQL, including concurrent CAS and hierarchy checks.
+
 
 ## Related
 

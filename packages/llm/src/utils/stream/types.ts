@@ -10,9 +10,10 @@ export interface StreamUtils {
    * `AbortSignal` to forward to `model.stream(..., { signal })`; the timer is re-armed on
    * every received chunk, so it only fires after `timeoutMs` of SILENCE — a provider that
    * accepted the request but stalls and never streams another token. On fire the call is
-   * aborted and surfaced as a retryable {@link LlmModelError} so the retry escalator moves
-   * on instead of hanging forever. Because the timer resets per token, long but actively
-   * streaming generations are never aborted.
+   * aborted and surfaced as a retryable {@link LlmModelError} independently of SDK
+   * cancellation settling. Both stream creation and iterator reads race the deadline;
+   * late results and cleanup cannot delay or resume the failed call. Because the timer
+   * resets per token, long but actively streaming generations are never aborted.
    *
    * The loop also breaks after the first chunk carrying a non-empty `finish_reason`. Some
    * providers send the final SSE data event twice, which makes `AIMessageChunk.concat()`

@@ -1,5 +1,5 @@
 /** Never in a caller's changes: the transition itself carries them. */
-export const IDENTITY_KEYS = ['id', 'kind', 'type', 'entityId', 'seq', 'head', 'createdAt']
+export const IDENTITY_KEYS = ['id', 'kind', 'type', 'entityId', 'seq', 'head', 'parentType', 'createdAt']
 
 /** Written once, from a create's draft; never by `changes` or `unset`, whatever the action. */
 export const PROVENANCE_KEYS = ['createdBy']

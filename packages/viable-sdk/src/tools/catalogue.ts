@@ -11,6 +11,7 @@ import { makeLocalRunHelper } from '../run/local.js'
 import { makeTaskEnvelopeModel } from '../task/envelope.js'
 import { makeQuestionEnvelopeModel } from '../task/inquiry.js'
 import { renderPlatform } from './platform.js'
+import { blueprintDescription } from './blueprints.js'
 import { GENERATED_SUMMARY, PLATFORM_CATALOGUE, STORY_ORDER, ToolHostKind } from './consts.js'
 import { refusalHelper } from './refusal.js'
 import { kitsUtils } from './kits.js'
@@ -472,6 +473,18 @@ const renderConversion = (view: ConversionStatusView): string => {
  * of things that work for it.
  */
 export const catalogue: ToolDefinition[] = [
+  {
+    name: 'describe_blueprints',
+    title: 'Supported blueprints, cases and application categories',
+    description: 'Read the installed blueprint registry, its complete case list, supported app categories, tenancy and planning resources. Call before choosing a project type. Authenticated, read-only, model-free; requires no project or connector session.',
+    input: {},
+    availability: toolHostHelper.anyHost,
+    annotations: READ_ONLY,
+    run: async (_args, deps) => {
+      const catalogue = await deps.api.account.blueprints()
+      return ok(blueprintDescription.render(catalogue), catalogue)
+    },
+  },
   {
     name: 'describe_platform',
     title: 'What this platform can build, and what you can drive from here',

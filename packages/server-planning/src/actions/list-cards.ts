@@ -7,7 +7,7 @@ import type { RequestHandler } from './types.js'
 
 /** Cards of the caller's entity; the query arrives in its wire shape and is decoded here. */
 export const listCards = (protocol: PlanningProtocols['card']['list'], opts?: PlanningHandlerOptions): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async () => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async () => {
     const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
 
     return await facade.cards.list(wireHelper.decodeWorkcardQuery(req.query))

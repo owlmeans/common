@@ -9,7 +9,7 @@ import type { RequestHandler } from './types.js'
 export const listLinks = (
   protocol: PlanningProtocols['link']['list'], opts?: PlanningHandlerOptions
 ): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async () => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async () => {
     const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
 
     return await facade.relationships.list(wireHelper.decodeRelationshipQuery(req.query))

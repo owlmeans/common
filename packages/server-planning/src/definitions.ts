@@ -1,4 +1,4 @@
-import { cardHelper, PlanningSchemaKind, PlanningUnsupported, SchemaConflict, SchemaInUse, scopedSchemaHelper, UnknownStatusFlow, UnknownWorkcardType, WorkcardNotFound, type PlanningDefinitions, type PlanningFacade, type PlanningSchemaRegistry, type SchemaDeclarations, type SchemaStore, type SchemaWriteOptions, type ScopedSchemaRecord, type ScopedSchemaRegistry, type StatusFlowSchema, type TransitionExecution, type Unsubscribe, type WorkcardTypeSchema } from '@owlmeans/planning'
+import { cardHelper, PlanningSchemaKind, PlanningUnsupported, SchemaConflict, SchemaInUse, scopedSchemaHelper, UnknownStatusFlow, UnknownWorkcardType, WorkcardNotFound, type AssigneeTypeSchema, type PlanningDefinitions, type PlanningFacade, type PlanningSchemaRegistry, type SchemaDeclarations, type SchemaStore, type SchemaWriteOptions, type ScopedSchemaRecord, type ScopedSchemaRegistry, type StatusFlowSchema, type TransitionExecution, type Unsubscribe, type WorkcardTypeSchema } from '@owlmeans/planning'
 import { DEFAULT_SCHEMA_VIEWS } from './consts.js'
 import { changesUtils } from './executor/changes.js'
 import type { PlanningRuntime, SchemaViews, SchemaViewsOptions } from './types.js'
@@ -73,6 +73,7 @@ export const makeSchemaViews = (opts: SchemaViewsOptions): SchemaViews => {
 }
 
 const planOf = (declarations: SchemaDeclarations): Planned[] => [
+  ...(declarations.assigneeTypes ?? []).map(schema => ({ kind: PlanningSchemaKind.AssigneeType, key: schema.type, definition: schema })),
   ...(declarations.flows ?? []).map(flow => ({ kind: PlanningSchemaKind.Flow, key: flow.id, definition: flow })),
   ...(declarations.types ?? []).map(type => ({ kind: PlanningSchemaKind.Type, key: type.type, definition: type })),
 ]
@@ -98,7 +99,7 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
     return store
   }
 
-  const visible = (project: string): boolean => scope.projects == null || scope.projects.includes(project)
+  const visible = async (project: string): Promise<boolean> => scope.projects == null || await facade.cards.load(project) != null
 
   /** @throws {WorkcardNotFound} for anything but a project card this scope can see */
   const assertProject = async (project?: string): Promise<void> => {
@@ -125,7 +126,10 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
 
     for (const entry of plan) {
       scopedSchemaHelper.assertOverridable(code, entry.kind, entry.key)
-      if (entry.kind === PlanningSchemaKind.Flow) {
+      if (entry.kind === PlanningSchemaKind.AssigneeType) {
+        if (project != null) throw new PlanningUnsupported('assignee-schema:project-layer')
+        scopedSchemaHelper.assertAssigneeTypeSchema(entry.definition as AssigneeTypeSchema)
+      } else if (entry.kind === PlanningSchemaKind.Flow) {
         scopedSchemaHelper.assertFlowSchema(entry.definition as StatusFlowSchema)
       } else {
         scopedSchemaHelper.assertTypeSchema(entry.definition as WorkcardTypeSchema, flows)
@@ -152,9 +156,14 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
     }).filter(([, value]) => value !== undefined)) as unknown as ScopedSchemaRecord
   }
 
+  const unit = async <R>(run: () => Promise<R>): Promise<R> => {
+    const store = runtime.service().store()
+    return store.unit != null ? await store.unit(entityId, run) : await run()
+  }
+
   const write = async (
     plan: Planned[], opts: SchemaWriteOptions | undefined, versionOf: (entry: Planned, current?: ScopedSchemaRecord) => number | null
-  ): Promise<ScopedSchemaRecord[]> => {
+  ): Promise<ScopedSchemaRecord[]> => await unit(async () => {
     await assertProject(opts?.project)
     const layer = await layerOf(opts?.project)
     const todo = plan
@@ -168,7 +177,7 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
       written.push(await port().put(recordOf(item.entry, item.version, opts?.project, item.current)))
     }
     return written
-  }
+  })
 
   const put = async (entry: Planned, opts?: SchemaWriteOptions): Promise<ScopedSchemaRecord> =>
     (await write([entry], opts, () => entry.definition.version))[0]
@@ -185,14 +194,17 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
     },
 
     records: async opts => {
-      if (typeof opts?.project === 'string' && !visible(opts.project)) {
+      if (typeof opts?.project === 'string' && !await visible(opts.project)) {
         return []
       }
       const records = await port().list(Object.fromEntries(Object.entries({
         entityId, project: opts?.project, kind: opts?.kind, retired: opts?.retired,
       }).filter(([, value]) => value !== undefined)) as { entityId: string })
-      return records.filter(record => record.project == null || visible(record.project))
+      const allowed = await Promise.all(records.map(async record => record.project == null || await visible(record.project)))
+      return records.filter((_record, index) => allowed[index])
     },
+
+    putAssigneeType: async schema => await put({ kind: PlanningSchemaKind.AssigneeType, key: schema.type, definition: schema }),
 
     putType: async (type, opts) => await put({ kind: PlanningSchemaKind.Type, key: type.type, definition: type }, opts),
 
@@ -215,7 +227,7 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
       return written
     },
 
-    retire: async (kind, key, opts) => {
+    retire: async (kind, key, opts) => await unit(async () => {
       await assertProject(opts?.project)
       const current = (await layerOf(opts?.project)).get(layerKey(kind, key))
       if (current == null) {
@@ -243,7 +255,7 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
       }
 
       return await port().put(retiring)
-    },
+    }),
   }
 
   return definitions

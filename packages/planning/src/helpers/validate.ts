@@ -89,7 +89,12 @@ export const createValidateHelper = (): ValidateHelper => {
     }
   }
 
-  return { ajvErrorText, invalidFieldKeys, validateFields, validateCard, validateSpecificationBody }
+  const assertSchema = (schema: object, value: unknown): void => {
+    const validate = compile(schema)
+    if (!validate(value)) throw new FieldsInvalid(ajvErrorText(validate.errors))
+  }
+
+  return { assertSchema, ajvErrorText, invalidFieldKeys, validateFields, validateCard, validateSpecificationBody }
 }
 
 export const validateHelper = createValidateHelper()

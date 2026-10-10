@@ -1,3 +1,8 @@
+import { AssigneeSchema, TeamSchema, CommentSchema, CommentMentionSchema } from '@owlmeans/planning'
+import type { Assignee, Team, Comment, CommentMention } from '@owlmeans/planning'
+import { RES_PLANNING_ASSIGNEE, RES_PLANNING_TEAM, RES_PLANNING_COMMENT, RES_PLANNING_MENTION } from './consts.js'
+import { planningRecordTableSchema } from './schemas.js'
+import type { PlanningAssigneeResource, PlanningTeamResource, PlanningCommentResource, PlanningMentionResource } from './types.js'
 import type { Relationship, Transition } from '@owlmeans/planning'
 import { makePostgresResource, PgIndexMethod, type PostgresResource, pgDeclarationHelper, pgNameHelper } from '@owlmeans/postgres-resource'
 import type { ResourceMaker, ResourceRecord } from '@owlmeans/resource'
@@ -82,7 +87,7 @@ export const makePlanningLinkResource = (
   const resource = makePostgresResource<Relationship, PlanningLinkResource>(alias, dbAlias, serviceAlias)
   resource.schema = PlanningLinkTableSchema
   declareIndexes(resource, alias, [
-    ['edge', { columns: ['from', 'to', 'type'], unique: true }],
+    ['edge', { expression: `"entityId", "from", "to", "type", COALESCE("fromKind", 'workcard'), COALESCE("toKind", 'workcard')`, unique: true }],
     ['inbound', { columns: ['to', 'type'] }],
     ['entity_type', { columns: ['entityId', 'type'] }],
     ['project', { columns: ['project'] }],
@@ -92,7 +97,7 @@ export const makePlanningLinkResource = (
 }
 
 /**
- * `planning-schema` — data-defined types and flows, one row per `(organization, project layer,
+ * `planning-schema` — data-defined card/assignee types and flows, one row per `(organization, project layer,
  * kind, key)`, plus each organization's private revision row (`kind: 'head'`).
  */
 export const makePlanningSchemaResource = (
@@ -120,12 +125,49 @@ export const makePlanningLinkPostgres: ResourceMaker<Relationship, PlanningLinkR
 export const makePlanningSchemaPostgres: ResourceMaker<PlanningSchemaRow, PlanningSchemaResource> =
   (dbAlias, serviceAlias) => makePlanningSchemaResource(RES_PLANNING_SCHEMA, dbAlias, serviceAlias)
 
-/** The four resources under the aliases a store resolves — what `appendPostgresPlanning` registers. */
+/** The eight resources under the aliases a store resolves — what `appendPostgresPlanning` registers. */
 export const makePlanningPostgresResources = (
   aliases: PlanningPostgresAliases, dbAlias?: string, serviceAlias?: string
-): [PlanningCardResource, PlanningTransitionResource, PlanningLinkResource, PlanningSchemaResource] => [
+): PostgresResource<any>[] => [
+  makePlanningAssigneeResource(aliases.assignee, dbAlias, serviceAlias),
+  makePlanningTeamResource(aliases.team, dbAlias, serviceAlias),
+  makePlanningCommentResource(aliases.comment, dbAlias, serviceAlias),
+  makePlanningMentionResource(aliases.mention, dbAlias, serviceAlias),
   makePlanningCardResource(aliases.card, dbAlias, serviceAlias),
   makePlanningTransitionResource(aliases.transition, dbAlias, serviceAlias),
   makePlanningLinkResource(aliases.link, dbAlias, serviceAlias),
   makePlanningSchemaResource(aliases.schema, dbAlias, serviceAlias),
 ]
+
+export const makePlanningAssigneeResource = (alias = RES_PLANNING_ASSIGNEE, dbAlias?: string, serviceAlias?: string): PlanningAssigneeResource => {
+  const resource = makePostgresResource<Assignee, PlanningAssigneeResource>(alias, dbAlias, serviceAlias)
+  resource.schema = planningRecordTableSchema<Assignee>(AssigneeSchema)
+  declareIndexes(resource, alias, [
+    ['nickname', { columns: ['entityId', 'nicknameKey'], unique: true }],
+    ['authentication', { expression: `"entityId", ("authentication"->>'provider'), ("authentication"->>'externalId')`, unique: true, where: '"authentication" IS NOT NULL' }],
+    ['type', { columns: ['entityId', 'type', 'retired'] }],
+  ])
+  return resource
+}
+export const makePlanningTeamResource = (alias = RES_PLANNING_TEAM, dbAlias?: string, serviceAlias?: string): PlanningTeamResource => {
+  const resource = makePostgresResource<Team, PlanningTeamResource>(alias, dbAlias, serviceAlias)
+  resource.schema = planningRecordTableSchema<Team>(TeamSchema)
+  declareIndexes(resource, alias, [['external_id', { columns: ['entityId', 'externalId'], unique: true, where: '"externalId" IS NOT NULL' }], ['entity', { columns: ['entityId'] }]])
+  return resource
+}
+export const makePlanningCommentResource = (alias = RES_PLANNING_COMMENT, dbAlias?: string, serviceAlias?: string): PlanningCommentResource => {
+  const resource = makePostgresResource<Comment, PlanningCommentResource>(alias, dbAlias, serviceAlias)
+  resource.schema = planningRecordTableSchema<Comment>(CommentSchema)
+  declareIndexes(resource, alias, [['card', { columns: ['entityId', 'card', 'createdAt'] }], ['author', { columns: ['entityId', 'author'] }]])
+  return resource
+}
+export const makePlanningMentionResource = (alias = RES_PLANNING_MENTION, dbAlias?: string, serviceAlias?: string): PlanningMentionResource => {
+  const resource = makePostgresResource<CommentMention, PlanningMentionResource>(alias, dbAlias, serviceAlias)
+  resource.schema = planningRecordTableSchema<CommentMention>(CommentMentionSchema)
+  declareIndexes(resource, alias, [['mention', { columns: ['entityId', 'comment', 'assignee'], unique: true }], ['assignee', { columns: ['entityId', 'assignee'] }], ['card', { columns: ['entityId', 'card'] }]])
+  return resource
+}
+export const makePlanningAssigneePostgres: ResourceMaker<Assignee, PlanningAssigneeResource> = (db, service) => makePlanningAssigneeResource(RES_PLANNING_ASSIGNEE, db, service)
+export const makePlanningTeamPostgres: ResourceMaker<Team, PlanningTeamResource> = (db, service) => makePlanningTeamResource(RES_PLANNING_TEAM, db, service)
+export const makePlanningCommentPostgres: ResourceMaker<Comment, PlanningCommentResource> = (db, service) => makePlanningCommentResource(RES_PLANNING_COMMENT, db, service)
+export const makePlanningMentionPostgres: ResourceMaker<CommentMention, PlanningMentionResource> = (db, service) => makePlanningMentionResource(RES_PLANNING_MENTION, db, service)

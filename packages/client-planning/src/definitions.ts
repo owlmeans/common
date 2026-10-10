@@ -1,9 +1,10 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { PlanningUnsupported, SchemaWriteMode, scopedSchemaHelper } from '@owlmeans/planning'
+import { planningReplyHelper, PlanningUnsupported, SchemaWriteMode, scopedSchemaHelper } from '@owlmeans/planning'
 import type {
-  PlanningProtocols, SchemaDefineReply, SchemaDefineRequest, ScopedSchemaRegistry,
+  PlanningProtocols, SchemaDefineReply, SchemaDefineRequest, ScopedSchemaBundle, ScopedSchemaRegistry,
 } from '@owlmeans/planning'
 import type { RemoteDefinitions, RemoteDefinitionsOptions } from './types.js'
+import { makePlanningClientLifecycle } from './lifecycle.js'
 
 const clean = <T extends object>(record: T): T =>
   Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined)) as T
@@ -19,6 +20,7 @@ const clean = <T extends object>(record: T): T =>
 export const makeRemoteDefinitions = <C extends BasicConfig, T extends BasicContext<C>>(
   context: T, protocols: PlanningProtocols, opts: RemoteDefinitionsOptions = {}
 ): RemoteDefinitions => {
+  const lifecycle = opts.lifecycle ?? makePlanningClientLifecycle({ scopeKey: opts.scopeKey })
   const define = protocols.schema.define
   if (define == null) {
     throw new PlanningUnsupported('client:definitions')
@@ -31,12 +33,14 @@ export const makeRemoteDefinitions = <C extends BasicConfig, T extends BasicCont
   }
 
   const registry = (project?: string): Promise<ScopedSchemaRegistry> => {
-    const key = project ?? ''
+    const identity = lifecycle.key()
+    const key = `${identity}\u0000${project ?? ''}`
     let entry = cache.get(key)
     if (entry == null) {
-      const loading = (async () => scopedSchemaHelper.scopedRegistryOf(await context.entrypoint(protocols.schema.list).call({
-        query: project != null ? { project } : {}, timeout: opts.timeout,
-      })))()
+      const loading = lifecycle.run(async operation => {
+        const bundle = planningReplyHelper.hydrate<ScopedSchemaBundle>(await operation.wait(context.entrypoint(protocols.schema.list).call({ query: project != null ? { project } : {}, timeout: opts.timeout, signal: operation.signal })))
+        return scopedSchemaHelper.scopedRegistryOf(bundle)
+      })
       entry = loading
       cache.set(key, loading)
       // A failed read is forgotten, so the next caller asks again instead of inheriting the error.
@@ -49,13 +53,13 @@ export const makeRemoteDefinitions = <C extends BasicConfig, T extends BasicCont
     return entry
   }
 
-  const write = async (request: SchemaDefineRequest): Promise<SchemaDefineReply> => {
+  const write = async (request: SchemaDefineRequest): Promise<SchemaDefineReply> => lifecycle.run(async operation => {
     try {
-      return await context.entrypoint(define).call({ body: clean(request), timeout: opts.timeout })
+      return planningReplyHelper.hydrate<SchemaDefineReply>(await operation.wait(context.entrypoint(define).call({ body: clean(request), timeout: opts.timeout, signal: operation.signal })))
     } finally {
-      invalidate()
+      if (operation.active()) invalidate()
     }
-  }
+  })
 
   return {
     bundle: async project => (await registry(project)).bundle(),
@@ -66,6 +70,7 @@ export const makeRemoteDefinitions = <C extends BasicConfig, T extends BasicCont
       throw new PlanningUnsupported('client:definitions:records')
     },
 
+    putAssigneeType: async schema => (await write({ assigneeTypes: [schema], mode: SchemaWriteMode.Put })).records[0],
     putType: async (type, layer) =>
       (await write({ project: layer?.project, mode: SchemaWriteMode.Put, types: [type] })).records[0],
 

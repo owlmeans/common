@@ -6,7 +6,7 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.32`
+**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.34`
 
 Public MIT package. It embeds Stripe into an application backend and owns everything between
 Stripe and an entity's entitlements: the subscription store, one-time fulfillments, the usage
@@ -25,7 +25,7 @@ stripeSecrets(cfg, { api: '/secrets/stripe-key' })     // webhook secret: option
 portalBranding(cfg, { returnUrl: 'https://app.example.com/billing', headline: 'Example' })
 declarePaymentPricing(cfg, {                           // absent entirely: today's fixed behaviour, unchanged
   tax: { automatic: true, behavior: TaxBehavior.Exclusive, collectTaxId: true, estimate: true },
-  currency: { adaptive: true, estimate: true },
+  currency: { adaptive: true, adaptiveFeeRate: 0.04, estimate: true },   // the fee is optional: see "Price sync and the tax estimate"
   stripe: { settlementCurrency: 'eur', subscriptionPaymentMethodTypes: ['card', 'link', 'klarna'],
     subscriptionPaymentMethodTypesByCurrency: { usd: ['card', 'link'] },
     lockCustomerEmail: true, lockCustomerCountry: true },   // optional: see "Customer locks"
@@ -317,6 +317,18 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
   `adaptive_pricing` takes. An amount plan stays estimated in its policy currency but is charged in
   the region's currency, so an EU top-up gets its local line through the policy → settlement →
   local chain, and an exact-USD one none.
+- **The local line prices the conversion the way Checkout does.** Adaptive Pricing shows a buyer's
+  currency at the quote's `base_rate` plus its own conversion fee (`price × (1 + fee)`, Stripe's 2–4%,
+  decided per currency — test mode showed 4% for PLN: `1 EUR = 4.5626 PLN = 1 / 0.227941 × 1.04`),
+  while the FX Quotes `exchange_rate` is `base_rate × (1 − fx_fee_rate)` with the quote's 2% — so it
+  understates Checkout (99.11 against 101.02 PLN for a €22.14 total). `currency.adaptiveFeeRate`
+  declares that fee: `local.exchangeRate` = `base_rate / (1 + fee)` (and `fxFeeRate` = the fee),
+  divided by the source's reference rate for an amount plan, so a subscription and a top-up share the
+  one rule. Absent, `local.exchangeRate` is the quote's own `exchange_rate`. A buyer whose local
+  currency IS the settlement currency pays no conversion fee and gets none. `StripeFxRate.baseRate`
+  is `rate_details.base_rate` (derived from `exchange_rate` and `fx_fee_rate` when absent); the fee
+  is part of the FX cache key. The fee Stripe really applies is not exposed by any API — probe it by
+  reading a test-mode Checkout page ("includes N% conversion fee") and set the declared value.
 
 ## The subscription store
 
@@ -610,6 +622,8 @@ concurrent withdrawals.
 - https://docs.stripe.com/api/customer_portal/configurations/create — `features.customer_update.allowed_updates`, subscription cancel/update features; configurations are never deletable.
 - https://docs.stripe.com/api/tax/calculations/create — `percentage_decimal` is a STRING; parse it exactly.
 - https://docs.stripe.com/api/fx_quotes/create — a PREVIEW endpoint (`stripe.rawRequest`); `reference_rate` for settlement conversion.
+- https://docs.stripe.com/currencies/localize-prices/fx-quotes-api — `exchange_rate` is fee-inclusive (`base_rate × (1 − fx_fee_rate)`, 2%); dividing a price by `base_rate` is the fee-free local price.
+- https://docs.stripe.com/payments/currencies/localize-prices/adaptive-pricing — the buyer pays a 2–4% conversion fee that Stripe decides ("includes 4% conversion fee" on a PLN Checkout, 2026-10): the mid-market rate × (1 + fee), a different fee from the FX Quotes' `fx_fee_rate`.
 
 ## Related
 

@@ -66,7 +66,7 @@ export const createQueryHelper = (): QueryHelper => {
     entityId: scope.entityId,
     from: query?.from,
     to: query?.to,
-    type: query?.type,
+    type: query?.type, fromKind: query?.fromKind, toKind: query?.toKind,
   })
 
   const transitionWhereOf = (query: TransitionQuery | null | undefined, scope: Scope): TransitionWhere => clean({

@@ -7,7 +7,7 @@ import type { RequestHandler } from './types.js'
 
 /** One card's log. */
 export const listCardTransitions = (protocol: PlanningProtocols['card']['transitions'], opts?: PlanningHandlerOptions): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async () => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async () => {
     const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
     const card = await facade.cards.get(`${req.params.id}`)
 

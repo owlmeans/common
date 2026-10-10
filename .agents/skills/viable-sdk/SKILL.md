@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.47"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.49"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -781,7 +781,18 @@ project fault — escapes as an exception. Everything is resolved per call rathe
 because a re-initialization replaces the tree under a running connector. The integrity verdict is
 forgotten after every command that changes the tree.
 
-Five rules the local half adds, each learned from a defect:
+Rules for the local executor:
+
+- **The local browser environment defaults `APP_UNSECURE` to `true`** so its generated client
+  calls the HTTP web proxy. The web `.env` can override this default; root backend secrets never
+  enter the browser environment. The platform's local configure uses the web port for both
+  `FRONTEND_PORT` and `BACKEND_PORT`, with `/api` proxied to the backend port.
+
+- **`Bun` forwards `options.env` into the child process**, alongside `options.subproject` for
+  its working directory. The spawn helper merges these values over the inherited environment
+  without changing the parent process or the project's configuration files. Runtime probes carry
+  their input in these variables; dropping them prevents the runner from producing its report.
+  `executor-shell.spec.ts` exercises the public slot-command dispatcher with a real Bun child.
 
 - **`makeTargetEnvHelper(dir).backendEnv` reads the root `.env` and `.frontendEnv` the web package's own — the file split IS
   the leak boundary.** The publisher has an allow-list (`frontendEnvVars`/`frontendSecrets`); here
@@ -885,6 +896,8 @@ reader looking for a database that was never configured.
 
 ## Tests
 
+In the `@owlmeans/viable-sdk` package directory, `bun x tsc -p tests/tsconfig.json --noEmit` checks the SDK sources and all test typings.
+
 `bun test ./tests` — offline: the envelope and its parser, the tool catalogue and its extension seam,
 the `registerCatalogue` out-of-credits, consent and planning-refusal phrasing and `notify` wiring
 (`mcp-catalogue.spec.ts`; the consent marker, the bare 428/402 statuses and a consent inside a
@@ -936,6 +949,27 @@ command runs and a redelivered command runs once.
   `@owlmeans/auth-common`, `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/socket`,
   `@owlmeans/config`, `@owlmeans/context`, `@owlmeans/error`, `@owlmeans/basic-ids`
 - `@modelcontextprotocol/sdk` (types only, structurally), `zod`, `fs-extra`, `globby`, `ajv`
+
+## Blueprint discovery before project creation
+
+`ConnectorApi.account.blueprints()` reads the installed `BlueprintCatalogue` from authenticated
+`/connect/account/blueprints`, before a project or session exists. `describe_blueprints` renders and
+returns its full structured catalogue: blueprint ids, stacks, resolved cases, supported application
+categories, tenancy and planning resource capabilities. Both stdio MCP and platform `/mcp` expose
+this same SDK tool. The platform bridges to the signed agent registry; never synthesize the deployed
+catalogue from frontend presets or a closed-package import.
+
+The remote planning facade hydrates HTTP and collected receipts with empty advisory organization
+metadata (`entityId: ''`). Native organization IDs are absent from planning wire replies. Use the
+authenticated organization entity slug and the planning scope lifecycle for client isolation;
+never resolve permissions or organization identity from a returned planning record.
+
+Server instructions explicitly describe the stock `owlmeans-fullstack-ts` cases: `web`, `scalable`,
+`ai-pipeline`, `ai-agent`, `game`, `work-management`, `work-management-tenanted`. Work categories
+include project tracking, CRM, service desk, inventory, recruiting, field service and process;
+game categories include casual, online-turn and online-live. The live catalogue is authoritative
+for installed custom registries. Read it before proposing a project category.
+
 
 ## Related
 

@@ -1,3 +1,5 @@
+import type { AssigneeTypeSchema } from '../resources/types.js'
+import { AssigneeTypeSchemaSchema } from '../schemas.js'
 import { memoHelper } from '@owlmeans/context'
 import { PlanningSchemaKind, SchemaOrigin, WorkcardKind } from '../consts.js'
 import { PlanningUnsupported, SchemaInvalid, SchemaSealed } from '../errors.js'
@@ -16,20 +18,25 @@ const messageOf = (error: unknown): string => error instanceof Error ? error.mes
 export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
   const checkers = memoHelper.once(() => {
     const ajv = makeAjv()
-    return { flow: ajv.compile(StatusFlowSchemaSchema), type: ajv.compile(WorkcardTypeSchemaSchema) }
+    return { flow: ajv.compile(StatusFlowSchemaSchema), type: ajv.compile(WorkcardTypeSchemaSchema), assignee: ajv.compile(AssigneeTypeSchemaSchema) }
   })
 
   const schemaRecordKey = (record: Pick<ScopedSchemaRecord, 'entityId' | 'project' | 'kind' | 'key'>): string =>
     `${record.entityId}\u0000${record.project ?? ''}\u0000${record.kind}\u0000${record.key}`
 
-  const schemaKeyOf = (kind: PlanningSchemaKind, definition: WorkcardTypeSchema | StatusFlowSchema): string =>
-    kind === PlanningSchemaKind.Type ? (definition as WorkcardTypeSchema).type : (definition as StatusFlowSchema).id
+  const schemaKeyOf = (kind: PlanningSchemaKind, definition: WorkcardTypeSchema | StatusFlowSchema | AssigneeTypeSchema): string =>
+    kind !== PlanningSchemaKind.Flow ? (definition as WorkcardTypeSchema).type : (definition as StatusFlowSchema).id
 
   const openType = (type: AnyTypeSchema): boolean => type.kind === WorkcardKind.Card && type.overridable === true
 
   const assertOverridable = (
-    code: Pick<PlanningSchemaRegistry, 'has' | 'type' | 'flows'>, kind: PlanningSchemaKind, key: string
+    code: Pick<PlanningSchemaRegistry, 'has' | 'type' | 'flows' | 'assigneeTypes'>, kind: PlanningSchemaKind, key: string
   ): void => {
+    if (kind === PlanningSchemaKind.AssigneeType) {
+      const schema = code.assigneeTypes().find(schema => schema.type === key)
+      if (schema != null && schema.overridable !== true) throw new SchemaSealed(`assignee:${key}`)
+      return
+    }
     if (kind === PlanningSchemaKind.Type) {
       if (code.has(key) && !openType(code.type(key))) {
         throw new SchemaSealed(`type:${key}`)
@@ -40,6 +47,12 @@ export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
     if (flow != null && flow.overridable !== true) {
       throw new SchemaSealed(`flow:${key}`)
     }
+  }
+
+  const assertAssigneeTypeSchema = (schema: AssigneeTypeSchema): void => {
+    const validate = checkers().assignee
+    if (!validate(schema)) throw new SchemaInvalid(`assignee:${(schema as Partial<AssigneeTypeSchema>)?.type}:${validateHelper.ajvErrorText(validate.errors)}`)
+    try { makeAjv().compile(schema.fields) } catch (error) { throw new SchemaInvalid(`assignee:${schema.type}:fields:${messageOf(error)}`) }
   }
 
   const assertFlowSchema = (flow: StatusFlowSchema): void => {
@@ -100,7 +113,7 @@ export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
     }
   }
 
-  const resolveKind = <T extends WorkcardTypeSchema | StatusFlowSchema | AnyTypeSchema>(
+  const resolveKind = <T extends WorkcardTypeSchema | StatusFlowSchema | AssigneeTypeSchema | AnyTypeSchema>(
     kind: PlanningSchemaKind,
     code: readonly T[],
     keyOf: (definition: T) => string,
@@ -171,14 +184,19 @@ export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
       flow => flow != null && typeof flow.id === 'string', layers,
     )
 
+    const assignees = resolveKind<AssigneeTypeSchema>(
+      PlanningSchemaKind.AssigneeType, code.assigneeTypes ?? [], schema => schema.type, schema => schema.overridable === true,
+      schema => schema != null && typeof schema.type === 'string', { entity: layers.entity, project: [] },
+    )
     return structuredClone({
+      assigneeTypes: assignees.definitions,
       version: code.version,
       types: types.definitions,
       flows: flows.definitions,
       scope: scope.project == null ? { entityId: scope.entityId } : { entityId: scope.entityId, project: scope.project },
       revision: scope.revision ?? 0,
-      origins: { types: types.origins, flows: flows.origins },
-      retired: { types: types.retired, flows: flows.retired },
+      origins: { types: types.origins, flows: flows.origins, assigneeTypes: assignees.origins },
+      retired: { types: types.retired, flows: flows.retired, ...(assignees.retired.length > 0 ? { assigneeTypes: assignees.retired } : {}) },
     })
   }
 
@@ -189,19 +207,20 @@ export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
       throw new PlanningUnsupported('schemas:read-only')
     }
     const originsOf = (kind: PlanningSchemaKind) =>
-      kind === PlanningSchemaKind.Type ? kept.origins?.types : kept.origins?.flows
+      kind === PlanningSchemaKind.AssigneeType ? kept.origins?.assigneeTypes : kind === PlanningSchemaKind.Type ? kept.origins?.types : kept.origins?.flows
     const retiredOf = (kind: PlanningSchemaKind) =>
-      kind === PlanningSchemaKind.Type ? kept.retired?.types : kept.retired?.flows
+      kind === PlanningSchemaKind.AssigneeType ? kept.retired?.assigneeTypes : kind === PlanningSchemaKind.Type ? kept.retired?.types : kept.retired?.flows
 
     return {
       ...base,
+      registerAssigneeType: refuse,
       registerType: refuse,
       registerFlow: refuse,
       load: refuse,
       scope: kept.scope ?? { entityId: '' },
       revision: kept.revision ?? 0,
       originOf: (kind, key) => originsOf(kind)?.[key]
-        ?? ((kind === PlanningSchemaKind.Type ? base.has(key) : base.flows().some(flow => flow.id === key))
+        ?? ((kind === PlanningSchemaKind.AssigneeType ? base.assigneeTypes().some(schema => schema.type === key) : kind === PlanningSchemaKind.Type ? base.has(key) : base.flows().some(flow => flow.id === key))
           ? SchemaOrigin.Code
           : undefined),
       isRetired: (kind, key) => retiredOf(kind)?.includes(key) === true,
@@ -218,7 +237,7 @@ export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
   }
 
   return {
-    schemaRecordKey, schemaKeyOf, assertOverridable, assertFlowSchema, assertTypeSchema, resolveScopedBundle,
+    schemaRecordKey, schemaKeyOf, assertOverridable, assertAssigneeTypeSchema, assertFlowSchema, assertTypeSchema, resolveScopedBundle,
     scopedRegistryOf, flowInUse,
   }
 }
@@ -230,12 +249,12 @@ export const schemaRecordKey = (record: Pick<ScopedSchemaRecord, 'entityId' | 'p
   scopedSchemaHelper.schemaRecordKey(record)
 
 /** @deprecated compat:factory-refactor — use `scopedSchemaHelper.schemaKeyOf(…)` */
-export const schemaKeyOf = (kind: PlanningSchemaKind, definition: WorkcardTypeSchema | StatusFlowSchema): string =>
+export const schemaKeyOf = (kind: PlanningSchemaKind, definition: WorkcardTypeSchema | StatusFlowSchema | AssigneeTypeSchema): string =>
   scopedSchemaHelper.schemaKeyOf(kind, definition)
 
 /** @deprecated compat:factory-refactor — use `scopedSchemaHelper.assertOverridable(…)` */
 export const assertOverridable = (
-  code: Pick<PlanningSchemaRegistry, 'has' | 'type' | 'flows'>, kind: PlanningSchemaKind, key: string
+  code: Pick<PlanningSchemaRegistry, 'has' | 'type' | 'flows' | 'assigneeTypes'>, kind: PlanningSchemaKind, key: string
 ): void => scopedSchemaHelper.assertOverridable(code, kind, key)
 
 /** @deprecated compat:factory-refactor — use `scopedSchemaHelper.assertFlowSchema(…)` */

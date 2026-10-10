@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.47"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.1"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -177,6 +177,12 @@ application, the project owner's, that every person acts in.
   and `admin` (the project owner, above every tenant) are never tenanted.
 - Classification, the access policy, per-record kinds and the IAM client config live in
   `@owlmeans/viable` (`/target-tenancy`).
+
+### Binary slot files
+
+`SlotFileCommand.WriteBinaryFile` uses `{ filePath, base64 }` and answers `{}`. It carries image
+bytes and atomic manifests through the existing signed file-command transport. Executors validate
+and confine paths and decode bounded strict base64; text writes are not a binary transport.
 
 ### Slots, codes, relationships
 
@@ -614,3 +620,16 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 - DOMAIN meaning lives downstream (`target-areas`, `target-tenancy`, `scaffolding`,
   `workload-integrity`, `viable-metadata`, `converter`); this skill owns the CONTRACT — how a name
   is declared and what refuses it.
+
+## Installed blueprint discovery contract
+
+`BlueprintCatalogue` is the public JSON DTO for a registry read: version 1, defaultBlueprintId and
+blueprints. Each blueprint carries stack descriptors and complete resolved cases; each case carries
+capabilities, tenancy, supported application categories and optional planningResources. Category
+ids, aliases and record names are data, not permission scopes. The signed agent registry produces
+the catalogue; Common declares no private viable-agent runtime dependency.
+
+`connectProtocols` declares account.blueprints at authenticated GET `/connect/account/blueprints`.
+It uses the account gate as a separate root, without a project ownership parameter or payment gate.
+`connectRef.account.blueprints` is the matching SDK reference. This model-free read works before
+project creation. Both MCP transports reuse the SDK's `describe_blueprints` tool.

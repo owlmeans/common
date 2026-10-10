@@ -1,3 +1,4 @@
+import type { AssigneeTypeSchema } from './resources/types.js'
 import type { ValidateFunction } from 'ajv'
 import { PLANNING_SCHEMA_VERSION } from './consts.js'
 import { UnknownStatusFlow, UnknownWorkcardType } from './errors.js'
@@ -13,11 +14,31 @@ import type { AnyTypeSchema, PlanningSchemaBundle, PlanningSchemaRegistry, Statu
  */
 export const makeSchemaRegistry = (bundle?: Partial<PlanningSchemaBundle>): PlanningSchemaRegistry => {
   const types = new Map<string, AnyTypeSchema>()
+  const assigneeTypes = new Map<string, AssigneeTypeSchema>()
+  const assigneeValidators = new Map<string, ValidateFunction>()
   const flows = new Map<string, StatusFlowSchema>()
   const validators = new Map<string, ValidateFunction>()
   let ajv = makeAjv()
 
   const registry: PlanningSchemaRegistry = {
+    registerAssigneeType: schema => {
+      assigneeTypes.set(schema.type, schema)
+      assigneeValidators.delete(schema.type)
+    },
+    assigneeTypes: () => [...assigneeTypes.values()],
+    assigneeType: type => {
+      const schema = assigneeTypes.get(type)
+      if (schema == null) throw new UnknownWorkcardType(`assignee:${type}`)
+      return schema
+    },
+    assigneeValidator: type => {
+      let validator = assigneeValidators.get(type)
+      if (validator == null) {
+        validator = ajv.compile(registry.assigneeType(type).fields)
+        assigneeValidators.set(type, validator)
+      }
+      return validator
+    },
     registerType: schema => {
       types.set(schema.type, schema)
       validators.delete(schema.type)
@@ -70,19 +91,24 @@ export const makeSchemaRegistry = (bundle?: Partial<PlanningSchemaBundle>): Plan
       version: PLANNING_SCHEMA_VERSION,
       types: [...types.values()],
       flows: [...flows.values()],
+      assigneeTypes: [...assigneeTypes.values()],
     }),
 
     load: next => {
+      assigneeTypes.clear()
+      assigneeValidators.clear()
       types.clear()
       flows.clear()
       validators.clear()
       // A fresh ajv: a replaced type must not collide with a schema `$id` the old one compiled.
       ajv = makeAjv()
+      next.assigneeTypes?.forEach(registry.registerAssigneeType)
       next.flows.forEach(registry.registerFlow)
       next.types.forEach(registry.registerType)
     },
   }
 
+  bundle?.assigneeTypes?.forEach(registry.registerAssigneeType)
   bundle?.flows?.forEach(registry.registerFlow)
   bundle?.types?.forEach(registry.registerType)
 

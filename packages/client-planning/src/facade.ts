@@ -1,13 +1,16 @@
+import type { ListResult } from '@owlmeans/resource'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import {
   CommitFailed, CommitState, DEFAULT_COMMIT_TIMEOUT, modelOf, PlanningError, PlanningUnsupported, wireHelper,
-  WorkcardKind, WorkcardNotFound,
+  WorkcardKind, WorkcardNotFound, planningReplyHelper,
 } from '@owlmeans/planning'
 import type {
-  PlanningFacade, PlanningProtocols, PlanningScope, TransitionReceipt,
-  TransitionReceiptView, Workcard, WorkcardModel,
+  PlanningFacade, PlanningProtocols, PlanningScope, PlanningReply, TransitionReceipt,
+  TransitionReceiptView, Workcard, WorkcardModel, Specification, Relationship, Transition, SpecificationRevisionList, SummaryView,
 } from '@owlmeans/planning'
+import { makeRemoteResourceFacade } from './resources.js'
 import { planningMirrorOf } from './events.js'
+import { makePlanningClientLifecycle } from './lifecycle.js'
 import type { RemoteFacadeOptions } from './types.js'
 
 /**
@@ -29,8 +32,12 @@ export const makeRemoteFacade = <C extends BasicConfig, T extends BasicContext<C
 ): PlanningFacade => {
   const timeout = opts.timeout
   const { commits } = opts
+  const lifecycle = opts.lifecycle ?? makePlanningClientLifecycle({ scopeKey: opts.scopeKey })
 
-  const receiptOf = (view: TransitionReceiptView): TransitionReceipt => {
+  const scopedCall = async <R>(run: (signal: AbortSignal) => Promise<PlanningReply<R>>): Promise<R> =>
+    lifecycle.run(async operation => planningReplyHelper.hydrate<R>(await operation.wait(run(operation.signal))))
+
+  const receiptOf = (view: TransitionReceiptView, key: string): TransitionReceipt => {
     const id = view.transition.id
     if (id == null) {
       throw new PlanningError('malformed:receipt-without-transition')
@@ -40,26 +47,30 @@ export const makeRemoteFacade = <C extends BasicConfig, T extends BasicContext<C
       transition: view.transition,
       ...(view.card !== undefined ? { card: view.card } : {}),
       committed: async waitOpts => {
-        const { state, error } = view.transition.commit
-        if (state === CommitState.Failed) {
-          throw new CommitFailed(error ?? id)
-        }
-        if (state === CommitState.Committed && view.card !== undefined) {
-          return view.card
-        }
+        const operation = lifecycle.capture(key)
+        try {
+          const { state, error } = view.transition.commit
+          if (state === CommitState.Failed) {
+            throw new CommitFailed(error ?? id)
+          }
+          if (state === CommitState.Committed && view.card !== undefined) {
+            return view.card
+          }
 
-        return await commits.wait(id, { timeout: waitOpts?.timeout ?? DEFAULT_COMMIT_TIMEOUT })
+          return await operation.wait(commits.wait(id, { timeout: waitOpts?.timeout ?? DEFAULT_COMMIT_TIMEOUT }))
+        } finally { operation.release() }
       },
     }
   }
 
   const facade: PlanningFacade = {
+    ...makeRemoteResourceFacade(context, protocols, { ...opts, lifecycle }),
     scope: { ...scope, entityId: scope.entityId ?? '' },
 
     schemas: opts.schemas,
 
     cards: {
-      get: async id => await context.entrypoint(protocols.card.get).call({ params: { id }, timeout }),
+      get: async id => await scopedCall<Workcard>(signal => context.entrypoint(protocols.card.get).call({ params: { id }, timeout, signal })),
 
       load: async id => {
         try {
@@ -72,58 +83,58 @@ export const makeRemoteFacade = <C extends BasicConfig, T extends BasicContext<C
         }
       },
 
-      list: async query => await context.entrypoint(protocols.card.list).call({
-        query: wireHelper.encodeWorkcardQuery(query), timeout,
-      }),
+      list: async query => await scopedCall<ListResult<Workcard>>(signal => context.entrypoint(protocols.card.list).call({
+        query: wireHelper.encodeWorkcardQuery(query), timeout, signal,
+      })),
 
       count: async query => {
         const { page: _page, size: _size, sort: _sort, ...where } = query ?? {}
-        const answer = await context.entrypoint(protocols.card.list).call({
-          query: wireHelper.encodeWorkcardQuery({ ...where, page: 0, size: 1 }), timeout,
-        })
+        const answer = await scopedCall<ListResult<Workcard>>(signal => context.entrypoint(protocols.card.list).call({
+          query: wireHelper.encodeWorkcardQuery({ ...where, page: 0, size: 1 }), timeout, signal,
+        }))
 
         return answer.total
       },
 
-      summary: async (parents, query) => await context.entrypoint(protocols.card.summary).call({
-        query: wireHelper.encodeSummaryQuery({ ...query, parents }), timeout,
-      }),
+      summary: async (parents, query) => await scopedCall<SummaryView>(signal => context.entrypoint(protocols.card.summary).call({
+        query: wireHelper.encodeSummaryQuery({ ...query, parents }), timeout, signal,
+      })),
     },
 
     specifications: {
       current: async (parent, category) => {
-        const answer = await context.entrypoint(protocols.card.specifications).call({
-          params: { id: parent }, query: wireHelper.encodeSpecificationQuery({ category }), timeout,
-        })
+        const answer = await scopedCall<ListResult<Specification>>(signal => context.entrypoint(protocols.card.specifications).call({
+          params: { id: parent }, query: wireHelper.encodeSpecificationQuery({ category }), timeout, signal,
+        }))
 
         return answer.items[0] ?? null
       },
 
-      list: async (parent, query) => await context.entrypoint(protocols.card.specifications).call({
-        params: { id: parent }, query: wireHelper.encodeSpecificationQuery(query), timeout,
-      }),
+      list: async (parent, query) => await scopedCall<ListResult<Specification>>(signal => context.entrypoint(protocols.card.specifications).call({
+        params: { id: parent }, query: wireHelper.encodeSpecificationQuery(query), timeout, signal,
+      })),
 
-      get: async id => await context.entrypoint(protocols.spec.get).call({ params: { id }, timeout }),
+      get: async id => await scopedCall<Specification>(signal => context.entrypoint(protocols.spec.get).call({ params: { id }, timeout, signal })),
 
       revisions: async (id, limit) => {
-        const answer = await context.entrypoint(protocols.spec.revisions).call({
-          params: { id }, query: limit != null ? { limit } : {}, timeout,
-        })
+        const answer = await scopedCall<SpecificationRevisionList>(signal => context.entrypoint(protocols.spec.revisions).call({
+          params: { id }, query: limit != null ? { limit } : {}, timeout, signal,
+        }))
 
         return answer.items
       },
     },
 
     relationships: {
-      list: async query => await context.entrypoint(protocols.link.list).call({
-        query: wireHelper.encodeRelationshipQuery(query), timeout,
-      }),
+      list: async query => await scopedCall<ListResult<Relationship>>(signal => context.entrypoint(protocols.link.list).call({
+        query: wireHelper.encodeRelationshipQuery(query), timeout, signal,
+      })),
     },
 
     transitions: {
-      get: async id => await context.entrypoint(protocols.transition.get).call({
-        params: { transition: id }, timeout,
-      }),
+      get: async id => await scopedCall<Transition>(signal => context.entrypoint(protocols.transition.get).call({
+        params: { transition: id }, timeout, signal,
+      })),
 
       list: async query => {
         // The tree reads the log through ONE card; a project-wide read has no route to travel.
@@ -131,44 +142,54 @@ export const makeRemoteFacade = <C extends BasicConfig, T extends BasicContext<C
           throw new PlanningUnsupported('client:transitions-without-card')
         }
 
-        return await context.entrypoint(protocols.card.transitions).call({
-          params: { id: query.card }, query: wireHelper.encodeTransitionQuery(query), timeout,
-        })
+        return await scopedCall<ListResult<Transition>>(signal => context.entrypoint(protocols.card.transitions).call({
+          params: { id: query.card! }, query: wireHelper.encodeTransitionQuery(query), timeout, signal,
+        }))
       },
     },
 
     commits,
 
-    execute: async (exec, executeOpts) => {
+    execute: async (exec, executeOpts) => lifecycle.run(async operation => {
       // Neither the actor nor a hold travels: the server decides who wrote, and the wait is ours.
       const { actor: _actor, ...body } = exec
-      const view = await context.entrypoint(protocols.execute).call({ body, timeout })
+      const view = planningReplyHelper.hydrate<TransitionReceiptView>(await operation.wait(context.entrypoint(protocols.execute).call({ body, timeout, signal: operation.signal })))
       const stores = opts.stores?.()
       if (stores != null) {
-        await planningMirrorOf(stores).applyReceipt(view)
+        await planningMirrorOf(stores).applyReceipt(view, { lifecycle, operation })
       }
-      const receipt = receiptOf(view)
+      operation.check()
+      const receipt = receiptOf(view, operation.key)
       if (executeOpts?.wait === true) {
-        receipt.card = await receipt.committed({ timeout: executeOpts.timeout })
+        receipt.card = await operation.wait(receipt.committed({ timeout: executeOpts.timeout }))
       }
 
       return receipt
-    },
+    }),
 
-    model: async <R extends Workcard = Workcard>(card: R | string): Promise<WorkcardModel<R>> => {
-      await opts.loadSchemas?.()
-      const record = typeof card === 'string' ? await facade.cards.get(card) as R : card
+    model: async <R extends Workcard = Workcard>(card: R | string): Promise<WorkcardModel<R>> => lifecycle.run(async operation => {
+      if (opts.loadSchemas != null) await operation.wait(opts.loadSchemas())
+      const record = typeof card === 'string' ? await operation.wait(facade.cards.get(card)) as R : card
       // A card of a project resolves its types in that project's layer; the organization's layer
       // is the service's own bundle, and a specification's type is always code's.
-      const project = opts.definitions == null
-        ? undefined
-        : record.kind === WorkcardKind.Project ? record.id : record.kind === WorkcardKind.Card ? record.parent : undefined
+      let project = opts.definitions == null ? undefined : record.kind === WorkcardKind.Project ? record.id : undefined
+      if (opts.definitions != null && record.kind === WorkcardKind.Card) {
+        let parent = record.parent
+        const seen = new Set<string>(record.id != null ? [record.id] : [])
+        while (parent != null) {
+          if (seen.has(parent)) throw new PlanningError('hierarchy:cycle')
+          seen.add(parent)
+          const ancestor = await operation.wait(facade.cards.get(parent))
+          if (ancestor.kind === WorkcardKind.Project) { project = ancestor.id; break }
+          parent = ancestor.parent
+        }
+      }
       if (project == null) {
         return modelOf<R>(record, facade)
       }
 
-      return modelOf<R>(record, { ...facade, schemas: await opts.definitions!.registry(project) })
-    },
+      return modelOf<R>(record, { ...facade, schemas: await operation.wait(opts.definitions!.registry(project)) })
+    }),
   }
 
   if (opts.definitions != null) {

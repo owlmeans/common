@@ -114,7 +114,7 @@ from the installed `@owlmeans/*` packages. Agents load a skill by topic, or you 
 explicitly. Copilot and Codex read `.agents/skills/` directly; Claude Code reads the generated
 symlinks in `.claude/skills/` (see "Claude Code" below).
 
-- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.51` to refresh
+- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.53` to refresh
   the deployed skills.
 - `/logging` — before adding any log line, catch block or `console` call (mechanics: `/log`).
 - Deployed files carry an `AUTO-GENERATED` banner and are refreshed in place — never hand-edit them.

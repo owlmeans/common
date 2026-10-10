@@ -52,6 +52,9 @@ const ServiceList: FC<ServiceListProps> = ({ services, label, category, t }) =>
  * a hand-written policy drifts from the code the first time a category changes, and nobody notices
  * because nobody reads it until it matters.
  *
+ * With `geo` in force it also says so: optional cookies are asked about only where the visitor's
+ * location requires consent, and are on by default elsewhere (Global Privacy Control aside).
+ *
  * Everything OwlMeans cannot assert on the operator's behalf — who the controller is, what the
  * lawful basis is, how to exercise rights — is deferred to their own privacy policy and terms.
  *
@@ -96,6 +99,10 @@ export const CookiePolicy: FC<CookiePolicyProps> = props => {
         <ServiceList services={other} label={otherLabel} t={t} />
       </li>}
     </ul>
+
+    {props.geo != null && <p data-cookie-policy-regional>
+      {t('policyRegional', "Where the law of the visitor's location requires prior consent — the EU and EEA, the United Kingdom, Switzerland and other countries with similar rules — optional cookies stay off until the visitor allows them. Elsewhere they are switched on by default, except when the browser sends a Global Privacy Control signal, which is honoured as a refusal; they can be switched off at any time with the button below.")}
+    </p>}
 
     <p>{consentI18nHelper.interpolate(
       t('policyStorage', 'Your choice is stored in this browser under "{{key}}", both in local storage and as a cookie.'),

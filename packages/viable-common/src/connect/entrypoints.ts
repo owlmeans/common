@@ -1,3 +1,4 @@
+import type { BlueprintCatalogue } from '../blueprint/catalogue/types.js'
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { route, RouteMethod } from '@owlmeans/route'
 import { connect, ConnectPaidGate } from './consts.js'
@@ -124,6 +125,10 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     // --- the organization's own records ----------------------------------------------------
     account: {
     base: accountBase,
+    blueprints: protocol(
+      route(connect.account.blueprints, '/blueprints', { parent: accountBase, method: RouteMethod.GET }),
+      contract(typed<BlueprintCatalogue>()),
+    ),
     // The organization's branding defaults: read, a patch saved (its name and copyright judged by
     // the content gate), and copied into the projects whose rows are still blank.
     branding: {

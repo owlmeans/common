@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-planning
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.23"` in `dependencies` (`ajv` is a peer)
+**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.30"` in `dependencies` (`ajv` is a peer)
 
 The general implementation of `@owlmeans/planning`: the planning service (a plugin host), the
 scoped facade, the executor every write goes through, the in-memory reference store, the commit
@@ -300,26 +300,25 @@ mapping external records (`mappers`) belongs to that plugin's own store adapter.
 decision per request; a throw is the request's answer (an `AuthForbidden` answers 403).
 
 - `entityId` is the resolver's — never the token's, never `opts.scope`'s.
-- `projects` becomes `PlanningScope.projects`, which the server facade enforces on every read and
-  write. Visible are the projects, every card whose `parents` name one, and every specification
-  whose parent card is visible (its `parents` hold only that card). Anything else reads as absent
+- `projects` becomes `PlanningScope.projects`, which the server facade enforces on reads and
+  writes. A card is visible when at least one project reached through its recursive parent paths
+  is allowed; specifications follow their containing cards. Anything else reads as absent
   (`WorkcardNotFound`, `null`, an empty list); a create under an invisible parent is
-  `ParentNotFound`; links and transitions are filtered by `project` (and post-filtered, for a store
-  that ignores the field); commit subscriptions drop events outside the set and a status or wait
-  refuses them.
-- **A narrowed list or count sees a specification whenever its parent card is visible** — exactly
-  what a single read admits. It is AND'd with `projectCriteriaOf(projects, through)`; when its
-  criteria ask for specifications (`wantsSpecifications`) the facade resolves `through` (the visible
-  parent cards) with ONE read per call: the query's `parent`, else the projects' own cards. A
-  summary counts no specification and pays nothing extra. `tests/narrowing.spec.ts` pins it.
+  `ParentNotFound`. Links, transitions and commits use current endpoint/card ancestry, with a
+  cached project fallback only for purged records. Subscriptions and commit waits enforce the
+  same visibility.
+- **Narrowed lists, counts and summaries use the allowed recursive descendant IDs before paging.**
+  A specification is admitted through the same containing-card hierarchy as a single read.
+  Do not replace this with a direct-parent query or a filter applied after pagination.
+  `tests/narrowing.spec.ts` and shared hierarchy conformance pin this behavior.
 - A person who may see only SOME projects of their organization (a tool-shed volunteer given one
   shed) is expressed here: the resolver answers the project ids the person's grants list as
   `projects`, and omits the key when a grant covers every project — never a hand-written filter in
   each handler.
 - `writes` is the subset of projects the person may WRITE in (`projects` are the ones they VIEW).
-  `execute` on a card, specification or link needs it to be writable — the rule a narrowed read
-  admits, over `writes`: the project itself, a card whose `parents` name one, a specification
-  through its parent card; a create needs every named parent writable, and a create at the root
+  `execute` on a card, specification or link needs it to be writable — the recursive ancestor
+  rule over `writes`: a card admitted directly or through a writable parent path. A create needs
+  every named parent writable; reparenting checks every supplied destination parent. A create at the root
   (no parent, not a project) is refused. `schema.define` of a project layer needs the project in
   `writes`. A refusal is `PlanningForbidden` (403, `forbidden:writes:<id>`), checked before the grants
   and before the executor. NOT governed by it: a project create (`grants.createProjects` alone) and
@@ -369,6 +368,39 @@ makeMemoryPlanningStore({ now }), plugins: [fixtures] })`, and run a handler thr
 `tests/conformance.spec.ts` runs the conformance suite against the memory store with and without
 `schemas: true`; a durable store's own tests run the same cases against a real database.
 
+## Auxiliary resources and hierarchy admission
+
+`facade.assignees`, `.teams`, `.comments`, `.mentions` use native versioned ports of
+`PlanningStore`. The stock memory, PostgreSQL and Mongo stores implement them. Mutations run
+inside the store's organization `unit`; CAS, nickname/authentication uniqueness, schema layers,
+canonical links and mentions are validated there. Missing ports raise `PlanningUnsupported`. Assignee type changes recheck incoming typed card
+references against the proposed type; a change cannot invalidate a persisted assignment.
+Do not add a second host-specific planning resource CRUD layer.
+
+The request scope supplies trusted `assigneeId` for comment authors and optional
+`defaultAssigneeId` for newly created cards. HTTP handlers stamp actor/organization context;
+`makePlanningAuth(...).scopeFor` resolves OwlMeans identities when that integration is enabled.
+Access resolvers can grant `manageAssignees` and `manageTeams` separately from card writes.
+Comments and project/team attachment require writable containing cards/projects. Auxiliary
+organization lists require authenticated organization scope; do not infer ACLs from project mode.
+
+All stock HTTP replies use `guardHelper.reply`, which conceals scope failures and applies the
+typed planning reply projection. Socket commits use the same projection. Organization `entityId`
+stays in native records and verified scopes, and never leaves through records, schema scopes or
+nested receipts. Keep business fields and schema definitions unchanged when projecting replies.
+
+Admission and native projection recheck hierarchy, schema fields and endpoint types. Recursive
+visibility follows every project ancestor and filters before paging. Definition record reads
+use the same recursive visibility as cards. Reparenting validates all
+descendants under the prospective schema layer. Ordinary parent deletion refuses existing
+children; project purge removes its descendants, comments, mentions, scoped schemas and links,
+while retaining organization assignees and reusable teams. Field-backed edges are reconciled in
+the persistence unit; named inverse edges are derived read views, never duplicate persisted rows.
+
+Run shared conformance with `resources` and `schemas` capabilities against each native provider;
+cover version races, stable mentions, reusable teams, field references, hierarchy and narrowed ACLs.
+
+
 ## Related
 
 - `planning` — records, flows, the fold, the query language, the protocol tree, the models
@@ -376,3 +408,7 @@ makeMemoryPlanningStore({ now }), plugins: [fixtures] })`, and run a handler thr
 - `planning-postgres` — the durable Postgres store built from these pieces
 - `server-job`, `queue` — the declare/serve/feed pattern and the projection queue
 - `resource` — the criteria engine every memory read goes through
+
+Project purge uses current card ancestry as ownership. A surviving reparented card retains its
+complete transition history, documents and edges even when their cached project id names its former
+project. Cached project values may select orphaned records, but must never delete surviving records.

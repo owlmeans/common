@@ -4,6 +4,7 @@ import { EMPTY_CONTENT_STUB, JSON_INSTRUCTION, NO_THINK_DIRECTIVE } from '../src
 import { streamUtils } from '../src/utils/stream.js'
 import { promptUtils } from '../src/utils/prompt.js'
 import { schemaUtils } from '../src/utils/schema.js'
+import { LlmModelError } from '../src/errors.js'
 
 /**
  * Internal utilities — deliberately not part of the package surface (`utils/` is
@@ -102,7 +103,7 @@ describe('utils/prompt — blank content sanitization', () => {
     ] as MessageFieldWithRole[]
     promptUtils.dropBlankContent(msgs)
     expect(msgs).toHaveLength(2)
-    expect((msgs[1] as ToolMessage).content).toBe(EMPTY_CONTENT_STUB)
+    expect((msgs[1] as unknown as ToolMessage).content).toBe(EMPTY_CONTENT_STUB)
   })
 
   test('keeps a blank AI message that carries tool calls, with empty string content', () => {
@@ -112,7 +113,7 @@ describe('utils/prompt — blank content sanitization', () => {
     ] as MessageFieldWithRole[]
     promptUtils.dropBlankContent(msgs)
     expect(msgs).toHaveLength(2)
-    expect((msgs[1] as AIMessage).content).toBe('')
+    expect((msgs[1] as unknown as AIMessage).content).toBe('')
   })
 
   test('replaces an all-blank input with a single stub user message', () => {
@@ -135,7 +136,7 @@ describe('utils/schema — tool naming and unwrapping', () => {
   })
 
   test('unwraps a named envelope, and passes anything else through', () => {
-    expect(schemaUtils.unwrapNamed({ spec: { a: 1 } }, 'spec')).toEqual({ a: 1 })
+    expect(schemaUtils.unwrapNamed<object>({ spec: { a: 1 } }, 'spec')).toEqual({ a: 1 })
     expect(schemaUtils.unwrapNamed({ a: 1 }, 'spec')).toEqual({ a: 1 })
     expect(schemaUtils.unwrapNamed({ a: 1 }, undefined)).toEqual({ a: 1 })
     expect(schemaUtils.unwrapNamed('plain' as unknown as object, 'spec')).toBe('plain' as unknown as object)
@@ -202,4 +203,131 @@ describe('utils/stream — idle deadline and duplicate-final-chunk dedup', () =>
     }
     await expect(collect(streamUtils.streamWithDeadline(failing, 1000))).rejects.toThrow('401 unauthorized')
   })
+
+  test('bounds stream creation even when the provider ignores abort', async () => {
+    let signal: AbortSignal | undefined
+    const started = Date.now()
+    await expect(collect(streamUtils.streamWithDeadline(async received => {
+      signal = received
+      return await new Promise<AsyncIterable<unknown>>(() => {})
+    }, 60))).rejects.toBeInstanceOf(LlmModelError)
+    expect(signal?.aborted).toBe(true)
+    expect(Date.now() - started).toBeLessThan(1500)
+  }, 2000)
+
+  test('bounds iterator reads without waiting for uncooperative cleanup', async () => {
+    let signal: AbortSignal | undefined
+    let returned = 0
+    const iterator: AsyncIterator<unknown> = {
+      next: async () => await new Promise<IteratorResult<unknown>>(() => {}),
+      return: async () => { returned += 1; return await new Promise<IteratorResult<unknown>>(() => {}) },
+    }
+    const started = Date.now()
+    await expect(collect(streamUtils.streamWithDeadline(async received => {
+      signal = received
+      return { [Symbol.asyncIterator]: () => iterator }
+    }, 60))).rejects.toThrow('stream-stalled')
+    expect(signal?.aborted).toBe(true)
+    expect(returned).toBe(1)
+    expect(Date.now() - started).toBeLessThan(1500)
+  }, 2000)
+
+  test('closes a stream created after the deadline without reading late values', async () => {
+    let resolveStart!: (stream: AsyncIterable<unknown>) => void
+    let reads = 0
+    let returned = 0
+    const pending = collect(streamUtils.streamWithDeadline(async () => await new Promise<AsyncIterable<unknown>>(resolve => {
+      resolveStart = resolve
+    }), 60))
+    await expect(pending).rejects.toThrow('stream-stalled')
+    resolveStart({ [Symbol.asyncIterator]: () => ({
+      next: async () => { reads += 1; return { done: false, value: 'late' } },
+      return: async () => { returned += 1; throw new Error('late cleanup failure') },
+    }) })
+    await Bun.sleep(20)
+    expect(reads).toBe(0)
+    expect(returned).toBe(1)
+  }, 2000)
+
+  test('observes a late stream-creation failure after the caller has already failed', async () => {
+    let rejectStart!: (error: Error) => void
+    const pending = collect(streamUtils.streamWithDeadline(async () => await new Promise<AsyncIterable<unknown>>((_, reject) => {
+      rejectStart = reject
+    }), 60))
+    const failure = await pending.catch(error => error)
+    expect(failure).toBeInstanceOf(LlmModelError)
+    rejectStart(new Error('late provider failure'))
+    await Bun.sleep(20)
+    // Bun would fail this spec on an unhandled late rejection.
+    expect(failure.message).toContain('stream-stalled')
+  }, 2000)
+
+  test('ignores an iterator value arriving after the deadline', async () => {
+    let resolveNext!: (item: IteratorResult<unknown>) => void
+    let reads = 0
+    let returned = 0
+    const received: unknown[] = []
+    const iterator: AsyncIterator<unknown> = {
+      next: async () => { reads += 1; return await new Promise<IteratorResult<unknown>>(resolve => { resolveNext = resolve }) },
+      return: async () => { returned += 1; return { done: true, value: undefined } },
+    }
+    const pending = (async () => {
+      for await (const value of streamUtils.streamWithDeadline(async () => ({ [Symbol.asyncIterator]: () => iterator }), 60)) received.push(value)
+    })()
+    await expect(pending).rejects.toThrow('stream-stalled')
+    resolveNext({ done: false, value: 'late' })
+    await Bun.sleep(20)
+    expect(received).toEqual([])
+    expect(reads).toBe(1)
+    expect(returned).toBe(1)
+  }, 2000)
+
+  test('allows active streams to exceed multiple idle windows', async () => {
+    let signal: AbortSignal | undefined
+    const started = Date.now()
+    const output = await collect(streamUtils.streamWithDeadline(async received => {
+      signal = received
+      return { async *[Symbol.asyncIterator]() {
+        for (let i = 0; i < 12; i += 1) { await Bun.sleep(20); yield i }
+      } }
+    }, 100))
+    expect(output).toEqual(Array.from({ length: 12 }, (_, i) => i))
+    expect(Date.now() - started).toBeGreaterThan(200)
+    expect(signal?.aborted).toBe(false)
+  }, 3000)
+
+  test('a terminal chunk is delivered even when iterator cleanup never settles', async () => {
+    let signal: AbortSignal | undefined
+    let returned = 0
+    const final = { response_metadata: { finish_reason: 'stop' } }
+    const output = await collect(streamUtils.streamWithDeadline(async received => {
+      signal = received
+      return { [Symbol.asyncIterator]: () => ({
+        next: async () => ({ done: false, value: final }),
+        return: async () => { returned += 1; return await new Promise<IteratorResult<unknown>>(() => {}) },
+      }) }
+    }, 60))
+    expect(output).toEqual([final])
+    expect(signal?.aborted).toBe(true)
+    expect(returned).toBe(1)
+  }, 2000)
+
+  test('consumer cancellation aborts the provider and observes cleanup failures', async () => {
+    let signal: AbortSignal | undefined
+    let reads = 0
+    let returned = 0
+    const stream = streamUtils.streamWithDeadline(async received => {
+      signal = received
+      return { [Symbol.asyncIterator]: () => ({
+        next: async () => { reads += 1; return { done: false, value: 'first' } },
+        return: async () => { returned += 1; throw new Error('cleanup failure') },
+      }) }
+    }, 60)
+    expect(await stream.next()).toEqual({ done: false, value: 'first' })
+    expect((await stream.return(undefined)).done).toBe(true)
+    expect(signal?.aborted).toBe(true)
+    await Bun.sleep(80)
+    expect(reads).toBe(1)
+    expect(returned).toBe(1)
+  }, 2000)
 })

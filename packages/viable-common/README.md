@@ -15,7 +15,7 @@ the Viable platform has no use for it. The package's skills are `viable-common` 
 ## Installation
 
 ```bash
-bun add @owlmeans/viable-common@^0.0.47
+bun add @owlmeans/viable-common@^0.0.48-rc.1
 ```
 
 ## What is in it
@@ -209,7 +209,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

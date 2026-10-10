@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/planning",
-  "version": "0.1.18-rc.20",
+  "version": "0.1.18-rc.26",
   "license": "MIT",
   "description": "Runtime-free project-planning contracts — the workcard super type, projects, specifications, typed relationships, status flows with three intrinsic states, the transition event and its pure fold, the schema registry, the models and the protocol tree.",
   "type": "module",
@@ -23,8 +23,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.40",
-    "@owlmeans/basic-ids": "^0.1.18-rc.38",
+    "@owlmeans/auth": "^0.1.18-rc.41",
+    "@owlmeans/basic-ids": "^0.1.18-rc.39",
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/entrypoint": "^0.1.18-rc.41",
     "@owlmeans/error": "^0.1.18-rc.38",

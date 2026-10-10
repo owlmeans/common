@@ -89,7 +89,7 @@ bun run test
 | **State store** | The browser's in-memory resource with live subscriptions, registered with `appendStateResource`. React reads it through `useStoreList` and `useStoreModel`. | [`state`](packages/state), [`client`](packages/client) |
 | **Flow** | A serializable step/transition state machine whose whole state is one string, so a multi-step process survives redirects and reloads. | [`flow`](packages/flow), [`client-flow`](packages/client-flow) |
 | **Resilient error** | A registered error class that marshals across a service boundary and is restored as the same class on the other side, with i18n-aware messages. | [`error`](packages/error) |
-| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.51` installs it. | [`agent-skills`](packages/agent-skills) |
+| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.53` installs it. | [`agent-skills`](packages/agent-skills) |
 
 ## How an application is shaped
 
@@ -254,6 +254,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`marketing-consent`](packages/marketing-consent) | Marketing-consent contracts: the opt-in/opt-out catalogue, revision-aware status, terms acceptance and the consent protocol tree |
 |  | [`oidc`](packages/oidc) | The OIDC names both sides share: the gate, the guard, requested scopes, provider descriptors and the dispatcher entrypoints |
 |  | [`payment`](packages/payment) | Provider-agnostic payment contracts: protocols, checkout policies, catalogue records, entitlement gates and consumer rights |
+|  | [`planning-auth`](packages/planning-auth) | Optional authentication identity and external group links for planning |
 |  | [`planning`](packages/planning) | Runtime-free planning contracts: workcards, projects, specifications, status flows, the transition fold, scoped schemas and the protocol tree |
 |  | [`viable-common`](packages/viable-common) | Runtime-free contracts of the OwlMeans Viable platform |
 |  | [`wled`](packages/wled) | The shared white-label contract: company info, styles, brand media and DNS shapes |
@@ -270,7 +271,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`marketing-consent-mongo`](packages/marketing-consent-mongo) | Mongo storage for the two marketing-consent resources |
 |  | [`marketing-consent-postgres`](packages/marketing-consent-postgres) | Postgres tables for the two marketing-consent resources of a generated target project |
 |  | [`mongo`](packages/mongo) | The MongoDB connection service, cluster setup and the field-encryption backend |
-|  | [`planning-postgres`](packages/planning-postgres) | A durable Postgres planning store: four tables, an inline fold under a per-card advisory lock and a LISTEN/NOTIFY commit bus |
+|  | [`planning-postgres`](packages/planning-postgres) | A durable Postgres planning store: eight tables, an inline fold under a per-card advisory lock and a LISTEN/NOTIFY commit bus |
 |  | [`postgres`](packages/postgres) | The PostgreSQL connection service, its health checks and the least-privilege bootstrap path |
 |  | [`redis`](packages/redis) | The Redis connection service registered on a server context |
 |  | [`redis-queue`](packages/redis-queue) | The BullMQ-over-Redis driver for `@owlmeans/queue` |
@@ -338,7 +339,7 @@ Published packages include generated, version-matched guidance in `agent-meta/`.
 installing OwlMeans packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The installer copies applicable skills to `.agents/skills/`; `AGENTS.md` documents the generated

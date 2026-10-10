@@ -1,3 +1,4 @@
+import type { AssigneeTypeSchema } from '../../resources/types.js'
 import type { PlanningSchemaKind } from '../../consts.js'
 import type {
   PlanningSchemaBundle, PlanningSchemaRegistry, SchemaScope, ScopedSchemaBundle, ScopedSchemaRecord,
@@ -9,7 +10,7 @@ export interface ScopedSchemaHelper {
   /** One layer's identity of a record: organization, project (or none), kind, key. */
   schemaRecordKey: (record: Pick<ScopedSchemaRecord, 'entityId' | 'project' | 'kind' | 'key'>) => string
   /** The key a declaration is addressed by: a type's `type`, a flow's `id`. */
-  schemaKeyOf: (kind: PlanningSchemaKind, definition: WorkcardTypeSchema | StatusFlowSchema) => string
+  schemaKeyOf: (kind: PlanningSchemaKind, definition: WorkcardTypeSchema | StatusFlowSchema | AssigneeTypeSchema) => string
   /**
    * Refuse a data-defined declaration of a key the code registry seals: a code type or flow that does
    * not say `overridable: true`, and any project or specification type.
@@ -17,7 +18,7 @@ export interface ScopedSchemaHelper {
    * @throws {SchemaSealed}
    */
   assertOverridable: (
-    code: Pick<PlanningSchemaRegistry, 'has' | 'type' | 'flows'>, kind: PlanningSchemaKind, key: string
+    code: Pick<PlanningSchemaRegistry, 'has' | 'type' | 'flows' | 'assigneeTypes'>, kind: PlanningSchemaKind, key: string
   ) => void
   /**
    * The closed-form checks of a data-defined flow: the declaration's own schema, at least one status,
@@ -26,6 +27,7 @@ export interface ScopedSchemaHelper {
    *
    * @throws {SchemaInvalid}
    */
+  assertAssigneeTypeSchema: (schema: AssigneeTypeSchema) => void
   assertFlowSchema: (flow: StatusFlowSchema) => void
   /**
    * The closed-form checks of a data-defined type: the declaration's own schema, the `card` kind,

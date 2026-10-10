@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/common-inquiry",
-  "version": "0.1.18-rc.0",
+  "version": "0.1.18-rc.1",
   "license": "MIT",
   "description": "Runtime-free contract of the OwlMeans customer inquiry widget — the window runtime, the widget config, the multipart submission and its limits, schemas and the config helper.",
   "type": "module",

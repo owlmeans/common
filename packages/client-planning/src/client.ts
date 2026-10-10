@@ -9,6 +9,7 @@ import { makeRemoteCommitSource } from './commits.js'
 import { makeRemoteDefinitions } from './definitions.js'
 import { makeRemoteFacade } from './facade.js'
 import { planningContextOf } from './helper.js'
+import { makePlanningClientLifecycle } from './lifecycle.js'
 import type {
   Config, Context, PlanningClientOptions, PlanningClientService, WithPlanningClient,
 } from './types.js'
@@ -25,35 +26,49 @@ import type {
 export const makePlanningClientService = <C extends Config, T extends Context<C>>(
   context: T, options: PlanningClientOptions
 ): PlanningClientService => {
+  const feeds = new Set<import('./types.js').PlanningFeed>()
   const registry = makeSchemaRegistry()
   const plugins: PlanningPlugin[] = []
   const stores = () => planningContextOf(context).stores()
+  const lifecycle = makePlanningClientLifecycle({ scopeKey: options.scopeKey, clear: async () => {
+    const mirrors = stores()
+    if (mirrors != null) for (const resource of Object.values(mirrors)) {
+      const rows = await resource.list({}, { size: 0 })
+      for (const row of rows.items) await resource.delete(row.id!)
+    }
+  } })
+  const scopeKey = lifecycle.key
 
   const commits = makeRemoteCommitSource(context, options.protocols, {
-    socket: options.socket, poll: options.poll, timeout: options.timeout, stores,
+    socket: options.socket, poll: options.poll, timeout: options.timeout, stores, lifecycle,
   })
 
   const layerPlugins = (): void => plugins.forEach(plugin => {
+    plugin.schemas?.assigneeTypes?.forEach(registry.registerAssigneeType)
     plugin.schemas?.flows?.forEach(registry.registerFlow)
     plugin.schemas?.types?.forEach(registry.registerType)
   })
 
+  let loadedKey = scopeKey()
   let loaded = false
   let loading: Promise<PlanningSchemaRegistry> | null = null
 
   const loadSchemas: PlanningClientService['loadSchemas'] = async opts => {
+    const key = scopeKey()
+    if (loadedKey !== key) { loaded = false; loading = null; definitions?.invalidate(); loadedKey = key }
     if (loaded && opts?.force !== true) {
       return registry
     }
     if (loading == null || opts?.force === true) {
-      const attempt = (async () => {
-        const bundle = await context.entrypoint(options.protocols.schema.list).call({ timeout: options.timeout })
+      const attempt = lifecycle.run(async operation => {
+        const bundle = await operation.wait(context.entrypoint(options.protocols.schema.list).call({ timeout: options.timeout, signal: operation.signal }))
+        operation.check()
         registry.load(bundle)
         layerPlugins()
         loaded = true
 
         return registry
-      })()
+      })
       loading = attempt
       // A failed load is forgotten, so the next caller asks again instead of inheriting the error.
       attempt.catch(() => {
@@ -69,19 +84,29 @@ export const makePlanningClientService = <C extends Config, T extends Context<C>
   // A write of data-defined schemas moves the organization's bundle too: the next `model()` reloads it.
   const definitions = options.protocols.schema.define == null
     ? undefined
-    : makeRemoteDefinitions(context, options.protocols, { timeout: options.timeout, onWrite: () => { loaded = false; loading = null } })
+    : makeRemoteDefinitions(context, options.protocols, { lifecycle, timeout: options.timeout, onWrite: () => { loaded = false; loading = null } })
 
   const facadeFor = (scope: Parameters<PlanningClientService['for']>[0]): PlanningFacade =>
     makeRemoteFacade(context, options.protocols, { ...options.scope, ...scope }, {
-      commits, schemas: registry, loadSchemas, timeout: options.timeout, stores,
+      commits, schemas: registry, loadSchemas, scopeKey, lifecycle, timeout: options.timeout, stores,
       ...(definitions != null ? { definitions } : {}),
     })
 
   let fallback: PlanningFacade | null = null
+  lifecycle.onInvalidate(async () => {
+    const stopping = [...feeds]
+    feeds.clear()
+    loaded = false; loading = null; definitions?.invalidate()
+    registry.load({ version: 1, types: [], flows: [] }); layerPlugins()
+    await Promise.all(stopping.map(async feed => await feed.stop()))
+  })
 
   // Lazy, like the server's host: `context.planning()` answers before the context initializes.
   return createLazyService<PlanningClientService>(PLANNING_SERVICE, {
     schemas: registry,
+    lifecycle,
+    scopeKey,
+    registerFeed: feed => { feeds.add(feed); return () => { feeds.delete(feed) } },
 
     commits,
 
@@ -112,7 +137,7 @@ export const makePlanningClientService = <C extends Config, T extends Context<C>
       throw new PlanningUnsupported('client:committed')
     },
 
-    close: async () => await commits.close(),
+    close: lifecycle.close,
 
     ...(definitions != null ? { definitions } : {}),
   })

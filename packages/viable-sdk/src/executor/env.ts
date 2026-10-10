@@ -46,6 +46,7 @@ export const makeTargetEnvHelper = (dir: string): TargetEnvHelper => {
     const values = await projectEnv.readEnvFile(projectEnv.webEnvFile())
 
     const env: Record<string, string> = {
+      APP_UNSECURE: 'true',
       FRONTEND_PORT: `${TARGET_WEB_PORT}`,
       BACKEND_HOST: 'localhost',
       BACKEND_PORT: `${TARGET_WEB_PORT}`,

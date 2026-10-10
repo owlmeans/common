@@ -48,6 +48,24 @@ describe('@owlmeans/client-planning — data-defined schemas', () => {
     expect(model.available().map(rule => rule.name)).toEqual(['start', 'reset'])
   })
 
+  test('a nested card model resolves its data-defined schema through the primary ancestor chain', async () => {
+    const suite = await makeSuite({ definitions: true })
+    const project = await suite.project('Nested rehearsals')
+    await suite.planning.definitions!.define({ types: [{ ...REHEARSAL, children: { types: [REHEARSAL.type] } }] }, { project: project.id })
+    const create = async (parent: string) => (await suite.local.execute({ action: TransitionAction.Create,
+      card: { kind: WorkcardKind.Card, type: REHEARSAL.type, title: 'Section', parent },
+    }, { wait: true })).card!
+    const parent = await create(project.id!)
+    const child = await create(parent.id!)
+    const grandchild = await create(child.id!)
+    const model = await suite.planning.model(grandchild.id!)
+    expect(model.schema().type).toBe(REHEARSAL.type)
+    expect(model.available().map(rule => rule.name)).toEqual(['start', 'reset'])
+    const layers = suite.calls.filter(call => call.alias === definitionProtocols.schema.list.alias).map(call => call.query?.project)
+    expect(layers).not.toContain(parent.id)
+    expect(layers).not.toContain(child.id)
+  })
+
   test('a tree declared without definitions has none', async () => {
     const suite = await makeSuite()
     expect(suite.planning.definitions).toBeUndefined()

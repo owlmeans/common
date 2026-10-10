@@ -1,4 +1,9 @@
 
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { pgNameHelper } from '@owlmeans/postgres-resource'
+import { makeRecordPort } from './records.js'
+import { RES_PLANNING_ASSIGNEE, RES_PLANNING_TEAM, RES_PLANNING_COMMENT, RES_PLANNING_MENTION } from '../consts.js'
+import type { PlanningAssigneeResource, PlanningTeamResource, PlanningCommentResource, PlanningMentionResource, SqlRunner } from '../types.js'
 import { logger } from '@owlmeans/log'
 import { CommitState, TransitionAction, type CommitStatus, type Unsubscribe } from '@owlmeans/planning'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
@@ -48,6 +53,10 @@ const isoNow = (): string => new Date().toISOString()
 
 /** The aliases a store resolves, each defaulting to the package's own resource alias. */
 export const planningPostgresAliases = (aliases?: Partial<PlanningPostgresAliases>): PlanningPostgresAliases => ({
+  assignee: aliases?.assignee ?? RES_PLANNING_ASSIGNEE,
+  team: aliases?.team ?? RES_PLANNING_TEAM,
+  comment: aliases?.comment ?? RES_PLANNING_COMMENT,
+  mention: aliases?.mention ?? RES_PLANNING_MENTION,
   card: aliases?.card ?? RES_PLANNING_CARD,
   transition: aliases?.transition ?? RES_PLANNING_TRANSITION,
   link: aliases?.link ?? RES_PLANNING_LINK,
@@ -85,6 +94,10 @@ export const makePostgresPlanningStore = (opts: PostgresPlanningStoreOptions): P
     return context.resource<R>(alias)
   }
   const resources = {
+    assignee: resourceOf<PlanningAssigneeResource>('assignee'),
+    team: resourceOf<PlanningTeamResource>('team'),
+    comment: resourceOf<PlanningCommentResource>('comment'),
+    mention: resourceOf<PlanningMentionResource>('mention'),
     card: resourceOf<PlanningCardResource>('card'),
     transition: resourceOf<PlanningTransitionResource>('transition'),
     link: resourceOf<PlanningLinkResource>('link'),
@@ -95,11 +108,11 @@ export const makePostgresPlanningStore = (opts: PostgresPlanningStoreOptions): P
   let recovered = false
   const tables = (): Promise<PlanningTables> => {
     ready ??= (async () => {
-      const resolved = [resources.card(), resources.transition(), resources.link(), resources.schema()]
+      const resolved = [resources.card(), resources.transition(), resources.link(), resources.schema(), resources.assignee(), resources.team(), resources.comment(), resources.mention()]
       // A resource registered after the context initialized is initialized here, once.
       await Promise.all(resolved.map(async resource => { await resource.queryOne('SELECT 1') }))
-      const [card, transition, link, schema] = resolved.map(resource => resource.table)
-      return { card, transition, link, schema }
+      const [card, transition, link, schema, assignee, team, comment, mention] = resolved.map(resource => resource.table)
+      return { card, transition, link, schema, assignee, team, comment, mention }
     })()
     const pending = ready
     pending.then(() => {
@@ -121,7 +134,20 @@ export const makePostgresPlanningStore = (opts: PostgresPlanningStoreOptions): P
   }
 
   const pool = async (): Promise<Pool> => (await resources.card().db()).pool
-  const sql = async (): Promise<SqlContext> => ({ runner: sqlHelper.poolRunner(await pool()), tables: await tables() })
+  const transactionRunner = new AsyncLocalStorage<SqlRunner>()
+  const sql = async (): Promise<SqlContext> => ({ runner: transactionRunner.getStore() ?? sqlHelper.poolRunner(await pool()), tables: await tables() })
+  const unit = async <R>(entityId: string, run: () => Promise<R>): Promise<R> => {
+    if (transactionRunner.getStore() != null) return await run()
+    const client = await (await pool()).connect()
+    try {
+      await client.query('BEGIN')
+      const [first, second] = pgNameHelper.advisoryKey(`planning:entity:${(await tables()).card.qualified}:${entityId}`)
+      await client.query('SELECT pg_advisory_xact_lock($1, $2)', [first, second])
+      const result = await transactionRunner.run(sqlHelper.clientRunner(client), run)
+      await client.query('COMMIT')
+      return result
+    } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
+  }
 
   const schemaWatchers = new Set<(entityId: string) => void>()
   const touched = (entityId: string): void => {
@@ -169,6 +195,9 @@ export const makePostgresPlanningStore = (opts: PostgresPlanningStoreOptions): P
   bus.onSchema(touched)
 
   const engine = makeFoldEngine({
+    inTransaction: async (runner, run) => await transactionRunner.run(runner, run),
+    validateProjection: async (before, after, transition) => { await store.validateProjection?.(before, after, transition) },
+    projectReferences: async (after, transition) => { await store.projectReferences?.(after, transition) },
     pool,
     tables,
     limits,
@@ -205,6 +234,11 @@ export const makePostgresPlanningStore = (opts: PostgresPlanningStoreOptions): P
     alias: PLANNING_POSTGRES_STORE,
     capabilities: { transitions: true, sync: true, purge: true, revisions: true },
     newId: ids,
+    unit,
+    assignees: makeRecordPort({ sql, table: 'assignee', ids }),
+    teams: makeRecordPort({ sql, table: 'team', ids }),
+    comments: makeRecordPort({ sql, table: 'comment', ids }),
+    mentions: makeRecordPort({ sql, table: 'mention', ids }),
     transitions: makeTransitionPort({ sql, resource: resources.transition, ids, now, indexes }),
     cards: makeCardPort({
       sql,
@@ -216,6 +250,7 @@ export const makePostgresPlanningStore = (opts: PostgresPlanningStoreOptions): P
     links: makeLinkPort({ sql, resource: resources.link, ids }),
     commits,
     schemas: makeSchemaPort({
+      current: () => transactionRunner.getStore(),
       sql,
       pool,
       tables,

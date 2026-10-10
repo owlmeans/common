@@ -9,7 +9,7 @@ import type {
 } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
 import {
-  CodeScope, CodeStyle, IntrinsicStatus, makePlanningProtocols, SpecificationFormat, TransitionAction,
+  AssigneeKind, CodeScope, CodeStyle, IntrinsicStatus, makePlanningProtocols, SpecificationFormat, TransitionAction,
   WorkcardKind,
 } from '@owlmeans/planning'
 import type {
@@ -112,7 +112,8 @@ const types: AnyTypeSchema[] = [
   },
 ]
 
-export const SCHEMAS: PlanningSchemaBundle = { version: 1, types, flows }
+const assigneeTypes = [{ type: 'test:participant', version: 1, kind: AssigneeKind.Human, fields: { type: 'object', additionalProperties: false } }]
+export const SCHEMAS: PlanningSchemaBundle = { version: 1, types, flows, assigneeTypes }
 
 export const protocols = makePlanningProtocols({
   base: { alias: 'test:planning', path: '/planning' },
@@ -126,6 +127,8 @@ export const definitionProtocols = makePlanningProtocols({
   definitions: true,
 })
 
+export const resourceProtocols = makePlanningProtocols({ base: { alias: 'test:planning', path: '/planning' }, guards: [], definitions: true, resources: true })
+
 const AUTH = { profileId: PROFILE_ID, userId: 'user-1', entityId: 'acme' } as unknown as Auth
 const entityOf = (id: string): ResolvedEntity => ({ id, slug: id, iamKey: id })
 
@@ -133,21 +136,28 @@ const entityOf = (id: string): ResolvedEntity => ({ id, slug: id, iamKey: id })
 export interface Call {
   alias: string
   query: Record<string, unknown>
+  reply?: unknown
+  signal?: AbortSignal
 }
 
-export interface SuiteOptions extends Partial<Pick<PlanningClientOptions, 'poll' | 'schemas'>> {
+export interface SuiteOptions extends Partial<Pick<PlanningClientOptions, 'poll' | 'schemas' | 'scopeKey'>> {
   /** The server folds inside `execute` (default) or only on `store.flush()`. */
+  resources?: boolean
   sync?: boolean
   /** Give the client a commit socket. */
   socket?: boolean
   /** Register the state mirror on the client. */
   stores?: boolean
   /** The entity the transport authenticates as. */
-  entityId?: string
+  entityId?: string | (() => string)
   /** Mount the tree with `definitions: true` over a store holding data-defined schemas. */
   definitions?: boolean
   /** Runs after the server answered a call and before the client sees the answer. */
   after?: (call: Call) => Promise<void>
+  /** A barrier at the actual transport boundary, before the real server handler runs. */
+  before?: (request: AbstractRequest) => Promise<void>
+  /** A barrier after the real socket handler connected but before its opener returns. */
+  opening?: (connection: Connection, attempt: number) => Promise<void>
 }
 
 export type ClientCtx = ClientContext<ClientConfig> & WithPlanningClient & Partial<WithPlanningStores>
@@ -161,6 +171,7 @@ export interface Suite {
   /** The client's facade. */
   planning: PlanningFacade
   calls: Call[]
+  frames: unknown[]
   sockets: () => number
   project: (title?: string) => Promise<Project>
   story: (project: string, title?: string, fields?: Record<string, unknown>) => Promise<Workcard>
@@ -171,7 +182,7 @@ const wire = <T>(value: T): T => value === undefined ? value : JSON.parse(JSON.s
 type Handled = { handle?: EntrypointHandler }
 
 /** A WebSocket-shaped pipe for the server handler, wired to a client connection reading its frames. */
-const socketPair = (): { server: unknown, client: Connection } => {
+const socketPair = (frames: unknown[]): { server: unknown, client: Connection } => {
   const handlers = new Map<string, Set<(...args: unknown[]) => unknown>>()
   const emit = async (event: string, ...args: unknown[]): Promise<void> => {
     for (const handler of [...(handlers.get(event) ?? [])]) {
@@ -180,7 +191,7 @@ const socketPair = (): { server: unknown, client: Connection } => {
   }
   const client = createBasicConnection()
   const server = {
-    send: async (data: string) => { await client.receive(data) },
+    send: async (data: string) => { frames.push(JSON.parse(data)); await client.receive(data) },
     close: async () => { await emit('close', 1000) },
     on: (event: string, handler: (...args: unknown[]) => unknown) => {
       handlers.set(event, (handlers.get(event) ?? new Set()).add(handler))
@@ -198,18 +209,23 @@ const socketPair = (): { server: unknown, client: Connection } => {
 }
 
 export const makeSuite = async (opts: SuiteOptions = {}): Promise<Suite> => {
-  const entityId = opts.entityId ?? ENTITY_ID
+  const entityKey = () => typeof opts.entityId === 'function' ? opts.entityId() : opts.entityId ?? ENTITY_ID
+  const entityId = entityKey()
 
   const server = makeBasicContext<BasicConfig>({
     ready: false, service: 'client-planning-tests-server', type: AppType.Backend,
   } as BasicConfig)
-  const tree = opts.definitions === true ? definitionProtocols : protocols
-  const store = makeMemoryPlanningStore({ sync: opts.sync !== false, schemas: opts.definitions === true })
-  appendPlanningService(server, { store, schemas: { types, flows } })
-  server.registerEntrypoints(servePlanningEntrypoints(tree))
+  const tree = opts.resources === true ? resourceProtocols : opts.definitions === true ? definitionProtocols : protocols
+  const store = makeMemoryPlanningStore({ sync: opts.sync !== false, schemas: opts.definitions === true || opts.resources === true })
+  appendPlanningService(server, { store, schemas: { types, flows, assigneeTypes } })
+  let author: string | undefined
+  server.registerEntrypoints(servePlanningEntrypoints(tree, { scope: () => ({ assigneeId: author }) }))
   await server.configure().init()
 
+  if (opts.resources) author = (await (server as unknown as { planning: () => PlanningService }).planning().for({ entityId }).assignees.create({ nickname: 'commenter', type: 'test:participant', kind: AssigneeKind.Human, authentication: { provider: 'tests', externalId: PROFILE_ID } })).id
+
   const calls: Call[] = []
+  const frames: unknown[] = []
   let opened = 0
 
   const requestOf = (req: Partial<AbstractRequest>, body?: unknown): AbstractRequest => ({
@@ -220,7 +236,7 @@ export const makeSuite = async (opts: SuiteOptions = {}): Promise<Suite> => {
     headers: {},
     path: req.path ?? '',
     auth: AUTH,
-    entity: entityOf(entityId),
+    entity: entityOf(entityKey()),
   })
 
   const client = makeClientContext({
@@ -236,13 +252,14 @@ export const makeSuite = async (opts: SuiteOptions = {}): Promise<Suite> => {
         }
       }
       const request = requestOf(req, wire(req.body))
+      await opts.before?.(req)
       const reply = provideResponse<unknown>()
       try {
         await server.entrypoint<BasicEntrypoint & Handled>(req.alias).handle!(request, reply)
       } catch (e) {
         reply.reject(e as Error)
       }
-      const call = { alias: req.alias, query: request.query as Record<string, unknown> }
+      const call = { alias: req.alias, query: request.query as Record<string, unknown>, reply: wire(reply.value), signal: req.signal }
       calls.push(call)
       await opts.after?.(call)
       if (reply.error != null) {
@@ -257,16 +274,18 @@ export const makeSuite = async (opts: SuiteOptions = {}): Promise<Suite> => {
 
   appendPlanningClient(client, {
     protocols: tree,
+    scopeKey: opts.scopeKey,
     poll: opts.poll ?? 2,
     schemas: opts.schemas,
     ...(opts.socket === true
       ? {
         socket: async (protocol, request) => {
-          const pair = socketPair()
+          const pair = socketPair(frames)
           await server.entrypoint<BasicEntrypoint & Handled>(protocol.alias).handle!(
             requestOf({ alias: protocol.alias, query: request?.query ?? {} }, pair.server), provideResponse()
           )
           opened += 1
+          await opts.opening?.(pair.client, opened)
           return pair.client
         },
       }
@@ -287,7 +306,7 @@ export const makeSuite = async (opts: SuiteOptions = {}): Promise<Suite> => {
   }
 
   const service = (server as unknown as { planning: () => PlanningService }).planning()
-  const local = service.for({ entityId, profileId: PROFILE_ID })
+  const local = service.for({ entityId, profileId: PROFILE_ID, assigneeId: author })
   const planning = client.planning().for()
 
   return {
@@ -297,6 +316,7 @@ export const makeSuite = async (opts: SuiteOptions = {}): Promise<Suite> => {
     client,
     planning,
     calls,
+    frames,
     sockets: () => opened,
     project: async (title = 'Board') => await committed(local.execute({
       card: { kind: WorkcardKind.Project, type: PROJECT, title },

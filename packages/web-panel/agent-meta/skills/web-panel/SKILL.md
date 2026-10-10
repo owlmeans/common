@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.72"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.74"` in `dependencies`
 
 ## Key Exports
 
@@ -481,8 +481,29 @@ landmark.
 ## Subpath: `./consent`
 
 `PanelCookieConsent` and `PanelCookiePolicy` — `@owlmeans/web-consent`'s components bound to this
-app's language and translations, falling through to the package's own seven-language bundle for
-every key the app has not overridden. See the `consent` skill.
+app's language and translations, falling through to the package's own eight-language bundle for
+every key the app has not overridden — and to the app's cookie-consent configuration. See the
+`consent` and `web-consent` skills.
+
+**The configuration lives in `cfg.cookieConsent`** (`PanelCookieConsentConfig`, on `AppConfig`),
+set where the rest of the app's configuration is, before anything renders:
+
+```typescript
+cfg.cookieConsent = { geo: { cloudflare: true } }   // ask only in consent countries; mode: 'bar' default
+```
+
+- `mode` (`'bar'` | `'window'`) and `geo` (`ConsentGeoOptions`) feed both components; a prop of the
+  same name always wins. Not `cfg.consent` — "consent" also names the marketing-consent and sign-in
+  terms options.
+- A file restored into apps of every age (a generated target's `config.ts`) writes it as
+  `Object.assign(cfg, { cookieConsent: … })`, so a tree whose framework predates the key still
+  type-checks; an older package ignores it.
+- **A locator of the app's own** is code, not configuration: `appendConsentGeoPlugin(context,
+  plugin)` in `context.ts` registers a `ConsentGeoPlugin` (`{ alias, locate }` — resolve the country
+  or throw) ahead of Cloudflare's and installs `context.consentGeo()`. Appending one IS asking for
+  the gate: `PanelCookieConsent` turns it on (`geo: {}`) even where `cfg.cookieConsent.geo` says
+  nothing. `PanelCookiePolicy` reads the same, so the policy states the regional rule exactly when
+  the dialog applies it.
 
 A re-export does not move Tailwind class strings, so a consumer adds a second `@source` for
 `@owlmeans/web-consent` alongside this package's — pointing at **`src`**, for the reason spelled out
@@ -532,7 +553,8 @@ menu has already mounted) and because React 18 StrictMode double-invokes mount/c
 
 | Job | Import from `@owlmeans/web-panel/consent` | Where it goes |
 |---|---|---|
-| The consent dialog (and its floating re-open button) | `PanelCookieConsent` | Beside the router — a `PanelApp` child — once |
+| The consent UI — bar, window, spinner (and its floating re-open button) | `PanelCookieConsent` | Beside the router — a `PanelApp` child — once |
+| Asking only in consent countries | `cfg.cookieConsent.geo`, or `appendConsentGeoPlugin(context, plugin)` | The app's `config.ts` / `context.ts` |
 | The "Cookie settings" control in a footer or menu | `PanelConsentMenuWidget` (`label`, `className`, `onSelect?` — defaults to `consentStore.open('reopen')`) | Inside the host's own footer/menu |
 | Hiding the floating button while that control is reachable | `useConsentMenuPresence()` | Called by the always-mounted component that renders the control — mounted ONLY while the control can actually be reached: a component that is merely hidden by CSS (`xl:hidden`) is still mounted and still claims presence, so the floating button vanishes with nothing else to open the dialog; render it conditionally instead (viable's header mounts its hamburger menu only below the full-row breakpoint) |
 | Registering the presence service | `appendConsentWidgetService(context)` | The app's `context.ts` |
@@ -557,7 +579,8 @@ bound dialog with its floating button; `useConsentMenuPresence()` then has nothi
 does nothing. The presence read itself (`useConsentWidgetPresent`) still needs the service — its
 state resource is registered by it — so any other caller checks first. A dialog that read an
 unregistered state resource threw inside render ("Resource consent-widget-presence not found") and
-blanked the whole application. Pinned by `tests/consent.spec.ts` (`?consent=bare` / `?consent=menu`).
+blanked the whole application. Pinned by `tests/consent.spec.ts` (`?consent=bare` / `?consent=menu`;
+the configuration by `?consentCfg=window|bar`, `?modeProp=` and `?consentGeo=<CC>|fail`).
 
 ## Consumer setup — package boundary and Tailwind
 

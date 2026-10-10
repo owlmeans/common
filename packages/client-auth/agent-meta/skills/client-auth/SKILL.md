@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-auth
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.59"` in `dependencies`
+**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.61"` in `dependencies`
 
 Five subpaths, five jobs:
 
@@ -90,7 +90,7 @@ browsing context the round trip can complete at all.
 | `loginLandingOf(ctx)` → `.landAfterLogin(opts?)`, `.continueLogin(opts?)`, `.landingUrl(landing)`; `useContinueLogin()` | The post-login landing decision (`src/login/land.ts`) — see `login-plugins`. `landAfterLogin` runs due landing hooks then delegates to `continueLogin`, which walks pending `LoginStep`s, then `flowLandingOf(ctx).resumeSuspendedFlow`, then `LandOptions.fallback ?? { alias: HOME }`; `landingUrl` builds the absolute URL a plugin's own `window.location.href` needs; `useContinueLogin()` is what a step's own screen calls once satisfied |
 | `LoginStep`, `LoginLanding`, `LoginLandingHook`, `LandOptions`, `LoginLandingParams` | Landing-seam types. `registerStep`/`steps`/`onLanded`/`landingHooks` on `LoginService` are the same replace-by-alias, priority-sorted registries as `registerPlugin`. `LoginStep` also carries `confirmsTerms?: boolean` (this step is where the Terms confirmation lives — see `loginTermsHelper.termsDeferred` below) and `required?: boolean` (a throw/timeout in `pending` reads as PENDING, not "not pending" — see `login-plugins`) |
 | `LOGIN_STEP_TIMEOUT`, `LOGIN_LANDED_STORAGE` | A step's `pending`/a hook's `landed` is bounded by the former; the latter is where the last-landed token is recorded (the raw string, never a digest) |
-| `loginTermsHelper` → `.resolveTerms`, `.termsAccepted`, `.acceptTerms`, `.termsSentence`, `ResolvedTerms`, `ResolvedTermsDocument`, `TermsSentencePart` | The confirmation. `resolveTerms` produces `documents` (what the checkbox agrees to: terms, then billing/product/custom when configured) and `notices` (what is only disclosed: privacy, plus cookies per its own inclusion rule) — see the terms-confirmation section of `login-methods`. The extra `LoginTermsConfig` fields (`billing`, `product`, `documents`, `revisions`, `showRevision`) are added by module augmentation in `src/login/terms-config.ts`, never by editing `@owlmeans/config` — importing anything from `@owlmeans/client-auth/login` pulls it in |
+| `loginTermsHelper` → `.resolveTerms`, `.termsAccepted`, `.acceptTerms`, `.termsSentence`, `ResolvedTerms`, `ResolvedTermsDocument`, `TermsSentencePart` | The confirmation. `resolveTerms` produces `documents` (what the checkbox agrees to: terms, then billing/product/custom when configured) and `notices` (what is only disclosed: privacy, plus cookies per its own inclusion rule) — see the terms-confirmation section of `login-methods`. The extra `LoginTermsConfig` fields (`billing`, `product`, `documents`, `revisions`, `showRevision`, `localizedHrefs`) are added by module augmentation in `src/login/terms-config.ts`, never by editing `@owlmeans/config` — importing anything from `@owlmeans/client-auth/login` pulls it in |
 | `loginTermsHelper.termsLabelResolver(translate, locale)`, `loginTermsHelper.termsAcceptanceOf(resolved, locale?)`, `TermsAcceptanceRef` | The ONE document-label resolver and ONE wire-shape builder every terms renderer/recorder shares (`FallbackLoginScreen`, `web-panel`'s `LoginTerms`, `web-marketing-consent`'s Terms box and `termsRecorder`) — no more hand-kept duplicate `DEFAULT_LABEL`/`resolveLabelFor` per package. `termsAcceptanceOf` keeps only `{key, href, revisedAt}` per document — structurally `@owlmeans/marketing-consent`'s `TermsAcceptance`, with no dependency on that package |
 | `loginTermsHelper.termsDeferred(ctx)` | True once a registered AND BOUND `LoginStep` declares `confirmsTerms` — see the "Deferring the confirmation" section of `login-methods`. Reads `ctx.hasService`/`.hasEntrypoint` directly, never `ensureLoginService` (which has the side effect of registering an empty host) |
 | `resolveCredit`, `ResolvedCredit` | The credit and copyright line |
@@ -159,6 +159,12 @@ a web application only calls these when it builds its context by hand.
 
 ## Rules
 
+- An application's translated legal destinations are opt-in `login.terms.localizedHrefs`, keyed by
+  document/notice key, then locale. `loginTermsHelper.termsHrefOf(doc, locale?)` selects the exact
+  configured locale, then its base language, then `doc.href`. `termsSentence` and `termsAcceptanceOf`
+  share that resolver: pass the same live UI language to both. The canonical href and revisions still
+  determine the agreement digest; translations alone never ask for a new acceptance. Supply known
+  published destinations, never infer another application's URL layout. Omitted maps preserve defaults.
 - The bearer token lives in the `AUTH_RESOURCE` resource under the single id `USER_ID`. Read and
   write it through the auth service or through `loginTokenOf(ctx).adoptToken` / `.revokeToken`;
   hand-written storage access drifts from the envelope decoding that happens beside it.

@@ -1,12 +1,12 @@
 ---
 node: planning
-scope: "packages/{planning,server-planning,client-planning,planning-postgres}/**, packages/viable-common/src/planning/**"
+scope: "packages/{planning,planning-auth,server-planning,client-planning,planning-postgres}/**, packages/viable-common/src/planning/**"
 updated: 2026-10
 ---
 
 # Planning (workcards, transitions, commits)
 
-Rules live in the `planning`, `server-planning`, `client-planning` and `planning-postgres` skills;
+Rules live in the `planning`, `planning-auth`, `server-planning`, `client-planning` and `planning-postgres` skills;
 this node keeps what cost time to find.
 
 ## Facts
@@ -52,8 +52,6 @@ this node keeps what cost time to find.
   function), `name`/`key` on a type or flow (`SchemaInvalid`) — each compiles only through an
   `any`-typed helper. Counter: the wrong-form table in `server-planning`, run by
   `server-planning/tests/create-example.spec.ts`.
-- **`server-planning/src/store/memory.ts` holds a literal NUL byte** (a `${entityId}\0${key}` map
-  key), so plain `grep` reads it as binary and prints nothing — use `grep -a`.
 
 Related: [[queues]] (hook merge, job ids, unsigned enqueue), [[viable]] (the Viable vocabulary and
 connector tools over the facade), [[entrypoints]].

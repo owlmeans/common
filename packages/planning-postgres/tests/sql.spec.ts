@@ -24,7 +24,7 @@ describe('@owlmeans/planning-postgres — statements', () => {
     expect(insert.text).toStartWith(`INSERT INTO "app"."planning_link" (`)
     expect(insert.text).toEndWith(' RETURNING *')
     expect(insert.params).toContain('{"shelf":3}')
-    expect(insert.params.filter(value => value === null)).toHaveLength(2)
+    expect(insert.params.filter(value => value === null)).toHaveLength(4)
   })
 
   test('a driver fault is read through its cause chain', () => {

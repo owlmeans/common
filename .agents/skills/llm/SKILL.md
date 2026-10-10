@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.18-rc.46"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.18-rc.49"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only owns the
 provider-independent parts (streaming discipline, retries, validation, observability). Serializable
@@ -194,7 +194,11 @@ becomes a foreign type and `instanceof` starts lying.
 ## Hangs are bounded by an IDLE deadline, not a total one
 
 A stalled provider is aborted after `MODEL_STREAM_TIMEOUT_MS` (3 min) of SILENCE and surfaces as a
-retryable `LlmModelError`, so the escalator moves on. The timer re-arms on every token, so a
+retryable `LlmModelError`, so the escalator moves on. Stream creation and each iterator read race
+an independently rejecting deadline; forwarding an abort signal alone does not bound an SDK
+promise that ignores cancellation. Late values never reach the caller, late failures are observed,
+and best-effort iterator cleanup never delays timeout, terminal chunks or consumer cancellation.
+The timer re-arms on every token, so a
 long-but-productive generation is never cut off — which is why the value can be low. Set it for a
 deployment with `LlmServiceOptions.streamTimeout` where the application composes its context; a
 preset naming its own `ModelConfig.streamTimeout` keeps it. It does NOT bound a call that keeps
@@ -459,6 +463,12 @@ pins the per-family wire (thinking switch, effort ceiling, `tool_choice`, `stric
 the retry on a text-only reply) through `ChatAnthropic.invocationParams`; `structured-schema.spec.ts`
 pins the refusal of a hidden property name before any request. `plugins.spec.ts` covers the
 `Compatible` provider offline.
+
+`internals.spec.ts` covers abort-insensitive stream creation, reads and cleanup, observed late
+failures, ignored late values, consumer cancellation and active streams exceeding multiple idle
+windows. `bun test ./tests/stream-sdk.spec.ts` exercises actual ChatOpenAI Responses against local
+HTTP fixtures: missing headers, open headers without SSE, and a productive SSE control. It checks
+socket cancellation and absence of late callbacks without spending provider tokens.
 
 ## Depends On
 

@@ -1,8 +1,8 @@
 import type {
-  InquiryButtonOptions, InquiryHandle, InquiryOpenEvent, InquiryOpenOptions, InquiryRuntime, InquiryWidgetConfig,
+  InquiryButtonOptions, InquiryEmailOptions, InquiryHandle, InquiryOpenEvent, InquiryOpenOptions, InquiryRuntime, InquiryWidgetConfig,
 } from '@owlmeans/common-inquiry'
 
-export interface InquiryClientOptions {
+export interface InquiryClientOptions extends InquiryEmailOptions {
   /** The CRM base URL the widget is served from, e.g. `https://platform.owlmeans.com/crm`; a trailing slash is dropped. */
   url: string
   /** The widget's language, or a function read at every open (so a language switch is honoured). */

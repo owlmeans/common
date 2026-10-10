@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-inquiry
 
 **Layer:** Web (depends on `@owlmeans/common-inquiry` and `@owlmeans/log`; no React, no widget code)
-**Install:** `"@owlmeans/web-inquiry": "^0.1.18-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/web-inquiry": "^0.1.18-rc.1"` in `dependencies`
 
 The host half of the inquiry widget. The dialog itself — React, styles, reCAPTCHA, the upload — is
 a bundle the CRM serves; this package only loads it, opens it and reports the opens. A page pays
@@ -21,6 +21,7 @@ import { makeInquiryClient } from '@owlmeans/web-inquiry'
 const inquiry = makeInquiryClient({
   url: `${platformWeb}/crm`,           // the CRM base; a trailing slash is dropped
   language: () => i18n.language,      // a string, or a function read at every open
+  email: () => accountEmail(),        // optional string or lazy sync/async reply address
 })
 
 inquiry.bind('[data-inquiry="quote"]', quoteConfig, { source: 'pricing-card' })   // returns unbind
@@ -36,9 +37,23 @@ the opens of an unclaimed widget). The last client to act sets the runtime's lan
 |---|---|
 | `url` | the CRM base, e.g. `https://platform.owlmeans.com/crm` |
 | `language` | the widget's language — string or function; default: the runtime's own choice |
+| `email` | optional string or function returning `string \| null \| undefined`, directly or in a Promise; applied on each open |
 | `analytics` | the open event's name; default `INQUIRY_OPEN_EVENT`; `false` reports nothing |
 | `onOpen(event)` | called once per open, after the analytics event |
 | `timeoutMs` | how long `load` waits; default `INQUIRY_LOAD_TIMEOUT` (10 000) |
+
+The client passes the email source to the widget; neither creating a client, binding triggers nor
+`load()` invokes it. Supply `email` in `open`, `bind` or `button` options to override the client's
+default. A floating button's handle carries the same default into its `open` unless overridden.
+The widget resolves it when the dialog opens, so an async lookup can show its spinner immediately
+and disable the email field and Send while leaving other fields editable. Do not await the lookup
+in the host before opening. A failure or missing result leaves an empty editable address; omitting
+`email` preserves the manual draft. Each subsequent open reapplies the supplied preset.
+
+Cache identity lookups in the host when needed, scoped to the authenticated session and held in
+memory. Return a string or null synchronously once cached to avoid showing a spinner again. Share
+pending requests, invalidate the cache when authentication changes, and discard results belonging
+to an earlier session. The SDK and widget do not store identity information.
 
 ## Loading
 
@@ -93,7 +108,8 @@ Custom Event trigger on `inquiry_dialog_open` forwards it to a GA4 event tag.
 
 For a host that depends on this package alone: `INQUIRY_OPEN_EVENT` and the types
 `InquiryWidgetConfig`, `InquiryTab`, `LocalizedText`, `InquiryOpenOptions`, `InquiryButtonOptions`,
-`InquiryOpenEvent`, `InquiryHandle`, `InquiryRuntime` from `@owlmeans/common-inquiry`.
+`InquiryEmailOptions`, `InquiryEmailPreset`, `InquiryEmailValue`, `InquiryOpenEvent`, `InquiryHandle`,
+`InquiryRuntime` from `@owlmeans/common-inquiry`.
 
 ## Testing
 

@@ -1,4 +1,4 @@
-/** The four resource aliases — each is also the physical table name (sanitized). */
+/** Core resource aliases — each is also the physical table name (sanitized). */
 export const RES_PLANNING_CARD = 'planning-card'
 export const RES_PLANNING_TRANSITION = 'planning-transition'
 export const RES_PLANNING_LINK = 'planning-link'
@@ -47,6 +47,10 @@ export const NOTIFY_PAYLOAD_MAX = 7_900
 
 /** The file a target adds for each resource — what a missing-resource error names. */
 export const PLANNING_RESOURCE_FILES = Object.freeze({
+  assignee: 'src/resources/planning/assignee.ts',
+  team: 'src/resources/planning/team.ts',
+  comment: 'src/resources/planning/comment.ts',
+  mention: 'src/resources/planning/mention.ts',
   card: 'src/resources/planning/card.ts',
   transition: 'src/resources/planning/transition.ts',
   link: 'src/resources/planning/link.ts',
@@ -56,3 +60,8 @@ export const PLANNING_RESOURCE_FILES = Object.freeze({
 export const UNIQUE_VIOLATION = '23505'
 
 export const LOCK_NOT_AVAILABLE = '55P03'
+
+export const RES_PLANNING_ASSIGNEE = 'planning-assignee'
+export const RES_PLANNING_TEAM = 'planning-team'
+export const RES_PLANNING_COMMENT = 'planning-comment'
+export const RES_PLANNING_MENTION = 'planning-mention'

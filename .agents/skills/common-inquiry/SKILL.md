@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/common-inquiry
 
 **Layer:** Cross-cutting domain (no `@owlmeans/*` dependencies; optional `ajv` peer for schema types)
-**Install:** `"@owlmeans/common-inquiry": "^0.1.18-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/common-inquiry": "^0.1.18-rc.1"` in `dependencies`
 
 The one place the three parties of the inquiry widget agree: the browser SDK
 (`@owlmeans/web-inquiry`), the widget bundle that renders the dialog, and the CRM API that accepts
@@ -65,14 +65,28 @@ The bundle installs an `InquiryRuntime` at `window[INQUIRY_GLOBAL]` (`window.__o
 |---|---|
 | `version` | `INQUIRY_RUNTIME_VERSION`; a client refuses another. Bump it only for an incompatible change |
 | `configure(options)` | page-wide `{ url, language?, onOpen? }`, last call wins; `language` may be a function read at every open |
-| `open(config, opts?)` | mount the widget's dialog on first use, open it on `opts.tab` or the default tab |
-| `button(config, opts?)` | mount a floating button (`position`, `offset`, `label`, `source` — default `fab`); returns an `InquiryHandle` (`open`, `update`, `unmount`); a second call for the same id updates it |
+| `open(config, opts?)` | mount the widget's dialog on first use, open it on `opts.tab` or the default tab; apply `opts.email` when supplied |
+| `button(config, opts?)` | mount a floating button (`position`, `offset`, `label`, `source` — default `fab`, `email`); returns an `InquiryHandle` (`open`, `update`, `unmount`); a second call for the same id updates it |
 | `unmount(id?)` | remove one widget, or all |
 
 **`onOpen` is called exactly once per dialog open**, whatever opened it — `open`, a handle's
 `open`, the floating button — with `{ widget, tab, source }`. Opening a dialog that is already open
 does not call it again. The SDK reports analytics from this callback only, so a runtime that also
 reported from elsewhere would double-count.
+
+`InquiryEmailOptions.email` is an optional `InquiryEmailPreset`: a string or a lazy function
+returning `InquiryEmailValue` (`string | null | undefined`), synchronously or in a Promise. The
+runtime resolves it on each closed-to-open transition and replaces any manually edited address;
+calling `open` on an already open dialog does not resolve it again. A null/undefined result or a
+provider failure clears the address for manual entry. Omitting the option preserves the manual
+draft. A button's provider also applies to its floating trigger and handle's `open`; an explicit
+open option overrides it.
+
+While a Promise is pending, the address is empty, its field and Send are disabled, and a spinner
+beside the field announces loading. Other fields remain editable. Closing, reopening or unmounting
+invalidates earlier pending results. A synchronous result needs no spinner. The host owns caching;
+the runtime does not fetch identity or persist addresses. These optional options keep runtime
+version 1 compatible with clients that omit them.
 
 ## The submission
 

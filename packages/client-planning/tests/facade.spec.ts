@@ -19,7 +19,8 @@ describe('@owlmeans/client-planning — remote facade', () => {
     }
     const remote = await suite.planning.cards.list(query)
 
-    expect(remote).toEqual(await suite.local.cards.list(query))
+    const native = await suite.local.cards.list(query)
+    expect(remote).toEqual({ ...native, items: native.items.map(card => ({ ...card, entityId: '' })) })
     expect(remote.items.map(card => card.title)).toEqual(['Alpha login'])
     expect(await suite.planning.cards.count({ parent: project.id })).toBe(3)
     expect(await suite.planning.cards.summary([project.id!])).toEqual(await suite.local.cards.summary([project.id!]))

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-iam
 
 **Layer:** Client (browser-only — it depends on `@owlmeans/web-client` and `@owlmeans/web-oidc-rp`)
-**Install:** `"@owlmeans/client-iam": "^0.1.18-rc.64"` in `dependencies`
+**Install:** `"@owlmeans/client-iam": "^0.1.18-rc.66"` in `dependencies`
 
 The browser side of the IAM for an application that signs its people in through an OwlMeans OIDC
 provider. One import wires the relying party, puts the consent precondition in front of every
@@ -53,8 +53,10 @@ flattened entrypoint list.
 
 The consent precondition sits on `LoginService.begin`, the one funnel every sign-in mechanic passes
 through and the place the user's gesture is still live: a refusal resolves as
-`LoginOutcome.Gesture` and opens the consent dialog in the same gesture, and the person presses
-"Log in" again after accepting (`login-plugins`, `web-consent`).
+`LoginOutcome.Gesture` and opens the consent preferences window in the same gesture, and the person
+presses "Log in" again after accepting (`login-plugins`, `web-consent`). A visitor decided for
+automatically (located outside the consent countries — the `consent` skill's geo gate) already has a
+record and passes.
 
 ## Organizations of the session
 

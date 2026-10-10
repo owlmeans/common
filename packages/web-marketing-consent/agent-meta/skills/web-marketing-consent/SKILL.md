@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-marketing-consent
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-marketing-consent": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/web-marketing-consent": "^0.1.18-rc.18"` in `dependencies`
 **Contracts:** `@owlmeans/marketing-consent` — the catalogue, `marketingConsentHelper.consentStatus`, the protocol tree
 **Server half:** `@owlmeans/server-marketing-consent` — `serveMarketingConsentEntrypoints` binds the
 same `status`/`save`/`terms` protocols this package calls
@@ -27,16 +27,16 @@ append-only log) — this package builds on both and repeats nothing they alread
 | `MARKETING_CONSENT_LOGIN_STEP` · `MARKETING_CONSENT_LANDING_HOOK_TERMS` | Registry aliases the step and the hook register under |
 | `MARKETING_CONSENT_I18N` | Re-export of `@owlmeans/marketing-consent`'s OWN `MARKETING_CONSENT_I18N` — see "One shared i18n resource" below |
 | `makeMarketingConsentClient(protocols, opts?)` · `appendMarketingConsentClient(ctx, protocols, opts?)` | Build/register the `MarketingConsentClientService` |
-| `MarketingConsentClientService` | `status(opts?)`, `save(request)`, `recordTerms(acceptance)`, `last()`, `preferences()` — see "Fail open, always" |
+| `MarketingConsentClientService` | `status(opts?)`, `save(request)`, `recordTerms(acceptance)`, `last()`, `preferences()`, optional `bulkSelection` — see "Fail open, always" |
 | `marketingConsentStep(client, entrypointAlias, opts?)` | The `LoginStep` — `opts.confirmsTerms` moves the Terms row here (see "Terms mode" below); pending while `status().pending` is true and this sign-in has not skipped it |
 | `marketingConsentSkipOf(ctx)` — `.isSkipped()` · `.markSkipped()` | The skip marker's read/write half — keyed per sign-in (`Auth.sessionId`, else the raw token), never a credential |
 | `termsRecorder(client, locale?)` | The terms-acceptance `LoginLandingHook` |
-| `appendMarketingConsent(ctx, opts)` | The ONE call an app makes — wires the client, the step and the terms hook: `{ protocols, config?, step?, terms?: boolean \| 'step', preferences?, locale? }` — see "Terms mode" |
+| `appendMarketingConsent(ctx, opts)` | The ONE call an app makes — wires the client, the step and the terms hook: `{ protocols, config?, step?, terms?: boolean \| 'step', preferences?, bulkSelection?: 'all' \| 'required', locale? }` — see "Terms mode" |
 | `marketingConsentEntrypoints(protocols)` | `[bindScreen(protocols.screen, handler(MarketingConsentScreen))]` |
 | `MarketingConsentBody` | Everything the step does and none of the page around it (`{ className? }`) — the host puts it in its own layout; renders NOTHING once nothing is left to answer, so a frame hides itself while empty (`empty:hidden`) |
 | `MarketingConsentScreen` | The plain frame — a centered card up to 768px around `MarketingConsentBody` (`RoutedComponent`); what `marketingConsentEntrypoints` binds |
 | `MarketingConsentPreferences` | The reusable settings-card body (`{ translate?, className?, onSaved? }`) — never shows a Terms row, whatever `appendMarketingConsent({ terms })` says |
-| `useMarketingConsent(opts?)` | The headless model both components share — `{ loading, unreadable, saving, error, termsError, gpc, groups, allChecked, allIndeterminate, toggleAll, toggle, pristine, optionalOnly, deferred, terms, save, skip }`; `opts: { source?: 'sign-in' \| 'settings', locale? }` |
+| `useMarketingConsent(opts?)` | The headless model both components share — `{ loading, unreadable, saving, error, termsError, gpc, groups, bulkSelection, allChecked, allIndeterminate, toggleAll, toggle, pristine, optionalOnly, deferred, terms, save, skip }`; `opts: { source?: 'sign-in' \| 'settings', locale? }` |
 | `MarketingConsentTermsModel` | `{ needed, ticked, attempted, tick, documents, notices, revisedAt?, version }` — `useMarketingConsent(...).terms` |
 | `MARKETING_CONSENT_SKIP_STORAGE` | The skip marker's `localStorage` key |
 
@@ -59,7 +59,7 @@ appendMarketingConsent(context, { protocols: marketingConsentProtocols })
 
 `appendMarketingConsent(ctx, opts)` does three things, each independently toggleable:
 
-1. Registers the `MarketingConsentClientService` (`opts.preferences`) — via
+1. Registers the `MarketingConsentClientService` (`opts.preferences`, `opts.bulkSelection`) — via
    `appendMarketingConsentClient`, so calling `appendMarketingConsent` twice never double-registers.
 2. `opts.step !== false` — `login.registerStep(marketingConsentStep(client, opts.protocols.screen.alias,
    { confirmsTerms: opts.terms === 'step' && opts.step !== false }))`.
@@ -103,6 +103,12 @@ unconfirmed.
 `loginTermsHelper.termsAcceptanceOf(resolved, locale?)` (`@owlmeans/client-auth/login`) builds the body — the SAME
 helper `termsRecorder` uses for the sign-in-screen path, so the wire shape never forks between the
 two places a person might confirm.
+When `LoginTermsConfig.localizedHrefs` is configured, both displayed links and this evidence select
+the explicit destination for the same live UI locale. The canonical digest/revisions and save schema
+remain unchanged; a language change alone never asks for a new agreement.
+Optional-purpose `MarketingConsentLink.hrefMap` uses the same `termsHrefOf` presentation resolver
+in `inlineHelper.resolveLinks`. Configure complete translated destinations including fragments;
+omitted/unmapped locales keep the canonical href. No decision/Terms-save or ledger fields are added.
 
 `opts.config` (`MarketingConsentConfig`) is accepted for symmetry with the server's
 `appendMarketingConsentService({ config })` call but is NOT read here — `marketingConsentHelper.resolveMarketingConsents`
@@ -194,7 +200,8 @@ states, in this order — `screen.tsx`'s own docblock spells out each one's mark
 1. **loading** (`data-state="loading"`) — the status read is outstanding, timed out at ~10s into
    `unreadable` rather than shown forever.
 2. **Terms row up** (`terms.needed`) — `aria-disabled`/`data-blocked` on the confirm until ticked, a
-   `role="alert"` on a blocked click, no Skip. Pending items (if any) render below the row.
+   `role="alert"` on a blocked click, no Skip. EVERY catalogue item renders below the row, each
+   ticked as last decided — also when the Terms are the only thing owed.
 3. **optional-only** (`optionalOnly`: no Terms row, at least one item pending) — the confirm is
    ALWAYS clickable (never `aria-disabled`) but looks muted (`data-empty`, `aria-describedby` a
    hint) until `pristine` turns false — the FIRST tick/untick/Select-all this visit, after which it
@@ -209,11 +216,15 @@ Terms mode — the one way out for someone who will not accept, or who is stuck 
 
 **The list (`ConsentFields`, shared by the step and the settings card).** In order:
 
-1. **Select all** — a framed box of its own (`[data-marketing-consent-all-frame]`), first on
-   screen, ABOVE the Terms row. Drawn only when there is more than one row to select. The frame
+1. **Bulk selection** — a framed box of its own (`[data-marketing-consent-all-frame]`), first on
+   screen, ABOVE the Terms row. Default `bulkSelection: 'all'` draws it only when there is more than
+   one row and selects all shown rows. Opt-in `'required'` labels it "Select required agreements",
+   shows it only while the Terms row is needed, and ticks/unticks only Terms. Optional choices never
+   contribute to that control's checked/indeterminate state and remain untouched by either action;
+   a settings card or optional-only step has no bulk control in this mode. The frame
    reaches outward by its own border and padding (a negative inline margin), so its checkbox stands
    on the same vertical line as every row's checkbox — keep the two in step if either padding moves. It speaks for
-   every row on screen, the Terms row included while it is up: ticking it ticks Terms, and a
+   every row within its configured scope, the Terms row included while it is up: ticking it ticks Terms, and a
    partial selection (Terms alone, or some consents) reads as indeterminate. That counts as a change
    (`pristine` turns false). The Terms row stays independently tickable, and a save with it
    unticked is still blocked.
@@ -251,28 +262,36 @@ terms })` says: `useMarketingConsent({ source: 'settings' })` computes `terms.ne
 `source: 'sign-in'`, so this card is unaffected either way. Failing to save just leaves the error
 showing and the draft in place.
 
-**This card loads the WHOLE catalogue, always — never gated on `status.pending`.** That is the one
-place `source: 'settings'` and `source: 'sign-in'` deliberately load items differently (see below):
-a step must stop asking once nothing is outstanding, but a standing "change these at any time" card
+**This card loads the WHOLE catalogue, always — never gated on anything being owed.** That is the
+one place `source: 'settings'` and `source: 'sign-in'` deliberately load items differently (see
+below): a step must stop once nothing is outstanding, but a standing "change these at any time" card
 gated the same way would render zero checkboxes the moment every item happened to already be
 decided — silently breaking exactly the promise its own name makes. `save()` therefore always posts
 the full catalogue here, not only whatever changed.
 
 `useMarketingConsent({ source, locale? })` is the shared headless model: `source: 'sign-in'` from
 the step, `'settings'` (the default) from preferences — posted on every `save()` call, on EVERY
-LOADED item's current draft value (never a diff, and never an item that is already `current` — the
-server upserts by key). **Which items load is `source`-dependent, on purpose**: for `'sign-in'`,
-only pending items — `status.pending === true ? status.items : []`, so a step never re-asks a
-settled catalogue; for `'settings'` (preferences), the WHOLE catalogue, unconditionally — a
+LOADED item's current draft value (never a diff, `current` items included — the server upserts by
+key). **When items load is `source`-dependent, on purpose**: for `'sign-in'`,
+the WHOLE catalogue whenever the step is shown — an item pending (`status.pending`) or, in Terms
+mode, the Terms owed (`status.terms?.version` differs from the configured one) — and nothing when
+nothing is owed, so the step moves on; a step shown for the Terms alone still lists every consent,
+ticked as last decided. For `'settings'` (preferences), the WHOLE catalogue, unconditionally — a
 standing settings card must stay revisitable even once every item is decided. Groups are ordered
 `communications`/`data` (`MC_GROUP_*`), any other group appended after in first-seen order.
-`allChecked`/`allIndeterminate` count the Terms row while it is needed; `allIndeterminate` is
+`allChecked`/`allIndeterminate` count the Terms row while it is needed and optional rows only in
+`bulkSelection: 'all'`; `allIndeterminate` is
 applied to the select-all checkbox's `.indeterminate` DOM property via a `ref` in a `useEffect` — a
 native checkbox has no ARIA `mixed` prop, only that imperative one. `save()` records `terms` FIRST
-when `terms.needed`, then posts every loaded item if there are any — a sign-in visit that is
-Terms-only, with nothing else pending, never calls `save`'s item half at all; preferences always has
-the full catalogue loaded, so its `save()` always posts it. Nothing in `save()` touches any cookie
+when `terms.needed`, then posts every loaded item — a step shown for the Terms alone re-records
+the unchanged decisions with `source: 'sign-in'`; preferences always has the full catalogue loaded,
+so its `save()` always posts it. Nothing in `save()` touches any cookie
 store.
+
+Both supplied UI hosts pass their current `useLanguage()` value to the hook. `save()` records it
+in the existing `locale` field for optional-purpose decisions as well as Terms acceptance. A custom
+headless host must pass its live UI locale; a bootstrap-time language captured in append options
+does not establish which language the person saw when saving.
 
 ## `data-marketing-consent-*` contract
 
@@ -351,7 +370,8 @@ only the server absent, the same harness shape as `@owlmeans/web-oauth`'s:
   the confirmation and the link inside the sentence, no dangling sentence without links, custom
   per-language text in English and Polish, no Select-all for a lone consent, everything-already-
   decided in DEFAULT mode auto-continuing (`allItemsCurrent()`, `helpers.ts`) with only `GET status`
-  called — then the whole Terms-mode `describe`: blocked-until-ticked with an alert and no skip,
+  called — then the whole Terms-mode `describe`: blocked-until-ticked with an alert and no skip, Terms owed with every consent decided listing every
+consent ticked as last decided and saving them with the Terms,
   ticking records terms then posts pending items and continues, an already-current version with
   nothing else pending auto-continuing, a failed recording showing `terms-error` with no skip and no
   navigation, Select-all ticking and unticking the Terms row with the consents, the order (Select

@@ -24,6 +24,7 @@ export const PricingPolicySchema = schema<PricingPolicy>({
       type: 'object',
       properties: {
         adaptive: { type: 'boolean', nullable: true },
+        adaptiveFeeRate: { type: 'number', minimum: 0, maximum: 1, nullable: true },
         estimate: { type: 'boolean' },
         estimateTtlSeconds: { type: 'number', minimum: 1, multipleOf: 1, nullable: true },
       },

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/planning
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/planning": "^0.1.18-rc.20"` in `dependencies` (`ajv` and `ajv-formats` are peers)
+**Install:** `"@owlmeans/planning": "^0.1.18-rc.26"` in `dependencies` (`ajv` and `ajv-formats` are peers)
 
 The contracts of project planning: record shapes, schemas, refusals, the protocol tree, the pure
 fold and the models. No database, no fastify, no React. The executor, the plugin registry, the
@@ -17,7 +17,7 @@ mirror are `@owlmeans/client-planning`; a durable store implements the ports dec
 
 ## The one idea
 
-Every change is a **transition** — an append-only event — and a card IS the fold of its
+Every workcard change is a **transition** — an append-only event — and a card IS the fold of its
 transitions in `seq` order. There is one write path (`facade.execute(exec)`), one fold
 (`applyHelper.applyTransition`) and one query translation (`queryHelper.criteriaOf`), shared by every store and both sides
 of the wire, so one log always means one card.
@@ -76,8 +76,9 @@ forms generated code keeps writing are `server-planning` → Creating and readin
 - **`entityId` is the organization's stable record id** — never the wire `entitySlug`, never a body
   value. Every read is scoped by it; where a request's comes from is `server-planning` → Scope and
   security.
-- **Membership is `parent` + `parents`, never a relationship.** `parents` always contains `parent`
-  (first), so many-to-many membership needs no junction row. `within` queries `parents`.
+- **Card containment is `parent` + `parents`.** `parents` always contains `parent` (first), so
+  multiple direct parents need no junction row. `within` queries those direct parents. Team
+  membership and project-team assignment use canonical typed relationships instead.
 - **Specification is a workcard** (`kind: specification`) with `category`, `format`, `body`, `ref`,
   `revision`, `version`, `bodyChars`. The SLOT — category, format, `multiple`, `revisioned`,
   `keepRevisions`, a JSON body `schema` — is declared on the PARENT's type. One record per
@@ -85,8 +86,10 @@ forms generated code keeps writing are `server-planning` → Creating and readin
   same record, and earlier bodies come back from the transition log.
 - **`createdBy` is written once, from a create's draft, and never moves.** Named in `changes` or
   `unset` it is refused on every action (`planning:immutable:createdBy`), so an ownership check
-  (`card.createdBy === profileId`) can trust it. A card that changes hands keeps that in a field of
-  its own type (`fields.assignee`); who made each later write is the transition's `actor`.
+  (`card.createdBy === profileId`) can trust it. Responsibility uses the optional top-level
+  `assignee` planning ID; additional participant fields belong in the type's `fields` schema.
+  The optional `reporter` also references an assignee ID. Who made each later write is the
+  transition's `actor`.
 - **`seq` is the last folded transition, `head` the highest allocated.** `head > seq` means a write
   is in flight (`cardHelper.isPending`); optimistic concurrency (`expectSeq`) compares against the
   head.
@@ -144,13 +147,14 @@ excess-property check catches it — keep the literal typed.
 
 ## Data-defined types and flows
 
-Card types and status flows may also be DATA — `ScopedSchemaRecord`s a store keeps behind the
-optional `PlanningStore.schemas` port — layered **code → entity → project**:
+Card types, assignee types and status flows may also be DATA — `ScopedSchemaRecord`s a store keeps
+behind the optional `PlanningStore.schemas` port. Card types and flows layer **code → entity → project**;
+assignee types layer **code → entity** and refuse a project-local declaration:
 
 - `code` is the plugin registry (the default), `entity` an organization-wide record
   (`project` absent), `project` a record of one project card. A project record overrides an
   organization one of the same key.
-- **Only card types and flows are data.** A code key is sealed unless its declaration says
+- **Card types, assignee types and flows are data.** A code key is sealed unless its declaration says
   `overridable: true`; project and specification types are always code's (`scopedSchemaHelper.assertOverridable` →
   `SchemaSealed`).
 - A record's `version` is its compare-and-set token and is written into the declaration's own
@@ -170,7 +174,7 @@ optional `PlanningStore.schemas` port — layered **code → entity → project*
 - `SchemaStore`: `list(where)`, `put(record)` (the CAS), `purge({ entityId, project })`,
   `revision(entityId)` (monotonic per organization), optional `watch(listener)`.
 - `PlanningFacade.definitions` (present only where the store has the port): `bundle(project?)`,
-  `registry(project?)`, `records`, `putType`/`putFlow` (CAS on the declaration's version),
+  `registry(project?)`, `records`, `putType`/`putFlow`/`putAssigneeType` (CAS on the declaration's version),
   `define` (each at its layer's next version, flows first), `seed` (only the keys the layer lacks),
   `retire(kind, key, { project? })`. The declaration still carries its own `version` (any number
   ≥ 1 for `define`/`seed`, which assign the layer's next one; the exact next one for `put*`), and
@@ -275,7 +279,7 @@ A generated target serves this tree as it is — no hand-written card, transitio
 routes; domain rules are `before` plugins. This section is the hub; each package skill has its half.
 
 - **common** declares the one tree the api and the web share: `makePlanningProtocols({ base: {
-  alias: 'api:planning' }, guards: DEFAULT_GUARD, definitions: true })`, in its own module beside
+  alias: 'api:planning' }, guards: DEFAULT_GUARD, definitions: true, resources: true })`, in its own module beside
   the `PLANNING` plugin (`sources/common/src/planning.ts`).
 - **api** — `server-planning` → Mounting in a target (stock handlers, no commit socket, the
   resolver answering `writes`). **web** — `client-planning` → Mounting in a target. **store** —
@@ -358,6 +362,62 @@ is part of the package's own tests.
 - `@owlmeans/resource` — `Criteria`, `ListOptions`, `ListResult`, `createListSchema`
 - `@owlmeans/entrypoint`, `@owlmeans/route` — the protocol tree
 - `@owlmeans/error`, `@owlmeans/i18n`, `@owlmeans/auth` (`IdValueSchema`), `@owlmeans/basic-ids`, `@owlmeans/context`
+
+## Assignees, comments, teams and hierarchy
+
+Cards retain the transition log; auxiliary records use separate versioned resources. `Assignee`,
+`Team`, `Comment` and `CommentMention` have organization scope and `version` compare-and-set.
+`PlanningResourceKind` qualifies relationship endpoints so ids from different resources cannot
+collide. Omitted endpoint kinds mean `workcard` for stored legacy edges.
+
+Assignees have stable ids, normalized organization-unique nicknames (`mentionHelper.nicknameKey`),
+`kind: human | non-human`, `type`, flexible `fields`, optional `authentication: { provider,
+externalId }` and retirement. Human types require authentication by default; declare
+`authentication: 'optional'` to allow a human without it. Non-human types default to optional.
+Authentication is provider-neutral; `@owlmeans/planning-auth` adds the optional OwlMeans adapter.
+Code plugins declare `schemas.assigneeTypes`; data definitions use `putAssigneeType` or
+`define({ assigneeTypes })`. Assignee schemas are organization-wide, never project-local.
+
+`reporter` and `assignee` are optional top-level single assignee ids. Additional schema fields use
+`relationships: [{ name, field, toKind: PlanningResourceKind.Assignee, multiple?, to?, inverse? }]`.
+`to` restricts target assignee types. The field is authoritative; the store maintains its canonical
+edge and the facade exposes named inverse views. Do not mirror base fields in `fields`, invent
+join collections or manually write these derived edges. Retired assignees retain existing links
+and comments but cannot receive new assignments or team memberships.
+
+Comments belong to a card and a trusted author assignee. Encode stable mentions with
+`mentionHelper.encode(id, nickname)`, producing `[@nickname](assignee:<encoded-id>)`; renaming a
+nickname never retargets a mention. `CommentMention` is a separate derived cache with the source
+comment `revision`; reads repair interrupted cache updates. Never accept author ids from an
+untrusted request or parse ordinary prose as identity.
+
+Teams are organization resources, reusable across projects. `teams.addMember/removeMember` and
+`teams.attach/detach` use the existing relationship store, with canonical team-member and
+project-team edges. `teams.members(team)` and `teams.projects(team)` read membership and
+attachment; `teams.assignees(project)` reads effective assignees. Read project teams through
+`relationships.list({ from: project, type: PLANNING_PROJECT_TEAM, toKind: PlanningResourceKind.Team })`;
+project assignees are the deduplicated union of attached teams. Team `externalId` may name an
+external permission group; links do not mutate authentication group membership.
+
+Hierarchy uses existing `parent` and direct `parents`, with optional derived `parentType`.
+Declare compatible `parents: { types?, required? }` and `children: { types }` on card schemas.
+Required primary parents cannot be cleared; safe reparenting is supported. Cycles, cross-organization
+links, incompatible descendants and deleting an ordinary card with children are refused. The
+nearest primary project selects schemas; all project ancestors participate in access checks.
+Project `mode` is `opened` (default) or `closed`, separate from flow status; host policy may use it
+for access decisions.
+
+Declare `resources: true` on `makePlanningProtocols` to add assignee/team/comment/mention
+`get`, `list`, `write` branches and use `planningResourceAliases`. Enable `definitions: true`
+for assignee type schema writes. Use stock facade methods, handlers, stores and feeds on both
+sides; resource commands and versions are validated by the shared wire contract.
+
+Protocol responses use `PlanningReply<T>`: storage organization metadata (`entityId`) is absent
+from records, schema scopes, receipts and commit frames. `planningReplyHelper.project` handles
+only known record/envelope positions; custom fields, transition changes and schema definitions
+remain opaque. Native facades retain their trusted storage scope. Remote facades hydrate the
+shared record shape with empty advisory metadata; never derive organization identity from it.
+
 
 ## Related
 

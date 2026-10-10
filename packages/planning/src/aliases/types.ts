@@ -22,6 +22,7 @@ export interface PlanningDefinitionAliases {
 }
 
 export interface PlanningAliasHelper {
+  planningResourceAliases: (base: string) => PlanningResourceAliases
   /**
    * The aliases one planning tree answers under, derived from the mount's base alias.
    *
@@ -36,3 +37,5 @@ export interface PlanningAliasHelper {
    */
   planningDefinitionAliases: (base: string) => PlanningDefinitionAliases
 }
+
+export interface PlanningResourceAliases { assignees: { get: string, list: string, write: string }, teams: { get: string, list: string, write: string }, comments: { get: string, list: string, write: string }, mentions: { get: string, list: string, write: string } }

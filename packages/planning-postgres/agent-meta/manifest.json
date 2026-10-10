@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/planning-postgres",
-  "version": "0.1.18-rc.10",
-  "generatedAt": "2026-10-06T11:45:57.651Z",
+  "version": "0.1.18-rc.15",
+  "generatedAt": "2026-10-09T20:24:47.065Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

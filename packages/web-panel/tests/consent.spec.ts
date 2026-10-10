@@ -59,4 +59,54 @@ describe('@owlmeans/web-panel/consent — the dialog and the menu widget', () =>
       await close()
     }
   }, TIMEOUT)
+
+  test('a first-time visitor meets the bar by default', async () => {
+    const { page, close } = await open('/prefs?consent=bare')
+    try {
+      await page.locator('[data-consent-bar]').waitFor()
+      expect(await page.locator('[data-consent-dialog]').getAttribute('data-consent-mode')).toBe('bar')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('cfg.cookieConsent.mode picks the window, and a mode prop wins over it', async () => {
+    const configured = await open('/prefs?consent=bare&consentCfg=window')
+    try {
+      await configured.page.locator('[data-consent-dialog][data-consent-mode="window"]').waitFor()
+    } finally {
+      await configured.close()
+    }
+
+    const overridden = await open('/prefs?consent=bare&consentCfg=window&modeProp=bar')
+    try {
+      await overridden.page.locator('[data-consent-bar]').waitFor()
+    } finally {
+      await overridden.close()
+    }
+  }, TIMEOUT)
+
+  test('a locator appended to the context turns the geo gate on by itself', async () => {
+    const outside = await open('/prefs?consent=bare&consentGeo=US')
+    try {
+      await outside.page.waitForFunction(() => document.documentElement.getAttribute('data-consent') === 'decided')
+      expect(await outside.page.locator('[data-consent-dialog]').count()).toBe(0)
+    } finally {
+      await outside.close()
+    }
+
+    const inside = await open('/prefs?consent=bare&consentGeo=DE')
+    try {
+      await inside.page.locator('[data-consent-bar]').waitFor()
+    } finally {
+      await inside.close()
+    }
+
+    const unknown = await open('/prefs?consent=bare&consentGeo=fail')
+    try {
+      await unknown.page.locator('[data-consent-bar]').waitFor()
+    } finally {
+      await unknown.close()
+    }
+  }, TIMEOUT)
 })

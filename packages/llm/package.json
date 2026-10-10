@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/llm",
-  "version": "0.1.18-rc.46",
+  "version": "0.1.18-rc.49",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -47,7 +47,7 @@
     "@langchain/core": "^1.2.14",
     "@langchain/openai": "^1.6.2",
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test": "^0.1.18-rc.35",
+    "@owlmeans/test": "^0.1.18-rc.36",
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.4",
     "nodemon": "^3.1.14",
@@ -55,11 +55,11 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
-    "@owlmeans/basic-ids": "^0.1.18-rc.38",
+    "@owlmeans/basic-ids": "^0.1.18-rc.39",
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/error": "^0.1.18-rc.38",
     "@owlmeans/llm-common": "^0.1.18-rc.39",
-    "@owlmeans/log": "^0.1.18-rc.2",
+    "@owlmeans/log": "^0.1.18-rc.3",
     "ajv": "^8.20.0"
   },
   "publishConfig": {

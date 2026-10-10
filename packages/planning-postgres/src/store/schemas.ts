@@ -17,6 +17,7 @@ export const makeSchemaPort = (deps: SchemaPortDeps): SchemaStore => {
   const { clientRunner, col, insertOf, recordOf } = sqlHelper
 
   const transaction = async <R>(run: (sql: SqlContext) => Promise<R>): Promise<R> => {
+    if (deps.current() != null) return await run(await deps.sql())
     const client = await (await deps.pool()).connect()
     const tables = await deps.tables()
     const runner: SqlRunner = clientRunner(client)

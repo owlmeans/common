@@ -7,7 +7,7 @@ import type { RequestHandler } from './types.js'
 
 /** @throws {WorkcardNotFound} */
 export const getSpecification = (protocol: PlanningProtocols['spec']['get'], opts?: PlanningHandlerOptions): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async () => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async () => {
     const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
 
     return await facade.specifications.get(`${req.params.id}`)

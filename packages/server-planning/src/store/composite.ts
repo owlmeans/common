@@ -163,6 +163,8 @@ export const makeCompositeStore = (routes: StoreRoute[], fallback: PlanningStore
   return {
     alias: `composite:${fallback.alias ?? 'default'}`,
     newId: fallback.newId,
+    unit: fallback.unit,
+    assignees: fallback.assignees, teams: fallback.teams, comments: fallback.comments, mentions: fallback.mentions,
     cards,
     ...(transitions != null ? { transitions } : {}),
     ...(specs != null ? { specs } : {}),

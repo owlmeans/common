@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { CommitState, TransitionAction, WorkcardKind } from '../src/consts.js'
-import { WorkcardNotFound } from '../src/errors.js'
+import { PlanningUnsupported, WorkcardNotFound } from '../src/errors.js'
 import { makeProjectModel, makeWorkcardModel, modelOf } from '../src/models/index.js'
 import type { ProjectModel } from '../src/models/types.js'
 import type {
@@ -22,8 +22,15 @@ const makeFacade = () => {
   const cards = new Map<string, Workcard>()
   const executed: TransitionExecution[] = []
   let next = 0
+  const unsupported = async (): Promise<never> => { throw new PlanningUnsupported('model-fixture:resources') }
 
   const facade: PlanningFacade = {
+    assignees: { get: unsupported, load: unsupported, list: unsupported, create: unsupported, update: unsupported, retire: unsupported },
+    teams: { get: unsupported, load: unsupported, list: unsupported, create: unsupported, update: unsupported, remove: unsupported,
+      members: unsupported, addMember: unsupported, removeMember: unsupported, projects: unsupported,
+      attach: unsupported, detach: unsupported, assignees: unsupported },
+    comments: { get: unsupported, load: unsupported, list: unsupported, create: unsupported, update: unsupported, remove: unsupported },
+    mentions: { get: unsupported, load: unsupported, list: unsupported, rebuild: unsupported },
     scope: { entityId: ENTITY },
     schemas,
     cards: {

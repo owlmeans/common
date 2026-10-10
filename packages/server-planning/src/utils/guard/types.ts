@@ -1,4 +1,4 @@
-import type { WorkcardNotFound, Workcard } from '@owlmeans/planning'
+import type { WorkcardNotFound, Workcard, PlanningReply } from '@owlmeans/planning'
 
 /** What every handler answers with when a record is not the caller's: absence, never a refusal. */
 export interface GuardHelper {
@@ -14,6 +14,8 @@ export interface GuardHelper {
    * apart from "does not exist" is what turns an id space into an enumeration oracle.
    */
   concealed: <T>(run: () => Promise<T>) => Promise<T>
+  /** Conceal scope failures and project storage metadata out of a public reply. */
+  reply: <T>(run: () => Promise<T>) => Promise<PlanningReply<T>>
   /** Seconds as the wire sends them, clamped to `[0, max]`. */
   clampSeconds: (value: unknown, max: number) => number
 }
