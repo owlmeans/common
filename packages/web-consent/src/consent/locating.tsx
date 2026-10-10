@@ -4,7 +4,7 @@ import { CONSENT_LOCATING_DELAY } from './consts.local.js'
 import type { ConsentLocatingProps } from './types.local.js'
 
 /**
- * While the visitor's country is being found: the same transparent overlay the bar sits on — the
+ * While the visitor's country is being found: a transparent overlay — the
  * page stays in sight and out of reach — with a spinner and no bar. The spinner itself waits
  * `CONSENT_LOCATING_DELAY`, so an answer from the edge in a few milliseconds flashes nothing; the
  * status text is there from the start for assistive technology.

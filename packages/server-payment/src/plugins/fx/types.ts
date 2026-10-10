@@ -3,8 +3,10 @@ import type Stripe from 'stripe'
 export interface StripeFxRate {
   fromCurrency: string
   toCurrency: string
-  /** Stripe's fee-inclusive conversion rate. */
+  /** Stripe's fee-inclusive conversion rate (`base_rate × (1 − fx_fee_rate)`). */
   exchangeRate: number
+  /** The rate before any fee (Stripe's `base_rate`; derived from `exchangeRate` and `fxFeeRate` when absent). */
+  baseRate: number
   /** Market/reference rate used to translate catalogue value into settlement value. */
   referenceRate: number
   fxFeeRate?: number

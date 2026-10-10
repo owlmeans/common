@@ -10,7 +10,7 @@ import type { ConsentBarProps } from './types.local.js'
 /**
  * The first question a visitor is asked, as a tall bar across the bottom of the page.
  *
- * It sits on a TRANSPARENT overlay: the page stays in sight and scrolls, but nothing on it can be
+ * It sits on a dimmed overlay: the page stays in sight and scrolls, but nothing on it can be
  * pressed until the visitor answers. The text says what the essential cookies do, names the
  * optional categories in force (as a list after a colon, so no language has to decline a label),
  * that they stay off until allowed, and that the choice can be changed or withdrawn — then the
@@ -38,7 +38,7 @@ export const ConsentBar: FC<ConsentBarProps> = props => {
     )
     : t('barDescriptionEssential', 'This site uses only essential cookies — for signing in, security and remembering your choices. They need no consent and cannot be switched off.')
 
-  return <div className="fixed inset-0 z-[999998] bg-transparent" data-consent-overlay>
+  return <div className="fixed inset-0 z-[999998] bg-black/70" data-consent-overlay>
     <div
       ref={surface} tabIndex={-1}
       className={webConsentUtils.cn(

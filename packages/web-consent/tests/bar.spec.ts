@@ -107,7 +107,7 @@ describe('@owlmeans/web-consent — the bar', () => {
     }
   }, TIMEOUT)
 
-  test('the bar is flat, sits on a transparent overlay, and both answers are equally prominent', async () => {
+  test('the bar is flat, sits on a dimmed overlay, and both answers are equally prominent', async () => {
     const { page, close } = await mountComponent({ url: `${base}/` })
     try {
       const bar = page.locator('[data-consent-bar]')
@@ -117,7 +117,7 @@ describe('@owlmeans/web-consent — the bar', () => {
         .map(element => element.getAttribute('class') ?? '').join(' '))
 
       expect(classes).not.toMatch(/\b(?:bg-gradient|from-|to-secondary|backdrop-|blur|shadow|ring-primary)/)
-      expect(await overlay.getAttribute('class')).toMatch(/\bbg-transparent\b/)
+      expect(await overlay.getAttribute('class')).toContain('bg-black/70')
       expect(await overlay.getAttribute('class')).toMatch(/\binset-0\b/)
       expect(await bar.getAttribute('class')).toMatch(/\bbottom-0\b/)
       expect(await bar.getAttribute('class')).toMatch(/\bbg-background\b/)
@@ -141,8 +141,8 @@ describe('@owlmeans/web-consent — the bar', () => {
     }
   }, TIMEOUT)
 
-  test('styled: the page stays in sight and out of reach, the bar sits at the very bottom', async () => {
-    const { page, close } = await mountComponent({ url: `${base}/?styled=1` })
+  test.each(['light', 'dark'])('styled (%s): the page is dimmed and out of reach, the bar sits at the very bottom', async theme => {
+    const { page, close } = await mountComponent({ url: `${base}/?styled=1&theme=${theme}` })
     try {
       const bar = page.locator('[data-consent-bar]')
       await bar.waitFor()
@@ -153,15 +153,23 @@ describe('@owlmeans/web-consent — the bar', () => {
       expect(Math.round(box.width)).toBe(viewport.width)
       const blocked = await page.evaluate(() => {
         const hit = document.elementFromPoint(10, 10)
+        const canvas = document.createElement('canvas')
+        canvas.width = canvas.height = 1
+        const context = canvas.getContext('2d')!
+        context.fillStyle = hit == null ? 'transparent' : getComputedStyle(hit).backgroundColor
+        context.fillRect(0, 0, 1, 1)
 
         return {
           overlay: hit?.closest('[data-consent-overlay]') != null,
-          background: hit == null ? null : getComputedStyle(hit).backgroundColor,
+          background: Array.from(context.getImageData(0, 0, 1, 1).data),
+          opacity: hit == null ? null : getComputedStyle(hit).opacity,
         }
       })
-      // The page's own top-left corner is covered by the overlay — and the overlay paints nothing.
+      // Dim the page with the same translucent black as the preferences window, in both themes.
       expect(blocked.overlay).toBe(true)
-      expect(blocked.background).toBe('rgba(0, 0, 0, 0)')
+      expect(blocked.background).toEqual([0, 0, 0, 179])
+      expect(blocked.opacity).toBe('1')
+      expect(await bar.evaluate(root => getComputedStyle(root).opacity)).toBe('1')
       // The remount button under the overlay cannot be pressed.
       await expect(page.locator('#remount').click({ timeout: 1_000 })).rejects.toThrow()
     } finally {

@@ -199,7 +199,8 @@ states, in this order — `screen.tsx`'s own docblock spells out each one's mark
 1. **loading** (`data-state="loading"`) — the status read is outstanding, timed out at ~10s into
    `unreadable` rather than shown forever.
 2. **Terms row up** (`terms.needed`) — `aria-disabled`/`data-blocked` on the confirm until ticked, a
-   `role="alert"` on a blocked click, no Skip. Pending items (if any) render below the row.
+   `role="alert"` on a blocked click, no Skip. EVERY catalogue item renders below the row, each
+   ticked as last decided — also when the Terms are the only thing owed.
 3. **optional-only** (`optionalOnly`: no Terms row, at least one item pending) — the confirm is
    ALWAYS clickable (never `aria-disabled`) but looks muted (`data-empty`, `aria-describedby` a
    hint) until `pristine` turns false — the FIRST tick/untick/Select-all this visit, after which it
@@ -260,28 +261,30 @@ terms })` says: `useMarketingConsent({ source: 'settings' })` computes `terms.ne
 `source: 'sign-in'`, so this card is unaffected either way. Failing to save just leaves the error
 showing and the draft in place.
 
-**This card loads the WHOLE catalogue, always — never gated on `status.pending`.** That is the one
-place `source: 'settings'` and `source: 'sign-in'` deliberately load items differently (see below):
-a step must stop asking once nothing is outstanding, but a standing "change these at any time" card
+**This card loads the WHOLE catalogue, always — never gated on anything being owed.** That is the
+one place `source: 'settings'` and `source: 'sign-in'` deliberately load items differently (see
+below): a step must stop once nothing is outstanding, but a standing "change these at any time" card
 gated the same way would render zero checkboxes the moment every item happened to already be
 decided — silently breaking exactly the promise its own name makes. `save()` therefore always posts
 the full catalogue here, not only whatever changed.
 
 `useMarketingConsent({ source, locale? })` is the shared headless model: `source: 'sign-in'` from
 the step, `'settings'` (the default) from preferences — posted on every `save()` call, on EVERY
-LOADED item's current draft value (never a diff, and never an item that is already `current` — the
-server upserts by key). **Which items load is `source`-dependent, on purpose**: for `'sign-in'`,
-only pending items — `status.pending === true ? status.items : []`, so a step never re-asks a
-settled catalogue; for `'settings'` (preferences), the WHOLE catalogue, unconditionally — a
+LOADED item's current draft value (never a diff, `current` items included — the server upserts by
+key). **When items load is `source`-dependent, on purpose**: for `'sign-in'`,
+the WHOLE catalogue whenever the step is shown — an item pending (`status.pending`) or, in Terms
+mode, the Terms owed (`status.terms?.version` differs from the configured one) — and nothing when
+nothing is owed, so the step moves on; a step shown for the Terms alone still lists every consent,
+ticked as last decided. For `'settings'` (preferences), the WHOLE catalogue, unconditionally — a
 standing settings card must stay revisitable even once every item is decided. Groups are ordered
 `communications`/`data` (`MC_GROUP_*`), any other group appended after in first-seen order.
 `allChecked`/`allIndeterminate` count the Terms row while it is needed and optional rows only in
 `bulkSelection: 'all'`; `allIndeterminate` is
 applied to the select-all checkbox's `.indeterminate` DOM property via a `ref` in a `useEffect` — a
 native checkbox has no ARIA `mixed` prop, only that imperative one. `save()` records `terms` FIRST
-when `terms.needed`, then posts every loaded item if there are any — a sign-in visit that is
-Terms-only, with nothing else pending, never calls `save`'s item half at all; preferences always has
-the full catalogue loaded, so its `save()` always posts it. Nothing in `save()` touches any cookie
+when `terms.needed`, then posts every loaded item — a step shown for the Terms alone re-records
+the unchanged decisions with `source: 'sign-in'`; preferences always has the full catalogue loaded,
+so its `save()` always posts it. Nothing in `save()` touches any cookie
 store.
 
 Both supplied UI hosts pass their current `useLanguage()` value to the hook. `save()` records it
@@ -366,7 +369,8 @@ only the server absent, the same harness shape as `@owlmeans/web-oauth`'s:
   the confirmation and the link inside the sentence, no dangling sentence without links, custom
   per-language text in English and Polish, no Select-all for a lone consent, everything-already-
   decided in DEFAULT mode auto-continuing (`allItemsCurrent()`, `helpers.ts`) with only `GET status`
-  called — then the whole Terms-mode `describe`: blocked-until-ticked with an alert and no skip,
+  called — then the whole Terms-mode `describe`: blocked-until-ticked with an alert and no skip, Terms owed with every consent decided listing every
+consent ticked as last decided and saving them with the Terms,
   ticking records terms then posts pending items and continues, an already-current version with
   nothing else pending auto-continuing, a failed recording showing `terms-error` with no skip and no
   navigation, Select-all ticking and unticking the Terms row with the consents, the order (Select
