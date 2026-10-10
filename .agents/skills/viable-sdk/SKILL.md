@@ -781,7 +781,18 @@ project fault — escapes as an exception. Everything is resolved per call rathe
 because a re-initialization replaces the tree under a running connector. The integrity verdict is
 forgotten after every command that changes the tree.
 
-Five rules the local half adds, each learned from a defect:
+Rules for the local executor:
+
+- **The local browser environment defaults `APP_UNSECURE` to `true`** so its generated client
+  calls the HTTP web proxy. The web `.env` can override this default; root backend secrets never
+  enter the browser environment. The platform's local configure uses the web port for both
+  `FRONTEND_PORT` and `BACKEND_PORT`, with `/api` proxied to the backend port.
+
+- **`Bun` forwards `options.env` into the child process**, alongside `options.subproject` for
+  its working directory. The spawn helper merges these values over the inherited environment
+  without changing the parent process or the project's configuration files. Runtime probes carry
+  their input in these variables; dropping them prevents the runner from producing its report.
+  `executor-shell.spec.ts` exercises the public slot-command dispatcher with a real Bun child.
 
 - **`makeTargetEnvHelper(dir).backendEnv` reads the root `.env` and `.frontendEnv` the web package's own — the file split IS
   the leak boundary.** The publisher has an allow-list (`frontendEnvVars`/`frontendSecrets`); here
@@ -884,6 +895,8 @@ launched without a database URL fails at boot with a message about a connection,
 reader looking for a database that was never configured.
 
 ## Tests
+
+From `packages/viable-sdk`, `bunx tsc -p tests/tsconfig.json --noEmit` checks the SDK sources and all test typings.
 
 `bun test ./tests` — offline: the envelope and its parser, the tool catalogue and its extension seam,
 the `registerCatalogue` out-of-credits, consent and planning-refusal phrasing and `notify` wiring

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { z } from 'zod'
 import { AuthenPayloadError } from '@owlmeans/auth'
 import { ApiStatusError } from '@owlmeans/api'
 import { ResilientError } from '@owlmeans/error'
@@ -1140,7 +1141,7 @@ describe('a question is carried to a person and its answer routed back', () => {
 
     expect(result.isError).not.toBe(true)
     expect(result.text).toContain('One product or two?')
-    expect(result.structured?.questionId).toBe('q1')
+    expect(result.structured).toMatchObject({ questionId: 'q1' })
   })
 
   test('a run that parked while nobody was attached is still offered', async () => {
@@ -1152,7 +1153,7 @@ describe('a question is carried to a person and its answer routed back', () => {
 
     expect(result.text).toContain('parked on a question')
     expect(result.text).toContain('One product or two?')
-    expect(result.structured?.questionId).toBe('q1')
+    expect(result.structured).toMatchObject({ questionId: 'q1' })
   })
 
   test('nothing anywhere says so, and points back to domain status', async () => {
@@ -1247,7 +1248,7 @@ describe('a task handed out can be read again', () => {
 
     expect(result.isError).not.toBe(true)
     expect(result.text).toContain('do the thing')
-    expect(result.structured?.taskId).toBe('t1')
+    expect(result.structured).toMatchObject({ taskId: 't1' })
   })
 
   test('an id nobody was given is refused, and says what to call instead', async () => {
@@ -1487,6 +1488,10 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
     const rendered = statusTextHelper.renderPipelineStatus({
       runId: 'r1', pipeline: 'vib:project:convert:implementation', status: 'failed',
       completed: [], pending: [], error: 'viable-converter:taxonomy-missing',
+      version: 1, warnings: [], attempts: 1,
+      startedAt: '2026-10-09T00:00:00.000Z',
+      heartbeatAt: '2026-10-09T00:00:00.000Z',
+      updatedAt: '2026-10-09T00:00:00.000Z',
     })
 
     expect(rendered).toContain('ANALYSIS stage records')
@@ -1629,9 +1634,9 @@ describe('viable-sdk — deleting a project and releasing its lock', () => {
     expect(unnamed.text).toContain('projectId')
     expect(order).toEqual([])
     // The schema says so before any call: the project is required.
-    const input = catalogue.find(tool => tool.name === 'delete_project')!.input as Record<string, { safeParse: (v: unknown) => { success: boolean } }>
-    expect(input.projectId.safeParse(undefined).success).toBe(false)
-    expect(input.confirm.safeParse(undefined).success).toBe(false)
+    const input = z.object(catalogue.find(tool => tool.name === 'delete_project')!.input)
+    expect(input.safeParse({ confirm: true }).success).toBe(false)
+    expect(input.safeParse({ projectId: 'p1' }).success).toBe(false)
   })
 
   test('delete_project on the attached project closes and detaches the session first, then deletes', async () => {

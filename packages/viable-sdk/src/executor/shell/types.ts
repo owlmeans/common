@@ -9,7 +9,7 @@ import type { BootCheckReport, BootCheckStatus } from '../types.js'
  * person can act on, and a command that succeeds returns nothing at all.
  */
 export interface LocalShellHelper {
-  bun: (args?: string, options?: { subproject?: SubProject }) => Promise<string | null>
+  bun: (args?: string, options?: { subproject?: SubProject, env?: Record<string, string> }) => Promise<string | null>
   /**
    * Throw the lockfile away and install again.
    *
