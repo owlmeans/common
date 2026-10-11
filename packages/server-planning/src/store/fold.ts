@@ -75,6 +75,7 @@ export const createFoldHelper = (): FoldHelper => {
   const writeFold = async (
     store: PlanningStore, before: Workcard | null, after: Workcard | null, transition: Transition
   ): Promise<void> => {
+    await store.validateProjection?.(before, after, transition)
     if (transition.action === TransitionAction.Delete) {
       if (before != null && cardHelper.isProject(before)) {
         // A project takes everything under it, its own log included — the hub remembers the commit.
@@ -87,6 +88,7 @@ export const createFoldHelper = (): FoldHelper => {
     }
     if (after != null) {
       await store.cards.put(after)
+      await store.projectReferences?.(after, transition)
     }
     await foldRelationships(store, transition)
   }

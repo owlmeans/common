@@ -1,5 +1,5 @@
 import { logger } from '@owlmeans/log'
-import { PLANNING_COMMIT_EVENT } from '@owlmeans/planning'
+import { planningReplyHelper, PLANNING_COMMIT_EVENT } from '@owlmeans/planning'
 import type { CommitEvent, CommitFeedQuery, PlanningProtocols } from '@owlmeans/planning'
 import { connection } from '@owlmeans/server-socket'
 import type { EventMessage } from '@owlmeans/socket'
@@ -34,7 +34,7 @@ export const watchCommits = (
   const unsubscribe = await facade.commits.subscribe(async (event: CommitEvent) => {
     try {
       const enriched = event.record !== undefined ? event : { ...event, record: await facade.cards.load(event.card) }
-      await conn.notify(frame, enriched)
+      await conn.notify(frame, planningReplyHelper.project(enriched))
     } catch (e) {
       log.warn('Planning commit notify failed', e)
     }

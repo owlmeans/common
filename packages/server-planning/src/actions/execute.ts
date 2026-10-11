@@ -14,7 +14,7 @@ import type { RequestHandler } from './types.js'
 export const executePlanning = (
   protocol: PlanningProtocols['execute'], opts?: PlanningHandlerOptions
 ): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async (): Promise<TransitionReceiptView> => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async (): Promise<TransitionReceiptView> => {
     const { facade, access } = await planningHandlerOf(ctx).handlerScopeOf(req, opts)
     const body = (req.body ?? {}) as ExecuteRequest
     const exec = executionHelper.wireExecution(body, facade.scope)

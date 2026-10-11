@@ -18,7 +18,7 @@ import type { RequestHandler } from './types.js'
 export const defineSchemas = (
   protocol: NonNullable<PlanningProtocols['schema']['define']>, opts?: PlanningHandlerOptions
 ): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async (): Promise<SchemaDefineReply> => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async (): Promise<SchemaDefineReply> => {
     const { facade, access } = await planningHandlerOf(ctx).handlerScopeOf(req, opts)
     const request = (req.body ?? {}) as SchemaDefineRequest
     if (facade.definitions == null) {

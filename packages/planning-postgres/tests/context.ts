@@ -12,6 +12,7 @@ import { appendPostgres } from '@owlmeans/postgres'
 import type { PostgresService } from '@owlmeans/postgres'
 
 import {
+  makePlanningAssigneePostgres, makePlanningTeamPostgres, makePlanningCommentPostgres, makePlanningMentionPostgres,
   appendPostgresPlanning, makePlanningCardPostgres, makePlanningLinkPostgres, makePlanningSchemaPostgres,
   makePlanningTransitionPostgres, makePostgresPlanningService,
 } from '../src/index.js'
@@ -83,7 +84,7 @@ export const makeSuite = (label: string): Suite => {
       appendPostgresPlanning(context, serviceOptions)
     } else {
       if (opts.wiring !== 'none') {
-        for (const make of [makePlanningCardPostgres, makePlanningTransitionPostgres, makePlanningLinkPostgres, makePlanningSchemaPostgres]) {
+        for (const make of [makePlanningCardPostgres, makePlanningTransitionPostgres, makePlanningLinkPostgres, makePlanningSchemaPostgres, makePlanningAssigneePostgres, makePlanningTeamPostgres, makePlanningCommentPostgres, makePlanningMentionPostgres]) {
           context.registerResource(make())
         }
       }

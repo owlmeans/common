@@ -134,6 +134,7 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
     },
 
     account: {
+      blueprints: async () => await context.entrypoint(connectRef.account.blueprints).call({ timeout }),
       branding: {
         get: async () => await context.entrypoint(connectRef.account.branding.get).call({ timeout }),
         save: async (patch: ConnectOrganizationBrandingSave) => await context

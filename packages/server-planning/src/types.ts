@@ -1,6 +1,6 @@
 import type { BasicConfig, BasicContext, LazyService } from '@owlmeans/context'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
-import type { AnyTypeSchema, PlanningPlugin, PlanningScope, PlanningService, PlanningStore, StatusFlowSchema, WithPlanningService, PlanningSchemaRegistry, SchemaStore, ScopedSchemaRegistry, CommitEvent, PlanningExecContext, PlanningHookContext, TransitionExecution, WorkcardDraft } from '@owlmeans/planning'
+import type { AssigneeTypeSchema, AnyTypeSchema, PlanningPlugin, PlanningScope, PlanningService, PlanningStore, StatusFlowSchema, WithPlanningService, PlanningSchemaRegistry, SchemaStore, ScopedSchemaRegistry, CommitEvent, PlanningExecContext, PlanningHookContext, TransitionExecution, WorkcardDraft } from '@owlmeans/planning'
 import type { ApiServerAppend } from '@owlmeans/server-api'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { StoreRoute } from './store/types.js'
@@ -15,7 +15,7 @@ export interface PlanningServiceOptions {
   store?: PlanningStore
   plugins?: PlanningPlugin[]
   /** Schemas registered before any plugin's. */
-  schemas?: { types?: AnyTypeSchema[], flows?: StatusFlowSchema[] }
+  schemas?: { types?: AnyTypeSchema[], flows?: StatusFlowSchema[], assigneeTypes?: AssigneeTypeSchema[] }
   /** Run the `after` chain in this process. Default `true`. */
   hooks?: boolean
   /** Card ids when the store mints none. */
@@ -44,6 +44,8 @@ export type PlanningGrant = boolean | string[]
 
 export interface PlanningAccessGrants {
   /** Create a project — at the root only with `true`; a list names the parent projects. */
+  manageAssignees?: boolean
+  manageTeams?: boolean
   createProjects?: PlanningGrant
   /** Delete a project — a list names the projects. */
   deleteProjects?: PlanningGrant

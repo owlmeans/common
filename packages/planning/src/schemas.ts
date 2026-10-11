@@ -1,3 +1,5 @@
+import type { AssigneeTypeSchema, Assignee, Team, Comment, CommentMention } from './resources/types.js'
+import { AssigneeKind, PlanningResourceKind, ProjectMode } from './consts.js'
 import type { JSONSchemaType } from 'ajv'
 import { IdValueSchema } from '@owlmeans/auth'
 import { createListSchema } from '@owlmeans/resource'
@@ -68,6 +70,10 @@ const workcardProperties = {
   title: { type: 'string', minLength: 1, maxLength: TITLE_MAX },
   description: { type: 'string', maxLength: DESCRIPTION_MAX, nullable: true },
   parent: OptionalId,
+  parentType: { ...TypeKey, nullable: true },
+  reporter: OptionalId,
+  assignee: OptionalId,
+  mode: { type: 'string', enum: [...Object.values(ProjectMode), null], nullable: true },
   parents: { type: 'array', maxItems: MAX_PARENTS, items: Id },
   status: Label,
   intrinsic: IntrinsicStatusSchema,
@@ -101,7 +107,7 @@ const specificationProperties = {
 /** The optional form of a schema: `nullable`, and `null` admitted by an enum too. */
 const nullable = (schema: object): object => {
   const enumerated = (schema as { enum?: unknown[] }).enum
-  return { ...schema, nullable: true, ...(enumerated != null ? { enum: [...enumerated, null] } : {}) }
+  return { ...schema, nullable: true, ...(enumerated != null ? { enum: [...new Set([...enumerated, null])] } : {}) }
 }
 
 const nullableOf = (properties: Record<string, object>): Record<string, object> =>
@@ -135,6 +141,8 @@ export const RelationshipDraftSchema = cast<RelationshipDraft>({
     type: Label,
     from: OptionalId,
     to: Id,
+    fromKind: { type: 'string', enum: [...Object.values(PlanningResourceKind), null], nullable: true },
+    toKind: { type: 'string', enum: [...Object.values(PlanningResourceKind), null], nullable: true },
     fields: OptionalOpenObject,
   },
   required: ['type', 'to'],
@@ -149,6 +157,8 @@ export const RelationshipSchema = cast<Relationship>({
     type: Label,
     from: Id,
     to: Id,
+    fromKind: { type: 'string', enum: [...Object.values(PlanningResourceKind), null], nullable: true },
+    toKind: { type: 'string', enum: [...Object.values(PlanningResourceKind), null], nullable: true },
     project: OptionalId,
     fields: OptionalOpenObject,
     createdAt: IsoDate,
@@ -166,6 +176,10 @@ export const WorkcardChangesSchema = cast<WorkcardChanges>({
     title: workcardProperties.title,
     description: workcardProperties.description,
     parent: workcardProperties.parent,
+    parentType: workcardProperties.parentType,
+    reporter: workcardProperties.reporter,
+    assignee: workcardProperties.assignee,
+    mode: workcardProperties.mode,
     parents: workcardProperties.parents,
     status: workcardProperties.status,
     intrinsic: workcardProperties.intrinsic,
@@ -306,6 +320,10 @@ export const RelationshipTypeSchema = cast<RelationshipType>({
     name: Label,
     from: { type: 'array', items: TypeKey, nullable: true },
     to: { type: 'array', items: TypeKey, nullable: true },
+    fromKind: { type: 'string', enum: [...Object.values(PlanningResourceKind), null], nullable: true },
+    toKind: { type: 'string', enum: [...Object.values(PlanningResourceKind), null], nullable: true },
+    field: { ...TypeKey, nullable: true },
+    multiple: { type: 'boolean', nullable: true },
     inverse: { ...Label, nullable: true },
     single: { type: 'boolean', nullable: true },
     label: { type: 'string', maxLength: TITLE_MAX, nullable: true },
@@ -321,6 +339,8 @@ const typeProperties = {
   flows: { type: 'array', minItems: 1, items: TypeKey },
   intrinsic: nullable(IntrinsicPolicySchema),
   specifications: { type: 'array', items: SpecificationSlotSchema },
+  parents: { type: 'object', properties: { types: { type: 'array', items: TypeKey, nullable: true }, required: { type: 'boolean', nullable: true } }, required: [], additionalProperties: false, nullable: true },
+  children: { type: 'object', properties: { types: { type: 'array', items: TypeKey } }, required: ['types'], additionalProperties: false, nullable: true },
   relationships: { type: 'array', items: RelationshipTypeSchema, nullable: true },
   labels: { type: 'array', items: Label, nullable: true },
   code: { ...CodePolicySchema, nullable: true },
@@ -367,12 +387,43 @@ export const AnyTypeSchemaSchema = cast<AnyTypeSchema>({
   additionalProperties: false,
 })
 
+export const AssigneeTypeSchemaSchema = cast<AssigneeTypeSchema>({
+  type: 'object', properties: {
+    type: TypeKey, version: { type: 'number', minimum: 1 }, kind: { type: 'string', enum: Object.values(AssigneeKind) },
+    fields: OpenObject, authentication: { type: 'string', enum: ['required', 'optional', null], nullable: true },
+    label: { type: 'string', maxLength: TITLE_MAX, nullable: true }, overridable: { type: 'boolean', nullable: true },
+  }, required: ['type', 'version', 'kind', 'fields'], additionalProperties: false,
+})
+const planningRecordProperties = { id: OptionalId, entityId: Id, version: { type: 'number', minimum: 1 }, createdAt: IsoDate, updatedAt: OptionalIsoDate }
+const planningRecordRequired = ['entityId', 'version', 'createdAt']
+export const AssigneeSchema = cast<Assignee>({
+  type: 'object', properties: { ...planningRecordProperties,
+    nickname: { type: 'string', minLength: 1, maxLength: TYPE_MAX }, nicknameKey: TypeKey,
+    kind: { type: 'string', enum: Object.values(AssigneeKind) }, type: TypeKey, fields: OpenObject,
+    authentication: { type: 'object', properties: { provider: TypeKey, externalId: { type: 'string', minLength: 1, maxLength: REF_MAX } }, required: ['provider', 'externalId'], additionalProperties: false, nullable: true },
+    retired: { type: 'boolean', nullable: true },
+  }, required: [...planningRecordRequired, 'nickname', 'nicknameKey', 'kind', 'type', 'fields'], additionalProperties: false,
+})
+export const TeamSchema = cast<Team>({
+  type: 'object', properties: { ...planningRecordProperties, name: { type: 'string', minLength: 1, maxLength: TITLE_MAX }, externalId: { type: 'string', minLength: 1, maxLength: REF_MAX, nullable: true }, fields: OpenObject },
+  required: [...planningRecordRequired, 'name', 'fields'], additionalProperties: false,
+})
+export const CommentSchema = cast<Comment>({
+  type: 'object', properties: { ...planningRecordProperties, card: Id, author: Id, body: { type: 'string', minLength: 1, maxLength: BODY_MAX } },
+  required: [...planningRecordRequired, 'card', 'author', 'body'], additionalProperties: false,
+})
+export const CommentMentionSchema = cast<CommentMention>({
+  type: 'object', properties: { ...planningRecordProperties, comment: Id, card: Id, assignee: Id, revision: { type: 'number', minimum: 1 } },
+  required: [...planningRecordRequired, 'comment', 'card', 'assignee', 'revision'], additionalProperties: false,
+})
+
 export const PlanningSchemaBundleSchema = cast<PlanningSchemaBundle>({
   type: 'object',
   properties: {
     version: { type: 'number', minimum: 1 },
     types: { type: 'array', items: AnyTypeSchemaSchema },
     flows: { type: 'array', items: StatusFlowSchemaSchema },
+    assigneeTypes: { type: 'array', items: AssigneeTypeSchemaSchema, nullable: true },
   },
   required: ['version', 'types', 'flows'],
   additionalProperties: false,
@@ -421,6 +472,7 @@ export const ScopedSchemaBundleSchema = cast<ScopedSchemaBundle>({
     version: { type: 'number', minimum: 1 },
     types: { type: 'array', items: AnyTypeSchemaSchema },
     flows: { type: 'array', items: StatusFlowSchemaSchema },
+    assigneeTypes: { type: 'array', items: AssigneeTypeSchemaSchema, nullable: true },
     scope: {
       type: 'object',
       properties: { entityId: Id, project: OptionalId },
@@ -431,14 +483,14 @@ export const ScopedSchemaBundleSchema = cast<ScopedSchemaBundle>({
     revision: { type: 'number', minimum: 0, nullable: true },
     origins: {
       type: 'object',
-      properties: { types: originMap(), flows: originMap() },
+      properties: { types: originMap(), flows: originMap(), assigneeTypes: { ...originMap(), nullable: true } },
       required: ['types', 'flows'],
       additionalProperties: false,
       nullable: true,
     },
     retired: {
       type: 'object',
-      properties: { types: keyList(), flows: keyList() },
+      properties: { types: keyList(), flows: keyList(), assigneeTypes: { ...keyList(), nullable: true } },
       required: ['types', 'flows'],
       additionalProperties: false,
       nullable: true,
@@ -462,6 +514,7 @@ export const SchemaDefineRequestSchema = cast<SchemaDefineRequest>({
     mode: nullable(SchemaWriteModeSchema),
     types: { type: 'array', maxItems: MAX_QUERY_LIST, items: WorkcardTypeSchemaSchema, nullable: true },
     flows: { type: 'array', maxItems: MAX_QUERY_LIST, items: StatusFlowSchemaSchema, nullable: true },
+    assigneeTypes: { type: 'array', maxItems: MAX_QUERY_LIST, items: AssigneeTypeSchemaSchema, nullable: true },
     retire: { type: 'array', maxItems: MAX_QUERY_LIST, items: SchemaKeySchema, nullable: true },
   },
   required: [],
@@ -476,6 +529,9 @@ export const WorkcardDraftSchema = cast<WorkcardDraft>({
     kind: WorkcardKindSchema,
     type: TypeKey,
     parent: OptionalId,
+    reporter: OptionalId,
+    assignee: OptionalId,
+    mode: workcardProperties.mode,
     parents: { ...workcardProperties.parents, nullable: true },
     title: workcardProperties.title,
     description: workcardProperties.description,
@@ -673,6 +729,8 @@ export const SpecificationQuerySchema = cast<SpecificationQueryWire>({
 export const RelationshipQuerySchema = cast<RelationshipQueryWire>({
   type: 'object',
   properties: {
+    fromKind: { type: 'string', enum: [...Object.values(PlanningResourceKind), null], nullable: true },
+    toKind: { type: 'string', enum: [...Object.values(PlanningResourceKind), null], nullable: true },
     ...listWireProperties(),
     from: listValue(),
     to: listValue(),

@@ -121,7 +121,12 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
       } else {
         await client.query('SELECT pg_advisory_xact_lock($1, $2)', [first, second])
       }
-      const result = await run(ctx)
+      const entityId = (await cardSqlOf(ctx).readCardRow(lock))?.entityId ?? await logEntityOf(ctx, lock)
+      if (entityId != null) {
+        const [entityFirst, entitySecond] = pgNameHelper.advisoryKey(`planning:entity:${tables.card.qualified}:${entityId}`)
+        await client.query('SELECT pg_advisory_xact_lock($1, $2)', [entityFirst, entitySecond])
+      }
+      const result = await deps.inTransaction(runner, async () => await run(ctx))
       if (poison != null) {
         throw poisoned(lock, poison)
       }
@@ -148,6 +153,8 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
 
     return {
       alias: PLANNING_POSTGRES_STORE,
+      validateProjection: deps.validateProjection,
+      projectReferences: deps.projectReferences,
       transitions: {
         append: refuse('append'),
         get: async id => await transitions.readTransition(id),
@@ -164,7 +171,11 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
         count: refuse('count'),
         summary: refuse('summary'),
         put: async card => { await cards.writeCard(card) },
-        drop: async (id, entityId) => { await cards.dropCard(id, entityId) },
+        drop: async (id, entityId) => {
+          await ctx.runner.query(`DELETE FROM ${ctx.tables.mention.qualified} WHERE ${col(ctx.tables.mention, 'entityId')}=$1 AND ${col(ctx.tables.mention, 'card')}=$2`, [entityId, id])
+          await ctx.runner.query(`DELETE FROM ${ctx.tables.comment.qualified} WHERE ${col(ctx.tables.comment, 'entityId')}=$1 AND ${col(ctx.tables.comment, 'card')}=$2`, [entityId, id])
+          await cards.dropCard(id, entityId)
+        },
         project: refuse('project'),
         purge: async (project, entityId) => await purgeInside(ctx, project, entityId),
       },
@@ -199,13 +210,19 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
     )).map(row => row.id)
 
     let count = 0
+    for (const table of [ctx.tables.mention, ctx.tables.comment]) count += (await ctx.runner.query(`DELETE FROM ${table.qualified} WHERE ${col(table, 'entityId')}=$1 AND ${col(table, 'card')}=ANY($2) RETURNING ${col(table, 'id')}`, [entityId, doomed])).length
     count += (await ctx.runner.query(
-      `DELETE FROM ${links.qualified} WHERE ${col(links, 'entityId')} = $1 AND (${col(links, 'from')} = ANY($2)`
-      + ` OR ${col(links, 'to')} = ANY($2) OR ${col(links, 'project')} = ANY($2)) RETURNING ${col(links, 'id')}`,
+      `DELETE FROM ${links.qualified} AS edge WHERE ${col(links, 'entityId')} = $1 AND (`
+      + ` (COALESCE(${col(links, 'fromKind')}, 'workcard')='workcard' AND ${col(links, 'from')}=ANY($2))`
+      + ` OR (COALESCE(${col(links, 'toKind')}, 'workcard')='workcard' AND ${col(links, 'to')}=ANY($2))`
+      + ` OR (${col(links, 'project')}=ANY($2) AND NOT EXISTS (`
+      + `SELECT 1 FROM ${cards.qualified} AS survivor WHERE survivor.${col(cards, 'entityId')}=$1 AND survivor.${col(cards, 'id')}=edge.${col(links, 'from')} AND survivor.${col(cards, 'seq')}>0))) RETURNING ${col(links, 'id')}`,
       [entityId, doomed]
     )).length
     count += (await ctx.runner.query(
-      `DELETE FROM ${log.qualified} WHERE ${col(log, 'entityId')} = $1 AND (${col(log, 'card')} = ANY($2) OR ${col(log, 'project')} = ANY($2))`
+      `DELETE FROM ${log.qualified} AS history WHERE ${col(log, 'entityId')} = $1 AND (${col(log, 'card')} = ANY($2)`
+      + ` OR (${col(log, 'project')}=ANY($2) AND NOT EXISTS (`
+      + `SELECT 1 FROM ${cards.qualified} AS survivor WHERE survivor.${col(cards, 'entityId')}=$1 AND survivor.${col(cards, 'id')}=history.${col(log, 'card')} AND survivor.${col(cards, 'seq')}>0)))`
       + ` AND NOT (${col(log, 'card')} = $3 AND ${col(log, 'action')} = $4) RETURNING ${col(log, 'id')}`,
       [entityId, doomed, project, TransitionAction.Delete]
     )).length

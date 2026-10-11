@@ -7,7 +7,7 @@ import type { RequestHandler } from './types.js'
 
 /** Intrinsic counts of DIRECT children per parent. */
 export const summarizeCards = (protocol: PlanningProtocols['card']['summary'], opts?: PlanningHandlerOptions): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async () => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async () => {
     const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
     const { parents, ...query } = wireHelper.decodeSummaryQuery(req.query)
 

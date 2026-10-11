@@ -35,15 +35,15 @@ export const createExecutionHelper = (): ExecutionHelper => {
       return
     }
     const model = makePlanningAccessModel(access)
-    const admitted = async (card: Workcard): Promise<boolean> => {
-      if (model.writableIn(card)) {
-        return true
+    const admitted = async (card: Workcard, seen = new Set<string>()): Promise<boolean> => {
+      if (model.writableIn(card)) return true
+      if (card.id != null && seen.has(card.id)) return false
+      if (card.id != null) seen.add(card.id)
+      for (const id of card.parents) {
+        const parent = await facade.cards.load(id)
+        if (parent != null && await admitted(parent, seen)) return true
       }
-      if (!cardHelper.isSpecification(card) || card.parent == null) {
-        return false
-      }
-      const parent = await facade.cards.load(card.parent)
-      return parent == null || model.writableIn(parent)
+      return false
     }
 
     if (exec.action === TransitionAction.Create && exec.card != null && typeof exec.card === 'object') {
@@ -61,6 +61,10 @@ export const createExecutionHelper = (): ExecutionHelper => {
         }
       }
       return
+    }
+    for (const id of cardHelper.normalizeParents(exec.changes?.parent, exec.changes?.parents)) {
+      const target = await facade.cards.load(id)
+      if (target != null && !await admitted(target)) throw new PlanningForbidden(`writes:destination:${id}`)
     }
     if (typeof exec.card === 'string' && exec.card !== '') {
       const card = await facade.cards.load(exec.card)

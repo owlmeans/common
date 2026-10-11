@@ -117,7 +117,7 @@ describe('viable-sdk — an early { pending } answer is collected until the call
   test('a planning execute through the planning client resolves with the receipt the direct answer would give', async () => {
     const context = await contextOf(ConnectLlm.Local)
     const transition = { id: 't1', card: 'c1', seq: 1, action: TransitionAction.Create, commit: { state: CommitState.Committed } }
-    const card = { id: 'c1', kind: 'card', type: VIABLE_STORY_TYPE, title: 'x', seq: 1 }
+    const card = { id: 'c1', kind: 'card', type: VIABLE_STORY_TYPE, title: 'x', seq: 1, createdAt: '2026-10-09T00:00:00.000Z' }
     const calls = captureTransport(context, call => call.alias.endsWith(':execute')
       ? accepted({ pending: callIdOf(call) })
       : { state: ConnectCallState.Settled, outcome: 'ok', value: { transition, card } })
@@ -127,8 +127,8 @@ describe('viable-sdk — an early { pending } answer is collected until the call
       action: TransitionAction.Create, card: { kind: 'card', type: VIABLE_STORY_TYPE, parent: 'p1', title: 'x' },
     } as never, { wait: true })
 
-    expect(receipt.transition).toEqual(transition as never)
-    expect(receipt.card).toEqual(card as never)
+    expect(receipt.transition).toEqual({ ...transition, entityId: '' } as never)
+    expect(receipt.card).toEqual({ ...card, entityId: '' } as never)
     expect(collects(calls)).toHaveLength(1)
   })
 

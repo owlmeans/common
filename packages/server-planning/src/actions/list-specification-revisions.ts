@@ -7,7 +7,7 @@ import type { RequestHandler } from './types.js'
 
 /** A document's history, newest first, replayed from its log. */
 export const listSpecificationRevisions = (protocol: PlanningProtocols['spec']['revisions'], opts?: PlanningHandlerOptions): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async () => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async () => {
     const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
     const limit = req.query?.limit == null ? undefined : Number(req.query.limit)
 

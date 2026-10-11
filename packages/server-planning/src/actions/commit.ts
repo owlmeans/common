@@ -18,7 +18,7 @@ import type { RequestHandler } from './types.js'
 export const getCommit = (
   protocol: PlanningProtocols['commit']['get'], opts?: PlanningHandlerOptions
 ): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async (): Promise<CommitStatus> => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async (): Promise<CommitStatus> => {
     const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
     const transition = `${req.params.transition}`
 
