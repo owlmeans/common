@@ -1,16 +1,8 @@
-import type { AppConfig, AppContext } from '@owlmeans/web-client'
-import type { WithSharedConfig } from '@owlmeans/oidc'
 import { appendOidcGuard } from '@owlmeans/web-oidc-rp'
 import { requireConsentForLogin } from './consent.js'
-import type { ConsentLoginOptions } from './consent.js'
+import type { IamClientConfig, IamClientContext } from './types.local.js'
+import type { AppendIamOptions } from './types.js'
 
-type IamClientConfig = AppConfig & WithSharedConfig
-type IamClientContext<C extends IamClientConfig = IamClientConfig> = AppContext<C>
-
-export interface AppendIamOptions {
-  /** Consent required before a sign-in flow may start. `{ disabled: true }` turns it off. */
-  consent?: ConsentLoginOptions
-}
 
 /**
  * One-call OIDC RP setup for a web client context.

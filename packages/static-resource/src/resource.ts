@@ -1,11 +1,11 @@
+import { randomUUID } from 'node:crypto'
 import { appendContextual } from '@owlmeans/context'
 import { DEFAULT_ALIAS } from './consts.js'
 import type {
   Criteria, FirstOptions, ListOptions, Resource, ResourceRecord, Ttl, WriteOptions
 } from '@owlmeans/resource'
 import {
-  applyQuery, filterRecords, firstMatch, MisshapedRecord, RecordExists, UnknownRecordError,
-  UnsupportedArgumentError
+  MisshapedRecord, RecordExists, recordQueryHelper, UnknownRecordError, UnsupportedArgumentError
 } from '@owlmeans/resource'
 import type { Config, Context, StaticResourceAppend } from './types.js'
 
@@ -46,7 +46,7 @@ export const createStaticResource = <T extends ResourceRecord = ResourceRecord>(
   const first = (idOrWhere: string | Criteria<T>, opts?: FirstOptions<T>): T | null =>
     typeof idOrWhere === 'string'
       ? getStore().get(idOrWhere) ?? null
-      : firstMatch(records(), idOrWhere, opts)
+      : recordQueryHelper.firstMatch(records(), idOrWhere, opts)
 
   const write = (record: Partial<T>, opts?: WriteOptions): T => {
     if (record.id == null) {
@@ -81,17 +81,23 @@ export const createStaticResource = <T extends ResourceRecord = ResourceRecord>(
         throw new UnsupportedArgumentError('page-without-size')
       }
 
-      return applyQuery(records(), where, opts)
+      return recordQueryHelper.applyQuery(records(), where, opts)
     },
 
-    count: async (where?: Criteria<T>) => filterRecords(records(), where).length,
+    count: async (where?: Criteria<T>) => recordQueryHelper.filterRecords(records(), where).length,
 
     create: async (record: Partial<T>, opts?: WriteOptions) => {
+      /**
+       * A supplied id is honored (many callers key by a natural id, Redis-style) — but a missing
+       * one is minted here rather than rejected, the same as a real Mongo/Postgres `create()`
+       * auto-generates its own id when the caller supplies none. Only a supplied id that already
+       * exists is `RecordExists`.
+       */
       if (record.id == null) {
-        throw new MisshapedRecord('id')
+        record = { ...record, id: randomUUID() }
       }
-      if (getStore().has(record.id)) {
-        throw new RecordExists(record.id)
+      if (getStore().has(record.id as string)) {
+        throw new RecordExists(record.id as string)
       }
 
       return write(record, opts)
@@ -137,7 +143,7 @@ export const createStaticResource = <T extends ResourceRecord = ResourceRecord>(
         throw new UnsupportedArgumentError('purge:empty-criteria')
       }
       const store = getStore()
-      const matched = filterRecords(records(), where)
+      const matched = recordQueryHelper.filterRecords(records(), where)
       matched.forEach(record => record.id != null && store.delete(record.id))
 
       return matched.length

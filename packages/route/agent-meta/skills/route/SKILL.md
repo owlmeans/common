@@ -1,6 +1,6 @@
 ---
 name: route
-description: How to use @owlmeans/route — route() for declaring URL segments, frontend()/backend()/socket()/job() markers, RouteMethod and RouteProtocols enums, and the address helpers under ./utils. Auto-invoked when importing route helpers or defining an entrypoint's URL path.
+description: How to use @owlmeans/route — transport-neutral route declarations, frontend/backend/socket markers, HTTP methods, extensible protocol identifiers, and address helpers. Auto-invoked when importing route helpers or defining an entrypoint's URL path.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/route
 
 **Layer:** Core
-**Install:** `"@owlmeans/route": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/route": "^0.1.18-rc.35"` in `dependencies`
 
 ## Key Exports
 
@@ -18,10 +18,10 @@ user-invocable: false
 | `frontend(options?, default?)` | Mark a route as a React page (web only) |
 | `backend(options?, method?)` | Mark a route as a backend endpoint |
 | `socket(options?, secondary?)` | A backend route answering over `RouteProtocols.SOCKET` |
-| `job(options?, secondary?)` | A backend route carried by the queue (`RouteProtocols.QUEUE`); its declaration adds `queue`, `reply` and `timeout` |
 | `service(alias, options?)` | Point a route at a named service |
 | `RouteMethod` | enum of GET, POST, PUT, PATCH, DELETE |
-| `RouteProtocols` | enum of WEB (`http`), SOCKET (`ws`), QUEUE (`queue`) |
+| `RouteProtocols` | built-in WEB (`http`) and SOCKET (`ws`) identifiers |
+| `RouteProtocol` | a built-in or package-owned transport identifier |
 | `rtype(type, options?)` | The primitive `frontend()` / `backend()` are built from |
 | `createRoute(alias, path, opts?)` / `makeRouteModel(decl)` | The declaration and its wrapper, when you need them apart |
 | `BasicRoute` | `{ type, service?, host?, port?, base?, internalHost?, internalPort? }` |
@@ -40,18 +40,15 @@ route contributes under its parent and is never rewritten, and the model carries
 Where the route answers is worked out on demand, against the context that asks — which is what lets
 the same declaration serve a client and a server at once.
 
-## Protocol picks the transport
+## Protocol ownership
 
 A route names the protocol it answers on, and an application binds one by registering a transport
 service under `transportAlias(protocol)`. So the protocol is what decides whether a call travels as
-an HTTP request, a socket frame or a queued job — the call site never says. Both `transportAlias`
-and the `EntrypointTransport` contract a transport implements are exported by `@owlmeans/entrypoint`,
-not by this package; a route only names the protocol.
-
-`job()` is `backend()` with `RouteProtocols.QUEUE`. Three declaration fields matter only for that
-protocol: `queue` (which queue carries it), `reply` and `timeout`. `reply: false` resolves once the
-broker has taken the job — the value is the job's identity and the outcome is `Accepted`, not the
-job's result; the default is to wait for the result.
+an HTTP request, a socket frame or a package-owned transport — the call site never says. Both
+`transportAlias` and `EntrypointTransport` are exported by `@owlmeans/entrypoint`; this package only
+stores an opaque protocol identifier and `protocolOptions`. The package defining a custom protocol
+owns its marker, option type, validation and transport; the generic route package does not describe
+that transport's implementation semantics.
 
 ## Subpath Exports
 
@@ -81,18 +78,19 @@ Application code rarely calls these directly — `@owlmeans/entrypoint` exposes 
 
 ```typescript
 import { route, frontend, RouteMethod } from '@owlmeans/route'
-import { entrypoint } from '@owlmeans/entrypoint'
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 
 // Server route
-entrypoint(
+protocol(
   route(manager.back.project.create, '/create', {
     parent: manager.back.project.base,
     method: RouteMethod.POST,
-  })
+  }),
+  contract(typed<Project>()),
 )
 
 // Web route — frontend() marks it as a React page
-entrypoint(
+openProtocol(
   route(HOME, '/', frontend({ default: true, parent: BASE }))
 )
 ```

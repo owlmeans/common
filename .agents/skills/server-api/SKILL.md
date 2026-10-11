@@ -1,201 +1,159 @@
 ---
 name: server-api
-description: How to use @owlmeans/server-api — the Fastify-based API server factory, what it mounts and validates, the request pipeline (intermediates, guards, gates, handlers), holdApiPort() for the boot window, and the error-to-status mapping. Auto-invoked when importing server-api types, extending the server middleware stack, or working out why a request answered the status it did.
+description: Implement HTTP entrypoint protocols with @owlmeans/server-api handlers<Context>().body(), params(), request(), and uploadedFile(). Load before writing an API handler.
 user-invocable: false
 ---
 
 # @owlmeans/server-api
 
-**Layer:** Server
-**Install:** `"@owlmeans/server-api": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.53`
 
-## Key Exports
+Make handlers from the protocol declaration so input and output types stay coupled to the shared
+contract:
 
-| Export | Description |
-|--------|-------------|
-| `createApiServer(alias)` | Factory for the Fastify-based API server |
-| `appendApiServer(ctx, alias?)` | Register it and expose `ctx.getApiServer()` |
-| `handleRequest` / `handleBody` / `handleParams` / `handleIntermediate` | Wrap an async function as an entrypoint handler |
-| `extractUploadedFile(req)` | The multipart file behind a request, as `UploadedFile` |
-| `holdApiPort(cfg, opts?)` | Own the app's port during boot; the caller awaits `hold.release()` before `listen()` |
-| `ApiServer`, `ApiServerAppend`, `Request`, `Response`, `Config`, `Context` | Runtime and context shapes |
-| `ApiPortHold`, `ApiPortHoldOptions` | The hold handle and its `{ okPath?, payload? }` options |
-| `AuthFailedError` | Raised by the request pipeline when no guard matched or the matching guard refused — the only one of this package's own two errors the pipeline raises |
-| `AccessError` | Its 403 counterpart, for a guard, gate or handler to throw when an established identity lacks the permission; the pipeline never raises it |
-| `NoFileError` | For a handler to throw when `extractUploadedFile` finds no file; the pipeline never raises it |
-| Constants | `DEFAULT_ALIAS` (`api-server`), `PORT` (`80`), `CLOSED_HOST` (`127.0.0.1`), `OPENED_HOST` (`0.0.0.0`) |
+```ts
+const api = handlers<AppContext>()
 
-## Subpath Exports
+const create = api.body(projectProtocols.create, async (body, context, request) =>
+  context.projects.create(body, request.auth)
+)
 
-- `./utils` — `handleError`, `authorize`, `provideRequest`, `executeResponse`, `populateContext`, `extractContext`, `canServeModule`, `createServerHandler`, `fixFormatDates`
+const get = api.params(projectProtocols.get, async ({ id }, context) =>
+  context.projects.get(id)
+)
 
-## Usage
+const search = api.request(projectProtocols.search, async (request, context) =>
+  context.projects.search(request.query)
+)
 
-The server is normally constructed transparently by `@owlmeans/server-app#main()`. Use `server-api`
-directly only when you need to register raw Fastify plugins or customize transport:
-
-```typescript
-import { appendApiServer } from '@owlmeans/server-api'
-appendApiServer(context)
+export const serverBindings = [
+  bind(projectProtocols.create, create),
+  bind(projectProtocols.get, get),
+  bind(projectProtocols.search, search),
+]
 ```
 
-## Writing handlers
+`body` and `params` are available only for a protocol declaring that section. `request` works for
+any protocol and receives all its typed sections plus request metadata. A successful callback
+return resolves the entrypoint with `EntrypointOutcome.Ok`; a thrown error rejects it.
 
-`handleRequest(fn)` gives the whole request, `handleBody<T>(fn)` the validated body, `handleParams<T>(fn)`
-the validated URL params, and `handleIntermediate(fn)` a function that returns a context (or `null`
-to leave the chain unchanged) instead of a value. All four resolve the handler's context the same
-way: from the request when it arrived over HTTP, and from the entrypoint's own context otherwise —
-the same handler runs unchanged when a queued job or a socket frame reaches it, and only the way it
-was reached differs.
+A body contract may be a scalar (`schema<string>({ type: 'string' })`, a number, a boolean): the
+server's JSON parser takes any JSON value, so `"abc"`, `42` or `false` reach the handler as that
+value. An unquoted string or an empty body under `application/json` is invalid JSON and answers
+400 before the handler runs — `@owlmeans/api` never sends either (it quotes a scalar body).
+`tests/json-body.spec.ts` runs it through `appendApiServer`.
 
-Throwing is the way to fail. A handler owns no status table; see the mapping below.
+## Wrap exactly once
 
-## What this server mounts
+A handler is wrapped by `handlers<Context>()` exactly once — either shape above (create the bound
+handler and bind it directly) is correct on its own. Never combine them: a handler module that
+already exports a bound handler must be bound directly, not wrapped again where it is bound.
 
-`canServeModule` mounts a backend entrypoint only when the route's type is `Backend`, the route
-belongs to this service, its protocol is one HTTP carries, and the declaration has been elevated —
-the last test is `isIntermediate` on the route model, which only a server route model has. `SOCKET`
-and `QUEUE` are excluded: a socket is upgraded elsewhere and a queued job is taken off the broker by
-the worker, so mounting either here would answer the same call twice. Adding a protocol means
-excluding it here as well as binding its transport.
-
-## Where a route is bound
-
-Every route is registered at `entrypoint.mount()` — `base` plus every ancestor's segment, then this
-one. A declaration states only the segment it contributes, so the full address takes the context the
-entrypoint is registered in, and the table can therefore only be built once the context has resolved.
-Intermediates are not bound as routes: they run in a `preHandler` hook, each testing
-`entrypoint.route.match(request, entrypoint.mount())` against the same mounted path and passing the
-context it produced down the chain. Once one of them has answered, the rest are skipped.
-
-A route is bound only when its entrypoint carries a `handle`. Guards and gates come from
-`getGuards()` / `getGates()`, which include everything the ancestors declared, and they run before
-the handler — a handler that re-checks them is duplicating an enforced rule.
-
-## Guards, and the organization entity they resolve
-
-`authorize` (`./utils`) runs the guard chain: each alias from `getGuards()` is asked to `match()`,
-the first that does is asked to `handle()`, and a chain where none matches or the matching one
-refuses raises `AuthFailedError`. The admitted `Auth` is hung on the raw request as `_auth`, which
-`provideRequest` surfaces to the handler as `req.auth`.
-
-Immediately after that, and only when the entrypoint has guards, `authorize` calls `attachEntity`
-from `@owlmeans/auth-common`: the token names the organization by `entitySlug`, which is renameable,
-so the entity is resolved once here rather than in every handler. The resolution is hung on the raw
-request as `_entity` and reaches the handler as `req.entity` (`{ id, slug, iamKey }`), and
-`attachEntity` also rewrites `req.auth.entitySlug` to the entity's current slug, so a request that
-arrived under a retired name continues under the live one. It is a no-op where no entity resolver
-service is registered, and it raises `AuthenFailed` when the token names an organization that does
-not resolve.
-
-Two consequences a handler has to work by: there is **no id on the token** — `req.auth` carries the
-slug and nothing else about the organization, so `req.entity?.id` (or `entityKeyOf(req)` /
-`requireEntityKey(req)` from `@owlmeans/auth-common`) is the value to key records by; and an
-unguarded entrypoint gets neither `req.auth` nor `req.entity`, because the whole block is skipped
-when `getGuards()` is empty.
-
-## Request validation
-
-The route schema is built from the entrypoint's `filter`: `querystring`, `params` and `headers`
-always, `body` only for `POST`, `PATCH` and `PUT`, and `response` as declared. Bodies are consumed
-as JSON, form-urlencoded or multipart.
-
-Ajv is configured with `coerceTypes`, `useDefaults` and `removeAdditional` — so a query string
-arrives typed, declared defaults are filled in, and **an undeclared property is dropped rather than
-rejected**: a field missing in a handler is usually a field missing from the filter. `fixFormatDates`
-rewrites `date-time` properties declared as objects into strings before compiling, so a schema
-generated from a record type validates the JSON that actually arrives.
-
-## The plugins the server registers
-
-Registered on init, in this order — CORS, multipart, Helmet, raw body, middie — and worth knowing
-because they set limits an app cannot see from its handler:
-
-- **CORS** — `origin: '*'`, the full framework method set declared explicitly plus `HEAD` and
-  `OPTIONS`, and the `auth-token-refresh` header exposed so a browser client can read a rotated
-  token. The method list must stay explicit: a narrower default makes the browser reject every
-  `PUT`/`PATCH`/`DELETE` at preflight while server-to-server callers keep working.
-- **Multipart** — fields attached to the body as key/values, at most 5 files of 5 MB each, over-size
-  uploads throwing rather than truncating.
-- **Helmet**.
-- **Raw body** on the `rawBody` request field, captured before anything else (`runFirst`) — that is
-  what a webhook signature check reads, since the parsed body cannot be re-serialized byte for byte.
-- **middie**, last, for connect-style middleware.
-
-The overall body limit is 20 MB.
-
-## Listening
-
-`listen()` resolves the socket from the service's own declaration, `cfg.services[cfg.service]`:
-`internalPort ?? port ?? PORT`, and `OPENED_HOST` when `opened` is true, `CLOSED_HOST` otherwise. It
-also installs a `SIGTERM` handler that closes the server and exits 0. Initialization is re-entrant:
-an already-listening instance is closed and rebuilt, so re-initializing a context does not leave two
-servers on one port.
-
-## Holding the port through the boot
-
-The server builds its route table from the entrypoints the context knows about, so it can only
-bind **after** `init()` resolves — and Fastify refuses new routes once it is listening. That
-leaves every way a boot can fail with nothing on the port: the edge answers a bare upstream
-connect error naming neither the app nor the reason.
-
-`holdApiPort` closes that window: a minimal Fastify instance binds the app's socket immediately —
-resolving port and host from the same `cfg.services[cfg.service]` declaration `listen()` uses —
-answers `okPath` with 200 and everything else with **503, not 404** (the real routes do not exist
-yet, and "no such route" would be a lie that outlives the boot), evaluating `payload()` per
-request so a changing boot phase is reported live.
-
-```typescript
-const hold = await holdApiPort(ctx.cfg, { okPath: '/healtz', payload: bootPayload })
-try { await initialize() } catch (e) { recordFailure(e); return }   // hold keeps answering
-await hold.release()          // awaited — listen() binds on the next line
-await ctx.getApiServer().listen()
+```ts
+// WRONG — bound once in the handler module, wrapped a second time here
+export const create = api.body(projectProtocols.create, async (body, context) => ...)
+bind(projectProtocols.create, api.body(projectProtocols.create, create))
 ```
 
-`release()` awaits the actual close and force-closes keep-alive connections, so a supervisor's own
-poller cannot hold the handover open.
+`tsc` rejects the double wrap (`TS2345 "Argument of type 'BoundEntrypointHandler<…>' is not
+assignable"`). At runtime, `body`/`params`/`request` return an already-bound handler for the SAME
+protocol unchanged, with a one-time warning; anything else that is not a plain function fails only
+that one route with `HandlerMisconfiguredError`, instead of the opaque
+`TypeError: handler is not a function`.
 
-Two rules the caller owns: a **bind failure is fatal and loud** — name it (EADDRINUSE above all)
-and `process.exit(1)`, because carrying on ends the boot with nothing listening and nothing
-holding the event loop, a clean exit 0 while a stale predecessor keeps serving; and a **failed
-init returns without exiting** — the hold keeps the loop open and is the only thing that can say
-why.
+## The status a thrown error answers
 
-## Error → HTTP status
+A thrown error (or a rejected response) is answered with a body chosen by the exposure (§ Error
+exposure) and a status from `httpErrorHelper.errorStatus(error)` (`./utils`), resolved in this order:
 
-`handleError` (`./utils`) is the single mapping from a thrown error to a status. Handlers own no
-status table: they throw, and this decides. Two families are recognised — this package's own
-`AuthFailedError` and `AccessError`, of which only `AuthFailedError` is raised by the pipeline, and
-`AuthForbidden` / `AuthorizationError` from `@owlmeans/auth`, which is what guards and gates throw.
+| Error | Status |
+|---|---|
+| `AuthForbidden`, `AccessError` or a subclass — by class or registered type name | 403 |
+| `AuthorizationError`, `AuthFailedError` or a subclass — by class or registered type name | 401 |
+| a class declaring `static httpStatus` as an integer 400–499, or 500–599 with `static allowServerErrorStatus = true` | that status |
+| anything else, including a 5xx declared without the opt-in | 500 |
 
-| Thrown | Status | Meaning |
-|--------|--------|---------|
-| `AuthForbidden`, `AccessError` | `403` | An established identity that lacks the permission — re-authenticating changes nothing |
-| `AuthorizationError`, `AuthFailedError` | `401` | No usable credential: absent, expired, revoked, or naming a session this server does not hold |
-| anything else | `500` | |
+- **A refusal of the caller's condition declares its status; a fault declares nothing.** 400 a
+  malformed request, 402 an unpaid balance or plan, 404 an addressed target that does not exist
+  (or is another organization's), 409 a target whose current state conflicts, 422 content or a body
+  that is understood and refused — and a missing configuration, a broken peer, a timeout or a bug
+  stays 500, because monitoring, logs, proxies and retry logic read a 5xx as the server failing.
+  The table and the leaf-class rule are the `error` skill's.
+- The storage refusals of `@owlmeans/resource` declare theirs: `UnknownRecordError` answers 404,
+  `RecordExists` 409, every other `ResourceError` 500 — so a handler that lets a `get()` miss
+  escape answers 404, and one reading a row the request did not address uses `load` instead.
+- Declare it on the class: `public static httpStatus = 409` (`override` only when an ancestor
+  already declares one). The declaration is structural — the package declaring an error never
+  imports `@owlmeans/server-api` — and a static property is inherited, so a subclass answers its
+  nearest declaring ancestor's status and redeclares to change it.
+- The auth branches win over a declaration, in that order (`AuthForbidden extends
+  AuthorizationError`, so 403 is tested first). An entitlement or permission refusal extends
+  `AuthForbidden` rather than declaring 403.
+- `httpErrorHelper.handleError` resolves the status on the error AS THROWN first, and asks the ENSURED
+  (`ResilientError.ensure`) error only when that answers 500. The thrown object is the one whose
+  class is certainly what was raised; the rebuild is what gives a status to a marshalled error that
+  crossed a hop as a plain `Error`. `ensure` returns an error from any `@owlmeans/error` copy
+  untouched, so a development body keeps the thrown class's `type` (`AuthFailedError|||api:auth:…`) even in a
+  process holding duplicate module copies (`bun --preserve-symlinks`). `payloadHelper.executeResponse` ensures
+  nothing and answers the rejected error's status. `@owlmeans/server-socket` answers an upgrade
+  through the same `httpErrorHelper.handleError`.
+- An auth family is recognised by `instanceof` OR by an exact registered type name — the instance's
+  `type` or any static `typeName` on its constructor chain — so a class from another module copy
+  answers the same status. Match whole names, never substrings: a subclass's `typeName` does not
+  reliably embed its parent's (`EntitlementRefusal` extends `AuthForbidden`). A declared
+  `httpStatus` is a structural static read and survives duplicate copies as it is.
+- **The status is what a production client can act on.** Only a development body is rebuilt into
+  its class; a production body is the incident id alone, so a client knows a refusal by its status
+  (§ Error exposure) — give a refusal the client must act on its own distinct 4xx. Nothing in the
+  framework treats a 404 specially — a missing route is a Fastify JSON body the client turns into
+  a 404 `ApiStatusError`.
 
-**Order matters.** `AuthForbidden extends AuthorizationError`, so the 403 branch is tested first —
-otherwise every refusal of a permission is reported as a failure to authenticate. And an
-unrecognised refusal answering 500 reports a refused request as a crashed server: the client cannot
-tell "sign in again" from "the service is broken", and a consumer watching statuses concludes the
-application fell over.
+`uploadedFile(request)` is the Fastify multipart boundary. Keep raw Fastify access there rather
+than reaching through `request.original` in application code.
 
-`AuthenFailed` — the error `attachEntity` raises inside this same pipeline when the token names an
-organization that does not resolve — belongs to neither family: it extends `AuthManagerError`, not
-`AuthorizationError`. It therefore falls through to **500**, not 401. Treat a 500 on a guarded
-entrypoint as a candidate unresolvable organization entity, and give a gate or handler that wants a
-401 there one of the two recognised families to throw.
+## Logging
 
-The body is always `ResilientError.marshal(ResilientError.ensure(error)).message`, and nothing is
-written when the reply was already sent. An entrypoint that names a `fixer` gets that service
-instead — it renders the error onto the reply itself and `handleError` never runs.
+The server logs through `@owlmeans/log`, not a second pino, and **never with what a caller sent**: a
+request body, its raw form (`rawBody`), multipart fields and file bytes, headers (authorization,
+cookies) and query strings never reach a record. Two seams in `utils/log.ts` (`fastifyLogUtils`) hold
+that for every record Fastify or a plugin writes:
 
-## Depends On
+| Seam | What it does |
+|---|---|
+| `loggerInstance` — the pino-shaped adapter (scope `http`) | every record's data passes `safeData`: a request object becomes `{ method, path }`, a reply `{ statusCode }`, bytes `[Buffer N bytes]`, any other class instance `[Name]`; the keys `body`, `rawBody`, `payload`, `files`, `file`, `headers`, `rawHeaders`, `query`, `querystring`, `cookies`, `cookie`, `authorization` are dropped at every depth (a number or boolean under them stays); every string — the message too — loses the query of a URL it names. Fastify's own pino serializers are ignored |
+| `logController` — a subclass of Fastify's `LogController` (5.12+; Fastify accepts only an instance of its class) | no per-request pair; a request the default error handler answers — a body the route schema refuses, an unparsable payload, a size or multipart limit, an error thrown by an intermediate's `preHandler` — goes to `failure`; a missing route is one debug `Route not found` with method and path |
 
-- `@owlmeans/context`, `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/server-context`, `@owlmeans/server-entrypoint`
-- `@owlmeans/auth` (the error family the guards throw), `@owlmeans/auth-common`, `@owlmeans/error`, `@owlmeans/api` (status constants)
-- `fastify` (runtime) with `@fastify/cors`, `@fastify/helmet`, `@fastify/middie`, `@fastify/multipart`, `fastify-raw-body`, `ajv-errors`
+A request is one `debug` record from `onResponse` (method, path without the query, status, ms). A
+failed request is logged once — by `httpErrorHelper.handleError` for a handler's error, by the log
+controller for one Fastify answers itself — through `fastifyLogUtils.failure`, by what its status
+means: **5xx → `error`** (the error with its stack, the incident id when there is one), **403 → `warn`,
+`event: 'access.forbidden'`**, 401 → `debug`, `event: 'auth.refused'`, any other 4xx → `debug`
+`Request refused` with `code` (`FST_ERR_VALIDATION`, …) and message. Method, path and status only — a
+schema refusal therefore writes nothing at info. The response a refusal answers is Fastify's own
+(`{ statusCode, code, error, message }`), unchanged. The level and format come from `cfg.log`
+(`/log`); access lines at info are `cfg.log.debug: 'http'`. `tests/log-redaction.spec.ts` posts a
+schema-refused JSON and multipart body with a marker, an authorization header, a cookie and a query
+token, and asserts no record and no written line holds any of them.
 
-`ajv` and `ajv-formats` are **peer** dependencies, not runtime ones — the validator compiler is
-built from them, so installing this package without also depending on both leaves unmet peers and a
-server that cannot compile a route schema. Declare them alongside `@owlmeans/server-api`.
+## Error exposure
+
+An exact IAM `AuthForbidden` or `AccessError` refusal answers with
+`X-OwlMeans-Denial: access-denied`, exposed through CORS. Subclasses such as entitlement refusals
+do not get this marker. The marker survives production exposure so browser clients can present a
+permission message while keeping diagnostic bodies private.
+
+`httpErrorHelper.handleError` always assigns an incident UUID, attaches it to the logged error and returns it in the
+`X-Incident-ID` response header (`INCIDENT_ID_HEADER` in `./utils`, the same name and value
+`@owlmeans/api` exports; exposed through CORS).
+
+- **Production (the default):** a non-2xx body carries ONLY that incident id, under the resolved
+  HTTP status. A typed refusal is never exposed — its class, message and packed fields stay in the
+  server log under the id.
+- **Development** (an explicit `cfg.http.errors.exposure = 'development'`): the typed marshalled
+  form with message and stack, which the client rebuilds into its class.
+- A client reads a production failure with `@owlmeans/api`'s `./status` subpath: `apiStatusHelper.httpStatusOf(e)`
+  (the status a 428 or 409 is acted on by) and `.incidentIdOf(e)` (the id a person reports). Keep
+  the default production-safe, and tell a client to report the incident id.
+
+Do not use unbound compatibility handler wrappers. For a WebSocket route use
+`@owlmeans/server-socket`'s `connection(protocol, callback)`.

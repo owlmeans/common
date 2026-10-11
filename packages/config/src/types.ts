@@ -2,7 +2,7 @@ import type { AppType, BasicConfig, CONFIG_RECORD, ConfigRecord } from '@owlmean
 import type { Resource, DbConfig } from '@owlmeans/resource'
 import type { Profile } from '@owlmeans/auth'
 import type { PLUGIN_RECORD } from './consts.js'
-import type { BasicRoute, RouteAddress, RouteDeclaration, RouteProtocols } from '@owlmeans/route'
+import type { BasicRoute, RouteAddress, RouteDeclaration, RouteProtocol } from '@owlmeans/route'
 
 export interface ConfigResource<T extends ConfigRecord = ConfigRecord> extends Resource<T> {
 }
@@ -164,7 +164,7 @@ export interface SecurityHelper {
 export interface SecurityHelperUrlParams {
   path?: string
   forceUnsecure?: boolean
-  protocol?: RouteProtocols
+  protocol?: RouteProtocol
   host?: string
   base?: string | boolean
 }

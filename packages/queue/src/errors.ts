@@ -70,7 +70,7 @@ export class QueueNotListening extends QueueError {
 
 /**
  * The job named an entrypoint this process does not serve. Unlike a missing queue this is not a
- * declaration problem: the alias exists, but nothing here elevated it, so the job was taken by a
+ * declaration problem: the alias exists, but nothing here bound it, so the job was taken by a
  * worker that cannot run it.
  */
 export class JobNotServed extends QueueError {
@@ -96,6 +96,20 @@ export class EnvelopeExpired extends QueueError {
   }
 }
 
+/**
+ * A schedule the broker could not carry out as written: no id, both or neither of `every` and
+ * `pattern`, an option that only means something for the other one, or a job option the broker
+ * owns for a scheduled run. The message names the schedule id and the reason.
+ */
+export class ScheduleMisdeclared extends QueueError {
+  public static override typeName = `${QueueError.typeName}ScheduleMisdeclared`
+
+  constructor(msg: string) {
+    super(`schedule-misdeclared:${msg}`)
+    this.type = ScheduleMisdeclared.typeName
+  }
+}
+
 ResilientError.registerErrorClass(QueueError)
 ResilientError.registerErrorClass(QueueTimeout)
 ResilientError.registerErrorClass(UnknownJob)
@@ -104,3 +118,4 @@ ResilientError.registerErrorClass(UnknownQueue)
 ResilientError.registerErrorClass(QueueNotListening)
 ResilientError.registerErrorClass(JobNotServed)
 ResilientError.registerErrorClass(EnvelopeExpired)
+ResilientError.registerErrorClass(ScheduleMisdeclared)

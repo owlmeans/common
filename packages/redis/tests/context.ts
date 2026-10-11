@@ -1,4 +1,4 @@
-import { redisGate, randomNamespace } from '@owlmeans/test-integration'
+import { randomNamespace, gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, RedisEnv } from '@owlmeans/test-integration'
 import { config, makeServerContext } from '@owlmeans/server-context'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
@@ -7,7 +7,7 @@ import { makeRedisResource } from '@owlmeans/redis-resource'
 import type { RedisResource } from '@owlmeans/redis-resource'
 import { appendRedis, DEFAULT_ALIAS } from '@owlmeans/redis'
 
-export const gate: IntegrationGate<RedisEnv> = redisGate()
+export const gate: IntegrationGate<RedisEnv> = gateHelper.redisGate()
 
 export interface TestRecord extends ResourceRecord {
   id: string
@@ -33,6 +33,9 @@ export interface RedisSuite {
  * alias, because a resource's keys are namespaced by `<schema>-<alias>` and the walk sees every
  * key of the alias it belongs to, including the ones an earlier test in the same file left.
  */
+/** Hook budget for a suite's teardown: a prefix walk over a shared store, through a port-forward. */
+export const TEARDOWN_TIMEOUT = 60_000
+
 export const makeSuite = (label: string): RedisSuite => {
   const base = process.env.REDIS_TEST_KEY_PREFIX ?? 'omt'
   const prefix = randomNamespace(`${base}_${label}`)
@@ -84,7 +87,7 @@ export const makeSuite = (label: string): RedisSuite => {
         const keys: string[] = []
         let cursor = '0'
         do {
-          const [next, batch] = await client.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 500)
+          const [next, batch] = await client.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 10_000)
           cursor = next
           keys.push(...batch)
         } while (cursor !== '0')

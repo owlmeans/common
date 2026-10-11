@@ -1,15 +1,10 @@
-import type { FC, PropsWithChildren, ReactElement } from 'react'
-import type { EntrypointContextParams, RoutedComponent, ClientContext } from '../types.js'
-import { isValidElement, memo, useEffect } from 'react'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
-import { provideRequest } from '@owlmeans/client-entrypoint'
-import { provideResponse } from '@owlmeans/entrypoint'
-import type { GuardService } from '@owlmeans/entrypoint'
+import { type FC, type PropsWithChildren, isValidElement, memo, useEffect } from 'react'
+import type { EntrypointContextParams, RoutedComponent } from '../types.js'
+import { clientRequestHelper } from '@owlmeans/client-entrypoint'
+import { provideResponse, type GuardService } from '@owlmeans/entrypoint'
 import { AuthorizationError } from '@owlmeans/auth'
-import type { ClientConfig } from '@owlmeans/client-context'
+import type { HandledRenderer, RendererParams } from './types.js'
 
-type Config = ClientConfig
-interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const createRouteRenderer: (params: RendererParams) => FC = ({ context, module, hasChildren }) => () => {
   const params = context.router().useParams()
@@ -17,7 +12,7 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
 
   // Own guards plus every ancestor's — the same set the request would be judged by. Whether a
   // screen is guarded is a question about THIS list being non-empty, never about the declaration
-  // carrying a `guards` property: elevation always assigns the array, empty when nothing was
+  // carrying a `guards` property: binding always assigns the array, empty when nothing was
   // declared, and an empty list means an open screen. Asking the wrong question refuses every
   // guest screen with `frontend-guard`, since no guard can match when there are none.
   const aliases = module.getGuards()
@@ -25,7 +20,7 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
   useEffect(() => {
     if (aliases.length > 0) {
       const guards = aliases.map(guard => context.service<GuardService>(guard))
-      const request = provideRequest(module.alias, module.path())
+      const request = clientRequestHelper.provideRequest(module.alias, module.path())
       const reply = provideResponse()
       let canceled = false
       Promise.all(guards.map(async guard => {
@@ -75,14 +70,6 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
     return <Outlet />
   }
   return undefined
-}
-
-export type HandledRenderer<T extends {}> = FC<PropsWithChildren<T> | T> | ReactElement
-
-interface RendererParams {
-  context: Context,
-  module: ClientEntrypoint<unknown>
-  hasChildren: boolean
 }
 
 const isComponent = <T extends {}>(element: HandledRenderer<T>): element is FC<PropsWithChildren<T> | T | unknown> =>

@@ -1,8 +1,8 @@
-import { handleParams } from '@owlmeans/server-api'
-import type { AbstractResponse } from '@owlmeans/entrypoint'
-import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
-import type { JobHandlerOptions } from '../types.js'
-import { jobViewer, jobsOf, readOwnedJob } from '../utils/index.js'
+import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
+import { handlers } from '@owlmeans/server-api'
+import type { BoundEntrypointHandler } from '@owlmeans/server-entrypoint'
+import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
+import { makeJobPolicyHelper } from '../utils/index.js'
 
 /**
  * One job.
@@ -10,10 +10,15 @@ import { jobViewer, jobsOf, readOwnedJob } from '../utils/index.js'
  * @throws {UnknownJob} for an id that is absent AND for one that belongs to someone else.
  */
 export const getJob = (
-  opts?: JobHandlerOptions
-): RefedEntrypointHandler<AbstractResponse<any>> =>
-  handleParams<{ id: string }>(async ({ id }, ctx, req) => {
-    const resource = jobsOf(ctx, opts)
+  protocol: JobEntrypoints['get'],
+  opts: JobHandlerOptions
+): BoundEntrypointHandler<EntrypointProtocolDeclaration> => {
+  const policy = makeJobPolicyHelper(opts)
 
-    return await readOwnedJob(resource, id, await jobViewer(req, ctx, opts), opts)
+  return handlers<Context>().params(protocol, async ({ id }, ctx, req) => {
+    const resource = policy.jobsOf(ctx)
+    const audience = await opts.policy.audience(req, ctx)
+    const record = await policy.readExposedJob(resource, id, audience)
+    return await opts.policy.map(record, audience)
   })
+}

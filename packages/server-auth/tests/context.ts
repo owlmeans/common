@@ -25,6 +25,8 @@ export const makeTestContext = () => {
     id: authServiceKP.exportAddress(),
     name: AUTH_SRV_KEY,
     credential: authServiceKP.exportPublic(),
+    // Local, deterministic test-only key: the manager signs its synthetic exchange envelope.
+    secret: authServiceKP.export(),
     scopes: ['*'],
   }
 

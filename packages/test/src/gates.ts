@@ -1,9 +1,5 @@
-import { requireEnv } from './env.js'
-import type { EnvGate } from './env.js'
-
-export type GateSpec = Record<string, string[]>
-
-export type Gates<S extends GateSpec> = { readonly [K in keyof S]: EnvGate }
+import { envHelper } from './env.js'
+import type { EnvGate, GateSpec, Gates } from './types.js'
 
 /**
  * Build a frozen record of gates from a spec of `{ name: [envKey, ...] }`.
@@ -14,7 +10,7 @@ export type Gates<S extends GateSpec> = { readonly [K in keyof S]: EnvGate }
 export const makeGates = <S extends GateSpec>(spec: S): Gates<S> => {
   const out = {} as Record<string, EnvGate>
   for (const [name, keys] of Object.entries(spec)) {
-    out[name] = requireEnv(keys)
+    out[name] = envHelper.requireEnv(keys)
   }
   return Object.freeze(out) as Gates<S>
 }

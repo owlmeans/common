@@ -1,13 +1,9 @@
-import type { ComponentType, ReactNode } from 'react'
 import { ensureLoginService } from '@owlmeans/client-auth/login'
-import type { LoginScreenProps } from '@owlmeans/client-auth/login'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
+import type { ClientConfig } from '@owlmeans/client-context'
 import { LocalizedLoginScreen } from './screen.js'
-
-export interface LoginScreenSetup extends Omit<LoginScreenProps, 'translate'> {
-  /** The one thing an application is expected to supply. */
-  Logo?: ComponentType<{ className?: string }> | ReactNode
-}
+import { notifyPopupBlocked } from './notify.js'
+import type { LoginScreenSetup } from './types.js'
 
 /**
  * Give this context the shadcn sign-in screen, with the application's own logo and copy on it.
@@ -29,6 +25,10 @@ export const appendLoginScreen = <C extends BasicConfig, T extends BasicContext<
       ? LocalizedLoginScreen
       : props => LocalizedLoginScreen({ ...setup, ...props })
   )
+  // A header "Log in"/"Log out" control has no screen to show `loginAttemptError` on, so it gets
+  // a toast instead — registered here so an app that already calls this for the screen needs no
+  // second call to get it.
+  service.registerNotifier(notifyPopupBlocked(ctx.cfg as unknown as ClientConfig))
 
   return ctx
 }

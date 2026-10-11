@@ -1,15 +1,15 @@
 import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 import { HARNESS_URL } from './context.js'
 
 const TIMEOUT = 30_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
-const open = async () => {
-  const mounted = await mountComponent({ url: `${HARNESS_URL}login` })
+const open = async (query?: string) => {
+  const mounted = await mountComponent({ url: `${HARNESS_URL}login${query ?? ''}` })
   await mounted.page.waitForSelector('[data-login-method]')
   // A fresh acceptance for every test: the confirmation is remembered per browser, and a test
   // that inherited the previous one would assert the unblocked path while claiming the other.
@@ -43,6 +43,8 @@ describe('@owlmeans/web-panel — the sign-in screen', () => {
       expect(await page.locator('#login-logo').count()).toBe(1)
       const credit = await page.locator('[data-login-credit]').textContent()
       expect(credit).toContain('Powered by OwlMeans')
+      expect(await page.locator('[data-login-credit] a[data-login-powered]').getAttribute('href'))
+        .toBe('https://owlmeans.com')
       expect(credit).toContain('Harness')
       // A copyright NOTICE, not a name: the mark and the year are what make it one.
       expect(credit).toContain(`© ${new Date().getFullYear()} Acme`)
@@ -166,8 +168,11 @@ describe('@owlmeans/web-panel — the sign-in screen', () => {
       await page.waitForSelector('[data-login-method]')
 
       expect(await page.locator('[data-login-terms]').isChecked()).toBe(true)
+      // Omitted rather than `"false"`: `aria-disabled={blocked || undefined}` drops the attribute
+      // entirely once unblocked, which is what lets a deferred screen (no `blocked` state at all)
+      // render the same way with no special case.
       expect(await page.locator('[data-login-method="primary"]').getAttribute('aria-disabled'))
-        .toBe('false')
+        .toBeNull()
     } finally {
       await close()
     }
@@ -185,4 +190,258 @@ describe('@owlmeans/web-panel — the sign-in screen', () => {
       await close()
     }
   }, TIMEOUT)
+
+  test('login documents and the separate privacy notice follow an explicit live PL/FR locale map', async () => {
+    const { page, close } = await open('?terms=localized')
+    try {
+      for (const key of ['terms', 'billing', 'privacy', 'cookies']) {
+        expect(await page.locator(`[data-login-document="${key}"]`).getAttribute('href'))
+          .toBe(`https://example.test/pl/${key}`)
+      }
+      expect(await page.locator('[data-login-privacy] a').count()).toBe(2)
+      expect(await page.locator('label:has([data-login-terms]) [data-login-privacy]').count()).toBe(0)
+      const revision = await page.locator('[data-login-revised]').textContent()
+      await page.locator('#login-language-fr').click()
+      for (const key of ['terms', 'billing', 'privacy', 'cookies']) {
+        expect(await page.locator(`[data-login-document="${key}"]`).getAttribute('href'))
+          .toBe(`https://example.test/fr/${key}`)
+      }
+      expect(await page.locator('[data-login-revised]').textContent()).toBe(revision)
+      expect(await page.locator('[data-login-terms]').count()).toBe(1)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('[data-login-revised] is absent when the configuration never asked to show it', async () => {
+    const { page, close } = await open()
+    try {
+      expect(await page.locator('[data-login-revised]').count()).toBe(0)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  describe('with billing, product and custom documents configured', () => {
+    test('there is still exactly one [data-login-terms] checkbox', async () => {
+      const { page, close } = await open('?terms=extended')
+      try {
+        expect(await page.locator('[data-login-terms]').count()).toBe(1)
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('[data-login-privacy] renders OUTSIDE the checkbox\'s label', async () => {
+      const { page, close } = await open('?terms=extended')
+      try {
+        expect(await page.locator('label:has([data-login-terms]) [data-login-privacy]').count())
+          .toBe(0)
+        expect(await page.locator('[data-login-privacy]').count()).toBe(1)
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('[data-login-revised] shows the latest revision date', async () => {
+      const { page, close } = await open('?terms=extended')
+      try {
+        expect(await page.locator('[data-login-revised]').count()).toBe(1)
+        expect(await page.locator('[data-login-revised]').textContent()).toContain('2026-01-01')
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('every configured document renders its own [data-login-document] link', async () => {
+      const { page, close } = await open('?terms=extended')
+      try {
+        const hrefByKey = async (key: string) =>
+          await page.locator(`[data-login-document="${key}"]`).getAttribute('href')
+
+        expect(await hrefByKey('terms')).toBe('https://example.test/terms')
+        expect(await hrefByKey('billing')).toBe('https://example.test/billing')
+        expect(await hrefByKey('product')).toBe('https://example.test/product')
+        expect(await hrefByKey('custom-a')).toBe('https://example.test/custom-a')
+        expect(await hrefByKey('custom-b')).toBe('https://example.test/custom-b')
+        // The notice line, not the consented one.
+        expect(await hrefByKey('privacy')).toBe('https://example.test/privacy')
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('confirming the single checkbox still unblocks the methods', async () => {
+      const { page, close } = await open('?terms=extended')
+      try {
+        await page.locator('[data-login-terms]').check()
+        await page.locator('[data-login-method="primary"]').click()
+
+        expect(await page.evaluate(() => (window as never as { __loginStarted: string[] }).__loginStarted))
+          .toEqual(['primary'])
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+  })
+
+  describe('the Terms confirmation deferred to a step', () => {
+    test('bound: no checkbox, the privacy notice still renders, and methods are never blocked', async () => {
+      const { page, close } = await open('?defer=bound')
+      try {
+        expect(await page.locator('[data-login-terms]').count()).toBe(0)
+        expect(await page.locator('[data-login-privacy]').count()).toBe(1)
+        expect(await page.locator('[role="alert"]').count()).toBe(0)
+
+        const disabled = await page.locator('[data-login-method="primary"]').getAttribute('aria-disabled')
+        expect(disabled).not.toBe('true')
+
+        await page.locator('[data-login-method="primary"]').click()
+        expect(await page.evaluate(() => (window as never as { __loginStarted: string[] }).__loginStarted))
+          .toEqual(['primary'])
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('bound + extended documents: still no checkbox, still no blocking', async () => {
+      const { page, close } = await open('?defer=bound&terms=extended')
+      try {
+        expect(await page.locator('[data-login-terms]').count()).toBe(0)
+        expect(await page.locator('[data-login-privacy]').count()).toBe(1)
+
+        await page.locator('[data-login-method="primary"]').click()
+        expect(await page.evaluate(() => (window as never as { __loginStarted: string[] }).__loginStarted))
+          .toEqual(['primary'])
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('unbound: the checkbox stays — a step nobody can reach never removes the confirmation', async () => {
+      const { page, close } = await open('?defer=unbound')
+      try {
+        expect(await page.locator('[data-login-terms]').count()).toBe(1)
+        expect(await page.locator('[data-login-method="primary"]').getAttribute('aria-disabled'))
+          .toBe('true')
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+  })
+
+  describe('the provider disclosure', () => {
+    test('no provider configured: no note, no stage, the ordinary title', async () => {
+      const { page, close } = await open()
+      try {
+        expect(await page.locator('[data-login-provider]').count()).toBe(0)
+        expect(await page.locator('[data-login-stage]').count()).toBe(0)
+        expect(await page.locator('[data-login-screen] [data-slot="card-title"]').textContent())
+          .toBe('Sign in')
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('top: the strip is the FIRST child of the screen and sits at its top edge, full width', async () => {
+      const { page, close } = await open('?provider=top')
+      try {
+        expect(await page.locator('[data-login-provider]').count()).toBe(1)
+        expect(await page.locator('[data-login-screen] > :first-child').getAttribute('data-login-provider'))
+          .not.toBeNull()
+        expect(await page.locator('[data-login-provider]').getAttribute('data-placement')).toBe('top')
+        expect(await page.locator('[data-login-provider]').getAttribute('role')).toBe('note')
+
+        const screen = await page.locator('[data-login-screen]').boundingBox()
+        const strip = await page.locator('[data-login-provider]').boundingBox()
+        expect(Math.abs((strip?.y ?? -1) - (screen?.y ?? 0))).toBeLessThanOrEqual(1)
+        expect(Math.abs((strip?.width ?? 0) - (screen?.width ?? 0))).toBeLessThanOrEqual(1)
+
+        // A disclosure, not page chrome: no landmark inside the screen.
+        expect(await page.locator('[data-login-screen] header, [data-login-screen] nav').count()).toBe(0)
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('top: names both parties, links to more information and titles the card with the product', async () => {
+      const { page, close } = await open('?provider=top')
+      try {
+        const note = await page.locator('[data-login-provider]').textContent()
+        expect(note).toContain('This app is hosted by Harness Hosting on behalf of Harness App.')
+        expect(note).toContain('You sign in with Harness IAM.')
+
+        const info = page.locator('[data-login-provider] a[data-login-provider-info]')
+        expect(await info.count()).toBe(1)
+        expect(await info.getAttribute('href')).toBe('https://example.test/about')
+        expect(await info.getAttribute('target')).toBe('_blank')
+        expect(await info.getAttribute('rel')).toBe('noopener noreferrer')
+        expect(await info.textContent()).toBe('More information')
+
+        expect(await page.locator('[data-login-screen] [data-slot="card-title"]').textContent())
+          .toBe('Sign in to Harness App')
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('top: the card is centred within [data-login-stage], with exactly one terms checkbox', async () => {
+      const { page, close } = await open('?provider=top')
+      try {
+        const screen = await page.locator('[data-login-screen]').boundingBox()
+        const strip = await page.locator('[data-login-provider]').boundingBox()
+        const stage = await page.locator('[data-login-screen] > [data-login-stage]').boundingBox()
+        const card = await page.locator('[data-login-stage] > *').first().boundingBox()
+
+        // The stage takes the rest of the screen, below the strip.
+        expect(Math.abs((stage?.y ?? 0) - ((strip?.y ?? 0) + (strip?.height ?? 0)))).toBeLessThanOrEqual(1)
+        expect(Math.abs(((stage?.y ?? 0) + (stage?.height ?? 0)) - ((screen?.y ?? 0) + (screen?.height ?? 0))))
+          .toBeLessThanOrEqual(1)
+
+        const cardCentreY = (card?.y ?? 0) + (card?.height ?? 0) / 2
+        const stageCentreY = (stage?.y ?? 0) + (stage?.height ?? 0) / 2
+        const cardCentreX = (card?.x ?? 0) + (card?.width ?? 0) / 2
+        const stageCentreX = (stage?.x ?? 0) + (stage?.width ?? 0) / 2
+        expect(Math.abs(cardCentreY - stageCentreY)).toBeLessThanOrEqual(2)
+        expect(Math.abs(cardCentreX - stageCentreX)).toBeLessThanOrEqual(2)
+
+        expect(await page.locator('[data-login-terms]').count()).toBe(1)
+        // Inside the card there is no second note.
+        expect(await page.locator('[data-login-stage] [data-login-provider]').count()).toBe(0)
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('inline: one note inside the card, under the methods; the screen keeps its ordinary shape', async () => {
+      const { page, close } = await open('?provider=inline')
+      try {
+        expect(await page.locator('[data-login-provider]').count()).toBe(1)
+        expect(await page.locator('[data-login-provider]').getAttribute('data-placement')).toBe('inline')
+        expect(await page.locator('[data-login-stage]').count()).toBe(0)
+        // Inside the card, not a child of the screen.
+        expect(await page.locator('[data-login-screen] > [data-login-provider]').count()).toBe(0)
+        expect(await page.locator('[data-login-screen] > * [data-login-provider]').count()).toBe(1)
+
+        const note = await page.locator('[data-login-provider]').boundingBox()
+        const lastMethod = await page.locator('[data-login-method]').last().boundingBox()
+        expect(note?.y ?? 0).toBeGreaterThanOrEqual((lastMethod?.y ?? 0) + (lastMethod?.height ?? 0))
+
+        expect(await page.locator('[data-login-provider]').textContent())
+          .toContain('Sign-in is provided by Harness IAM on behalf of Harness App.')
+        expect(await page.locator('[data-login-provider] a[data-login-provider-info]').getAttribute('href'))
+          .toBe('https://example.test/about')
+        expect(await page.locator('[data-login-terms]').count()).toBe(1)
+
+        // Still centred exactly as without a provider.
+        const screen = await page.locator('[data-login-screen]').boundingBox()
+        const card = await page.locator('[data-login-screen] > *').first().boundingBox()
+        const cardCentre = (card?.y ?? 0) + (card?.height ?? 0) / 2
+        const screenCentre = (screen?.y ?? 0) + (screen?.height ?? 0) / 2
+        expect(Math.abs(cardCentre - screenCentre)).toBeLessThanOrEqual(2)
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+  })
 })

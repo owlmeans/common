@@ -64,3 +64,12 @@ export const WAIT_TIMEOUT_MARKER = 'timed out before finishing'
  * It is the only failure a job never chose — nothing ran and threw — so the hooks report it apart.
  */
 export const STALLED_FAILURE = 'job stalled more than allowable limit'
+
+/**
+ * The namespace this driver's job schedulers live under inside a queue.
+ *
+ * Everything under it is OWNED: a worker that starts removes any scheduler here that no declaration
+ * names, which is how a schedule deleted from the code stops running. A scheduler created under
+ * this prefix by hand is removed the same way, and one outside it is never touched.
+ */
+export const SCHEDULE_PREFIX = 'owlmeans:'

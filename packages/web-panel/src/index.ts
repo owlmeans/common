@@ -5,7 +5,5 @@ export * from './exports.js'
 export * from './context.js'
 export * from './entrypoints.js'
 export * from './components/index.js'
-export * from './hooks/index.js'
-export * from './utils.js'
 
 export * from '@owlmeans/client-panel'

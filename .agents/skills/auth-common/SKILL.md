@@ -1,16 +1,16 @@
 ---
 name: auth-common
-description: How to use @owlmeans/auth-common — the auth vocabulary both sides of the wire share, covering guard aliases (DEFAULT_GUARD, GUARD_ED25519), the shared auth entrypoint list, the Ed25519 signature guard, the TRUSTED-record trust() helper, and the organization-entity resolver contract (ENTITY_RESOLVER, entityKeyOf, attachEntity). Auto-invoked when importing guard constants, the shared auth entrypoints, or entity-resolution helpers.
+description: How to use @owlmeans/auth-common — the auth vocabulary both sides of the wire share, covering guard aliases (DEFAULT_GUARD, GUARD_ED25519), the shared auth protocol trees, the Ed25519 signature guard, the TRUSTED-record trust() helper, and the organization-entity resolver contract (ENTITY_RESOLVER, makeEntityScope). Auto-invoked when importing guard constants, shared auth protocols, or entity-resolution helpers.
 user-invocable: false
 ---
 
 # @owlmeans/auth-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.49"` in `dependencies`
 
 Everything a server and a browser must agree on to talk authentication: aliases, the shared
-entrypoint declarations, the signature guard, and the contract for resolving the organization
+protocol declarations, the signature guard, and the contract for resolving the organization
 entity a token names.
 
 ## Key Exports
@@ -34,8 +34,8 @@ entity a token names.
 
 | Export | Description |
 |--------|-------------|
-| `entrypoints` | The shared auth entrypoint list — `AUTHEN*`, `CAUTHEN*`, `DISPATCHER`, `DISPATCHER_SURROGATE`, `DISPATCHER_AUTHEN`. Server and client packages elevate the entries they serve |
-| `managerEntrypoints` | The auth-manager web API entrypoints (profile → entity slug, auth delegation) |
+| `authProtocols` | The shared auth protocol tree — `AUTHEN*`, `CAUTHEN*`, `DISPATCHER`, `DISPATCHER_SURROGATE`, `DISPATCHER_AUTHEN`. Server and client packages bind the entries they serve |
+| `managerProtocols` | The auth-manager web API protocol tree (profile → entity slug, auth delegation) |
 | `makeBasicEd25519Guard(resource, opts?)` | The `GUARD_ED25519` guard service: signs outgoing requests as a client, verifies time/nonce/signature as a server |
 | `authMiddleware` | Loading-stage context middleware that attaches the guard's token to every guarded backend entrypoint's `invoke`/`call` |
 | `SurrogateQuery`, `SurrogateQuerySchema` | The surrogate window's `intent` / `next` / `method` query |
@@ -77,23 +77,35 @@ a deployment backed by an external IAM registers none, and every consumer must t
 entity as ordinary rather than exceptional.
 
 ```typescript
-import { attachEntity, entityKeyOf, requireEntityKey, requireEntity } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
+
+const scope = makeEntityScope(request)   // once at the top of a handler, never stored
 ```
 
 | Helper | What it answers |
 |--------|-----------------|
-| `attachEntity(context, request)` | Resolve the slug on `request.auth` and set `request.entity`, canonicalizing a retired slug to the current one. A no-op when no resolver is registered; throws `AuthenFailed('entity')` when the token names an organization that will not resolve |
-| `entityKeyOf(req)` | The value to store and query organization-scoped records by — `req.entity?.id`, falling back to the token's slug where no resolver exists |
-| `requireEntityKey(req)` | Same, throwing `AuthorizationError` when the request carries no organization |
-| `requireEntity(req)` | The full `ResolvedEntity` (`id`, `slug`, `iamKey`), throwing `AuthorizationError` when nothing resolved |
+| `scope.attachEntity(context)` | Resolve the slug on `request.auth` and set `request.entity`, canonicalizing a retired slug to the current one. Keeps an entity the guard already attached when its `slug` equals the token's exactly, and drops one that does not. Otherwise a no-op when no resolver is registered; throws `AuthenFailed('entity')` when the token names an organization that will not resolve |
+| `scope.entityKeyOf()` | The value to store and query organization-scoped records by — `req.entity?.id`, falling back to the token's slug where no resolver exists |
+| `scope.requireEntityKey()` | Same, throwing `AuthorizationError` when the request carries no organization |
+| `scope.requireEntity()` | The full `ResolvedEntity` (`id`, `slug`, `iamKey`), throwing `AuthorizationError` when nothing resolved |
 
-`attachEntity` must be called wherever authentication is **established** — the HTTP boundary, and
-any socket that authenticates after its connection is already open. A path that authenticates
-without it leaves `request.entity` empty and its handlers silently compare a slug against stored
-ids.
+`scope.attachEntity(context)` must be called wherever authentication is **established** — the HTTP
+boundary, and any socket that authenticates after its connection is already open. A path that
+authenticates without it leaves `request.entity` empty and its handlers silently compare a slug
+against stored ids.
 
-Never build a user-facing name (a hostname, a display label) from `entityKeyOf`. Those want the
-current slug, `req.entity?.slug`.
+A guard may attach the entity itself when its authority names the organization — the OIDC guard does
+for a session of a tenanted client (`@owlmeans/oidc`), whose relying party has no registry to
+resolve from. `scope.attachEntity` trusts that attachment only while its `slug` is the token's
+`authHelper.entitySlugOf(request.auth)`; on any mismatch it removes it and resolves as if nothing
+had been attached, so a stale or foreign entity can never reach a handler. That attached entity is
+keyed by the organization's frozen IAM key (`{ id: entityKey, slug, iamKey: entityKey }`) — the
+registry's record id never leaves the provider — so on such a relying party
+`scope.requireEntityKey()` answers the `entityKey`, which survives a rename exactly as a record id
+would.
+
+Never build a user-facing name (a hostname, a display label) from `scope.entityKeyOf()`. Those want
+the current slug, `req.entity?.slug`.
 
 ## Usage
 
@@ -101,24 +113,22 @@ Declare an entrypoint with a guard so both sides agree on the alias, and compose
 gate inside the same options object:
 
 ```typescript
-import { entrypoint, guard, gate } from '@owlmeans/entrypoint'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { route, backend } from '@owlmeans/route'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 
 // PRODUCT_GATE is the consuming app's own gate alias, registered as a GateService on its context.
-entrypoint(
+protocol(
   route('api:account', '/account', backend()),
-  guard(DEFAULT_GUARD, gate(PRODUCT_GATE, ['my-service-account-{entity}']))
+  contract(typed<Account>()),
+  { guards: DEFAULT_GUARD, gate: { alias: PRODUCT_GATE, params: ['my-service-account-{entity}'] } },
 )
 ```
 
-`{entity}` is a placeholder each **gate service** substitutes for itself — `@owlmeans/auth-common`
-declares neither the token nor the substitution — so what it stands for depends on the gate the
-alias resolves to. `@owlmeans/server-iam` substitutes `req.entity?.id`, falling back to the token's
-slug, because its grants are stored against the organization entity's stable id wherever one is
-resolvable. `@owlmeans/server-oidc-rp`'s gate model substitutes the token's slug only. Both write
-`'-'` when neither is available. Read the gate you are wiring before writing a parameter that
-depends on the value.
+`{entity}` is a placeholder each **gate service** substitutes for itself — this package declares
+neither the token nor the substitution. `@owlmeans/server-iam` substitutes the resolved id
+(`server-iam` → "`{entity}` in a permission name"); `@owlmeans/server-oidc-rp`'s gate model the
+token's slug only; both write `'-'` when neither is available. Read the gate you are wiring first.
 
 ## Rules
 
@@ -126,9 +136,11 @@ depends on the value.
   the matching client-side alias as `DEFAULT_ALIAS`.
 - `GUARD_ED25519` is for service-to-service calls, where the caller signs the request rather than
   presenting a bearer token. Give it a Redis-backed nonce cache (`BED255_CASHE_RESOURCE`) in any
-  deployment that runs more than one replica, or replay protection is per-process only.
-- An OIDC gate is not required when OIDC is only the login/bootstrap provider. Where the provider
-  issues a local bearer token, authorize with a product-specific gate against local identity scopes.
+  deployment that runs more than one replica, or replay protection is per-process only. The guard
+  accepts only canonical timestamps inside its symmetric 60-second window and claims the
+  credential-and-nonce pair until that timestamp's absolute expiry; a replay-store error refuses
+  authentication rather than disabling deduplication.
+- OIDC used only to sign in authorizes with a product gate, not `OIDC_GATE` (`server-oidc-rp` → Rules).
 - The trust resource (`TRUSTED`, from `@owlmeans/config`) is the system's source of truth for known
   signing identities — the auth service, peer services, wallet providers, supervisors.
 
@@ -136,6 +148,6 @@ depends on the value.
 
 - `@owlmeans/auth` — types, errors, entrypoint aliases
 - `@owlmeans/entrypoint` — `entrypoint` / `guard` / `gate`, `GuardService`, `ResolvedEntity`
-- `@owlmeans/route` — route builders for the shared entrypoint list
+- `@owlmeans/route` — route builders for the shared protocol trees
 - `@owlmeans/basic-keys` — key pairs behind `trust()` and the Ed25519 guard
 - `@owlmeans/basic-ids`, `@owlmeans/context`, `@owlmeans/resource`, `@owlmeans/client-entrypoint`

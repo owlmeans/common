@@ -1,30 +1,18 @@
-import { useCallback, useState } from 'react'
-import type { CSSProperties, FC } from 'react'
+import { useCallback, useState, type CSSProperties, type FC, type ReactNode } from 'react'
 import { useContext } from '@owlmeans/client'
 import type { CommonConfig } from '@owlmeans/config'
 import type { LoginContext, LoginMethod, LoginScreenProps, LoginService } from './types.js'
+import type { TermsSentencePart } from './terms/types.js'
 import { LOGIN_SERVICE } from './consts.js'
-import { primaryLoginMethod } from './methods.js'
-import { acceptTerms, resolveTerms, termsAccepted } from './terms.js'
+import { loginMethodsHelper } from './methods.js'
+import { loginTermsHelper } from './terms.js'
 import { resolveCredit } from './credit.js'
+import { box, page } from './consts.local.js'
 
-/**
- * The page the card sits in.
- *
- * It carries its own viewport height because this screen is rendered straight out of the
- * dispatcher, into whatever the application happens to have around it — which is usually nothing
- * with a height, so a percentage minimum would resolve to zero and leave the card at the top.
- */
-const page: CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  minHeight: '100dvh', padding: '1rem',
-  fontFamily: 'system-ui, sans-serif', lineHeight: 1.5,
-}
-
-// Centred throughout, so the plain screen and the styled one read the same way.
-const box: CSSProperties = {
-  width: '100%', maxWidth: '24rem', padding: '1.5rem', textAlign: 'center',
-}
+const renderParts = (parts: TermsSentencePart[]): ReactNode =>
+  parts.map((part, index) => part.href != null
+    ? <a key={index} href={part.href} target="_blank" rel="noreferrer noopener">{part.text}</a>
+    : <span key={index}>{part.text}</span>)
 
 const button = (emphasis?: string): CSSProperties => ({
   display: 'block', width: '100%', marginTop: '.5rem', padding: '.625rem 1rem',
@@ -54,19 +42,21 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
 
   const login = context.service<LoginService>(LOGIN_SERVICE)
   const env = login.env()
-  const resolved = resolveTerms(props.terms ?? cfg?.terms)
+  const resolved = loginTermsHelper.resolveTerms(props.terms ?? cfg?.terms)
   const credit = resolveCredit(cfg?.credit, brand, context.cfg.service)
+  const resolveLabel = loginTermsHelper.termsLabelResolver(t, props.locale)
+  const deferred = loginTermsHelper.termsDeferred(context)
 
-  const [accepted, setAccepted] = useState(() => termsAccepted(resolved))
+  const [accepted, setAccepted] = useState(() => loginTermsHelper.termsAccepted(resolved))
   const [attempted, setAttempted] = useState(false)
 
   const all = login.methods({ context, env })
   const methods = typeof props.methods === 'function'
     ? props.methods(all)
     : props.methods ?? all
-  const primary = primaryLoginMethod(methods)
+  const primary = loginMethodsHelper.primaryLoginMethod(methods)
 
-  const blocked = resolved != null && resolved.required && !accepted
+  const blocked = resolved != null && resolved.required && !deferred && !accepted
 
   const select = useCallback((method: LoginMethod) => {
     if (blocked) {
@@ -79,7 +69,7 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
   const onAccept = useCallback((value: boolean) => {
     setAccepted(value)
     setAttempted(false)
-    acceptTerms(resolved, value)
+    loginTermsHelper.acceptTerms(resolved, value)
   }, [resolved])
 
   return <div data-login-screen style={page}><div style={box}>
@@ -104,27 +94,41 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
         {method.label ?? t(`login.method.${method.i18nKey ?? method.id}`, method.id)}
       </button>)}
 
-    {resolved != null && <p style={{ marginTop: '1rem', fontSize: '.875rem' }}>
+    {/* When a registered, bound step confirms the terms instead, this screen shows neither the
+        checkbox nor its "last updated" line — that document is agreed to over there, and this
+        screen is never `blocked` on it. The privacy notice below still renders either way: it was
+        never inside the consented label, so deferring the checkbox does not touch it. */}
+    {resolved != null && !deferred && <p style={{ marginTop: '1rem', fontSize: '.875rem' }}>
+      {/* The ONLY place `data-login-terms` appears — never duplicated onto a second control. */}
       <label>
         <input
           type="checkbox" checked={accepted} data-login-terms
           onChange={event => onAccept(event.target.checked)}
         />{' '}
-        {t('login.terms.agreement', 'I have read and agree to the Terms & Conditions and the Privacy Policy.')}
+        {renderParts(loginTermsHelper.termsSentence(
+          t('login.terms.accept', 'I have read and agree to the {{documents}}.'),
+          resolved, props.locale, resolveLabel
+        ))}
       </label>
-      {' '}
-      <a href={resolved.terms} target="_blank" rel="noreferrer noopener">
-        {t('login.terms.terms', 'Terms & Conditions')}
-      </a>
-      {' · '}
-      <a href={resolved.privacy} target="_blank" rel="noreferrer noopener">
-        {t('login.terms.privacy', 'Privacy Policy')}
-      </a>
     </p>}
 
-    {attempted && blocked && <p role="alert" style={{ color: '#b00', fontSize: '.875rem' }}>
-      {t('login.terms.required',
-        'Please confirm the Terms & Conditions and the Privacy Policy to continue.')}
+    {resolved?.revisedAt != null && !deferred && <p data-login-revised style={{ fontSize: '.75rem', opacity: .7 }}>
+      {t('login.terms.revised', 'Last updated: {{date}}').split('{{date}}').join(resolved.revisedAt)}
+    </p>}
+
+    {/* Outside the checkbox's label: a privacy disclosure is not something it consents to. */}
+    {resolved != null && <p data-login-privacy style={{ fontSize: '.875rem' }}>
+      {renderParts(loginTermsHelper.termsSentence(
+        t('login.terms.notice', 'How we handle your personal data: {{notices}}.'),
+        resolved, props.locale, resolveLabel
+      ))}
+    </p>}
+
+    {attempted && blocked && resolved != null && <p role="alert" style={{ color: '#b00', fontSize: '.875rem' }}>
+      {renderParts(loginTermsHelper.termsSentence(
+        t('login.terms.required', 'Please confirm the {{documents}} to continue.'),
+        resolved, props.locale, resolveLabel
+      ))}
     </p>}
 
     {props.footer ?? <p style={{ marginTop: '2rem', fontSize: '.75rem', opacity: .7 }}>

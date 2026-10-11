@@ -1,6 +1,6 @@
 ---
 name: queue
-description: How to use @owlmeans/queue — job queues as resources, the QUEUE route protocol that makes a queued call indistinguishable from an HTTP one, declaring queues and job names, the producer/consumer split, job graphs, envelope freshness, and the rules a processor must follow. Auto-invoked when importing queue types or declaring a job route.
+description: How to use @owlmeans/queue — protocol-object enqueue/wait, job queues as resources, QUEUE declarations, producer/consumer split, single-flight job ids, recurring schedules, lifecycle hooks, and processor rules. Auto-invoked when importing queue types, declaring a job protocol, or declaring a schedule.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,17 +8,20 @@ user-invocable: false
 # @owlmeans/queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/queue": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/queue": "^0.1.18-rc.44"` in `dependencies`
 
-Contracts only. It carries no broker code — a driver package (`@owlmeans/redis-queue`) implements
-them. Depend on this one from a shared contract package; depend on the driver only where the
+Backend transport contracts only. It carries no broker code — a driver package
+(`@owlmeans/redis-queue`) implements them. Depend on this one from a shared backend package;
+generic common and frontend packages must not import it. Depend on the driver only where the
 application wires itself up.
 
 ## The one idea
 
-A queued call is an ordinary entrypoint call. The route names `RouteProtocols.QUEUE`, the
-transport registered under that protocol takes it, and the caller writes `ep.call(...)` exactly as
-for HTTP. Nothing at a call site says "queue".
+A queued call is an immutable entrypoint protocol whose route names `QUEUE_PROTOCOL`.
+Ordinary calls use `ctx.entrypoint(protocol).call(request)`. Code that needs broker options or a
+job handle uses `queueProtocolOf(ctx).enqueue(protocol, request, options)` and
+`queueProtocolOf(ctx).waitFor(protocol, job)`. Both derive queue and job name from the protocol object and
+preserve its exact request/reply pair; raw strings and non-queue declarations are rejected.
 
 That is what makes it worth having: moving a service-to-service call onto the broker is a change
 to a declaration, not to the places that call it, and the broker holds the work across a restart of
@@ -30,7 +33,7 @@ Queues and the jobs they accept live in the SHARED backend package, so producers
 read one list:
 
 ```typescript
-declareQueue(cfg, AGENT_WORK, ['agent:story:develop', 'agent:story:code'], {
+declareQueue(cfg, AGENT_WORK, [story.develop.alias], {
   worker: { concurrency: 3, lockDuration: 60_000 }
 })
 ```
@@ -48,21 +51,50 @@ listenQueues(cfg, AGENT_WORK, AGENT_OPS)   // absent ⇒ producer only
 Keep them apart. A declaration is an address; `listen` is a deployment fact. If a worker bound
 whatever it could serve, every deployment of the same binary would consume everything it imports.
 
-A queued entrypoint is declared like any other, with `job()` in place of `backend()`:
+A queued entrypoint is an immutable protocol with `job()` in place of `backend()`:
 
 ```typescript
-entrypoint(
+protocol(
   route(agent.story.develop, '/:id/develop',
     job({ parent: agent.story.base, service: AGENT, queue: AGENT_WORK, timeout: 30_000 })),
-  filter(params(StoryParamsSchema))
+  contract.request({ params: typed<StoryParams>(StoryParamsSchema) }, typed()),
 )
 ```
+
+Import `job`, `QUEUE_PROTOCOL` and `queueRouteHelper` (`isQueueRoute`, `queueRouteOptions`) from
+`@owlmeans/queue`.
+The generic route package deliberately knows none of the queue option shape.
+
+The alias appears in `declareQueue(...jobs)` only because the broker is a string-keyed adapter.
+Application producers and handlers keep the protocol object.
+
+When an admission record owns single flight, select the job id atomically first, then enqueue it:
+
+```typescript
+const queue = queueProtocolOf(context)
+const queued = await queue.enqueue(tokenBalance.reconcile, {
+  body: { projectionId },
+}, { id: claimId, delay: 250, attempts: 3, backoff: { type: 'exponential', delay: 250 } })
+const result = await queue.waitFor(tokenBalance.reconcile, queued)
+```
+
+Per-call `id`, delay, attempts, backoff and retention belong here; putting them into an alias-based
+helper forfeits protocol inference. `queueBridgeHelper.queueJobOf(request)` exposes `{ id, name,
+queue, attempt }` to the rare protocol handler that must compare a broker job with its persisted claim.
 
 `reply: false` makes it fire-and-forget: the call resolves `Accepted` with `{ id, queue }` as soon
 as the BROKER has accepted the enqueue — before any worker has picked the job up, so the resolution
 says the job exists and nothing about it having started. That is what a long pipeline wants; watch
 the job by its id for anything further. The default is to wait for the value, for
 `req.timeout ?? route.timeout ?? DEFAULT_JOB_TIMEOUT` (60 s).
+
+## Global concurrency
+
+`QueueDeclaration.globalConcurrency` and `declareQueue`'s options accept a positive integer.
+`worker.concurrency` is a per-worker limit; `globalConcurrency` is the broker-wide ceiling across
+all replicas consuming that queue. Declare both when a workload must have a global capacity bound.
+Every consumer must use the same declaration; leaving the option absent does not remove a ceiling
+already stored in the broker.
 
 ## Jobs are records
 
@@ -124,9 +156,46 @@ run twice — skip work already recorded, delete the rows a previous attempt cre
 regenerating over a baseline. Decide this per job and say so in a comment; there is no way to make
 it automatic.
 
+## Recurring jobs
+
+A recurring sweep is a SCHEDULE on a queue, run by a registered processor:
+
+```typescript
+declareQueue(cfg, APP_MAINTENANCE, ['app:maintenance:reconcile'], {
+  worker: { concurrency: 1, lockDuration: 60_000 }
+})
+declareSchedule(cfg, {
+  id: 'app-nightly-reconcile', queue: APP_MAINTENANCE, name: 'app:maintenance:reconcile',
+  pattern: '17 3 * * *', tz: 'UTC', data: {},
+})
+```
+
+- **Declare it in the shared package, after its queue.** `declareSchedule` runs
+  `queueConfigOf(cfg).assertSchedule` first: the queue must be declared (`UnknownQueue`) and must
+  accept the job name (`UnknownJobName`), exactly one of `every` (a positive integer of
+  milliseconds) and `pattern` (cron), `tz` and `immediately` only with a pattern, never
+  `immediately` with `startDate`, and `opts.id` / `opts.delay` refused — the broker names and places every run
+  (`ScheduleMisdeclared`, message `<id>:<reason>`). Re-declaring an id replaces it.
+- **The id is the identity.** Changing any other field updates the schedule in place; renaming the
+  id is one schedule removed and another created.
+- **Every process that listens to the queue reconciles it at worker start** — the driver creates
+  and updates what is declared and removes the schedules it owns that are not. Two listeners of one
+  queue must therefore load the same schedule list, which is why it lives in the shared package.
+  A producer creates nothing.
+- **A scheduled run is a processor job, never a guarded entrypoint.** Nobody's credentials travel
+  with it. `job.scheduled` carries the schedule id; it is absent on a job enqueued any other way.
+- **It needs a consumer.** The broker produces the next run when the previous one starts
+  processing, so a schedule on a queue nothing consumes stops producing.
+- **The processor obeys every rule above** — `touch()` through the sweep, and safe to run twice,
+  because a restart mid-sweep re-runs it from the start.
+
+`queueConfigOf(cfg).schedulesOf(queue?)` reads the declarations back; `.assertSchedules()` checks
+all of them, including one written into `cfg.queue.schedules` directly, and refuses a duplicate id.
+Which recurring work belongs on a schedule at all is `scheduled-jobs`.
+
 ## A queued call is still a guarded call
 
-`handleJob` rebuilds the request from the envelope and runs the entrypoint as the HTTP boundary
+`entrypointJobsOf(ctx).handle(job)` rebuilds the request from the envelope and runs the entrypoint as the HTTP boundary
 would: the declared guards are tried in order, the first that matches authorizes, the entity is
 attached, and only then does the handler run. A queued entrypoint with guards therefore needs the
 producer's credentials on the envelope's `headers`, and an unauthorized job answers
@@ -155,43 +224,47 @@ that listens to nothing registers no worker and pays nothing.
 
 `canServeModule` in `@owlmeans/server-api/utils` excludes QUEUE routes, the same way it excludes
 sockets: the worker takes those jobs off the broker, and mounting them on the HTTP server too would
-answer every call twice. `servedJobs` is the mirror image — the entrypoints this process both serves and
-listens to, grouped by queue, which is what a driver binds.
+answer every call twice. `entrypointJobsOf(ctx).served()` is the mirror image — the entrypoints
+this process both serves and listens to, grouped by queue, which is what a driver binds.
 
 ## Key exports
 
 | Export | Description |
 |--------|-------------|
+| `queueProtocolOf(ctx)` — `enqueue` / `waitFor` | Typed protocol-object enqueue and result wait; validates protocol kind and queue configuration. |
+| `queueBridgeHelper.queueJobOf(request)` / `QueueJobMeta` | Explicit broker identity boundary for a protocol handler, including `touch()` for long work. |
 | `declareQueue` / `listenQueues` | Configuration — what exists, and what this process consumes |
-| `queueOf` / `queueOfJob` / `isListening` | Reading it back; `queueOf` throws `UnknownQueue` |
-| `QueueConfig` / `QueueDeclaration` / `QueueWorkerOptions` / `JobOptions` | The configuration shapes |
+| `declareSchedule`; `queueConfigOf(cfg)` — `schedulesOf` / `assertSchedule` / `assertSchedules` | Recurring jobs — declare, read back, check |
+| `queueConfigOf(cfg)` — `queueOf` / `queueOfJob` / `isListening` | Reading it back; `queueOf` throws `UnknownQueue` |
+| `QueueConfig` / `QueueDeclaration` / `QueueWorkerOptions` / `JobOptions` / `ScheduleDeclaration` | The configuration shapes |
 | `QueueResource<D, R>` | A queue addressed as a resource, plus `wait` / `flow` / `counts` / `close` |
 | `JobRecord<D, R>` / `JobState` / `isSettled` / `JobEvent` / `JobEventType` | The record shape and lifecycle |
 | `FlowSpec<D>` | A graph node — `name`, optional `queue`, `data`, `opts`, `children` |
 | `QueueWorkerService` | `process(queue, name, fn)`, `start`, `stop`, `listening`, `hooks` |
-| `JobContext<D>` | What a processor gets: `id`, `name`, `queue`, `attempt`, `data`, `signal`, `touch`, `progress`, `children`, `failedChildren` |
+| `JobContext<D>` | What a processor gets: `id`, `name`, `queue`, `attempt`, `data`, `signal`, `scheduled?`, `touch`, `progress`, `children`, `failedChildren` |
 | `QueueHooks` | `wrapHandler`, `onJobResult`, `onJobStalled`, `onJobDead` — the compensation seam |
 | `QueueAppend` | The `ctx.jobs(queue?)` mixin a driver installs; `QueueDriver` is what a driver supplies |
 | `appendQueueTransport` / `makeQueueTransport` | Binds the QUEUE protocol so `call()` routes through the broker |
 | `queueWorkerMiddleware` | Starts the worker at Ready stage |
-| `handleJob` / `servedJobs` / `entrypointProcessor` | The bridge a driver dispatches through |
-| `requestOf` / `assertFresh` / `JobEnvelope` / `JobReply` | The envelope, and rebuilding a request from it |
-| Errors | `QueueError`, `QueueTimeout`, `UnknownJob`, `UnknownJobName`, `UnknownQueue`, `QueueNotListening`, `JobNotServed`, `EnvelopeExpired` |
+| `entrypointJobsOf(ctx)` — `handle` / `served` / `processor` | The bridge a driver dispatches through |
+| `queueBridgeHelper` — `requestOf` / `assertFresh`; `JobEnvelope` / `JobReply` | The envelope, and rebuilding a request from it |
+| Errors | `QueueError`, `QueueTimeout`, `UnknownJob`, `UnknownJobName`, `UnknownQueue`, `QueueNotListening`, `JobNotServed`, `EnvelopeExpired`, `ScheduleMisdeclared` |
 | Constants | `DEFAULT_ALIAS` (`queue`), `DEFAULT_JOB_TIMEOUT` (60 000 ms), `DEFAULT_ATTEMPTS` (1) |
 
 ## Depends On
 
 - `@owlmeans/context` — service registration and the middleware stage
 - `@owlmeans/entrypoint` — the transport seam and the served-entrypoint dispatch
-- `@owlmeans/route` — `RouteProtocols.QUEUE` and the `job()` builder
+- `@owlmeans/route` — the generic declaration model that `QUEUE_PROTOCOL` and `job()` extend
 - `@owlmeans/resource` — the `Resource` contract jobs are read through
 - `@owlmeans/auth` / `@owlmeans/auth-common` — guarding a queued call and attaching its entity
 - `@owlmeans/error` — marshalling a refusal across the hop
 
 ## Related
 
-- `redis-queue` — the BullMQ driver; integration tests for queue behaviour live there
+- `redis-queue` — the BullMQ driver; how schedules are reconciled; integration tests live there
+- `scheduled-jobs` — when recurring work is a schedule, and how to write the sweep it runs
 - `server-job` / `client-job` — exposing a queue's jobs to an application's UI (list, cancel,
   progress over a socket), without touching the contracts here
-- `entrypoint` — declarations, elevation, and the transport lookup
+- `entrypoint` — protocol declarations, bindings, and the transport lookup
 - `resource` — the criteria and paging semantics `list` follows

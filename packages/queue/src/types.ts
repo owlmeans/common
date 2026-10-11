@@ -2,6 +2,7 @@ import type { BasicConfig, BasicContext, InitializedService } from '@owlmeans/co
 import type { PubSubResource, Resource, ResourceRecord } from '@owlmeans/resource'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
 import type { JobEventType, JobState } from './consts.js'
+import type { RouteOptions } from '@owlmeans/route'
 
 /**
  * Everything the monorepo knows about its queues, declared in the shared backend package so that
@@ -20,10 +21,63 @@ export interface QueueConfig {
    * check and the nonce cache, so a job delayed behind a long backlog is still admitted.
    */
   envelopeTtl?: number
+  /**
+   * Recurring jobs. Declared beside the queues, in the shared package, because every process that
+   * listens to a schedule's queue reconciles the broker against this list when its worker starts —
+   * two listeners loading different lists would remove each other's schedules.
+   */
+  schedules?: ScheduleDeclaration[]
+}
+
+/**
+ * A job the broker produces on its own, on an interval or a cron pattern.
+ *
+ * A scheduled run is an ordinary job of a name the queue declares, dispatched to the processor
+ * registered for that name — never to a guarded entrypoint, because nobody's credentials travel
+ * with it. Only a process that listens to the queue creates the scheduler, and the broker produces
+ * each next run when the previous one STARTS processing — a schedule needs a running consumer.
+ */
+export interface ScheduleDeclaration {
+  /**
+   * The schedule's stable identity: the broker keeps one scheduler per id, so changing any other
+   * field updates it in place, while renaming the id removes one schedule and creates another.
+   */
+  id: string
+  queue: string
+  /** A job name the queue declares. */
+  name: string
+  /**
+   * Milliseconds between runs. Exactly one of `every` and `pattern`. Without `startDate` the first
+   * run is produced as soon as the scheduler is created.
+   */
+  every?: number
+  /** A cron pattern (an optional leading seconds field is accepted). Exactly one of the two. */
+  pattern?: string
+  /** The IANA time zone `pattern` is read in. Pattern only. */
+  tz?: string
+  startDate?: Date | number | string
+  /** Once passed, the schedule is treated as absent and a scheduler left from it is removed. */
+  endDate?: Date | number | string
+  /** Stop after this many runs. */
+  limit?: number
+  /**
+   * Run once as soon as the scheduler is created or its declaration changes, then follow the
+   * pattern. Pattern only, and never together with `startDate`. A restart that finds the
+   * declaration unchanged does not run it again.
+   */
+  immediately?: boolean
+  data?: unknown
+  /**
+   * Options every run is enqueued with, over the queue's defaults. `id` and `delay` belong to the
+   * broker for a scheduled run and are refused.
+   */
+  opts?: Omit<JobOptions, 'id' | 'delay'>
 }
 
 export interface QueueDeclaration {
   name: string
+  /** Maximum active jobs across every worker consuming this queue. */
+  globalConcurrency?: number
   /**
    * The job names this queue accepts. A job the queue does not declare is refused at enqueue
    * time rather than becoming a job nothing can process.
@@ -153,6 +207,11 @@ export interface JobContext<D = unknown> {
   data: D
   signal: AbortSignal
   /**
+   * The id of the schedule that produced this run (`ScheduleDeclaration.id`). Absent for a job
+   * enqueued any other way.
+   */
+  scheduled?: string
+  /**
    * Renew the lock. A processor that runs a long loop MUST call it as it goes: the broker judges
    * liveness by the lock, so silence for longer than `lockDuration` is indistinguishable from a
    * dead worker, and the job is re-run somewhere else while this one is still working on it.
@@ -210,6 +269,15 @@ export interface JobEnvelope {
   enqueuedAt?: string
 }
 
+export interface QueueJobMeta {
+  id: string
+  name: string
+  queue: string
+  attempt: number
+  /** Renew the broker lock for protocol handlers whose work can outlive one lock duration. */
+  touch: () => Promise<void>
+}
+
 /** What a processor returns for an entrypoint job, so the caller can rebuild the reply. */
 export interface JobReply<T = unknown> {
   value?: T
@@ -249,3 +317,12 @@ export interface QueueTransportRequest extends AbstractRequest {
 
 export interface QueueTransportResponse extends AbstractResponse<unknown> {
 }
+
+/** Queue-owned options stored in a generic route declaration. */
+export interface QueueRouteOptions extends Omit<RouteOptions, 'protocol' | 'protocolOptions'> {
+  queue: string
+  reply?: boolean
+}
+
+/** The context the queue protocol helper is bound to: an app context with the queue appended. */
+export interface QueueContext extends Context<Config>, QueueAppend {}

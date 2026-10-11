@@ -49,8 +49,8 @@ For each old file or section:
 1. Union every source. Two same-named files are two drifted sources of ONE node — merge both;
    the code-consistent version wins.
 2. Index-only entries with no backing file: extract the fact into its node, or drop if stale.
-3. `## Skills` / "Key Files" index sections are dropped — skills self-describe; harness layout
-   belongs to `AGENTS.md`. Move genuinely non-obvious dispatch hints there.
+3. `## Skills` / "Key Files" index sections are dropped — skills self-describe; harness layout belongs to `AGENTS.md`; a genuinely non-obvious dispatch hint goes into the
+   owning skill's `description:`, never into `AGENTS.md`.
 4. When the new store verifies (below), delete every merged source entirely.
 
 ## Regenerate the index

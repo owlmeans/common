@@ -1,16 +1,8 @@
 import { DISPATCHER_SURROGATE } from '@owlmeans/auth'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { LOGIN_INTENT_QUERY, LOGIN_METHOD_QUERY, LOGIN_NEXT_QUERY } from './consts.js'
-import { LoginIntent } from './types.js'
 import type { LoginContext } from './types.js'
-
-export interface SurrogateTarget {
-  intent: LoginIntent
-  /** The address the surrogate should actually run, once it is one window up. */
-  next?: string
-  /** The method the user already chose in the opener. */
-  method?: string
-}
+import type { SurrogateTarget } from './surrogate/types.js'
 
 /**
  * Where a surrogate window opens.

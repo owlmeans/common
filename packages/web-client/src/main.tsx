@@ -9,9 +9,6 @@ export const render = (node: ReactNode, opts?: RenderOptions) => {
   const _callback = () => {
     const key = opts?.domId ?? DEFAULT_ROOT
     const root = document.getElementById(key)
-    if (opts?.debug) {
-      console.debug(`Render react app to ${key}`)
-    }
     if (root == null) {
       throw new Error(`Root element not found with id: ${key}`)
     }
@@ -22,7 +19,14 @@ export const render = (node: ReactNode, opts?: RenderOptions) => {
     }
   }
 
-  opts?.onReady ?? true ? window.addEventListener('DOMContentLoaded', _callback) : _callback()
+  // Wait for the DOM only while it is still loading: a caller that awaits something first
+  // (`await prepareI18n(cfg); render(...)`) can run after `DOMContentLoaded` has already fired,
+  // and a listener added then never runs — the app would never mount.
+  if ((opts?.onReady ?? true) && document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', _callback, { once: true })
+  } else {
+    _callback()
+  }
 }
 
 /**

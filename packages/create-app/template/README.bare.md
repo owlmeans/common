@@ -29,22 +29,35 @@ bun run dev
 > `sources/common/src/config.ts`). If you edit `sources/common`, restart `bun run dev` to
 > rebuild it before the API and web pick up the changes.
 
+## Logging
+
+Log through `@owlmeans/log` (`const log = logger('<scope>')`), never `console.*`. The level is set
+per environment, not in code:
+
+| Runtime | Variables | Default |
+|---|---|---|
+| api (`sources/api/src/config.ts`) | `LOG_LEVEL`, `LOG_DEBUG` | `info` |
+| web (`sources/web/src/config.ts`, build time) | `VITE_LOG_LEVEL`, `VITE_LOG_DEBUG` | `debug` under `vite`, `info` in a build |
+
+`*_DEBUG` lists scopes forced to debug (`*` for all). Local values go in `sources/api/.env` /
+`sources/web/.env` (git-ignored).
+
 ## Adding your first feature
 
 1. **`sources/common/src/entrypoints.ts`** — declare the route as an OwlMeans *entrypoint* and
    give it an AJV filter. Both sides import this one declaration; neither re-declares the route.
 2. **`sources/api`** — register a resource in `src/context.ts` (widening `Context` in
-   `src/types.ts`), then `elevate()` the entrypoint with a handler in `src/entrypoints.ts`.
+   `src/types.ts`), then `bind()` the entrypoint with a handler in `src/entrypoints.ts`.
 3. **`sources/web`** — add a screen under `src/screens`, hang it off a frontend route in
    `src/entrypoints.ts`, list it in `src/nav.ts`, and call the backend with
-   `context.entrypoint(alias).call({ params, body })`.
+   `context.entrypoint(protocol).call({ params, body })`.
 
 See the [OwlMeans getting-started guide](https://github.com/owlmeans/common/blob/main/docs/getting-started.md)
 for a worked example of all three steps.
 
 ## Agent guidance
 
-This project ships agent context in `AGENTS.md` and a `CLAUDE.md` bridge, with skills in
+This project ships agent context in `AGENTS.md`, with skills in
 `.agents/skills/` and a shared memory store at `.agents/memory/`.
 
 Files carrying an `AUTO-GENERATED` banner are managed by
@@ -53,5 +66,5 @@ them; write your own guidance as separate, un-bannered files. Refresh after addi
 `@owlmeans/*` packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```

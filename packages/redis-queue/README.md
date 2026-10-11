@@ -14,7 +14,7 @@ BullMQ-over-Redis driver for the queue contracts declared in [`@owlmeans/queue`]
 ## Installation
 
 ```bash
-bun add @owlmeans/redis-queue@^0.1.18-rc.2
+bun add @owlmeans/redis-queue@^0.1.18-rc.39
 ```
 
 ## Usage
@@ -87,13 +87,23 @@ registers the transport, so `ep.call(...)` enqueues, the worker runs the same ha
 guards and filter, and the answer comes back to the caller.
 
 ```typescript
-import { job, route } from '@owlmeans/route'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
+import { job, queueProtocolOf } from '@owlmeans/queue'
+import { route } from '@owlmeans/route'
 
-route('generate-app', 'generate', job({ queue: 'generation', timeout: 300_000 }))
+const generateProtocol = protocol(
+  route('generate-app', 'generate', job({ service: 'agent', queue: 'generation', timeout: 300_000 })),
+  contract.request({ body: typed<GenerateApp>() }, typed<GeneratedApp>()),
+)
+
+const queue = queueProtocolOf(context)
+const queued = await queue.enqueue(generateProtocol, { body: { specId } })
+const result = await queue.waitFor(generateProtocol, queued)
 ```
 
 `reply: false` on the route resolves as soon as the job is accepted, with the job's identity as the
-value. A handler's `ResilientError` crosses the hop as its own class, not as a string.
+value. A handler's `ResilientError` crosses the hop as its own class, not as a string. The alias is
+only the queue driver's broker key; application code passes `generateProtocol` directly.
 
 ## Keys and connections
 
@@ -199,9 +209,41 @@ appendRedisQueue(context, {
 
 A hook that throws is reported, never allowed to fail the job it reports on.
 
+## Schedules
+
+Declared with `declareSchedule` from `@owlmeans/queue`, beside the queues. Each declared schedule is
+a BullMQ **job scheduler** with the id `owlmeans:<schedule id>` (`SCHEDULE_PREFIX`), and every run
+it produces is an ordinary job of the declared name, handed to the registered processor with
+`job.scheduled` set to the schedule id.
+
+`start()` reconciles them through `queueScheduleHelper.syncSchedules(bull, cfg, queue)` for every queue it binds, once
+all of its workers are already consuming:
+
+- a declared schedule the broker does not hold exactly as declared is upserted
+  (`upsertJobScheduler`); one it holds unchanged is left alone, so a restart neither replaces the
+  pending run nor re-runs an `immediately` pattern;
+- a scheduler under `owlmeans:` that no declaration names is removed, and so is one whose
+  `endDate` has passed; schedulers outside the prefix are never touched;
+- a declaration `queueConfigOf(cfg).assertSchedule` refuses (an undeclared job name, say) is logged and skipped.
+
+Every step is caught and logged on its own. Scheduling never stops a worker from consuming, and a
+producer — a process that listens to nothing — creates no scheduler at all. BullMQ produces a
+scheduler's next run when the previous one starts processing, so a schedule runs only while some
+process consumes its queue.
+
+```typescript
+declareQueue(cfg, 'maintenance', ['reconcile'], { worker: { concurrency: 1 } })
+declareSchedule(cfg, {
+  id: 'nightly-reconcile', queue: 'maintenance', name: 'reconcile', pattern: '17 3 * * *', tz: 'UTC',
+})
+
+// in the worker deployment only
+listenQueues(cfg, 'maintenance')
+```
+
 ## Testing
 
-`tests/` drives a real broker behind `redisGate` from `@owlmeans/test-integration` — set `REDIS_URL`
+`tests/` drives a real broker behind `gateHelper.redisGate()` from `@owlmeans/test-integration` — set `REDIS_URL`
 (and optionally `REDIS_TEST_KEY_PREFIX`) and the specs run; without it they skip. Every suite owns a
 random key namespace and obliterates its queues on teardown.
 
@@ -221,9 +263,18 @@ service alias) and `hooks`.
 
 `QueueWorkerService` plus `hooks(hooks)`.
 
+### `queueScheduleHelper.syncSchedules(bull: Queue, cfg: Config, queue: string): Promise<ScheduleSync>`
+
+Reconcile one BullMQ queue's schedulers with the declared schedules; never throws.
+`ScheduleSync` lists schedule ids as `upserted`, `unchanged`, `removed` and `failed`.
+`queueScheduleHelper.scheduleKey(id)` / `.scheduleIdOf(key)` convert between a schedule id and a scheduler id (the latter
+answers `undefined` for a scheduler this driver does not own); `.repeatOptionsOf(schedule)` and
+`.templateOf(schedule, cfg?)` build the two halves `upsertJobScheduler` takes (`ScheduleTemplate`).
+
 ### Constants
 
 - `QUEUE_KEY_SUFFIX` — `'queue'`
+- `SCHEDULE_PREFIX` — `'owlmeans:'`, the scheduler ids this driver owns
 - `DEFAULT_LOCK_DURATION` / `DEFAULT_STALLED_INTERVAL` / `DEFAULT_MAX_STALLED_COUNT`
 - `LISTED_STATES` — the BullMQ states a listing enumerates
 
@@ -247,7 +298,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.12
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

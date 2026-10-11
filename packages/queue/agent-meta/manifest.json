@@ -1,10 +1,17 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/queue",
-  "version": "0.1.18-rc.9",
-  "generatedAt": "2026-09-04T22:43:25.454Z",
+  "version": "0.1.18-rc.44",
+  "generatedAt": "2026-10-10T17:07:11.317Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
+    {
+      "kind": "skill",
+      "name": "scheduled-jobs",
+      "category": "multi-package",
+      "file": "skills/scheduled-jobs/SKILL.md",
+      "canonicalPath": ".agents/skills/scheduled-jobs/SKILL.md"
+    },
     {
       "kind": "skill",
       "name": "queue",

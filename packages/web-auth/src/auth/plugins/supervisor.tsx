@@ -6,8 +6,7 @@ import type { AuthToken } from '@owlmeans/auth'
 import { DEFAULT_ALIAS as AUTH_SERVICE } from '@owlmeans/client-auth'
 import type { AuthService } from '@owlmeans/auth-common'
 import { useContext } from '@owlmeans/client'
-import { HOME } from '@owlmeans/web-client'
-import type { Module } from '@owlmeans/web-client'
+import { loginLandingOf } from '@owlmeans/client-auth/login'
 import { makeKeyPairModel } from '@owlmeans/basic-keys'
 import { createIdOfLength } from '@owlmeans/basic-ids'
 
@@ -54,8 +53,12 @@ export const supervisorClientPlugin: AuthenticationPlugin = {
           await authService.authenticate(token)
         }
 
-        const homeUrl = await context.entrypoint<Module<string>>(HOME).url(undefined, { absolute: true })
-        window.location.href = homeUrl
+        // A registered step (marketing consent, say) or a device/authorization-code consent
+        // screen that suspended itself here before sending the browser to sign in both take
+        // priority over the app's own home — `landAfterLogin` is the whole decision.
+        const landings = loginLandingOf(context)
+        const landing = await landings.landAfterLogin()
+        window.location.href = await landings.landingUrl(landing)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
         setBusy(false)

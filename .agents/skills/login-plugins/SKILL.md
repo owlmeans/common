@@ -1,6 +1,6 @@
 ---
 name: login-plugins
-description: How OwlMeans login plugins work — the LoginPlugin contract and its seven stages, cascade selection by LoginEnv (embedded / surrogate), the surrogate window and its own route, the redirect and hand-back flows, the resume fast path, framed logout, preconditions, and wiring sign-in with useLogin/useLogout. Read before touching login wiring, an OIDC dispatcher, or sign-in from an embedded app.
+description: How OwlMeans login plugins work — the LoginPlugin contract and its seven stages, cascade selection by LoginEnv (embedded / surrogate), the surrogate window and its own route, the redirect and hand-back flows, why a sign-in surrogate never resumes a stored session, framed logout, preconditions, and wiring sign-in with useLogin/useLogout. Read before touching login wiring, an OIDC dispatcher, or sign-in from an embedded app.
 user-invocable: false
 metadata:
   scope: general
@@ -41,7 +41,15 @@ import { useLogin, useLogout } from '@owlmeans/client-iam'
 
 const [, onLogIn] = useLogin()
 const onLogOut = useLogout()
+// sign in FIRST, then land on one screen (a guarded one included):
+const [, onLogInThere] = useLogin(web.orders.alias)
 ```
+
+`useLogin(target)` never navigates to `target` before sign-in. The facade parks it
+(`LoginRequest.target` → `flowLandingOf(ctx).suspendLanding`, `client-auth`), the plugin's
+continuation goes to the dispatcher as always — after the popup's token in a framed app, client-side
+in an ordinary tab — and the dispatcher's landing below ends on the target, steps first. A session
+already held goes straight there.
 
 To add a mechanic, register a plugin at a higher priority in your own `makeContext` — the cascade
 picks it wherever its `match` is true and falls back to the shipped ones everywhere else.
@@ -68,7 +76,10 @@ interface LoginPlugin {
 `LoginOutcome` is what the caller acts on: `Handled` (done, do nothing), `Passed` (carry on with
 your own continuation), `Redirected` (the browser is leaving — do not render or navigate),
 `Gesture` (render a sign-in control; this cannot proceed without a fresh user gesture), `Orphaned`
-(authenticated, but with no channel back to the window that started it), `Failed`.
+(authenticated, but with no channel back to the window that started it), `Failed` (no token — the
+user closed the window, or the provider refused), `Blocked` (`window.open` returned `null`: the
+browser's own popup blocker refused the window, distinct from `Failed` because the remedy is
+different — see "Surfacing a blocked popup" below).
 
 Seven stages; `begin`, `authorize` and `complete` are required and the other four — `enter`,
 `resume`, `logout`, `logoutComplete` — are optional, **and an absent one is the ordinary-tab
@@ -96,15 +107,15 @@ non-DOM host supplies its own descriptor so the same plugins can be driven from 
 `surrogate` reads `window.name === LOGIN_SURROGATE_NAME` first and falls back to a `sessionStorage`
 marker. The marker exists because the flow leaves for the provider and comes back: browsers clear
 `window.name` whenever a top-level context goes cross-origin, so by the return leg the name alone
-would say "ordinary tab". `markSurrogate()` writes the marker only in a window whose `window.name`
-already matches, and must run on the surrogate's FIRST load, while that name is still there;
-`clearSurrogate()` removes it once the token has been handed back. Both tolerate storage being
-unavailable, which leaves the `window.name` check as the only evidence.
+would say "ordinary tab". `loginEnvHelper.markSurrogate()` writes the marker only in a window whose
+`window.name` already matches, and must run on the surrogate's FIRST load, while that name is still
+there; `loginEnvHelper.clearSurrogate()` removes it once the token has been handed back. Both
+tolerate storage being unavailable, which leaves the `window.name` check as the only evidence.
 
 ## The surrogate window has its own route
 
 `DISPATCHER_SURROGATE` (`@owlmeans/auth`) at `SURROGATE_PATH` = `/surrogate`
-(`@owlmeans/auth-common`), declared in `auth-common`'s shared `entrypoints` list and elevated to the
+(`@owlmeans/auth-common`), declared in `auth-common`'s shared protocol tree and bound to the
 surrogate screen in **`@owlmeans/web-client`'s own entrypoints**. Three properties, each
 load-bearing:
 
@@ -112,7 +123,7 @@ load-bearing:
   showing the application, with its navigation, inside itself is the defect the route exists to
   prevent.
 - **No `service`**, unlike `DISPATCHER` — nothing server-side ever addresses it.
-- **Elevated in `web-client`, not in a relying party** — the mechanic is "run the login route one
+- **Bound in `web-client`, not in a relying party** — the mechanic is "run the login route one
   window up and hand the result back", not an OIDC detail, and every web app already spreads that
   entrypoint list. That is what lets an application which is already deployed gain a working login
   window without editing a line.
@@ -133,13 +144,63 @@ replace it with a throw.
 | Situation | What happens |
 |---|---|
 | Ordinary tab, signing in | redirect plugin: `begin` prefers the caller's in-app `navigate`, else a full load |
-| Framed, signing in | surrogate plugin opens `/surrogate?intent=login&next=<dispatcher>` **synchronously**, then waits for a `LOGIN_TOKEN_MESSAGE` |
-| Surrogate, no session | forwards to `next` — the dispatcher owns the authorization round trip |
-| Surrogate, session already there | `resume` → hand the token back and close. **No provider round trip at all.** |
+| Framed, signing in | surrogate plugin opens `/surrogate?intent=login&next=<dispatcher>` **synchronously**, then waits for a `LOGIN_TOKEN_MESSAGE`, adopts the token and runs the caller's continuation — the in-app hop to the dispatcher, whose landing runs the steps and any parked target |
+| Surrogate, signing in | a session already on this origin is dropped and the window forwards to `next`, which owns the authorization round trip; only without `next` is a stored session handed back via `resume()` |
 | Framed, session already there | `resume` → `Passed`; the document simply uses it, and no window opens |
 | Framed, signing out | surrogate plugin opens the window FIRST, revokes locally **unconditionally**, then awaits `LOGIN_LOGOUT_MESSAGE` |
 
 ## Invariants — each one is a real failure when broken
+
+- **A completed sign-in lands on a pending step, then a suspended flow, before it lands on
+  `HOME`.** `loginLandingOf(ctx).landAfterLogin`/`.continueLogin` (`@owlmeans/client-auth/login`,
+  `src/login/land.ts`) are the WHOLE post-sign-in landing decision, and every plugin that completes
+  a sign-in with its own navigation goes through them rather than re-deriving the logic:
+  `DispatcherHOC`'s null/`DISPATCHER` branch (before `alias` is overwritten with `HOME`, or the two
+  cases cannot be told apart), the supervisor plugin (`web-auth`) and both Google plugins
+  (`web-oidc-rp`, `mui-oidc-rp` — the latter went straight to `HOME` before, with no
+  suspended-landing check at all). The order is: a registered `LoginStep` whose `pending(ctx)`
+  resolves `true` (a marketing-consent screen, say — registered via `login().registerStep(...)`,
+  bounded by `LOGIN_STEP_TIMEOUT` and failing OPEN on a throw or a timeout so a broken step never
+  blocks sign-in — **unless the step set `required: true`, in which case a throw or a timeout is
+  read as PENDING instead**: the one deliberate exception, for a step whose whole point is to gate
+  the landing on something the person must actually do — a Terms confirmation moved off the sign-in
+  screen (`confirmsTerms`, `loginTermsHelper.termsDeferred` — see `login-methods`) is the shipped
+  case, and a broken read there must show the step, never wave the confirmation through), else a
+  landing parked with `flowLandingOf(ctx).suspendFlow` or by `useLogin(target)`
+  (`@owlmeans/client-flow`, read back once via `.resumeSuspendedFlow`), else `HOME`. A step whose
+  `entrypoint` is not bound in this tree is skipped, never thrown. `landAfterLogin` also runs every
+  registered `LoginLandingHook` once per distinct authenticated token (tracked in `localStorage`
+  under `LOGIN_LANDED_STORAGE`, by the raw token string) before delegating to `continueLogin` for
+  the landing itself — each hook is independently bounded and swallowed, so one hook's failure never
+  blocks another's or the landing. **No step and no landing hook ever runs while `env().surrogate`
+  is true** — `landAfterLogin`/`continueLogin` both short-circuit to `{ alias: DISPATCHER }` before
+  touching either registry, because the surrogate popup has nothing of its own to collect and no
+  continuation to run (its own `DispatcherHOC` render has no `navigate() → HOME` at all). The
+  landing is one-shot and expiring, and a destination is always an entrypoint alias, never a URL.
+  `useContinueLogin()` is the hook a step's own screen calls once it is satisfied, to move the flow
+  on to the next step or the ordinary landing; `LandOptions.after` is how it skips past its own step
+  on re-entry.
+- **A sign-in surrogate never recycles the session it finds.** The surrogate window is first-party on
+  the application's own origin while the embedded opener's storage is partitioned by the top-level
+  site, so the popup can hold a session the server has already refused (record gone after a
+  restart, revoked, fenced) and the opener cannot reach that storage to clear it. `authenticated()`
+  reads storage and decodes an envelope; no client asks the server. So `SurrogateScreen`
+  (`web-client`) decides with `surrogateLoginStep(token, next)`: with a dispatcher address (`next`)
+  a stored session is dropped from this window's storage (the store record only — the web auth
+  service's clearing path would navigate) and the round trip runs afresh, which costs only redirects
+  while the provider still has a session; only without `next` is a stored session handed back via
+  `resume()`. Handing back a refused session closes the popup at once — a "blink" — and the opener
+  fails its next request exactly as before, every time.
+- **A dispatcher's exchange must report every way it can end.** `oidc.dispatch(...)` had no
+  `.catch`, so a provider refusal, an API 4xx or a missing stored request became an unhandled
+  rejection: an ordinary tab went blank and a surrogate window sat on "Signing you in…" forever
+  with nothing posted back — a login that completed and an application that never noticed. Every
+  chain that can reject in a dispatcher ends in a `catch` that sets an outcome the view understands.
+- **A session the server refuses is dropped, not kept.** `@owlmeans/api` clears the auth service
+  when a request that PRESENTED this context's bearer comes back 401. Without it the application
+  renders its signed-in tree over a credential that fails everything and offers "Log out" where the
+  control that would fix it should be. Narrow on purpose: a 401 from an authentication attempt
+  carries no bearer and must never sign anyone out.
 
 - **Open any window synchronously inside the user gesture.** `window.open` escapes the popup
   blocker only while the gesture is still being handled. `begin` and `logout` are therefore
@@ -170,15 +231,36 @@ replace it with a throw.
 - **Never start login from an effect.** Without a gesture the window is blocked; report `Gesture`
   and let the app render a control — which the sign-in screen already is, since every method button
   is a gesture.
-- **Adopt a token only through `adopt` / `adoptToken`, and drop one only through `revoke` /
-  `revokeToken`.** Each stores the record, decodes the envelope and sets the token in one place;
-  writing those by hand drifts. `revokeToken` passes `undefined`, not `null` — `undefined` is the
-  declared clearing value.
+- **Adopt a token only through `adopt` / `loginTokenOf(ctx).adoptToken`, and drop one only through
+  `revoke` / `.revokeToken`.** Each stores the record, decodes the envelope and sets the token in
+  one place; writing those by hand drifts. `revokeToken` passes `undefined`, not `null` —
+  `undefined` is the declared clearing value.
 - **`awaitSurrogate` is the one waiter.** Origin pin, `settled` latch, `closed` poll, teardown on
   every path. Login and logout share it; a second copy is how the two stopped agreeing before.
 - **A logout revokes locally even when the popup fails.** Blocked window, severed opener, user
   closing it early — none of them may leave the calling document signed in. A half-done logout is
   bad; one that did not happen at all is worse.
+- **The surrogate window is centered on the browser's own chrome, not this document's viewport.**
+  `web-client`'s `centeredPopupFeatures(width, height)` (exported from `@owlmeans/web-client`,
+  used by the surrogate plugin's two `window.open` calls) reads `screenLeft`/`screenTop` and
+  `outerWidth`/`outerHeight` — properties of the browser window itself, which stay readable from a
+  cross-origin iframe — rather than `innerWidth`/`innerHeight` or anything through `window.top`,
+  either of which would center on the IFRAME's rectangle or throw across the origin boundary.
+  Computed fresh per call, never a constant, because the browser window can move between attempts.
+
+## Surfacing a blocked popup
+
+A header "Log in"/"Log out" control (`useLogin`/`useLogout`) has no screen to render an inline error
+on — unlike the sign-in screen, which already shows `loginResumeHelper.loginAttemptError(outcome)`
+next to its buttons. So `LoginService.registerNotifier(notifier)` gives it a way to speak anyway:
+the facade (`begin`/`logout`) calls the registered `LoginNotifier` with the settled outcome after
+every resolution, and a UI package reacts to whichever ones it cares about. `web-panel`'s
+`appendLoginScreen` registers one that toasts (via `sonner`) on `LoginOutcome.Blocked` specifically
+— not on `Gesture`/`Failed`/etc., since a toast that fires on every outcome trains a user to ignore
+it. Unregistered, a notifier is silence, matching a non-DOM host and matching what the sign-in
+screen already has through its own inline rendering. This is also why repeatedly clicking a "Log
+in"/"Log out" header button while framed — the second click landing on an already-open surrogate —
+now reads as `Blocked` rather than a silently swallowed no-op.
 
 ## RP-initiated provider logout is deliberately out of scope
 
@@ -188,8 +270,9 @@ Two blockers, both verified, both recorded here so nobody re-derives them:
    `ensureClient` passes `redirectUris` alone. An `end_session_endpoint` hop would therefore be
    rejected, or would land the popup on the provider's own "signed out" page — which never posts
    back and never closes, so the window simply sits there. That is strictly worse than the bug.
-2. The IdP session is shared with the manager and every sibling project of the same organization.
-   "Log out of this preview" must not sign the user out of everything.
+2. The IdP session names the ACCOUNT, so it is shared by every application that signs in against
+   that provider in the browser, every sibling project included. "Log out of this
+   preview" must not sign the user out of everything.
 
 Local-only logout satisfies the requirement exactly: the two token copies are two IndexedDB records
 in two storage partitions of one origin, and clearing both is the whole of it. The seam stays —
@@ -218,4 +301,4 @@ the same gesture. It lives on `begin` rather than on `useLogin`, a screen, or a 
 ## Related
 
 `login-methods` (which methods are offered, and the screen) · `router-plugins` (the same
-host/cascade pattern) · `client-auth` · `web-client` · `web-oidc-rp`
+host/cascade pattern) · `client-auth` · `web-client` · `web-oidc-rp` · `client-flow` (the suspended landing)

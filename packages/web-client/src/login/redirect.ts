@@ -1,4 +1,4 @@
-import { revokeToken, LoginOutcome } from '@owlmeans/client-auth/login'
+import { LoginOutcome, loginTokenOf } from '@owlmeans/client-auth/login'
 import type { LoginContext, LoginPlugin } from '@owlmeans/client-auth/login'
 import { REDIRECT_LOGIN } from './consts.js'
 
@@ -40,7 +40,7 @@ export const makeRedirectLoginPlugin = (): LoginPlugin => ({
   // session you already have and carry on" — byte for byte what an ordinary tab has always done.
   // Implementing it here would be the one way to regress every unframed application.
 
-  logout: (ctx, request) => revokeToken(ctx as LoginContext).then(async () => {
+  logout: (ctx, request) => loginTokenOf(ctx as LoginContext).revokeToken().then(async () => {
     if (request.navigate != null) {
       await request.navigate()
 

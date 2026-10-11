@@ -31,6 +31,9 @@ For each area the work touched:
 2. Do its commands, paths, APIs, and behavior claims still hold after the change?
 3. Fix in place — rewrite the affected lines so they describe current behavior; never append a
    note about what this change did.
+4. Never record what the work taught in `AGENTS.md`: the rule goes to the governing skill, the
+   incident to `.agents/memory/`. `AGENTS.md` gains at most a new skill's one index line or a new
+   repo-wide mandatory rule in one line (`create-skill` → What may enter AGENTS.md).
 
 ## Shape of an update
 
@@ -85,6 +88,9 @@ and/or the `.agents/memory/` node for its facts — split along the
 memory-vs-skill boundary (`agent-memory` / `memory-promotion`).
 
 ## Completion gate
+
+Before reporting, run `sh .agents/scripts/agents-size.sh`; if `AGENTS.md` is over budget, move
+lines out to their skills first.
 
 The completion report must contain a Self-education table:
 

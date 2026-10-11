@@ -5,7 +5,7 @@ import { makePromptService } from '@owlmeans/llm'
 import { AgentRunStatus } from '@owlmeans/agent-common'
 import {
   createMemoryConversationStore, createMemoryEventStore, createMemoryGraphStore, makeAgentModel,
-  memoryEvents, memoryEventsPlugin, memoryGraph, memoryGraphPlugin, summarizePlugin,
+  makeMemoryEventsApi, makeMemoryGraphApi, memoryEventsPlugin, memoryGraphPlugin, summarizePlugin,
 } from '../src/index.js'
 import { scriptedModel } from './_tools/model.js'
 
@@ -125,7 +125,7 @@ describe('agent — the summarize plugin', () => {
 describe('agent — the subsystem memory graph', () => {
   test('merges into a node instead of replacing it', async () => {
     // Replacing would make every write a potential act of forgetting.
-    const graph = memoryGraph(createMemoryGraphStore())
+    const graph = makeMemoryGraphApi(createMemoryGraphStore())
     await graph.write('p1', 'auth', 'uses OIDC')
     await graph.write('p1', 'auth', 'tokens live 1h')
 
@@ -135,7 +135,7 @@ describe('agent — the subsystem memory graph', () => {
   })
 
   test('compacts a node that outgrows its budget', async () => {
-    const graph = memoryGraph(createMemoryGraphStore(), {
+    const graph = makeMemoryGraphApi(createMemoryGraphStore(), {
       maxNodeChars: 60,
       model: () => answering('the folded account'),
       run: {} as never,
@@ -149,7 +149,7 @@ describe('agent — the subsystem memory graph', () => {
   })
 
   test('accumulates links and never links a node to itself', async () => {
-    const graph = memoryGraph(createMemoryGraphStore())
+    const graph = makeMemoryGraphApi(createMemoryGraphStore())
     await graph.write('p1', 'auth', 'x', ['db'])
     await graph.write('p1', 'auth', 'y', ['api', 'auth'])
 
@@ -158,7 +158,7 @@ describe('agent — the subsystem memory graph', () => {
   })
 
   test('follows links to the requested depth and no further', async () => {
-    const graph = memoryGraph(createMemoryGraphStore())
+    const graph = makeMemoryGraphApi(createMemoryGraphStore())
     await graph.write('p1', 'auth', 'a', ['db'])
     await graph.write('p1', 'db', 'b', ['storage'])
     await graph.write('p1', 'storage', 'c')
@@ -170,7 +170,7 @@ describe('agent — the subsystem memory graph', () => {
   })
 
   test('survives a cycle in the graph', async () => {
-    const graph = memoryGraph(createMemoryGraphStore())
+    const graph = makeMemoryGraphApi(createMemoryGraphStore())
     await graph.write('p1', 'a', 'x', ['b'])
     await graph.write('p1', 'b', 'y', ['a'])
 
@@ -181,7 +181,7 @@ describe('agent — the subsystem memory graph', () => {
     // Bulk-injecting notes spends the context window on knowledge the run cannot tell apart from
     // what it needs; the agent pulls what it wants by name.
     const store = createMemoryGraphStore()
-    await memoryGraph(store).write('p1', 'auth', 'a long private note', ['db'])
+    await makeMemoryGraphApi(store).write('p1', 'auth', 'a long private note', ['db'])
 
     const scripted = scriptedModel([{ content: 'ok' }])
     await makeAgentModel({
@@ -212,7 +212,7 @@ describe('agent — the subsystem memory graph', () => {
 
 describe('agent — the event sequence memory', () => {
   test('keeps only the most recent entries', async () => {
-    const events = memoryEvents(createMemoryEventStore(), { limit: 2 })
+    const events = makeMemoryEventsApi(createMemoryEventStore(), { limit: 2 })
     for (const content of ['a', 'b', 'c']) {
       await events.append('p1', 'note', content)
     }
@@ -221,7 +221,7 @@ describe('agent — the event sequence memory', () => {
   })
 
   test('caps a single entry — an event is a line, not a document', async () => {
-    const events = memoryEvents(createMemoryEventStore(), { maxEventChars: 20 })
+    const events = makeMemoryEventsApi(createMemoryEventStore(), { maxEventChars: 20 })
     await events.append('p1', 'note', 'x'.repeat(500))
 
     expect((await events.read('p1', 1))[0].content.length).toBeLessThanOrEqual(20)
@@ -229,7 +229,7 @@ describe('agent — the event sequence memory', () => {
 
   test('injects the recent window into a run', async () => {
     const store = createMemoryEventStore()
-    await memoryEvents(store).append('p1', 'deploy', 'shipped version 3')
+    await makeMemoryEventsApi(store).append('p1', 'deploy', 'shipped version 3')
 
     const scripted = scriptedModel([{ content: 'ok' }])
     await makeAgentModel({

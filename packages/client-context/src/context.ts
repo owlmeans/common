@@ -1,9 +1,13 @@
 import { makeBasicContext } from '@owlmeans/context'
 import type { ClientConfig, ClientContext } from './types.js'
 import { appendApiClient } from '@owlmeans/api'
+import { appendLog } from '@owlmeans/log'
 
 export const makeClientContext = <C extends ClientConfig, T extends ClientContext<C>>(cfg: C): T => {
   const context = makeBasicContext(cfg) as T
+
+  // Before anything renders: a browser's `cfg.log` is a build-time value and is final here.
+  appendLog(context)
 
   context.serviceRoute = (alias, makeDefault) => {
     const service = context.cfg.services[alias]

@@ -1,15 +1,18 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import type { ConsentLinkerOptions } from '@owlmeans/consent'
+import type { WebConsentUtils } from './utils/types.js'
 
-/**
- * Class-name merge, owned by this package rather than reached through the `@` alias contract.
- *
- * The `@` contract exists so a consumer's own THEME and shadcn primitives win over a package's
- * copies. `cn` has neither in it — it is four lines of string merging — and requiring an alias for
- * it would mean every consumer of a consent dialog must first adopt an OwlMeans UI contract. One
- * of the sites that needs this dialog most is an Astro site with its own component library and no
- * such alias, so the dialog would simply fail to build there.
- */
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+export const createWebConsentUtils = (): WebConsentUtils => {
+  const cn = (...inputs: ClassValue[]): string => twMerge(clsx(inputs))
+
+  const disclosedDomains = (linker: ConsentLinkerOptions | undefined): string[] => {
+    const host = typeof location !== 'undefined' ? location.hostname : ''
+
+    return [...new Set([host, ...(linker?.domains ?? [])].filter(domain => domain !== ''))]
+  }
+
+  return { cn, disclosedDomains }
 }
+
+export const webConsentUtils = createWebConsentUtils()

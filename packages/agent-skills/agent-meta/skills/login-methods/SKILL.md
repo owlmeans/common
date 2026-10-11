@@ -22,7 +22,7 @@ app must open can only be opened inside one.
 | Piece | Package |
 |---|---|
 | `SecurityConfig.auth.login`, `BrandSettings`, the `OWLMEANS_*_URL` defaults | `@owlmeans/config` |
-| `AuthMethodMeta` on `AuthenticationPlugin`; `registerAuthPlugin` / `getAuthPlugin` / `listAuthPlugins` | `@owlmeans/client-auth/manager/plugins` |
+| `AuthMethodMeta` on `AuthenticationPlugin`; `authPluginHelper.registerAuthPlugin` / `.getAuthPlugin` / `.listAuthPlugins` | `@owlmeans/client-auth/manager/plugins` |
 | `LoginMethod`, the source registry, terms/credit resolvers, the screen slot, the plain fallback screen, the copy | `@owlmeans/client-auth/login` |
 | `useLoginMethods` — the headless model | `@owlmeans/client-panel/auth` |
 | The rendered shadcn screen and `appendLoginScreen` | `@owlmeans/web-panel` |
@@ -101,8 +101,8 @@ service, an advertised provider list — not a proxy for it.
 
 ## Where methods come from
 
-Sources, not a list. `registerMethodSource({ alias, list })` — globally, or per context through
-`login().registerMethodSource(...)`. Two ship:
+Sources, not a list. `loginMethodsHelper.registerMethodSource({ alias, list })` — globally, or per
+context through `login().registerMethodSource(...)`. Two ship:
 
 - `pluginMethodSource` — every registered plugin carrying `method`.
 - `oidcMethodSource` — `cfg.oidc.providers[]`, dropping every provider marked `internal` or
@@ -125,9 +125,9 @@ what a user sees:
 
 | Field | Read by |
 |---|---|
-| `methods` | `resolveLoginMethods` — an ordered allow-list, which is also the order |
-| `overrides` | `resolveLoginMethods` — per-id `enabled` / `hidden` / label / icon / order / emphasis / params |
-| `terms` | `resolveTerms`, through the screen and `useLoginMethods` |
+| `methods` | `loginMethodsHelper.resolveLoginMethods` — an ordered allow-list, which is also the order |
+| `overrides` | `loginMethodsHelper.resolveLoginMethods` — per-id `enabled` / `hidden` / label / icon / order / emphasis / params |
+| `terms` | `loginTermsHelper.resolveTerms`, through the screen and `useLoginMethods` |
 | `credit` | `resolveCredit`, the same way |
 
 `enabled`, `secretKey`, `autoSelectSingle`, `title` and `subtitle` are declared and read nowhere.
@@ -152,10 +152,10 @@ target sets it for itself — so gating on it hands an operator login to every o
 A **dispatcher** has such a continuation. A **screen** does not: the user clicked, the document did
 not move, and if nothing renders the button is indistinguishable from a broken one.
 
-`loginAttemptError(outcome)` (`@owlmeans/client-auth/login`) is the single reading of a finished
-attempt — `Passed`/`Failed` → `login.error.failed`, `Gesture` → `login.error.blocked`, everything
-else → null. A screen renders a thrown `model.error` first (it names the fault) and this second.
-A `start` that cannot proceed should **throw**, not return `Passed`.
+`loginResumeHelper.loginAttemptError(outcome)` (`@owlmeans/client-auth/login`) is the single reading
+of a finished attempt — `Passed`/`Failed` → `login.error.failed`, `Gesture` → `login.error.blocked`,
+everything else → null. A screen renders a thrown `model.error` first (it names the fault) and this
+second. A `start` that cannot proceed should **throw**, not return `Passed`.
 
 This is not hypothetical: the generic OIDC method returned `Passed` whenever it could not build an
 authorization URL, and a generated application's only sign-in button did nothing, reported nothing,
@@ -197,8 +197,78 @@ screen is on the primary method button.
 (Playwright honours `aria-disabled` in its actionability check, so a test that clicks a blocked
 control needs `{ force: true }` — that is the control behaving as designed, not a test workaround.)
 
-Acceptance is recorded in `localStorage` against a version derived from the resolved URLs, so
-changing a document re-asks and a same-origin surrogate window does not ask twice.
+Acceptance is recorded in `localStorage` against a version derived from
+`loginTermsHelper.resolveTerms`'s digest (`@owlmeans/client-auth/login`), so changing a document —
+or its revision date, or adding one — re-asks, and a same-origin surrogate window does not ask
+twice. With NO billing/product/custom documents and no revisions configured, that digest is
+byte-identical to what it was before those fields existed, so no existing user already recorded as
+accepted is asked again.
+
+**Privacy is a separate, non-consented NOTICE — never inside the checkbox's `<label>`.**
+`resolveTerms` splits what a config resolves into two lists: `documents` (what the checkbox actually
+agrees to — `terms`, then `billing`/`product` when configured, then any custom `documents` entries,
+in that order) and `notices` (what is merely disclosed — `privacy`, plus `cookies` only when the
+config named a cookie policy explicitly OR when terms/privacy/cookies are ALL still the OwlMeans
+defaults; an app that customised terms and privacy but left cookies unset never silently links
+owlmeans.com's cookie policy as its own).
+`loginTermsHelper.termsSentence(template, resolved, locale, resolveLabel)` interpolates a translated
+sentence around either list — `{{documents}}`/`{{notices}}`, or the legacy
+`{{terms}}`/`{{privacy}}`/`{{cookies}}` placeholders for an older template string — via
+`Intl.ListFormat` when available, falling back to a plain join. `web-panel`'s `LoginTerms` renders
+the notice as its own `[data-login-privacy]` paragraph, a SIBLING of the checkbox's `<label>`, never
+nested inside it. **`[data-login-terms]` marks exactly one element unless the confirmation is
+deferred to a step (below), in which case it marks NONE** — an e2e suite elsewhere in the platform
+treats it as a strict, at-most-one-match locator, so a new document must never add a second checkbox
+on the sign-in screen itself.
+
+### Deferring the confirmation to a post-login step
+
+`loginTermsHelper.termsDeferred(ctx)` (`@owlmeans/client-auth/login`) is true once a registered AND
+BOUND `LoginStep` declares `confirmsTerms: true` (`ctx.hasEntrypoint(step.entrypoint)` — a step
+whose screen is not bound in this tree does not count, fail-closed). While it holds:
+
+- the sign-in screen (`FallbackLoginScreen`, `web-panel`'s `LoginScreen`) renders **no**
+  `[data-login-terms]` checkbox and blocks **no** method — `blocked` is computed with an explicit
+  `!deferred` term in both;
+- `[data-login-privacy]` still renders, unconditionally — a disclosure was never something the
+  removed checkbox consented to, so removing the checkbox does not remove the notice; `web-panel`
+  splits this into its own exported `LoginPrivacyNotice` for exactly this reason;
+- `[data-login-revised]` does NOT render here either — that date belongs to the DOCUMENT the
+  checkbox agreed to, and there is no checkbox on this screen to attach it to.
+
+`@owlmeans/web-marketing-consent`'s post-sign-in step is the one shipped consumer
+(`appendMarketingConsent({ terms: 'step' })` — see that package's own skill for the step's side:
+the Terms box that appears there instead, and why it is STRICT rather than fail-open). A
+`LoginStep` that sets `confirmsTerms` should also set `required: true` (see `login-plugins`) — the
+whole point of moving the checkbox off this screen is that the destination never waves it through
+unconfirmed, including when its own status read is broken.
+
+`loginTermsHelper.termsLabelResolver(translate, locale)` and
+`loginTermsHelper.termsAcceptanceOf(resolved, locale?)` (also `@owlmeans/client-auth/login`) are the
+ONE label resolver and ONE wire-shape builder every renderer/recorder of a terms sentence now shares
+— `FallbackLoginScreen`, `web-panel`'s `LoginTerms`/`LoginPrivacyNotice`, and
+`web-marketing-consent`'s own Terms box and `termsRecorder` all import them rather than keeping a
+second hand-copied `DEFAULT_LABEL`/`resolveLabelFor`.
+
+**`billing`, `product`, custom `documents`, per-document `revisions`, `showRevision` and `localizedHrefs`** are
+`LoginTermsConfig` fields added by TypeScript module augmentation in
+`@owlmeans/client-auth/login/terms-config.ts` — never by editing `@owlmeans/config` itself, whose
+~85 dependents all sit in one release closure. Importing anything from `@owlmeans/client-auth/login`
+pulls the augmentation in; a config literal built in a file that imports nothing from it needs
+`import type {} from '@owlmeans/client-auth/login'` to type-check. `product.name` is carried as
+`ResolvedTermsDocument.params.product` rather than baked into a label string, so
+`login.terms.product` (`"{{product}} Product Terms"`) stays one translatable key; a custom
+document's `label` may be a plain string or a locale map, resolved by the RENDERER (never by
+`resolveTerms`, which stays locale-free) against the current language, falling back to the map's
+first value. `showRevision` surfaces the latest `revisedAt` among `documents` as
+`[data-login-revised]`, off by default.
+
+`localizedHrefs` is an opt-in document/notice-key → locale → published-href map. `resolveTerms`
+keeps each canonical `href` and attaches the matching `hrefMap`; these translations do not enter
+the digest or change revisions. `loginTermsHelper.termsHrefOf(doc, locale?)` selects a configured
+exact locale, then its base language, then the canonical href. Both `termsSentence` (including legacy
+placeholders) and `termsAcceptanceOf` use it with the current UI locale, so recorded document/notice
+URLs match the links shown. A missing map leaves customer/generated-app behavior unchanged.
 
 The control is a **native `<input type="checkbox">`** inside the existing `label` primitive:
 `web-panel` ships no `checkbox` primitive, and forcing every consumer to vendor one plus its Radix
@@ -258,12 +328,19 @@ against the window.
 ## i18n
 
 Registered from `@owlmeans/client-auth` into the existing `auth` library resource under a `login`
-root, in all seven languages the rule covers — `en`, `pl`, `ru`, `be`, `uk`, `es`, `de`. `_addI18n` **pushes**, so this coexists with
-`web-client`'s own `auth` registration and the two merge by tier and priority.
+root, in all EIGHT languages this bundle ships — `en`, `pl`, `ru`, `be`, `uk`, `es`, `de`, `fr` (one
+more than the seven most other library bundles in this repo cover; `client-auth/tests/i18n.spec.ts`
+pins the set). `_addI18n` **pushes**, so this coexists with `web-client`'s own `auth` registration
+and the two merge by tier and priority.
 
-The agreement sentence is ONE translated string carrying `{{terms}}` / `{{privacy}}` placeholders,
-split at render time to inject anchors — word order stays translatable, and nothing but a string
-ever comes out of a translation.
+`login.terms.accept` (checkbox) and `login.terms.notice` (the separate privacy disclosure) are each
+ONE translated string carrying `{{documents}}`/`{{notices}}` — `loginTermsHelper.termsSentence` also
+still honours the legacy `{{terms}}`/`{{privacy}}`/`{{cookies}}` placeholders in an older template.
+Word order stays translatable, and nothing but a string, plus an href, ever comes out of a
+translation. `login.terms.required` no longer names the Privacy Policy specifically (`{{documents}}`
+only) — it is what a BLOCKED checkbox reports, and privacy was never something the checkbox agreed
+to. `login.terms.agreement` — the old, single-sentence `{{terms}}`/`{{privacy}}` key — is gone:
+nothing in this package reads it any more.
 
 `LoginScreen` takes `translate` as a prop and reaches for no i18n context — it still calls
 `useLoginMethods`, which uses the client context for the config, the login service and navigation.
@@ -277,13 +354,13 @@ ever comes out of a translation.
 3. ?token=  → provideToken(...)
 4. ?code=   → oidc.dispatch → login().complete → Handled | Orphaned | navigate()
 5. ?method= → start that method             ← the surrogate's re-entry
-6. signed in already → login().resume(token) → resumeAction(...)
+6. signed in already → login().resume(token) → loginResumeHelper.resumeAction(...)
 7. otherwise → render login().screen() ?? FallbackLoginScreen. START NOTHING.
 ```
 
-`resumeAction` (`@owlmeans/client-auth/login`) is the one reading of a resume outcome, exported as
-a pure function because three dispatchers share it — `web-client`, `web-oidc-rp` and
-`mui-oidc-rp`, the last being a near-verbatim copy that has drifted before.
+`loginResumeHelper.resumeAction` (`@owlmeans/client-auth/login`) is the one reading of a resume
+outcome, exported as a pure helper member because three dispatchers share it — `web-client`,
+`web-oidc-rp` and `mui-oidc-rp`, the last being a near-verbatim copy that has drifted before.
 
 ## Related
 

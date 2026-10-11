@@ -7,7 +7,7 @@ metadata:
 
 # Using `@owlmeans/mailer-smtp`
 
-**Install:** `"@owlmeans/mailer-smtp": "^0.1.18-rc.11"` in `dependencies` — it depends on
+**Install:** `"@owlmeans/mailer-smtp": "^0.1.18-rc.44"` in `dependencies` — it depends on
 `nodemailer` itself, so a consumer declares nothing extra
 
 SMTP transport implementing `@owlmeans/mailer`'s `MailerService`, built on `nodemailer` (the
@@ -23,7 +23,7 @@ Mailgun, SES, Postmark all expose SMTP.
 | `SmtpSettings` / `SmtpConfig` | interface | `cfg.smtp` block |
 | `SMTP_MAILER` | const | `'smtp-mailer'` |
 | `SMTP_DEFAULT_PORT` | const | `465` |
-| `toTransportOptions` / `toMailOptions` | fn | Pure translations into nodemailer's shapes; test these, not the socket |
+| `makeSmtpSettingsModel(smtp).toTransportOptions()` / `.toMailOptions(message)` | model | Pure translations into nodemailer's shapes; test these, not the socket |
 
 ## Config shape
 
@@ -61,20 +61,19 @@ context.registerService(makeSmtpMailerService(MAILER_SERVICE))
 ```
 
 Register under `MAILER_SERVICE` so platform code — `OtpService` above all — resolves the mailer
-without knowing the transport. Select between transports on config, not on a build flag:
+without knowing the transport. A local-only console transport is an explicit mode; it is never a
+production fallback:
 
 ```ts
-context.registerService(
-  cfg.smtp?.host != null && cfg.smtp.host !== ''
-    ? makeSmtpMailerService(MAILER_SERVICE)
-    : makeConsoleMailerService(MAILER_SERVICE)
-)
+if (cfg.iamMailer.mode !== 'smtp') throw new SyntaxError('production requires smtp mode')
+context.registerService(makeSmtpMailerService(MAILER_SERVICE, {
+  authenticated: true,
+  verifyOnInit: true,
+}))
 ```
 
-That guard is mandatory, not stylistic: with `cfg.smtp.host` unset or empty this service throws
-`SyntaxError: <alias>: cfg.smtp.host is not configured` out of **every** `send()` and `verify()`.
-Without the guard an environment that never configured SMTP registers it anyway and fails at the
-first login code instead of falling back to the console transport.
+Authenticated SMTP requires a host, from address, user and password; `verifyOnInit` makes an
+unusable relay fail context startup rather than exposing a later login code through a console log.
 
 ## Ports and TLS
 
@@ -96,17 +95,25 @@ first login code instead of falling back to the console transport.
   `cfg.smtp.host` is the other failure and it is a `SyntaxError`, raised before any socket.
 - `verify()` authenticates without submitting a message — right for health checks; not proof that
   the relay accepts *a message* from your sender.
-- Never register this in unit tests — use `makeConsoleMailerService`. `toMailOptions` plus
-  nodemailer's own `jsonTransport` cover envelope assertions without a socket.
+- Production mail selection must be explicit and use `authenticated: true, verifyOnInit: true`.
+  Console mail is for local fixtures/development and must never be selected because SMTP settings
+  were absent or malformed.
+- `toMailOptions` maps `MailMessage.attachments` to nodemailer's `attachments` as
+  `{ filename, content: Buffer, contentType? }` — the bytes already decoded by
+  `mailAttachmentHelper.bytesOf`, so no `encoding` is left for nodemailer to guess; absent or empty
+  = no `attachments` key.
+- Never register this in unit tests — use `makeConsoleMailerService`.
+  `makeSmtpSettingsModel(smtp).toMailOptions` plus nodemailer's own `jsonTransport` cover envelope
+  assertions without a socket.
 - **Never authenticate with a deliberately wrong password against a live relay.** Repeated failed
   logins trip the provider's brute-force protection and lock the shared credential for every
   environment using it — Mailgun then answers `535 Authentication failed` to the correct password
   too, and the credential has to be reset in its dashboard. Provoke transport errors with an
   unreachable socket (`host: '127.0.0.1', port: '1'`) instead.
-- The live spec (`tests/send.spec.ts`) is gated by `smtpGate()` from `@owlmeans/test-integration` on
-  `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_TEST_TO` (with `SMTP_PORT` and
-  `SMTP_SECURE` optional), and **delivers real mail** when the gate is open. Empty variables = skip
-  with a printed reason, never a failure.
+- The live spec (`tests/send.spec.ts`) is gated by `gateHelper.smtpGate()` from
+  `@owlmeans/test-integration` on `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` /
+  `SMTP_TEST_TO` (with `SMTP_PORT` and `SMTP_SECURE` optional), and **delivers real mail** when the
+  gate is open. Empty variables = skip with a printed reason, never a failure.
 - Rollup-bundling for a container image works with the default `preferBuiltins: true` node-resolve
   setup; nodemailer's dynamic requires do not need to be externalized.
 

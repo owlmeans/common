@@ -1,101 +1,51 @@
 # @owlmeans/server-job
 
-The read side of a queue, as entrypoints an application elevates: list, get, cancel and a socket
-that pushes lifecycle events. Jobs themselves are enqueued and processed through
-[`@owlmeans/queue`](../queue) and its driver — nothing here produces or consumes work.
-
-## Overview
-
-- `declareJobEntrypoints(root, opts?)` — the four declarations, for the app's SHARED package
-- `serveJobEntrypoints(entrypoints, root, opts?)` — elevate them with this package's handlers
-- `listJobs` / `getJob` / `cancelJob` / `watchJobs` — the handlers, when an app elevates by hand
-- A caller sees only the jobs it owns; the escape hatch is an option, not a hardcoded permission
-
-## Installation
-
-```bash
-bun add @owlmeans/server-job@^0.1.18-rc.0
-```
-
-## Usage
-
-Declare the group once, in the package both halves import:
+Server bridge from technical queue records to the sanitized `@owlmeans/job` domain contract.
+Every binding requires an application-owned `JobExposurePolicy`; there is no permissive default.
 
 ```typescript
-import { declareJobEntrypoints } from '@owlmeans/server-job'
+import { declareJobEntrypoints } from '@owlmeans/job'
+import { jobViewOf, serveJobEntrypoints } from '@owlmeans/server-job'
 
-export const REPORTS = 'reports'
-export const entrypoints = [
-  ...declareJobEntrypoints(REPORTS, { path: '/reports/jobs', parent: app.api.base }),
-]
-```
-
-Serve it in the API process, alongside the queue driver it already wires:
-
-```typescript
-import { serveJobEntrypoints } from '@owlmeans/server-job'
-import { appendRedisQueue } from '@owlmeans/redis-queue'
-
-appendRedisQueue(context)
-serveJobEntrypoints(entrypoints, REPORTS, { queue: REPORT_QUEUE })
-context.registerEntrypoints(entrypoints)
-```
-
-Enqueue with the owner in the payload — that is what every read here filters on:
-
-```typescript
-await context.jobs<ReportJob, ReportResult>(REPORT_QUEUE).create({
-  name: 'report:build',
-  data: { owner: req.auth!.profileId ?? req.auth!.userId, target: id },
+export const reportJobs = declareJobEntrypoints('report-jobs', {
+  path: '/reports/jobs', parent: api.reports.base,
 })
-```
 
-And report progress from the processor, so there is something to watch:
-
-```typescript
-worker.process(REPORT_QUEUE, 'report:build', async job => {
-  for (const [done, page] of pages.entries()) {
-    await job.touch()
-    await job.progress({ done, total: pages.length })
-    await render(page)
-  }
-  return { url }
-})
-```
-
-## Ownership
-
-`data.owner` (rename it with `ownerField`) is compared against `auth.profileId ?? auth.userId`.
-A job that exists but belongs to someone else answers exactly as an absent one: `UnknownJob`.
-
-An operator console passes a predicate instead of a permission name:
-
-```typescript
-serveJobEntrypoints(entrypoints, REPORTS, {
+export const bindings = serveJobEntrypoints(reportJobs, {
   queue: REPORT_QUEUE,
-  admin: req => req.auth?.scopes?.includes('ops') === true,
+  policy: {
+    audience: req => ({ userId: requireUserId(req) }),
+    where: (audience, query) => ({
+      $and: [
+        { 'data.ownerId': audience.userId },
+        ...(query.kind == null ? [] : [{ name: internalNameOf(query.kind) }]),
+      ],
+    }),
+    lookup: async (id, audience, resource) =>
+      resource.load({ publicId: id, 'data.ownerId': audience.userId }),
+    map: record => jobViewOf(record, {
+      id: publicIdOf(record),
+      kind: publicKindOf(record),
+      summary: publicSummaryOf(record),
+      metadata: allowlistedMetadataOf(record),
+      result: publicResultOf(record),
+    }),
+    cancel: (record, audience) => ownerIdOf(record) === audience.userId,
+  },
 })
 ```
 
-## The one gotcha
+The policy is the security boundary:
 
-A `JobEvent` carries no owner, so `watchJobs` attributes each frame by reading its job back. A
-queue configured with `removeOnComplete` has nothing left to read when the completion arrives, and
-an unattributable frame is dropped rather than fanned out. Leave completed jobs in place on any
-queue that is watched.
+- `audience` derives authenticated application scope.
+- `where` translates the closed public query into scoped technical criteria.
+- `lookup` resolves an opaque public id inside that scope.
+- `map` allowlists fields and returns only `JobView`; `jobViewOf` bounds and sanitizes JSON.
+- `cancel` is optional and cancellation is denied unless it explicitly approves.
 
-## Depends On
-
-- [`@owlmeans/queue`](../queue) — `ctx.jobs(queue)`, `JobRecord`, `JobEvent`, `UnknownJob`
-- [`@owlmeans/server-api`](../server-api) — `handleRequest` / `handleParams`
-- [`@owlmeans/server-socket`](../server-socket) — `handleConnection`
-- [`@owlmeans/server-entrypoint`](../server-entrypoint) — `elevate`
-- [`@owlmeans/auth-common`](../auth-common) — `DEFAULT_GUARD`
-
-## Related
-
-- [`@owlmeans/client-job`](../client-job) — the browser half that addresses these entrypoints
-- [`@owlmeans/web-panel`](../web-panel) `./jobs` — `JobProgress`, `JobStatus`, `useJobToasts`
+List, get, cancel and watch all apply the same policy. Watch frames are reloaded inside the
+audience scope and emitted as `JobViewEvent`; an unattributable event is dropped. Keep completed
+records long enough for watched completion events to be projected.
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -105,7 +55,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.12
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

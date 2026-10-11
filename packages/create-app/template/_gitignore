@@ -6,6 +6,11 @@ dist
 bun.lock
 bun.lockb
 
+# Developer-local environment (LOG_LEVEL, VITE_LOG_LEVEL, …)
+.env
+.env.local
+.env.*.local
+
 # Generated Claude Code skill symlinks (canonical skills live in .agents/skills/)
 .claude/skills/*
 !.claude/skills/.gitkeep

@@ -1,19 +1,17 @@
 import { useEffect, useState, type FC } from 'react'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { useStoreList } from '@owlmeans/client'
 import { session, type SessionItem } from '__APP_SLUG__-common'
-import { SESSION_STATE, useContext } from '../context.js'
+import { useContext } from '../context.js'
+import { SESSION_ID_KEY, SESSION_STATE } from '../consts.js'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 
-const SID_KEY = '__APP_SLUG__-sid'
-
 const sessionId = (): string => {
-  let sid = localStorage.getItem(SID_KEY)
+  let sid = localStorage.getItem(SESSION_ID_KEY)
   if (sid == null) {
     sid = crypto.randomUUID()
-    localStorage.setItem(SID_KEY, sid)
+    localStorage.setItem(SESSION_ID_KEY, sid)
   }
   return sid
 }
@@ -39,7 +37,7 @@ export const SessionScreen: FC = () => {
   // leave the store too, and one write wakes the subscribers once instead of once per record.
   const load = async () => {
     const data = await ctx
-      .entrypoint<ClientEntrypoint<SessionItem[]>>(session.list)
+      .entrypoint(session.list)
       .call({ params: { sid } })
     await store.replace(data ?? [])
   }
@@ -51,7 +49,7 @@ export const SessionScreen: FC = () => {
     setBusy(true)
     try {
       const item = await ctx
-        .entrypoint<ClientEntrypoint<SessionItem>>(session.add)
+        .entrypoint(session.add)
         .call({ params: { sid }, body: { text } })
       setText('')
       if (item != null) {
@@ -64,7 +62,7 @@ export const SessionScreen: FC = () => {
 
   const remove = async (id: string) => {
     await ctx
-      .entrypoint<ClientEntrypoint<{ removed: boolean }>>(session.remove)
+      .entrypoint(session.remove)
       .call({ params: { sid, id } })
     await store.delete(id)
   }

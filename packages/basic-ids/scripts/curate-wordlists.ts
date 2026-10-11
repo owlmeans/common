@@ -19,6 +19,27 @@
  * - stopwords-en — github.com/stopwords-iso/stopwords-en.
  * - LDNOOBW `en` — github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words.
  */
+/**
+ * Regenerate `src/wordlists/consts.ts` (`WORDLIST_A` and `WORDLIST_B`).
+ *
+ * Run: `bun run scripts/curate-wordlists.ts` (needs network access; writes the constants file).
+ *
+ * The lists are an editorial asset, not a random sample: every word ends up in hostnames, OIDC
+ * client ids and support conversations, so the pipeline below screens three ways — a profanity
+ * list, a substring screen for words that read badly inside a hostname even when the word itself
+ * is innocent, and a frequency floor so nothing unrecognisable survives. Proper nouns are dropped
+ * (Moby capitalises them) because a place or brand name makes a poor generic slug, and stopwords
+ * are dropped because `not-for` is not a name.
+ *
+ * Sources (all public, fetched at run time so no corpus is vendored into the repo):
+ * - Moby part-of-speech list — github.com/en-wl/wordlist, `pos/part-of-speech.txt`.
+ *   Tab-separated `word<TAB>|CODES`; N noun, V/t/i verb, A adjective, v adverb.
+ * - google-10000-english (USA) — github.com/first20hours/google-10000-english. Primary frequency
+ *   ranking; the 50k list below only orders what google's 10k does not cover.
+ * - FrequencyWords en_50k — github.com/hermitdave/FrequencyWords.
+ * - stopwords-en — github.com/stopwords-iso/stopwords-en.
+ * - LDNOOBW `en` — github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words.
+ */
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { WORDLIST_SIZE } from '../src/consts.js'
@@ -131,12 +152,17 @@ const curate = async () => {
     }
   }
 
-  emit('list-a', 'WORDLIST_A', 'Descriptive half of a word slug — adjectives and adverbs.', listA)
-  emit('list-b', 'WORDLIST_B', 'Subject half of a word slug — verbs and nouns.', listB)
+  writeFileSync(
+    resolve(import.meta.dir, '..', 'src', 'wordlists', 'consts.ts'),
+    [
+      emit('WORDLIST_A', 'Descriptive half of a word slug — adjectives and adverbs.', listA),
+      emit('WORDLIST_B', 'Subject half of a word slug — verbs and nouns.', listB),
+    ].join('\n')
+  )
   console.log(`Wrote ${listA.length} + ${listB.length} words.`)
 }
 
-const emit = (file: string, name: string, summary: string, words: string[]) => {
+const emit = (name: string, summary: string, words: string[]): string => {
   const rows: string[] = []
   for (let index = 0; index < words.length; index += 8) {
     rows.push('  ' + words.slice(index, index + 8).map(word => `'${word}'`).join(', ') + ',')
@@ -156,7 +182,7 @@ export const ${name}: string[] = [
 ${rows.join('\n')}
 ]
 `
-  writeFileSync(resolve(import.meta.dir, '..', 'src', 'wordlists', `${file}.ts`), body)
+  return body
 }
 
 await curate()

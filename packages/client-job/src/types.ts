@@ -1,6 +1,6 @@
 import type { ClientConfig } from '@owlmeans/client-context'
 import type { ClientContext } from '@owlmeans/client'
-import type { JobRecord } from '@owlmeans/queue'
+import type { JobListQuery, JobView } from '@owlmeans/job'
 import type { Criteria, Sort } from '@owlmeans/resource'
 import type { StateAlias } from '@owlmeans/state'
 
@@ -8,27 +8,17 @@ export interface Config extends ClientConfig { }
 
 export interface Context<C extends Config = Config> extends ClientContext<C> { }
 
-/** The alias every entrypoint of one job group answers under. */
-export interface JobEntrypointAliases {
-  base: string
-  list: string
-  get: string
-  cancel: string
-  watch: string
-}
-
-export interface UseJobsOptions<D = unknown, R = unknown> {
-  sort?: Sort<JobRecord<D, R>>[]
+export interface UseJobsOptions {
+  sort?: Sort<JobView>[]
   /** Which store to read; the package's own when omitted. */
-  resource?: StateAlias<JobRecord>
+  resource?: StateAlias<JobView>
 }
 
 export interface JobFeedOptions {
   /** The alias root the group was declared under. */
   root?: string
-  resource?: StateAlias<JobRecord>
-  /** What the seeding list call asks for — `state`, `name`, `page`, `size`. */
-  query?: Record<string, string | number | undefined>
+  resource?: StateAlias<JobView>
+  query?: JobListQuery
 }
 
 /**
@@ -43,4 +33,4 @@ export interface JobFeed {
   error: Error | null
 }
 
-export type JobFilter<D = unknown, R = unknown> = Criteria<JobRecord<D, R>>
+export type JobFilter = Criteria<JobView>

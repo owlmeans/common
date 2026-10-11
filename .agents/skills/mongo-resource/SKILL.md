@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/mongo-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/mongo-resource": "^0.1.18-rc.11"` in `dependencies` (peers `mongodb`, `ajv`)
+**Install:** `"@owlmeans/mongo-resource": "^0.1.18-rc.44"` in `dependencies` (peers `mongodb`, `ajv`)
 
 The Mongo counterpart of [[postgres-resource]]. A collection has no structure of its own, so
 here the resource layer owns the *validator* (`$jsonSchema` from the AJV schema), the indexes,
@@ -22,11 +22,11 @@ reference**.
 | `MongoResource<T>` | `Resource<T>` + `collection`, `db()`/`client()`, `index`/`indexes`, `reference`/`references`, `migration`/`migrations` (the shared `MigratableResource` capability), `lock`/`unlock`, `getDefaults`, and the `dbAlias`/`serviceAlias` it was registered against. Anything naming a collection on another resource's behalf reads *that* resource's `dbAlias`, since two resources in one database can carry different `resourcePrefix`es. |
 | `MongoDbService`, `MongoTx` | Service contract implemented by `@owlmeans/mongo`; the façade handed to migrations (`db`, `collection`, `use(alias)`, `ref(alias)`). |
 | `MongoReference`, `MongoRefOptions` | A declared ObjectId reference and the `reference()` options (`resource`, `noIndex`). |
-| `marshalReference`, `demarshalReference`, `demarshalRefs`, `marshalCriteria`, `identityCriteria`, `isObjectIdHex` | The conversion layer — reuse these wherever raw driver access bypasses the resource. |
-| `criteriaToFilter`, `sortToMongo` | `Criteria<T>` → a mongo filter (references converted, every shared operator rewritten into a mongo expression) and `Sort<T>` → a mongo sort spec. |
-| `convertReferenceField`, `makeRefMigration`, `reconcileReferences`, `refMigrationName` | The system reference migration's machinery. |
+| `mongoRefHelper` — `marshalReference`, `demarshalReference`, `demarshalRefs`, `marshalCriteria`, `identityCriteria`, `isObjectIdHex` | The conversion layer — reuse these wherever raw driver access bypasses the resource. |
+| `mongoCriteriaHelper` — `criteriaToFilter`, `sortToMongo` | `Criteria<T>` → a mongo filter (references converted, every shared operator rewritten into a mongo expression) and `Sort<T>` → a mongo sort spec. |
+| `makeRefMigration`; `mongoRefHelper` — `convertReferenceField`, `reconcileReferences`, `refMigrationName` | The system reference migration's machinery. |
 | `makeMongoTx`, `makeMongoMigrationStore` | The migration store (ledger) implementation. |
-| `getDeclaration`, `resetDeclarations`, `MongoDeclaration` | Module-scope migration/reference declarations, keyed by alias; `resetDeclarations(alias?)` is the testing seam. |
+| `mongoDeclarationHelper` — `getDeclaration`, `resetDeclarations`; `MongoDeclaration` | Module-scope migration/reference declarations, keyed by alias; `mongoDeclarationHelper.resetDeclarations(alias?)` is the testing seam. |
 | `getSchemaSecureFeilds` | The `secure: true` schema properties `lock`/`unlock` operate on when the caller names no fields. |
 | `DEFAULT_DB_ALIAS`, `DEFAULT_PAGE_SIZE`, `DEF_MIGRATIONS_COLLECTION`, `DEF_MIGRATION_WAIT`, `DEF_MIGRATION_POLL`, `MONGO_DUPLICATE_KEY` | Constants. |
 
@@ -91,8 +91,8 @@ drift (restored backup, legacy writer), logging a warning. Both paths run with
 do).
 
 The `@1` in the name is the body's version. The body is shared by every field, so its checksum
-never distinguishes them — **any semantic edit to `convertReferenceField` must bump the
-version suffix** in `refMigrationName`, or every already-applied ledger raises
+never distinguishes them — **any semantic edit to `mongoRefHelper.convertReferenceField` must
+bump the version suffix** in `refMigrationName`, or every already-applied ledger raises
 `MigrationConflict` at boot.
 
 ### What is NOT a reference — do not declare these
@@ -113,9 +113,9 @@ trace what the writer actually assigns.
 
 ### Raw driver access bypasses all of this
 
-`resource.collection.find/aggregate/findOneAndUpdate` see `ObjectId`s. Marshal filter values
-with `marshalReference(field, value)` and convert read-back documents' reference fields (and
-`_id`) to strings by hand — or better, stay on the resource API.
+`resource.collection.find/aggregate/findOneAndUpdate` see `ObjectId`s. Marshal filter values with
+`mongoRefHelper.marshalReference(field, value)` and convert read-back documents' reference fields
+(and `_id`) to strings by hand — or better, stay on the resource API.
 
 ## Migrations
 
@@ -132,9 +132,14 @@ with `marshalReference(field, value)` and convert read-back documents' reference
   after earlier collections were already rewritten, leaving the database half-migrated and the boot
   aborting on every restart. Drop the stale index by name in the body first (guard on the key spec
   so the drop is idempotent) and let reconciliation recreate it from the declaration.
-- **Index reconciliation matches by name and recreates on any difference.** A live index whose key
-  pattern or options differ from the declaration is dropped and created again, so a renamed field
-  does converge — after `Pre`, which is why the bullet above exists. Text indexes are the one
+- **Index reconciliation matches by name and recreates on a REAL difference.** A live index whose
+  key pattern or options differ from the declaration is dropped and created again, so a renamed
+  field does converge — after `Pre`, which is why the bullet above exists. The comparison treats
+  the key as ordered (a compound index is its key order) and the options as a set, and ignores
+  what the server reports rather than the declaration asks for (`v`, `collation`, index versions):
+  comparing the two documents as JSON instead made every boot drop and recreate every index, which
+  stayed invisible until two processes booted together and the loser died on `IndexNotFound`. A
+  drop that finds the index already gone is therefore tolerated. Text indexes are the one
   exception: a live index carrying `weights` is left as it is, and changing one means dropping it
   yourself.
 - On a collection this boot just created, every registered migration is **baselined**
@@ -187,9 +192,9 @@ page while lifting the limit contradicts itself and raises
 
 ## Criteria against a collection
 
-`criteriaToFilter` rewrites the shared vocabulary ([[resource]]) into mongo expressions so one
-criteria object selects the same records here as it does in SQL and in memory. Two rewrites are
-worth knowing:
+`mongoCriteriaHelper.criteriaToFilter` rewrites the shared vocabulary ([[resource]]) into mongo
+expressions so one criteria object selects the same records here as it does in SQL and in memory.
+Two rewrites are worth knowing:
 
 - **`$exists` and `$null` compare against `null`**, not mongo's own `$exists`. The shared question
   is whether a field *has a value*, which the other stores answer as `IS NULL` / `value == null`;

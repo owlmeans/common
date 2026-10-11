@@ -1,18 +1,22 @@
-import { handleConnection } from '@owlmeans/server-socket'
-import type { AbstractResponse } from '@owlmeans/entrypoint'
-import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
+import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
+import type { BoundEntrypointHandler } from '@owlmeans/server-entrypoint'
+import { connection } from '@owlmeans/server-socket'
 import type { EventMessage } from '@owlmeans/socket'
 import { MessageType } from '@owlmeans/socket'
+import { JOB_EVENT } from '@owlmeans/job'
+import type { JobViewEvent } from '@owlmeans/job'
 import type { JobEvent } from '@owlmeans/queue'
-import { JOB_EVENT } from '../consts.js'
-import type { JobHandlerOptions } from '../types.js'
-import { jobViewer, jobsOf, owns } from '../utils/index.js'
+import { logger } from '@owlmeans/log'
+import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
+import { makeJobPolicyHelper } from '../utils/index.js'
+
+const log = logger('server-job:watch')
 
 /**
  * Push this caller's job lifecycle events down a socket.
  *
- * The frames are `JobEvent`s exactly as the queue publishes them, under the {@link JOB_EVENT}
- * event name — no shape of this package's own, so a client applies them with the contract types.
+ * Broker events are resolved inside the caller's audience and mapped to {@link JobViewEvent}; raw
+ * queue ids, payloads, failures and ownership fields never cross the socket boundary.
  *
  * **A `JobEvent` carries no owner**, so each one is attributed by reading its job back, and the
  * ids that answered are remembered for the life of the connection. A queue configured with
@@ -21,46 +25,50 @@ import { jobViewer, jobsOf, owns } from '../utils/index.js'
  * rather than fanned out to everyone. Leave completed jobs in place on any queue that is watched.
  */
 export const watchJobs = (
-  opts?: JobHandlerOptions
-): RefedEntrypointHandler<AbstractResponse<any>> => handleConnection(async (conn, ctx, req) => {
-  const resource = jobsOf(ctx, opts)
-  const viewer = await jobViewer(req, ctx, opts)
-  const mine = new Set<string>()
+  protocol: JobEntrypoints['watch'],
+  opts: JobHandlerOptions
+): BoundEntrypointHandler<EntrypointProtocolDeclaration> => {
+  const policy = makeJobPolicyHelper(opts)
 
-  const attributable = async (event: JobEvent): Promise<boolean> => {
-    if (viewer == null || mine.has(event.id)) {
-      return true
-    }
-    const record = await resource.load(event.id)
-    if (record == null || !owns(record, viewer, opts)) {
-      return false
-    }
-    mine.add(event.id)
+  return connection<typeof protocol, Context>(protocol, async (conn, ctx, req) => {
+    const resource = policy.jobsOf(ctx)
+    const audience = await opts.policy.audience(req, ctx)
+    const publicIds = new Map<string, string>()
 
-    return true
-  }
-
-  const unsubscribe = await resource.subscribe(async event => {
-    try {
-      if (await attributable(event)) {
-        await conn.notify(JOB_EVENT, event)
+    const project = async (event: JobEvent): Promise<JobViewEvent | null> => {
+      const record = await resource.load({
+        $and: [{ id: event.id }, opts.policy.where(audience, {})],
+      })
+      if (record != null) {
+        const job = await opts.policy.map(record, audience)
+        publicIds.set(event.id, job.id)
+        return { type: 'upsert', job }
       }
-    } catch (e) {
-      console.error('Job watch notify error:', e)
+      const id = publicIds.get(event.id)
+      return id == null ? null : { type: 'remove', id }
     }
-  })
 
-  conn.listen(async message => {
-    if (typeof message !== 'object') {
-      return
-    }
-    const msg = message as EventMessage<void>
-    if (msg.type === MessageType.System && msg.event === 'close') {
+    const unsubscribe = await resource.subscribe(async event => {
       try {
-        await unsubscribe()
+        const projected = await project(event)
+        if (projected != null) await conn.notify(JOB_EVENT, projected)
       } catch (e) {
-        console.error('Job watch unsubscribe error:', e)
+        log.warn('Job watch notify failed', { id: event.id, queue: event.queue, error: e })
       }
-    }
+    })
+
+    conn.listen(async message => {
+      if (typeof message !== 'object') {
+        return
+      }
+      const msg = message as EventMessage<void>
+      if (msg.type === MessageType.System && msg.event === 'close') {
+        try {
+          await unsubscribe()
+        } catch (e) {
+          log.warn('Job watch unsubscribe failed', e)
+        }
+      }
+    })
   })
-})
+}

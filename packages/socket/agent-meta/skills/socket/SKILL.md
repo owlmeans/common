@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/socket
 
 **Layer:** Core
-**Install:** `"@owlmeans/socket": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/socket": "^0.1.18-rc.43"` in `dependencies`
 
 Contracts and one implementation-free connection model. It knows nothing about WebSockets: the
 browser side is `@owlmeans/client-socket`, the Fastify side `@owlmeans/server-socket`, and each
@@ -24,8 +24,10 @@ that make it concrete. Both halves of an application therefore speak the same fr
 | `Message<T>` | The frame — `{ type, payload, id?, sender?, recipient?, dt?, rawData? }` |
 | `CallMessage<T>` / `EventMessage<T>` / `AuthMessage<T>` | The three frames that add a field: `method` + `timeout`, `event`, `stage` |
 | `MessageType` | `Call` `Result` `Error` `Request` `Response` `Event` `Message` `Auth` `System` |
-| `isMessage` / `isEventMessage` / `isCallMessage` / `isAuthMessage` | Type guards — `isMessage(msg, true)` excludes system frames, `isEventMessage(msg, true)` keeps only them |
+| `socketMessageHelper` — `.isMessage` / `.isEventMessage` / `.isCallMessage` / `.isAuthMessage` | Type guards — `socketMessageHelper.isMessage(msg, true)` excludes system frames, `.isEventMessage(msg, true)` keeps only them |
 | `ConnectionListener` / `CallHendler` / `RequestHandler` / `CallResolver` | The callback shapes |
+| `SocketSystemEvent` | The `event` values a `MessageType.System` frame carries — see below |
+| `SOCKET_HEARTBEAT_TIMEOUT_CODE` | `4000` — the close code `client-socket`'s carrier uses when it force-closes a socket that has gone silent |
 | `SocketError` and subclasses | `SocketInitializationError`, `SocketConnectionError`, `SocketUnauthorized`, `SocketUnsupported`, `SocketTimeout`, `SocketMessageError`, `SocketMessageMalformed` — all registered with `ResilientError` |
 | `CALL_TIMEOUT` | 60 000 ms, the fallback when neither the message nor `connection.defaultCallTimeout` says |
 
@@ -77,8 +79,24 @@ connection.listen(async message => {
 ```
 
 Both carriers emit exactly that frame — `MessageType.System`, `event: 'close'`, payload
-`{ code }` — when the socket closes. Nothing else reports a disconnect, so any subscription a
-handler opened is released there.
+`{ code }` — when the socket closes for good. Nothing else reports a TERMINAL disconnect, so any
+subscription a handler opened is released there.
+
+**`SocketSystemEvent`** is the full vocabulary a `MessageType.System` frame's `event` can carry —
+`client-socket`'s reconnecting carrier is what emits the other four:
+
+| Event | Meaning |
+|---|---|
+| `close` | The connection is gone for good — see above |
+| `disconnected` | The socket dropped and a retry IS scheduled (client-socket only) — `{ code }` |
+| `reconnecting` | Before each retry attempt (client-socket only) — `{ attempt, delay }` |
+| `reconnected` | A retry succeeded, same `Connection` model (client-socket only) — `{ attempts }` |
+| `lost` | The retry budget elapsed with no success (client-socket only). NOT followed by `close`: the connection stays revivable until its owner closes it |
+
+`close` is the only one of the five a plain carrier with no retry logic (like `server-socket`, or
+`client-socket` itself with `reconnect: false`) will ever emit. A listener that must react to a
+reconnecting carrier giving up listens for `lost` — a `close` there comes only from its owner's
+own `close()` or a terminal server code.
 
 ## What the model expects of a carrier
 
@@ -103,13 +121,18 @@ null stage and is rebuilt by the initiator. `connection.stage` holds the current
 `AuthenticationStage` throughout. Only the server carrier implements a real sequence; see the
 `server-socket` skill.
 
+Raw inbound data is parsed and structurally checked before dispatch. A server connection may accept
+only authentication frames until its carrier marks it authenticated; an unknown call returns a
+typed socket error, and listener failures are isolated and logged so an EventEmitter never receives
+an unhandled rejected promise. Keep sensitive actions behind the carrier's authentication stage.
+
 ## Depends On
 
 - `@owlmeans/error` — `ResilientError`, which every socket error registers with
 - `@owlmeans/auth` — `AuthenticationStage`, the vocabulary the auth frames carry
-- `@owlmeans/basic-ids` — `uuid` for call and request ids
+- `@owlmeans/basic-ids` — `idHelper.uuid` for call and request ids
 
 ## Related
 
 - `client-socket` — the browser carrier and `useWs`
-- `server-socket` — the Fastify carrier, guard enforcement and `handleConnection`
+- `server-socket` — the Fastify carrier, guard enforcement and `connection(protocol, callback)`

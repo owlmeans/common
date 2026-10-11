@@ -35,7 +35,9 @@
 #     contributes its skills a single time.
 #   - links every upstream skill that no local skill shadows into BOTH
 #     .agents/linked-skills/<name> and .claude/skills/<name>, pointing at the
-#     upstream's real directory (never at another symlink).  A local skill
+#     upstream's real directory using a relative target (never another symlink).
+#     Relative targets survive a hostPath checkout mounted under another root.
+#     A local skill
 #     always wins; a nearer dependency wins over a farther one.
 #   - writes .agents/linked-skills/INDEX.md — skill / origin repo / description
 #     in deterministic order — and rewrites it only when its content changes
@@ -258,6 +260,21 @@ cand_has() {
     awk -F"$TAB" -v n="$1" '$1 == n { found = 1 } END { exit found ? 0 : 1 }' "$CAND"
 }
 
+# Both directories are resolved absolute paths. Store their relative relationship,
+# so a prepare hook inside /var/sources does not break the host's skill links.
+relative_target() {
+    awk -v base="$1" -v dest="$2" 'BEGIN {
+        nb = split(base, b, "/")
+        nd = split(dest, d, "/")
+        i = 1
+        while (i <= nb && i <= nd && b[i] == d[i]) i++
+        result = ""
+        for (j = i; j <= nb; j++) result = result "../"
+        for (j = i; j <= nd; j++) result = result d[j] (j < nd ? "/" : "")
+        print result == "" ? "." : result
+    }'
+}
+
 # ---- dependency link pass --------------------------------------------------
 if [ -n "$CAND" ] && [ -s "$CAND" ]; then
     mkdir -p "$LNK" 2>/dev/null || true
@@ -270,7 +287,7 @@ if [ -n "$CAND" ] && [ -s "$CAND" ]; then
                 ok=0
                 continue
             fi
-            ln -sfn "$path" "$target" 2>/dev/null || {
+            ln -sfn "$(relative_target "$(dirname "$target")" "$path")" "$target" 2>/dev/null || {
                 echo "link-skills: failed to link '$name' from $origin" >&2
                 ok=0
             }

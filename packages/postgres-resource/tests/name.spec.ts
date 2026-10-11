@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import type { DbConfig, ResourceRecord } from '@owlmeans/resource'
 
-import {
-  advisoryKey, assertSqlIdentifier, pgIdentifier, pgTableName, qualify, quoteIdent, quoteLiteral
-} from '@owlmeans/postgres-resource'
+import { pgNameHelper } from '@owlmeans/postgres-resource'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
+
+const {
+  advisoryKey, assertSqlIdentifier, pgIdentifier, pgTableName, qualify, quoteIdent, quoteLiteral
+} = pgNameHelper
 
 const resource = (alias: string, name?: string): PostgresResource<ResourceRecord> =>
   ({ alias, ...(name != null ? { name } : {}) }) as PostgresResource<ResourceRecord>

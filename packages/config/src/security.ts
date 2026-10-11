@@ -1,6 +1,6 @@
 import type { BasicContext as Context } from '@owlmeans/context'
 import type { CommonConfig, SecurityHelper } from './types.js'
-import type { CommonServiceRoute } from '@owlmeans/route'
+import type { CommonServiceRoute, RouteProtocol } from '@owlmeans/route'
 import { normalizePath, RouteProtocols, SEP } from '@owlmeans/route'
 
 export const makeSecurityHelper = <
@@ -25,7 +25,7 @@ export const makeSecurityHelper = <
         security = true
       }
 
-      let protocol = RouteProtocols.WEB
+      let protocol: RouteProtocol = RouteProtocols.WEB
       if ("protocol" in route) {
         protocol = route.protocol ?? protocol
       }
@@ -66,7 +66,7 @@ export const makeSecurityHelper = <
       }
 
       let schema = `${protocol}`
-      if (Object.values(RouteProtocols).includes(protocol) && security) {
+      if ((Object.values(RouteProtocols) as string[]).includes(protocol) && security) {
         schema += 's'
       }
 
@@ -93,7 +93,7 @@ export const makeSecurityHelper = <
         security = true
       }
 
-      let protocol = params.protocol ?? RouteProtocols.WEB
+      let protocol: RouteProtocol = params.protocol ?? RouteProtocols.WEB
 
       let host = params.host
       let base: string | undefined = typeof params.base === 'string' ? params.base : undefined
@@ -125,7 +125,7 @@ export const makeSecurityHelper = <
       }
 
       let schema = `${protocol}`
-      if (Object.values(RouteProtocols).includes(protocol) && security) {
+      if ((Object.values(RouteProtocols) as string[]).includes(protocol) && security) {
         schema += 's'
       }
 

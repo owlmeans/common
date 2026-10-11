@@ -1,20 +1,25 @@
-import { randomNamespace, redisGate } from '@owlmeans/test-integration'
+import { randomNamespace, gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, RedisEnv } from '@owlmeans/test-integration'
 import { config, makeServerContext } from '@owlmeans/server-context'
 import { appendRedis, DEFAULT_ALIAS as REDIS_ALIAS } from '@owlmeans/redis'
 import type { RedisClient, RedisDbService } from '@owlmeans/redis-resource'
-import { declareQueue, listenQueues, DEFAULT_ALIAS as QUEUE_ALIAS } from '@owlmeans/queue'
+import {
+  declareQueue, declareSchedule, listenQueues, DEFAULT_ALIAS as QUEUE_ALIAS
+} from '@owlmeans/queue'
 import type {
-  JobOptions, QueueAppend, QueueHooks, QueueResource, QueueWorkerOptions, QueueWorkerService
+  JobOptions, QueueAppend, QueueHooks, QueueResource, QueueWorkerOptions, QueueWorkerService,
+  ScheduleDeclaration
 } from '@owlmeans/queue'
 import type { BasicEntrypoint } from '@owlmeans/context'
+import { MiddlewareStage, MiddlewareType } from '@owlmeans/context'
 import { Queue } from 'bullmq'
-import { appendRedisQueue, queuePrefix, queueResourceAlias } from '@owlmeans/redis-queue'
+import { appendRedisQueue, queueConnectionHelper, queueResourceAlias } from '@owlmeans/redis-queue'
 import type { Config, Context, RedisQueueResource, RedisQueueWorkerService } from '@owlmeans/redis-queue'
 
-export const gate: IntegrationGate<RedisEnv> = redisGate()
+export const gate: IntegrationGate<RedisEnv> = gateHelper.redisGate()
 
 export interface DeclaredQueue {
+  globalConcurrency?: number
   name: string
   jobs: string[]
   worker?: QueueWorkerOptions
@@ -27,12 +32,24 @@ export interface BootOptions {
   listen?: string[]
   entrypoints?: BasicEntrypoint[]
   hooks?: QueueHooks
+  /** Declared through `declareSchedule`, after the queues. */
+  schedules?: ScheduleDeclaration[]
+  /**
+   * Runs at the Loading stage — services are initialized, the worker has not started — which is
+   * where processors register so a job the worker takes on start already has one.
+   */
+  setup?: (context: Context) => void
 }
 
 export interface QueueSuite {
   /** Key prefix this suite owns end to end. Obliterated by {@link QueueSuite.teardown}. */
   prefix: string
   boot: (opts: BootOptions) => Promise<Booted>
+  /**
+   * Shut the booted context down WITHOUT dropping its keys, then boot a new one over the same
+   * prefix — a process restarting against the broker it left.
+   */
+  reboot: (opts: BootOptions) => Promise<Booted>
   teardown: () => Promise<void>
 }
 
@@ -59,7 +76,7 @@ export const makeSuite = (label: string): QueueSuite => {
   const prefix = randomNamespace(`${base}_${label}`)
 
   let booted: Booted | undefined
-  let declared: string[] = []
+  const declared = new Set<string>()
 
   const boot = async (opts: BootOptions): Promise<Booted> => {
     if (booted != null) {
@@ -80,17 +97,26 @@ export const makeSuite = (label: string): QueueSuite => {
     })
 
     opts.queues.forEach(queue => declareQueue(cfg, queue.name, queue.jobs, {
-      worker: queue.worker, defaults: queue.defaults
+      worker: queue.worker, defaults: queue.defaults, globalConcurrency: queue.globalConcurrency
     }))
+    opts.schedules?.forEach(schedule => declareSchedule(cfg, schedule))
     if (opts.listen != null) {
       listenQueues(cfg, ...opts.listen)
     }
-    declared = opts.queues.map(queue => queue.name)
+    opts.queues.forEach(queue => declared.add(queue.name))
 
     const context = makeServerContext<Config, Context>(cfg)
     appendRedis(context)
     opts.entrypoints?.forEach(entrypoint => context.registerEntrypoint(entrypoint))
     appendRedisQueue(context, { hooks: opts.hooks })
+    const setup = opts.setup
+    if (setup != null) {
+      context.registerMiddleware({
+        type: MiddlewareType.Context,
+        stage: MiddlewareStage.Loading,
+        apply: async () => { setup(context) },
+      })
+    }
 
     context.configure()
     await context.init()
@@ -98,7 +124,7 @@ export const makeSuite = (label: string): QueueSuite => {
     booted = {
       context,
       client: await context.service<RedisDbService>(REDIS_ALIAS).client(),
-      keys: queuePrefix(prefix),
+      keys: queueConnectionHelper.queuePrefix(prefix),
       // Through the mixin the applications use, not through the registry behind it — the accessor
       // is what refuses an undeclared queue.
       jobs: <D, R>(queue: string) => (context as unknown as QueueAppend).jobs<D, R>(queue),
@@ -108,22 +134,39 @@ export const makeSuite = (label: string): QueueSuite => {
     return booted
   }
 
+  /** Workers first, then the resources' own connections — everything but the keys. */
+  const quiesce = async ({ context }: Booted): Promise<void> => {
+    if (context.hasService(QUEUE_ALIAS)) {
+      await context.service<QueueWorkerService>(QUEUE_ALIAS).stop()
+    }
+    for (const name of declared) {
+      if (context.hasResource(queueResourceAlias(name))) {
+        await context.resource<RedisQueueResource>(queueResourceAlias(name)).close()
+      }
+    }
+  }
+
+  const reboot = async (opts: BootOptions): Promise<Booted> => {
+    if (booted != null) {
+      await quiesce(booted)
+      await booted.client.quit().catch(() => undefined)
+      booted = undefined
+    }
+
+    return await boot(opts)
+  }
+
   /**
-   * Workers first, then the resources' own connections, then the keys. `obliterate` needs the
-   * queue quiet — a worker still consuming would be handed jobs while they are being dropped.
+   * Quiesce, then the keys. `obliterate` needs the queue quiet — a worker still consuming would be
+   * handed jobs while they are being dropped.
    */
   const teardown = async (): Promise<void> => {
     if (booted == null) {
       return
     }
-    const { context, client, keys } = booted
+    const { client, keys } = booted
 
-    if (context.hasService(QUEUE_ALIAS)) {
-      await context.service<QueueWorkerService>(QUEUE_ALIAS).stop()
-    }
-    for (const name of declared) {
-      await context.resource<RedisQueueResource>(queueResourceAlias(name)).close()
-    }
+    await quiesce(booted)
     for (const name of declared) {
       const queue = new Queue(name, { connection: client, prefix: keys })
       try {
@@ -135,10 +178,10 @@ export const makeSuite = (label: string): QueueSuite => {
     await client.quit().catch(() => undefined)
 
     booted = undefined
-    declared = []
+    declared.clear()
   }
 
-  return { prefix, boot, teardown }
+  return { prefix, boot, reboot, teardown }
 }
 
 /** Poll until `check` holds, so a spec waits for the broker rather than for a fixed delay. */

@@ -1,24 +1,24 @@
 ---
 name: web-oidc-rp
-description: How to use @owlmeans/web-oidc-rp — the browser OIDC relying party — appendOidcGuard and setupOidcGuard, the dispatcher screen and its login outcomes, the provider-derived sign-in methods, and building URLs with entrypoint.url(). Auto-invoked when importing web-oidc-rp helpers or working on a browser sign-in flow.
+description: How to use @owlmeans/web-oidc-rp — the browser OIDC relying party — appendOidcGuard and oidcEntrypoints, the dispatcher screen and its login outcomes, the provider-derived sign-in methods, and building URLs with entrypoint.url(). Auto-invoked when importing web-oidc-rp helpers or working on a browser sign-in flow.
 user-invocable: false
 ---
 
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.25"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.67"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
 | `appendOidcGuard<C, T>(context, opts?)` | Registers the OIDC auth service and guard on a web context, and registers the configured providers as sign-in methods |
-| `setupOidcGuard(entrypoints, coguards?, dispatcherProps?)` | Appends the dispatcher entrypoints, elevates them, and attaches the `Dispatcher` screen to `DISPATCHER` |
+| `oidcEntrypoints(dispatcherProps?)` | Browser-local bindings for shared OIDC protocols and the `DISPATCHER` screen |
 | `makeOidcAuthService(alias?)` | The relying-party service factory |
 | `OidcAuthService` | `dispatch(params)`, `authenticate(flow, params)`, `proceedToRedirectUrl(extras)` |
 | `DEFAULT_ALIAS` | `'oidc-rp'` — the service alias |
-| `Dispatcher` | The redirect-URI screen. `setupOidcGuard` attaches it; render it directly only in a custom entrypoint list |
+| `Dispatcher` | The redirect-URI screen bound by `oidcEntrypoints`; render it directly only in a custom binding list |
 | `oidcMethodSource` | The `LoginMethodSource` that turns configured providers into sign-in methods. `appendOidcGuard` registers it |
 | `OIDC_LOGIN_METHOD` | `'oidc'` — the id of the single generic method offered when no provider is configured |
 | `OidcAuthPurposes` | `Unknown` / `Subscribe` / `Login` — what a redirect round trip is for |
@@ -28,7 +28,15 @@ user-invocable: false
 ### Subpath exports
 
 - `./auth/plugins` — importing it registers both `OIDC_CLIENT_AUTH` and `GOOGLE_CLIENT_AUTH` into the
-  `@owlmeans/client-auth` manager plugin registry
+  `@owlmeans/client-auth` manager plugin registry. After a successful Google sign-in the plugin lands via
+  `landAfterLogin` + `landingUrl` (`@owlmeans/client-auth/login`) — a pending post-login step, then a flow
+  suspended in `@owlmeans/client-flow` when there is one, else `HOME`. It imports neither
+  `@owlmeans/client-flow` nor `@owlmeans/web-client` for this; `landAfterLogin` is the whole decision
+
+A sign-in method's `begin` must forward `LoginMethodContext.navigate` into the `LoginRequest.navigate`
+it hands `login.begin(...)` (as `oidcMethodSource` does, mirroring `useLogin`'s
+`nav.go(target ?? DISPATCHER)`): without it a method button pressed inside a frame adopts the token
+and leaves the framed application where it was, with no continuation.
 
 ## Wiring
 
@@ -43,23 +51,29 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 ```
 
 ```typescript
-import { setupOidcGuard } from '@owlmeans/web-oidc-rp'
-setupOidcGuard(entrypoints, undefined, { payload: { simplified: true } })
+import { oidcEntrypoints } from '@owlmeans/web-oidc-rp'
+
+export const clientBindings = [
+  ...bindAll(appProtocols.api),
+  ...bindScreen(appProtocols.web.home, handler(Home)),
+  ...oidcEntrypoints({ payload: { simplified: true } }),
+]
 ```
 
-The third argument is the dispatcher's default props (`Partial<ParametrisedProps>` from
+Its only argument is the dispatcher's default props (`Partial<ParametrisedProps>` from
 `@owlmeans/web-client`); its `payload` merges under whatever the route supplies, so a route-level
-value wins. Pass it only to parametrise
-the screen — omit it and the plain `Dispatcher` is attached.
+value wins. Omit it and the plain `Dispatcher` is attached.
 
-**Call `setupOidcGuard` exactly once per entrypoint list.** It appends to the list it is given rather
-than returning a new one, and elevation replaces the **first** element carrying an alias, so a second
-call leaves `DISPATCHER_OIDC_INIT` and `DISPATCHER_OIDC` in the list twice and re-elevates the first
-copies — silently, with no error. The visible symptom is the dispatcher screen: whichever call ran
-last decides it, so a parametrised dispatcher is quietly replaced by the default. Elevation raises
-only when the alias is **absent** (`Entrypoint with alias … not present`), which is what a list
-missing the `DISPATCHER` declaration hits. An app that wires IAM through `setupIam`
-(`@owlmeans/client-iam`) has already made this call and must not repeat it.
+`oidcEntrypoints()` returns bindings, not declarations: spread it once into the browser's immutable
+entrypoint list. The shared
+OIDC protocols stay in the tree from `@owlmeans/oidc`; do not reconstruct or append them in the
+browser entrypoint list.
+
+The bindings cover all four shared protocols: the sign-in pair (`init`, `authenticate`) and the
+organization switch (`organizations`, `organization`). The switch pair is declared with
+`OIDC_GUARD`, so a call carries the wrapped token through that guard's `authenticated()` and the
+server answers for the session it names; a re-signed token the switch answers is adopted like any
+other (`adoptToken` / `context.login().adopt(token)`).
 
 ## Sign-in methods come from the provider list
 
@@ -130,11 +144,10 @@ Use the entrypoint's own `url()` — never `window.location.origin + window.loca
 concatenation, and never a hand-built query string:
 
 ```typescript
-import { HOME } from '@owlmeans/web-client'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
-
-const home = await context.entrypoint<ClientEntrypoint<string>>(HOME).url(undefined, { absolute: true })
-const typed = await context.entrypoint<ClientEntrypoint<string>>(alias).url({ params }, { absolute: true })
+// Use the shared protocol declarations already registered by the application.
+const home = await context.entrypoint(appProtocols.web.home).url(undefined, { absolute: true })
+const typed = await context.entrypoint(appProtocols.web.detail)
+  .url({ params }, { absolute: true })
 ```
 
 `url(req?, opts?)` fills the `:params` in and appends the query. It is already absolute when the
@@ -149,6 +162,9 @@ caller that branches on it.
   local identity profiles remain the authorization source.
 - The `oidc-client-ts` `UserManager` path (fully browser-side OIDC) is an **incomplete stub**. The
   production flow is the server-side token exchange over `DISPATCHER_OIDC_INIT` / `DISPATCHER_OIDC`.
+- This package owns its private shadcn progress primitive and imports it through relative
+  specifiers. A consuming application adds an `@source` for
+  `node_modules/@owlmeans/web-oidc-rp/src`; its own `@` alias never supplies package files.
 
 ## Depends On
 

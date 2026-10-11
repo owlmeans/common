@@ -2,11 +2,9 @@ import type { RedisDbService, RedisClient, RedisDb } from '@owlmeans/redis-resou
 import { DEFAULT_ALIAS } from './consts.js'
 import { createDbService } from '@owlmeans/resource'
 import { assertContext } from '@owlmeans/context'
-import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
-import { createClient, prepareClusterRedisOptions, prepareSingleRedisOptions } from './utils/index.js'
+import { createClient, redisOptionsUtils } from './utils/index.js'
+import type { Config, Context } from './types.local.js'
 
-type Config = ServerConfig
-interface Context<C extends Config = Config> extends ServerContext<C> { }
 
 export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService => {
   const location = `redis:${alias}`
@@ -22,7 +20,7 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
        * @TODO we need to think how we can reuse the initail
        * one instead of duplication for some cases
        */
-      return { client: client.duplicate(), prefix: name }
+      return { client: (client as { duplicate: () => RedisClient }).duplicate(), prefix: name }
     },
 
     options: configAlias => {
@@ -33,8 +31,8 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
       const hosts = Array.isArray(config.host) ? config.host : [config.host]
 
       return hosts.length > 1
-        ? { cluster: prepareClusterRedisOptions(config), prefix }
-        : { single: prepareSingleRedisOptions(config, hosts[0]), prefix }
+        ? { cluster: redisOptionsUtils.cluster(config), prefix }
+        : { single: redisOptionsUtils.single(config, hosts[0]), prefix }
     },
 
     initialize: async configAlias => {

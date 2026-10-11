@@ -1,4 +1,5 @@
 export type * from './types.js'
+export { DEFAULT_JOB_ROOT, JOB_EVENT, jobEntrypointAliases } from '@owlmeans/job'
 
 export * from './consts.js'
 export * from './helper.js'

@@ -7,7 +7,7 @@ metadata:
 
 # Using `@owlmeans/server-mailer-mailgun`
 
-**Install:** `"@owlmeans/server-mailer-mailgun": "^0.1.18-rc.7"` in `dependencies`
+**Install:** `"@owlmeans/server-mailer-mailgun": "^0.1.18-rc.35"` in `dependencies`
 
 Production Mailgun transport implementing `@owlmeans/mailer`'s `MailerService` interface. Reads
 config from `ctx.cfg.mailgun` at send time and posts to Mailgun's HTTP API with `fetch` — no SMTP
@@ -58,6 +58,11 @@ Register under `MAILER_SERVICE` so platform code (OTP service, etc.) can resolve
 | `to`, `subject`, `text`, `html` | the parameters of the same name; `text`/`html` are omitted when absent |
 | `replyTo` | `h:Reply-To` |
 | `headers` | one `h:<name>` parameter each |
+| `attachments` | one `attachment` part each: a `Blob` of the decoded bytes, typed `contentType` (default `application/octet-stream`), named `filename` |
+
+A message without attachments is posted `application/x-www-form-urlencoded`; one with attachments
+as `multipart/form-data` (the only shape Mailgun takes files in), with the same fields beside the
+`attachment` parts.
 
 Every `headers` entry becomes a custom MIME header on the outgoing message. The request carries
 **no `o:` option parameters**, so Mailgun's own delivery options — test mode among them — cannot be

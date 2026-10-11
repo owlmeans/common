@@ -1,8 +1,9 @@
-import { handleParams } from '@owlmeans/server-api'
-import type { AbstractResponse } from '@owlmeans/entrypoint'
-import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
-import type { JobHandlerOptions } from '../types.js'
-import { jobViewer, jobsOf, readOwnedJob } from '../utils/index.js'
+import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
+import { handlers } from '@owlmeans/server-api'
+import type { BoundEntrypointHandler } from '@owlmeans/server-entrypoint'
+import { UnknownJob } from '@owlmeans/queue'
+import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
+import { makeJobPolicyHelper } from '../utils/index.js'
 
 /**
  * Cancel a job and answer with what was cancelled.
@@ -15,12 +16,19 @@ import { jobViewer, jobsOf, readOwnedJob } from '../utils/index.js'
  * @throws {UnknownJob}
  */
 export const cancelJob = (
-  opts?: JobHandlerOptions
-): RefedEntrypointHandler<AbstractResponse<any>> =>
-  handleParams<{ id: string }>(async ({ id }, ctx, req) => {
-    const resource = jobsOf(ctx, opts)
-    // Read first: `take` cannot tell whose job it removed, so ownership is settled before it.
-    await readOwnedJob(resource, id, await jobViewer(req, ctx, opts), opts)
+  protocol: JobEntrypoints['cancel'],
+  opts: JobHandlerOptions
+): BoundEntrypointHandler<EntrypointProtocolDeclaration> => {
+  const policy = makeJobPolicyHelper(opts)
 
-    return await resource.take(id)
+  return handlers<Context>().params(protocol, async ({ id }, ctx, req) => {
+    const resource = policy.jobsOf(ctx)
+    const audience = await opts.policy.audience(req, ctx)
+    const record = await policy.readExposedJob(resource, id, audience)
+    if (opts.policy.cancel == null || !await opts.policy.cancel(record, audience)) {
+      throw new UnknownJob('job')
+    }
+    const removed = await resource.take(record.id as string)
+    return await opts.policy.map(removed, audience)
   })
+}

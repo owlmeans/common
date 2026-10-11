@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent-skills",
-  "version": "0.1.18-rc.12",
+  "version": "0.1.18-rc.53",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -32,29 +32,20 @@
     }
   },
   "devDependencies": {
-    "@langchain/core": "^1.2.9",
-    "@owlmeans/agent": "^0.1.18-rc.16",
+    "@langchain/core": "^1.2.14",
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/llm": "^0.1.18-rc.13",
-    "@owlmeans/llm-common": "^0.1.18-rc.12",
-    "@types/bun": "^1.4.0",
-    "@types/node": "^26.1.0",
+    "@owlmeans/llm": "^0.1.18-rc.48",
+    "@owlmeans/llm-common": "^0.1.18-rc.39",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.6.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "@langchain/core": "^1.2.9",
-    "@owlmeans/agent": "^0.1.18-rc.16",
-    "@owlmeans/llm": "^0.1.18-rc.13",
-    "@owlmeans/llm-common": "^0.1.18-rc.12"
+    "@owlmeans/llm": "^0.1.18-rc.48",
+    "@owlmeans/llm-common": "^0.1.18-rc.39"
   },
   "peerDependenciesMeta": {
-    "@langchain/core": {
-      "optional": true
-    },
-    "@owlmeans/agent": {
-      "optional": true
-    },
     "@owlmeans/llm": {
       "optional": true
     },

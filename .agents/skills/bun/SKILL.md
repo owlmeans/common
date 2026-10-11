@@ -7,7 +7,7 @@ allowed-tools: Bash(bun *)
 # Bun — OwlMeans Monorepo
 
 This monorepo is managed with **Bun** — always `bun`, never `yarn` or `npm`. The root pins
-`packageManager: bun@1.4.0`; every linked consumer repo pins the same version. `bunfig.toml` sets
+`packageManager: bun@1.4.2`; every linked consumer repo pins the same version. `bunfig.toml` sets
 `linker = "hoisted"` and a 15s default `bun test` timeout. A package whose specs need longer
 raises it in its own `bunfig.toml`, and `redis-queue` is the only one that does (60s, because its
 specs drive a real broker end to end); its file repeats `linker = "hoisted"` next to the timeout.
@@ -30,7 +30,9 @@ sets the linker and no timeout.
 - Build one package: `bun run build` from inside `packages/<name>`, or
   `bun run --filter '@owlmeans/<name>' build` from root
 - Each package compiles with: `tsc -b` (no bundler, pure TypeScript)
-- Output: `packages/<name>/build/`
+- Output: `packages/<name>/build/` — what every consumer loads (`main`, `types`, `exports`). Linked
+  consumers (internal, viable-agent, viable, static) see a change only after it is rebuilt here, and
+  a running environment only after it reloads (viable: `sh deploy/redeploy.sh`).
 - Watch mode: `bun run watch` → `tsc -b -w --preserveWatchOutput --pretty` per package
 - Dev mode: `bun run dev` → nodemon re-running `tsc -p ./tsconfig.json` on `src` changes. Each
   package's `dev` script opens with a `sleep <n>` whose value staggers it against the others, so a
@@ -77,12 +79,12 @@ sets the linker and no timeout.
   untracked leftover from a removed package, not a workspace member — delete it rather than
   debugging why it will not compile.
 - Several packages declare a `test` script but ship no `tests/` directory, so `bun run test` reports
-  `Test filter "./tests" had no matches` and exits 1 for each: `auth-otp`, `client-iam`, `mailer`,
-  `server-auth-otp`, `server-mailer-mailgun`, `web-auth`. Expected, not a regression — read the
+  `Test filter "./tests" had no matches` and exits 1 for each: `auth-otp`, `mailer`,
+  `server-mailer-mailgun`, `web-auth`. Expected, not a regression — read the
   per-package pass/fail counts, not the aggregate exit code.
 - **The pinned Bun floor is load-bearing for MongoDB.** `bson@7.3.x` runs a static initializer that
   calls `process.getBuiltinModule('v8').startupSnapshot.isBuildingSnapshot()`, and Bun implements
-  that call from **1.4.0** on. Every repo here pins `packageManager: bun@1.4.0`, so the driver's own
+  that call from **1.4.0** on. Every repo here pins `packageManager: bun@1.4.2`, so the driver's own
   `bson: ^7.2.0` range resolves freely and **no repo carries a `bson` override** — do not add one.
   Every runtime that loads `mongodb` must be at 1.4.0 or above: the local shell, CI, and the
   `oven/bun` image in the pod. Below it `import 'mongodb'` throws `NotImplementedError: node:v8
@@ -94,6 +96,36 @@ sets the linker and no timeout.
   ```bash
   bun -e "import('./node_modules/mongodb/lib/index.js').then(()=>console.log('OK')).catch(e=>console.log(e.code))"
   ```
+
+## No `@owlmeans/*` entry inside a package's own `node_modules`
+
+A workspace package never holds `@owlmeans/*` in its own `node_modules` — neither a real directory
+(a published tarball: see the shadowing section below) nor a symlink to a sibling package. The
+symlink form is what an install with Bun's **isolated** linker leaves behind: any repo that lists
+this monorepo's packages as workspace entries and runs `bun install` without `linker = "hoisted"`
+in its `bunfig.toml` writes one link per workspace dependency into
+`packages/<pkg>/node_modules/@owlmeans/` here. A later hoisted install neither records nor prunes
+them. Under `bun --preserve-symlinks` — how the viable dev pods run — a dependency resolved from
+`node_modules/@owlmeans/api/node_modules/@owlmeans/error` is a different module from
+`node_modules/@owlmeans/error`, so `instanceof`, class-keyed registries and error types split in two.
+
+Every consumer repo that links this one keeps `linker = "hoisted"` in its root `bunfig.toml`. The
+check is part of the pin audit in the library-manager harness, so every release pre-flight runs it
+and fails on a "nested @owlmeans copy" row:
+
+```bash
+# in the library-manager workspace — exit 12 lists every nested entry
+bun run scripts/bump-deps.ts --pins-only
+```
+
+The same question, from this repo, must print nothing:
+
+```bash
+find packages/*/node_modules/@owlmeans -mindepth 1 -maxdepth 1 2>/dev/null
+```
+
+Fix: delete each listed entry (`rm` on the link itself, never a trailing slash), remove the
+now-dangling `node_modules/.bin` links that pointed through it, then `bun install`.
 
 ## Troubleshooting: nested `node_modules` copies that shadow the root
 

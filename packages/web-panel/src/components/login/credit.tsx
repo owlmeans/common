@@ -1,12 +1,7 @@
 import type { FC } from 'react'
-import { cn } from '@/lib/utils'
-import type { LoginCreditModel } from '@owlmeans/client-panel/auth'
-
-export interface LoginCreditProps {
-  model: LoginCreditModel
-  translate: (key: string, defaultValue: string) => string
-  className?: string
-}
+import { cn } from '../../@/lib/utils.js'
+import { OWLMEANS_URL } from './consts.js'
+import type { LoginCreditProps } from './types.js'
 
 /**
  * The line at the bottom of a sign-in screen.
@@ -25,9 +20,13 @@ export const LoginCredit: FC<LoginCreditProps> = ({ model, translate, className 
     data-login-credit
     className={cn('text-center text-xs text-muted-foreground', className)}
   >
-    {model.poweredBy && <span data-login-powered>
+    {model.poweredBy && <a
+      data-login-powered
+      href={OWLMEANS_URL} target="_blank" rel="noopener noreferrer"
+      className="underline-offset-4 hover:text-foreground hover:underline"
+    >
       {translate('login.credit.powered', 'Powered by OwlMeans')}
-    </span>}
+    </a>}
     {model.poweredBy && model.line != null && <span aria-hidden="true"> · </span>}
     {model.line != null && <span>{model.line}</span>}
   </p>

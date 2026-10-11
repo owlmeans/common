@@ -1,12 +1,10 @@
-import { handleRequest } from '@owlmeans/server-api'
-import type { AbstractResponse } from '@owlmeans/entrypoint'
-import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
-import type { Criteria } from '@owlmeans/resource'
-import type { JobRecord } from '@owlmeans/queue'
-import type { JobState } from '@owlmeans/queue'
-import { DEFAULT_JOB_SORT } from '../consts.js'
-import type { JobHandlerOptions, JobListQuery } from '../types.js'
-import { jobScope, jobViewer, jobsOf } from '../utils/index.js'
+import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
+import { handlers } from '@owlmeans/server-api'
+import type { BoundEntrypointHandler } from '@owlmeans/server-entrypoint'
+import type { JobView } from '@owlmeans/job'
+import type { ListResult } from '@owlmeans/resource'
+import type { Context, JobEntrypoints, JobHandlerOptions, JobListQuery } from '../types.js'
+import { makeJobPolicyHelper } from '../utils/index.js'
 
 /**
  * The caller's jobs, newest first.
@@ -17,20 +15,22 @@ import { jobScope, jobViewer, jobsOf } from '../utils/index.js'
  * for this list means the same thing applied to the store the browser holds.
  */
 export const listJobs = (
-  opts?: JobHandlerOptions
-): RefedEntrypointHandler<AbstractResponse<any>> => handleRequest(async (req, ctx) => {
-  const resource = jobsOf(ctx, opts)
-  const viewer = await jobViewer(req, ctx, opts)
-  const query = (req.query ?? {}) as JobListQuery
+  protocol: JobEntrypoints['list'],
+  opts: JobHandlerOptions
+): BoundEntrypointHandler<EntrypointProtocolDeclaration> => {
+  const policy = makeJobPolicyHelper(opts)
 
-  const where: Criteria<JobRecord> = {
-    ...jobScope(viewer, opts),
-    ...(query.state != null ? { state: query.state as JobState } : {}),
-    ...(query.name != null ? { name: query.name } : {}),
-  }
-
-  return await resource.list(where, {
-    sort: [{ field: DEFAULT_JOB_SORT, order: 'desc' }],
-    ...(query.size != null ? { size: query.size, page: query.page ?? 0 } : {}),
+  return handlers<Context>().request(protocol, async (req, ctx) => {
+    const resource = policy.jobsOf(ctx)
+    const audience = await opts.policy.audience(req, ctx)
+    const query = (req.query ?? {}) as JobListQuery
+    const listed = await resource.list(opts.policy.where(audience, query), {
+      sort: [{ field: 'createdAt', order: 'desc' }],
+      ...(query.size != null ? { size: query.size, page: query.page ?? 0 } : {}),
+    })
+    return {
+      ...listed,
+      items: await Promise.all(listed.items.map(record => opts.policy.map(record, audience))),
+    } satisfies ListResult<JobView>
   })
-})
+}

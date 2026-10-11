@@ -1,13 +1,7 @@
 import { createMigrationRegistry } from '@owlmeans/resource'
-import type { MigrationRegistry } from '@owlmeans/resource'
 
-import type { MongoReference, MongoTx } from './types.js'
-
-export interface MongoDeclaration {
-  migrations: MigrationRegistry<MongoTx>
-  /** Declared ObjectId references, keyed by field. Registered via `resource.reference()`. */
-  references: Map<string, MongoReference>
-}
+import type { MongoDeclarationHelper } from './declarations/types.js'
+import type { MongoTx, MongoDeclaration } from './types.js'
 
 /**
  * Per-alias migration store, held at module scope rather than on the resource object.
@@ -17,25 +11,36 @@ export interface MongoDeclaration {
  * that a no-op: every run reads and extends the same registry, so nothing a caller declared
  * by chaining onto an earlier resource object is lost. Losing a migration is silent — the
  * data transformation simply never runs — which is why the store cannot live on the object.
+ *
+ * Process-wide for the same reason: it stays outside the factory, so every helper built from it
+ * reads the one store.
  */
 const declarations: Map<string, MongoDeclaration> = new Map()
 
-export const getDeclaration = (alias: string): MongoDeclaration => {
-  let declaration = declarations.get(alias)
-  if (declaration == null) {
-    declaration = { migrations: createMigrationRegistry<MongoTx>(), references: new Map() }
-    declarations.set(alias, declaration)
+export const createMongoDeclarationHelper = (): MongoDeclarationHelper => {
+  const getDeclaration = (alias: string): MongoDeclaration => {
+    let declaration = declarations.get(alias)
+    if (declaration == null) {
+      declaration = { migrations: createMigrationRegistry<MongoTx>(), references: new Map() }
+      declarations.set(alias, declaration)
+    }
+
+    return declaration
   }
 
-  return declaration
-}
+  const resetDeclarations = (alias?: string): void => {
+    if (alias == null) {
+      declarations.clear()
 
-/** Testing seam — drops every declaration so a spec can redeclare a resource from scratch. */
-export const resetDeclarations = (alias?: string): void => {
-  if (alias == null) {
-    declarations.clear()
-
-    return
+      return
+    }
+    declarations.delete(alias)
   }
-  declarations.delete(alias)
+
+  return { getDeclaration, resetDeclarations }
 }
+
+export const mongoDeclarationHelper = createMongoDeclarationHelper()
+
+/** @deprecated compat:factory-refactor — use `mongoDeclarationHelper.resetDeclarations(…)` */
+export const resetDeclarations = (alias?: string): void => mongoDeclarationHelper.resetDeclarations(alias)

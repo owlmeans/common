@@ -1,11 +1,6 @@
-import type { Config, JobOptions } from '@owlmeans/queue'
-import { queueOf, UnknownJobName } from '@owlmeans/queue'
-import { mergeJobOptions } from './record.js'
-
-export interface DeclaredJob {
-  name: string
-  opts: JobOptions
-}
+import { type Config, type JobOptions, queueConfigOf, UnknownJobName } from '@owlmeans/queue'
+import { jobRecordHelper } from './record.js'
+import type { DeclaredJob } from './types.js'
 
 /**
  * What a job of this name enqueues with — and whether it may be enqueued at all.
@@ -19,11 +14,11 @@ export interface DeclaredJob {
 export const declaredJob = <C extends Config>(
   cfg: C, queue: string, name?: string, opts?: JobOptions
 ): DeclaredJob => {
-  const declaration = queueOf(cfg, queue)
+  const declaration = queueConfigOf(cfg).queueOf(queue)
 
   if (name == null || !declaration.jobs.includes(name)) {
     throw new UnknownJobName(`${queue}:${name ?? '(unnamed)'}`)
   }
 
-  return { name, opts: mergeJobOptions(cfg.queue?.defaults, declaration.defaults, opts) }
+  return { name, opts: jobRecordHelper.mergeJobOptions(cfg.queue?.defaults, declaration.defaults, opts) }
 }

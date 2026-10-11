@@ -1,6 +1,7 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import type { LazyService, BasicContext } from '@owlmeans/context'
 import type { LoginMethodEmphasis, LoginScreenConfig, LoginTermsConfig } from '@owlmeans/config'
+import { LoginOutcome } from './consts.js'
 
 /**
  * The context a login plugin is handed.
@@ -29,28 +30,6 @@ export interface LoginEnv {
   hasOpener: boolean
 }
 
-/** What a stage did, and therefore what the caller must do next. */
-export enum LoginOutcome {
-  /** The plugin took the flow over and it is finished. The caller does nothing more. */
-  Handled = 'handled',
-  /** The plugin did nothing — the caller carries on with its ordinary continuation. */
-  Passed = 'passed',
-  /** The browser is leaving this document. The caller must not navigate or render. */
-  Redirected = 'redirected',
-  /** Cannot proceed without a fresh user gesture — the caller renders a sign-in control. */
-  Gesture = 'gesture',
-  /** Authenticated, but with no channel back to the window that started it. */
-  Orphaned = 'orphaned',
-  /** The attempt ended with no token (blocked window, user closed it, provider refused). */
-  Failed = 'failed',
-}
-
-/** Why a surrogate window was opened. */
-export enum LoginIntent {
-  Login = 'login',
-  Logout = 'logout',
-}
-
 export interface LoginRequest {
   /** Where the login flow starts — a resolved dispatcher path, or the current address. */
   url: string
@@ -60,7 +39,18 @@ export interface LoginRequest {
    * fallback is a full page load of {@link url}.
    */
   navigate?: () => void | Promise<void>
-  /** Entrypoint alias to return to after login. */
+  /**
+   * Entrypoint alias to land on once sign-in completes.
+   *
+   * The facade parks it (`suspendLanding` from `@owlmeans/client-flow`, the record
+   * `resumeSuspendedFlow` reads) once the preconditions have passed, and holds {@link navigate}
+   * until the write has landed — so the continuation still goes to the dispatcher, whose ordinary
+   * post-sign-in landing (`landAfterLogin`: landing hooks, pending steps such as a consent screen,
+   * then the suspended landing) ends on this screen. It is never a navigation target of its own:
+   * a guarded screen reached before sign-in renders signed out. An attempt that ends without a
+   * sign-in (`Blocked`, `Failed`, `Gesture`) discards the parked screen again. A caller with no
+   * {@link navigate} leaves the document at once, so its parked screen is best-effort only.
+   */
   target?: string
 }
 
@@ -198,6 +188,13 @@ export interface LoginScreenProps {
    * reaches for an i18n provider crashes the whole render in an app mounted without one.
    */
   translate?: (key: string, defaultValue: string) => string
+  /**
+   * The current language, for `Intl.ListFormat`, locale-keyed document labels and explicit hrefs.
+   *
+   * A prop for the same reason `translate` is: a component that reaches for an i18n context
+   * directly crashes the whole render in an app mounted without one.
+   */
+  locale?: string
   /** Replace or reorder what the resolver produced. */
   methods?: LoginMethod[] | ((methods: LoginMethod[]) => LoginMethod[])
   terms?: LoginTermsConfig | false
@@ -218,6 +215,17 @@ export interface LoginScreenProps {
 
 export type LoginScreenComponent = ComponentType<LoginScreenProps>
 
+/**
+ * A way to surface a `begin`/`logout` outcome that has no inline screen to render it on.
+ *
+ * A header "Log in"/"Log out" control (`useLogin`/`useLogout`) fires the facade and forgets the
+ * result — it renders nothing of its own, unlike the sign-in screen, which already shows
+ * `loginAttemptError` inline. Registering one is how a UI package (`web-panel`, `mui-panel`) gives
+ * that control a way to speak — e.g. a toast when {@link LoginOutcome.Blocked} fires. Unregistered,
+ * it is silence, which is what a non-DOM host and a screen-mounted flow both already have.
+ */
+export interface LoginNotifier { (outcome: LoginOutcome, env: LoginEnv): void }
+
 export interface LoginService extends LazyService {
   registerPlugin: (plugin: LoginPlugin) => void
   /** Select the active plugin for the given (or default) environment. */
@@ -237,6 +245,16 @@ export interface LoginService extends LazyService {
    */
   registerScreen: (screen: LoginScreenComponent) => void
   screen: () => LoginScreenComponent | null
+  /** See {@link LoginNotifier}. Replaces any previously registered notifier. */
+  registerNotifier: (notifier: LoginNotifier) => void
+  /** Register a post-login step. Replace-by-alias, priority-sorted (higher first). */
+  registerStep: (step: LoginStep) => void
+  /** Every registered step, priority-sorted (higher first). */
+  steps: () => LoginStep[]
+  /** Register a hook that observes a freshly authenticated token. Replace-by-alias, priority-sorted. */
+  onLanded: (hook: LoginLandingHook) => void
+  /** Every registered landing hook, priority-sorted (higher first). */
+  landingHooks: () => LoginLandingHook[]
   // Facade — every method re-selects the plugin and delegates.
   // NOTE: these stay plain writable instance properties, never getters, so that alternative
   // implementations (e.g. a native login service) can monkey-patch them directly.
@@ -251,6 +269,65 @@ export interface LoginService extends LazyService {
   adopt: (token: string) => Promise<void>
   /** Drop this document's authentication. The single de-adoption path. */
   revoke: () => Promise<void>
+}
+
+/**
+ * The value shape a landing's `params`/`query` carries.
+ *
+ * Matches `FlowPayload` (`@owlmeans/flow`) and the `AbstractRequest` params/query fields
+ * (`@owlmeans/entrypoint`) structurally, rather than the narrower `Record<string, string>`, so a
+ * `LoginLanding` can be built directly from either a `SuspendedLandingRecord`'s query or a
+ * dispatcher's own forwarded `params`/`query` without a lossy re-cast at every call site.
+ */
+export type LoginLandingParams = Record<string, string | number | boolean | undefined | null>
+
+/**
+ * A step to run after sign-in completes, before the ordinary landing.
+ *
+ * Registered by a package that must collect something from a freshly authenticated user before
+ * the application resumes wherever it was headed — the marketing-consent screen is the first
+ * consumer. `landAfterLogin`/`continueLogin` (./land.js) walk the registered steps in priority
+ * order and land on the first one whose `pending` resolves `true`.
+ */
+export interface LoginStep {
+  alias: string
+  /** Higher runs first. Defaults to 0. */
+  priority?: number
+  /** Entrypoint alias to navigate to while this step is pending. */
+  entrypoint: string
+  /** Extra query parameters for the landing, alongside the step's own alias. */
+  query?: (ctx: LoginContext) => LoginLandingParams | undefined
+  /** Whether this step still has something to collect from the signed-in user. */
+  pending: (ctx: LoginContext) => Promise<boolean>
+  /**
+   * This step is where the Terms confirmation lives instead of on the sign-in screen.
+   *
+   * `termsDeferred(ctx)` (`./terms.js`) is true only while a step with this flag is both
+   * registered AND bound (`ctx.hasEntrypoint(step.entrypoint)`) — an app that registers the step
+   * but never binds its screen keeps the sign-in checkbox, fail-closed.
+   */
+  confirmsTerms?: boolean
+  /**
+   * A `pending` that throws or times out counts as PENDING rather than "not pending".
+   *
+   * The default (`undefined`/`false`) keeps every existing step fail-open, exactly as before —
+   * this flag is for a step whose whole point is to gate the landing on something the person must
+   * do (Terms confirmation), where a broken read must show the step rather than let it through.
+   */
+  required?: boolean
+}
+
+/**
+ * Observes that a freshly authenticated token has landed — unlike {@link LoginStep}, it never
+ * blocks the landing, it only reacts to it, once per distinct token.
+ *
+ * MUST never throw uncaught: the caller (`landAfterLogin`) bounds and swallows every hook's
+ * failure, on a timeout as well as a rejection, so a broken hook can never block sign-in.
+ */
+export interface LoginLandingHook {
+  alias: string
+  priority?: number
+  landed: (ctx: LoginContext) => Promise<void>
 }
 
 export interface LoginServiceAppend {

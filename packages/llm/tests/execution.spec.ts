@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
-import { ExecutionEffort, ExecutionLevel, UTILITY_ROLE } from '@owlmeans/llm-common'
+import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
+import {
+  ExecutionEffort, ExecutionLevel, ModelEffort, ModelProvider, UTILITY_ROLE,
+} from '@owlmeans/llm-common'
 import type { ExecutionState, ModelConfigPatch, TaskExecutionState } from '@owlmeans/llm-common'
 import { DEFAULT_EFFORT, EFFORT_TABLE, makeExecutionService, makeLlmService } from '@owlmeans/llm'
-import type { ExecutionService, ProjectExecution, TaskExecution } from '@owlmeans/llm'
+import type { ExecutionService, ModelConfig, ProjectExecution, TaskExecution } from '@owlmeans/llm'
 import { offlineConfigs, Role } from './context.js'
 
 let service: ExecutionService
@@ -281,32 +284,27 @@ describe('@owlmeans/llm — prompt policy accumulation', () => {
   })
 })
 
-describe('@owlmeans/llm — resilience plugin seam', () => {
-  test('checkpoint is a no-op until a plugin is registered', async () => {
-    await expect(service.checkpoint(root, 'key')).resolves.toBeUndefined()
+describe('@owlmeans/llm — plugin registration', () => {
+  test('seats a plugin by alias, so a layer wired twice answers once', async () => {
+    // Mixins compose. A plugin registered twice would answer twice, and since the first usable
+    // answer wins, the duplicate is silent rather than loud.
+    const asked: string[] = []
+    service.use({ alias: 'files', advise: async () => { asked.push('first'); return null } })
+    service.use({ alias: 'files', advise: async () => { asked.push('second'); return 'answer' } })
+
+    await service.advise(root, { kind: 'files', task: 'x' })
+
+    expect(asked).toEqual(['second'])
   })
 
-  test('a registered plugin receives the JSON-safe state and the execution', async () => {
-    const seen: Array<{ state: ExecutionState, key?: string }> = []
-    service.use({ onCheckpoint: async (state, _exec, key) => { seen.push({ state, key }) } })
+  test('a plugin with no alias is simply appended', async () => {
+    const asked: string[] = []
+    service.use({ advise: async () => { asked.push('a'); return null } })
+    service.use({ advise: async () => { asked.push('b'); return null } })
 
-    const task = service.forTask(root, { phase: 'draft' })
-    await service.checkpoint(task, 'project-1')
+    await service.advise(root, { kind: 'files', task: 'x' })
 
-    expect(seen).toHaveLength(1)
-    expect(seen[0]!.key).toBe('project-1')
-    expect((seen[0]!.state as TaskExecutionState).phase).toBe('draft')
-    expect((seen[0]!.state as unknown as { models?: unknown }).models).toBeUndefined()
-  })
-
-  test('an advise-only plugin leaves checkpoint a no-op', async () => {
-    let snapshotted = false
-    service.use({ advise: async () => 'advice' })
-    // Reaching `snapshot` at all would mean an advisor made checkpointing do work.
-    const guarded = { ...service, snapshot: (exec: never) => { snapshotted = true; return service.snapshot(exec) } }
-
-    await expect(guarded.checkpoint(root, 'key')).resolves.toBeUndefined()
-    expect(snapshotted).toBe(false)
+    expect(asked).toEqual(['a', 'b'])
   })
 })
 
@@ -378,5 +376,51 @@ describe('@owlmeans/llm — per-helper output sizing', () => {
   test('without output the override carries no token sizing', () => {
     service.forHelper(root, { role: Role.Analyst })
     expect(resolved.at(-1)!.override?.maxTokens).toBeUndefined()
+  })
+})
+
+describe('@owlmeans/llm — a temperature refinement climbs effort', () => {
+  const configs = (): ModelConfig[] => [
+    {
+      alias: 'declared', provider: ModelProvider.OpenAI, model: 'gpt-6-luna', secret: 'sk-test',
+      effort: ModelEffort.Low,
+    },
+    { alias: 'undeclared', provider: ModelProvider.OpenAI, model: 'gpt-6-luna', secret: 'sk-test' },
+  ]
+  const helperFor = (role: string) => {
+    const tag = `${role}-${Math.trunc(performance.now() * 1000)}`
+    const llm = makeLlmService({ models: configs }, `spec-temp-effort-llm-${tag}`)
+    const executions = makeExecutionService(`spec-temp-effort-${tag}`)
+    return executions.forHelper(executions.root({
+      models: () => llm, policy: { effort: DEFAULT_EFFORT }, purpose: { type: 'spec' },
+    }), { role })
+  }
+  /** Read off the request body — the constructor's `reasoning` field is not what ships on gpt-6. */
+  const effortOf = (model: BaseChatModel): string | undefined =>
+    ((model as unknown as { invocationParams: (options: unknown) => { reasoning?: { effort?: string } } })
+      .invocationParams({})).reasoning?.effort
+
+  test('each 0.3 of temperature is one level above the declared effort', () => {
+    const helper = helperFor('declared')
+
+    expect(effortOf(helper.model)).toBe('low')
+    expect(effortOf(helper.temperatureFactory(0.3))).toBe('medium')
+    expect(effortOf(helper.temperatureFactory(0.6))).toBe('high')
+    expect(effortOf(helper.temperatureFactory(1))).toBe('xhigh')
+    expect(effortOf(helper.temperatureFactory(0))).toBe('low')
+  })
+
+  test('an undeclared effort climbs from the model\'s default', () => {
+    const helper = helperFor('undeclared')
+
+    expect(effortOf(helper.model)).toBeUndefined()
+    expect(effortOf(helper.temperatureFactory(0.3))).toBe('high')
+  })
+
+  test('a model that accepts no effort gets the temperature alone', () => {
+    const helper = service.forHelper(root, { role: Role.Analyst })
+    helper.temperatureFactory(0.6)
+
+    expect(resolved.at(-1)!.override).toEqual({ temperature: 0.6, topP: 0.8 })
   })
 })

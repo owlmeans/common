@@ -33,6 +33,12 @@ export const DISPATCHER_OIDC_INIT = 'dispatcher:oidc:init'
 
 export const DISPATCHER_OIDC = 'dispatcher:oidc:authenticate'
 
+/** Lists the organizations the session's subject belongs to. */
+export const DISPATCHER_OIDC_ORGANIZATIONS = 'dispatcher:oidc:organizations'
+
+/** Switches the organization the session acts in. */
+export const DISPATCHER_OIDC_ORGANIZATION = 'dispatcher:oidc:organization'
+
 export const OIDC_CODE_QUERY = 'code'
 
 /**
@@ -67,7 +73,26 @@ export const PERMISSIONS_SCOPE = 'permissions'
 export const OIDC_RP_BASE_SCOPES = ['openid', 'profile', EMAIL_SCOPE]
 
 /** `OIDC_RP_BASE_SCOPES` as the space-delimited string an authorization request carries. */
-export const OIDC_RP_BASE_SCOPE = OIDC_RP_BASE_SCOPES.join(' ')
+export const OIDC_RP_BASE_SCOPE = `openid profile ${EMAIL_SCOPE}`
 
 /** Token/userinfo claim carrying the subject's PermissionSet[] for the requesting client. */
 export const PERMISSIONS_CLAIM = 'permissions'
+
+/**
+ * OIDC scope of a tenanted client: the provider answers it with the subject's organizations and
+ * the full permission claim, bound sets included. A client that never asks for it gets the
+ * flattened claim of the one organization it acts in, exactly as before the scope existed.
+ */
+export const ORGANIZATIONS_SCOPE = 'organizations'
+
+/** Token/userinfo claim carrying the subject's `OidcOrganizationClaim[]`. */
+export const ORGANIZATIONS_CLAIM = 'organizations'
+
+/** `AuthForbidden` reason: the organization named is not one the subject belongs to. */
+export const ORGANIZATION_REFUSAL = 'organization'
+
+/** `AuthForbidden` reason: the action needs the organization's owner. */
+export const ORGANIZATION_OWNER_REFUSAL = 'organization:owner'
+
+/** Discovery-document field carrying the base URL of the provider's runtime IAM API. */
+export const IAM_API_METADATA = 'owlmeans_iam_api'

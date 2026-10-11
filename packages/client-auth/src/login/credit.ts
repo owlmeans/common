@@ -1,11 +1,5 @@
 import type { BrandSettings, LoginCreditConfig } from '@owlmeans/config'
-
-export interface ResolvedCredit {
-  /** Whether "Powered by OwlMeans" is rendered. */
-  poweredBy: boolean
-  /** The product and organization line, already composed. Null when there is nothing to say. */
-  line: string | null
-}
+import type { ResolvedCredit } from './credit/types.js'
 
 /**
  * The years one notice covers.

@@ -3,10 +3,8 @@ import { DEFAULT_ALIAS } from './consts.js'
 import type { WebDbService } from './types.js'
 import type { ClientDb } from '@owlmeans/client-resource'
 import { get, set, del, clear } from 'idb-keyval'
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import type { Config, Context } from './types.local.js'
 
-type Config = ClientConfig
-interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const makeWebDbService = (alias: string = DEFAULT_ALIAS): WebDbService => {
   const stores: Record<string, ClientDb> = {}

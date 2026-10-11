@@ -1,15 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
-import {
-  CONSENT_KEY, CONSENT_LOCALES, CONSENT_SCHEMA_VERSION, defaultConsentTranslate,
-} from '@owlmeans/consent'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
+import { CONSENT_KEY, CONSENT_LOCALES, CONSENT_SCHEMA_VERSION, consentI18nHelper } from '@owlmeans/consent'
 import { HARNESS_URL } from './context.js'
 
 // Browser work does not fit the 5s default: a cold harness compiles the app on first request.
 const TIMEOUT = 60_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 const base = HARNESS_URL.replace(/\/$/, '')
@@ -136,7 +134,7 @@ describe('@owlmeans/web-consent — the dialog', () => {
   }, TIMEOUT)
 
   test('refusing a category denies its signal, and the decision survives a remount', async () => {
-    const { page, close } = await mountComponent({ url: `${base}/?categories=custom` })
+    const { page, close } = await mountComponent({ url: `${base}/?categories=custom&mode=window` })
     try {
       await page.waitForSelector('[data-consent-dialog]')
       // Save without granting the optional category: the essential row is locked on, the other is
@@ -181,38 +179,112 @@ describe('@owlmeans/web-consent — the dialog', () => {
     }
   }, TIMEOUT)
 
-  test('the re-open button brings the dialog back with a reason', async () => {
-    const { page, close } = await seeded({ essential: true, analytics: false, marketing: false, v: CONSENT_SCHEMA_VERSION })
+  test('the re-open button is a bare, compact corner icon', async () => {
+    // The harness carries no Tailwind build (the package ships classes for a CONSUMING app's own
+    // `@source` scan, as `web-panel`'s consuming `index.css` does), so this is asserted on the
+    // class list itself rather than on computed style — exactly what every card/border/shadow/
+    // size utility below would resolve to once a consumer's stylesheet compiles them.
+    const { page, close } = await seeded(
+      { essential: true, analytics: false, marketing: false, v: CONSENT_SCHEMA_VERSION }
+    )
     try {
-      await page.locator('[data-consent-reopen]').click()
-      await page.waitForSelector('[data-consent-dialog]')
-      // The reason is what lets a host explain WHY it reopened — a login gate reads differently
-      // from a footer link, and a dialog that cannot say which is not answerable.
-      expect(await page.locator('[data-consent-reason]').count()).toBeGreaterThanOrEqual(0)
+      const button = page.locator('[data-consent-reopen]')
+      await button.waitFor()
+      const cls = await button.getAttribute('class') ?? ''
+
+      // In the very corner, not 20px off it (`bottom-5 left-5` was the old, card-sized offset).
+      expect(cls).toContain('bottom-1')
+      expect(cls).toContain('left-1')
+      // Bare icon: no filled surface, no border, no shadow, no hover-scale card affordance.
+      expect(cls).toContain('bg-transparent')
+      expect(cls).not.toMatch(/\bshadow-lg\b/)
+      expect(cls).not.toMatch(/\brounded-full\b/)
+      expect(cls).not.toMatch(/\bborder-border\b/)
+      expect(cls).not.toMatch(/\bhover:scale-110\b/)
+      // The pictogram itself keeps its original size.
+      const iconCls = await page.locator('[data-consent-reopen] svg').getAttribute('class') ?? ''
+      expect(iconCls).toMatch(/\bh-5\b/)
+      expect(iconCls).toMatch(/\bw-5\b/)
     } finally {
       await close()
     }
   }, TIMEOUT)
 
-  test('every supported locale renders wording, never a bare key', async () => {
-    // Seven languages are a shipped contract. A missing bundle does not throw — it renders the
+  test('the window is flat: theme tokens, hairlines and pills — no gradient, shadow or blur', async () => {
+    // A first visit in `window` mode, and every later opening in either mode, meets it — and a
+    // generated app's rule is no gradient, glow, shadow or backdrop-filter anywhere. Asserted on the
+    // class lists for the same reason as the re-open button below: the harness compiles no stylesheet.
+    const { page, close } = await mountComponent({ url: `${base}/?mode=window` })
+    try {
+      const dialog = page.locator('[data-consent-dialog]')
+      await dialog.waitFor()
+      const classes = await dialog.evaluate(root => [root, ...Array.from(root.querySelectorAll('*'))]
+        .map(element => element.getAttribute('class') ?? '').join(' '))
+
+      expect(classes).not.toMatch(/\b(?:bg-gradient|from-|to-secondary|backdrop-|blur|shadow|ring-primary)/)
+      // The overlay is a flat translucent black, and the card sits on the ground token.
+      expect(await dialog.getAttribute('class')).toContain('bg-black/70')
+      const card = dialog.locator(':scope > div')
+      expect(await card.getAttribute('class')).toMatch(/\bbg-background\b/)
+      expect(await card.getAttribute('class')).toMatch(/\bborder-border\b/)
+      expect(await card.getAttribute('class')).toMatch(/\brounded-3xl\b/)
+
+      // One accent pill for accepting, an outlined pill for the rest; both a 44px target with a
+      // visible focus ring.
+      const accept = await page.locator('[data-consent-accept-all]').getAttribute('class') ?? ''
+      const save = await page.locator('[data-consent-save]').getAttribute('class') ?? ''
+      expect(accept).toMatch(/\bbg-primary\b/)
+      expect(accept).toMatch(/\btext-primary-foreground\b/)
+      expect(save).not.toMatch(/\bbg-primary\b/)
+      expect(save).toMatch(/\bborder-foreground\b/)
+      for (const cls of [accept, save]) {
+        expect(cls).toMatch(/\brounded-full\b/)
+        expect(cls).toMatch(/\bmin-h-11\b/)
+        expect(cls).toContain('focus-visible:outline-ring')
+      }
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the re-open button brings back the preferences window — never the bar', async () => {
+    const { page, close } = await seeded({ essential: true, analytics: false, marketing: false, v: CONSENT_SCHEMA_VERSION })
+    try {
+      await page.locator('[data-consent-reopen]').click()
+      await page.waitForSelector('[data-consent-dialog]')
+      // A visitor who reopens wants to CHANGE something, so it is the switches they get, seeded
+      // with the answer they gave; the sign-in line is only for a window the sign-in gate raised.
+      expect(await page.locator('[data-consent-dialog]').getAttribute('data-consent-mode')).toBe('window')
+      expect(await page.locator('[data-consent-bar]').count()).toBe(0)
+      expect(await page.locator('[data-consent-reason]').count()).toBe(0)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('every supported locale renders wording, never a bare key — on the bar and the window', async () => {
+    // Eight languages are a shipped contract. A missing bundle does not throw — it renders the
     // key — so the visible string is the only thing worth asserting.
     for (const locale of CONSENT_LOCALES) {
-      const { page, close } = await mountComponent({ url: `${base}/?locale=${locale}` })
-      try {
-        const dialog = page.locator('[data-consent-dialog]')
-        await dialog.waitFor()
-        const text = await dialog.innerText()
+      const translate = consentI18nHelper.defaultConsentTranslate(locale)
+      for (const [mode, titleKey] of [['bar', 'barTitle'], ['window', 'title']] as const) {
+        const { page, close } = await mountComponent({ url: `${base}/?locale=${locale}&mode=${mode}` })
+        try {
+          const dialog = page.locator('[data-consent-dialog]')
+          await dialog.waitFor()
+          const text = await dialog.innerText()
 
-        expect(text).not.toContain('consent.')
-        expect(text.length).toBeGreaterThan(40)
-        // And it is genuinely THAT language's wording, not English shown seven times.
-        expect(text).toContain(defaultConsentTranslate(locale)('consent.title', ''))
-      } finally {
-        await close()
+          expect(text).not.toContain('consent.')
+          expect(text.length).toBeGreaterThan(40)
+          // And it is genuinely THAT language's wording, not English shown eight times.
+          expect(translate(titleKey, '')).not.toBe('')
+          expect(text).toContain(translate(titleKey, ''))
+        } finally {
+          await close()
+        }
       }
     }
-  }, TIMEOUT * 3)
+  }, TIMEOUT * 4)
 })
 
 describe('@owlmeans/web-consent — the policy page', () => {
@@ -227,6 +299,92 @@ describe('@owlmeans/web-consent — the policy page', () => {
 
       expect(text).toContain(CONSENT_KEY)
       expect(text).toContain('Acme')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('each service is disclosed under the category that gates it', async () => {
+    // "Analytics cookies" says why something is stored, never who receives it — the service row is
+    // the part a regulator actually reads, so it must sit inside ITS category, not in a list of
+    // its own where nothing ties it to the switch that governs it.
+    const { page, close } = await mountComponent({ url: `${base}/?view=policy&services=1` })
+    try {
+      const analytics = page.locator('[data-cookie-policy-category="analytics"]')
+      await analytics.waitFor()
+      const text = await analytics.innerText()
+
+      expect(text).toContain('Example Analytics')
+      expect(text).toContain('Example Corp')
+      expect(text).toContain('Counts page views.')
+      expect(text).toContain('_ex_1')
+      expect(await analytics.locator('a[href="https://example.test/vendor-privacy"]').innerText())
+        .toContain('Example Corp')
+      // The list is named for assistive technology by the category it belongs to.
+      expect(await analytics.locator('ul').getAttribute('aria-label')).toContain('Analytics')
+
+      // Nothing leaked into a category that does not gate it.
+      expect(await page.locator('[data-cookie-policy-category="marketing"]').innerText())
+        .not.toContain('Example Analytics')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('a service whose category is not in force is still disclosed, never dropped', async () => {
+    const { page, close } = await mountComponent({ url: `${base}/?view=policy&services=1` })
+    try {
+      const other = page.locator('[data-cookie-policy-other]')
+      await other.waitFor()
+
+      expect(await other.innerText()).toContain('Orphan Pixel')
+      // Still one heading: services are list items, never headings that would skip a level.
+      expect(await page.locator('[data-cookie-policy] h1').count()).toBe(1)
+      expect(await page.locator('[data-cookie-policy] h2, [data-cookie-policy] h3').count()).toBe(0)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('with no services the page renders exactly as before', async () => {
+    const { page, close } = await mountComponent({ url: `${base}/?view=policy` })
+    try {
+      await page.locator('[data-cookie-policy]').waitFor()
+
+      expect(await page.locator('[data-cookie-policy-service]').count()).toBe(0)
+      expect(await page.locator('[data-cookie-policy-other]').count()).toBe(0)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the service labels follow the locale', async () => {
+    const { page, close } = await mountComponent({ url: `${base}/?view=policy&services=1&locale=de` })
+    try {
+      const analytics = page.locator('[data-cookie-policy-category="analytics"]')
+      await analytics.waitFor()
+      const text = await analytics.innerText()
+
+      expect(text).toContain(consentI18nHelper.defaultConsentTranslate('de')('policyProvider', ''))
+      expect(text).toContain(consentI18nHelper.defaultConsentTranslate('de')('policyPurpose', ''))
+      expect(consentI18nHelper.defaultConsentTranslate('de')('policyProvider', '')).not.toBe('Provider')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the privacy and terms links follow the locale', async () => {
+    const { page, close } = await mountComponent({ url: `${base}/?view=policy&locale=de` })
+    try {
+      const policy = page.locator('[data-cookie-policy]')
+      await policy.waitFor()
+      const de = consentI18nHelper.defaultConsentTranslate('de')
+
+      expect(await policy.locator('a[href="https://example.test/privacy"]').innerText())
+        .toBe(de('privacy', ''))
+      expect(await policy.locator('a[href="https://example.test/terms"]').innerText())
+        .toBe(de('terms', ''))
+      expect(de('privacy', '')).not.toBe('Privacy Policy')
     } finally {
       await close()
     }

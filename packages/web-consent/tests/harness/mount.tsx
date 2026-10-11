@@ -1,8 +1,8 @@
 import type { FC } from 'react'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { CookieConsent, CookiePolicy, DEFAULT_CONSENT_CATEGORIES } from '../../src/index.js'
-import type { ConsentCategory } from '../../src/index.js'
+import { CookieConsent, CookiePolicy, DEFAULT_CONSENT_CATEGORIES, consentPluginHelper } from '../../src/index.js'
+import type { ConsentCategory, ConsentDisplayMode, ConsentGeoOptions, ConsentService } from '../../src/index.js'
 
 /**
  * The harness renders whatever the query string asks for, so a spec chooses its case by URL and
@@ -11,8 +11,33 @@ import type { ConsentCategory } from '../../src/index.js'
  * - `?locale=<lng>` — render the dialog in that language.
  * - `?categories=custom` — a category set that is NOT the default, with its own global var.
  * - `?view=policy` — the cookie-policy page instead of the dialog.
+ * - `?services=1` — with `view=policy`, disclose {@link SERVICES} on it.
+ * - `?styled=1` — compile a real theme (`styled.css`), for the accessibility spec only.
+ * - `?theme=dark` — with `styled=1`, the dark scheme.
+ * - `?linker=1` — cross-domain consent, `linker={{ domains: LINKER_DOMAINS }}` on both the dialog
+ *   and the policy page.
+ * - `?anchors=1` — renders a handful of `<a>` elements (a listed partner, a foreign host, and one
+ *   with `rel="noreferrer"`) for the decoration specs to click/inspect.
+ * - `?mode=window|bar` — the surface a first-time visitor is asked with (the default is the bar).
+ * - `?categories=essential` — only the required category, nothing optional to ask about.
+ * - `?geo=<CC>|fail|html|hang` — the geo gate in Cloudflare mode, on the dialog and the policy
+ *   page; the harness server answers the trace accordingly (`context.ts`), `&geoDelay=<ms>` later.
+ * - `?geoTimeout=<ms>` — how long locating may take.
+ * - `?geoPlugin=<CC>|fail` — an application locator registered ahead of Cloudflare (turns the
+ *   gate on by itself).
+ * - `?gpc=1` — the browser sends Global Privacy Control.
  */
 const params = new URLSearchParams(window.location.search)
+
+/** The one partner domain every `?linker=1` case shares — never the harness's own origin. */
+export const LINKER_DOMAINS = ['partner.test']
+
+if (params.get('styled') != null) {
+  await import('./styled.css')
+  if (params.get('theme') === 'dark') {
+    document.documentElement.classList.add('dark')
+  }
+}
 
 /**
  * A deliberately non-default set: a different key, a different global var, and a signal list that
@@ -32,7 +57,46 @@ const CUSTOM: ConsentCategory[] = [
   },
 ]
 
-const categories = params.get('categories') === 'custom' ? CUSTOM : DEFAULT_CONSENT_CATEGORIES
+const categories = params.get('categories') === 'custom' ? CUSTOM
+  : params.get('categories') === 'essential' ? DEFAULT_CONSENT_CATEGORIES.filter(category => category.required === true)
+    : DEFAULT_CONSENT_CATEGORIES
+
+if (params.get('gpc') != null) {
+  Object.defineProperty(Navigator.prototype, 'globalPrivacyControl', { get: () => true, configurable: true })
+}
+
+const geoPlugin = params.get('geoPlugin')
+if (geoPlugin != null) {
+  consentPluginHelper.registerConsentPlugin({
+    alias: 'harness-geo', priority: 10,
+    locate: async () => {
+      if (geoPlugin === 'fail') {
+        throw new Error('the harness locator cannot tell')
+      }
+
+      return { country: geoPlugin }
+    },
+  })
+}
+
+const geo: ConsentGeoOptions | undefined = params.get('geo') != null
+  ? { cloudflare: true, ...(params.get('geoTimeout') != null ? { timeout: Number(params.get('geoTimeout')) } : {}) }
+  : geoPlugin != null ? {} : undefined
+
+const mode = (params.get('mode') ?? undefined) as ConsentDisplayMode | undefined
+
+/**
+ * One service under a category in force, and one under a category that is not — the second is
+ * what proves a service is never silently dropped for want of a matching category.
+ */
+const SERVICES: ConsentService[] = [
+  {
+    name: 'Example Analytics', provider: 'Example Corp', category: 'analytics',
+    purpose: 'Counts page views.', cookies: ['_ex', '_ex_1'],
+    privacyHref: 'https://example.test/vendor-privacy',
+  },
+  { name: 'Orphan Pixel', provider: 'Orphan Ltd', category: 'nowhere' },
+]
 
 const translate = params.get('categories') === 'custom'
   // Only the custom keys need wording; everything else falls through to the packaged bundle,
@@ -42,6 +106,9 @@ const translate = params.get('categories') === 'custom'
     : key === 'consent.telemetry.description' ? 'Product telemetry.' : defaultValue
   : undefined
 
+const withLinker = params.get('linker') != null
+const withAnchors = params.get('anchors') != null
+
 const App: FC = () => {
   // Re-mounting on demand proves a decision SURVIVES a mount rather than merely a render — the
   // migration case is meaningless otherwise.
@@ -50,6 +117,11 @@ const App: FC = () => {
   return <div>
     <button id="remount" onClick={() => setGeneration(g => g + 1)}>remount</button>
     <span id="generation">{generation}</span>
+    {withAnchors && <nav>
+      <a id="partner-link" href="https://partner.test/legal/cookies">A listed partner</a>
+      <a id="foreign-link" href="https://elsewhere.test/">An unlisted host</a>
+      <a id="noreferrer-link" href="https://partner.test/legal/terms" rel="noreferrer">A listed partner, noreferrer</a>
+    </nav>}
     {params.get('view') === 'policy' && <CookiePolicy
       key={`policy-${generation}`}
       locale={params.get('locale') ?? undefined}
@@ -57,6 +129,9 @@ const App: FC = () => {
       operator="Acme"
       privacyHref="https://example.test/privacy"
       termsHref="https://example.test/terms"
+      services={params.get('services') != null ? SERVICES : undefined}
+      {...(withLinker ? { linker: { domains: LINKER_DOMAINS } } : {})}
+      {...(geo != null ? { geo } : {})}
     />}
     {/*
       Mounted in EVERY view, including alongside the policy page — that is how an application
@@ -70,6 +145,9 @@ const App: FC = () => {
       translate={translate}
       policyHref="/cookies"
       links={[{ href: 'https://example.test/privacy', labelKey: 'consent.privacy', defaultLabel: 'Privacy Policy' }]}
+      {...(withLinker ? { linker: { domains: LINKER_DOMAINS } } : {})}
+      {...(mode != null ? { mode } : {})}
+      {...(geo != null ? { geo } : {})}
     />
   </div>
 }

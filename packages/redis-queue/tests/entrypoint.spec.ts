@@ -1,10 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { entrypoint, provideResponse, transportAlias } from '@owlmeans/entrypoint'
+import { contract, provideResponse, protocol, transportAlias, typed } from '@owlmeans/entrypoint'
 import type {
   AbstractRequest, AbstractResponse, EntrypointHandler, EntrypointTransport
 } from '@owlmeans/entrypoint'
-import { job, route, RouteProtocols } from '@owlmeans/route'
-import { UnknownJob } from '@owlmeans/queue'
+import { route } from '@owlmeans/route'
+import { bind } from '@owlmeans/server-entrypoint'
+import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
+import { job, QUEUE_PROTOCOL, UnknownJob } from '@owlmeans/queue'
 import { gate, makeSuite } from './context.js'
 
 /**
@@ -16,7 +18,7 @@ import { gate, makeSuite } from './context.js'
  */
 const handler = (
   handle: (req: AbstractRequest, res: AbstractResponse<unknown>) => Promise<void>
-): EntrypointHandler => handle as EntrypointHandler
+): RefedEntrypointHandler => () => handle as EntrypointHandler
 
 describe('@owlmeans/redis-queue — queued entrypoints', () => {
   if (gate.skip) {
@@ -26,17 +28,21 @@ describe('@owlmeans/redis-queue — queued entrypoints', () => {
 
   const suite = makeSuite('entrypoint')
 
-  const echo = entrypoint(route('echo-job', 'echo', job({ queue: 'bridge' })), {
-    handle: handler(async (req, res) => {
+  const echoProtocol = protocol(
+    route('echo-job', 'echo', job({ queue: 'bridge' })),
+    contract.request({ body: typed<{ value: string }>() }, typed<{ echoed: string }>()),
+  )
+  const echo = bind(echoProtocol, handler(async (req, res) => {
       res.resolve({ echoed: (req.body as { value: string }).value })
-    })
-  })
+  }))
 
-  const refusing = entrypoint(route('fail-job', 'fail', job({ queue: 'bridge' })), {
-    handle: handler(async () => {
+  const refusingProtocol = protocol(
+    route('fail-job', 'fail', job({ queue: 'bridge' })),
+    contract(typed<void>()),
+  )
+  const refusing = bind(refusingProtocol, handler(async () => {
       throw new UnknownJob('deliberate-refusal')
-    })
-  })
+  }))
 
   const boot = async () => await suite.boot({
     queues: [{ name: 'bridge', jobs: ['echo-job', 'fail-job'] }],
@@ -54,7 +60,7 @@ describe('@owlmeans/redis-queue — queued entrypoints', () => {
   test('a queued call round-trips its value', async () => {
     const { context } = await boot()
     const transport = context.service<EntrypointTransport>(
-      transportAlias(RouteProtocols.QUEUE)
+      transportAlias(QUEUE_PROTOCOL)
     )
 
     const response = provideResponse<{ echoed: string }>()
@@ -67,7 +73,7 @@ describe('@owlmeans/redis-queue — queued entrypoints', () => {
   test('a refusal arrives as its own class, not as a string', async () => {
     const { context } = await boot()
     const transport = context.service<EntrypointTransport>(
-      transportAlias(RouteProtocols.QUEUE)
+      transportAlias(QUEUE_PROTOCOL)
     )
 
     const response = provideResponse<unknown>()

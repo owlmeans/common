@@ -1,4 +1,6 @@
 export type * from './types.js'
+export type * from './helper/types.js'
+export type * from './auth/types.js'
 
 export * from './consts.js'
 export * from './helper.js'
