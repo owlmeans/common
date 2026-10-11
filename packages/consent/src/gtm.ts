@@ -1,7 +1,8 @@
 import {
-  CONSENT_EVENT, CONSENT_KEY, CONSENT_SETUP_FLAG, CONSENT_SIGNAL_DEFAULTS,
+  CONSENT_AUTO_MAX_AGE, CONSENT_EVENT, CONSENT_KEY, CONSENT_SETUP_FLAG, CONSENT_SIGNAL_DEFAULTS,
   DEFAULT_CONSENT_CATEGORIES,
 } from './consts.js'
+import { AUTO_SKEW } from './consts.local.js'
 import { consentLinkHelper } from './linker.js'
 import type { ConsentCategory, ConsentOptions, ConsentRecord } from './types.js'
 import type { ConsentWindow } from './types.local.js'
@@ -26,6 +27,15 @@ export const createConsentModeHelper = (): ConsentModeHelper => {
 
   const categoriesOf = (opts?: ConsentOptions): ConsentCategory[] =>
     opts?.categories ?? DEFAULT_CONSENT_CATEGORIES
+
+  /**
+   * Inline: treat an automatic decision past `CONSENT_AUTO_MAX_AGE` as no decision at all — run
+   * `onStale` on the parsed record `r`. The store holds such a record back until the visitor is
+   * located again, and the head scripts must not apply what the store will not.
+   */
+  const staleAutoScript = (onStale: string): string =>
+    `if(r&&typeof r.auto==='number'){var a=Math.floor(Date.now()/1000)-r.auto;` +
+    `if(a>${CONSENT_AUTO_MAX_AGE}||a<-${AUTO_SKEW}){${onStale}}}`
 
   const consentDefaults = (
     categories?: ConsentCategory[]
@@ -123,6 +133,7 @@ export const createConsentModeHelper = (): ConsentModeHelper => {
       `if(!raw){var p=('; '+d.cookie).split('; '+${storageKey}+'=');` +
       `if(p.length===2){raw=p.pop().split(';').shift()}}` +
       `if(!raw)return;var r;try{r=JSON.parse(raw)}catch(e){return}` +
+      staleAutoScript('return') +
       `var cs=${categories},u={};` +
       `for(var i=0;i<cs.length;i++){var c=cs[i];var ok=c.required||r[c.key]===true;` +
       `if(c.globalVar){w[c.globalVar]=ok}` +
@@ -151,6 +162,7 @@ export const createConsentModeHelper = (): ConsentModeHelper => {
       `if(!raw){var p=('; '+d.cookie).split('; '+${storageKey}+'=');` +
       `if(p.length===2){raw=p.pop().split(';').shift()}}` +
       `var r=null;if(raw){try{r=JSON.parse(raw)}catch(e){r=null}}` +
+      staleAutoScript('r=null') +
       `if(ok(r)){load();return}` +
       `function h(ev){if(ok(ev&&ev.detail&&ev.detail.record)){` +
       `w.removeEventListener(${event},h);load()}}` +

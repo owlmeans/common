@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent-common",
-  "version": "0.1.18-rc.48",
+  "version": "0.1.18-rc.49",
   "license": "MIT",
   "type": "module",
   "scripts": {

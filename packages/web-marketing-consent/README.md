@@ -11,7 +11,7 @@ terms-recording landing hook in one call. A web app uses it when its server runs
 ## Installation
 
 ```bash
-bun add @owlmeans/web-marketing-consent@^0.1.18-rc.16
+bun add @owlmeans/web-marketing-consent@^0.1.18-rc.17
 ```
 
 Peer dependencies: `react`, `react-dom`, `tailwindcss`, `@radix-ui/react-label`,
@@ -219,7 +219,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -11,7 +11,7 @@ non-image file uses the `StoredFile*` types of `@owlmeans/storage-common` direct
 ## Installation
 
 ```bash
-bun add @owlmeans/image-resource@^0.1.18-rc.42
+bun add @owlmeans/image-resource@^0.1.18-rc.43
 ```
 
 `ajv` is a peer dependency. Install `@owlmeans/storage-common` explicitly as well — the schemas are
@@ -107,7 +107,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.49
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

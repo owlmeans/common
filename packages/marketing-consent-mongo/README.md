@@ -10,7 +10,7 @@ OwlMeans platform itself) adds it next to `appendMarketingConsentService`. A Pos
 ## Installation
 
 ```bash
-bun add @owlmeans/marketing-consent-mongo@^0.1.18-rc.16
+bun add @owlmeans/marketing-consent-mongo@^0.1.18-rc.17
 ```
 
 Peer dependencies: `mongodb`, `ajv`.
@@ -115,7 +115,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

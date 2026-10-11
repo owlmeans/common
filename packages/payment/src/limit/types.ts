@@ -4,20 +4,20 @@ import type { EntitlementView, LimitParam, LimitView } from '../types.js'
 /** The limit windows, the limit gate's parameter, and the questions a view answers about limits. */
 export interface PlanLimitHelper {
   /**
-   * The key of the counter window `at` falls into — calendar UTC.
+   * The key of the counter window `at` falls into — calendar UTC or seven days from the subscription anchor.
    *
    * `'lifetime'` · `'occupancy'` · `'YYYY-MM'` (month) · `'YYYY-MM-DD'` (day).
    *
    * @throws LimitMisdeclared for a window limit without a known window, or an unknown kind.
    */
-  windowKeyOf: (kind: LimitKind, window?: LimitWindow | null, at?: Date) => string
+  windowKeyOf: (kind: LimitKind, window?: LimitWindow | null, at?: Date, anchor?: Date) => string
   /**
-   * The calendar UTC window `at` falls into: `start` inclusive, `resetsAt` exclusive (the first
+   * The calendar UTC or anchored subscription window `at` falls into: `start` inclusive, `resetsAt` exclusive (the first
    * instant of the next window).
    *
    * @throws LimitMisdeclared for an unknown window.
    */
-  windowBoundsOf: (window: LimitWindow, at?: Date) => { start: Date, resetsAt: Date }
+  windowBoundsOf: (window: LimitWindow, at?: Date, anchor?: Date) => { start: Date, resetsAt: Date }
   /** `limit:<key>` · `limit:<key>>=<n>` — the parameter the limit gate takes. */
   formatLimitParam: (key: string, atLeast?: number) => string
   /**

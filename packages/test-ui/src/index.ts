@@ -1,4 +1,6 @@
 export * from './browser.js'
+export * from './consent.js'
+export type * from './consent/types.js'
 export type * from './browser/types.js'
 export * from './marketing-consent.js'
 export type * from './types.js'

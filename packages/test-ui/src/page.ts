@@ -1,7 +1,9 @@
 import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { Page } from 'playwright'
-import { DEFAULT_MARKETING_CONSENT_TIMEOUT, DEFAULT_SUPERVISOR_PATH } from './consts.local.js'
+import {
+  CONSENT_SETTLED_WITHOUT_UI, DEFAULT_MARKETING_CONSENT_TIMEOUT, DEFAULT_SUPERVISOR_PATH,
+} from './consts.local.js'
 import type {
   AcceptConsentOptions, AnswerMarketingConsentOptions, DispatcherLoginOptions, PageHelper, SupervisorFormLoginOptions,
 } from './page/types.js'
@@ -126,9 +128,17 @@ export const makePageHelper = (page: Page): PageHelper => {
 
   const acceptConsent = async (opts?: AcceptConsentOptions): Promise<boolean> => {
     const dialog = page.locator('[data-consent-dialog]')
+    // Wait until the consent store has SETTLED: a surface is up, or a decision exists without one
+    // (stored earlier, or made automatically outside the consent countries — `<html data-consent>`).
+    // Never while the visitor is still being located: the overlay is up then and a click would land
+    // on it. An application older than the attribute only ever settles by showing the dialog.
     try {
-      await dialog.waitFor({ state: 'visible', timeout: opts?.timeout ?? 5_000 })
+      await page.locator(`[data-consent-dialog], ${CONSENT_SETTLED_WITHOUT_UI}`)
+        .first().waitFor({ state: 'visible', timeout: opts?.timeout ?? 5_000 })
     } catch {
+      return false
+    }
+    if (!await dialog.first().isVisible()) {
       return false
     }
     // Accept-all rather than essential-only: a test asserting a narrower decision should make that

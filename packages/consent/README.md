@@ -14,7 +14,7 @@ not this package.
 ## Installation
 
 ```bash
-bun add @owlmeans/consent@^0.1.18-rc.11
+bun add @owlmeans/consent@^0.1.18-rc.12
 ```
 
 ## Concepts
@@ -106,6 +106,28 @@ consentStore.init({ linker })   // registers consentLinker, adopts, writes the l
 const fragment = consentLinkHelper.consentLinkerScript({ linker })
 ```
 
+### Ask only where the law requires it
+
+```typescript
+import { consentPluginHelper, consentStore } from '@owlmeans/consent'
+
+// Cloudflare mode: a same-origin GET of /cdn-cgi/trace, `loc=` decides
+consentStore.init({ geo: { cloudflare: true } })
+
+// …or a locator of your own — one async method that resolves the country or throws
+consentPluginHelper.registerConsentPlugin({
+  alias: 'my-geo', locate: async () => ({ country: await myCountryLookup() }),
+})
+consentStore.init({ geo: {} })
+
+await consentStore.settled()   // the state once the lookup is over
+```
+
+A visitor located in `CONSENT_REQUIRED_COUNTRIES` (or `geo.countries`) is asked; anyone else gets an
+automatic decision (`auto: <unix s>` on the record) — every category, or only the required ones
+under Global Privacy Control; a visitor nobody can locate is asked. An automatic decision is trusted
+for `CONSENT_AUTO_MAX_AGE` (one hour) and then re-checked silently; an explicit decision always wins.
+
 ### Built-in copy
 
 ```typescript
@@ -121,11 +143,12 @@ t('analytics', 'Analytics')
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `consentStore`, `makeConsentStore()` | store | `get`, `subscribe`, `init(opts?)`, `save(record)`, `acceptAll`, `open(reason?)`, `close`, `granted(key)`, `options()` |
+| `consentStore`, `makeConsentStore()` | store | `get`, `subscribe`, `init(opts?)`, `save(record)`, `acceptAll`, `open(reason?)`, `close`, `granted(key)`, `options()`, `settled()` |
 | `consentStorageHelper`, `createConsentStorageHelper()` | helper | `migrateConsent`, `readConsent`, `writeConsent`, `clearConsent` |
 | `consentModeHelper`, `createConsentModeHelper()` | helper | `gtagConsent`, `consentDefaults`, `consentUpdate`, `pushConsentDefaults`, `applyConsent`, `trackingGranted`, `consentBootstrapScript`, `consentGateScript` |
 | `consentLinkHelper`, `createConsentLinkHelper()` | helper | `encodeConsentLink`, `decodeConsentLink`, `writeConsentLanguage`, `consentLinker`, `stripConsentLinkParam`, `consentLinkerScript` |
-| `consentPluginHelper`, `createConsentPluginHelper()` | helper | `registerConsentPlugin`, `consentPlugins`, `decorateConsentUrl`, `consentDomains`, `adoptConsent`, `adoptConsentLanguage`, `startConsentPlugins` |
+| `consentPluginHelper`, `createConsentPluginHelper()` | helper | `registerConsentPlugin`, `unregisterConsentPlugin`, `consentPlugins`, `decorateConsentUrl`, `consentDomains`, `adoptConsent`, `adoptConsentLanguage`, `startConsentPlugins`, `locateConsent` |
+| `consentGeoHelper`, `createConsentGeoHelper()` | helper | `enabled`, `parseTrace`, `cloudflareLocator`, `requiresConsent`, `decide`, `privacySignal`, `automaticRecord`, `autoState` |
 | `consentI18nHelper`, `createConsentI18nHelper()` | helper | `normalizeLocale`, `defaultConsentTranslate`, `interpolate` |
 
 Deprecated top-level wrappers (`compat:factory-refactor`) remain exported: `readConsent`,
@@ -149,6 +172,12 @@ calls the helper members.
 | `DEFAULT_CONSENT_CATEGORIES` | `essential` (required), `analytics`, `marketing` |
 | `CONSENT_SIGNAL_DEFAULTS` | every Consent Mode v2 signal `denied`, except `security_storage` `granted` |
 | `CONSENT_LINK_PARAM`, `CONSENT_LINK_MAX_AGE`, `CONSENT_LINK_SKEW` | `'owlcc'`, `300` s, `60` s |
+| `CONSENT_REQUIRED_COUNTRIES` | where a located visitor is asked — the union of `CONSENT_COUNTRIES_GDPR`, `CONSENT_COUNTRIES_ALIGNED`, `CONSENT_COUNTRIES_OPT_IN` |
+| `CONSENT_GEO_UNKNOWN` | codes that name no country (`XX`, `T1`, …) — asked |
+| `CONSENT_TRACE_PATH`, `CONSENT_GEO_TIMEOUT` | `'/cdn-cgi/trace'`, `2500` ms |
+| `CONSENT_AUTO_MAX_AGE` | `3600` s — how long an automatic decision is trusted |
+| `CONSENT_IDLE_STATE` | the frozen pre-init state and server snapshot |
+| `CONSENT_STATE_ATTRIBUTE` | `'data-consent'` on `<html>`: `locating`, `open`, `decided`, `idle` |
 
 ### Types
 
@@ -156,7 +185,9 @@ calls the helper members.
 |---|---|
 | `ConsentSignal` | the Consent Mode v2 signal names |
 | `ConsentCategory`, `ConsentRecord`, `ConsentService` | category, stored decision, disclosed third-party service |
-| `ConsentOptions` | `categories?`, `storageKey?`, `cookieDays?`, `cookieDomain?`, `silent?`, `linker?` |
+| `ConsentOptions` | `categories?`, `storageKey?`, `cookieDays?`, `cookieDomain?`, `silent?`, `linker?`, `geo?` |
+| `ConsentGeoOptions`, `ConsentCloudflareOptions`, `ConsentGeoPlugin`, `ConsentGeoLocation`, `ConsentLocating` | the geo gate: `cloudflare?`, `countries?`, `timeout?`; a locator plugin; its answer; the lookup phase |
+| `ConsentGeoHelper`, `ConsentGeoVerdict`, `ConsentAutoState` | the geo helper's interface, `'ask' \| 'auto'`, `'fresh' \| 'stale'` |
 | `ConsentLinkerOptions`, `ConsentLinkerLanguage` | `domains`, `param?`, `maxAge?`, `language?`; `supported?`, `storageKey?` |
 | `ConsentState`, `ConsentReason`, `ConsentListener`, `ConsentStore` | store state and contract |
 | `ConsentLocale`, `ConsentLinkPayload`, `ConsentPlugin` | locale union, decoded `owlcc` payload, plugin seam |

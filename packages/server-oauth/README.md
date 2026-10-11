@@ -13,7 +13,7 @@ to OwlMeans apps is `@owlmeans/server-oidc-provider`; hand-made API keys alone n
 ## Installation
 
 ```bash
-bun add @owlmeans/server-oauth@^0.1.18-rc.21
+bun add @owlmeans/server-oauth@^0.1.18-rc.22
 ```
 
 `fastify` (`^5.12.5`) is a peer dependency.
@@ -204,7 +204,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

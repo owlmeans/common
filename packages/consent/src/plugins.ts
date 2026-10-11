@@ -1,4 +1,6 @@
-import type { ConsentOptions, ConsentRecord, ConsentPlugin } from './types.js'
+import { CONSENT_GEO_UNKNOWN } from './consts.js'
+import { COUNTRY_CODE } from './consts.local.js'
+import type { ConsentGeoLocation, ConsentOptions, ConsentRecord, ConsentPlugin } from './types.js'
 import type { ConsentPluginHelper } from './plugins/types.js'
 
 /**
@@ -11,6 +13,10 @@ const plugins = new Map<string, ConsentPlugin>()
 export const createConsentPluginHelper = (): ConsentPluginHelper => {
   const registerConsentPlugin = (plugin: ConsentPlugin): void => {
     plugins.set(plugin.alias, plugin)
+  }
+
+  const unregisterConsentPlugin = (alias: string): void => {
+    plugins.delete(alias)
   }
 
   const consentPlugins = (): ConsentPlugin[] =>
@@ -68,9 +74,29 @@ export const createConsentPluginHelper = (): ConsentPluginHelper => {
     }
   }
 
+  const locateConsent = async (opts: ConsentOptions): Promise<ConsentGeoLocation> => {
+    let failure: unknown = new Error('consent:geo:no-locator')
+    for (const plugin of consentPlugins()) {
+      if (plugin.locate == null) {
+        continue
+      }
+      try {
+        const country = (await plugin.locate(opts))?.country?.trim().toUpperCase() ?? ''
+        if (COUNTRY_CODE.test(country) && !CONSENT_GEO_UNKNOWN.includes(country)) {
+          return { country }
+        }
+        failure = new Error(`consent:geo:unusable-country:${plugin.alias}`)
+      } catch (error) {
+        failure = error
+      }
+    }
+
+    throw failure
+  }
+
   return {
-    registerConsentPlugin, consentPlugins, decorateConsentUrl, consentDomains, adoptConsent,
-    adoptConsentLanguage, startConsentPlugins,
+    registerConsentPlugin, unregisterConsentPlugin, consentPlugins, decorateConsentUrl,
+    consentDomains, adoptConsent, adoptConsentLanguage, startConsentPlugins, locateConsent,
   }
 }
 

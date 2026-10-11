@@ -1,6 +1,6 @@
 ---
 name: consent
-description: How to use @owlmeans/consent and @owlmeans/web-consent — the cookie-consent model, its categories and global-variable seam, the storage contract and its migration, Consent Mode v2 signalling, and the ordering rule that makes a tag manager honour any of it. Auto-invoked when touching consent categories, the dialog, the cookie policy page, or a tag-manager snippet.
+description: How to use @owlmeans/consent and @owlmeans/web-consent — the cookie-consent model, its categories and global-variable seam, the storage contract and its migration, the geo gate that asks only in consent-requiring countries (locator plugins, Cloudflare mode, automatic decisions), Consent Mode v2 signalling, and the ordering rule that makes a tag manager honour any of it. Auto-invoked when touching consent categories, the bar or dialog, the geo gate, the cookie policy page, or a tag-manager snippet.
 user-invocable: false
 metadata:
   scope: general
@@ -14,8 +14,8 @@ optional:
 
 | Package | Layer | Holds |
 |---|---|---|
-| `@owlmeans/consent` | Core, **zero runtime dependencies** | categories, storage, the observable store, the Consent Mode surface, the built-in copy |
-| `@owlmeans/web-consent` | Web (React) | the dialog, the re-open button, `CookiePolicy`, `useConsent` |
+| `@owlmeans/consent` | Core, **zero runtime dependencies** | categories, storage, the observable store, the geo gate (`consentGeoHelper`, the country lists), the Consent Mode surface, the built-in copy |
+| `@owlmeans/web-consent` | Web (React) | the bar, the preferences window, the locating spinner, the re-open button, `CookiePolicy`, `useConsent` |
 | `@owlmeans/web-gtm` | Web | the Google tag head snippet (container or gtag.js), its CSP hosts and its cookie-policy disclosure |
 | `@owlmeans/web-panel/consent` | subpath | the same components, bound to OwlMeans i18n and language, plus a menu-row widget and a ref-counted presence service so a host's own collapsed menu can take over the floating button's job |
 
@@ -111,7 +111,8 @@ one of them is.
 ## Storage
 
 `site_cookie_consent`, JSON, written to **both** localStorage and a 365-day `path=/` cookie,
-localStorage read first. The key and the dual write are unchanged from the widget this
+localStorage read first. `v` (the schema version, `2`) and `auto` (see "Where consent is asked")
+are reserved keys; every other key is a category, so no category may be called `v` or `auto`. The key and the dual write are unchanged from the widget this
 generalises, and must stay unchanged: owlmeans.com has visitors who already chose.
 
 **Migration is the load-bearing part.** A record with no `v` predates the explicit essential
@@ -121,7 +122,73 @@ the site forgetting. `cookieDomain` stays unset by default for the same reason: 
 the existing host-only cookie.
 
 `SameSite=Lax` is stated explicitly; browsers differ on the default, and this cookie is never sent
-cross-site.
+cross-site. `clearConsent` names the same `cookieDomain` the write named — a cookie is only replaced
+by one that names its domain.
+
+## Where consent is asked — the geo gate
+
+`ConsentOptions.geo` (`ConsentGeoOptions`) makes the store ask only where the law requires prior
+consent. Its PRESENCE turns the gate on; without it every visitor is asked, as before.
+
+```typescript
+interface ConsentGeoOptions {
+  cloudflare?: boolean | { path?: string }   // the built-in locator: same-origin /cdn-cgi/trace
+  countries?: readonly string[]              // who is asked; default CONSENT_REQUIRED_COUNTRIES
+  timeout?: number                           // ms; default CONSENT_GEO_TIMEOUT (2500)
+}
+interface ConsentGeoPlugin extends ConsentPlugin {
+  locate: (opts: ConsentOptions) => Promise<{ country: string }>   // resolve, or throw
+}
+```
+
+- **Locators are plugins.** `ConsentPlugin.locate` is the hook; a `ConsentGeoPlugin` is a plugin
+  that implements it, registered with `consentPluginHelper.registerConsentPlugin` — in an OwlMeans
+  application with `@owlmeans/web-panel/consent`'s `appendConsentGeoPlugin(context, plugin)` while
+  the context is configured. `cloudflare` registers the built-in one (`consentGeoHelper.cloudflareLocator()`,
+  alias `cloudflare`, priority −100 — below anything an application adds), exactly as `linker`
+  registers the linker. `consentPluginHelper.locateConsent` asks them highest priority first; a throw,
+  or a code that names no country (`CONSENT_GEO_UNKNOWN`: `XX`, `T1`, `A1`, `A2`, `O1`, `EU`, `AP`,
+  `ZZ`, or anything not ISO alpha-2), hands over to the next one.
+- **The Cloudflare locator** GETs `CONSENT_TRACE_PATH` (`/cdn-cgi/trace`) on the page's own origin,
+  `credentials: 'omit'`, `cache: 'no-store'`, and reads `loc=` from the `key=value` lines. It counts
+  only a body that names the edge (`colo` or `fl`): an SPA answers its `index.html` for every path
+  with 200. It works only on a Cloudflare-proxied host — on `vite dev`, `astro dev` or a self-hosted
+  export it fails, and the visitor is asked. Same origin, so a `connect-src 'self'` CSP admits it and
+  it is no third-party request.
+- **The decision** (`consentGeoHelper.decide`, bounded by `timeout`, never rejects): a located country
+  inside `countries` → ask; outside → an automatic decision; nobody could tell → ask.
+- **The automatic decision** (`consentGeoHelper.automaticRecord`) grants every category — or, when
+  the browser sends Global Privacy Control (`navigator.globalPrivacyControl`), only the required
+  ones: several US states make that signal a binding opt-out. It is stored like any record, plus
+  `auto: <unix seconds>`, and applied, so `CONSENT_EVENT` fires and a gated tag loads.
+- **An automatic decision lives one hour** (`CONSENT_AUTO_MAX_AGE`). Older, it counts as NO decision
+  everywhere: the inline bootstrap skips it, `consentGateScript` treats it as `null`, and the store
+  holds it back (`state.record` stays `null`) while it re-locates silently. Still outside → a fresh
+  automatic record; inside, or unknown → the record is cleared and the visitor asked. That is what
+  stops a grant derived in one country from reaching a page opened in another — the head scripts
+  run before any bundle, so only a lifetime they also read can.
+- **Explicit beats automatic, always.** `consentStore.save` drops `auto` (whatever the caller
+  passed), a decision carried by the linker is adopted over an automatic one (TS path and inline
+  fragment alike), and an automatic decision never travels on a link: `encodeConsentLink`, `decorate`
+  and the click handler treat it as no decision, so the receiving domain locates the visitor itself.
+- **The country lists** are `CONSENT_COUNTRIES_GDPR` (EU-27, the parts of member states with their
+  own code — AX GF GP MQ RE YT MF — and IS LI NO), `CONSENT_COUNTRIES_ALIGNED` (the UK, Crown
+  Dependencies, Gibraltar, Switzerland, the European microstates, Türkiye, Serbia and the other
+  GDPR-modelled European laws, the Danish/French/Dutch territories) and `CONSENT_COUNTRIES_OPT_IN`
+  (BR CA CN KR NG SA TH VN — Canada for Québec, since a CDN reports no province); their frozen union
+  is `CONSENT_REQUIRED_COUNTRIES`. India joins when the DPDP consent rules apply (mid-2027); the
+  notice-or-opt-out regimes (US, JP, AU, SG) stay out. Each tier's doc comment carries the legal
+  basis — revise the lists there, with the date, never in an application.
+- **The state says what is happening.** `ConsentState.locating` is `'first'` while a first-time
+  visitor is located (the UI shows a transparent overlay and a spinner, never the bar) and
+  `'recheck'` during a silent re-check; `consentStore.settled()` resolves once no lookup runs. Every
+  publish mirrors the phase onto `<html data-consent="locating|open|decided|idle">`
+  (`CONSENT_STATE_ATTRIBUTE`) — what a test waits on and a stylesheet may key on; it is absent until
+  the store first runs.
+- **Pass the same `geo` everywhere `init` runs.** Options accumulate, and a later `init` that brings
+  `geo` takes the store from its own first ask back to locating — but `loadGtm` given no `geo` before
+  the dialog mounts is the case that needs it. A window open for a reason of its own (`login`) is
+  never decided over; a `save` during a lookup wins over its result.
 
 ## The ordering rule
 
@@ -174,7 +241,8 @@ including one in a target project — can reuse the same gate without depending 
 - **`consentModeHelper.consentGateScript(loaderExpr, opts?)`** — the inline-safe counterpart to
   `consentModeHelper.consentBootstrapScript` for withholding a loader rather than declaring defaults for one: it
   inlines the SAME localStorage-then-cookie lookup the bootstrap uses, and either runs `loaderExpr`
-  immediately (a returning visitor already satisfies `consentModeHelper.trackingGranted`) or attaches a one-shot
+  immediately (a returning visitor already satisfies `consentModeHelper.trackingGranted` — an automatic
+  decision past `CONSENT_AUTO_MAX_AGE` does not) or attaches a one-shot
   `CONSENT_EVENT` listener that runs it on the first grant and removes itself. `loaderExpr` is a
   complete, already-self-invoking statement (the same shape `gtmContainerScript`/`gtagScript`
   produce) — `consentModeHelper.consentGateScript` embeds it verbatim rather than calling it, so the caller controls
@@ -189,9 +257,11 @@ not of a component tree, and it has to be reachable from places that are not Rea
 precondition runs inside a click handler.
 
 `consentStore.init(opts)` is what starts it: push the defaults, read and migrate the stored record,
-apply it, and open the dialog when there is none. `useConsent()` calls it on mount, and
-`googleTagHelper.loadGtm` calls it before the container — a host that mounts neither calls it itself, once, with
-the same options everything else was given.
+apply it, and — when there is none — ask, or with `geo` locate first (see "Where consent is asked").
+It stays synchronous; `consentStore.settled()` is what waits for a lookup. `useConsent()` calls it
+on mount, and `googleTagHelper.loadGtm` calls it before the container — a host that mounts neither
+calls it itself, once, with the same options everything else was given. The linker is registered
+once per document, so a second `init` never installs a second click listener.
 
 `useConsent()` subscribes through `useSyncExternalStore`; `consentStore.open(reason)` and
 `consentStore.granted(key)` are the imperative readers.
@@ -203,20 +273,13 @@ reach the stamped snippet: `consentModeHelper.consentBootstrapScript` ignores th
 still pushes `consent/default` and, for a stored record, `consent/update`. A surface that must emit
 nothing at all does not stamp the bootstrap.
 
-**`consentStore.save` has a second, non-dialog writer.** `@owlmeans/marketing-consent`'s
-`MarketingConsentBridge` seam (`@owlmeans/web-marketing-consent`'s `cookieConsentBridge`) calls
-`consentStore.save` whenever a person changes a cookie-LINKED item (`trackers.analytics`/
-`trackers.advertising`) on that package's own privacy-choices screen or settings card — not only
-when the cookie dialog itself is used. Read `web-marketing-consent`'s skill for the direction this
-runs (marketing screen → cookie consent, unconditional) and the one it deliberately does NOT run by
-default (cookie consent → the saved marketing-consent ledger, `cookieSeed`) — the two are legally
-different acts, and only the first is safe to automate unconditionally.
 
 ## The plugin seam and cross-domain consent (`consentLinkHelper.consentLinker`)
 
 `ConsentPlugin` (`types.ts`) is the extension seam the core package needed to share a decision
 between DOMAINS without knowing anything about the mechanism: `{ alias, priority?, start?, adopt?,
-adoptLanguage?, decorate?, domains? }`, registered module-globally through `consentPluginHelper.registerConsentPlugin` (replace by
+adoptLanguage?, decorate?, domains?, locate? }` (`locate` is the geo gate's hook — see "Where consent
+is asked"), registered module-globally through `consentPluginHelper.registerConsentPlugin` (replace by
 alias, priority-sorted higher first — the same registry shape `client-auth/login`'s method/step
 registries use). Nothing here is specific to the one built-in plugin; a host could register its own
 for a different sharing mechanism entirely.
@@ -258,7 +321,8 @@ LANGUAGE (see "Language rides the same link" below).
     receiver asks again rather than guess — release the packages of both ends together.
 
   `consentStore.init` calls `consentPluginHelper.adoptConsent(opts)` **only when this document has no stored record
-  yet** — an existing decision always wins, the same rule the ordinary "ask" path already follows.
+  yet, or only an automatic one** — an existing explicit decision always wins, the same rule the
+  ordinary "ask" path already follows.
   On success it writes the adopted record (`consentStorageHelper.writeConsent`) before ever publishing/applying — the dialog
   never flashes open for a decision that is about to be adopted.
 - **Stripping is unconditional and separate from the trust decision.** Whether or not adoption
@@ -369,7 +433,9 @@ change nothing about what is asked or stored — they are disclosure only, passe
 
 `CookiePolicy` states only what the widget provably does — each category in force with its label,
 its `Required` marking and its description, the storage key, the dual storage and the retention —
-all read from the same configuration the dialog renders. It does not enumerate Consent Mode
+all read from the same configuration the dialog renders. Given the same `geo`, it adds the regional
+rule (`[data-cookie-policy-regional]`): asked only where the law requires it, on by default
+elsewhere, Global Privacy Control honoured. It does not enumerate Consent Mode
 signals: the category description is the whole disclosure of what a category drives. That is why
 the page is generated rather than written: a hand-written policy drifts the first time a category
 changes, and nobody notices because nobody reads it until it matters.

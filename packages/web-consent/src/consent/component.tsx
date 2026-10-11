@@ -1,54 +1,42 @@
-import { useCallback, useEffect, useState, type FC } from 'react'
+import { useCallback, type FC } from 'react'
 import { Cookie } from 'lucide-react'
-import { DEFAULT_CONSENT_CATEGORIES, type ConsentRecord, consentI18nHelper, consentStorageHelper } from '@owlmeans/consent'
+import { DEFAULT_CONSENT_CATEGORIES, type ConsentRecord, consentI18nHelper } from '@owlmeans/consent'
 import { webConsentUtils } from '../lib/utils.js'
 import { useConsent } from '../hooks.js'
-import { ConsentToggle } from './toggle.js'
+import { CONSENT_DEFAULT_MODE } from '../consts.js'
 import type { CookieConsentProps } from '../types.js'
+import { ConsentBar } from './bar.js'
+import { ConsentLocatingOverlay } from './locating.js'
+import { ConsentWindow } from './window.js'
 import { FOCUS } from './consts.local.js'
 
-/** A pill button: 44px tall at minimum, full width on a phone, sharing the row above that. */
-const PILL = webConsentUtils.cn(
-  'inline-flex min-h-11 flex-1 items-center justify-center rounded-full px-6 py-2.5 text-[15px] transition-colors motion-safe:active:scale-[0.98]',
-  FOCUS
-)
-
-/** A text link: muted, underlined at rest (colour is never the only signal), 44px tall to tap. */
-const LINK = webConsentUtils.cn(
-  'inline-flex min-h-11 items-center font-semibold underline decoration-1 underline-offset-4 transition-colors hover:text-foreground hover:decoration-2',
-  FOCUS
-)
-
+/**
+ * The cookie-consent UI of a document: one of three surfaces at a time, and the corner button.
+ *
+ * - While a first-time visitor is being located (`geo`), a transparent overlay with a spinner.
+ * - The first ask (`reason: 'initial'`) in `bar` mode — the default — the bar.
+ * - Every other opening, and the first ask in `window` mode, the preferences window.
+ *
+ * Mounted once, at the application root, outside the router: a surface mounted in a route is torn
+ * down by the first navigation. The bar and the window share one save path, so whichever answers,
+ * the record carries every required category on and exactly the optional ones chosen.
+ */
 export const CookieConsent: FC<CookieConsentProps> = props => {
   const categories = props.categories ?? DEFAULT_CONSENT_CATEGORIES
   const t = props.translate ?? consentI18nHelper.defaultConsentTranslate(props.locale)
+  const mode = props.mode ?? CONSENT_DEFAULT_MODE
 
-  const consentOpts = {
+  const consent = useConsent({
     categories,
     ...(props.storageKey != null ? { storageKey: props.storageKey } : {}),
     ...(props.cookieDays != null ? { cookieDays: props.cookieDays } : {}),
     ...(props.cookieDomain != null ? { cookieDomain: props.cookieDomain } : {}),
     ...(props.silent != null ? { silent: props.silent } : {}),
     ...(props.linker != null ? { linker: props.linker } : {}),
-  }
-  const consent = useConsent(consentOpts)
+    ...(props.geo != null ? { geo: props.geo } : {}),
+  })
   const domains = webConsentUtils.disclosedDomains(props.linker)
-
   const optional = categories.filter(category => category.required !== true)
-  const [draft, setDraft] = useState<Record<string, boolean>>({})
-
-  // Re-seed the draft whenever the dialog opens, from what is actually stored: a visitor who opens
-  // preferences a second time must see the answer they gave, not the one the last render held.
-  useEffect(() => {
-    if (!consent.open) {
-      return
-    }
-    const stored = consent.record ?? consentStorageHelper.readConsent({
-      ...(props.storageKey != null ? { storageKey: props.storageKey } : {}),
-    })
-    setDraft(Object.fromEntries(optional.map(category =>
-      [category.key, stored?.[category.key] === true])))
-  }, [consent.open, consent.record])
 
   const persist = useCallback((values: Record<string, boolean>) => {
     const record: ConsentRecord = Object.fromEntries([
@@ -58,87 +46,33 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
     consent.save(record)
   }, [categories, consent])
 
-  const onSave = useCallback(() => persist(draft), [draft, persist])
-  const onAcceptAll = useCallback(
-    () => persist(Object.fromEntries(optional.map(c => [c.key, true]))), [optional, persist]
-  )
-
-  // The dialog was raised by something that needs an answer before it can continue — signing in,
-  // today. Saying so, and relabelling the primary action, is what makes the interruption make
-  // sense rather than look like the page asking twice.
-  const gated = consent.reason === 'login'
+  const surface = consent.open
+    ? mode === 'bar' && consent.reason === 'initial' ? 'bar' : 'window'
+    : consent.locating === 'first' ? 'locating' : null
 
   return <>
-    {consent.open && <div
-      className="fixed inset-0 z-[999998] flex items-center justify-center overflow-y-auto bg-black/70 px-4 py-6"
-      aria-modal="true" role="dialog" aria-labelledby="cc-title"
-      aria-describedby={domains.length > 1 ? 'cc-desc cc-domains' : 'cc-desc'}
-      data-consent-dialog
-    >
-      <div className={webConsentUtils.cn(
-        'relative z-[999999] w-full max-w-lg rounded-3xl border border-border bg-background p-6 text-foreground sm:p-8',
-        props.className
-      )}>
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-muted text-primary">
-            <Cookie className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <h2 id="cc-title" className="text-balance text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
-            {t('title', 'Cookie Preferences')}
-          </h2>
-        </div>
+    {surface === 'locating' && <ConsentLocatingOverlay t={t} />}
 
-        <p id="cc-desc" className="mb-6 text-pretty text-sm leading-relaxed text-muted-foreground">
-          {t('description', 'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic.')}
-        </p>
+    {surface === 'bar' && <ConsentBar
+      t={t} categories={categories} domains={domains}
+      policyHref={props.policyHref} links={props.links} barClassName={props.barClassName}
+      onPreferences={() => consent.openDialog('preferences')}
+      onMandatory={() => persist({})}
+      onAcceptAll={() => persist(Object.fromEntries(optional.map(c => [c.key, true])))}
+    />}
 
-        {domains.length > 1 && <p
-          id="cc-domains" data-consent-domains
-          className="mb-6 -mt-3 text-pretty text-xs text-muted-foreground"
-        >
-          {consentI18nHelper.interpolate(t('domains', 'This choice applies to {{domains}}.'), { domains: domains.join(', ') })}
-        </p>}
-
-        <div className="space-y-3">
-          {categories.map(category => <ConsentToggle
-            key={category.key}
-            id={`cc-${category.key}`}
-            label={t(category.labelKey, category.key)}
-            description={t(category.descriptionKey, '')}
-            checked={draft[category.key] === true}
-            {...(category.required === true ? { required: true } : {})}
-            requiredLabel={t('required', 'Required')}
-            onChange={value => setDraft(current => ({ ...current, [category.key]: value }))}
-          />)}
-        </div>
-
-        {gated && <p role="status" data-consent-reason className="mt-4 text-sm font-semibold text-foreground">
-          {t('loginReason', 'Signing in stores a session cookie. Accept essential cookies to continue.')}
-        </p>}
-
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:gap-4">
-          <button
-            type="button" onClick={onSave} data-consent-save
-            className={webConsentUtils.cn(PILL, 'border-[1.5px] border-foreground bg-transparent font-semibold text-foreground hover:bg-muted')}
-          >{t('savePreferences', 'Save Preferences')}</button>
-          <button
-            type="button" onClick={onAcceptAll} data-consent-accept-all
-            className={webConsentUtils.cn(PILL, 'bg-primary font-bold text-primary-foreground hover:bg-primary/90')}
-          >{gated
-            ? t('acceptAndContinue', 'Accept & continue')
-            : t('acceptAll', 'Accept All')}</button>
-        </div>
-
-        {(props.policyHref != null || props.links != null) && <div className="mt-3 flex flex-wrap justify-center gap-x-4 text-[13px] text-muted-foreground">
-          {props.policyHref != null && <a
-            href={props.policyHref} target="_blank" rel="noopener noreferrer" className={LINK}
-          >{t('policyLink', 'Cookie Policy')}</a>}
-          {props.links?.map(link => <a
-            key={link.href} href={link.href} target="_blank" rel="noopener noreferrer" className={LINK}
-          >{t(link.labelKey, link.defaultLabel)}</a>)}
-        </div>}
-      </div>
-    </div>}
+    {/*
+      * Keyed by the reason it opened for, so a window raised again for a different reason (the
+      * sign-in gate over a visitor already in preferences) re-seeds instead of keeping a stale draft.
+      */}
+    {surface === 'window' && <ConsentWindow
+      key={consent.reason ?? 'window'}
+      t={t} categories={categories} domains={domains} record={consent.record}
+      {...(props.storageKey != null ? { storageKey: props.storageKey } : {})}
+      gated={consent.reason === 'login'}
+      policyHref={props.policyHref} links={props.links} className={props.className}
+      onSave={persist}
+    />}
 
     {/*
       * A bare icon, not a card: it sits in the very corner of the page for as long as a visitor
@@ -148,7 +82,7 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
       * out on hover/focus, at the exact size (`h-5 w-5`) it always was. The invisible hit area
       * around it is 44px, the smallest target a finger can reliably press.
       */}
-    {props.noReopenButton !== true && consent.record != null && !consent.open && <button
+    {props.noReopenButton !== true && consent.record != null && !consent.open && consent.locating == null && <button
       type="button" onClick={() => consent.openDialog('reopen')}
       aria-label={t('openPreferences', 'Cookie preferences')}
       data-consent-reopen

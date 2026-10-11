@@ -11,7 +11,7 @@ job that no screen shows needs no `@owlmeans/job` at all. The package's skill is
 ## Installation
 
 ```bash
-bun add @owlmeans/job@^0.1.18-rc.18
+bun add @owlmeans/job@^0.1.18-rc.19
 ```
 
 Install `ajv` alongside it when the schemas are compiled in the consuming process.
@@ -154,7 +154,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

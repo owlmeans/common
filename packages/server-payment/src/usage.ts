@@ -1,4 +1,4 @@
-import { LimitExhausted, LimitKind, LimitMisdeclared, LimitUnknown, LimitWindow, OCCUPANCY_WINDOW, type LimitDeclaration, type LimitView, entitlementViewHelper, planLimitHelper, promoHelper } from '@owlmeans/payment'
+import { LimitExhausted, LimitKind, LimitMisdeclared, LimitUnknown, LimitWindow, OCCUPANCY_WINDOW, SUBSCRIPTION_WEEK_MS, SUBSCRIPTION_WEEK_PREFIX, type LimitDeclaration, type LimitView, entitlementViewHelper, planLimitHelper, promoHelper } from '@owlmeans/payment'
 import { UnsupportedArgumentError } from '@owlmeans/resource'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
@@ -24,8 +24,12 @@ import { catalogueOf } from './catalogue.js'
  * concurrent requests both read "room left" and both spend it.
  */
 
-/** When a stored window renews: the first instant of the next day or month; nothing for the others. */
+/** When a stored window renews: the first instant of the next day, month or subscription week. */
 const resetsAtOfWindow = (window: string): Date | undefined => {
+  if (window.startsWith(SUBSCRIPTION_WEEK_PREFIX)) {
+    const start = new Date(window.slice(SUBSCRIPTION_WEEK_PREFIX.length)).getTime()
+    return Number.isFinite(start) ? new Date(start + SUBSCRIPTION_WEEK_MS) : undefined
+  }
   const day = DAY_WINDOW.exec(window)
   if (day != null) {
     return new Date(Date.UTC(Number(day[1]), Number(day[2]) - 1, Number(day[3]) + 1))
@@ -54,6 +58,10 @@ const isActiveConsumption = (event: PaymentUsageRecord | null): boolean =>
   event != null && event.delta > 0 && event.releasedAt == null
 
 const isPastWindow = (window: string, at: Date): boolean => {
+  if (window.startsWith(SUBSCRIPTION_WEEK_PREFIX)) {
+    const reset = resetsAtOfWindow(window)
+    return reset != null && reset.getTime() <= at.getTime()
+  }
   if (DAY_WINDOW.test(window)) {
     return window < planLimitHelper.windowKeyOf(LimitKind.Window, LimitWindow.Day, at)
   }
@@ -136,7 +144,7 @@ export const makeUsageHelper = (ctx: ApiContext): UsageHelper => {
     const declaration = declarationOf(effective, req.limitKey)
     const limit = ceilingOf(declaration, effective, at)
     const key: CounterKey = {
-      entityId: req.entityId, limitKey: req.limitKey, window: planLimitHelper.windowKeyOf(declaration.kind, declaration.window, at),
+      entityId: req.entityId, limitKey: req.limitKey, window: planLimitHelper.windowKeyOf(declaration.kind, declaration.window, at, effective?.subscription?.createdAt),
     }
     const ledger = access.usageEvents()
 
@@ -160,7 +168,7 @@ export const makeUsageHelper = (ctx: ApiContext): UsageHelper => {
       }
       const current = await readCounter(key)
       const resetsAt = declaration.kind === LimitKind.Window && declaration.window != null
-        ? planLimitHelper.windowBoundsOf(declaration.window, at).resetsAt : undefined
+        ? planLimitHelper.windowBoundsOf(declaration.window, at, effective?.subscription?.createdAt).resetsAt : undefined
       throw new LimitExhausted({ key: req.limitKey, used: current?.used ?? 0, limit, resetsAt })
     }
 
@@ -250,7 +258,7 @@ export const makeUsageHelper = (ctx: ApiContext): UsageHelper => {
     const at = new Date()
     const effective = await catalogueOf(ctx).resolveEffectivePlan(entityId, at)
     const declaration = declarationOf(effective, limitKey)
-    const window = planLimitHelper.windowKeyOf(declaration.kind, declaration.window, at)
+    const window = planLimitHelper.windowKeyOf(declaration.kind, declaration.window, at, effective?.subscription?.createdAt)
     const counter = await readCounter({ entityId, limitKey, window })
     const [view] = entitlementViewHelper.limitViewsOf({ limits: { [limitKey]: declaration } }, counter != null ? [{ key: limitKey, window, used: counter.used }] : [], effective.subscription?.createdAt, at)
 
@@ -400,7 +408,7 @@ export const makeUsageHelper = (ctx: ApiContext): UsageHelper => {
         if (declaration.kind !== LimitKind.Window) {
           continue
         }
-        const window = planLimitHelper.windowKeyOf(declaration.kind, declaration.window, at)
+        const window = planLimitHelper.windowKeyOf(declaration.kind, declaration.window, at, effective?.subscription?.createdAt)
         if (seen.has(`${limitKey} ${window}`)) {
           continue
         }

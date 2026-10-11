@@ -14,7 +14,7 @@ server; the `iam` skill holds the full model.
 ## Installation
 
 ```bash
-bun add @owlmeans/iam@^0.1.18-rc.51
+bun add @owlmeans/iam@^0.1.18-rc.52
 ```
 
 `ajv` is a peer dependency (the runtime API schemas are `JSONSchemaType`).
@@ -206,7 +206,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -17,7 +17,7 @@ const host: ToolHost = {
 }
 
 /** Captures every registered tool's callback, so the test can call one directly. */
-const fakeServer = (): { server: McpServerLike, run: (name: string, args: object) => Promise<unknown> } => {
+const fakeServer = (): { server: McpServerLike, run: (name: string, args: Record<string, unknown>) => Promise<unknown> } => {
   const callbacks = new Map<string, (args: Record<string, unknown>) => Promise<unknown>>()
   const server: McpServerLike = {
     registerTool: (name, _config, cb) => { callbacks.set(name, cb) },
@@ -36,6 +36,7 @@ describe('viable-sdk — an out-of-credits refusal, at the MCP boundary', () => 
   test('is phrased for the model and pushed through notify, never left as the raw marker', async () => {
     const url = 'https://vib-stage.owlmeans.org/?top-up=create'
     const notified: Array<[string, string]> = []
+    const notify: ToolDeps['notify'] = (level, text) => { notified.push([level, text]) }
     const deps: ToolDeps = {
       host,
       api: {
@@ -48,7 +49,7 @@ describe('viable-sdk — an out-of-credits refusal, at the MCP boundary', () => 
       attached: () => null,
       attach: () => undefined,
       log: () => undefined,
-      notify: (level, text) => { notified.push([level, text]) },
+      notify,
     } as unknown as ToolDeps
 
     const { server, run } = fakeServer()
@@ -74,6 +75,7 @@ describe('viable-sdk — an out-of-credits refusal, at the MCP boundary', () => 
     const url = 'https://vib-stage.owlmeans.org/account/billing?consent=1'
     const deadline = new Date('2026-10-09T00:00:00.000Z')
     const notified: Array<[string, string]> = []
+    const notify: ToolDeps['notify'] = (level, text) => { notified.push([level, text]) }
     const thrown = new ConnectConsentRequired(ConnectConsentRequired.encode('create', url, deadline))
     const deps: ToolDeps = {
       host,
@@ -88,7 +90,7 @@ describe('viable-sdk — an out-of-credits refusal, at the MCP boundary', () => 
       attached: () => null,
       attach: () => undefined,
       log: () => undefined,
-      notify: (level, text) => { notified.push([level, text]) },
+      notify,
     } as unknown as ToolDeps
 
     const { server, run } = fakeServer()
@@ -111,6 +113,7 @@ describe('viable-sdk — an out-of-credits refusal, at the MCP boundary', () => 
 
   test('an ordinary error is reported as its own message, and never notified', async () => {
     const notified: unknown[] = []
+    const notify: ToolDeps['notify'] = (...args) => { notified.push(args) }
     const deps: ToolDeps = {
       host,
       api: {
@@ -123,7 +126,7 @@ describe('viable-sdk — an out-of-credits refusal, at the MCP boundary', () => 
       attached: () => null,
       attach: () => undefined,
       log: () => undefined,
-      notify: (...args) => { notified.push(args) },
+      notify,
     } as unknown as ToolDeps
 
     const { server, run } = fakeServer()

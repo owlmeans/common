@@ -32,5 +32,12 @@
   "privacy": "Privacy Policy",
   "terms": "Terms & Conditions",
   "domains": "This choice applies to {{domains}}.",
-  "policyDomains": "This choice applies across these domains:"
+  "policyDomains": "This choice applies across these domains:",
+  "barTitle": "Cookies on this site",
+  "barDescription": "We use essential cookies to make this site work — for signing in, security and remembering your choices. With your consent we would also use these optional cookies: {{categories}}. They stay off until you allow them, and you can change or withdraw your choice at any time in the cookie preferences.",
+  "barDescriptionEssential": "This site uses only essential cookies — for signing in, security and remembering your choices. They need no consent and cannot be switched off.",
+  "acceptMandatory": "Accept only mandatory",
+  "locating": "Checking your region…",
+  "autoReason": "These settings were applied automatically, because cookie consent is not required where you are browsing from. You can change them at any time.",
+  "policyRegional": "Where the law of the visitor's location requires prior consent — the EU and EEA, the United Kingdom, Switzerland and other countries with similar rules — optional cookies stay off until the visitor allows them. Elsewhere they are switched on by default, except when the browser sends a Global Privacy Control signal, which is honoured as a refusal; they can be switched off at any time with the button below."
 }

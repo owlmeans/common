@@ -12,7 +12,7 @@ external OpenID provider is `@owlmeans/web-oidc-rp`.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-oauth@^0.1.18-rc.22
+bun add @owlmeans/web-oauth@^0.1.18-rc.23
 ```
 
 Peer dependencies: `react`, `react-dom`, `tailwindcss`, `@radix-ui/react-label`,
@@ -208,7 +208,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

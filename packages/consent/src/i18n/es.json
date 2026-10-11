@@ -32,5 +32,12 @@
   "privacy": "Política de privacidad",
   "terms": "Términos y condiciones",
   "domains": "Esta elección se aplica a {{domains}}.",
-  "policyDomains": "Esta elección se aplica a los siguientes dominios:"
+  "policyDomains": "Esta elección se aplica a los siguientes dominios:",
+  "barTitle": "Cookies en este sitio",
+  "barDescription": "Usamos cookies esenciales para que este sitio funcione: para iniciar sesión, por seguridad y para recordar tus elecciones. Con tu consentimiento también usaríamos estas cookies opcionales: {{categories}}. Permanecen desactivadas hasta que las permitas, y puedes cambiar o retirar tu elección en cualquier momento en las preferencias de cookies.",
+  "barDescriptionEssential": "Este sitio solo usa cookies esenciales: para iniciar sesión, por seguridad y para recordar tus elecciones. No requieren consentimiento y no se pueden desactivar.",
+  "acceptMandatory": "Aceptar solo las esenciales",
+  "locating": "Comprobando tu región…",
+  "autoReason": "Esta configuración se aplicó automáticamente porque, desde donde navegas, no se requiere consentimiento para las cookies. Puedes cambiarla en cualquier momento.",
+  "policyRegional": "Donde la ley del lugar en que se encuentra el visitante exige consentimiento previo —la UE y el EEE, el Reino Unido, Suiza y otros países con normas similares—, las cookies opcionales permanecen desactivadas hasta que el visitante las permita. En el resto están activadas por defecto, salvo cuando el navegador envía una señal Global Privacy Control, que se respeta como rechazo; pueden desactivarse en cualquier momento con el botón de abajo."
 }

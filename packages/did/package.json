@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/did",
-  "version": "0.1.18-rc.47",
+  "version": "0.1.18-rc.48",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -24,8 +24,8 @@
   "dependencies": {
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
-    "@owlmeans/auth": "^0.1.18-rc.40",
-    "@owlmeans/basic-keys": "^0.1.18-rc.49",
+    "@owlmeans/auth": "^0.1.18-rc.41",
+    "@owlmeans/basic-keys": "^0.1.18-rc.50",
     "@owlmeans/error": "^0.1.18-rc.38",
     "@owlmeans/i18n": "^0.1.18-rc.39",
     "@owlmeans/resource": "^0.1.18-rc.40",

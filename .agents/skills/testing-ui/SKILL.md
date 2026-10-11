@@ -5,7 +5,7 @@ description: Category-D component-level acceptance tests for OwlMeans Common UI 
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
 
-**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.50"` in `devDependencies`
+**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.51"` in `devDependencies`
 
 `@owlmeans/test-ui` depends on `playwright`, so the browser library arrives with it; add
 `playwright` to `devDependencies` as well when a spec imports a launcher itself. The Vite harness
@@ -56,7 +56,8 @@ Downloads the chromium binary the `playwright` library drives. CI installs it in
 | `browserHelper.withPage(fn)` | Lease a fresh context+page for the duration of `fn`, dispose context on completion. |
 | `mountComponent(opts)` | Open a fresh context, navigate to `opts.url`, return `Mounted` = `{ page, close }`. `component` and `props`, when given, are appended as `?component=` and `?props=`; omit them when the harness mounts a fixed root, which is what every harness here does. |
 | `MountOptions` | `{ url, component?, props?, waitUntil?, timeout? }` — `waitUntil` defaults to `domcontentloaded`, see below. |
-| `makePageHelper(page).acceptConsent({ timeout? })` | Wait up to `timeout` (default 5s) for `[data-consent-dialog]`, accept all, wait for it to detach. Returns whether it answered one — and costs that whole wait when it does not. |
+| `makePageHelper(page).acceptConsent({ timeout? })` | Wait up to `timeout` (default 5s) for the consent store to SETTLE — `[data-consent-dialog]` up (bar or window), or `<html data-consent="decided">` — then accept all and wait for it to detach. Returns whether it answered one; a decision made without UI returns `false` at once. |
+| `consentGeoTestHelper.mockConsentGeo(pageOrContext, geo)` / `.traceCalls(page)` | Pin where the visitor is: an init script answering the same-origin `/cdn-cgi/trace` (`'US'`, or `{ country?, fail?: true \| 'hang', delayMs?, gpc? }`), installed for the NEXT navigation; counts the calls in the page. `mountComponent({ …, consentGeo })` installs it before the first one. |
 | `makePageHelper(page).saveScreenshot(dir, name)` | Full-page PNG to `<dir>/<name>.png`, creating `dir`. Returns the absolute path. |
 | Re-exports: `Browser`, `BrowserContext`, `Page`, `Locator` | Playwright types — no direct `playwright` import needed. |
 
@@ -289,7 +290,8 @@ the filled form just before submit.
 ## The consent dialog blocks the login form, and the failure blames the button
 
 An OwlMeans app asks for cookie consent **before** it will start an authentication flow, and the
-dialog is a modal with no dismissal — a decision is what the gate is waiting for. Until it is
+surface — the bar on its transparent overlay, or the preferences window — offers no dismissal: a
+decision is what the gate is waiting for. Until it is
 answered the overlay intercepts pointer events, so a login form renders, resolves, reports itself
 `visible, enabled and stable`, and still cannot be clicked. Playwright retries for the full timeout
 and then reports `click: Timeout … waiting for getByTestId('supervisor-submit')`, naming the
@@ -297,18 +299,26 @@ button. Nothing is wrong with the button; read the `subtree intercepts pointer e
 names `[data-consent-dialog]`.
 
 `makePageHelper(page).loginViaSupervisorForm` therefore calls `.acceptConsent()` after navigating. `.acceptConsent` is
-public for specs that drive their own login: it waits for `[data-consent-dialog]` to become
-visible, clicks `[data-consent-accept-all]`, waits for the dialog to detach, and reports whether it
-answered one. It accepts **all** categories deliberately — a spec asserting a narrower decision must
-make that decision itself rather than inherit a silent minimum.
+public for specs that drive their own login: it waits for the consent store to SETTLE — never while
+the visitor is still being located, when the transparent overlay is up and would take the click —
+then clicks `[data-consent-accept-all]` on whichever surface asks, waits for it to detach, and
+reports whether it answered one. It accepts **all** categories deliberately — a spec asserting a
+narrower decision must make that decision itself rather than inherit a silent minimum.
 
-**The `false` return costs the full wait.** It is what the visibility wait rejects into, not a cheap
-probe, so a page with no dialog pays the timeout — 5s by `makePageHelper(page).acceptConsent`'s own default, but
-`.loginViaSupervisorForm` passes its `timeout` straight through and that defaults to `60_000`. On an
-app that ships no consent widget the login helper therefore sits for a full minute before it fills
-the first field, with nothing on screen to explain it. Drive such an app with `consent: 'ignore'`,
-which skips the call entirely; that is also the switch a spec flips when it wants to answer the
-dialog itself.
+**Where the app asks depends on where the runner is.** With the geo gate on, a Cloudflare-proxied
+app asks only visitors located in a consent country — and the trace answers with the RUNNER's
+country. A spec whose assertions need the surface pins it: `mountComponent({ url, consentGeo: 'PL' })`
+or `consentGeoTestHelper.mockConsentGeo(context, 'PL')` before the navigation; a spec about the
+automatic decision pins `'US'`. Never `page.route` for it — interception disables the cache for
+every request, and a vite-served application stalls on its hundreds of unbundled modules.
+
+**A `false` is cheap when the app says so, and costs the full wait when it cannot.** An app on a
+consent package that marks `<html data-consent>` settles at once on a stored or automatic
+decision. One older than that marker — or one that ships no consent widget — only ever settles by
+showing a dialog, so a page with none pays the timeout: 5s by `.acceptConsent`'s own default, but
+`.loginViaSupervisorForm` passes its `timeout` straight through and that defaults to `60_000`.
+Drive an app with no widget with `consent: 'ignore'`, which skips the call entirely; that is also
+the switch a spec flips when it wants to answer the dialog itself.
 
 ## `makePageHelper(page).answerMarketingConsent` — cheap absence detection, unlike the cookie dialog
 

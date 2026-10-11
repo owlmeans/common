@@ -252,6 +252,14 @@ export interface PricingPolicy {
   currency: {
     /** Stripe Adaptive Pricing (`adaptive_pricing.enabled`) on every checkout session. */
     adaptive?: boolean
+    /**
+     * The conversion fee Adaptive Pricing adds to Stripe's base rate, as a fraction (`0.04` = 4%; Stripe
+     * documents 2–4% and decides it per currency) — a buyer pays `base-rate conversion × (1 + fee)`.
+     * The local-currency line of an estimate applies it, so a quoted total is the one Checkout shows.
+     * Absent: the FX Quotes API's own fee-inclusive rate (its `fx_fee_rate`, 2%), which is what a
+     * conversion through Stripe's FX costs, not what Adaptive Pricing charges. Requires `adaptive`.
+     */
+    adaptiveFeeRate?: number
     /** Serve the "≈ local total" line of an estimate. Requires `currency.adaptive`. */
     estimate: boolean
     /** How long an FX quote may be served from cache. Absent: the gateway's own default. */
@@ -311,10 +319,12 @@ export interface PriceEstimate {
     currency: string
     /**
      * Integration-currency (`currency` above) units per one unit of `local.currency`, fee-inclusive
-     * (Stripe FX Quotes `exchange_rate`, requested `to_currency: currency, from_currencies:
-     * [local.currency]`). A local amount is `amountInCurrency / exchangeRate`.
+     * (Stripe FX Quotes, requested `to_currency: currency, from_currencies: [local.currency]`): the
+     * quote's `base_rate / (1 + currency.adaptiveFeeRate)` when the policy declares the Adaptive Pricing
+     * fee, else the quote's own `exchange_rate`. A local amount is `amountInCurrency / exchangeRate`.
      */
     exchangeRate: number
+    /** The conversion fee `exchangeRate` includes: `currency.adaptiveFeeRate`, else the quote's `fx_fee_rate`. */
     fxFeeRate?: number
   }
 }

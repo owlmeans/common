@@ -38,8 +38,17 @@ export const createConsentLinkHelper = (): ConsentLinkHelper => {
     return LANGUAGE_TAG.test(lang) ? lang.toLowerCase() : null
   }
 
-  const encodeConsentLink = (record: ConsentRecord | null, opts?: ConsentOptions): string => {
+  /**
+   * The visitor's OWN decision, or `null`. An automatic one (`auto`) was derived from where they
+   * browsed from and nobody chose it, so it never travels as their choice — the receiving domain
+   * locates them itself.
+   */
+  const explicitOf = (record: ConsentRecord | null): ConsentRecord | null =>
+    record != null && typeof record.auto !== 'number' ? record : null
+
+  const encodeConsentLink = (input: ConsentRecord | null, opts?: ConsentOptions): string => {
     const c: Record<string, 0 | 1> = {}
+    const record = explicitOf(input)
     if (record != null) {
       for (const category of optionalOf(opts)) {
         c[category.key] = record[category.key] === true ? 1 : 0
@@ -174,7 +183,7 @@ export const createConsentLinkHelper = (): ConsentLinkHelper => {
             return
           }
           // No decision yet is still worth a decoration when a language rides along with it.
-          const record = consentStorageHelper.readConsent(opts)
+          const record = explicitOf(consentStorageHelper.readConsent(opts))
           if (record == null && opts.linker?.language == null) {
             return
           }
@@ -198,7 +207,8 @@ export const createConsentLinkHelper = (): ConsentLinkHelper => {
         document.addEventListener('contextmenu', onNavigate, true)
       },
 
-      decorate: (url, record, opts) => {
+      decorate: (url, input, opts) => {
+        const record = explicitOf(input)
         const linker = opts.linker
         const host = typeof location !== 'undefined' ? location.hostname : ''
         if (linker == null || url.hostname === host || !linker.domains.includes(url.hostname)) {
@@ -305,7 +315,9 @@ export const createConsentLinkHelper = (): ConsentLinkHelper => {
         `var existing=null;try{existing=w.localStorage.getItem(${storageKey})}catch(e){}` +
         `if(!existing){var cp=('; '+d.cookie).split('; '+${storageKey}+'=');` +
           `if(cp.length===2)existing=cp.pop().split(';').shift()}` +
-        `if(!existing){` +
+        // An automatic decision is replaced by the visitor's own; an unparseable one still blocks.
+        `var ex=null;if(existing){try{ex=JSON.parse(existing)}catch(e){ex=false}}` +
+        `if(!existing||(ex&&typeof ex.auto==='number')){` +
           `var keys=${optionalKeys},ok=true;` +
           `for(var i=0;i<keys.length;i++){if(j.c[keys[i]]!==0&&j.c[keys[i]]!==1){ok=false;break}}` +
           `if(ok){` +

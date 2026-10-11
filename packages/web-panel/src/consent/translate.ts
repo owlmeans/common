@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useI18nLib } from '@owlmeans/client-i18n'
-import { consentI18nHelper } from '@owlmeans/consent'
+import { consentI18nHelper } from '@owlmeans/web-consent'
 
 /**
  * Resolve consent copy through the application first, and the packaged bundle second.

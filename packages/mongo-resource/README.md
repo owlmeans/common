@@ -12,7 +12,7 @@ Client-side records go in [`@owlmeans/state`](../state).
 ## Installation
 
 ```bash
-bun add @owlmeans/mongo-resource@^0.1.18-rc.43
+bun add @owlmeans/mongo-resource@^0.1.18-rc.44
 ```
 
 `mongodb` and `ajv` are peer dependencies. The connection service comes from
@@ -294,7 +294,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.49
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -621,8 +621,6 @@ describe('marketing-consent screen — Terms mode (appendMarketingConsent({ term
       await terms.waitFor({ state: 'visible', timeout: 45_000 })
       expect(await terms.getAttribute('data-version')).toBe('harness-terms-v1')
 
-      // No items to answer — the Terms box is the whole reason the step is pending.
-      expect(await page.locator('[data-marketing-consent-item]').count()).toBe(0)
       expect(await page.locator('[data-marketing-consent-privacy]').count()).toBe(1)
       expect(await page.locator('[data-marketing-consent-skip]').count()).toBe(0)
 
@@ -675,6 +673,38 @@ describe('marketing-consent screen — Terms mode (appendMarketingConsent({ term
     try {
       await page.waitForURL(url => url.pathname === '/', { timeout: 30_000 })
       expect(calls).toEqual(['GET status'])
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('terms owed with every consent decided: every consent is listed, ticked as last decided, and saved with the terms', async () => {
+    const decided = Object.fromEntries(keys.map(key => [key, { status: 'current' as const, granted: key === keys[0] }]))
+    const { page, calls, lastSaveBody, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
+      signedIn: true, termsMode: true,
+      stubs: {
+        status: { json: statusView(decided, { terms: { version: 'an-older-version' } }) },
+        terms: { json: { ok: true } },
+        save: { json: { ok: true, status: statusView(decided) } },
+      },
+    })
+    try {
+      await page.locator('[data-marketing-consent-terms]').waitFor({ state: 'visible', timeout: 45_000 })
+      expect(await page.locator('[data-marketing-consent-item]').count()).toBe(keys.length)
+      for (const key of keys) {
+        expect(await page.locator(`[data-marketing-consent-item="${key}"]`).isChecked()).toBe(key === keys[0])
+      }
+
+      await page.locator('[data-marketing-consent-terms]').check()
+      await page.locator('[data-marketing-consent-save]').click()
+
+      await page.waitForURL(url => url.pathname === '/', { timeout: 30_000 })
+      expect(calls).toEqual(['GET status', 'POST terms', 'POST save'])
+      const body = lastSaveBody()
+      expect(body?.decisions).toHaveLength(keys.length)
+      for (const key of keys) {
+        expect(body?.decisions.find(entry => entry.key === key)?.granted).toBe(key === keys[0])
+      }
     } finally {
       await close()
     }

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent-skills",
-  "version": "0.1.18-rc.51",
+  "version": "0.1.18-rc.52",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -34,7 +34,7 @@
   "devDependencies": {
     "@langchain/core": "^1.2.14",
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/llm": "^0.1.18-rc.46",
+    "@owlmeans/llm": "^0.1.18-rc.47",
     "@owlmeans/llm-common": "^0.1.18-rc.39",
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.4",
@@ -42,7 +42,7 @@
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "@owlmeans/llm": "^0.1.18-rc.46",
+    "@owlmeans/llm": "^0.1.18-rc.47",
     "@owlmeans/llm-common": "^0.1.18-rc.39"
   },
   "peerDependenciesMeta": {

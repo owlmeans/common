@@ -18,7 +18,8 @@ import {
 } from '../../src/index.js'
 import { LoginScreen } from '../../src/components/login/index.js'
 import {
-  PanelCookieConsent, PanelConsentMenuWidget, appendConsentWidgetService, useConsentMenuPresence
+  PanelCookieConsent, PanelConsentMenuWidget, appendConsentWidgetService, useConsentMenuPresence,
+  appendConsentGeoPlugin,
 } from '../../src/consent/index.js'
 import { LoginOutcome, ensureLoginService } from '@owlmeans/client-auth/login'
 import type { LoginMethod } from '@owlmeans/client-auth/login'
@@ -118,6 +119,12 @@ const mobileMenu = new URLSearchParams(window.location.search).get('mobileMenu')
 // service — an application using the dialog on its own. `?consent=menu` appends the service, so
 // the footer's "Cookie settings" control takes over the floating button's job.
 const consentMode = new URLSearchParams(window.location.search).get('consent')
+// `?consentCfg=window|bar` sets `cfg.cookieConsent.mode`; `?modeProp=bar|window` passes `mode` as a
+// prop on top of it (the prop must win). `?consentGeo=<CC>|fail` appends a context-level locator
+// with `appendConsentGeoPlugin` — the gate turns on with no `geo` configured anywhere.
+const consentCfg = new URLSearchParams(window.location.search).get('consentCfg')
+const modeProp = new URLSearchParams(window.location.search).get('modeProp')
+const consentGeo = new URLSearchParams(window.location.search).get('consentGeo')
 // `?skip=off` passes `skipLinkLabel={false}` — an application that renders its own skip link.
 const skipOff = new URLSearchParams(window.location.search).get('skip') === 'off'
 // `?themeToggle=1` asks for the footer's light/dark switcher. Absent, the prop is not passed.
@@ -329,6 +336,9 @@ if (providerPlacement != null) {
 // test that needs the OFF case loads `?reloadDialog=0` — one harness process, both branches.
 const reloadDialogEnabled = new URLSearchParams(window.location.search).get('reloadDialog') !== '0'
 ;(base as { socket?: { reloadDialog?: boolean } }).socket = { reloadDialog: reloadDialogEnabled }
+if (consentCfg === 'window' || consentCfg === 'bar') {
+  ;(base as { cookieConsent?: { mode: 'window' | 'bar' } }).cookieConsent = { mode: consentCfg }
+}
 
 // `ready` stays false: the Router compiles the entrypoint tree into routes ONLY while the
 // context is un-initialized, so a pre-readied context renders a blank page.
@@ -338,6 +348,18 @@ context.serviceRoute(SERVICE, true)
 context.serviceRoute(API, true)
 if (consentMode === 'menu') {
   appendConsentWidgetService(context as never)
+}
+if (consentGeo != null) {
+  appendConsentGeoPlugin(context as never, {
+    alias: 'harness-geo',
+    locate: async () => {
+      if (consentGeo === 'fail') {
+        throw new Error('the harness locator cannot tell')
+      }
+
+      return { country: consentGeo }
+    },
+  })
 }
 
 ensureLoginService(context as never).registerMethodSource({
@@ -410,5 +432,6 @@ createRoot(document.getElementById('root')!).render(<PanelApp context={context a
   {consentMode != null && <PanelCookieConsent
     policyHref="/cookies"
     {...(withDomains ? { linker: { domains: ['harness-partner.test'] } } : {})}
+    {...(modeProp === 'window' || modeProp === 'bar' ? { mode: modeProp } : {})}
   />}
 </PanelApp>)

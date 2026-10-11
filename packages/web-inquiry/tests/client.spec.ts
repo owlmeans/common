@@ -92,6 +92,23 @@ describe('load', () => {
 })
 
 describe('bind', () => {
+  test('passes a lazy client email provider to opens and lets a trigger override it', async () => {
+    const fake = makeRuntime()
+    page.onScript = script => page.install(fake.runtime, script)
+    let calls = 0
+    const email = () => { calls++; return Promise.resolve('account@example.test') }
+    const client = makeInquiryClient({ url: nextUrl(), email })
+    await client.load()
+    await client.open(config)
+    expect(fake.opened.at(-1)?.opts?.email).toBe(email)
+    expect(calls).toBe(0)
+    const link = page.add('a', { href: '/contact' })
+    client.bind(link as unknown as Element, config, { email: 'override@example.test' })
+    link.dispatch('click')
+    await settle(10)
+    expect(fake.opened.at(-1)?.opts?.email).toBe('override@example.test')
+  })
+
   test('a click opens the dialog instead of following the link', async () => {
     const fake = makeRuntime()
     page.onScript = script => page.install(fake.runtime, script)

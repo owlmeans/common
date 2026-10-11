@@ -14,7 +14,7 @@ The `web-consent` skill covers the components, the `consent` skill the model beh
 ## Installation
 
 ```bash
-bun add @owlmeans/web-consent@^0.1.18-rc.43
+bun add @owlmeans/web-consent@^0.1.18-rc.44
 ```
 
 Peer dependencies the app provides: `react`, `tailwindcss`, `tailwind-merge`, `clsx`, `lucide-react`.
@@ -45,10 +45,12 @@ Tailwind entry must scan the package's `src`:
 
 ## Usage
 
-### 1. Mount the dialog once
+### 1. Mount it once
 
 At the application root or layout. It opens itself when no decision is stored and renders only the
-re-open button once one is.
+re-open button once one is. A first-time visitor is asked with a tall bar across the bottom of a
+dimmed overlay — "Cookie preferences", "Accept only mandatory", "Accept all" — and every later
+opening is the preferences window; `mode="window"` asks with the window straight away.
 
 ```tsx
 import { CookieConsent } from '@owlmeans/web-consent'
@@ -63,8 +65,10 @@ export const Layout = ({ children, locale }: { children: ReactNode, locale: stri
 </>
 ```
 
-Pass `linker={{ domains: ['owlmeans.com', 'owlmeans.pl'] }}` to share the decision across domains;
-the dialog then discloses the domain list. `noReopenButton` hides the floating button for an app
+Pass `geo={{ cloudflare: true }}` on a Cloudflare-proxied host to ask only visitors located in a
+consent country (a spinner shows while they are located; anyone else is decided for automatically —
+see `@owlmeans/consent`). Pass `linker={{ domains: ['owlmeans.com', 'owlmeans.pl'] }}` to share the
+decision across domains; the surface then discloses the domain list. `noReopenButton` hides the floating button for an app
 that offers a footer link calling `consentStore.open('reopen')`.
 
 ### 2. Read the decision
@@ -140,7 +144,8 @@ import { ConsentToggle } from '@owlmeans/web-consent'
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `CookieConsent` | component (`CookieConsentProps`) | The preferences dialog and the floating re-open button (`[data-consent-reopen]`) |
+| `CookieConsent` | component (`CookieConsentProps`) | The consent UI — the bar, the preferences window, the locating spinner — and the floating re-open button (`[data-consent-reopen]`) |
+| `CONSENT_DEFAULT_MODE`, `ConsentDisplayMode` | const, type | `'bar'`; `'bar' \| 'window'` |
 | `ConsentMenuWidget` | component (`ConsentMenuWidgetProps`) | One menu row reopening the dialog; never initialises the store |
 | `CookiePolicy` | component (`CookiePolicyProps`) | The generated cookie-policy page |
 | `ConsentToggle` | component (`ConsentToggleProps`) | One category row with a switch; locked when `required` |
@@ -151,12 +156,12 @@ import { ConsentToggle } from '@owlmeans/web-consent'
 
 | Type | Fields |
 |---|---|
-| `CookieConsentProps` | `locale?`, `categories?`, `translate?`, `policyHref?`, `links?: ConsentLink[]`, `storageKey?`, `cookieDays?`, `cookieDomain?`, `silent?`, `noReopenButton?`, `className?`, `linker?` |
-| `CookiePolicyProps` | `locale?`, `translate?`, `categories?`, `operator?`, `privacyHref?`, `termsHref?`, `storageKey?`, `cookieDays?`, `services?: ConsentService[]`, `className?`, `linker?` |
+| `CookieConsentProps` | `locale?`, `categories?`, `translate?`, `mode?`, `geo?`, `policyHref?`, `links?: ConsentLink[]`, `storageKey?`, `cookieDays?`, `cookieDomain?`, `silent?`, `noReopenButton?`, `className?` (the window's card), `barClassName?`, `linker?` |
+| `CookiePolicyProps` | `locale?`, `translate?`, `categories?`, `operator?`, `privacyHref?`, `termsHref?`, `storageKey?`, `cookieDays?`, `services?: ConsentService[]`, `className?`, `linker?`, `geo?` (adds the regional rule) |
 | `ConsentMenuWidgetProps` | `locale?`, `translate?`, `label?`, `className?`, `onSelect?` |
 | `ConsentToggleProps` | `id`, `label`, `description`, `checked`, `required?`, `requiredLabel`, `onChange(value)` |
 | `ConsentLink` | `{ href, labelKey, defaultLabel }` |
-| `UseConsentModel` | `{ record, open, reason, granted(key), save(record), acceptAll(), openDialog(reason?), close() }` |
+| `UseConsentModel` | `{ record, open, reason, locating, granted(key), save(record), acceptAll(), openDialog(reason?), close() }` |
 
 `translate` is `(key, defaultValue) => string`; without it the packaged bundle for `locale` is used
 (`CONSENT_LOCALES`: en, pl, ru, be, uk, es, de, fr; anything else falls back to English).
@@ -166,7 +171,8 @@ import { ConsentToggle } from '@owlmeans/web-consent'
 | Group | Symbols |
 |---|---|
 | Store | `consentStore` |
-| Helpers | `consentStorageHelper`, `consentModeHelper`, `consentI18nHelper`, `consentPluginHelper`, `consentLinkHelper` |
+| Helpers | `consentStorageHelper`, `consentModeHelper`, `consentI18nHelper`, `consentPluginHelper`, `consentLinkHelper`, `consentGeoHelper` |
+| Geo gate | `CONSENT_REQUIRED_COUNTRIES`, `CONSENT_COUNTRIES_GDPR`, `CONSENT_COUNTRIES_ALIGNED`, `CONSENT_COUNTRIES_OPT_IN`, `CONSENT_GEO_UNKNOWN`, `CONSENT_TRACE_PATH`, `CONSENT_GEO_TIMEOUT`, `CONSENT_AUTO_MAX_AGE`, `CONSENT_IDLE_STATE`, `CONSENT_STATE_ATTRIBUTE` and the types `ConsentGeoOptions`, `ConsentGeoPlugin`, `ConsentGeoLocation`, `ConsentCloudflareOptions`, `ConsentLocating`, `ConsentGeoHelper`, `ConsentGeoVerdict`, `ConsentAutoState` |
 | Defaults | `DEFAULT_CONSENT_CATEGORIES`, `DEFAULT_CONSENT_MESSAGES` |
 | Constants | `CONSENT_KEY`, `CONSENT_COOKIE_DAYS`, `CONSENT_SCHEMA_VERSION`, `CONSENT_LOCALES`, `CONSENT_ESSENTIAL`, `CONSENT_ANALYTICS`, `CONSENT_MARKETING`, `CONSENT_LANGUAGE_KEY`, `CONSENT_EVENT`, `CONSENT_LINK_PARAM`, `CONSENT_LINK_MAX_AGE`, `CONSENT_LINK_SKEW` |
 | Deprecated wrappers | `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `consentBootstrapScript`, `defaultConsentTranslate`, `decorateConsentUrl`, `encodeConsentLink`, `consentLinkerScript` — use the helper members instead |
@@ -179,12 +185,17 @@ re-exported; import them from `@owlmeans/consent`.
 
 | Selector | Element |
 |---|---|
-| `[data-consent-dialog]` | the dialog overlay |
-| `[data-consent-save]`, `[data-consent-accept-all]` | the two actions |
+| `[data-consent-dialog]` | whichever surface asks — the bar or the window (`data-consent-mode="bar\|window"`) |
+| `[data-consent-bar]`, `[data-consent-overlay]` | the bar, and the dimmed overlay it sits on |
+| `[data-consent-preferences]`, `[data-consent-mandatory]`, `[data-consent-accept-all]` | the bar's three answers |
+| `[data-consent-save]`, `[data-consent-accept-all]` | the window's two actions |
+| `[data-consent-locating="first"]`, `[data-consent-spinner]` | the locating overlay and its spinner |
+| `[data-consent-links]`, `[data-consent-auto]` | the legal links row; the "applied automatically" line |
+| `html[data-consent]` | the phase: `locating`, `open`, `decided`, `idle` |
 | `[data-consent-reopen]` | the floating re-open button |
 | `[data-consent-reason]`, `[data-consent-domains]` | login-reason line, disclosed domains |
 | `[data-consent-menu-widget]` | the menu row |
-| `[data-cookie-policy]`, `[data-cookie-policy-category="<key>"]`, `[data-cookie-policy-services]`, `[data-cookie-policy-service]`, `[data-cookie-policy-other]`, `[data-cookie-policy-domains]`, `[data-cookie-policy-manage]` | the policy page |
+| `[data-cookie-policy]`, `[data-cookie-policy-category="<key>"]`, `[data-cookie-policy-services]`, `[data-cookie-policy-service]`, `[data-cookie-policy-other]`, `[data-cookie-policy-domains]`, `[data-cookie-policy-regional]`, `[data-cookie-policy-manage]` | the policy page |
 
 ## Common pitfalls
 
@@ -219,7 +230,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.51
+npx @owlmeans/agent-skills@^0.1.18-rc.52
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

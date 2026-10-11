@@ -5,6 +5,20 @@ import type { EntitlementView, LimitView } from '../src/index.js'
 const utc = (iso: string): Date => new Date(iso)
 
 describe('window keys', () => {
+  test('subscription weeks roll at the exact anniversary across DST and month boundaries', () => {
+    const anchor = utc('2026-10-23T15:03:00.000Z')
+    const before = utc('2026-10-30T15:02:59.999Z')
+    const reset = utc('2026-10-30T15:03:00.000Z')
+    expect(planLimitHelper.windowKeyOf(LimitKind.Window, LimitWindow.SubscriptionWeek, before, anchor))
+      .toBe('subscription-week:2026-10-23T15:03:00.000Z')
+    expect(planLimitHelper.windowBoundsOf(LimitWindow.SubscriptionWeek, before, anchor)).toEqual({ start: anchor, resetsAt: reset })
+    expect(planLimitHelper.windowKeyOf(LimitKind.Window, LimitWindow.SubscriptionWeek, reset, anchor))
+      .toBe('subscription-week:2026-10-30T15:03:00.000Z')
+    expect(planLimitHelper.windowBoundsOf(LimitWindow.SubscriptionWeek, utc('2026-11-06T15:03:00.000Z'), anchor).resetsAt)
+      .toEqual(utc('2026-11-13T15:03:00.000Z'))
+    expect(() => planLimitHelper.windowBoundsOf(LimitWindow.SubscriptionWeek, before)).toThrow(LimitMisdeclared)
+  })
+
   test('a day window rolls at UTC midnight', () => {
     expect(planLimitHelper.windowKeyOf(LimitKind.Window, LimitWindow.Day, utc('2026-01-31T23:59:59.999Z'))).toBe('2026-01-31')
     expect(planLimitHelper.windowKeyOf(LimitKind.Window, LimitWindow.Day, utc('2026-02-01T00:00:00.000Z'))).toBe('2026-02-01')

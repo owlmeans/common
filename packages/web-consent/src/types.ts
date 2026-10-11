@@ -1,6 +1,16 @@
 import type {
-  ConsentCategory, ConsentLinkerOptions, ConsentReason, ConsentRecord, ConsentService,
+  ConsentCategory, ConsentGeoOptions, ConsentLinkerOptions, ConsentLocating, ConsentReason,
+  ConsentRecord, ConsentService,
 } from '@owlmeans/consent'
+
+/**
+ * How a first-time visitor is asked: `bar` — a tall bar across the bottom of a dimmed overlay
+ * that blocks the page but leaves it in sight, with "Cookie preferences", "Accept only mandatory" and
+ * "Accept all" — or `window`, the preferences window straight away. Either way every later opening
+ * (the bar's own "Cookie preferences", a footer link, the corner button, the sign-in gate) is the
+ * window.
+ */
+export type ConsentDisplayMode = 'bar' | 'window'
 
 export interface ConsentLink {
   href: string
@@ -11,8 +21,17 @@ export interface ConsentLink {
 export interface CookieConsentProps {
   locale?: string
   categories?: ConsentCategory[]
-  /** `(key, defaultValue) => string`. Defaults to the built-in seven-language bundle. */
+  /** `(key, defaultValue) => string`. Defaults to the built-in eight-language bundle. */
   translate?: (key: string, defaultValue: string) => string
+  /** `bar` (the default, `CONSENT_DEFAULT_MODE`) or `window` — see `ConsentDisplayMode`. */
+  mode?: ConsentDisplayMode
+  /**
+   * Ask only where the law requires it — see `ConsentGeoOptions`. Passed through to
+   * `consentStore.init`: while the visitor is located the page waits behind a transparent overlay
+   * and a spinner, and a visitor located outside the consent countries is never asked. Plain data,
+   * so an Astro island can pass it; a locator plugin is registered in code instead.
+   */
+  geo?: ConsentGeoOptions
   /**
    * The cookie-policy page. A plain string, so an Astro route, a framework-resolved path and a raw
    * href all work — this component must not know how its host does routing.
@@ -26,7 +45,10 @@ export interface CookieConsentProps {
   silent?: boolean
   /** Hide the persistent re-open button, for an app that offers a footer link instead. */
   noReopenButton?: boolean
+  /** Extra classes for the preferences window's card. */
   className?: string
+  /** Extra classes for the bar. */
+  barClassName?: string
   /** Cross-domain consent — see `ConsentLinkerOptions`. Passed through to `consentStore.init`. */
   linker?: ConsentLinkerOptions
 }
@@ -51,11 +73,16 @@ export interface CookiePolicyProps {
   className?: string
   /** Cross-domain consent — see `ConsentLinkerOptions`. Names the domains the policy discloses. */
   linker?: ConsentLinkerOptions
+  /**
+   * The geo gate in force (`CookieConsentProps.geo`). Set, the page explains that optional cookies
+   * are asked about only where the law requires it and switched on by default elsewhere.
+   */
+  geo?: ConsentGeoOptions
 }
 
 export interface ConsentMenuWidgetProps {
   locale?: string
-  /** `(key, defaultValue) => string`. Defaults to the built-in seven-language bundle. */
+  /** `(key, defaultValue) => string`. Defaults to the built-in eight-language bundle. */
   translate?: (key: string, defaultValue: string) => string
   label?: string
   className?: string
@@ -67,6 +94,8 @@ export interface UseConsentModel {
   record: ConsentRecord | null
   open: boolean
   reason: ConsentReason | null
+  /** A country lookup is running — `first` keeps the page behind the spinner, `recheck` is silent. */
+  locating: ConsentLocating | null
   granted: (key: string) => boolean
   save: (record: ConsentRecord) => void
   acceptAll: () => void

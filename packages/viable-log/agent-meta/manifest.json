@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/viable-log",
-  "version": "0.1.18-rc.2",
-  "generatedAt": "2026-10-05T21:03:06.378Z",
+  "version": "0.1.18-rc.3",
+  "generatedAt": "2026-10-08T21:27:54.291Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

@@ -124,6 +124,13 @@ export interface PageHelper {
    * what the dialog is gating — but it is best-effort: an app without the widget, or one where the
    * visitor already decided, simply has no dialog and this returns at once.
    *
+   * It waits for the consent store to SETTLE (`<html data-consent>`), so a visitor still being
+   * located is waited out — the transparent overlay is up then and would take the click — and a
+   * visitor decided for automatically (outside the consent countries) returns `false` the moment
+   * the decision lands, rather than after the whole `timeout`. Whichever surface asks — the bottom
+   * bar or the preferences window — carries `[data-consent-dialog]` and `[data-consent-accept-all]`.
+   * Where the runner's own country would decide the outcome, pin it with `mockConsentGeo` first.
+   *
    * @returns whether a dialog was actually answered.
    */
   acceptConsent: (opts?: AcceptConsentOptions) => Promise<boolean>

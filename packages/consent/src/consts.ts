@@ -1,4 +1,4 @@
-import type { ConsentCategory, ConsentLocale } from './types.js'
+import type { ConsentCategory, ConsentLocale, ConsentState } from './types.js'
 
 import en from './i18n/en.json' with { type: 'json' }
 import pl from './i18n/pl.json' with { type: 'json' }
@@ -122,3 +122,92 @@ export const CONSENT_LINK_MAX_AGE = 300
 
 /** Clock skew allowed the OTHER way — a timestamp up to this far in the future is still trusted. */
 export const CONSENT_LINK_SKEW = 60
+
+/**
+ * Where prior consent for non-essential cookies is the law: the EU and EEA (ePrivacy Art. 5(3) with
+ * the GDPR), including the parts of member states that carry an ISO code of their own — Åland and
+ * the French outermost regions (French Guiana, Guadeloupe, Martinique, Réunion, Mayotte,
+ * Saint-Martin). The Canary Islands, Azores, Madeira, Ceuta and Melilla report their state's code.
+ * Greece is `GR`, as Cloudflare and every ISO feed spell it.
+ */
+export const CONSENT_COUNTRIES_GDPR: readonly string[] = Object.freeze([
+  'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU',
+  'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK',
+  'AX', 'GF', 'GP', 'MQ', 'RE', 'YT', 'MF',
+  'IS', 'LI', 'NO',
+])
+
+/**
+ * Jurisdictions outside the EEA whose rule for cookies is the same prior opt-in, by statute or by
+ * the regulator's guidance (2026):
+ *
+ * - the United Kingdom (PECR — the 2025 Data (Use and Access) Act exempts some first-party
+ *   analytics, advertising still needs consent), the Crown Dependencies and Gibraltar;
+ * - Switzerland (FDPIC guidelines, 2025: explicit consent for tracking and profiling);
+ * - Andorra, Monaco, San Marino and the Vatican; Türkiye (KVKK cookie guide); Serbia (ZZPL and the
+ *   electronic-communications law); Albania, Bosnia and Herzegovina, Montenegro, North Macedonia,
+ *   Kosovo, Moldova, Georgia and Ukraine (GDPR-modelled laws);
+ * - territories under a member state's regulator but outside the EU: the Faroe Islands and
+ *   Greenland (Denmark); Saint-Barthélemy, Saint-Pierre-et-Miquelon, New Caledonia, French
+ *   Polynesia, Wallis and Futuna (France); the Caribbean Netherlands.
+ */
+export const CONSENT_COUNTRIES_ALIGNED: readonly string[] = Object.freeze([
+  'GB', 'GG', 'JE', 'IM', 'GI',
+  'CH',
+  'AD', 'MC', 'SM', 'VA', 'TR', 'RS', 'AL', 'BA', 'ME', 'MK', 'XK', 'MD', 'GE', 'UA',
+  'FO', 'GL', 'BL', 'PM', 'NC', 'PF', 'WF', 'BQ',
+])
+
+/**
+ * Prior opt-in regimes elsewhere (2026): Brazil (LGPD, ANPD cookie guide), Canada (Québec's Law 25
+ * — the country is the finest grain a CDN reports, so all of Canada), China (PIPL), South Korea
+ * (PIPA), Nigeria (NDPA), Saudi Arabia (PDPL), Thailand (PDPA), Vietnam (PDPL 2026).
+ *
+ * Deliberately absent: India (the DPDP Act's consent rules apply from mid-2027 — add `IN` then),
+ * and the notice-or-opt-out regimes — the United States, Japan, Australia, Singapore. South
+ * Africa's POPIA is read both ways by the guides and is left out until its regulator says more.
+ */
+export const CONSENT_COUNTRIES_OPT_IN: readonly string[] = Object.freeze([
+  'BR', 'CA', 'CN', 'KR', 'NG', 'SA', 'TH', 'VN',
+])
+
+/**
+ * Every country where a located visitor is ASKED (`ConsentGeoOptions.countries` replaces it). A
+ * visitor located anywhere else gets an automatic decision; one who cannot be located is asked.
+ */
+export const CONSENT_REQUIRED_COUNTRIES: readonly string[] = Object.freeze([
+  ...CONSENT_COUNTRIES_GDPR, ...CONSENT_COUNTRIES_ALIGNED, ...CONSENT_COUNTRIES_OPT_IN,
+])
+
+/**
+ * Codes that name no country: Cloudflare's `XX` (no data) and `T1` (Tor), the retired MaxMind
+ * pseudo-codes (`A1` anonymous proxy, `A2` satellite, `O1` other) and the continent buckets some
+ * feeds fall back to (`EU`, `AP`), plus `ZZ` (unknown). A visitor reported with one is asked.
+ */
+export const CONSENT_GEO_UNKNOWN: readonly string[] = Object.freeze([
+  'XX', 'T1', 'A1', 'A2', 'O1', 'EU', 'AP', 'ZZ',
+])
+
+/** Cloudflare's trace endpoint — served by the edge on every proxied host, `loc=` among its lines. */
+export const CONSENT_TRACE_PATH = '/cdn-cgi/trace'
+
+/** How long locating may take before the visitor is asked anyway, in ms. */
+export const CONSENT_GEO_TIMEOUT = 2500
+
+/**
+ * How long an automatic decision is trusted, in seconds. Older, it counts as undecided — in the
+ * head scripts as much as in the store — until the visitor is located again, so a grant derived in
+ * one country never reaches a page opened an hour later in another.
+ */
+export const CONSENT_AUTO_MAX_AGE = 3600
+
+/** The state of a store nobody has initialised — and the only server-side snapshot. */
+export const CONSENT_IDLE_STATE: ConsentState = Object.freeze({
+  record: null, open: false, reason: null, locating: null,
+})
+
+/**
+ * The attribute on `<html>` that mirrors the consent phase: `locating`, `open`, `decided` or `idle`.
+ * Absent until the store first runs. A test waits on it, and a stylesheet may key on it.
+ */
+export const CONSENT_STATE_ATTRIBUTE = 'data-consent'

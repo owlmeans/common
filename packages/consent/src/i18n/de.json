@@ -32,5 +32,12 @@
   "privacy": "Datenschutzerklärung",
   "terms": "Nutzungsbedingungen",
   "domains": "Diese Wahl gilt für {{domains}}.",
-  "policyDomains": "Diese Wahl gilt für die folgenden Domains:"
+  "policyDomains": "Diese Wahl gilt für die folgenden Domains:",
+  "barTitle": "Cookies auf dieser Website",
+  "barDescription": "Wir verwenden notwendige Cookies, damit diese Website funktioniert – für die Anmeldung, die Sicherheit und um Ihre Auswahl zu speichern. Mit Ihrer Einwilligung würden wir außerdem diese optionalen Cookies verwenden: {{categories}}. Sie bleiben deaktiviert, bis Sie sie erlauben, und Sie können Ihre Auswahl jederzeit in den Cookie-Einstellungen ändern oder widerrufen.",
+  "barDescriptionEssential": "Diese Website verwendet nur notwendige Cookies – für die Anmeldung, die Sicherheit und um Ihre Auswahl zu speichern. Sie erfordern keine Einwilligung und können nicht deaktiviert werden.",
+  "acceptMandatory": "Nur notwendige akzeptieren",
+  "locating": "Ihre Region wird ermittelt …",
+  "autoReason": "Diese Einstellungen wurden automatisch angewendet, weil dort, von wo aus Sie die Website aufrufen, keine Cookie-Einwilligung erforderlich ist. Sie können sie jederzeit ändern.",
+  "policyRegional": "Wo das Recht am Aufenthaltsort der Besucher eine vorherige Einwilligung verlangt – in der EU und im EWR, im Vereinigten Königreich, in der Schweiz und in weiteren Ländern mit ähnlichen Regeln –, bleiben optionale Cookies deaktiviert, bis sie erlaubt werden. Anderswo sind sie standardmäßig aktiviert, außer wenn der Browser ein Global-Privacy-Control-Signal sendet, das als Ablehnung beachtet wird; sie lassen sich jederzeit über die Schaltfläche unten deaktivieren."
 }
