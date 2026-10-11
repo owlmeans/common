@@ -1,19 +1,21 @@
 import { appendContextual } from '@owlmeans/context'
 import { DEFAULT_ALIAS } from './consts.js'
 import type { Config, Context, StorageResource, StoredRecord } from './types.js'
-import type { GetterOptions } from '@owlmeans/resource'
+import type { WriteOptions } from '@owlmeans/resource'
 import { FilePropertyError, FileStreamError, FileTypeError, StorageApiError } from '@owlmeans/storage-common'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { ResilientError } from '@owlmeans/error'
 import { fileTypeFromBuffer } from 'file-type'
+import { logger } from '@owlmeans/log'
 
-type Getter = string | GetterOptions
+const log = logger('storage-resource')
 
-export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?: string) => {
+export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?: string): StorageResource => {
   configKey ??= alias
 
   const resource = appendContextual<StorageResource>(alias, {
-    create: async <Type extends StoredRecord>(record: Partial<Type>, _opts?: Getter) => {
+    /** A bucket object never expires on its own, so `opts.ttl` has nothing to act on here. */
+    create: async (record: Partial<StoredRecord>, _opts?: WriteOptions) => {
       if (record.stream == null) {
         throw new FileStreamError('no')
       }
@@ -71,11 +73,11 @@ export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?:
         if (e instanceof ResilientError) {
           throw e
         }
-        console.error(e)
+        log.error('Storage upload failed', e)
         throw new StorageApiError()
       }
 
-      return record as Type
+      return record as StoredRecord
     }
   })
 

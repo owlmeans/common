@@ -1,7 +1,7 @@
 import type { FC } from 'react'
 import { createElement, useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryRouter, Location, NavigateFunction } from '@owlmeans/router'
-import { matchRoutes } from '@owlmeans/router'
+import { routeMatcherHelper } from '@owlmeans/router'
 import { createBrowserHistory } from './history.js'
 import { RouterStateContext } from './context.js'
 import { RouteChain } from './chain.js'
@@ -22,7 +22,7 @@ export const BrowserRouterProvider: FC<{ router: LibraryRouter }> = ({ router })
   useEffect(() => history.listen(setLocation), [])
 
   const matches = useMemo(
-    () => matchRoutes(lib.branches, location.pathname) ?? [],
+    () => routeMatcherHelper.matchRoutes(lib.branches, location.pathname) ?? [],
     [lib, location.pathname]
   )
 

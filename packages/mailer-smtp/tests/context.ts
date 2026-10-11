@@ -1,17 +1,18 @@
-import { smtpGate } from '@owlmeans/test-integration'
+
 import type { IntegrationGate, SmtpEnv } from '@owlmeans/test-integration'
 import { config, makeServerContext } from '@owlmeans/server-context'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import { MAILER_SERVICE } from '@owlmeans/mailer'
 import { makeSmtpMailerService } from '@owlmeans/mailer-smtp'
 import type { SmtpConfig, SmtpMailerService, SmtpSettings } from '@owlmeans/mailer-smtp'
+import { gateHelper } from '@owlmeans/test-integration'
 
 /**
  * Live relay gate. Every variable empty means the delivery specs self-skip with a
  * printed reason — never a failure. When it is open these specs send REAL mail, so
  * `SMTP_TEST_TO` is required rather than optional.
  */
-export const gate: IntegrationGate<SmtpEnv> = smtpGate()
+export const gate: IntegrationGate<SmtpEnv> = gateHelper.smtpGate()
 
 /** Never logged, never asserted on — only handed to the transport. */
 export const settings = (): SmtpSettings => ({

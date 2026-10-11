@@ -1,4 +1,4 @@
-import { postgresGate, randomNamespace } from '@owlmeans/test-integration'
+import { randomNamespace, gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, PostgresEnv } from '@owlmeans/test-integration'
 import { PgAutoSync, resetPlaceholderCache } from '@owlmeans/postgres-resource'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
@@ -19,7 +19,7 @@ import type { PostgresService } from '@owlmeans/postgres'
  * that backs it, which is why the specs live in this package rather than the resource one
  * (the reverse would make `@owlmeans/postgres-resource` dev-depend on its own dependent).
  */
-export const gate: IntegrationGate<PostgresEnv> = postgresGate()
+export const gate: IntegrationGate<PostgresEnv> = gateHelper.postgresGate()
 
 const url = (): string => gate.env.POSTGRES_URL as string
 
@@ -103,7 +103,7 @@ export const makeSuite = (label: string): PgSuite => {
      * Declarations are deliberately *not* reset here. They survive a context switch on
      * purpose (that is the whole point of keying them by alias), and a `.migration()`
      * registered before `boot()` would be silently dropped. A spec that wants a clean
-     * slate calls `resetDeclarations(alias)` itself, which is exactly what a spec
+     * slate calls `pgDeclarationHelper.resetDeclarations(alias)` itself, which is exactly what a spec
      * simulating a restarted process should have to say out loud.
      */
     resetPlaceholderCache()

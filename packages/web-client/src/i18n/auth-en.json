@@ -2,5 +2,37 @@
   "dispatcher": {
     "loading": "Loading...",
     "error": "Authentication failed: {{error}}"
+  },
+  "surrogate": {
+    "login": {
+      "working": "Signing you in…",
+      "gesture": {
+        "title": "Continue to sign in.",
+        "action": "Sign in"
+      },
+      "handing": "Done. Returning to the application…",
+      "orphaned": "Signed in. You can close this window and continue in the application.",
+      "failed": "That did not complete. You can close this window and try again.",
+      "standalone": {
+        "title": "This page is used to sign in from another window.",
+        "action": "Open the application"
+      },
+      "close": "Close"
+    },
+    "logout": {
+      "working": "Signing you out…",
+      "gesture": {
+        "title": "Continue to sign out.",
+        "action": "Sign out"
+      },
+      "handing": "Signed out. Returning to the application…",
+      "orphaned": "Signed out. You can close this window.",
+      "failed": "Sign-out did not complete here. You can close this window.",
+      "standalone": {
+        "title": "This page is used to sign out from another window.",
+        "action": "Open the application"
+      },
+      "close": "Close"
+    }
   }
 }

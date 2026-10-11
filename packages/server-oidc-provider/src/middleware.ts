@@ -5,7 +5,7 @@ import type { ApiServer } from '@owlmeans/server-api'
 import { DEFAULT_ALIAS } from './consts.js'
 import type { Config, Context, OidcProviderService } from './types.js'
 
-export const createOidcProviderMiddleware = (web: string = WEB_ALIAS, oidc = DEFAULT_ALIAS) => {
+export const createOidcProviderMiddleware = (web: string = WEB_ALIAS, oidc: string = DEFAULT_ALIAS): Middleware => {
   const middleware: Middleware = {
     type: MiddlewareType.Context,
     stage: MiddlewareStage.Loading,

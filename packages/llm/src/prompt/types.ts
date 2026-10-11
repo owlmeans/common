@@ -2,7 +2,8 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { MessageFieldWithRole } from '@langchain/core/messages'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  CacheTtl, FileProviderRef, LlmPurpose, PromptBlock, PromptPolicy, SkillDefinition,
+  CacheTtl, CumulativeResults, FileProviderRef, LlmPurpose, PromptBlock, PromptPolicy,
+  SkillDefinition,
 } from '@owlmeans/llm-common'
 import type { LlmPlugin, LlmSystemBlock } from '../plugins/types.js'
 
@@ -36,6 +37,22 @@ export interface PromptComposeParams {
   cacheMax?: number
   /** File access a plugin may use to resolve knowledge from disk. */
   files?: FileProviderRef
+  /**
+   * A cheap model a plugin may spend ONE call on while composing — picking which of a
+   * hundred candidate skills a request is actually about, classifying an ask. Resolved
+   * lazily and allowed to yield `undefined`: no cheap tier is configured on most
+   * deployments, and a plugin that cannot get one must degrade rather than fail.
+   *
+   * Whatever it returns must not change what lands in a CACHED block — a model's answer
+   * is not reproducible byte-for-byte, so it belongs in `Packages` or `Context`.
+   */
+  utility?: () => BaseChatModel | undefined
+  /**
+   * What the earlier steps of the pipeline this call runs in produced — normally the execution's
+   * own `results`. Rendered into `PromptBlock.Results` by `resultsPlugin`; absent, that block is
+   * not emitted and the composed bytes are exactly what they would be without it.
+   */
+  results?: CumulativeResults
 }
 
 /** What a prompt plugin sees and may contribute to. */
@@ -47,6 +64,16 @@ export interface PromptContext extends PromptComposeParams {
   add: (block: PromptBlock, text: string) => void
   /** Resolve skill aliases through the registry, following `requires`. */
   resolve: (aliases: readonly string[]) => SkillDefinition[]
+  /**
+   * Take exclusive ownership of `key` for THIS composition: the first caller gets `true`,
+   * every later one `false`. Two plugins that can each render the same skill — a static
+   * catalogue and a detector — would otherwise emit it twice, which costs tokens and
+   * tells the model the same thing in two voices.
+   *
+   * The claim set is per `compose` call and consulted by nobody else, so a composition
+   * where no plugin claims renders exactly the bytes it rendered before this seam existed.
+   */
+  claim: (key: string) => boolean
 }
 
 /**
@@ -60,7 +87,7 @@ export interface PromptContext extends PromptComposeParams {
  */
 export interface LlmPromptPlugin {
   alias: string
-  /** Lower runs first. The built-ins occupy 0 (role), 10 (skills) and 90 (context). */
+  /** Lower runs first. The built-ins occupy 0 (role), 10 (skills), 80 (results) and 90 (context). */
   order?: number
   /** Contribute static content, before anything has looked at the messages. */
   compose?: (ctx: PromptContext) => void | Promise<void>
@@ -112,3 +139,6 @@ export interface PromptService extends InitializedService {
 export interface WithPromptService {
   prompts: () => PromptService
 }
+
+/** The part of {@link PromptService} this package implements — see {@link promptServiceApi}. */
+export interface PromptServiceApi extends Pick<PromptService, 'use' | 'register' | 'has' | 'resolve' | 'skills' | 'compose'> {}
