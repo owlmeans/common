@@ -1,6 +1,6 @@
 import type { BasicContext as Context } from '@owlmeans/context'
 import type { CommonConfig, SecurityHelper } from './types.js'
-import type { CommonServiceRoute } from '@owlmeans/route'
+import type { CommonServiceRoute, RouteProtocol } from '@owlmeans/route'
 import { normalizePath, RouteProtocols, SEP } from '@owlmeans/route'
 
 export const makeSecurityHelper = <
@@ -25,7 +25,7 @@ export const makeSecurityHelper = <
         security = true
       }
 
-      let protocol = RouteProtocols.WEB
+      let protocol: RouteProtocol = RouteProtocols.WEB
       if ("protocol" in route) {
         protocol = route.protocol ?? protocol
       }
@@ -37,9 +37,12 @@ export const makeSecurityHelper = <
       let base: string | undefined = baseOverride ?? route.base
 
       if (host == null) {
-        const serviceMeta = ctx.cfg.services?.[route.service ?? ctx.cfg.service] as CommonServiceRoute
+        // A `RouteAddress` always carries its host, so this branch only ever runs for a declaration
+        // or a service entry — the shapes that do name a service to fall back to.
+        const named = ('service' in route ? route.service : undefined) ?? ctx.cfg.service
+        const serviceMeta = ctx.cfg.services?.[named] as CommonServiceRoute
         if (serviceMeta == null) {
-          throw new SyntaxError(`No services configured to extract host: ${route.service ?? ctx.cfg.service}`)
+          throw new SyntaxError(`No services configured to extract host: ${named}`)
         }
 
         base = baseOverride ?? serviceMeta.base
@@ -63,7 +66,7 @@ export const makeSecurityHelper = <
       }
 
       let schema = `${protocol}`
-      if (Object.values(RouteProtocols).includes(protocol) && security) {
+      if ((Object.values(RouteProtocols) as string[]).includes(protocol) && security) {
         schema += 's'
       }
 
@@ -90,7 +93,7 @@ export const makeSecurityHelper = <
         security = true
       }
 
-      let protocol = params.protocol ?? RouteProtocols.WEB
+      let protocol: RouteProtocol = params.protocol ?? RouteProtocols.WEB
 
       let host = params.host
       let base: string | undefined = typeof params.base === 'string' ? params.base : undefined
@@ -122,7 +125,7 @@ export const makeSecurityHelper = <
       }
 
       let schema = `${protocol}`
-      if (Object.values(RouteProtocols).includes(protocol) && security) {
+      if ((Object.values(RouteProtocols) as string[]).includes(protocol) && security) {
         schema += 's'
       }
 

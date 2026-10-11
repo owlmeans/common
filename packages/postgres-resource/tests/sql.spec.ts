@@ -1,13 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import type { BasicContext } from '@owlmeans/context'
 
-import {
-  PostgresPlaceholderError, refOf, resolvePlaceholders, schemaToTableSpec
-} from '@owlmeans/postgres-resource'
+import { pgPlaceholdersOf, pgSchemaHelper, PostgresPlaceholderError } from '@owlmeans/postgres-resource'
 import type { TableSpec } from '@owlmeans/postgres-resource'
 
 const specOf = (alias: string, schema: string, table: string): TableSpec =>
-  schemaToTableSpec(alias, {
+  pgSchemaHelper.schemaToTableSpec(alias, {
     type: 'object',
     properties: {
       id: { type: 'string', format: 'uuid' },
@@ -37,68 +35,69 @@ const context = contextOf({ users, posts })
 
 describe('@owlmeans/postgres-resource — placeholder resolution', () => {
   test('resolves the owning resource', () => {
-    expect(resolvePlaceholders('SELECT * FROM {{}}', context, posts))
+    expect(pgPlaceholdersOf(context).resolvePlaceholders('SELECT * FROM {{}}', posts))
       .toBe('SELECT * FROM "app"."posts"')
-    expect(resolvePlaceholders('SELECT * FROM {{ self }}', context, posts))
+    expect(pgPlaceholdersOf(context).resolvePlaceholders('SELECT * FROM {{ self }}', posts))
       .toBe('SELECT * FROM "app"."posts"')
   })
 
   test('resolves another registered resource, its columns, its bare name and its schema', () => {
-    expect(resolvePlaceholders('SELECT * FROM {{users}}', context, posts))
+    expect(pgPlaceholdersOf(context).resolvePlaceholders('SELECT * FROM {{users}}', posts))
       .toBe('SELECT * FROM "app"."users"')
     /** The physical column, not the property — a `pg: { column }` rename has to survive. */
-    expect(resolvePlaceholders('SELECT {{users.email}}', context, posts))
+    expect(pgPlaceholdersOf(context).resolvePlaceholders('SELECT {{users.email}}', posts))
       .toBe('SELECT "app"."users"."email_address"')
-    expect(resolvePlaceholders('ON CONSTRAINT {{#users}}', context, posts))
+    expect(pgPlaceholdersOf(context).resolvePlaceholders('ON CONSTRAINT {{#users}}', posts))
       .toBe('ON CONSTRAINT "users"')
-    expect(resolvePlaceholders('SET search_path = {{$}}', context, posts))
+    expect(pgPlaceholdersOf(context).resolvePlaceholders('SET search_path = {{$}}', posts))
       .toBe('SET search_path = "app"')
   })
 
   test('leaves bound parameters exactly as written', () => {
     const text = `SELECT * FROM {{}} WHERE "id" = $1 AND "email" = $2 AND note = '{{not-a-placeholder'`
-    expect(resolvePlaceholders(text, context, posts))
+    expect(pgPlaceholdersOf(context).resolvePlaceholders(text, posts))
       .toBe(`SELECT * FROM "app"."posts" WHERE "id" = $1 AND "email" = $2 AND note = '{{not-a-placeholder'`)
   })
 
   test('refuses an alias it cannot resolve rather than substituting blindly', () => {
-    expect(() => resolvePlaceholders('SELECT * FROM {{nope}}', context, posts))
+    expect(() => pgPlaceholdersOf(context).resolvePlaceholders('SELECT * FROM {{nope}}', posts))
       .toThrow(PostgresPlaceholderError)
-    expect(() => resolvePlaceholders('SELECT {{users.nope}}', context, posts))
+    expect(() => pgPlaceholdersOf(context).resolvePlaceholders('SELECT {{users.nope}}', posts))
       .toThrow(PostgresPlaceholderError)
     /** Registered but not yet initialized: the table name genuinely isn't known. */
-    expect(() => resolvePlaceholders('SELECT * FROM {{late}}', contextOf({ late: null }), posts))
+    expect(() => pgPlaceholdersOf(contextOf({ late: null })).resolvePlaceholders('SELECT * FROM {{late}}', posts))
       .toThrow(PostgresPlaceholderError)
   })
 
   test('refuses a self reference in a query that has no owning resource', () => {
-    expect(() => resolvePlaceholders('SELECT * FROM {{}}', context, null))
+    expect(() => pgPlaceholdersOf(context).resolvePlaceholders('SELECT * FROM {{}}', null))
       .toThrow(PostgresPlaceholderError)
-    expect(() => resolvePlaceholders('SET search_path = {{$}}', context, null))
+    expect(() => pgPlaceholdersOf(context).resolvePlaceholders('SET search_path = {{$}}', null))
       .toThrow(PostgresPlaceholderError)
     /** Other aliases stay addressable — a service level query is scopeless, not blind. */
-    expect(resolvePlaceholders('SELECT * FROM {{users}}', context, null))
+    expect(pgPlaceholdersOf(context).resolvePlaceholders('SELECT * FROM {{users}}', null))
       .toBe('SELECT * FROM "app"."users"')
   })
 
   /**
-   * The cache is keyed by context because a layer switch rebuilds every resource against a
-   * different Postgres schema. A service level query has no owning table to key on, so a
-   * process wide cache would hand the next tenant the previous one's table names.
+   * The cache is keyed by context because a context is what owns a set of database handles:
+   * a different context resolves the same alias against a different Postgres schema. A
+   * service level query has no owning table to key on, so a process wide cache would hand
+   * one context the other's table names.
    */
   test('does not leak resolved table names between contexts', () => {
     const tenantA = contextOf({ users: specOf('users', 'tenant_a', 'users') })
     const tenantB = contextOf({ users: specOf('users', 'tenant_b', 'users') })
 
-    expect(resolvePlaceholders('SELECT * FROM {{users}}', tenantA, null))
+    expect(pgPlaceholdersOf(tenantA).resolvePlaceholders('SELECT * FROM {{users}}', null))
       .toBe('SELECT * FROM "tenant_a"."users"')
-    expect(resolvePlaceholders('SELECT * FROM {{users}}', tenantB, null))
+    expect(pgPlaceholdersOf(tenantB).resolvePlaceholders('SELECT * FROM {{users}}', null))
       .toBe('SELECT * FROM "tenant_b"."users"')
   })
 
   test('refOf answers the same question without any SQL around it', () => {
-    expect(refOf(context, posts)).toBe('"app"."posts"')
-    expect(refOf(context, posts, 'users')).toBe('"app"."users"')
-    expect(() => refOf(context, null)).toThrow(PostgresPlaceholderError)
+    expect(pgPlaceholdersOf(context).refOf(posts)).toBe('"app"."posts"')
+    expect(pgPlaceholdersOf(context).refOf(posts, 'users')).toBe('"app"."users"')
+    expect(() => pgPlaceholdersOf(context).refOf(null)).toThrow(PostgresPlaceholderError)
   })
 })

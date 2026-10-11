@@ -1,22 +1,30 @@
 import { describe, expect, test } from 'bun:test'
 import { makeFlowModel } from '@owlmeans/flow'
-import { ExecutionLevel } from '@owlmeans/llm-common'
-import type { ExecutionState } from '@owlmeans/llm-common'
-import type { Execution } from '@owlmeans/llm'
 import { AGENT_RUN_FLOW, AgentRunStep, AgentRunTransition, agentRunFlow } from '@owlmeans/agent-common'
+import type { PipelineRun } from '@owlmeans/agent-common'
+import { PipelineRunStatus } from '@owlmeans/agent-common'
 import {
-  createMemoryConversationStore, createMemoryEventStore, createMemoryGraphStore,
-  createMemoryRunStateStore, inProcessTransport, makeAgentExecutionPlugin, makeStaticFlowProvider,
+  createMemoryCheckpointStore, createMemoryConversationStore, createMemoryEventStore,
+  createMemoryGraphStore, createMemoryPipelineRunStore, makeStaticFlowProvider,
 } from '../src/index.js'
 
-const state = (extra: Record<string, unknown> = {}): ExecutionState => ({
-  level: ExecutionLevel.Project,
-  purpose: { dedication: 'project:p1' },
-  policy: { effort: 'standard' as never },
+const run = (extra: Partial<PipelineRun> = {}): PipelineRun => ({
+  runId: 'r1',
+  pipeline: 'p',
+  version: 1,
+  scope: 'project-1',
+  status: PipelineRunStatus.Running,
+  completed: [],
+  pending: [],
+  state: '{}',
+  stateChars: 2,
+  warnings: [],
+  attempts: 0,
+  startedAt: '2026-01-01T00:00:00.000Z',
+  heartbeatAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
   ...extra,
-} as ExecutionState)
-
-const exec = (): Execution => ({ ...state(), models: (() => {}) as never } as unknown as Execution)
+})
 
 describe('agent — the static flow provider', () => {
   test('serves a declared flow and restores a serialized run', async () => {
@@ -36,51 +44,82 @@ describe('agent — the static flow provider', () => {
   })
 })
 
-describe('agent — the execution checkpoint plugin', () => {
-  test('persists a checkpointed state and restores it by key', async () => {
-    const store = createMemoryRunStateStore()
-    const plugin = makeAgentExecutionPlugin({ store })
+describe('agent — the in-memory pipeline run store', () => {
+  test('upserts on runId and hands back a copy, never its own row', async () => {
+    const store = createMemoryPipelineRunStore()
+    await store.save(run({ completed: ['a'] }))
 
-    await plugin.onCheckpoint!(state({ phase: 'develop' }), exec(), 'run-1')
+    const loaded = (await store.load('r1'))!
+    loaded.completed.push('b')
 
-    expect(await plugin.onRestore!('run-1')).toMatchObject({ phase: 'develop' })
+    expect((await store.load('r1'))?.completed).toEqual(['a'])
   })
 
-  test('recovers the conversation from the execution dedication', async () => {
-    const store = createMemoryRunStateStore()
-    await makeAgentExecutionPlugin({ store }).onCheckpoint!(state(), exec(), 'run-2')
+  test('finds by scope, pipeline and status', async () => {
+    const store = createMemoryPipelineRunStore()
+    await store.save(run({ runId: 'a', scope: 's1' }))
+    await store.save(run({ runId: 'b', scope: 's2' }))
+    await store.save(run({ runId: 'c', scope: 's1', status: PipelineRunStatus.Done }))
 
-    expect((await store.load('run-2'))?.conversationId).toBe('project:p1')
+    expect((await store.find({ scope: 's1', status: PipelineRunStatus.Running })).map(r => r.runId))
+      .toEqual(['a'])
   })
 
-  test('refuses a state too large to belong in a checkpoint', async () => {
-    // A project execution carries the whole specification. Writing that on every checkpoint is a
-    // storage problem that surfaces much later and much worse than a skipped write.
-    const store = createMemoryRunStateStore()
-    const plugin = makeAgentExecutionPlugin({ store, maxStateChars: 200 })
+  test('staleness is judged on the heartbeat, never on the status', async () => {
+    // A run whose process died is `Running` forever; only the heartbeat separates it from one that
+    // is still working.
+    const store = createMemoryPipelineRunStore()
+    await store.save(run({ runId: 'fresh', heartbeatAt: '2026-01-02T00:00:00.000Z' }))
+    await store.save(run({ runId: 'stale', heartbeatAt: '2026-01-01T00:00:00.000Z' }))
 
-    await plugin.onCheckpoint!(state({ project: { specification: 'x'.repeat(5_000) } }), exec(), 'run-3')
+    expect((await store.find({ staleBefore: '2026-01-01T12:00:00.000Z' })).map(r => r.runId))
+      .toEqual(['stale'])
+  })
+})
 
-    expect(await store.load('run-3')).toBeNull()
+describe('agent — the in-memory checkpoint store', () => {
+  const record = (extra: Record<string, unknown> = {}) => ({
+    threadId: 't', ns: '', checkpointId: '001', type: 'json',
+    checkpoint: 'Y2s=', metadata: 'bWQ=', createdAt: '2026-01-01T00:00:00.000Z', ...extra,
   })
 
-  test('returns null for a key that was never checkpointed', async () => {
-    const plugin = makeAgentExecutionPlugin({ store: createMemoryRunStateStore() })
+  test('returns the newest checkpoint of a thread when none is named', async () => {
+    const store = createMemoryCheckpointStore()
+    await store.put(record({ checkpointId: '001' }))
+    await store.put(record({ checkpointId: '002' }))
 
-    expect(await plugin.onRestore!('never-seen')).toBeNull()
+    expect((await store.one('t', ''))?.checkpointId).toBe('002')
+    expect((await store.one('t', '', '001'))?.checkpointId).toBe('001')
   })
 
-  test('announces a saved checkpoint on the transport by reference', async () => {
-    // The message carries a reference, not the state: a queue whose messages hold a whole project
-    // specification falls over on the first large project.
-    const transport = inProcessTransport()
-    const seen: unknown[] = []
-    await transport.consume(async message => { seen.push(message) })
+  test('a positive write index is first-wins and a negative one overwrites', async () => {
+    // The sign IS the write rule: a task's own output must survive a retry, while an error or an
+    // interrupt is the newest word on the subject.
+    const store = createMemoryCheckpointStore()
+    const base = { threadId: 't', ns: '', checkpointId: '001', taskId: 'k', type: 'json' }
+    await store.putWrites([{ ...base, idx: 0, channel: 'out', value: 'Zmly' }])
+    await store.putWrites([{ ...base, idx: 0, channel: 'out', value: 'c2Vjb25k' }])
+    await store.putWrites([{ ...base, idx: -1, channel: '__error__', value: 'Zmly' }])
+    await store.putWrites([{ ...base, idx: -1, channel: '__error__', value: 'c2Vjb25k' }])
 
-    await makeAgentExecutionPlugin({ store: createMemoryRunStateStore(), transport })
-      .onCheckpoint!(state(), exec(), 'run-4')
+    const writes = await store.writesFor('t', '', ['001'])
 
-    expect(seen).toEqual([{ id: 'run-4', conversationId: 'project:p1', flow: '', stateRef: 'run-4' }])
+    expect(writes.find(w => w.idx === 0)?.value).toBe('Zmly')
+    expect(writes.find(w => w.idx === -1)?.value).toBe('c2Vjb25k')
+  })
+
+  test('dropping a thread takes its writes with it', async () => {
+    const store = createMemoryCheckpointStore()
+    await store.put(record())
+    await store.putWrites([{
+      threadId: 't', ns: '', checkpointId: '001', taskId: 'k', idx: 0, channel: 'c',
+      type: 'json', value: 'Zmly',
+    }])
+
+    await store.dropThread('t')
+
+    expect(await store.one('t', '')).toBeNull()
+    expect(await store.writesFor('t', '', ['001'])).toEqual([])
   })
 })
 

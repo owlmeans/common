@@ -1,15 +1,21 @@
 
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { assertContext } from '@owlmeans/context'
-import { EntrypointOutcome } from '@owlmeans/entrypoint'
-import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
+import { type BasicConfig, type BasicContext, assertContext } from '@owlmeans/context'
+import { EntrypointOutcome, type AbstractRequest, type AbstractResponse } from '@owlmeans/entrypoint'
 import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
-import type { Config, Context } from './types.js'
+import type { Config, Context, UploadedFile } from './types.js'
 import type { FastifyRequest } from 'fastify'
-import type { MultipartFile } from '@fastify/multipart'
 
+/**
+ * The context a handler runs against.
+ *
+ * The HTTP boundary hangs the request-scoped context on the raw Fastify request, so a handler
+ * reached that way gets it from there. A request that did not come from Fastify has no `original`
+ * at all — a queued call is rebuilt from an envelope, and a socket frame carries its own — so this
+ * has to fall back rather than dereference: these handlers are the same functions on every
+ * transport, and only the way they were reached differs.
+ */
 const _castContextFromOriginal = <C extends BasicConfig, T extends BasicContext<C> = BasicContext<C>>(req: AbstractRequest, def: T): T => {
-  return req.original._ctx ?? def
+  return req.original?._ctx ?? def
 }
 
 export const handleBody: <T>(
@@ -86,4 +92,3 @@ export const extractUploadedFile = async <T extends {} = {}>(req: AbstractReques
   return request.file()
 }
 
-export interface UploadedFile extends MultipartFile { }

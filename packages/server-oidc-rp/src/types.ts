@@ -28,7 +28,7 @@ export interface OidcTokenSet {
 }
 
 /** Subset of OidcTokenSet without helper methods; used for storage/serialization. */
-export type OidcTokenSetParameters = Pick<OidcTokenSet, 'access_token' | 'refresh_token' | 'id_token' | 'token_type' | 'expires_in' | 'scope'>
+export interface OidcTokenSetParameters extends Pick<OidcTokenSet, 'access_token' | 'refresh_token' | 'id_token' | 'token_type' | 'expires_in' | 'scope'> {}
 
 /** PKCE + ID-token check parameters for the authorization-code grant. */
 export interface OidcGrantChecks {
@@ -56,6 +56,7 @@ export interface OidcIntrospectionResponse {
 // These preserve the upstream types for internal implementation use only.
 // ---------------------------------------------------------------------------
 
+// Kept as a type: the token response carries a JSON index signature its helper methods would violate in an interface.
 /** @internal — internal alias; do not export from index.ts */
 export type TokenSet = TokenEndpointResponse & TokenEndpointResponseHelpers
 /** @internal */
@@ -90,6 +91,8 @@ export interface OidcClientAdapter {
   grantWithCode: (currentUrl: string, checks: OidcGrantChecks, params: Record<string, string>) => Promise<OidcTokenSet>
   refresh: (tokenSet: OidcTokenSetParameters | string) => Promise<OidcTokenSetParameters>
   introspect: (tokenSet: OidcTokenSetParameters, type?: string) => Promise<OidcIntrospectionResponse>
+  /** Read current claims for an active access token and bind them to its subject. */
+  userinfo: (tokenSet: OidcTokenSetParameters, expectedSubject: string) => Promise<Record<string, unknown>>
 }
 
 export interface OidcRpConfig extends OidcSharedConfig {
@@ -113,11 +116,9 @@ export interface AccountLinkingService extends InitializedService {
 
 export interface AccountMeta {
   username: string
-  force?: boolean
 }
 
 export interface ProviderApiService extends InitializedService {
   getUserDetails: (token: string, userId: string) => Promise<OidcUserDetails>
   getSettings: (token: string, realm: string) => Promise<OidcProviderSettings>
 }
-

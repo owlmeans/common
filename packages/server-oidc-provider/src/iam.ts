@@ -1,24 +1,8 @@
-import type { ClientMetadata, ResponseType } from 'oidc-provider'
-
-/** A registered OIDC client stored in the provider's Client adapter. */
-export interface OidcRegisteredClient {
-  clientId: string
-  secret: string
-  /** The entity (realm) this client belongs to — used for identity scoping. */
-  entityId?: string
-  /** Application display name */
-  name?: string
-  redirectUris?: string[]
-  grantTypes?: string[]
-  responseTypes?: string[]
-  scope?: string
-}
-
-/** Full oidc-provider ClientMetadata with our entity extension. */
-export type OidcClientMetadata = ClientMetadata & { entityId?: string; owlEntityId?: string }
+import type { ResponseType } from 'oidc-provider'
+import type { OidcClientMetadata, OidcRegisteredClient, ToClientMetadata } from './types.js'
 
 /** Convert an OidcRegisteredClient to the oidc-provider ClientMetadata shape. */
-export const toClientMetadata = (client: OidcRegisteredClient): OidcClientMetadata => ({
+export const toClientMetadata: ToClientMetadata = (client: OidcRegisteredClient): OidcClientMetadata => ({
   client_id: client.clientId,
   client_secret: client.secret,
   redirect_uris: client.redirectUris ?? [],
@@ -29,12 +13,3 @@ export const toClientMetadata = (client: OidcRegisteredClient): OidcClientMetada
   owlEntityId: client.entityId,
 })
 
-/** Extension seam for IAM integration into the OIDC provider — Phase 2 fills this */
-export interface OidcProviderIamExtension {
-  /** Convert a stored client record to oidc-provider ClientMetadata */
-  toClientMetadata: typeof toClientMetadata
-  /** Type of a stored client record */
-  OidcRegisteredClient: OidcRegisteredClient
-  /** Extended metadata type */
-  OidcClientMetadata: OidcClientMetadata
-}
