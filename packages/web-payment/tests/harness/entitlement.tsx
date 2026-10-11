@@ -2,9 +2,8 @@ import { useState } from 'react'
 import type { RegisteredEntrypoint } from '@owlmeans/entrypoint'
 import {
   LimitKind, LimitWindow, SubscriptionStatus, TaxBehavior, TaxEstimateStatus, TaxType,
-  capabilityViewsOf, entitlementViewOf, limitViewsOf,
   type EntitlementPlanView, type EntitlementView, type PlanCapability, type LimitDeclaration,
-  type PriceEstimate, type ProductPlan,
+  type PriceEstimate, type ProductPlan, entitlementViewHelper,
 } from '@owlmeans/payment'
 import {
   CapabilityList, CountrySelect, LimitMeter, PlanCard, PriceEstimateAmount, useCapability,
@@ -63,8 +62,8 @@ const LABELS: Record<string, string> = {
 
 const Pieces = () => {
   const [acted, setActed] = useState('')
-  const capabilityRows = capabilityViewsOf({ capabilities }, SUBSCRIBED, AT)
-  const limitRows = limitViewsOf({ limits }, usage, SUBSCRIBED, AT)
+  const capabilityRows = entitlementViewHelper.capabilityViewsOf({ capabilities }, SUBSCRIBED, AT)
+  const limitRows = entitlementViewHelper.limitViewsOf({ limits }, usage, SUBSCRIBED, AT)
   const label = (key: string) => `${key[0].toUpperCase()}${key.slice(1)}`
 
   return <main className="grid gap-6 p-6">
@@ -97,7 +96,7 @@ const Pieces = () => {
 }
 
 /** What a server answers: the view through JSON, every date an ISO string. */
-const wireView = JSON.parse(JSON.stringify(entitlementViewOf(
+const wireView = JSON.parse(JSON.stringify(entitlementViewHelper.entitlementViewOf(
   { capabilities, limits } as unknown as ProductPlan, PLANS.renews, usage, AT,
 ))) as EntitlementView
 

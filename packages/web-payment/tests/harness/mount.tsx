@@ -26,6 +26,12 @@ const Dialog = () => {
       onOpenChange={setOpen}
       policy={policy}
       pending={pending}
+      disabled={params.get('disabled') === 'true'}
+      details={params.has('details') ? <section data-test-details="">Application tier details</section> : undefined}
+      limit={params.has('limit') ? {
+        productSku: 'credits', currency: 'usd', minimumMinor: 500, maximumMinor: 20_000, narrowed: true, blocked: false,
+        reason: 'per-purchase',
+      } : undefined}
       onConfirm={setConfirmed}
       estimate={estimateCase != null ? ESTIMATE_FIXTURES[estimateCase] : undefined}
     />

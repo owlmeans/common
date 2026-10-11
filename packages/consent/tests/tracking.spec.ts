@@ -1,11 +1,11 @@
 import { describe, test, expect } from 'bun:test'
 import { CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_EVENT, CONSENT_KEY, CONSENT_MARKETING } from '../src/consts.js'
-import { consentGateScript, trackingGranted } from '../src/gtm.js'
+import { consentModeHelper } from '../src/gtm.js'
 import type { ConsentCategory, ConsentRecord } from '../src/types.js'
 
 describe('trackingGranted', () => {
   test('no record at all is not granted', () => {
-    expect(trackingGranted(null)).toBe(false)
+    expect(consentModeHelper.trackingGranted(null)).toBe(false)
   })
 
   test('an essential-only record is not granted — required categories never count', () => {
@@ -13,19 +13,19 @@ describe('trackingGranted', () => {
       [CONSENT_ESSENTIAL]: true, [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: false,
     }
 
-    expect(trackingGranted(record)).toBe(false)
+    expect(consentModeHelper.trackingGranted(record)).toBe(false)
   })
 
   test('analytics granted is tracking-granted', () => {
     const record: ConsentRecord = { [CONSENT_ESSENTIAL]: true, [CONSENT_ANALYTICS]: true }
 
-    expect(trackingGranted(record)).toBe(true)
+    expect(consentModeHelper.trackingGranted(record)).toBe(true)
   })
 
   test('marketing granted is tracking-granted too', () => {
     const record: ConsentRecord = { [CONSENT_ESSENTIAL]: true, [CONSENT_MARKETING]: true }
 
-    expect(trackingGranted(record)).toBe(true)
+    expect(consentModeHelper.trackingGranted(record)).toBe(true)
   })
 
   test('a required category is ignored even when the record marks it granted', () => {
@@ -39,7 +39,7 @@ describe('trackingGranted', () => {
       },
     ]
 
-    expect(trackingGranted({ essential: true }, categories)).toBe(false)
+    expect(consentModeHelper.trackingGranted({ essential: true }, categories)).toBe(false)
   })
 
   test('a category with no signals is ignored even when granted', () => {
@@ -47,7 +47,7 @@ describe('trackingGranted', () => {
       { key: 'preferences', labelKey: 'a', descriptionKey: 'b' },
     ]
 
-    expect(trackingGranted({ preferences: true }, categories)).toBe(false)
+    expect(consentModeHelper.trackingGranted({ preferences: true }, categories)).toBe(false)
   })
 })
 
@@ -91,7 +91,7 @@ describe('consentGateScript — the two reachable paths', () => {
   test('a returning visitor with a stored grant runs the loader immediately, synchronously', () => {
     const browser = makeBrowser({ record: { essential: true, analytics: true, v: 2 } })
     browser.win.__loaded = 0
-    browser.run(consentGateScript('window.__loaded = (window.__loaded || 0) + 1'))
+    browser.run(consentModeHelper.consentGateScript('window.__loaded = (window.__loaded || 0) + 1'))
 
     expect(browser.win.__loaded).toBe(1)
     // Nothing left listening — the immediate branch never subscribes.
@@ -101,7 +101,7 @@ describe('consentGateScript — the two reachable paths', () => {
   test('a stored record that grants nothing does not run the loader immediately', () => {
     const browser = makeBrowser({ record: { essential: true, analytics: false, v: 2 } })
     browser.win.__loaded = 0
-    browser.run(consentGateScript('window.__loaded = (window.__loaded || 0) + 1'))
+    browser.run(consentModeHelper.consentGateScript('window.__loaded = (window.__loaded || 0) + 1'))
 
     expect(browser.win.__loaded).toBe(0)
     expect(browser.listenerCount()).toBe(1)
@@ -110,7 +110,7 @@ describe('consentGateScript — the two reachable paths', () => {
   test('no stored record at all falls to the event-listener branch and waits', () => {
     const browser = makeBrowser()
     browser.win.__loaded = 0
-    browser.run(consentGateScript('window.__loaded = (window.__loaded || 0) + 1'))
+    browser.run(consentModeHelper.consentGateScript('window.__loaded = (window.__loaded || 0) + 1'))
 
     expect(browser.win.__loaded).toBe(0)
 
@@ -145,7 +145,7 @@ describe('consentGateScript — the two reachable paths', () => {
     const doc = { cookie: `${CONSENT_KEY}=${record}` }
     // eslint-disable-next-line no-new-func
     new Function(
-      'window', 'document', consentGateScript('window.__loaded = (window.__loaded || 0) + 1')
+      'window', 'document', consentModeHelper.consentGateScript('window.__loaded = (window.__loaded || 0) + 1')
     )(win, doc)
 
     expect(win.__loaded).toBe(1)
@@ -158,7 +158,7 @@ describe('consentGateScript — the two reachable paths', () => {
     ]
     const browser = makeBrowser({ record: { essential: true, analytics: false, v: 2 } })
     browser.win.__loaded = 0
-    browser.run(consentGateScript('window.__loaded = (window.__loaded || 0) + 1', { categories }))
+    browser.run(consentModeHelper.consentGateScript('window.__loaded = (window.__loaded || 0) + 1', { categories }))
 
     expect(browser.win.__loaded).toBe(0)
 
@@ -167,7 +167,7 @@ describe('consentGateScript — the two reachable paths', () => {
   })
 
   test('the generated script carries both reachable code paths in its text', () => {
-    const script = consentGateScript('window.__loaded = (window.__loaded || 0) + 1')
+    const script = consentModeHelper.consentGateScript('window.__loaded = (window.__loaded || 0) + 1')
 
     // The immediate branch: `load()` called right after the stored-record check, before any
     // listener is attached.
@@ -182,7 +182,7 @@ describe('consentGateScript — the two reachable paths', () => {
   test('a custom storage key is honoured, matching the bootstrap script\'s own lookup', () => {
     const browser = makeBrowser({ key: 'custom_key', record: { essential: true, analytics: true, v: 2 } })
     browser.win.__loaded = 0
-    browser.run(consentGateScript(
+    browser.run(consentModeHelper.consentGateScript(
       'window.__loaded = (window.__loaded || 0) + 1', { storageKey: 'custom_key' }
     ))
 

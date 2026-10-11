@@ -1,8 +1,8 @@
 import type { FC } from 'react'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { CookieConsent, CookiePolicy, DEFAULT_CONSENT_CATEGORIES } from '../../src/index.js'
-import type { ConsentCategory, ConsentService } from '../../src/index.js'
+import { CookieConsent, CookiePolicy, DEFAULT_CONSENT_CATEGORIES, consentPluginHelper } from '../../src/index.js'
+import type { ConsentCategory, ConsentDisplayMode, ConsentGeoOptions, ConsentService } from '../../src/index.js'
 
 /**
  * The harness renders whatever the query string asks for, so a spec chooses its case by URL and
@@ -18,6 +18,14 @@ import type { ConsentCategory, ConsentService } from '../../src/index.js'
  *   and the policy page.
  * - `?anchors=1` — renders a handful of `<a>` elements (a listed partner, a foreign host, and one
  *   with `rel="noreferrer"`) for the decoration specs to click/inspect.
+ * - `?mode=window|bar` — the surface a first-time visitor is asked with (the default is the bar).
+ * - `?categories=essential` — only the required category, nothing optional to ask about.
+ * - `?geo=<CC>|fail|html|hang` — the geo gate in Cloudflare mode, on the dialog and the policy
+ *   page; the harness server answers the trace accordingly (`context.ts`), `&geoDelay=<ms>` later.
+ * - `?geoTimeout=<ms>` — how long locating may take.
+ * - `?geoPlugin=<CC>|fail` — an application locator registered ahead of Cloudflare (turns the
+ *   gate on by itself).
+ * - `?gpc=1` — the browser sends Global Privacy Control.
  */
 const params = new URLSearchParams(window.location.search)
 
@@ -49,7 +57,33 @@ const CUSTOM: ConsentCategory[] = [
   },
 ]
 
-const categories = params.get('categories') === 'custom' ? CUSTOM : DEFAULT_CONSENT_CATEGORIES
+const categories = params.get('categories') === 'custom' ? CUSTOM
+  : params.get('categories') === 'essential' ? DEFAULT_CONSENT_CATEGORIES.filter(category => category.required === true)
+    : DEFAULT_CONSENT_CATEGORIES
+
+if (params.get('gpc') != null) {
+  Object.defineProperty(Navigator.prototype, 'globalPrivacyControl', { get: () => true, configurable: true })
+}
+
+const geoPlugin = params.get('geoPlugin')
+if (geoPlugin != null) {
+  consentPluginHelper.registerConsentPlugin({
+    alias: 'harness-geo', priority: 10,
+    locate: async () => {
+      if (geoPlugin === 'fail') {
+        throw new Error('the harness locator cannot tell')
+      }
+
+      return { country: geoPlugin }
+    },
+  })
+}
+
+const geo: ConsentGeoOptions | undefined = params.get('geo') != null
+  ? { cloudflare: true, ...(params.get('geoTimeout') != null ? { timeout: Number(params.get('geoTimeout')) } : {}) }
+  : geoPlugin != null ? {} : undefined
+
+const mode = (params.get('mode') ?? undefined) as ConsentDisplayMode | undefined
 
 /**
  * One service under a category in force, and one under a category that is not — the second is
@@ -97,6 +131,7 @@ const App: FC = () => {
       termsHref="https://example.test/terms"
       services={params.get('services') != null ? SERVICES : undefined}
       {...(withLinker ? { linker: { domains: LINKER_DOMAINS } } : {})}
+      {...(geo != null ? { geo } : {})}
     />}
     {/*
       Mounted in EVERY view, including alongside the policy page — that is how an application
@@ -111,6 +146,8 @@ const App: FC = () => {
       policyHref="/cookies"
       links={[{ href: 'https://example.test/privacy', labelKey: 'consent.privacy', defaultLabel: 'Privacy Policy' }]}
       {...(withLinker ? { linker: { domains: LINKER_DOMAINS } } : {})}
+      {...(mode != null ? { mode } : {})}
+      {...(geo != null ? { geo } : {})}
     />
   </div>
 }

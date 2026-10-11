@@ -1,15 +1,10 @@
-import type { FC, PropsWithChildren, ReactElement } from 'react'
-import type { EntrypointContextParams, RoutedComponent, ClientContext } from '../types.js'
-import { isValidElement, memo, useEffect } from 'react'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
-import { provideRequest } from '@owlmeans/client-entrypoint'
-import { provideResponse } from '@owlmeans/entrypoint'
-import type { GuardService } from '@owlmeans/entrypoint'
+import { type FC, type PropsWithChildren, isValidElement, memo, useEffect } from 'react'
+import type { EntrypointContextParams, RoutedComponent } from '../types.js'
+import { clientRequestHelper } from '@owlmeans/client-entrypoint'
+import { provideResponse, type GuardService } from '@owlmeans/entrypoint'
 import { AuthorizationError } from '@owlmeans/auth'
-import type { ClientConfig } from '@owlmeans/client-context'
+import type { HandledRenderer, RendererParams } from './types.js'
 
-type Config = ClientConfig
-interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const createRouteRenderer: (params: RendererParams) => FC = ({ context, module, hasChildren }) => () => {
   const params = context.router().useParams()
@@ -25,7 +20,7 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
   useEffect(() => {
     if (aliases.length > 0) {
       const guards = aliases.map(guard => context.service<GuardService>(guard))
-      const request = provideRequest(module.alias, module.path())
+      const request = clientRequestHelper.provideRequest(module.alias, module.path())
       const reply = provideResponse()
       let canceled = false
       Promise.all(guards.map(async guard => {
@@ -75,14 +70,6 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
     return <Outlet />
   }
   return undefined
-}
-
-export type HandledRenderer<T extends {}> = FC<PropsWithChildren<T> | T> | ReactElement
-
-interface RendererParams {
-  context: Context,
-  module: ClientEntrypoint<unknown>
-  hasChildren: boolean
 }
 
 const isComponent = <T extends {}>(element: HandledRenderer<T>): element is FC<PropsWithChildren<T> | T | unknown> =>

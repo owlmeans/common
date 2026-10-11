@@ -1,9 +1,9 @@
 import type { JSONSchemaType } from 'ajv'
-import type { PriceEstimate, PriceEstimateBody, PricingPolicy, TaxEstimate, TaxRateEstimate } from '../types.js'
+import type { PriceEstimate, PriceEstimateBody, PricingPolicy } from '../types.js'
 import { ResourceValueSchema } from '@owlmeans/auth'
 import { schema } from '@owlmeans/entrypoint'
-import { CountrySchema } from '../countries.js'
-import { ConsumerRegionSchema, TaxBehaviorSchema, TaxEstimateStatusSchema, TaxTypeSchema } from '../consts.js'
+import { CountrySchema, ConsumerRegionSchema, TaxBehaviorSchema } from '../consts.js'
+import { TaxEstimateSchema } from './consts.local.js'
 
 export const PricingPolicySchema = schema<PricingPolicy>({
   type: 'object',
@@ -24,6 +24,7 @@ export const PricingPolicySchema = schema<PricingPolicy>({
       type: 'object',
       properties: {
         adaptive: { type: 'boolean', nullable: true },
+        adaptiveFeeRate: { type: 'number', minimum: 0, maximum: 1, nullable: true },
         estimate: { type: 'boolean' },
         estimateTtlSeconds: { type: 'number', minimum: 1, multipleOf: 1, nullable: true },
       },
@@ -44,33 +45,6 @@ export const PriceEstimateBodySchema = schema<PriceEstimateBody>({
   required: [],
   additionalProperties: false,
 } as JSONSchemaType<PriceEstimateBody>)
-
-const TaxRateEstimateSchema: JSONSchemaType<TaxRateEstimate> = {
-  type: 'object',
-  properties: {
-    type: TaxTypeSchema,
-    percentage: { type: 'string', minLength: 1, maxLength: 16 },
-    ratePpm: { type: 'number', minimum: 0, multipleOf: 1 },
-    country: { ...CountrySchema, nullable: true },
-    state: { type: 'string', minLength: 1, maxLength: 8, nullable: true },
-  },
-  required: ['type', 'percentage', 'ratePpm'],
-  additionalProperties: false,
-}
-
-const TaxEstimateSchema: JSONSchemaType<TaxEstimate> = {
-  type: 'object',
-  properties: {
-    status: TaxEstimateStatusSchema,
-    subtotalMinor: { type: 'number', minimum: 0, multipleOf: 1 },
-    taxMinor: { type: 'number', minimum: 0, multipleOf: 1 },
-    totalMinor: { type: 'number', minimum: 0, multipleOf: 1 },
-    scalable: { type: 'boolean' },
-    rates: { type: 'array', items: TaxRateEstimateSchema },
-  },
-  required: ['status', 'subtotalMinor', 'taxMinor', 'totalMinor', 'scalable', 'rates'],
-  additionalProperties: false,
-}
 
 export const PriceEstimateSchema = schema<PriceEstimate>({
   type: 'object',

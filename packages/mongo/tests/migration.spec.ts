@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { makeMongoResource, resetDeclarations } from '@owlmeans/mongo-resource'
+import { makeMongoResource, mongoDeclarationHelper } from '@owlmeans/mongo-resource'
 import type { MongoTx } from '@owlmeans/mongo-resource'
 import { MigrationConflict, MigrationError, MigrationStage } from '@owlmeans/resource'
 
@@ -219,7 +219,7 @@ describe('@owlmeans/mongo — code registered migrations', () => {
     })
 
     /** A restarted process: the registry is rebuilt from source, the ledger is not. */
-    resetDeclarations('mig-e')
+    mongoDeclarationHelper.resetDeclarations('mig-e')
 
     await expect(boot({
       alias: 'mig-e',
@@ -233,7 +233,7 @@ describe('@owlmeans/mongo — code registered migrations', () => {
 
     expect(() => resource.migration('0001-drift', driftBody)).not.toThrow()
     expect(() => resource.migration('0001-drift', driftEdited)).toThrow(MigrationConflict)
-    resetDeclarations('mig-x')
+    mongoDeclarationHelper.resetDeclarations('mig-x')
   })
 
   it('records nothing for a resource that registers no migrations', async () => {

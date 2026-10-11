@@ -2,10 +2,10 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import Fastify from 'fastify'
 import type { FastifyInstance } from 'fastify'
 import type { Middleware } from '@owlmeans/context'
-import { createPkcePair } from '@owlmeans/oauth'
+import { pkceHelper } from '@owlmeans/oauth'
 import { appendOAuthRoutes } from '../src/route.js'
 import { makeTestContext, seedProfile, session, TEST_CLIENT_ID, TEST_REDIRECT_URI } from './context.js'
-import { approveConsent } from '../src/handlers/consent.js'
+import { approveConsent } from '../src/handlers/consent/index.js'
 import { makeOAuthProtocols } from '@owlmeans/oauth'
 
 /**
@@ -81,7 +81,7 @@ describe('the raw OAuth routes', () => {
   test('the code grant over the wire: authorize redirects to consent, then the exchange yields a token', async () => {
     const { server, context } = await mounted()
     await seedProfile(context)
-    const pkce = createPkcePair()
+    const pkce = pkceHelper.createPkcePair()
 
     const authorize = await server.inject({
       url: '/oauth/authorize', query: {

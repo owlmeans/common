@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import type { PromoView } from '@owlmeans/payment'
-import { promoInscriptionOf } from './selectors.js'
+import { entitlementSelectorHelper } from './selectors.js'
+import type { EntitlementCopy } from './types.js'
 
 /**
  * A calendar date in UTC — the calendar limit windows are counted in, so "resets on" names the day
@@ -30,12 +31,6 @@ const formatCount = (value: number, locale: string): string => {
   }
 }
 
-export interface EntitlementCopy {
-  text: (key: string, values?: Record<string, string>) => string
-  day: (date: Date | string | null | undefined) => string
-  count: (value: number) => string
-}
-
 /** The `entitlement` branch of the `web-payment` library resource, with locale-aware formatting. */
 export const useEntitlementCopy = (): EntitlementCopy => {
   const t = useI18nLib('web-payment', 'entitlement')
@@ -51,7 +46,7 @@ export const useEntitlementCopy = (): EntitlementCopy => {
 
 /** The inscription of a promo: free until its end, kept for a grandfathered plan, or ended. */
 export const PromoNote = ({ promo, copy }: { promo?: PromoView, copy: EntitlementCopy }) => {
-  const kind = promoInscriptionOf(promo)
+  const kind = entitlementSelectorHelper.promoInscriptionOf(promo)
   if (kind == null || promo == null) {
     return null
   }

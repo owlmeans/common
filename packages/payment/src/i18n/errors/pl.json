@@ -3,6 +3,7 @@
   "PaymentErrorPaygate": "Dostawca płatności nie mógł zrealizować żądania",
   "PaymentErrorPaygateUnknown": "Ten dostawca płatności nie jest obsługiwany",
   "PaymentErrorPaygateMapping": "Nie udało się dopasować danych dostawcy płatności",
+  "PaymentErrorPaygateSignature": "Sygnatura webhooka jest brakująca lub nieprawidłowa.",
   "PaymentErrorPaygateWebhookSetup": "Powiadomienia o płatnościach nie są skonfigurowane",
   "PaymentErrorPaygatePortalUnavailable": "Zarządzanie płatnościami nie jest jeszcze dostępne dla tego konta",
   "PaymentErrorProduct": "Ten produkt jest niedostępny",

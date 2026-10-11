@@ -1,9 +1,11 @@
 import { ConsentKind } from '@owlmeans/payment'
 import { createEventHandler } from '../src/plugins/events.js'
-import { consumerRights, purchases } from '../src/utils.js'
-import type { ConsumerRightsDef, PricingDef, PurchaseRecord, UsageMeter, UsageQuery, UsageReading } from '../src/types.js'
+import type {
+  ConsumerRightsDef, PricingDef, PurchaseRecord, UsageMeter, UsageQuery, UsageReading,
+} from '../src/types.js'
 import { CREDIT_UNIT, CREDITS_PRODUCT, makeFakeContext, PLANS_PRODUCT, PRO } from './fake-stripe.js'
 import type { FakeContext, FakeContextOptions } from './fake-stripe.js'
+import { paymentAccessOf } from '../src/access.js'
 
 type Rec = Record<string, any>
 
@@ -114,7 +116,7 @@ export const buyTopUp = async (fake: FakeContext, overrides: Rec = {}): Promise<
   const session = paidSession(overrides)
   fake.state.invoices[session.invoice as string] = fake.state.invoices[session.invoice as string] ?? invoiceOf(session.invoice as string)
   await send(fake, 'checkout.session.completed', session)
-  const purchase = await purchases(fake.ctx).load({ sessionId: session.id as string })
+  const purchase = await paymentAccessOf(fake.ctx).purchases().load({ sessionId: session.id as string })
   if (purchase == null) throw new Error('no purchase captured')
 
   return purchase
@@ -122,7 +124,7 @@ export const buyTopUp = async (fake: FakeContext, overrides: Rec = {}): Promise<
 
 /** A start request of `ENTITY` for the pro plan. */
 export const requestStart = async (fake: FakeContext, patch: Rec = {}): Promise<string> =>
-  (await consumerRights(fake.ctx).recordStartRequest(
+  (await paymentAccessOf(fake.ctx).consumerRights().recordStartRequest(
     { entityId: ENTITY, email: 'owner@shop.eu', name: 'Anna' },
     { planSku: PRO, textVersion: TEXT_VERSION, language: 'en', acknowledged: true, ...patch },
     { ip: '203.0.113.7' },

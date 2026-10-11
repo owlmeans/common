@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { spawn } from 'node:child_process'
-import { findProcesses, killGroupAndWait, probeListening, waitForPortFree } from '../src/executor/spawn.js'
+import { spawnHelper } from '../src/executor/spawn.js'
 
 /** Composed at runtime, so this file's own text can never match a search for it. */
 const marker = (suffix: string): string => ['--viable', 'spawn', 'spec', process.pid, suffix].join('-')
@@ -26,7 +26,7 @@ describe('what a connector leaves behind when it stops', () => {
     await settle(300)
     expect(groupAlive(child.pid!)).toBe(true)
 
-    await killGroupAndWait(child, { term: 3_000, kill: 3_000 })
+    await spawnHelper.killGroupAndWait(child, { term: 3_000, kill: 3_000 })
 
     expect(groupAlive(child.pid!)).toBe(false)
   }, 20_000)
@@ -43,7 +43,7 @@ describe('what a connector leaves behind when it stops', () => {
     expect(child.exitCode).not.toBeNull()
     expect(groupAlive(child.pid!)).toBe(true)
 
-    await killGroupAndWait(child, { term: 2_000, kill: 2_000 })
+    await spawnHelper.killGroupAndWait(child, { term: 2_000, kill: 2_000 })
 
     expect(groupAlive(child.pid!)).toBe(false)
   }, 20_000)
@@ -58,18 +58,18 @@ describe('what a connector leaves behind when it stops', () => {
     await settle(300)
 
     try {
-      expect(await findProcesses([own, 'dist/index.js'])).toContain(child.pid!)
-      expect(await findProcesses([own, 'not-in-that-command-line'])).toEqual([])
+      expect(await spawnHelper.findProcesses([own, 'dist/index.js'])).toContain(child.pid!)
+      expect(await spawnHelper.findProcesses([own, 'not-in-that-command-line'])).toEqual([])
     } finally {
-      await killGroupAndWait(child, { term: 2_000, kill: 2_000 })
+      await spawnHelper.killGroupAndWait(child, { term: 2_000, kill: 2_000 })
     }
   }, 20_000)
 
   test('a free port is reported free without waiting out the budget', async () => {
     const started = Date.now()
 
-    expect(await waitForPortFree(59_999, 5_000)).toBe(true)
+    expect(await spawnHelper.waitForPortFree(59_999, 5_000)).toBe(true)
     expect(Date.now() - started).toBeLessThan(3_000)
-    expect(await probeListening(59_999, 200)).toBe(false)
+    expect(await spawnHelper.probeListening(59_999, 200)).toBe(false)
   }, 10_000)
 })

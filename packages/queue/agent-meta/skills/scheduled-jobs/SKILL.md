@@ -64,6 +64,8 @@ job name, registered while the context is wired.
 ## Writing the processor
 
 ```typescript
+const log = logger('maintenance') // from '@owlmeans/log'
+
 worker.process<Record<string, never>, SweepReport>(APP_MAINTENANCE, 'app:maintenance:reconcile',
   async job => {
     const report = { scanned: 0, repaired: 0, failed: 0 }
@@ -74,12 +76,12 @@ worker.process<Record<string, never>, SweepReport>(APP_MAINTENANCE, 'app:mainten
           report.repaired += await reconcile(organization.entityId) ? 1 : 0
         } catch (error) {
           report.failed++
-          console.error(`reconcile ${organization.entityId}`, error)
+          log.error('Reconcile failed', { entityId: organization.entityId, error })
         }
         report.scanned++
       }
     }
-    console.info(`[maintenance] ${job.scheduled}`, report)
+    log.info('Maintenance run finished', { scheduled: job.scheduled, ...report }, { event: 'job.stop' })
     return report
   })
 ```
@@ -127,7 +129,7 @@ worker.process<Record<string, never>, SweepReport>(APP_MAINTENANCE, 'app:mainten
 ## Testing
 
 - **The declaration** is category A in the application's own shared package: build the config,
-  `assertSchedules(cfg)`, and pin ids and job names against the queue declaration.
+  `queueConfigOf(cfg).assertSchedules()`, and pin ids and job names against the queue declaration.
 - **The processor** is tested as a function over a fake `JobContext` or a real context — it is
   ordinary code with a `touch`.
 - **Against a broker** (Redis-gated): the worker's Ready-stage start is not awaited by

@@ -1,10 +1,9 @@
-import { AppType, makeBasicContext } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
+import { AppType, makeBasicContext, type BasicConfig, type BasicContext } from '@owlmeans/context'
 import { createStaticResource } from '@owlmeans/static-resource'
 import type { ClientContext } from '@owlmeans/client'
 import type { ClientConfig } from '@owlmeans/client-context'
 import { FLOW_STATE } from '../src/consts.js'
-import type { SuspendedLandingRecord } from '../src/landing.js'
+import type { SuspendedLandingRecord } from '../src/types.js'
 
 /**
  * The smallest context `suspendFlow`/`resumeSuspendedFlow` need: a `FLOW_STATE` resource and

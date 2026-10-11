@@ -2,23 +2,8 @@ import { AuthenticationType } from '@owlmeans/auth'
 import { plugins as authPlugins } from '@owlmeans/client-auth/manager'
 import type { CommonConfig } from '@owlmeans/config'
 import { supervisorClientPlugin } from './auth/plugins/supervisor.js'
-
-export interface WebSupervisorAuthOptions {
-  /** Force enable/disable. Default: `cfg.debug.supervisor === true`. */
-  enabled?: boolean
-  /**
-   * Also offer it on the sign-in screen. Defaults to true — an operator login that is registered
-   * but reachable only by typing its URL is a login nobody finds and an exposure nobody sees.
-   */
-  offer?: boolean
-}
-
-interface DebugCarrier {
-  cfg: {
-    debug?: { all?: boolean, supervisor?: boolean }
-    security?: CommonConfig['security']
-  }
-}
+import type { DebugCarrier } from './types.local.js'
+import type { WebSupervisorAuthOptions } from './types.js'
 
 /**
  * Whether this deployment wants the PK supervisor login.

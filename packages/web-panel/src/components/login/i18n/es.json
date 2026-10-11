@@ -1,0 +1,10 @@
+{
+  "login": {
+    "provider": {
+      "title": "Iniciar sesión en {{product}}",
+      "top": "Esta aplicación está alojada por {{operator}} en nombre de {{product}}. Inicias sesión con {{provider}}.",
+      "inline": "El inicio de sesión lo proporciona {{provider}} en nombre de {{product}}.",
+      "more": "Más información"
+    }
+  }
+}

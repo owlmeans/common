@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.63"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.74"` in `dependencies`
 
 ## Key Exports
 
@@ -21,6 +21,7 @@ user-invocable: false
 | `ThemeToggle` / `useColorScheme` | The light/dark switcher (`ThemeToggleProps`, `ThemeToggleLabels`) and the hook behind it (`ColorSchemeModel`) — see *Light and dark* below |
 | `SocketReloadDialog` | The global "connection lost — try again / reload" prompt (opt in via `cfg.socket.reloadDialog`) `PanelApp` mounts automatically — see below. The hooks it reads, `useSocketStatus` and `useSocketRetry`, are imported from `@owlmeans/client-socket`, not from this package |
 | `Link` | An `<a>` addressing an entrypoint alias (or a literal `src`), with the label taken from i18n |
+| `LoginProviderNote` | The provider disclosure (`LoginProviderNoteProps`) — see *The provider disclosure* below |
 | `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods`. `LoginScreen` is pure w.r.t. `locale` too, exactly like `translate`: it is a prop, defaulting to nothing, never an implicit `useLanguage()` read, because a component that reaches for i18n context directly crashes an app mounted without one. `LocalizedLoginScreen` supplies `useLanguage()`'s value when the caller does not pass its own |
 | `render(context, opts?)` | Mounts the tree inside `PanelApp`, with the browser language detector installed on the i18n instance. `opts` is `RenderOptions` plus `rootClassName` |
 | `PanelApp` | That wrapper on its own — the themed root `div` plus the i18n provider — for a host that mounts the tree itself |
@@ -33,8 +34,8 @@ user-invocable: false
 | `useBreakPoint()` | The current Tailwind breakpoint name, tracked on `resize` (`lg` when there is no `window`) |
 | `useMapBreakpoint(map, def?, breakpoint?)` | The `map` entry for the current breakpoint (or for the `breakpoint` passed), falling back to `def`. It **throws a `SyntaxError`** when neither yields a value, so give it a `def` or cover every breakpoint |
 | Re-exports from `@owlmeans/client-panel` | Cross-platform panel primitives, incl. `usePanelNav` and the `PanelNav*` types |
-| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` / `@owlmeans/route` | `bind`, `bindAll`, `bindScreen`, `handler`, `lazyHandler` / `lazyComponent` (+ `LazyHandler` / `LazyComponent` / `LazyComponentOptions` types — see the `client` skill), `provideRequest`, `stab`, `route`, `croute`, `frontend`, `useNavigate`, `useEntrypoint`, `useValue` |
-| Re-exports from the surrounding layers | `config`, `service`, `addWebService`, `AppType` / `HOME` / `ROOT` / `BASE` / `GUEST`, `DISPATCHER`, `CAUTHEN_FLOW_ENTER`, `DAUTH_GUARD`, `bindExternalAuthentication`, `Dispatcher`, `appendWebAuthService`, `flow` / `configureFlows` / `useFlow` / `FLOW_PARAM` / `SERVICE_PARAM`, `useI18n*` / `useLanguage` / `composePrefix`, `addI18nApp` / `addI18nLib` / `SUPPORTED_LNGS` |
+| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` / `@owlmeans/route` | `bind`, `bindAll`, `bindScreen`, `handler`, `lazyHandler` / `lazyComponent` (+ `LazyHandler` / `LazyComponent` / `LazyComponentOptions` types — see the `client` skill), `clientRequestHelper` (`provideRequest`), `stab`, `route`, `croute`, `frontend`, `useNavigate`, `useEntrypoint`, `useValue` |
+| Re-exports from the surrounding layers | `config`, `service`, `addWebService`, `AppType` / `HOME` / `ROOT` / `BASE` / `GUEST`, `DISPATCHER`, `CAUTHEN_FLOW_ENTER`, `DAUTH_GUARD`, `bindExternalAuthentication`, `Dispatcher`, `appendWebAuthService`, `flow` / `configureFlows` / `useFlow` / `FLOW_PARAM` / `SERVICE_PARAM`, `useI18n*` / `useLanguage` / `composePrefix`, `i18nHelper` (`addI18nApp` / `addI18nLib`) / `SUPPORTED_LNGS` |
 
 ## Subpath Exports
 
@@ -44,7 +45,7 @@ user-invocable: false
   widget and a presence service so a host's own collapsed menu can take over the floating button's
   job
 - `./scheme` — the React-free colour-scheme half: `COLOR_SCHEME_KEY`, `COLOR_SCHEME_EVENT`,
-  `ColorSchemeChoice`, `readColorScheme`, `applyColorScheme`, `colorSchemeBootstrapScript` — safe
+  `ColorSchemeChoice`, `colorSchemeHelper` (`readColorScheme`, `applyColorScheme`, `colorSchemeBootstrapScript`) — safe
   to import from a Node build script
 
 ## Usage
@@ -277,7 +278,7 @@ that paints dark under `prefers-color-scheme: dark`. So a consumer's CSS must re
 A theme with dark tokens under `.dark` alone never follows the OS; one with them under the media
 query alone ignores an explicit light choice.
 
-**The head bootstrap goes before any stylesheet paints.** `colorSchemeBootstrapScript()` returns a
+**The head bootstrap goes before any stylesheet paints.** `colorSchemeHelper.colorSchemeBootstrapScript()` returns a
 self-contained inline script that puts the stored choice's class on `<html>` before first paint —
 the only moment it can; a component doing it after mount shows a visitor who chose dark one frame
 of the light page. A build step inlines it into `index.html` (import it from
@@ -292,7 +293,7 @@ Rules the pieces own:
   is in (sun while light, moon while dark), chosen in script, not by a `dark:` variant.
 - **The accessible name says what pressing does** — `labels.toLight` / `labels.toDark`, English
   defaults; `NavLayout` resolves them through `translate` (`shell.toLight`, `shell.toDark`).
-- **One choice per document.** `applyColorScheme(choice | null)` sets the class, stores or clears
+- **One choice per document.** `colorSchemeHelper.applyColorScheme(choice | null)` sets the class, stores or clears
   the key and dispatches `COLOR_SCHEME_EVENT`, so every mounted `useColorScheme` agrees at once;
   another tab's change arrives through `storage`, and an OS switch through `matchMedia` while
   nothing is stored. `setChoice(null)` hands the page back to the OS.
@@ -346,7 +347,7 @@ on every navigation. Neither does anything unless an app opts in:
 cfg.socket = { reloadDialog: true }
 ```
 
-Once any `ws()`/`useWs()` connection in the app has exhausted its own retry budget
+Once any `socketClientHelper.ws()`/`useWs()` connection in the app has exhausted its own retry budget
 (`useSocketStatus() === 'lost'`), a global, blocking `AlertDialog` covers the screen — no Escape,
 no outside click, two actions:
 
@@ -429,7 +430,7 @@ import { Form, TextInput, SubmitButton, Button } from '@owlmeans/web-panel'
 ### The terms confirmation — `LoginTerms`, `LoginPrivacyNotice`
 
 `components/login/terms.tsx` renders `LoginTermsModel` (`@owlmeans/client-panel/auth`) via
-`termsSentence` + `termsLabelResolver` (`@owlmeans/client-auth/login`) rather than re-deriving
+`loginTermsHelper.termsSentence` + `.termsLabelResolver` (`@owlmeans/client-auth/login`) rather than re-deriving
 link/label pairs itself. **`[data-login-terms]` marks exactly one checkbox — or NONE, once
 `model.terms.deferred` is true** (`LoginScreen` renders `LoginTerms` when not deferred,
 `LoginPrivacyNotice` when it is): an e2e suite elsewhere in the platform treats the checkbox as a
@@ -449,11 +450,60 @@ prop, never read from context directly — for `Intl.ListFormat` and a custom do
 ordinary one, with no special case. Pinned by `tests/login.spec.ts` → the "with billing, product and
 custom documents configured" and "the Terms confirmation deferred to a step" blocks.
 
+### The provider disclosure — `LoginProviderNote`
+
+`LoginScreen` renders `useLoginMethods().provider` (`@owlmeans/client-panel/auth`, resolution rules
+there) through `components/login/provider.tsx`:
+`<div role="note" data-login-provider data-placement="top|inline">` — a `ShieldCheck` icon, the
+sentence, and, when `info` resolved, `<a data-login-provider-info target="_blank"
+rel="noopener noreferrer">More information</a>`. Never a `header`/`nav`: it is a disclosure, not a
+landmark.
+
+- **No provider → the DOM is exactly the pre-provider screen** (no note, no stage, title
+  `login.title`).
+- **`top`** (the platform's own hosts) — the strip is the FIRST child of `[data-login-screen]`,
+  full width, at the screen's top edge; the card sits in `<div data-login-stage>`, which takes the
+  remaining height and centres it. The screen's column layout, its zero padding, the stage's flex
+  centring/padding and the strip's width are INLINE styles (same reason as the screen height —
+  `login-methods` → Layout); classes there are cosmetic only.
+- **`inline`** (an owner's own domain) — the note is one line inside `CardContent`, directly under
+  the methods and above the terms; the screen keeps its ordinary shape.
+- The card title becomes `login.provider.title` ("Sign in to {{product}}") whenever a provider
+  resolves; `props.title` still wins.
+- Copy: `login.provider.{title,top,inline,more}` in all eight languages
+  (`components/login/i18n/*.json`), registered by `components/login/i18n.ts` into the SAME `auth`
+  library resource as `client-auth`'s login copy (deep-merged; this package owns only the
+  `login.provider` subtree). Names are filled after translation by `loginProviderHelper.fill`.
+- Still exactly one `[data-login-terms]` in either placement. Pinned by `tests/login.spec.ts` →
+  "the provider disclosure" (`?provider=top|inline` in the harness) and
+  `tests/login-provider.spec.ts` (resolver, `fill`, eight-language key/placeholder parity).
+
 ## Subpath: `./consent`
 
 `PanelCookieConsent` and `PanelCookiePolicy` — `@owlmeans/web-consent`'s components bound to this
-app's language and translations, falling through to the package's own seven-language bundle for
-every key the app has not overridden. See the `consent` skill.
+app's language and translations, falling through to the package's own eight-language bundle for
+every key the app has not overridden — and to the app's cookie-consent configuration. See the
+`consent` and `web-consent` skills.
+
+**The configuration lives in `cfg.cookieConsent`** (`PanelCookieConsentConfig`, on `AppConfig`),
+set where the rest of the app's configuration is, before anything renders:
+
+```typescript
+cfg.cookieConsent = { geo: { cloudflare: true } }   // ask only in consent countries; mode: 'bar' default
+```
+
+- `mode` (`'bar'` | `'window'`) and `geo` (`ConsentGeoOptions`) feed both components; a prop of the
+  same name always wins. Not `cfg.consent` — "consent" also names the marketing-consent and sign-in
+  terms options.
+- A file restored into apps of every age (a generated target's `config.ts`) writes it as
+  `Object.assign(cfg, { cookieConsent: … })`, so a tree whose framework predates the key still
+  type-checks; an older package ignores it.
+- **A locator of the app's own** is code, not configuration: `appendConsentGeoPlugin(context,
+  plugin)` in `context.ts` registers a `ConsentGeoPlugin` (`{ alias, locate }` — resolve the country
+  or throw) ahead of Cloudflare's and installs `context.consentGeo()`. Appending one IS asking for
+  the gate: `PanelCookieConsent` turns it on (`geo: {}`) even where `cfg.cookieConsent.geo` says
+  nothing. `PanelCookiePolicy` reads the same, so the policy states the regional rule exactly when
+  the dialog applies it.
 
 A re-export does not move Tailwind class strings, so a consumer adds a second `@source` for
 `@owlmeans/web-consent` alongside this package's — pointing at **`src`**, for the reason spelled out
@@ -503,8 +553,9 @@ menu has already mounted) and because React 18 StrictMode double-invokes mount/c
 
 | Job | Import from `@owlmeans/web-panel/consent` | Where it goes |
 |---|---|---|
-| The consent dialog (and its floating re-open button) | `PanelCookieConsent` | Beside the router — a `PanelApp` child — once |
-| The "Cookie settings" control in a footer or menu | `PanelConsentMenuWidget` (`label`, `className`, `onSelect?` — defaults to `openConsent('reopen')`) | Inside the host's own footer/menu |
+| The consent UI — bar, window, spinner (and its floating re-open button) | `PanelCookieConsent` | Beside the router — a `PanelApp` child — once |
+| Asking only in consent countries | `cfg.cookieConsent.geo`, or `appendConsentGeoPlugin(context, plugin)` | The app's `config.ts` / `context.ts` |
+| The "Cookie settings" control in a footer or menu | `PanelConsentMenuWidget` (`label`, `className`, `onSelect?` — defaults to `consentStore.open('reopen')`) | Inside the host's own footer/menu |
 | Hiding the floating button while that control is reachable | `useConsentMenuPresence()` | Called by the always-mounted component that renders the control — mounted ONLY while the control can actually be reached: a component that is merely hidden by CSS (`xl:hidden`) is still mounted and still claims presence, so the floating button vanishes with nothing else to open the dialog; render it conditionally instead (viable's header mounts its hamburger menu only below the full-row breakpoint) |
 | Registering the presence service | `appendConsentWidgetService(context)` | The app's `context.ts` |
 
@@ -528,7 +579,8 @@ bound dialog with its floating button; `useConsentMenuPresence()` then has nothi
 does nothing. The presence read itself (`useConsentWidgetPresent`) still needs the service — its
 state resource is registered by it — so any other caller checks first. A dialog that read an
 unregistered state resource threw inside render ("Resource consent-widget-presence not found") and
-blanked the whole application. Pinned by `tests/consent.spec.ts` (`?consent=bare` / `?consent=menu`).
+blanked the whole application. Pinned by `tests/consent.spec.ts` (`?consent=bare` / `?consent=menu`;
+the configuration by `?consentCfg=window|bar`, `?modeProp=` and `?consentGeo=<CC>|fail`).
 
 ## Consumer setup — package boundary and Tailwind
 

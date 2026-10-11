@@ -11,7 +11,7 @@ import {
 import { makeAsker, makeConsentGate, passThroughGate } from '../src/consumer/ensure.js'
 import { useCancellation, usePerformanceConsent, useWithdrawal } from '../src/consumer/hooks.js'
 import { useConsentGate } from '../src/consumer/provider.js'
-import { ConsentDeclined } from '../src/consumer/refusal.js'
+import { ConsentDeclined } from '../src/consumer/errors.js'
 
 const tick = async () => await new Promise(resolve => setTimeout(resolve, 0))
 

@@ -7,14 +7,13 @@ import {
   CONVERSION_ARTIFACTS, CONVERSION_DIR, CONVERSION_DOCS, CONVERSION_MEMORY, ConversionStage,
   EntropyClass, FileClass, SizeClass, STACK_FAMILY, StackId, TAXONOMY_ORDER, TaxonomyKind
 } from '../src/convert/index.js'
-import {
-  binaryByExtension, canEnter, decisionFor, entropyClassOf, fileClassOf, isOriginPath, originPath,
-  sizeClassOf, stageAfter, storyComplexity
-} from '../src/convert/helpers.js'
+import { censusHelper } from '../src/convert/census.js'
+import { conversionStageHelper } from '../src/convert/stage.js'
+import { storyComplexity } from '../src/convert/estimate.js'
+import { conversionOriginHelper } from '../src/convert/origin.js'
 import { HISTORY_FILE } from '../src/metadata/consts.js'
-import {
-  conversionStoryDoc, CONVERTED_ORIGIN_DIR, ConversionDecision
-} from '../src/convert/consts.js'
+import { CONVERTED_ORIGIN_DIR, ConversionDecision } from '../src/convert/consts.js'
+import { conversionDocHelper } from '../src/convert/docs.js'
 
 /**
  * Every `*Schema` a module exports.
@@ -177,26 +176,26 @@ describe('viable-common - the conversion contracts', () => {
   })
 
   test('canEnter allows a retry and the next stage, and refuses a skip', () => {
-    expect(canEnter(ConversionStage.Intake, ConversionStage.Intake)).toBe(true)
-    expect(canEnter(ConversionStage.Intake, ConversionStage.Analysis)).toBe(true)
+    expect(conversionStageHelper.canEnter(ConversionStage.Intake, ConversionStage.Intake)).toBe(true)
+    expect(conversionStageHelper.canEnter(ConversionStage.Intake, ConversionStage.Analysis)).toBe(true)
     // Extraction reads the documents analysis wrote; entering it from intake runs it against
     // documents that were never produced.
-    expect(canEnter(ConversionStage.Intake, ConversionStage.Extraction)).toBe(false)
-    expect(canEnter(ConversionStage.Extraction, ConversionStage.Analysis)).toBe(false)
+    expect(conversionStageHelper.canEnter(ConversionStage.Intake, ConversionStage.Extraction)).toBe(false)
+    expect(conversionStageHelper.canEnter(ConversionStage.Extraction, ConversionStage.Analysis)).toBe(false)
   })
 
   test('the stage ladder ends at implementation rather than falling off it', () => {
-    expect(stageAfter(ConversionStage.Intake)).toBe(ConversionStage.Analysis)
-    expect(stageAfter(ConversionStage.Implementation)).toBe(ConversionStage.Implementation)
-    expect(decisionFor(ConversionStage.Extraction)).toBe(ConversionDecision.Implement)
-    expect(decisionFor(ConversionStage.Implementation)).toBe(ConversionDecision.Leave)
+    expect(conversionStageHelper.stageAfter(ConversionStage.Intake)).toBe(ConversionStage.Analysis)
+    expect(conversionStageHelper.stageAfter(ConversionStage.Implementation)).toBe(ConversionStage.Implementation)
+    expect(conversionStageHelper.decisionFor(ConversionStage.Extraction)).toBe(ConversionDecision.Implement)
+    expect(conversionStageHelper.decisionFor(ConversionStage.Implementation)).toBe(ConversionDecision.Leave)
   })
 
   test('every conversion document lives under the conversion directory', () => {
     for (const doc of CONVERSION_DOCS) {
       expect(doc.startsWith(`${CONVERSION_DIR}/`), doc).toBe(true)
     }
-    expect(conversionStoryDoc('US-ABC12').startsWith(`${CONVERSION_DIR}/`)).toBe(true)
+    expect(conversionDocHelper.conversionStoryDoc('US-ABC12').startsWith(`${CONVERSION_DIR}/`)).toBe(true)
     for (const node of CONVERSION_MEMORY) {
       expect(node.startsWith('.agents/memory/'), node).toBe(true)
     }
@@ -210,54 +209,54 @@ describe('viable-common - the conversion contracts', () => {
   })
 
   test('origin paths round-trip and never nest', () => {
-    expect(originPath('src/index.ts')).toBe(`${CONVERTED_ORIGIN_DIR}/src/index.ts`)
-    expect(isOriginPath(originPath('src/index.ts'))).toBe(true)
-    expect(isOriginPath(CONVERTED_ORIGIN_DIR)).toBe(true)
-    expect(isOriginPath('sources/web/src/index.ts')).toBe(false)
+    expect(conversionOriginHelper.originPath('src/index.ts')).toBe(`${CONVERTED_ORIGIN_DIR}/src/index.ts`)
+    expect(conversionOriginHelper.isOriginPath(conversionOriginHelper.originPath('src/index.ts'))).toBe(true)
+    expect(conversionOriginHelper.isOriginPath(CONVERTED_ORIGIN_DIR)).toBe(true)
+    expect(conversionOriginHelper.isOriginPath('sources/web/src/index.ts')).toBe(false)
     // A caller that has lost track of which side of the move it holds must not be able to produce
     // `__viable_converted/__viable_converted/`.
-    expect(originPath(originPath('src/index.ts'))).toBe(`${CONVERTED_ORIGIN_DIR}/src/index.ts`)
+    expect(conversionOriginHelper.originPath(conversionOriginHelper.originPath('src/index.ts'))).toBe(`${CONVERTED_ORIGIN_DIR}/src/index.ts`)
   })
 
   test('sizeClassOf splits on the declared bounds', () => {
-    expect(sizeClassOf(0)).toBe(SizeClass.Tiny)
-    expect(sizeClassOf(2_047)).toBe(SizeClass.Tiny)
-    expect(sizeClassOf(2_048)).toBe(SizeClass.Small)
-    expect(sizeClassOf(32_767)).toBe(SizeClass.Small)
-    expect(sizeClassOf(32_768)).toBe(SizeClass.Medium)
-    expect(sizeClassOf(262_144)).toBe(SizeClass.Large)
-    expect(sizeClassOf(2_097_152)).toBe(SizeClass.Huge)
+    expect(censusHelper.sizeClassOf(0)).toBe(SizeClass.Tiny)
+    expect(censusHelper.sizeClassOf(2_047)).toBe(SizeClass.Tiny)
+    expect(censusHelper.sizeClassOf(2_048)).toBe(SizeClass.Small)
+    expect(censusHelper.sizeClassOf(32_767)).toBe(SizeClass.Small)
+    expect(censusHelper.sizeClassOf(32_768)).toBe(SizeClass.Medium)
+    expect(censusHelper.sizeClassOf(262_144)).toBe(SizeClass.Large)
+    expect(censusHelper.sizeClassOf(2_097_152)).toBe(SizeClass.Huge)
   })
 
   test('entropyClassOf tells prose from a minified bundle from binary', () => {
-    expect(entropyClassOf('export const answer = 42\nconsole.log(answer)\n'))
+    expect(censusHelper.entropyClassOf('export const answer = 42\nconsole.log(answer)\n'))
       .toBe(EntropyClass.Text)
     // Printable throughout, and not something a model can reason over: no line breaks, no indent.
-    expect(entropyClassOf(`const a=1,b=2,c=3;${'x'.repeat(400)}`)).toBe(EntropyClass.Dense)
-    expect(entropyClassOf(`PNG   ${' ÿ'.repeat(40)}`))
+    expect(censusHelper.entropyClassOf(`const a=1,b=2,c=3;${'x'.repeat(400)}`)).toBe(EntropyClass.Dense)
+    expect(censusHelper.entropyClassOf(`PNG   ${' ÿ'.repeat(40)}`))
       .toBe(EntropyClass.Opaque)
   })
 
   test('fileClassOf reads the path before the extension', () => {
-    expect(fileClassOf('sources/api/src/index.ts', 'ts')).toBe(FileClass.Source)
-    expect(fileClassOf('node_modules/left-pad/index.js', 'js')).toBe(FileClass.Generated)
-    expect(fileClassOf('tests/api.spec.ts', 'ts')).toBe(FileClass.Test)
-    expect(fileClassOf('seed/users.json', 'json')).toBe(FileClass.Data)
-    expect(fileClassOf('package.json', 'json')).toBe(FileClass.Manifest)
-    expect(fileClassOf('bun.lock', 'lock')).toBe(FileClass.Lock)
+    expect(censusHelper.fileClassOf('sources/api/src/index.ts', 'ts')).toBe(FileClass.Source)
+    expect(censusHelper.fileClassOf('node_modules/left-pad/index.js', 'js')).toBe(FileClass.Generated)
+    expect(censusHelper.fileClassOf('tests/api.spec.ts', 'ts')).toBe(FileClass.Test)
+    expect(censusHelper.fileClassOf('seed/users.json', 'json')).toBe(FileClass.Data)
+    expect(censusHelper.fileClassOf('package.json', 'json')).toBe(FileClass.Manifest)
+    expect(censusHelper.fileClassOf('bun.lock', 'lock')).toBe(FileClass.Lock)
   })
 
   test('a seed or dump location reclassifies a payload and never a program', () => {
     // Asked before the test check and the extension table, the seed/dump rule answered `Data` for
     // all four of these — real source, out of the census's source budget on a word in its path.
-    expect(fileClassOf('tests/fixtures/user.ts', 'ts')).toBe(FileClass.Test)
-    expect(fileClassOf('src/seedUsers.ts', 'ts')).toBe(FileClass.Source)
-    expect(fileClassOf('src/exportReport.ts', 'ts')).toBe(FileClass.Source)
-    expect(fileClassOf('bin/cli.ts', 'ts')).toBe(FileClass.Source)
+    expect(censusHelper.fileClassOf('tests/fixtures/user.ts', 'ts')).toBe(FileClass.Test)
+    expect(censusHelper.fileClassOf('src/seedUsers.ts', 'ts')).toBe(FileClass.Source)
+    expect(censusHelper.fileClassOf('src/exportReport.ts', 'ts')).toBe(FileClass.Source)
+    expect(censusHelper.fileClassOf('bin/cli.ts', 'ts')).toBe(FileClass.Source)
     // What the rule is for: a payload, and the one language that is a dump as often as it is code.
-    expect(fileClassOf('fixtures/orders.csv', 'csv')).toBe(FileClass.Data)
-    expect(fileClassOf('db/dumps/2024.sql', 'sql')).toBe(FileClass.Data)
-    expect(fileClassOf('db/migrations/0001_init.sql', 'sql')).toBe(FileClass.Source)
+    expect(censusHelper.fileClassOf('fixtures/orders.csv', 'csv')).toBe(FileClass.Data)
+    expect(censusHelper.fileClassOf('db/dumps/2024.sql', 'sql')).toBe(FileClass.Data)
+    expect(censusHelper.fileClassOf('db/migrations/0001_init.sql', 'sql')).toBe(FileClass.Source)
   })
 
   test('storyComplexity scales on what the extraction actually found', () => {
@@ -298,17 +297,17 @@ describe('viable-common - the conversion contracts', () => {
   test('binaryByExtension answers a tail it knows and defers on one it does not', () => {
     // The verdict a probe alone gets wrong: a small `.ico` with no NUL in its first bytes reads as
     // text, which is how a census on a laptop and the same census in the slot disagreed.
-    expect(binaryByExtension('assets/logo.ico')).toBe(true)
-    expect(binaryByExtension('assets/logo.PNG')).toBe(true)
-    expect(binaryByExtension('sources/web/src/app.tsx')).toBe(false)
-    expect(binaryByExtension('archive.tar.gz')).toBe(true)
+    expect(censusHelper.binaryByExtension('assets/logo.ico')).toBe(true)
+    expect(censusHelper.binaryByExtension('assets/logo.PNG')).toBe(true)
+    expect(censusHelper.binaryByExtension('sources/web/src/app.tsx')).toBe(false)
+    expect(censusHelper.binaryByExtension('archive.tar.gz')).toBe(true)
     // Nothing to go on, so the caller has to read it: no tail at all, a dotfile (which
     // `path.extname` also answers nothing for), and a tail neither list carries.
-    expect(binaryByExtension('Makefile')).toBeNull()
-    expect(binaryByExtension('.env')).toBeNull()
-    expect(binaryByExtension('data.parquet')).toBeNull()
+    expect(censusHelper.binaryByExtension('Makefile')).toBeNull()
+    expect(censusHelper.binaryByExtension('.env')).toBeNull()
+    expect(censusHelper.binaryByExtension('data.parquet')).toBeNull()
     // The tail of the last SEGMENT, never of the path.
-    expect(binaryByExtension('release.d/manifest')).toBeNull()
+    expect(censusHelper.binaryByExtension('release.d/manifest')).toBeNull()
   })
 
   test('a head read is bounded, and the binary probe is smaller than the head', () => {

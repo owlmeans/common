@@ -1,41 +1,10 @@
-import { ConnectConsentRequired, ConnectOutOfCredits } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
-import { visibleTools } from './catalogue.js'
-import { consentRequiredPhrase, refusalMessage, refusalPhrase } from './refusal.js'
-import { delegatedLlm, performsModelTasks, sessionCapable } from './types.js'
-import type { ToolDeps } from './types.js'
-
-/**
- * Turn a refusal the model can act on into words a model can act on.
- *
- * The amounts and the link travel packed into the error's message (only `type` and `message`
- * survive the trip from the platform), so this is the one place they are read back out and put in
- * front of the model — never the raw `out-of-credits:...` marker.
- */
-const phraseOutOfCredits = (e: ConnectOutOfCredits): string =>
-  `Not enough balance to do this — it needs about $${e.requiredUsd.toFixed(2)} and the account has `
-  + `$${e.balanceUsd.toFixed(2)} left. Nothing was started. Ask the user to top up here: `
-  + `${e.topUpUrl} — then retry.`
-
-/**
- * Turn a consent refusal into what the model has to tell a PERSON — the page to open and that
- * retrying first is pointless. The URL and the deadline travel packed into the message, like the
- * out-of-credits fields.
- */
-const phraseConsentRequired = (e: ConnectConsentRequired): string => consentRequiredPhrase(e.consentUrl, e.deadline)
-
-/** The minimum of an MCP server this adapter needs. Typed structurally so the SDK stays optional. */
-export interface McpServerLike {
-  registerTool: (
-    name: string,
-    config: { title?: string, description?: string, inputSchema?: unknown },
-    cb: (args: Record<string, unknown>) => Promise<{
-      content: Array<{ type: 'text', text: string }>
-      structuredContent?: object
-      isError?: boolean
-    }>
-  ) => unknown
-}
+import { catalogueHelper } from './catalogue.js'
+import { HANDOVER_EXEMPT } from './consts.local.js'
+import { makeHandoverHelper } from './handover.js'
+import { createInflightCalls } from './inflight.js'
+import { toolHostHelper } from './host.js'
+import type { ToolDeps, McpServerLike } from './types.js'
 
 const withDeadline = async <T>(label: string, ms: number, fn: () => Promise<T>): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -59,41 +28,28 @@ const withDeadline = async <T>(label: string, ms: number, fn: () => Promise<T>):
  * rather than as a slow platform. And containment: a thrown error becomes an `isError` result the
  * model can read and act on, because an exception crossing the transport tells it only that
  * something went wrong somewhere.
+ *
+ * In the delegated mode a platform call may itself stop for a model call this session's parent
+ * performs — the parent that is blocked on this very tool. There a tool is the HANDOVER instead of
+ * a deadline: its call races a model task arriving, the task is answered first, and the call's own
+ * result is delivered by `submit_task_result` / `next_task` once it settles. The task loop and the
+ * tools that never reach the platform keep the deadline.
  */
 export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string[] => {
   const registered: string[] = []
+  // One registry for the life of the server, shared by every tool through the deps it is handed.
+  const toolDeps: ToolDeps = deps.inflight != null ? deps : { ...deps, inflight: createInflightCalls() }
+  const handover = makeHandoverHelper(toolDeps)
+  const delegated = toolHostHelper.performsModelTasks(toolDeps.host)
 
-  for (const tool of visibleTools(deps.host)) {
+  for (const tool of catalogueHelper.visibleTools(toolDeps.host)) {
     server.registerTool(
       tool.name,
-      { title: tool.title, description: tool.description, inputSchema: tool.input },
-      async (args: Record<string, unknown>) => {
-        try {
-          const result = await withDeadline(tool.name, TOOL_DEADLINE_MS, async () =>
-            await tool.run(args ?? {}, deps))
-
-          return {
-            content: [{ type: 'text' as const, text: result.text }],
-            ...(result.structured != null ? { structuredContent: result.structured } : {}),
-            ...(result.isError === true ? { isError: true } : {}),
-          }
-        } catch (e) {
-          const isOutOfCredits = e instanceof ConnectOutOfCredits
-          const isConsent = e instanceof ConnectConsentRequired
-          const text = isOutOfCredits
-            ? phraseOutOfCredits(e)
-            : isConsent ? phraseConsentRequired(e) : refusalPhrase(e)
-          deps.log(`${tool.name} failed: ${refusalMessage(e)}`)
-          if (isOutOfCredits || isConsent) {
-            deps.notify?.('warning', text)
-          }
-
-          return {
-            content: [{ type: 'text' as const, text }],
-            isError: true,
-          }
-        }
-      }
+      { title: tool.title, description: tool.description, inputSchema: tool.input, annotations: tool.annotations },
+      async (args: Record<string, unknown>) => delegated && !HANDOVER_EXEMPT.has(tool.name)
+        ? await handover.run(tool, args ?? {})
+        : await handover.contain(tool.name, async () =>
+          await withDeadline(tool.name, TOOL_DEADLINE_MS, async () => await tool.run(args ?? {}, toolDeps)))
     )
     registered.push(tool.name)
   }
@@ -104,12 +60,37 @@ export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string
 /**
  * What the server tells a parent agent about itself, before any tool is called.
  *
- * It states the workflow and the two rules that are not discoverable from a tool list: that long
- * operations continue server-side and expose domain statuses, and — in the delegated mode — that
- * this session's model calls are the parent's to perform.
+ * It states the workflow, a one-line map of every capability group (one tool named per family, the
+ * full list being `describe_platform`'s), and the rules that are not discoverable from a tool list:
+ * that long operations continue server-side and expose domain statuses, that an irreversible tool
+ * needs the user's agreement as `confirm: true`, what stays in the browser, and — in the delegated
+ * mode — that this session's model calls are the parent's to perform. A family whose tools this
+ * host does not offer is never named by tool.
  */
 export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
   const { host } = deps
+  const cloud = toolHostHelper.cloudTarget(host)
+  const families = [
+    'supported stacks and application categories (describe_blueprints)',
+    'projects (list_projects, rename_project, delete_project, unlock_project_agent, list_slots)',
+    'stories (list_stories, create_story, develop_story)',
+    'open-ended changes (modify_project) and planning kits (describe_planning_kits)',
+    ...(cloud
+      ? [
+        'the generated files and the preview (list_files, read_file, write_file, delete_file, preview_control)',
+        'git and GitHub (git_status, git_commit, connect_github, publish_to_github, github_sync)',
+        'the production site (production_status, publish_production, custom_domain, production_auth)',
+      ]
+      : []),
+    'configuration variables (project_configuration)',
+    'project and organization branding (project_settings, set_platform_credit, organization_branding)',
+    'the account (inference_settings, list_access_tokens, privacy_choices, pickup_intent)',
+    'the generated application\'s own users and permissions (app_users, app_permissions, app_groups)',
+    `activity feeds (project_activity, notifications${cloud ? ', file_changes' : ''})`,
+    ...(catalogueHelper.visibleTools(host).some(tool => tool.name === 'describe_harness')
+      ? ['this agent\'s own setup (describe_harness)']
+      : []),
+  ]
   const lines = [
     'This server connects you to the OwlMeans Viable platform, which builds full-stack web'
     + ' applications from a description: it writes the specification, generates the code, and'
@@ -122,16 +103,38 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     + ' project_status → list_stories → develop_story → story_status. An application that already'
     + ' exists is brought onto the same rails instead: convert_project → conversion_status → check_convertible →'
     + ' proceed_conversion at each stage. The check reads what the intake found, so it comes'
-    + ' after the first stage rather than before it.',
+    + ' after the first stage rather than before it. A conversion step that would use the plan\'s'
+    + ' conversion limit or spend credits answers with what it costs instead of starting: tell the'
+    + ' user, and repeat the call with confirm: true only after they agree.',
+    '',
+    'The stock blueprint is owlmeans-fullstack-ts. Cases: web (business web apps, portals and dashboards); scalable (queued services); ai-pipeline (staged AI workflows); ai-agent (tool-using assistants); game (casual, online-turn and online-live games); work-management and work-management-tenanted (project tracking, CRM, service desk, inventory, recruiting, field service and process workflows). The tenanted case supports multiple organization entities. Call describe_blueprints for the deployed registry, category ids and current capabilities before choosing.',
     '',
     'Call describe_platform for what this platform can build and which of it this session can'
-    + ' drive.',
+    + ' drive, every tool listed by group.',
+    '',
+    `Everything the web application does except billing is here too: ${families.join('; ')}.`,
     '',
     'Long operations do not block. Read progress with project_status, story_status,'
-    + ' conversion_status, or pipeline_status for the domain you are working in.',
+    + ' conversion_status, or pipeline_status for the domain you are working in; to follow work as it'
+    + ' happens, pass each feed\'s cursor back as after (wait up to 20 s) instead of re-reading a status'
+    + ' in a loop.',
     '',
     'A story\'s status moves through the platform\'s story flow; develop_story is what starts that'
-    + ' move, and update_story never changes it.',
+    + ' move, reset_story and complete_story are the two manual moves, and update_story never changes'
+    + ' it.',
+    '',
+    'A tool that changes what cannot be undone — deleting a project'
+    + (cloud ? ', a file' : '') + ', a converted origin, an application user or group, releasing an agent'
+    + ' lock, ' + (cloud ? 'discarding or reverting git changes, disconnecting GitHub, publishing the'
+      + ' production site, ' : '')
+    + 'revoking an access token — refuses without confirm: true: ask the user first, and only then call'
+    + ' it again with confirm: true.',
+    '',
+    'Some acts stay the user\'s own, in the browser, and no tool here does them: payments, credits and'
+    + ' the plan; creating an access token; giving a marketing consent or accepting terms; approving'
+    + ' a connector'
+    + (cloud ? '; finishing a GitHub authorization (connect_github answers the address they open)' : '')
+    + '. Send the user to the web application for these.',
     '',
     'The copyright line, the organization name, the Terms and Privacy links and the Google tag are'
     + ' project settings: project_settings reads them and update_project_settings changes them. The'
@@ -139,18 +142,22 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     + ' write your own.',
   ]
 
-  if (sessionCapable(host)) {
+  if (toolHostHelper.sessionCapable(host)) {
     lines.push(
       '',
       'MODEL TASKS: '
-      + (performsModelTasks(host)
-        ? 'this session runs the platform\'s model calls on YOUR side.'
-        : 'the platform performs its own model calls for stories and free flight, but a'
-          + ' CONVERSION\'s are yours by default.')
-      + ' Whenever a domain status reports waiting for a model task, call next_task, run the returned task in'
-      + ' a CLEAN subagent at LOW reasoning effort — never in this conversation — and pass its answer'
-      + ' to submit_task_result verbatim. Repeat until next_task says there is nothing. Do not'
-      + ' summarise, improve or reinterpret an answer.'
+      + (toolHostHelper.performsModelTasks(host)
+        ? 'this session runs in the delegated mode, so EVERY model call the platform makes for it is'
+          + ' yours to perform — project drafting, content checks and story formatting included; a'
+          + ' delegated conversion spends no credits. A tool whose call waits on one answers with the'
+          + ' task and says it is NOT finished: do not call that tool again — perform the task, and'
+          + ' submit_task_result replies with the tool\'s result or the next model call it waits on.'
+          + ' Whenever a domain status reports waiting for a model task, call next_task. Run every task'
+          + ' in a CLEAN subagent at LOW reasoning effort — never in this conversation — and pass its'
+          + ' answer to submit_task_result verbatim. Repeat until next_task says there is nothing. Do'
+          + ' not summarise, improve or reinterpret an answer.'
+        : 'this session runs in the cloud mode: the platform performs every model call itself —'
+          + ' a conversion\'s included — so there is no task for you to collect.')
     )
     lines.push(
       '',
@@ -159,7 +166,7 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
       + ' answer it yourself; if they are unavailable, submit declined: true so the platform records'
       + ' an assumption.'
     )
-  } else if (delegatedLlm(host)) {
+  } else if (toolHostHelper.delegatedLlm(host)) {
     // The account asks for the delegated mode and this host cannot serve it: it answers one
     // request and forgets, so there is nothing here to hold a task until an answer comes back.
     // Said plainly, because the alternative is a parent waiting for a next_task tool that is not
@@ -177,7 +184,8 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
       '',
       'The project lives on this machine. The platform writes its files through this server, so do'
       + ' not edit them yourself while a platform run is active. Use local_setup_guide for what the'
-      + ' application needs in order to run here.'
+      + ' application needs in order to run here. Its files, git repository and deployment are this'
+      + ' machine\'s, so the platform\'s file, preview, git and production tools are not offered.'
     )
   }
 

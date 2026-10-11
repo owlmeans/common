@@ -1,6 +1,6 @@
 import { createStaticResource } from '@owlmeans/static-resource'
 import { OAUTH_DEFAULT_TOKEN_TTL_SEC } from '@owlmeans/oauth'
-import { makeOAuthDcrClientResource } from './clients.js'
+import { makeOAuthDcrClientResource } from './dcr.js'
 import { OAUTH_DCR_RESOURCE, OAUTH_PENDING_RESOURCE } from './consts.js'
 import { appendOAuthRoutes } from './route.js'
 import type { OAuthServerContext, OAuthServerOptions } from './types.js'

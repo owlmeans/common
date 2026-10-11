@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-panel
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.50"` in `dependencies`
+**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.61"` in `dependencies`
 
 ## Key Exports
 
@@ -34,15 +34,17 @@ controller; apps may override it through their own `buttons` resource.
 | `usePanelLayout()` / `useLayoutTitle(name?, alias?)` / `prepareLayoutTitle(title)` | The entrypoint the current layout is rendering, and its translated title |
 | `BlockScaling` | `Full` / `Half` / `Wide` — the sizing vocabulary both platform families render |
 | `usePanelNav(config)` | Headless navigation model behind a two-layer menu |
-| `resolveNavLabel`, `defaultNavLabel`, `defaultNavTranslate` | Label resolution helpers |
+| `navLabelHelper` → `.resolveNavLabel`, `.defaultNavLabel`, `.defaultNavTranslate` | Label resolution helpers |
 | `PanelNavConfig`, `PanelNavSection`, `PanelNavItem`, `PanelNavLink`, `PanelNavModel`, `NavTranslate` | Navigation types |
 | `FormProps`, `FormRef`, `FormOnSubmit`, `TFormContext`, `FormFieldProps`, `FormActionProps`, `FormActionRenderArgs`, `InputControllerProps`, `TPanelContext`, `StatusOptions` | The model shapes a renderer is written against |
 
 ## Subpath Exports
 
-- `./auth` — `useLoginMethods` and the login model types (`LoginMethodsModel`, `LoginTermsModel`,
-  `LoginCreditModel`, `UseLoginMethodsOptions`). Importing it also registers this package's own
-  seven-language `client-panel-auth` bundle by side effect.
+- `./auth` — `useLoginMethods`, `loginProviderHelper` and the login model types
+  (`LoginMethodsModel`, `LoginTermsModel`, `LoginCreditModel`, `LoginProviderConfig`,
+  `LoginProviderModel`, `LoginProviderPlacement`, `UseLoginMethodsOptions`). Importing it also
+  registers this package's own seven-language `client-panel-auth` bundle and the
+  `LoginScreenConfig.provider` augmentation of `@owlmeans/config` by side effect.
 - `./auth/plugins` — the shapes an auth UI plugin is written against: `Ed22519BasicAuthUIPluginForm`
   and its `Ed22519BasicAuthUIPluginFormSchema`.
 
@@ -55,13 +57,37 @@ same split the form and navigation models already use. See `login-methods`.
 `@owlmeans/client-auth/login`) rather than a flat `urls: { terms, privacy, cookies? }` — that field
 is gone; nothing in the repo read it outside this model and its one renderer, so it was dropped
 rather than kept alongside the replacement. It also carries `revisedAt?` and `version`. A renderer
-turns `documents`/`notices` into markup with `termsSentence` (`@owlmeans/client-auth/login`), never
-by re-deriving link/label pairs itself.
+turns `documents`/`notices` into markup with `loginTermsHelper.termsSentence`
+(`@owlmeans/client-auth/login`), never by re-deriving link/label pairs itself.
 
-`LoginTermsModel.deferred` mirrors `termsDeferred(ctx)`: true once a registered, bound `LoginStep`
-confirms the terms instead of this screen. `LoginMethodsModel.blocked` folds it in
-(`required && !deferred && !accepted`) — a renderer never blocks on `required`/`accepted` alone,
-or it would re-block a screen whose confirmation moved elsewhere.
+`LoginTermsModel.deferred` mirrors `loginTermsHelper.termsDeferred(ctx)`: true once a registered,
+bound `LoginStep` confirms the terms instead of this screen. `LoginMethodsModel.blocked` folds it in
+(`required && !deferred && !accepted`) — a renderer never blocks on `required`/`accepted` alone, or
+it would re-block a screen whose confirmation moved elsewhere.
+
+### The provider disclosure — `LoginMethodsModel.provider`
+
+A sign-in screen that a third party runs for an application (a generated target signing people in
+through the platform's IAM) names both parties: who signs the person in, and on behalf of which
+product. The rules live here, headless, so every renderer discloses the same thing:
+
+- **Config** — `cfg.security.auth.login.provider?: LoginProviderConfig`
+  (`{ name, operator?, info?, placement?: 'top' | 'inline' }`), declared onto `@owlmeans/config`'s
+  `LoginScreenConfig` by module augmentation in `auth/login/provider-config.ts` (the
+  `client-auth/login/terms-config.ts` pattern), never by editing `@owlmeans/config`. The `./auth`
+  barrel re-exports it, so any import of `@owlmeans/client-panel/auth` loads the field; a program
+  that builds the literal without one adds `import type {} from '@owlmeans/client-panel/auth'`.
+- **Model** — `loginProviderHelper.resolve(cfg, brand)` → `LoginProviderModel { name, operator,
+  product, info: string | null, placement }` or `null`. Null unless the provider `name` AND the
+  product (`cfg.brand.name`) are set — a relationship with one party missing is never shown. Blank
+  strings are unset (build-time env arrives as `''`); `operator` defaults to `name`; `placement` to
+  `'inline'` (anything but `'top'` is inline); `info` survives only as an absolute `http(s)` URL or
+  a root-relative path (`//host` and `/\` are refused). `useLoginMethods().provider` carries it.
+- **Copy** — `loginProviderHelper.fill(template, model)` puts `{{provider}}`, `{{operator}}` and
+  `{{product}}` into an ALREADY-TRANSLATED sentence in one pass; names never travel as i18next
+  params. The keys (`login.provider.*`) and the markup belong to `web-panel`.
+- The disclosure is independent of the credit line: `credit.poweredBy: false` never hides who
+  signs a person in.
 
 ## Usage
 
@@ -122,13 +148,14 @@ alias, or null), `active` (its section), `showSide`, `isSectionActive` / `isItem
 - **`showSide` owns the one-screen rule.** It is false when the active section holds a single
   screen — a second level offering the page you are already on is noise. A renderer asks the model;
   it does not count items itself.
-- **Label resolution never touches i18n implicitly.** `NavTranslate` is a `(key, defaultValue) =>
-  string` **prop**, defaulting to `defaultNavTranslate`, which returns the fallback. An app mounted
-  without an i18n provider (`renderApp` from `@owlmeans/web-client` mounts none) crashes if a menu
-  reaches for the panel i18n context: the hook dereferences `i18n.options` on the empty object
-  `react-i18next` returns without an instance, and a throw inside render blanks the whole app.
-  `resolveNavLabel(translate, label, key, alias)` applies the order — literal `label` →
-  `translate(key, humanized)` → `defaultNavLabel(alias)`, which humanizes the last alias segment
+- **Label resolution never touches i18n implicitly.** `NavTranslate` is a
+  `(key, defaultValue) => string` **prop**, defaulting to `navLabelHelper.defaultNavTranslate`,
+  which returns the fallback. An app mounted without an i18n provider (`renderApp` from
+  `@owlmeans/web-client` mounts none) crashes if a menu reaches for the panel i18n context: the hook
+  dereferences `i18n.options` on the empty object `react-i18next` returns without an instance, and a
+  throw inside render blanks the whole app.
+  `navLabelHelper.resolveNavLabel(translate, label, key, alias)` applies the order — literal `label`
+  → `translate(key, humanized)` → `.defaultNavLabel(alias)`, which humanizes the last alias segment
   (`my-app:web:user-list` → `User list`). Default key families: `nav.<name>` for sections,
   `modules.<alias>` for items and footer links.
 - **Resolving the current screen needs two sources.** The router's `location.state.alias` is

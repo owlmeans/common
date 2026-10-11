@@ -46,6 +46,11 @@
     "PlanningErrorCommitTimeout": "Зміна ще зберігається — перевірте трохи пізніше",
     "PlanningErrorCommitFailed": "Не вдалося зберегти зміну",
     "PlanningErrorScopeMismatch": "Цей елемент не існує або недоступний вам",
+    "PlanningErrorSchemaConflict": "Це визначення змінили тим часом — оновіть і спробуйте знову",
+    "PlanningErrorSchemaInUse": "Це визначення ще використовується і не може бути виведене з ужитку",
+    "PlanningErrorSchemaSealed": "Це визначення закріплене і не може бути змінене тут",
+    "PlanningErrorSchemaInvalid": "Це визначення недійсне",
+    "PlanningErrorForbidden": "Вам не дозволено вносити цю зміну",
     "PlanningErrorUnsupported": "Ця операція не підтримується для цього елемента"
   }
 }

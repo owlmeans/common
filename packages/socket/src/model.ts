@@ -5,8 +5,11 @@ import type {
   AuthMessage, CallHendler, CallMessage, CallResolver, Connection, ConnectionListener,
   EventMessage, Message, RequestHandler
 } from './types.js'
-import { uuid } from '@owlmeans/basic-ids'
 import { AuthenticationStage, AuthError } from '@owlmeans/auth'
+import { logger } from '@owlmeans/log'
+import { idHelper } from '@owlmeans/basic-ids'
+
+const log = logger('socket')
 
 export const createBasicConnection = (): Connection => {
   const listeners: ConnectionListener[] = []
@@ -52,7 +55,7 @@ export const createBasicConnection = (): Connection => {
 
     call: async (method, ...payload) => {
       const msg: CallMessage<any> = {
-        method, payload, type: MessageType.Call, id: uuid()
+        method, payload, type: MessageType.Call, id: idHelper.uuid()
       }
       conn.prepare?.(msg)
       return new Promise(async (resolve, reject) => {
@@ -86,7 +89,7 @@ export const createBasicConnection = (): Connection => {
 
     request: async (payload, observer) => {
       const msg: Message<any> = {
-        type: MessageType.Request, payload, id: uuid()
+        type: MessageType.Request, payload, id: idHelper.uuid()
       }
       if (observer != null) {
         observers[msg.id!] = observer
@@ -252,7 +255,7 @@ export const createBasicConnection = (): Connection => {
                 const [stage, response] = await conn.authenticate(authMessage.stage, authMessage.payload)
                 if (stage != null) {
                   void conn.auth(stage, response).catch(error => {
-                    console.error('Error sending socket authentication response:', error)
+                    log.warn('Socket authentication response not sent', { error })
                   })
                 }
               } catch (error) {
@@ -260,7 +263,7 @@ export const createBasicConnection = (): Connection => {
                   null as any,
                   ResilientError.marshal(ResilientError.ensure(error as Error))
                 ).catch(sendError => {
-                  console.error('Error sending socket authentication error:', sendError)
+                  log.warn('Socket authentication error not sent', { error: sendError })
                 })
               } finally {
                 conn._authSequence = undefined
@@ -279,7 +282,7 @@ export const createBasicConnection = (): Connection => {
         try {
           await listener(msg)
         } catch (error) {
-          console.error('Socket listener error:', error)
+          log.error('Socket listener failed', { error })
         }
       }))
     },

@@ -1,8 +1,9 @@
-import { launchBrowser } from '@owlmeans/test-ui'
+
 import type { Page } from '@owlmeans/test-ui'
 import { makeBearer, USER } from '@owlmeans/test-auth'
 import type { ConsentView } from '@owlmeans/oauth'
 import { HARNESS_URL } from './context.js'
+import { browserHelper } from '@owlmeans/test-ui'
 
 /** Generous: a cold harness compiles the whole app on its first request. */
 export const TIMEOUT = 60_000
@@ -56,7 +57,7 @@ export interface Opened {
 export const open = async (
   path: string, opts: { stubs?: Stubs, signedIn?: boolean, lng?: string, authenticate?: boolean } = {}
 ): Promise<Opened> => {
-  const browser = await launchBrowser({ headless: true })
+  const browser = await browserHelper.launchBrowser({ headless: true })
   const context = await browser.newContext()
   const page = await context.newPage()
   page.setDefaultTimeout(30_000)
@@ -94,4 +95,18 @@ export const open = async (
   await page.goto(url.toString(), { waitUntil: 'domcontentloaded' })
 
   return { page, calls, close: async () => { await context.close() } }
+}
+
+/**
+ * Wait until the page sits on `pathname`, reading `page.url()` rather than awaiting a navigation.
+ * Signing out reloads before the router pushes the dispatcher, and under load `waitForURL` sees the
+ * superseded navigation abort (`net::ERR_ABORTED; maybe frame was detached?`) instead of the one that lands.
+ */
+export const untilPath = async (page: Page, pathname: string, timeout = 45_000): Promise<void> => {
+  const deadline = Date.now() + timeout
+  while (new URL(page.url()).pathname !== pathname) {
+    if (Date.now() > deadline) throw new Error(`still on ${page.url()} after ${timeout} ms, expected ${pathname}`)
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  await page.waitForLoadState('load').catch(() => undefined)
 }

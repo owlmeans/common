@@ -1,23 +1,25 @@
 ---
 node: versioning
 scope: "**/package.json"
-updated: 2026-08
+updated: 2026-10
 ---
 
 # Versioning
 
 ## Facts
 
-- All packages are synchronized at one version (currently `0.1.16`); internal cross-package
-  deps use the caret range carrying any prerelease suffix (`^0.1.16`, `^0.1.16-rc.0`).
+- Versions are per package and deliberately uneven (`versions`, `publishing` skills); internal
+  cross-package deps use the caret range carrying the prerelease suffix (`^0.1.18-rc.N`).
   `@owlmeans/dep-config` is always `workspace:*` (config-only, no runtime code).
-- Versions are NOT uniform after a release — only what changed (plus what must move with it) is
-  bumped; `publishing` skill. The published tarballs of the 2026-09-17 batch carry compiled files of
-  sources deleted on 2026-09-11 (an uncleaned `build/`), so a local-vs-registry diff shows
-  "registry-only" files that are dead leftovers, not content this tree lacks. Post-release commits
-  (README install lines, the `owlmeans-` agent-meta renames) then make ~20 root packages "changed"
-  and their dependents (~90) follow, so a full plan is ~110 packages: expected, not a misconfigured
-  checkout. Scoping a release to one change is a deliberate manual act (see the skill).
+- Stale `build/` leftovers on npm: published tarballs carried compiled files of sources deleted
+  earlier (`flow/build/advertise.js`, `postgres/build/health.js`, `agent-skills/build/llm/*`,
+  `web-panel/build/hooks`) because `build/` was not cleaned — a "registry-only" file in a pack diff
+  is dead weight, not newer content.
+- Fingerprint of skill-only drift: a plan run after `sync-agent-meta` reports ~18 packages
+  "content changed" (agent-skills, auth, auth-common …) plus ~82 dependents — expected; the bump
+  already decided the closure, and `--all` ships only it (`publishing` skill).
+- Fingerprint of the clean-build race: `TS2307 Cannot find module '@owlmeans/server-planning/store'`
+  from `planning-postgres` in a filtered build of the bumped set; a second build passes.
 - A caret on a `0.0.x` version is exact (`^0.0.23` does not admit `0.0.24`): bumping `viable-common`
   means moving every consumer pin (viable, viable-agent, internal) in the same sweep.
 - Version fields and caret ranges must be rewritten in one pass before `bun install`. An install
@@ -57,3 +59,8 @@ updated: 2026-08
 - Native packages moved to the separate `native` monorepo; consumed from there via library links.
 - Downstream repos (`viable`, `viable-agent`, `internal`) symlink `@owlmeans/*` from
   `common/packages/*` (bun hoisted linker) — rebuilding common propagates without publishing.
+
+## Status
+
+- 2026-10: the npm-embedded skills of the packages whose canonical skills changed after the last
+  full release lag the canonical text; each ships its copy with its next code change.

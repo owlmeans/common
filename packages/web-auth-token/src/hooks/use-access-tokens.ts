@@ -2,18 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { useContext } from '@owlmeans/client'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { ResilientError } from '@owlmeans/error'
-import { authToken } from '@owlmeans/auth-token'
 import type {
   AccessTokenList, AccessTokenView, CreateAccessToken, IssuedAccessToken
 } from '@owlmeans/auth-token'
 import type { AccessTokensAliases, UseAccessTokens } from '../types.js'
-
-/** The aliases `makeAuthTokenEntrypoints` declares, which is what an unconfigured host mounts. */
-const DEFAULT_ALIASES: AccessTokensAliases = {
-  list: authToken.list,
-  create: authToken.create,
-  revoke: authToken.revoke,
-}
+import { DEFAULT_ALIASES } from './consts.local.js'
 
 /**
  * The I/O half of the token surface.

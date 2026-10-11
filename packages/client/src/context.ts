@@ -1,27 +1,13 @@
 
-import { createContext, useContext as useCtx } from 'react'
-import type { Context as ReactContext } from 'react'
-import { makeClientContext as makeBasicContext, PLUGINS } from '@owlmeans/client-context'
-import type { ClientConfig } from '@owlmeans/client-context'
-import { AppType, CONFIG_RECORD } from '@owlmeans/context'
+import { createContext, useContext as useCtx, type Context as ReactContext } from 'react'
+import { makeClientContext as makeBasicContext, PLUGINS, type ClientConfig } from '@owlmeans/client-context'
 import type { ClientContext } from './types.js'
 import { appendStateResource } from '@owlmeans/state'
 import { appendModalService } from './components/modal.js'
 import { appendDebugService } from './services/debug.js'
 import { appendConfigResource, PLUGIN_RECORD } from '@owlmeans/config'
-import type { RouterService } from '@owlmeans/router'
-import { ROUTER_SERVICE } from '@owlmeans/router'
-
-const defaultCfg: ClientConfig = {
-  services: {},
-  brand: {},
-  trusted: [],
-  [CONFIG_RECORD]: [],
-  ready: false,
-  service: '',
-  debug: {},
-  type: AppType.Frontend,
-}
+import { type RouterService, ROUTER_SERVICE } from '@owlmeans/router'
+import { defaultCfg } from './consts.local.js'
 
 export const makeClientContext = <C extends ClientConfig, T extends ClientContext<C> = ClientContext<C>>(cfg: C): T => {
   const context = makeBasicContext(cfg) as T

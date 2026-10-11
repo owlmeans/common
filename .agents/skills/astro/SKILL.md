@@ -1,13 +1,13 @@
 ---
 name: astro
-description: "How to use @owlmeans/astro — the Astro-side wiring for the OwlMeans browser packages: the head/noscript strings a layout stamps before hydration, the legal-page test that suppresses tracking, and the locale conversion that keeps a default-locale page out of English. Auto-invoked when writing an Astro layout, stamping a tag-manager or consent snippet into a static site, or importing owlHeadScripts, isLegalPath or owlLocale."
+description: "How to use @owlmeans/astro — the Astro-side wiring for the OwlMeans browser packages: the head/noscript strings a layout stamps before hydration, the legal-page test that suppresses tracking, and the locale conversion that keeps a default-locale page out of English. Auto-invoked when writing an Astro layout, stamping a tag-manager or consent snippet into a static site, or importing astroHelper (owlHeadScripts, isLegalPath, owlLocale)."
 user-invocable: false
 ---
 
 # @owlmeans/astro
 
 **Layer:** Web (Astro)
-**Install:** `"@owlmeans/astro": "^0.1.18-rc.32"` in `dependencies`
+**Install:** `"@owlmeans/astro": "^0.1.18-rc.37"` in `dependencies`
 
 ## Why it exists
 
@@ -25,24 +25,25 @@ unusable outside one, and everything it needs is a value the caller already hold
 
 | Export | Description |
 |--------|-------------|
-| `owlHeadScripts(opts?)` | `{ head, noscript, adopt }` — everything a page puts in its head, in the one order that works |
+| `astroHelper.owlHeadScripts(opts?)` | `{ head, noscript, adopt }` — everything a page puts in its head, in the one order that works |
 | `HeadScripts` | That result shape: `head` is inline `<script>` content, `noscript` is `<body>` content, `adopt` is the standalone cross-domain-consent fragment — see below |
-| `isLegalPath(pathname, segment?)` | Whether this page must carry no tracking at all |
-| `owlLocale(currentLocale, fallback?)` | `Astro.currentLocale` as this framework's locale |
-| `GtmOptions` (re-export) | The container options from `@owlmeans/web-gtm` |
+| `astroHelper.isLegalPath(pathname, segment?)` | Whether this page must carry no tracking at all |
+| `astroHelper.owlLocale(currentLocale, fallback?)` | `Astro.currentLocale` as this framework's locale |
+| `GoogleTagOptions` / `GtmOptions` (re-exports) | The tag options from `@owlmeans/web-gtm` — `gtm` takes any Google id (`GTM-`, `G-`, `GT-`, `AW-`, `DC-`) |
 | `ConsentOptions` / `ConsentCategory` (re-exports) | The consent options from `@owlmeans/consent` |
 
 ## Stamping the head
 
-`owlHeadScripts` composes the consent bootstrap and the tag-manager container in the one order that
-makes Consent Mode mean anything — defaults first, container second:
+`astroHelper.owlHeadScripts` composes the consent bootstrap, the ads-redaction flags and the Google tag loader
+(`googleTagHelper.googleTagHeadScript`) in the one order that makes Consent Mode mean anything — defaults first,
+loader last:
 
 ```astro
 ---
-import { owlHeadScripts, isLegalPath } from '@owlmeans/astro'
+import { astroHelper } from '@owlmeans/astro'
 
-const isLegalPage = isLegalPath(Astro.url.pathname)
-const tags = owlHeadScripts(isLegalPage ? {} : { gtm: { id: SITE.gtmId } })
+const isLegalPage = astroHelper.isLegalPath(Astro.url.pathname)
+const tags = astroHelper.owlHeadScripts(isLegalPage ? {} : { gtm: { id: SITE.gtmId } })
 ---
 <html lang={locale}>
   <head>
@@ -67,12 +68,24 @@ Two rules the shape enforces:
   AND emitting one — which, by default, a container in `@owlmeans/web-gtm`'s gated `'basic'` mode
   never does (see below), so most sites now see an always-empty `noscript`.
 
-`owlHeadScripts` never forces `GtmOptions.mode`, so a configured `gtm` inherits
+**A `gtm.id` that is not a loadable Google tag id throws** (`@owlmeans/astro: gtm.id is not a loadable Google tag id`),
+so a mistyped id fails the build instead of shipping every page with no tag. `noscript` is filled only for a
+`GTM-` container in `'advanced'` mode — gtag.js ids have no `ns.html` frame. Stamp it from the returned object
+(`<noscript set:html={tags.noscript} />`); a hand-written frame loads the container for visitors who never consented.
+
+`astroHelper.owlHeadScripts` never forces `GoogleTagOptions.mode`, so a configured `gtm` inherits
 `@owlmeans/web-gtm`'s `GOOGLE_TAG_DEFAULT_MODE` (`'basic'`) automatically: the container is still
 composed into `head` — the ORDER guarantee above holds regardless of mode — but its own loader
 does not run until a visitor's stored or later decision grants a signal-bearing category, and
-`gtmNoscriptFrame` returns `''` rather than an iframe nothing has been granted for. Pass
+`googleTagHelper.gtmNoscriptFrame` returns `''` rather than an iframe nothing has been granted for. Pass
 `gtm: { ..., mode: 'advanced' }` for the old, unconditional load and its non-empty `noscript`.
+
+**Coverage in `'basic'` mode.** The tag loads only on a visit that consents, so a tag manager's coverage report
+("Tagged") marks a page only after a consenting visitor opens it; a page nobody consenting has opened shows "Not
+tagged". A client-side redirect that runs before `tags.head` leaves the URL it redirected AWAY from untagged
+(the report only learns of it as the next page's referrer) — never auto-redirect from a URL that already names its
+locale, and keep the query string on every hop. Pin `mode` explicitly on a site whose cookie policy forbids tags
+before opt-in, rather than relying on the platform default.
 
 `consent` options are merged into the container snippet, so a site with its own category set or
 storage key passes them here as well as to the dialog — otherwise the inline snippet and the
@@ -84,7 +97,7 @@ component disagree about what is being asked.
 sharing a decision between first-party domains through a decorated link:
 
 ```astro
-const tags = owlHeadScripts({
+const tags = astroHelper.owlHeadScripts({
   gtm: { id: SITE.gtmId },
   consent: { linker: { domains: SITE.consentDomains, language: {} } },
 })
@@ -96,7 +109,14 @@ and `tags.adopt` then writes it before anything else runs — but only while tha
 decision (stored, or carried by the same link).
 Give the consent island the same object (`linker={SITE.consentLinker}`) so head and island agree.
 
-`tags.adopt` is the STANDALONE adopt-and-strip fragment (`consentLinkerScript`) — present whenever
+**The geo gate is the island's alone.** `geo={{ cloudflare: true }}` on `<CookieConsent client:load />`
+asks only visitors located in a consent country (the `consent` skill); the head strings need nothing
+for it — the inline bootstrap and gate already skip an automatic decision past its age. It must be
+plain data, because an island prop is serialized: a locator plugin of the site's own needs a small
+wrapper island that registers it before rendering `CookieConsent`. Legal pages, which mount no
+island, never locate anyone.
+
+`tags.adopt` is the STANDALONE adopt-and-strip fragment (`consentLinkHelper.consentLinkerScript`) — present whenever
 `consent.linker` is set, empty string otherwise, regardless of whether `gtm` is also configured.
 Stamp it **first**, above `tags.head` and above everything else in `<head>` (the locale-redirect
 script included — its own `?lc=1` handling must not race the linker for the URL):
@@ -109,7 +129,7 @@ script included — its own `?lc=1` handling must not race the linker for the UR
 ```
 
 **Stamp it on every page, legal ones included.** `tags.head` already carries the SAME fragment
-(embedded by `consentBootstrapScript` right after `consent/default`) for a page that also runs a
+(embedded by `consentModeHelper.consentBootstrapScript` right after `consent/default`) for a page that also runs a
 tag, so the two runs on such a page are harmless — the second finds the parameter already gone and
 does nothing. `adopt` on its own is what a legal page needs, since it stamps no `head` at all (see
 below): adopting a cross-domain cookie-consent CHOICE sets no tracking cookie and pushes nothing to
@@ -121,14 +141,14 @@ A legal page is where a visitor goes to READ what is being collected; collecting
 read is the one thing it must not do.
 
 ```typescript
-isLegalPath('/legal')            // true
-isLegalPath('/pl/legal/terms')   // true — with or without a locale prefix
-isLegalPath('/legalese')         // false — a page that merely starts with the word is not one
-isLegalPath('/about/legal')      // false — the segment must be at the top level
-isLegalPath('/policies/privacy', 'policies')   // true — the segment is configurable
+astroHelper.isLegalPath('/legal')            // true
+astroHelper.isLegalPath('/pl/legal/terms')   // true — with or without a locale prefix
+astroHelper.isLegalPath('/legalese')         // false — a page that merely starts with the word is not one
+astroHelper.isLegalPath('/about/legal')      // false — the segment must be at the top level
+astroHelper.isLegalPath('/policies/privacy', 'policies')   // true — the segment is configurable
 ```
 
-Feed the result back into `owlHeadScripts`: drop the `gtm` option on a legal page and the page
+Feed the result back into `astroHelper.owlHeadScripts`: drop the `gtm` option on a legal page and the page
 still declares its consent defaults while loading no container. `tags.adopt` is unaffected by this
 — see above — and is stamped there too.
 
@@ -139,15 +159,15 @@ it straight to a component renders English for everyone landing on `/` — inclu
 `/` is not English.
 
 ```typescript
-const locale = owlLocale(Astro.currentLocale, 'pl')
+const locale = astroHelper.owlLocale(Astro.currentLocale, 'pl')
 ```
 
 An empty string is treated the same as `undefined`; a real locale passes through untouched.
 
 ## Depends On
 
-- `@owlmeans/consent` — `consentBootstrapScript`, the category model and the storage contract
-- `@owlmeans/web-gtm` — `gtmHeadScript`, `gtmNoscriptFrame`
+- `@owlmeans/consent` — `consentModeHelper.consentBootstrapScript`, the category model and the storage contract
+- `@owlmeans/web-gtm` — `googleTagHelper.googleTagHeadScript`, `.isGoogleTagId`, `.googleTagKind`, `.gtmNoscriptFrame`
 
 Both are ordinary dependencies, so an Astro site installs this one package and gets the whole head
 story. Rendering the dialog itself is separate — that is `@owlmeans/web-consent`, mounted as an

@@ -1,18 +1,22 @@
 import type { JSONSchemaType } from 'ajv'
 import { ProjectArea } from '../areas/consts.js'
-import { ConnectLlm, CONNECT_INQUIRY_MAX_TEXT } from '../connect/consts.js'
+import { CONNECT_INQUIRY_MAX_TEXT } from '../connect/consts.js'
 import { ModelRole } from '../execution/consts.js'
 import {
-  ArchitectureCase, ConversionStage, ConvertibilityReason, ConvertibilityVerdict, EstimateSlice,
-  OriginKind, OriginState, PurposeEvidenceSource, StackFamily, StackId, TaxonomyKind, WorkspaceKind
+  ArchitectureCase, ConversionStage, OriginKind, OriginState, PurposeEvidenceSource, StackFamily, StackId,
+  TaxonomyKind, WorkspaceKind
 } from './consts.js'
 import type {
-  AreaAlignment, ArchitectureVerdict, ConversionAnswer, ConversionEstimate,
-  ConversionInventorySummary, ConversionStackRef, ConversionStructure, ConverterLlmBody,
-  ConverterProjectLlmBody, DesignInference, OriginFlow, OriginFlowList, OriginProof,
-  ProjectOrigin, PurposeInference, SeedDetection, StackConfirmation, StoryEstimateBand, StoryProof,
-  TaxonomyEntry, TaxonomyEntryList, TaxonomyRoleList
-} from './types.js'
+  AreaAlignment, DesignInference, OriginFlow, OriginFlowList, PurposeInference, StoryProof
+} from './analysis/types.js'
+import type { SeedDetection } from './census/types.js'
+import type { ArchitectureVerdict, StackConfirmation } from './detection/types.js'
+import type { ConversionEstimate, StoryEstimateBand } from './estimate/types.js'
+import type {
+  ConversionAnswer, ConversionInventorySummary, ConversionStackRef, ConversionStructure
+} from './record/types.js'
+import type { TaxonomyEntry, TaxonomyEntryList, TaxonomyRoleList } from './taxonomy/types.js'
+import type { OriginProof, ProjectOrigin } from './types.js'
 
 /**
  * Two populations of schema live in this file, and they are written differently on purpose.
@@ -29,7 +33,7 @@ import type {
  * `null` and the `enum` check then refuses the very same value, so the field can only ever be
  * omitted — never sent empty. Absence and `null` are not interchangeable on either side of this
  * package: a provider's structured output writes an unset optional as `null`, and a wire body
- * where `null` MEANS something (`ConverterProjectLlmBody.llmMode` — "inherit the profile's
+ * where `null` MEANS something (`ConnectProjectLlmBody.llmMode` — "inherit the profile's
  * setting") cannot express it any other way. So every `enum` beside a `nullable: true` is written
  * `[...Object.values(X), null]`, which `JSONSchemaType` types as `readonly (T | null)[]` for an
  * optional member and therefore needs no cast. `tests/convert.spec.ts` walks every exported
@@ -484,8 +488,24 @@ export const ConversionEstimateSchema = {
           inputTokens: { type: 'number' },
           outputTokens: { type: 'number' },
           steps: { type: 'array', items: { type: 'string', maxLength: 128 } },
+          // The plan rows, each priced at the rate of its own prompt size (`RequestEstimate`).
+          requests: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                step: { type: 'string', maxLength: 128 },
+                calls: { type: 'number' },
+                promptTokens: { type: 'number' },
+                inputTokens: { type: 'number' },
+                outputTokens: { type: 'number' },
+              },
+              required: ['step', 'calls', 'promptTokens', 'inputTokens', 'outputTokens'],
+              additionalProperties: false,
+            },
+          },
         },
-        required: ['role', 'calls', 'inputTokens', 'outputTokens', 'steps'],
+        required: ['role', 'calls', 'inputTokens', 'outputTokens', 'steps', 'requests'],
         additionalProperties: false,
       },
     },
@@ -644,22 +664,3 @@ export const ProjectOriginSchema = {
   additionalProperties: false,
 } as unknown as JSONSchemaType<ProjectOrigin>
 
-export const ConverterLlmBodySchema = {
-  type: 'object',
-  properties: { llmMode: { type: 'string', enum: Object.values(ConnectLlm) } },
-  required: ['llmMode'],
-  additionalProperties: false,
-} as unknown as JSONSchemaType<ConverterLlmBody>
-
-/** `null` is a value here, not an absence: it means "inherit the profile's setting". */
-export const ConverterProjectLlmBodySchema = {
-  type: 'object',
-  properties: { llmMode: { type: 'string', enum: [...Object.values(ConnectLlm), null], nullable: true } },
-  required: ['llmMode'],
-  additionalProperties: false,
-} as unknown as JSONSchemaType<ConverterProjectLlmBody>
-
-/** The reasons a convertibility verdict can carry, for a consumer building its own enum check. */
-export const ConvertibilityReasonValues = Object.values(ConvertibilityReason)
-export const ConvertibilityVerdictValues = Object.values(ConvertibilityVerdict)
-export const EstimateSliceValues = Object.values(EstimateSlice)

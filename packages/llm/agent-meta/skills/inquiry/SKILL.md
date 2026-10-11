@@ -48,17 +48,17 @@ interface InquiryAnswer {
   value?: string | string[]
   text?: string
   declined?: boolean            // nobody could decide — an ANSWER, never a failure
-  truncated?: boolean           // set by capAnswer or stateAnswerOf, never by an answerer
+  truncated?: boolean           // set by inquiryHelper.capAnswer or .stateAnswerOf, never by an answerer
 }
 
 interface InquiryTransport { ask: (inquiry: Inquiry, signal?: AbortSignal) => Promise<InquiryAnswer> }
 interface InquiryConfig { transport?: string; policy: InquiryPolicy }
 ```
 
-The pure helpers are the ONE reading of an answer every layer uses — a second reading is a second
-contract: `defaultAnswerFor(inquiry)` (the default, or a decline), `answeredWith(answer)` (the first
-value, else the text, else `null`), `isDeclined(answer)`, `capAnswer(answer, max?)`,
-`stateAnswerOf(answer)`, `renderInquiry(inquiry)` (a one-line label for a note or a run row).
+The pure `inquiryHelper` is the ONE reading of an answer every layer uses — a second reading is a second
+contract: `inquiryHelper.defaultAnswerFor(inquiry)` (the default, or a decline), `.answeredWith(answer)` (the first
+value, else the text, else `null`), `.isDeclined(answer)`, `.capAnswer(answer, max?)`,
+`.stateAnswerOf(answer)`, `.renderInquiry(inquiry)` (a one-line label for a note or a run row).
 
 ## Three policies, and no fourth
 
@@ -69,7 +69,7 @@ policy.
 | Policy | `ExecutionService.ask` does |
 |---|---|
 | `Ask` | Hands the question to the seated transport and waits for the answer |
-| `Default` | Returns `defaultAnswerFor(inquiry)` and asks nobody. The caller is expected to RECORD the assumption where a user can read it |
+| `Default` | Returns `inquiryHelper.defaultAnswerFor(inquiry)` and asks nobody. The caller is expected to RECORD the assumption where a user can read it |
 | `Refuse` | Throws `InquiryDeclined` — nobody may be asked at all |
 
 **No configuration means `Default`.** A run that was never given a channel must never block on one:
@@ -80,20 +80,20 @@ project pipeline, a scheduled job).
 
 `DEFAULT_INQUIRY_ANSWER_CHARS` (2 000) is the only ceiling on a stored answer. The connector's
 `CONNECT_INQUIRY_MAX_TEXT` equals it, the connector's answer schema caps `text` at it, and
-`capAnswer` enforces it. Three ceilings for one value is how a user's 3 000-character answer is
+`inquiryHelper.capAnswer` enforces it. Three ceilings for one value is how a user's 3 000-character answer is
 accepted on the wire and silently halved further in — so never introduce a local cap; import this
 one.
 
 **Only the prose is ever cut.** A `value` is the decision itself — for a `Choice` it must equal one
 of the question's own option values — so a shortened one is not a degraded answer but a different
-answer, matching no option, which `answeredWith` would hand on as what the person chose. An
+answer, matching no option, which `inquiryHelper.answeredWith` would hand on as what the person chose. An
 over-long `value` is a defect upstream (the connector's schema refuses one rather than shortening
-it): `capAnswer` passes it through whole and raises `truncated` on it.
+it): `inquiryHelper.capAnswer` passes it through whole and raises `truncated` on it.
 
-`capAnswer` **reports** the cut (`truncated: true`). A silent truncation is exactly the class of
+`inquiryHelper.capAnswer` **reports** the cut (`truncated: true`). A silent truncation is exactly the class of
 failure the primitive exists to prevent.
 
-A resumable pipeline **state** stores less: `stateAnswerOf` keeps the decision whole and cuts the
+A resumable pipeline **state** stores less: `inquiryHelper.stateAnswerOf` keeps the decision whole and cuts the
 prose to `INQUIRY_STATE_TEXT_CHARS` (200), because a state is keys, markers and paths — two
 full-size answers would make it prose. The full answer still goes back to whoever asked; long text
 belongs in whatever document the application keeps for it (the converter writes
@@ -102,21 +102,21 @@ belongs in whatever document the application keeps for it (the converter writes
 ## The transport registry, and why an absent channel is fatal
 
 ```typescript
-registerInquiryTransport(key, transport)   // seat on attach
-releaseInquiryTransport(key)               // release when the channel goes away
-hasInquiryTransport(key)
-inquiryTransportFor(key | undefined)       // throws InquiryUnavailable — never waits
+inquiryTransportRegistry.register(key, transport)    // seat on attach
+inquiryTransportRegistry.release(key)                // release when the channel goes away
+inquiryTransportRegistry.has(key)
+inquiryTransportRegistry.transportFor(key | undefined) // throws InquiryUnavailable — never waits
 ```
 
 Module-level and keyed by string, exactly like the delegate-transport and provider-plugin
 registries beside it: a process holds many at once, and an execution names the one its run belongs
-to. It is `inquiryTransportFor`, not `transportFor`, because `@owlmeans/llm` and
+to. It is `inquiryTransportRegistry`, not a bare `transportRegistry`, because `@owlmeans/llm` and
 `@owlmeans/llm-delegate` are re-exported into one namespace by `@owlmeans/viable`.
 
 **A transport that cannot serve a question THROWS.** A declined answer is a decision; a channel that
 is gone is terminal, and the two must never look alike.
 
-`InquiryUnavailable` is registered fatal (`registerFatalError`) **beside the throw**, so no caller
+`InquiryUnavailable` is registered fatal (`retryHelper.registerFatalError`) **beside the throw**, so no caller
 has to remember: every retry ladder aborts at once instead of spending itself on a channel nobody is
 behind. `InquiryDeclined` is deliberately NOT fatal — the run decides for itself and carries on.
 
@@ -148,8 +148,8 @@ is a tool the model tries once and remembers as broken.
 
 The body never throws, with exactly one exception: `InquiryUnavailable` is **rethrown**. No channel
 is an answerable situation (`{ error: 'Nobody can answer …' }`); a channel that WAS there and
-vanished is not. That escape only works if the agent passes `fatal: e => isFatalError(e) != null`
-into `safeInvokeTool` — **an agent installing this plugin must**, or the loop spends its whole turn
+vanished is not. That escape only works if the agent passes `fatal: e => retryHelper.isFatalError(e) != null`
+into `toolHelper.safeInvokeTool` — **an agent installing this plugin must**, or the loop spends its whole turn
 budget on a dead channel.
 
 ## Parking a pipeline: `Waiting`
@@ -157,7 +157,7 @@ budget on a dead channel.
 `PipelineRunContext.ask(inquiry)` has three outcomes, in order:
 
 1. An answer already in the state (a resume) is returned at once — a question is never asked twice.
-2. A live channel answers: the answer is recorded in the state (`stateAnswerOf(capAnswer(...))`
+2. A live channel answers: the answer is recorded in the state (`inquiryHelper.stateAnswerOf(inquiryHelper.capAnswer(...))`
    under `state[INQUIRY_ANSWERS_KEY][inquiry.id]`) and the FULL answer is returned.
 3. Nobody is there: the run stops `Waiting` with the inquiry on its row, and the call never returns.
 
@@ -173,7 +173,7 @@ cannot park at all: it throws `PipelineNotResumableError`, because nothing would
 Answers are merged **by the runner**, in both `invoke` and `resume` (`resume(runId, { answers })`),
 never by a caller's mapping: the seed overwrites the restored state key by key, so a mapping that
 forwarded the answers map would wipe the child's own recorded answers. The merge applies the same
-`stateAnswerOf(capAnswer(...))` cut the live path does — a resume is how an answer usually arrives,
+`inquiryHelper.stateAnswerOf(inquiryHelper.capAnswer(...))` cut the live path does — a resume is how an answer usually arrives,
 so a ceiling enforced on the live path alone is enforced where the least text comes in. Answers are
 also the one state key that ACCUMULATES, so `ctx.ask` re-reads the map at write time: steps with no
 edge between them run in one superstep, and a write built from a pre-await copy loses a sibling's

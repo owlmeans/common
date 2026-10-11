@@ -3,9 +3,9 @@ import type {
   CommitSource, PlanningStore, ProjectionStore, Relationship, RelationshipStore, SpecificationStore,
   TransitionStore, Unsubscribe, Workcard,
 } from '@owlmeans/planning'
-import { applyQuery } from '@owlmeans/resource'
 import type { Criteria, ListResult } from '@owlmeans/resource'
 import type { CommitHub, StoreRoute } from './types.js'
+import { recordQueryHelper } from '@owlmeans/resource'
 
 const firstOf = async <S, T>(
   stores: S[], read: (store: S) => Promise<T | null | undefined> | undefined
@@ -29,6 +29,7 @@ const sum = async <S>(stores: S[], run: (store: S) => Promise<number>): Promise<
  * then each owner; a list whose criteria names one owned type (or several owned by one store) goes
  * there, and every other list is the default store's — a cross-type query is answered by the
  * default store alone, never merged. Relationship lists and commit subscriptions span every store.
+ * The data-defined schema port is the default store's.
  */
 export const makeCompositeStore = (routes: StoreRoute[], fallback: PlanningStore): PlanningStore => {
   const all = [...new Set([fallback, ...routes.map(route => route.store)])]
@@ -121,7 +122,7 @@ export const makeCompositeStore = (routes: StoreRoute[], fallback: PlanningStore
     list: async (where, opts) => {
       const results = await Promise.all(linked.map(store => store.links!.list(where, { size: 0 })))
       const items = results.flatMap((result: ListResult<Relationship>) => result.items)
-      return applyQuery(items, undefined, opts)
+      return recordQueryHelper.applyQuery(items, undefined, opts)
     },
     put: link => (fallback.links ?? linked[0].links!).put(link),
     drop: where => sum(linked, store => store.links!.drop(where)),
@@ -162,10 +163,14 @@ export const makeCompositeStore = (routes: StoreRoute[], fallback: PlanningStore
   return {
     alias: `composite:${fallback.alias ?? 'default'}`,
     newId: fallback.newId,
+    unit: fallback.unit,
+    assignees: fallback.assignees, teams: fallback.teams, comments: fallback.comments, mentions: fallback.mentions,
     cards,
     ...(transitions != null ? { transitions } : {}),
     ...(specs != null ? { specs } : {}),
     ...(links != null ? { links } : {}),
     ...(commits != null ? { commits } : {}),
+    // Data-defined schemas are the default store's alone: a layer describes the whole organization.
+    ...(fallback.schemas != null ? { schemas: fallback.schemas } : {}),
   }
 }

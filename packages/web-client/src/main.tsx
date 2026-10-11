@@ -9,9 +9,6 @@ export const render = (node: ReactNode, opts?: RenderOptions) => {
   const _callback = () => {
     const key = opts?.domId ?? DEFAULT_ROOT
     const root = document.getElementById(key)
-    if (opts?.debug) {
-      console.debug(`Render react app to ${key}`)
-    }
     if (root == null) {
       throw new Error(`Root element not found with id: ${key}`)
     }

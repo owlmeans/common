@@ -1,10 +1,8 @@
 import { createService } from '@owlmeans/context'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
 import { assertContext } from '@owlmeans/context'
-import {
-  BED255_NONCE_HEADER, BED255_TIME_HEADER, BED255_CASHE_RESOURCE, GUARD_ED25519,
-  BED255_SIG_TTL
-} from './consts.js'
+import { BED255_CASHE_RESOURCE, GUARD_ED25519, BED255_SIG_TTL } from './consts.js'
+import { nonceKey, timeKey } from './consts.local.js'
 import { trust } from '../../utils/trusted.js'
 import type { Config, Context } from '../../utils/types.js'
 import type { BasicEd25519Guard, BasicEd25519GuardOptions } from './types.js'
@@ -16,9 +14,6 @@ import {
   makeMemorySignedRequestReplayStore, makeResourceSignedRequestReplayStore
 } from './replay.js'
 import type { SignedRequestReplayResource, SignedRequestReplayStore } from './types.js'
-
-const timeKey = BED255_TIME_HEADER.toLocaleLowerCase()
-const nonceKey = BED255_NONCE_HEADER.toLocaleLowerCase()
 
 export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519GuardOptions): BasicEd25519Guard => {
   const memoryReplay = makeMemorySignedRequestReplayStore()

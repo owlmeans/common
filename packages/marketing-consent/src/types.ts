@@ -15,6 +15,8 @@ export type MarketingConsentSource = 'sign-in' | 'settings' | 'cookie' | 'api'
 
 export interface MarketingConsentLink {
   href: string
+  /** Optional explicit translated destinations, including any policy fragment. */
+  hrefMap?: Record<string, string>
   labelKey?: string
   label?: Record<string, string>
 }

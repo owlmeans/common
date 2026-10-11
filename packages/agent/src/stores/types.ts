@@ -1,5 +1,5 @@
 import type {
-  ConversationEvent, ConversationEventInput, ConversationRef,
+  ConversationEvent, ConversationEventInput, ConversationRef, CumulativeResultEntry,
   MemoryEvent, MemoryEventInput, MemoryNode, PipelineRun, PipelineRunStatus,
 } from '@owlmeans/agent-common'
 
@@ -61,6 +61,29 @@ export interface PipelineRunStore {
     staleBefore?: string
     limit?: number
   }) => Promise<PipelineRun[]>
+}
+
+/**
+ * Where cumulative pipeline results are kept between steps, and between processes.
+ *
+ * An OPTIMIZATION of the ledger, never its authority: every entry of a finished step can be read
+ * again from the step's durable inputs, and is — silently — whenever a resume finds it missing. A
+ * store that loses an entry costs the next step some context, never a correct resume.
+ */
+export interface CumulativeResultStore {
+  /**
+   * Every entry of a ledger, in any order. Read on a run's entry and around every step — a run
+   * composed under a step writes through its own plugin instance, and this is how the parent
+   * learns what it wrote — so it is on the warm path: an index on `ledger` is the whole design.
+   */
+  list: (ledger: string) => Promise<CumulativeResultEntry[]>
+  /** UPSERT on `(ledger, runId, step)`. */
+  put: (entry: CumulativeResultEntry) => Promise<void>
+  /**
+   * Drop a ledger's entries — all of them, or those of ONE run and every run composed under it
+   * (`<runId>/…`), which is how a fresh start forgets what an earlier attempt of the same run said.
+   */
+  clear: (ledger: string, runId?: string) => Promise<void>
 }
 
 /**

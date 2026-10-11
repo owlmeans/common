@@ -1,7 +1,9 @@
 import type { JSONSchemaType } from 'ajv'
 
 import { ProjectArea } from '../areas/consts.js'
-import { BENTO_FRAGMENT_KINDS, LANDING_GATE_FIELD_KINDS, WidgetKind } from './consts.js'
+import {
+  BENTO_FRAGMENT_KINDS, LANDING_ANCHORS, LANDING_GATE_FIELD_KINDS, LANDING_SLOTS, WidgetKind,
+} from './consts.js'
 import type {
   BentoFragment, GuestHomePlan, LandingGateAnswer, LandingGateField, LandingGatePlan, ProductIdentity,
   ScaffoldAreaPlan, ScaffoldPlan, ScaffoldStoryPlan, SketchContent,
@@ -352,6 +354,27 @@ const LandingGatePlanSchema: JSONSchemaType<LandingGatePlan> = {
   additionalProperties: false,
 }
 
+/**
+ * The `basis` every band added with the gated landing page carries — one text, so the model reads
+ * the same rule on each band and the check downstream has one contract to enforce.
+ */
+const BASIS_TEXT = 'A short passage (a few words up to one sentence) copied EXACTLY, word for word,'
+  + ' from the person\'s own words, the specification or the vision, that this band is built on.'
+  + ' It is checked; a band whose basis is not found there is removed.'
+
+const basis = { type: 'string' as const, description: BASIS_TEXT }
+
+/** A title + text pair inside a band — required, because the band object itself is optional. */
+const titledText = (title: string, text: string) => ({
+  type: 'object' as const,
+  properties: {
+    title: { type: 'string' as const, description: title },
+    text: { type: 'string' as const, description: text },
+  },
+  required: ['title', 'text'] as ('title' | 'text')[],
+  additionalProperties: false as const,
+})
+
 const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
   type: 'object',
   title: 'GuestHomePlan',
@@ -425,7 +448,7 @@ const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
         + ' specification actually describes. Give most of them a fragment'
     },
     testimonials: {
-      type: 'array',
+      type: 'array', nullable: true,
       items: {
         type: 'object',
         properties: {
@@ -436,7 +459,8 @@ const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
         required: ['quote', 'name', 'role'],
         additionalProperties: false,
       },
-      description: '2 illustrative testimonials. No ratings, no numbers, no company names'
+      description: 'OPTIONAL: 0 or exactly 2 illustrative testimonials; leave it out unless the'
+        + ' product\'s end users choose it for themselves. No ratings, no numbers, no company names'
     },
     steps: {
       type: 'array', nullable: true,
@@ -451,6 +475,94 @@ const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
       },
       description: '"How it works": 3 steps taken from the main flow, in order, the last one'
         + ' delivering the value'
+    },
+    useCases: {
+      type: 'object', nullable: true,
+      description: 'OPTIONAL "Use cases": who the product is for, case by case - only cases the'
+        + ' person\'s words, the specification or the vision actually name',
+      properties: {
+        cases: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              audience: { type: 'string', description: 'Who this case is for, 1-4 words' },
+              title: { type: 'string', description: 'What they do with the product, 2-5 words' },
+              text: { type: 'string', description: 'One sentence on what it gives them' },
+            },
+            required: ['audience', 'title', 'text'],
+            additionalProperties: false,
+          },
+          description: '2 to 4 cases',
+        },
+        basis,
+      },
+      required: ['cases', 'basis'],
+      additionalProperties: false,
+    },
+    differentiator: {
+      type: 'object', nullable: true,
+      description: 'OPTIONAL "Why us": what this product does differently from the usual way,'
+        + ' only when the person\'s words, the specification or the vision say so',
+      properties: {
+        title: { type: 'string', description: 'The difference in 3-6 words' },
+        text: { type: 'string', description: 'One or two sentences on it. No invented numbers' },
+        contrast: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              usual: { type: 'string', description: 'How it is usually done, at most 6 words' },
+              ours: { type: 'string', description: 'How this product does it, at most 6 words' },
+            },
+            required: ['usual', 'ours'],
+            additionalProperties: false,
+          },
+          description: '2 to 3 usual-vs-ours rows',
+        },
+        usualLabel: {
+          type: 'string', nullable: true,
+          description: 'OPTIONAL heading over the usual column, 1-2 words - e.g. "Usually"',
+        },
+        oursLabel: {
+          type: 'string', nullable: true,
+          description: 'OPTIONAL heading over this product\'s column, 1-2 words - e.g. "With us"',
+        },
+        basis,
+      },
+      required: ['title', 'text', 'contrast', 'basis'],
+      additionalProperties: false,
+    },
+    approach: {
+      type: 'object', nullable: true,
+      description: 'OPTIONAL "How we work": the principles the product is run by, only when the'
+        + ' person\'s words, the specification or the vision state them',
+      properties: {
+        title: {
+          type: 'string', nullable: true,
+          description: 'OPTIONAL heading of the band, one short concrete sentence',
+        },
+        principles: {
+          type: 'array',
+          items: titledText('The principle, 2-4 words', 'One sentence on what it means in practice'),
+          description: '3 to 4 principles',
+        },
+        basis,
+      },
+      required: ['principles', 'basis'],
+      additionalProperties: false,
+    },
+    about: {
+      type: 'object', nullable: true,
+      description: 'OPTIONAL "About": who is behind the product, only when the person\'s words,'
+        + ' the specification or the vision say who',
+      properties: {
+        title: { type: 'string', description: 'The heading, 2-5 words' },
+        text: { type: 'string', description: 'Two or three sentences. Nothing invented' },
+        basis,
+      },
+      required: ['title', 'text', 'basis'],
+      additionalProperties: false,
     },
     labels: {
       type: 'object', nullable: true,
@@ -472,6 +584,17 @@ const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
         },
         problem: { type: 'string', nullable: true, description: 'e.g. "The problem"' },
         solution: { type: 'string', nullable: true, description: 'e.g. "The solution"' },
+        useCases: { type: 'string', nullable: true, description: 'e.g. "Use cases"' },
+        useCasesTitle: {
+          type: 'string', nullable: true, description: 'e.g. "Made for every kind of home baker."'
+        },
+        differentiator: { type: 'string', nullable: true, description: 'e.g. "Why us"' },
+        approach: { type: 'string', nullable: true, description: 'e.g. "How we work"' },
+        approachTitle: {
+          type: 'string', nullable: true,
+          description: 'e.g. "Small batches, honest notes." - used when the approach has no title'
+        },
+        about: { type: 'string', nullable: true, description: 'e.g. "About"' },
       },
       required: [],
       additionalProperties: false,
@@ -511,8 +634,57 @@ const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
       description: 'ONLY when you were given a landing story; omit it otherwise. '
         + LandingGatePlanSchema.description,
     },
+    menu: {
+      type: 'array', nullable: true,
+      items: {
+        type: 'object',
+        properties: {
+          anchor: {
+            type: 'string',
+            enum: LANDING_ANCHORS,
+            description: 'The band it jumps to: how (how it works), features, use-cases, why'
+              + ' (the differentiator), approach (how we work), community (testimonials), about'
+          },
+          label: { type: 'string', description: 'The menu word, 1-2 words in the product\'s language' },
+        },
+        required: ['anchor', 'label'],
+        additionalProperties: false,
+      },
+      description: 'The header menu of the landing page: 2 to 4 entries, each pointing at a band'
+        + ' this page carries, in page order'
+    },
+    links: {
+      type: 'array', nullable: true,
+      items: {
+        type: 'object',
+        properties: {
+          slot: {
+            type: 'string',
+            enum: LANDING_SLOTS,
+            description: 'The button: hero.cta, hero.secondary, hero.browse, closing.primary,'
+              + ' closing.secondary, closing.link.1/2 (the closing cards), useCase.1-4 (the use'
+              + ' cases in order). Without a gate only; with one, hero.cta, hero.secondary and'
+              + ' closing.primary do not exist'
+          },
+          story: {
+            type: 'string',
+            description: 'The story code, copied EXACTLY from the story list given to you'
+          },
+        },
+        required: ['slot', 'story'],
+        additionalProperties: false,
+      },
+      description: 'Which home buttons open which user story. Leave it out when undecided; an'
+        + ' empty list means decided: none. At most one entry per button'
+    },
+    linksDecided: {
+      type: 'array', nullable: true,
+      items: { type: 'string' },
+      description: 'Story codes whose links were decided at development time (a decision of no'
+        + ' button included). Absent on a plan whose links the planner decided. Filled by code'
+    },
   },
-  required: ['hero', 'problem', 'solution', 'features', 'testimonials'],
+  required: ['hero', 'problem', 'solution', 'features'],
   additionalProperties: false,
 }
 
@@ -567,10 +739,14 @@ export const ScaffoldPlanSchema: JSONSchemaType<ScaffoldPlan> = {
   additionalProperties: false,
 }
 
+/** The guest home's keys a model may answer: `linksDecided` is written by code, never asked. */
+const { linksDecided: _linksDecided, ...answeredHomeProperties } = GuestHomePlanSchema.properties!
+
 /**
  * The plan as the planning MODEL answers it — {@link ScaffoldPlanSchema} with the gate held to the
- * form. The stored schema keeps the pre-form gate keys optional so an old plan still validates;
- * offering them to the model would let it write a chip picker again. Typed as the stored plan
+ * form and without the code-written `linksDecided`. The stored schema keeps the pre-form gate keys
+ * optional so an old plan still validates; offering them to the model would let it write a chip
+ * picker again. Typed as the stored plan
  * because every answer is one: the answer's gate is a subset of the stored gate.
  */
 export const ScaffoldPlanAnswerSchema = {
@@ -580,7 +756,7 @@ export const ScaffoldPlanAnswerSchema = {
     guestHome: {
       ...GuestHomePlanSchema,
       properties: {
-        ...GuestHomePlanSchema.properties,
+        ...answeredHomeProperties,
         gate: {
           ...LandingGateAnswerSchema,
           nullable: true,

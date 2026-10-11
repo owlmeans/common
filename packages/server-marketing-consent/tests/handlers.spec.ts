@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { AuthroizationType } from '@owlmeans/auth'
 import { makeMarketingConsentProtocols, MC_EMAIL } from '@owlmeans/marketing-consent'
-import { marketingConsentStatus, recordTermsAcceptance, saveMarketingConsent } from '../src/handlers.js'
+import { marketingConsentStatus, recordTermsAcceptance, saveMarketingConsent } from '../src/handlers/index.js'
 import { makeTestContext, session } from './context.js'
 
 const protocols = makeMarketingConsentProtocols({ guards: 'guard:default' })

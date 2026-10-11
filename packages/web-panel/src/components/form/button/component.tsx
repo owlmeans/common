@@ -9,6 +9,9 @@ import { useContext } from '@owlmeans/client'
 import { useFormI18n, usePanelI18n } from '@owlmeans/client-panel'
 import { Button as UIButton } from '../../../@/components/ui/button.js'
 import { cn } from '../../../@/lib/utils.js'
+import { logger } from '@owlmeans/log'
+
+const log = logger('web-panel:form')
 
 /**
  * MUI → shadcn variant mapping:
@@ -82,7 +85,7 @@ export const SubmitButton: FC<SubmitProps> = memo((props) => {
 
   return <Button {...props} label={t(label)} i18n={_i18n}
     onClick={handleSubmit(
-      props.onSubmit ?? props.onClick ?? (() => { console.info('Empty submit') }),
-      problem => console.error('Failed to submit form with error: ', problem)
+      props.onSubmit ?? props.onClick ?? (() => { log.debug('Empty submit') }),
+      problem => log.debug('Form submit refused by validation', { fields: Object.keys(problem) })
     )} />
 })

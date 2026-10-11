@@ -5,9 +5,7 @@ import path from 'node:path'
 
 import { SubProject, TargetLayout } from '@owlmeans/viable-common'
 
-import {
-  apiPath, detectLayout, hasWorker, libraryPaths, subprojectDir, targetPaths, webPath, workerPath
-} from '../src/executor/layout.js'
+import { makeLayoutHelper } from '../src/executor/layout.js'
 
 /**
  * Which tree the connector's directory actually holds.
@@ -39,9 +37,9 @@ describe('viable-sdk — target layout detection', () => {
   test('a v1 tree resolves the packages layout', async () => {
     const root = await sandbox(['packages/common', 'packages/backend', 'packages/frontend'])
 
-    expect(detectLayout(root)).toBe(TargetLayout.V1)
-    expect(apiPath(root)).toBe(path.join(root, 'packages', 'backend'))
-    expect(webPath(root)).toBe(path.join(root, 'packages', 'frontend'))
+    expect(makeLayoutHelper(root).detectLayout()).toBe(TargetLayout.V1)
+    expect(makeLayoutHelper(root).apiPath()).toBe(path.join(root, 'packages', 'backend'))
+    expect(makeLayoutHelper(root).webPath()).toBe(path.join(root, 'packages', 'frontend'))
   })
 
   test('a v2 tree resolves api as the server and web as the browser app', async () => {
@@ -51,42 +49,42 @@ describe('viable-sdk — target layout detection', () => {
       'sources/common', 'sources/backend', 'sources/api', 'sources/web', 'sources/worker',
     ])
 
-    expect(detectLayout(root)).toBe(TargetLayout.V2)
-    expect(apiPath(root)).toBe(path.join(root, 'sources', 'api'))
-    expect(webPath(root)).toBe(path.join(root, 'sources', 'web'))
-    expect(targetPaths(root).build).toEqual(['common', 'backend', 'api', 'web', 'worker'])
+    expect(makeLayoutHelper(root).detectLayout()).toBe(TargetLayout.V2)
+    expect(makeLayoutHelper(root).apiPath()).toBe(path.join(root, 'sources', 'api'))
+    expect(makeLayoutHelper(root).webPath()).toBe(path.join(root, 'sources', 'web'))
+    expect(makeLayoutHelper(root).targetPaths().build).toEqual(['common', 'backend', 'api', 'web', 'worker'])
   })
 
   test('an empty directory answers v1, which is what every path resolved to before v2 existed', async () => {
     const root = await sandbox([])
 
-    expect(detectLayout(root)).toBe(TargetLayout.V1)
+    expect(makeLayoutHelper(root).detectLayout()).toBe(TargetLayout.V1)
   })
 
   test('a re-initialized tree is re-read, never remembered', async () => {
     // A project is re-initialized in place under a running connector. A memoized verdict would
     // keep resolving every path into a directory that had just been deleted.
     const root = await sandbox(['packages/backend', 'packages/frontend'])
-    expect(detectLayout(root)).toBe(TargetLayout.V1)
+    expect(makeLayoutHelper(root).detectLayout()).toBe(TargetLayout.V1)
 
     await fse.remove(path.join(root, 'packages'))
     await fse.ensureDir(path.join(root, 'sources', 'api'))
 
-    expect(detectLayout(root)).toBe(TargetLayout.V2)
+    expect(makeLayoutHelper(root).detectLayout()).toBe(TargetLayout.V2)
   })
 
   test('a wire subproject is a role, and each layout spells it differently', async () => {
     const v1 = await sandbox(['packages/backend'])
     const v2 = await sandbox(['sources/api'])
 
-    expect(subprojectDir(v1, SubProject.Backend)).toBe('backend')
-    expect(subprojectDir(v1, SubProject.Frontend)).toBe('frontend')
+    expect(makeLayoutHelper(v1).subprojectDir(SubProject.Backend)).toBe('backend')
+    expect(makeLayoutHelper(v1).subprojectDir(SubProject.Frontend)).toBe('frontend')
     // v2 SPLIT the server: `backend` is the shared library and `api` is the HTTP server, which is
     // what the agent library means by each name. Resolving `backend` to `api` here would
     // type-check and build the server whenever the platform asked about the library.
-    expect(subprojectDir(v2, SubProject.Backend)).toBe('backend')
-    expect(subprojectDir(v2, SubProject.Frontend)).toBe('web')
-    expect(subprojectDir(v2, SubProject.Common)).toBe('common')
+    expect(makeLayoutHelper(v2).subprojectDir(SubProject.Backend)).toBe('backend')
+    expect(makeLayoutHelper(v2).subprojectDir(SubProject.Frontend)).toBe('web')
+    expect(makeLayoutHelper(v2).subprojectDir(SubProject.Common)).toBe('common')
   })
 
   test('every role the platform can send resolves, and none but Common answers common', async () => {
@@ -98,18 +96,18 @@ describe('viable-sdk — target layout detection', () => {
     const v2 = await sandbox(['sources/api'])
 
     for (const role of Object.values(SubProject).filter(r => r !== SubProject.Common)) {
-      expect(subprojectDir(v1, role)).not.toBe('common')
-      expect(subprojectDir(v2, role)).not.toBe('common')
+      expect(makeLayoutHelper(v1).subprojectDir(role)).not.toBe('common')
+      expect(makeLayoutHelper(v2).subprojectDir(role)).not.toBe('common')
     }
-    expect(subprojectDir(v1, SubProject.Common)).toBe('common')
-    expect(subprojectDir(v2, SubProject.Common)).toBe('common')
+    expect(makeLayoutHelper(v1).subprojectDir(SubProject.Common)).toBe('common')
+    expect(makeLayoutHelper(v2).subprojectDir(SubProject.Common)).toBe('common')
 
     // The v2 names map onto v1's directories, so a current platform still reaches an old tree.
-    expect(subprojectDir(v1, SubProject.Api)).toBe('backend')
-    expect(subprojectDir(v1, SubProject.Web)).toBe('frontend')
-    expect(subprojectDir(v2, SubProject.Api)).toBe('api')
-    expect(subprojectDir(v2, SubProject.Web)).toBe('web')
-    expect(subprojectDir(v2, SubProject.Worker)).toBe('worker')
+    expect(makeLayoutHelper(v1).subprojectDir(SubProject.Api)).toBe('backend')
+    expect(makeLayoutHelper(v1).subprojectDir(SubProject.Web)).toBe('frontend')
+    expect(makeLayoutHelper(v2).subprojectDir(SubProject.Api)).toBe('api')
+    expect(makeLayoutHelper(v2).subprojectDir(SubProject.Web)).toBe('web')
+    expect(makeLayoutHelper(v2).subprojectDir(SubProject.Worker)).toBe('worker')
   })
 
   test('the libraries a tree must build before anything that imports them', async () => {
@@ -120,9 +118,9 @@ describe('viable-sdk — target layout detection', () => {
     const v1 = await sandbox(['packages/common', 'packages/backend', 'packages/frontend'])
     const v2 = await sandbox(['sources/common', 'sources/backend', 'sources/api', 'sources/web'])
 
-    expect(libraryPaths(v1)).toEqual([path.join(v1, 'packages', 'common')])
+    expect(makeLayoutHelper(v1).libraryPaths()).toEqual([path.join(v1, 'packages', 'common')])
     // Ordered: `backend` compiles against `common`.
-    expect(libraryPaths(v2)).toEqual([
+    expect(makeLayoutHelper(v2).libraryPaths()).toEqual([
       path.join(v2, 'sources', 'common'),
       path.join(v2, 'sources', 'backend'),
     ])
@@ -131,21 +129,21 @@ describe('viable-sdk — target layout detection', () => {
   test('a library that is not on disk is not built', async () => {
     const root = await sandbox(['sources/api', 'sources/common'])
 
-    expect(libraryPaths(root)).toEqual([path.join(root, 'sources', 'common')])
+    expect(makeLayoutHelper(root).libraryPaths()).toEqual([path.join(root, 'sources', 'common')])
   })
 
   test('a v1 tree has nowhere a worker could live', async () => {
     const root = await sandbox(['packages/common', 'packages/backend', 'packages/frontend'])
 
-    expect(workerPath(root)).toBeNull()
-    expect(hasWorker(root)).toBe(false)
+    expect(makeLayoutHelper(root).workerPath()).toBeNull()
+    expect(makeLayoutHelper(root).hasWorker()).toBe(false)
   })
 
   test('a v2 tree names the worker whether or not one is there', async () => {
     const root = await sandbox(['sources/common', 'sources/api', 'sources/web'])
 
-    expect(workerPath(root)).toBe(path.join(root, 'sources', 'worker'))
-    expect(hasWorker(root)).toBe(false)
+    expect(makeLayoutHelper(root).workerPath()).toBe(path.join(root, 'sources', 'worker'))
+    expect(makeLayoutHelper(root).hasWorker()).toBe(false)
   })
 
   test('a worker counts only once its package manifest is on disk', async () => {
@@ -153,10 +151,10 @@ describe('viable-sdk — target layout detection', () => {
     // with nothing in it spends a start on a bundle that cannot exist yet.
     const root = await sandbox(['sources/common', 'sources/api', 'sources/web', 'sources/worker'])
 
-    expect(hasWorker(root)).toBe(false)
+    expect(makeLayoutHelper(root).hasWorker()).toBe(false)
 
     await fse.writeJSON(path.join(root, 'sources', 'worker', 'package.json'), { name: 'worker' })
 
-    expect(hasWorker(root)).toBe(true)
+    expect(makeLayoutHelper(root).hasWorker()).toBe(true)
   })
 })

@@ -51,8 +51,8 @@ Options:
   front-end signs with. Pick aliases whose private keys you actually have (e.g. in `.env.dev.secrets`).
 - `resolveUser` — `(userId, context, { register }) => Promise<SupervisorUserResolution>`. Default:
   trust the id as-is (`{ userId }`). Wire it to `@owlmeans/server-auth-identity`'s
-  `IdentityLinkingService` (`getLinkedProfile` / `linkProfile`) to find-or-create a real profile and
-  organization entity. `SupervisorUserResolution` is `{ userId }` plus optional `profileId`,
+  `IdentityLinkingService` (`getLinkedProfile` / `linkProfile`) to find-or-create the person's
+  account and the deployment's own row (a new address registers a personal organization). `SupervisorUserResolution` is `{ userId }` plus optional `profileId`,
   `entitySlug`, `role` and `scopes` — the organization value is a SLUG, the renameable public name
   that a token carries, never the stable `entityId`. `profileId` defaults to `userId`, `scopes` to
   the credential's own or `[ALL_SCOPES]`, and `role` to `AuthRole.User`.
@@ -90,19 +90,19 @@ advertising it.
 
 ## Tests: `@owlmeans/test-ui` helpers
 
-- `authenticateViaSupervisorApi({ apiBaseUrl, userId, pk })` — drives the live API
+- `supervisorAuthHelper.authenticateViaSupervisorApi({ apiBaseUrl, userId, pk })` — drives the live API
   (`/authentication/init` → sign → `/authentication/authenticate` → `/authenticate`) and returns the
   final bearer. **No browser**; registers the user on first use. The "set a token directly via API" path.
-- `loginViaSupervisorForm(page, { baseUrl, userId, pk })` — Playwright: drives the real login form
+- `makePageHelper(page).loginViaSupervisorForm({ baseUrl, userId, pk })` — Playwright: drives the real login form
   end-to-end (faithful path that exercises the plugin + registration).
-- `loginViaDispatcher(page, baseUrl, token)` — inject a pregenerated bearer via the standard
+- `makePageHelper(page).loginViaDispatcher(baseUrl, token)` — inject a pregenerated bearer via the standard
   `/dispatcher?token=` route (apps that override DISPATCHER, e.g. for a forced IdP, can't use this —
   use the form).
-- `pregenerateAuthToken({ userId, pk, scopes?, role?, profileId?, source?, ... })` — offline mint via
+- `supervisorAuthHelper.pregenerateAuthToken({ userId, pk, scopes?, role?, profileId?, source?, ... })` — offline mint via
   `@owlmeans/test-auth`'s `makeBearer`, using the project's **own** trusted signing key (lowest-level
   primitive). No plugin, no registration.
 
-`loginViaSupervisorForm` answers a cookie-consent dialog by default (`consent: 'accept'`): an
+`makePageHelper(page).loginViaSupervisorForm` answers a cookie-consent dialog by default (`consent: 'accept'`): an
 OwlMeans app refuses to start an authentication flow until consent is answered, and the modal
 intercepts every click at the form underneath. Both browser helpers navigate with
 `waitUntil: 'domcontentloaded'` rather than Playwright's `load`, because `load` waits for every

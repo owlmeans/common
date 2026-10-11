@@ -31,6 +31,10 @@ answer from the same pure functions, so a disabled button and a 403 cannot disag
 - **The effective plan** is the highest-ranked subscription in `ENTITLING_STATUSES`
   (`Active`, `Trial`, `PastDue`). `PastDue` still entitles and is flagged; `Suspended` revokes
   until resumed; terminal statuses fall back to the free plan.
+- **One subscription may hold other ceilings than its plan declares**: the row's `overrides.limits`
+  replace the plan's ceilings for that subscription only, promo or not (the `server-payment` skill,
+  § The subscription store). Read a plan's limits from the effective plan or the entitlement view,
+  never from the catalogue by sku, or an override is missed.
 - A plan names its keys, never a product's copy: every limit key an application gates on appears
   on every plan (with `limit: 0` where not included), so "not included" is an answer, not a
   missing row.
@@ -111,7 +115,8 @@ Limits are event-sourced with synchronous admission:
 
 ## The entitlement view
 
-One read of an entity's position, built by `entitlementViewOf(plan, planView, usage, at)`:
+One read of an entity's position, built by
+`entitlementViewHelper.entitlementViewOf(plan, planView, usage, at)`:
 
 - `plan` — sku, rank, free, status, paygate, period, trial, cancel-at-period-end, past-due,
   fallback plan;
@@ -120,11 +125,11 @@ One read of an entity's position, built by `entitlementViewOf(plan, planView, us
   `windowStart`/`resetsAt` for window limits;
 - `at` — when it was computed.
 
-The server serves it; the browser reads it with the same `capabilityOf` / `limitOf` /
-`hasLimitRoom` the gate logic uses. On the wire every date is an ISO string — revive
-(`reviveEntitlementView`) before using a date. In the browser `null` means "not known yet": render
-paid controls disabled rather than enabled-then-refused, and an application with its own store
-reads the view through the pure selectors rather than polling it a second time.
+The server serves it; the browser reads it with the same `planLimitHelper.capabilityOf` /
+`limitOf` / `hasLimitRoom` the gate logic uses. On the wire every date is an ISO string — revive
+(`entitlementViewHelper.reviveEntitlementView`) before using a date. In the browser `null` means
+"not known yet": render paid controls disabled rather than enabled-then-refused, and an application
+with its own store reads the view through the pure selectors rather than polling it a second time.
 
 ## Refusals
 

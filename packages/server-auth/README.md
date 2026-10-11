@@ -13,7 +13,7 @@ account/profile records `@owlmeans/server-auth-identity`, and the browser side `
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth@^0.1.18-rc.46
+bun add @owlmeans/server-auth@^0.1.18-rc.57
 ```
 
 ## Concepts
@@ -60,13 +60,13 @@ export const invoiceProtocols = {
 
 ```ts
 import { handlers } from '@owlmeans/server-app'
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 
 const api = handlers<Context>()
 
 export const list = api.request(invoiceProtocols.list, async (request, context) => {
   // request.auth is the verified Auth: userId, profileId, role, scopes, entitySlug
-  const { items } = await context.invoice().list({ entityId: requireEntityKey(request) })
+  const { items } = await context.invoice().list({ entityId: makeEntityScope(request).requireEntityKey() })
   return items
 })
 ```
@@ -144,6 +144,29 @@ registerPlugin('my-method', context => ({
 }) as AuthPlugin)
 ```
 
+### Accept a reCAPTCHA-proven guest on one route
+
+The manager's reCAPTCHA plugin signs a GUEST token (`GUEST_ID`, role Guest, `[AUTH_SCOPE]`) whatever
+identity the caller posts. A route takes it through the reCAPTCHA guard, which spends it once:
+
+```ts
+import { CMOD_RECAPTCHA, MOD_RECAPTCHA, RECAPTCHA_GUARD } from '@owlmeans/auth'
+import { clientPlugin, plugin } from '@owlmeans/config'
+import { makeReCaptchaGuard, reCaptchaTokenOf } from '@owlmeans/server-auth'
+
+// config: the secret plus the policy (strings, '' = no check), and the browser's site key
+plugin(cfg, {
+  value: '/etc/master-secret/recaptcha-secret',
+  hostnames: 'example.org, example.com', minScore: '0.5', actions: 'inquiry',
+}, MOD_RECAPTCHA)
+clientPlugin(cfg, '/etc/app-config/recaptcha-site-key', CMOD_RECAPTCHA)
+
+// context: the guard of the route's `guards: [RECAPTCHA_GUARD]` (`Authorization: RE-CAPTCHA <token>`)
+context.registerService(makeReCaptchaGuard())
+// a pre-parse check that does not spend:
+const guest = await reCaptchaTokenOf(context).inspect(request) // null = 401
+```
+
 ## API
 
 ### Root export
@@ -159,6 +182,9 @@ registerPlugin('my-method', context => ({
 | `AUTHEN_TIMEFRAME` | const | `15 * 60 * 1000` ms — challenge lifetime and anti-replay window |
 | `makeRelyModel`, `makeProviderRely`, `makeConsumerRely` | function | Rely envelope models |
 | `AuthService`, `AuthServiceAppend`, `AuthSpent`, `RelyOptions` | type | Guard service, context mixin, cache record, rely options |
+| `makeReCaptchaGuard(alias = RECAPTCHA_GUARD)` | function | Guard of a route a reCAPTCHA guest calls once: verifies and spends `RE-CAPTCHA <token>` |
+| `makeReCaptchaTokenHelper(ctx)`, `reCaptchaTokenOf(ctx)` | function | `inspect(req)` / `verify(token)` (no spend) and `spend(guest)` |
+| `ReCaptchaGuest`, `ReCaptchaCarrier`, `ReCaptchaTokenHelper` | type | Inspection result, header carrier, token checks |
 
 ### `./manager`
 
@@ -166,7 +192,7 @@ registerPlugin('my-method', context => ({
 |---|---|---|
 | `makeContext(cfg, customize?)` | function | Server context with API server, API client, socket service, rely guard and static `AUTH_CACHE` |
 | `main(ctx)` | function | Register the manager entrypoints, init and listen |
-| `entrypoints` | const | Bindings for authen, init, authenticate, rely, api-config and reCAPTCHA siteverify |
+| `entrypoints` | const | Bindings for authen, init, authenticate, rely and api-config |
 | `authenticationInit`, `authenticate`, `rely` | function | Implementations bound to the auth protocols |
 | `plugins`, `registerPlugin(type, factory)` | const / function | The plugin registry |
 | `appendSupervisorAuth(ctx, opts?)`, `setupInternalTokenCoguard(entrypoints, guard?)` | function | PK supervisor login (development only by default) |
@@ -184,10 +210,14 @@ registerPlugin('my-method', context => ({
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `registerPlugin(type, factory)`, `plugins` | function / const | The module-level registry |
-| `getPlugin(type, context)`, `assertType(type, plugin)` | function | Resolution; `getPlugin` throws `AuthUnknown(type)` for an unregistered type |
-| `basicEd25519`, `reCaptcha`, `basicRely` | function | Built-in plugins |
+| `authPluginHelper.getPlugin(type, context)`, `authPluginHelper.assertType(type, plugin)` | method | Resolution; `getPlugin` throws `AuthUnknown(type)` for an unregistered type |
+| `makeBasicEd25519Plugin`, `makeReCaptchaPlugin`, `makeBasicRelyPlugin` | function | Built-in plugin factories |
 | `makeSupervisorPlugin(context, opts)` | function | PK supervisor plugin factory |
-| `AuthPlugin`, `RecpatchaResponse`, `RecaptchaRequest`, `RelyRecord`, `AuthRedisResource` | type | Plugin shapes |
+| `createReCaptchaVerifierService(alias?, opts?)`, `appendReCaptchaVerifierService(ctx, alias?, opts?)` | function | Google siteverify over `fetch` (https only); the plugin's seam |
+| `makeReCaptchaPolicyModel(record)` | function | The `MOD_RECAPTCHA` record's policy: `hostnames()`, `minScore()`, `actions()`, `assert(answer)` |
+| `RECAPTCHA_VERIFIER`, `RECAPTCHA_SITEVERIFY_URL`, `RECAPTCHA_VERIFY_TIMEOUT` | const | `'re-captcha-verifier'`, Google's endpoint, 10 s |
+| `AuthPlugin`, `AuthPluginFactory`, `AuthPluginHelper`, `RelyRecord`, `AuthRedisResource` | type | Plugin shapes |
+| `ReCaptchaResponse`, `ReCaptchaRequest`, `ReCaptchaVerifierService`, `ReCaptchaVerifierOptions`, `ReCaptchaFetch`, `ReCaptchaPluginConfig`, `ReCaptchaPolicyModel` | type | reCAPTCHA shapes |
 
 ## Common pitfalls
 
@@ -202,6 +232,8 @@ registerPlugin('my-method', context => ({
   entity id.
 - Register `appendAuthService` before `appendAuthIdentityResources` and product gate services.
 - Import `./manager` only in the auth manager process.
+- A reCAPTCHA token is a guest token: the bearer exchange (`authenticate`) refuses it, and only
+  `makeReCaptchaGuard` accepts it — once.
 
 ## Related packages
 
@@ -222,7 +254,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.40
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

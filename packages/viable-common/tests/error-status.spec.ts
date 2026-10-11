@@ -14,11 +14,13 @@ const DECLARED: Record<string, number | undefined> = {
   ConnectError: undefined,
   ConnectSessionNotFound: 404,
   ConnectOpUnknown: 404,
+  ConnectCallLost: 410,
   ConnectSessionGone: 409,
   LocalSlotUnsupported: 409,
   ConnectOpRefused: 422,
   ConnectOutOfCredits: 402,
   ConnectConsentRequired: 428,
+  ConnectConfirmationRequired: 428,
   ConnectOpTimeout: undefined,
   ProjectResourceError: undefined,
   ProjectNotFound: 404,
@@ -41,7 +43,7 @@ describe('viable-common refusals — declared HTTP statuses', () => {
     expect(classes.map(([name]) => name).sort()).toEqual(Object.keys(DECLARED).sort())
   })
 
-  test('balance 402, an absent target 404, a conflicting state 409, refused content 422, a consent only a person gives 428; faults nothing', () => {
+  test('balance 402, an absent target 404, a conflicting state 409, a lost outcome 410, refused content 422, a consent or a confirmation only a person gives 428; faults nothing', () => {
     for (const [name, Class] of classes) {
       expect([name, statusOf(new Class('x'))]).toEqual([name, DECLARED[name]])
     }
@@ -60,5 +62,10 @@ describe('viable-common refusals — declared HTTP statuses', () => {
       new connect.ConnectConsentRequired(connect.ConnectConsentRequired.encode('story', 'https://x.test/?consent=1')).marshal()
     )
     expect([statusOf(consent), (consent as connect.ConnectConsentRequired).consentUrl]).toEqual([428, 'https://x.test/?consent=1'])
+    const confirmation = ResilientError.ensure(new connect.ConnectConfirmationRequired(connect.ConnectConfirmationRequired.encode({
+      action: 'convert-proceed', cap: 1_000_000, spent: 420_000, estimate: 300_000, fromAllowance: 300_000,
+      fromCreditLimits: 0, moneyUsd: 0,
+    })).marshal())
+    expect([statusOf(confirmation), (confirmation as connect.ConnectConfirmationRequired).spent]).toEqual([428, 420_000])
   })
 })

@@ -4,8 +4,9 @@ import type { LoginContext } from '@owlmeans/client-auth/login'
 import type { LoginTermsConfig } from '@owlmeans/config'
 import type { MarketingConsentStatusView } from '@owlmeans/marketing-consent'
 import { MARKETING_CONSENT_SKIP_STORAGE } from '../src/consts.js'
-import { isMarketingConsentSkipped, markMarketingConsentSkipped, marketingConsentStep } from '../src/step.js'
-import type { MarketingConsentClientService } from '../src/service.js'
+import { marketingConsentStep } from '../src/step.js'
+import { marketingConsentSkipOf } from '../src/skip.js'
+import type { MarketingConsentClientService } from '../src/types.js'
 
 /** A hand-written `window.localStorage`, mirroring `@owlmeans/client-auth`'s own `land.spec.ts`
  * idiom — the skip marker is read/written through exactly the same two methods `land.ts` uses. */
@@ -60,7 +61,7 @@ describe('marketingConsentStep — default mode (no confirmsTerms)', () => {
   test('pending items, but THIS sign-in already skipped — not pending', async () => {
     stubStorage()
     const ctx = fakeContext({ token: 'tok', sessionId: 'sess-1' })
-    await markMarketingConsentSkipped(ctx)
+    await marketingConsentSkipOf(ctx).markSkipped()
 
     const step = marketingConsentStep(fakeClient({ pending: true, items: [] }), 'screen')
     expect(await step.pending(ctx)).toBe(false)
@@ -68,7 +69,7 @@ describe('marketingConsentStep — default mode (no confirmsTerms)', () => {
 
   test('the skip marker is per session — a different sign-in is asked again', async () => {
     stubStorage()
-    await markMarketingConsentSkipped(fakeContext({ token: 'tok', sessionId: 'sess-1' }))
+    await marketingConsentSkipOf(fakeContext({ token: 'tok', sessionId: 'sess-1' })).markSkipped()
 
     const step = marketingConsentStep(fakeClient({ pending: true, items: [] }), 'screen')
     expect(await step.pending(fakeContext({ token: 'tok-2', sessionId: 'sess-2' }))).toBe(true)
@@ -127,7 +128,7 @@ describe('marketingConsentStep — confirmsTerms (Terms mode)', () => {
   test('terms current, items pending, but THIS sign-in already skipped — not pending', async () => {
     stubStorage()
     const ctx = fakeContext({ token: 'tok', sessionId: 'sess-1', terms: TERMS })
-    await markMarketingConsentSkipped(ctx)
+    await marketingConsentSkipOf(ctx).markSkipped()
 
     const step = marketingConsentStep(
       fakeClient({ pending: true, items: [], terms: { version: 'v1', acceptedAt: '' } }),
@@ -149,22 +150,22 @@ describe('skip marker helpers', () => {
     stubStorage()
     const ctx = fakeContext({ token: null })
 
-    await markMarketingConsentSkipped(ctx)
-    expect(await isMarketingConsentSkipped(ctx)).toBe(false)
+    await marketingConsentSkipOf(ctx).markSkipped()
+    expect(await marketingConsentSkipOf(ctx).isSkipped()).toBe(false)
     expect(window.localStorage.getItem(MARKETING_CONSENT_SKIP_STORAGE)).toBeNull()
   })
 
   test('keyed by sessionId when the token carries one, else the raw token', async () => {
     stubStorage()
-    await markMarketingConsentSkipped(fakeContext({ token: 'raw-token', sessionId: 'sess-9' }))
+    await marketingConsentSkipOf(fakeContext({ token: 'raw-token', sessionId: 'sess-9' })).markSkipped()
 
     expect(window.localStorage.getItem(MARKETING_CONSENT_SKIP_STORAGE)).toBe('sess-9')
-    expect(await isMarketingConsentSkipped(fakeContext({ token: 'raw-token', sessionId: 'sess-9' }))).toBe(true)
+    expect(await marketingConsentSkipOf(fakeContext({ token: 'raw-token', sessionId: 'sess-9' })).isSkipped()).toBe(true)
     // A refreshed token, same session — still recognised as the same sign-in.
-    expect(await isMarketingConsentSkipped(fakeContext({ token: 'refreshed-token', sessionId: 'sess-9' })))
+    expect(await marketingConsentSkipOf(fakeContext({ token: 'refreshed-token', sessionId: 'sess-9' })).isSkipped())
       .toBe(true)
 
-    await markMarketingConsentSkipped(fakeContext({ token: 'no-session-token' }))
+    await marketingConsentSkipOf(fakeContext({ token: 'no-session-token' })).markSkipped()
     expect(window.localStorage.getItem(MARKETING_CONSENT_SKIP_STORAGE)).toBe('no-session-token')
   })
 })

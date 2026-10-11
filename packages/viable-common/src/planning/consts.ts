@@ -1,5 +1,4 @@
-import { CodeScope, CodeStyle } from '@owlmeans/planning'
-import type { CodePolicy } from '@owlmeans/planning'
+import { CodeScope, CodeStyle, type CodePolicy } from '@owlmeans/planning'
 
 /**
  * The OwlMeans Viable vocabulary over `@owlmeans/planning`.
@@ -180,3 +179,17 @@ export const VIABLE_IMPROVEMENT_CODE: CodePolicy = Object.freeze({
 export const VIABLE_REQUIREMENT_CODE: CodePolicy = Object.freeze({
   ...VIABLE_STORY_CODE, prefix: VIABLE_REQUIREMENT_CODE_PREFIX,
 })
+
+/**
+ * The sentence a landing story's narrative carries — what a person reading the board sees.
+ *
+ * The AUTHORITY is the card's `fields.landing` flag, never this text: the design and development
+ * stages key on the flag, and a person may reword the narrative at any time. The sentence exists so
+ * the board says in plain words why this story is different, and so the analyst and the designer,
+ * who read the narrative, write a screen that continues what the guest started.
+ *
+ * A constant, byte for byte, because {@link hasLandingSentence} is how a resumed decision step
+ * knows it already appended it.
+ */
+export const LANDING_STORY_SENTENCE = 'A visitor can start this on the landing page without an account;'
+  + ' after signing in they continue here with their choices carried over.'

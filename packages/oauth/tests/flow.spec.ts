@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { makeFlowModel } from '@owlmeans/flow'
-import { OAUTH_PAYLOAD_KIND, OAUTH_PAYLOAD_REF, OAuthFlowStep, oauthFlow, oauthFlowProvider } from '../src/flow.js'
+import { oauthFlowProvider } from '../src/flow.js'
+import { oauthFlow, OAUTH_PAYLOAD_KIND, OAUTH_PAYLOAD_REF, OAuthFlowStep } from '../src/consts.js'
 
 describe('oauthFlow', () => {
   test('starts on consent, and verify is reachable by name', async () => {

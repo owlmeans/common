@@ -52,3 +52,9 @@ export interface AuthTokenConfig extends ServerConfig {
 }
 
 export type AuthTokenContext<C extends AuthTokenConfig = AuthTokenConfig> = ServerContext<C>
+
+export interface MintedToken {
+  token: string
+  hash: string
+  display: string
+}

@@ -11,18 +11,6 @@ export const ENV_PROJECT_DIR = 'VIABLE_PROJECT_DIR'
 export const ENV_MCP_URL = CONNECT_ENV_MCP_URL
 export const DEFAULT_MCP_URL = CONNECT_DEFAULT_MCP_URL
 
-/**
- * The `/mcp` URL a person, a doc or a verification tool should use: the value the merged
- * configuration names (environment over `~/.owlmeans`, already resolved by the caller), else the
- * production default. An empty value counts as unset, and a trailing slash is dropped — a
- * canonical resource URI (RFC 8707) has one spelling.
- */
-export const resolveMcpUrl = (values: Record<string, string | undefined>): string => {
-  const named = values[ENV_MCP_URL]
-
-  return (named != null && named !== '' ? named : DEFAULT_MCP_URL).replace(/\/+$/, '')
-}
-
 /** The service alias the SDK's own client context registers under. */
 export const SDK_SERVICE = 'viable-sdk'
 
@@ -34,6 +22,13 @@ export const SDK_SERVICE = 'viable-sdk'
  * ceiling without configuration — long operations return a domain status and continue server-side.
  */
 export const TOOL_DEADLINE_MS = 45_000
+
+/**
+ * How long a tool in the delegated mode waits for its call — or for a model task that call is
+ * waiting on — before answering "still running". Inside {@link TOOL_DEADLINE_MS}, so the answer
+ * always beats the host's ceiling.
+ */
+export const HANDOVER_WAIT_MS = 40_000
 
 /**
  * How long a story tool waits for its planning transition to COMMIT, in milliseconds.
@@ -67,11 +62,3 @@ export const NEXT_QUESTION_WAIT_MS = 30_000
 /** How long a pull waits for an operation before answering empty. */
 export const PULL_WAIT_MS = 30_000
 
-/** How often a socket says it is still there. Presence outlives three missed pings. */
-export const PING_INTERVAL_MS = 30_000
-
-/** How long the socket handshake may take before the connector falls back to polling. */
-export const SOCKET_HANDSHAKE_MS = 10_000
-
-/** Reconnection backoff, in order. The last entry repeats. */
-export const RECONNECT_BACKOFF_MS = [1_000, 2_000, 5_000, 10_000, 30_000]

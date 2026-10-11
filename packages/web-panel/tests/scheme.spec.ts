@@ -1,14 +1,14 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 import { HARNESS_URL } from './context.js'
-import { COLOR_SCHEME_KEY, colorSchemeBootstrapScript } from '../src/scheme/index.js'
+import { COLOR_SCHEME_KEY, colorSchemeHelper } from '../src/scheme/index.js'
 
 const TIMEOUT = 30_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 const open = async (path: string) => mountComponent({ url: `${HARNESS_URL.replace(/\/$/, '')}${path}` })
@@ -46,7 +46,7 @@ describe('@owlmeans/web-panel/scheme — the React-free half', () => {
         // Indirect eval — the script runs as the head would run it, in global scope.
         ;(0, eval)(script)
         return ['light', 'dark'].filter(name => document.documentElement.classList.contains(name))
-      }, { key: COLOR_SCHEME_KEY, value, script: colorSchemeBootstrapScript() })
+      }, { key: COLOR_SCHEME_KEY, value, script: colorSchemeHelper.colorSchemeBootstrapScript() })
 
       expect(await run('dark')).toEqual(['dark'])
       expect(await run('light')).toEqual(['light'])

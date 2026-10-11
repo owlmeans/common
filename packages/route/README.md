@@ -16,7 +16,7 @@ context that asks, so the same declaration serves a server and a browser alike.
 ## Installation
 
 ```bash
-bun add @owlmeans/route@^0.1.18-rc.33
+bun add @owlmeans/route@^0.1.18-rc.35
 ```
 
 ## Concepts
@@ -148,7 +148,7 @@ Once protocols are registered on a context, the entrypoint accessors answer addr
 ```ts
 import { AppType } from '@owlmeans/context'
 import { service } from '@owlmeans/config'
-import { resolveAddress, resolveMount } from '@owlmeans/route/utils'
+import { routeAddressOf } from '@owlmeans/route/utils'
 import { invoiceProtocols } from 'my-app-common'
 
 // Config side: the service the backend routes resolve against
@@ -163,8 +163,9 @@ entrypoint.isLocal() // true inside the my-app-api process
 
 // Same answers from a declaration
 const declaration = invoiceProtocols.create.route.route
-resolveMount(context, declaration)
-resolveAddress(context, declaration)
+const addresses = routeAddressOf(context)
+addresses.resolveMount(declaration)
+addresses.resolveAddress(declaration)
 ```
 
 ## API
@@ -197,20 +198,22 @@ resolveAddress(context, declaration)
 
 ### `@owlmeans/route/utils`
 
-The first six take `(context, declaration)`; the other four are pure and take no context.
+`routeAddressOf(context)` answers address questions against a context (one helper per context,
+built on first use; `makeRouteAddressHelper(context)` builds a fresh one). `routeDeclarationHelper`
+and `serviceRouteHelper` are pure and take no context.
 
 | Symbol | Kind | Purpose |
 |--------|------|---------|
-| `resolvePath(context, route)` | function | Every ancestor's segment, then this one |
-| `resolveMount(context, route)` | function | Service `base` + the full path |
-| `resolveService(context, route)` | function | The named service, else the default of the route's type, else the first of that type |
-| `resolveAddress(context, route)` | function | The `RouteAddress`; a hop over the service's internal host is never TLS |
-| `isLocalRoute(context, route)` | function | Does the route belong to the context's own service |
-| `getParentRoute(context, route)` | function | The parent declaration, with parentship-cycle detection |
-| `overrideParams(route, overrides?, filter?)` | function | Fill only blank fields of `route` from `overrides`; mutates, returns nothing |
-| `prependBase(route, path)` | function | `path` prefixed with `route.base` when set |
-| `isServiceRoute(obj?)` | type guard | Is `obj` a `CommonServiceRoute` with a known `AppType` |
-| `isServiceRouteResolved(route)` | type guard | Does the service entry name a host |
+| `routeAddressOf(context).resolvePath(route)` | helper member | Every ancestor's segment, then this one |
+| `routeAddressOf(context).resolveMount(route)` | helper member | Service `base` + the full path |
+| `routeAddressOf(context).resolveService(route)` | helper member | The named service, else the default of the route's type, else the first of that type |
+| `routeAddressOf(context).resolveAddress(route)` | helper member | The `RouteAddress`; a hop over the service's internal host is never TLS |
+| `routeAddressOf(context).isLocalRoute(route)` | helper member | Does the route belong to the context's own service |
+| `routeAddressOf(context).getParentRoute(route)` | helper member | The parent declaration, with parentship-cycle detection |
+| `routeDeclarationHelper.overrideParams(route, overrides?, filter?)` | helper member | Fill only blank fields of `route` from `overrides`; mutates, returns nothing |
+| `routeDeclarationHelper.prependBase(route, path)` | helper member | `path` prefixed with `route.base` when set |
+| `serviceRouteHelper.isServiceRoute(obj?)` | type guard | Is `obj` a `CommonServiceRoute` with a known `AppType` |
+| `serviceRouteHelper.isServiceRouteResolved(route)` | type guard | Does the service entry name a host |
 | `CreateRouteSignature<R>` | interface | Call signature shared by `route()` and `createRoute()` |
 
 ## Common pitfalls
@@ -224,8 +227,8 @@ The first six take `(context, declaration)`; the other four are pure and take no
   the chain.
 - Custom transport options are opaque here. Validate them through the package that owns the
   protocol.
-- Do not pass a context to the pure `./utils` helpers: `overrideParams(ctx, decl)` writes route
-  fields into the context object instead of resolving anything.
+- Do not pass a context to the pure `./utils` helpers: `routeDeclarationHelper.overrideParams(ctx, decl)`
+  writes route fields into the context object instead of resolving anything.
 - A mis-wired tree (no `cfg.services`, a service without a host, a parentship cycle) throws
   `SyntaxError` when an address is resolved. Fix the config; do not catch it.
 - `transportAlias` and `EntrypointTransport` live in `@owlmeans/entrypoint`, not here. A route only
@@ -250,7 +253,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.36
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

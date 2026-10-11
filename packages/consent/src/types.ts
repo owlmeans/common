@@ -5,6 +5,8 @@
  * manager simply never sees the update, and the only symptom is analytics that stay switched off
  * for everyone who agreed to them.
  */
+import { CONSENT_LINK_VERSION } from './consts.local.js'
+
 export type ConsentSignal =
   | 'ad_storage' | 'ad_user_data' | 'ad_personalization'
   | 'analytics_storage' | 'functionality_storage'
@@ -68,11 +70,59 @@ export interface ConsentService {
   privacyHref?: string
 }
 
-/** `v` is the schema version; every other key is a category key. */
+/**
+ * `v` is the schema version and `auto` marks an automatic decision; every other key is a category
+ * key — so neither `v` nor `auto` may ever name a category.
+ */
 export interface ConsentRecord {
   v?: number
+  /**
+   * Unix seconds at which this record was DERIVED rather than chosen: the visitor was located
+   * outside every consent-requiring country (`ConsentGeoOptions`) and nobody asked them. Present
+   * only on an automatic decision — an explicit save drops it. An automatic decision is trusted for
+   * `CONSENT_AUTO_MAX_AGE` seconds and then counts as undecided until the visitor is located again,
+   * so a traveller who crosses into a consent country is asked there instead of carrying a grant
+   * nobody gave. It never travels on a linker link as the visitor's own choice.
+   */
+  auto?: number
   [category: string]: boolean | number | undefined
 }
+
+/** Where a locator places the visitor. */
+export interface ConsentGeoLocation {
+  /** ISO 3166-1 alpha-2, upper case — `PL`, `US`. Anything else counts as "not located". */
+  country: string
+}
+
+export interface ConsentCloudflareOptions {
+  /** The same-origin path of Cloudflare's trace endpoint. Defaults to `CONSENT_TRACE_PATH`. */
+  path?: string
+}
+
+/**
+ * Ask only where the law requires it: locate the visitor first, and decide automatically wherever
+ * no consent is required.
+ *
+ * Its presence turns the gate on. The country comes from the registered locators
+ * (`ConsentGeoPlugin`, highest priority first, the first usable answer wins); `cloudflare` adds the
+ * built-in one. A visitor nobody can locate — no locator, every one of them failing, an unusable
+ * code, `timeout` passing — is asked, exactly as without the gate.
+ */
+export interface ConsentGeoOptions {
+  /**
+   * The built-in locator: a same-origin GET of Cloudflare's `/cdn-cgi/trace`, reading `loc=`. It
+   * answers only where the host is proxied by Cloudflare — anywhere else (a local dev server, a
+   * self-hosted export) it fails, and the visitor is asked.
+   */
+  cloudflare?: boolean | ConsentCloudflareOptions
+  /** The countries where consent is asked. Defaults to `CONSENT_REQUIRED_COUNTRIES`. */
+  countries?: readonly string[]
+  /** How long locating may take before the visitor is asked anyway, in ms. `CONSENT_GEO_TIMEOUT`. */
+  timeout?: number
+}
+
+/** Which lookup is running: the first one (the page waits behind a spinner) or a silent re-check. */
+export type ConsentLocating = 'first' | 'recheck'
 
 export interface ConsentOptions {
   categories?: ConsentCategory[]
@@ -91,6 +141,8 @@ export interface ConsentOptions {
    * `consentLinker`/`ConsentPlugin` in `./plugins.js` and `./linker.js`.
    */
   linker?: ConsentLinkerOptions
+  /** Ask only in consent-requiring countries — see `ConsentGeoOptions`. Off when absent. */
+  geo?: ConsentGeoOptions
 }
 
 export interface ConsentLinkerOptions {
@@ -130,27 +182,118 @@ export interface ConsentLinkerLanguage {
   storageKey?: string
 }
 
-/** Why the dialog is open. `login` is what the sign-in precondition raises. */
-export type ConsentReason = 'initial' | 'reopen' | 'login' | string
+/**
+ * Why the consent UI is open. `initial` is the first ask (the bar, in bar mode); `preferences` is the
+ * bar's own "Cookie preferences"; `reopen` a footer link or the corner button; `login` what the
+ * sign-in precondition raises. Every reason but `initial` opens the preferences window.
+ */
+export type ConsentReason = 'initial' | 'reopen' | 'login' | 'preferences' | string
 
 export interface ConsentState {
   record: ConsentRecord | null
   open: boolean
   reason: ConsentReason | null
+  /** A country lookup is running (`ConsentGeoOptions`); `null` once it settled, or when there is none. */
+  locating: ConsentLocating | null
 }
 
-export type ConsentListener = (state: ConsentState) => void
+export interface ConsentListener { (state: ConsentState): void }
 
 export interface ConsentStore {
   get: () => ConsentState
   subscribe: (listener: ConsentListener) => () => void
-  /** Push the defaults, load and migrate any stored record, apply it, and open when there is none. */
+  /**
+   * Push the defaults, load and migrate any stored record, apply it — and, when there is none,
+   * either ask at once or, with `geo` set, locate the visitor first and ask or decide automatically.
+   * Synchronous: a lookup runs in the background, `locating` says so, and `settled()` waits for it.
+   */
   init: (opts?: ConsentOptions) => void
+  /** Record an explicit decision. Always explicit: an `auto` key on `record` is dropped. */
   save: (record: ConsentRecord) => void
   acceptAll: () => void
+  /** Open the consent UI from anywhere — a footer link, a policy page, a login gate. */
   open: (reason?: ConsentReason) => void
   close: () => void
   /** Imperative reader, for the callers that are not React. */
   granted: (key: string) => boolean
   options: () => ConsentOptions & { categories: ConsentCategory[], storageKey: string }
+  /** The state once no country lookup is running — at once when none is. */
+  settled: () => Promise<ConsentState>
+}
+
+/** A language the dialog's built-in copy is carried in (`CONSENT_LOCALES`). */
+export type ConsentLocale = 'en' | 'pl' | 'ru' | 'be' | 'uk' | 'es' | 'de' | 'fr'
+
+/** The decoded, not-yet-validated payload a decorated link's parameter carries. */
+export interface ConsentLinkPayload {
+  v: typeof CONSENT_LINK_VERSION
+  /** One entry per OPTIONAL category this site knows, `1` granted / `0` denied. */
+  c: Record<string, 0 | 1>
+  /** Unix seconds the link was decorated at. */
+  t: number
+  /**
+   * The interface language of the page the link was on (a BCP 47 tag, lower-cased) — present only
+   * when the sender has `linker.language` set and its `<html lang>` names one. Optional on the
+   * wire, so a receiver that predates it reads the same `v: 2` payload and ignores the field.
+   */
+  l?: string
+}
+
+/**
+ * An extension seam for `@owlmeans/consent`: something that reacts to this document's consent
+ * decision, or supplies one from elsewhere, without the core store knowing anything about where
+ * that decision came from.
+ *
+ * `consentLinker` (`./linker.js`) is the one built-in plugin — cross-domain consent through
+ * decorated links — but nothing here is specific to it. A registry rather than a fixed option on
+ * `ConsentOptions` because the store has zero dependencies today and stays that way: a plugin is
+ * opt-in code an application imports for its own reason, never a bundled feature this package
+ * pulls in whether or not anything uses it.
+ */
+export interface ConsentPlugin {
+  /** Stable identity. Registering the same alias again REPLACES the earlier plugin. */
+  alias: string
+  /** Run order when more than one plugin implements the same hook. Higher first. Defaults to 0. */
+  priority?: number
+  /** Installed once, the first time `consentStore.init` runs with this plugin registered. */
+  start?: (opts: ConsentOptions) => void
+  /**
+   * Offer a decision from outside this document's own storage — e.g. one carried on the URL that
+   * led here. Returns a full record to adopt, or `null` to defer to the next plugin / the ordinary
+   * "ask" path. Never called once a stored record already exists.
+   */
+  adopt?: (opts: ConsentOptions) => ConsentRecord | null
+  /**
+   * Offer an interface language from outside this document's own storage — e.g. the one the page
+   * that led here was read in. Returns a language the application supports, or `null` to keep
+   * choosing its own. Only a CANDIDATE: it says what the link carried, and `writeConsentLanguage`
+   * stores it — unconditionally, since the interface language is strictly necessary storage.
+   */
+  adoptLanguage?: (opts: ConsentOptions) => string | null
+  /**
+   * Rewrite an outgoing URL to carry this document's current decision — and its language — or
+   * `null` to leave it untouched (a foreign host, a link that opts out, nothing to carry yet).
+   * `record` is `null` while the visitor has not decided: a plugin that also carries something
+   * else (the language) still has a reason to decorate then.
+   */
+  decorate?: (url: URL, record: ConsentRecord | null, opts: ConsentOptions) => URL | null
+  /** Extra domains this decision is understood to apply to, for disclosure — never deduplicated here. */
+  domains?: (opts: ConsentOptions) => string[]
+  /**
+   * Find the visitor's country, or throw when it cannot tell. Asked only while `opts.geo` is set
+   * and nothing is stored; locators run highest priority first and the first usable country wins,
+   * so a throw (or an unusable code) hands over to the next one — the built-in Cloudflare locator
+   * sits at the very bottom.
+   */
+  locate?: (opts: ConsentOptions) => Promise<ConsentGeoLocation>
+}
+
+/**
+ * The country-detection plugin: one async method that resolves the visitor's country or throws.
+ * Register it with `consentPluginHelper.registerConsentPlugin` — or, in an OwlMeans application,
+ * with `@owlmeans/web-panel/consent`'s `appendConsentGeoPlugin(context, plugin)` while the context is
+ * configured.
+ */
+export interface ConsentGeoPlugin extends ConsentPlugin {
+  locate: (opts: ConsentOptions) => Promise<ConsentGeoLocation>
 }

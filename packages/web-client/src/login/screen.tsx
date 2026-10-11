@@ -1,37 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { FC } from 'react'
+import { useCallback, useEffect, useState, type FC } from 'react'
 import { useContext } from '@owlmeans/client'
 import { useI18nLib } from '@owlmeans/client-i18n'
-import {
-  LoginIntent, LoginOutcome, LOGIN_INTENT_QUERY, LOGIN_METHOD_QUERY, LOGIN_NEXT_QUERY,
-} from '@owlmeans/client-auth/login'
-import type { LoginService } from '@owlmeans/client-auth/login'
+import { LoginIntent, LoginOutcome, LOGIN_INTENT_QUERY, LOGIN_METHOD_QUERY, LOGIN_NEXT_QUERY, type LoginService } from '@owlmeans/client-auth/login'
 import { USER_ID } from '@owlmeans/client-auth'
 import type { AppContext } from '../types.js'
-import { LoginSurrogateView, SurrogateStage } from './view.js'
+import { LoginSurrogateView } from './view.js'
+import { SurrogateStage } from './consts.js'
+import { logger } from '@owlmeans/log'
+import { SurrogateLoginStep } from './consts.js'
 
-/**
- * The login window an embedded application opens one level up.
- *
- * It is NOT wrapped in `DispatcherHOC`, and that is the point: the HOC's continuation navigates to
- * `HOME` when it has nothing else to do, which is how a popup ended up rendering the whole
- * application, with its navigation, inside itself. This screen has no continuation at all — it
- * either hands something back and closes, or it says what it is waiting for.
- *
- * It also never runs the authorization machine itself: it forwards to the dispatcher (`next`),
- * which owns that flow, and hands back what the dispatcher issued — see {@link surrogateLoginStep}
- * for why a session already stored in this window is not simply handed back.
- */
-/** What a surrogate window opened to SIGN IN does with the session it may already hold. */
-export enum SurrogateLoginStep {
-  /** Drop the stored session and authenticate afresh through the dispatcher. */
-  Forget = 'forget',
-  /** Hand the stored session to the opener — there is no dispatcher to authenticate through. */
-  Resume = 'resume',
-  /** Nothing stored: authenticate through the dispatcher. */
-  Authenticate = 'authenticate',
-}
-
+const log = logger('web-client:login')
 /**
  * A sign-in request never reuses the session this window happens to hold.
  *
@@ -150,7 +128,7 @@ export const SurrogateScreen: FC = () => {
     }
 
     void run().catch((e: Error) => {
-      console.error(e)
+      log.error('Surrogate login failed', e)
       setError(e.message)
       setStage(SurrogateStage.Failed)
     })

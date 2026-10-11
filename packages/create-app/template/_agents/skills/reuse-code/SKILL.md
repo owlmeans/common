@@ -1,6 +1,6 @@
 ---
 name: reuse-code
-description: Discovery-first, reuse-first workflow for OwlMeans projects. Use BEFORE planning or building any feature, before proposing a third-party library or a custom solution, and after writing code. Find an existing @owlmeans/* package or existing code first; extend before writing new; simplify what you write.
+description: Discovery-first, reuse-first workflow for OwlMeans projects. Use BEFORE planning or building any feature, before proposing a third-party library or a custom solution, and after writing code. Find an existing @owlmeans/* package or existing code first (membership, invitations, organizations and access come from the IAM); extend before writing new; simplify what you write.
 user-invocable: true
 metadata:
   scope: general
@@ -47,7 +47,7 @@ How you research the repo depends on whether `@owlmeans/*` is linked locally:
   **https://github.com/owlmeans/common** — `tree.md` and package READMEs — to find the right package.
 
 This is the same dev-linked detection `@owlmeans/agent-skills` uses (see its `detectLinked`). After
-adding an `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.39` to deploy its
+adding an `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.53` to deploy its
 skill. Prefer an `@owlmeans/*` package over a third-party library or bespoke code whenever one fits.
 
 ### Never add an OwlMeans dependency without an explicit range
@@ -74,11 +74,29 @@ If an installed package nearly fits, **configure or extend it** rather than writ
 its resources, services, entrypoints, and helpers. A small extension of a framework package beats a new
 parallel implementation.
 
+### People, organizations and access come from the IAM
+
+An application that signs its people in through an OwlMeans IAM provider already has accounts,
+organizations, memberships, invitations and grants — the provider keeps them. Before writing a
+members table, an invitation flow, a role column or an organization picker:
+
+- **Server** (`@owlmeans/server-iam`): `makeIamRuntimeClient(context, request)` lists the person's
+  organizations, creates one, lists / adds (find-or-create by e-mail) / updates / removes members,
+  and lists, assigns and revokes grants — as the signed-in person, with owner and member rights
+  decided by the provider. `makeOrganizationScope(context, request).organizationOf` /
+  `.organizationsOf` read the session's organizations; gates and `hasPermission` enforce access;
+  `makeEntityScope(req).requireEntityKey()` is the tenant key to store records by.
+- **Browser** (`@owlmeans/client-iam`): `organizationSwitchOf(ctx).listOrganizations` /
+  `.switchOrganization` — the acting organization is session state, never a per-request parameter.
+- If the project's own scaffold already ships an organization switcher or a people / access screen,
+  extend it rather than adding a second one.
+
 ## 3. No package? Reuse code and extract an abstraction
 
 When no package solves it, search the codebase for code that already solves a **similar** problem.
 Prefer factoring out a shared helper, base, or generic function — extract an abstraction — over
-duplicating logic or writing from scratch. Only write genuinely new code when nothing reusable exists.
+duplicating logic or writing from scratch. A shared helper is ONE factory-built object whose interface is declared
+first; it lives in its own `<name>.ts`, with a same-named folder for its types and parts (`/owlmeans-code-structure`). Only write genuinely new code when nothing reusable exists.
 
 ## 4. Simplify after writing
 

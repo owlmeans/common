@@ -1,15 +1,7 @@
 import type { FC } from 'react'
 import { cn } from '../../@/lib/utils.js'
-import type { LoginCreditModel } from '@owlmeans/client-panel/auth'
-
-/** Where "Powered by OwlMeans" leads, on the sign-in screen and in every shell footer alike. */
-export const OWLMEANS_URL = 'https://owlmeans.com'
-
-export interface LoginCreditProps {
-  model: LoginCreditModel
-  translate: (key: string, defaultValue: string) => string
-  className?: string
-}
+import { OWLMEANS_URL } from './consts.js'
+import type { LoginCreditProps } from './types.js'
 
 /**
  * The line at the bottom of a sign-in screen.

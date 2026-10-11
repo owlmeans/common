@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import addFormats from 'ajv-formats'
-import { RouteMethod, route } from '@owlmeans/route'
-import { aliasOf, openProtocol, protocols } from '@owlmeans/entrypoint'
+import { RouteMethod } from '@owlmeans/route'
+import { aliasOf, protocols } from '@owlmeans/entrypoint'
 import { connect, ConnectInquiryKind, ConnectOpKind } from '../src/connect/consts.js'
 import { connectProtocols } from '../src/connect/entrypoints.js'
 import { connectRef } from '../src/connect/references.js'
 import {
   ConnectCapabilitiesSchema, ConnectConvertCreateBodySchema, ConnectConvertProceedBodySchema,
-  ConnectInquiryParamsSchema, ConnectPipelineResumeBodySchema, InquiryAnswerSchema
+  ConnectConvertStartBodySchema, ConnectInquiryParamsSchema, ConnectPipelineResumeBodySchema, InquiryAnswerSchema
 } from '../src/connect/schemas.js'
 import { ConnectExecutor } from '../src/connect/consts.js'
 import { InquiryKind } from '@owlmeans/llm-common'
@@ -20,7 +20,6 @@ const entrypoints = () => connectProtocols({
   guard: 'test-guard',
   gate: { alias: 'test-gate', params: ['id'] },
   localLlm: { alias: 'test-paid-llm', params: ['id'] },
-  updateBase: openProtocol(route('test:update:base', '/update')),
 })
 
 const entrypointOf = (alias: string) => {
@@ -40,6 +39,7 @@ describe('viable-common - the conversion additions to the connector contract', (
       ['InquiryAnswerSchema', InquiryAnswerSchema],
       ['ConnectInquiryParamsSchema', ConnectInquiryParamsSchema],
       ['ConnectConvertCreateBodySchema', ConnectConvertCreateBodySchema],
+      ['ConnectConvertStartBodySchema', ConnectConvertStartBodySchema],
       ['ConnectConvertProceedBodySchema', ConnectConvertProceedBodySchema],
       ['ConnectPipelineResumeBodySchema', ConnectPipelineResumeBodySchema],
       ['ConnectCapabilitiesSchema', ConnectCapabilitiesSchema],
@@ -78,8 +78,31 @@ describe('viable-common - the conversion additions to the connector contract', (
     })).toBe(true)
     // A local target the connector is already attached to fetches nothing.
     expect(create({})).toBe(true)
+    // The caller's unattached delegated session performs the pre-card checks; a stray key is refused.
+    expect(create({ name: 'Deskflow', sessionId: 'session-1' })).toBe(true)
+    expect(create({ sessionId: '' })).toBe(false)
+    expect(create({ llmMode: 'local' })).toBe(false)
     expect(proceed({ decision: ConversionDecision.Extract })).toBe(true)
     expect(proceed({ decision: 'teleport' })).toBe(false)
+  })
+
+  test('start and proceed carry the person\'s confirmation, and nothing else new', () => {
+    const ajv = compiler()
+    const start = ajv.compile(ConnectConvertStartBodySchema as never)
+    const proceed = ajv.compile(ConnectConvertProceedBodySchema as never)
+
+    expect(start({})).toBe(true)
+    expect(start({ confirm: true })).toBe(true)
+    // An unset optional serialised as `null` is "not confirmed", never a refused body.
+    expect(start({ confirm: null })).toBe(true)
+    expect(start({ confirm: 'yes' })).toBe(false)
+    expect(start({ restart: true })).toBe(false)
+    expect(proceed({ decision: ConversionDecision.Implement, confirm: true })).toBe(true)
+    expect(proceed({ decision: ConversionDecision.Implement, confirm: 1 })).toBe(false)
+  })
+
+  test('the start declares its body, so a confirmation reaches the handler', () => {
+    expect(entrypointOf(connect.convert.start).contract?.requestSchemas.body).toEqual(ConnectConvertStartBodySchema as never)
   })
 
   test('capabilities accept an executor kind this platform has never heard of', () => {
@@ -102,11 +125,9 @@ describe('viable-common - the conversion additions to the connector contract', (
       [connect.convert.check, '/convert/:id/check', RouteMethod.GET],
       [connect.convert.start, '/convert/:id/start', RouteMethod.POST],
       [connect.convert.proceed, '/convert/:id/proceed', RouteMethod.POST],
-      [connect.convert.cancel, '/convert/:id/cancel', RouteMethod.POST],
       [connect.convert.status, '/convert/:id', RouteMethod.GET],
       [connect.convert.purge, '/convert/:id/purge', RouteMethod.POST],
       [connect.inquiry.answer, '/project/:id/inquiry/:inquiryId', RouteMethod.POST],
-      [connect.project.converterLlm, '/project/:id/converter-llm', RouteMethod.POST],
       [connect.files.list, '/project/:id/files', RouteMethod.GET],
     ]
 
@@ -122,21 +143,18 @@ describe('viable-common - the conversion additions to the connector contract', (
     expect(connectRef.convert.check.alias).toBe(connect.convert.check)
     expect(connectRef.convert.start.alias).toBe(connect.convert.start)
     expect(connectRef.convert.proceed.alias).toBe(connect.convert.proceed)
-    expect(connectRef.convert.cancel.alias).toBe(connect.convert.cancel)
     expect(connectRef.convert.status.alias).toBe(connect.convert.status)
     expect(connectRef.convert.purge.alias).toBe(connect.convert.purge)
     expect(connectRef.inquiry.answer.alias).toBe(connect.inquiry.answer)
-    expect(connectRef.project.converterLlm.alias).toBe(connect.project.converterLlm)
     expect(connectRef.files.list.alias).toBe(connect.files.list)
   })
 
   test('the conversion routes hang under the connector base and carry no paid gate', () => {
-    // Delegated inference is the DEFAULT for a conversion, not an experimental capability — so
-    // unlike `project.llm`, nothing here sits behind the local-LLM gate.
-    expect(entrypointOf(connect.project.llm).gate?.alias).toBe('test-paid-llm')
+    // A conversion carries no inference mode of its own: its model calls follow the session that
+    // drives it, and that session's open is the one place the local-LLM gate sits.
+    expect(entrypointOf(connect.session.openDelegated).gate?.alias).toBe('test-paid-llm')
 
-    const gated = [...Object.values(connect.convert), connect.inquiry.answer,
-      connect.project.converterLlm]
+    const gated = [...Object.values(connect.convert), connect.inquiry.answer]
     for (const alias of gated) {
       expect(entrypointOf(alias).gate, alias).toBeUndefined()
       expect(aliasOf(routeOf(alias).parent!), alias).toBe(connect.base)

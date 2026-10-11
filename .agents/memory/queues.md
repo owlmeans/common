@@ -8,9 +8,9 @@
 Contracts in `@owlmeans/queue`, broker in `@owlmeans/redis-queue` (BullMQ). A queued call is an
 immutable protocol object whose route names `RouteProtocols.QUEUE`. Ordinary transport calls use
 `ctx.entrypoint(protocol).call(request)`. Calls that need a job id, delay, retries, backoff or
-retention use `enqueueProtocol(ctx, protocol, request, options)` and
-`waitForProtocol(ctx, protocol, job)`: both infer exact I/O and reject raw aliases, non-QUEUE
-protocols and queue mismatches.
+retention use `queueProtocolOf(ctx).enqueue(protocol, request, options)` and
+`queueProtocolOf(ctx).waitFor(protocol, job)`: both infer exact I/O and reject raw aliases,
+non-QUEUE protocols and queue mismatches.
 
 Declaring a queue and consuming it are deliberately separate statements. `declareQueue` goes in the
 SHARED backend package so producer and consumer agree; `listenQueues` goes in the individual
@@ -31,8 +31,8 @@ remain protocol declarations end-to-end.
   has no raw request, so the bridge supplies `original: { _ctx }` and the helper reads it
   optionally. Any future transport owes the same.
 - **Broker identity has one boundary helper.** The bridge attaches `{ id, name, queue, attempt }`
-  and `queueJobOf(request)` reads it. A handler uses this only to compare a queued run with an
-  atomic admission claim; ordinary business handlers never inspect transport metadata.
+  and `queueBridgeHelper.queueJobOf(request)` reads it. A handler uses this only to compare a queued
+  run with an atomic admission claim; ordinary business handlers never inspect transport metadata.
 - **Blocking connections cannot be shared.** `Worker` and `QueueEvents` block on reads and get their
   own clients from `RedisDbService.options()`; `Queue` and `FlowProducer` may share the pooled one.
 - **Never set ioredis `keyPrefix` for queue connections** — BullMQ builds its own keys. Pass the
@@ -41,9 +41,9 @@ remain protocol declarations end-to-end.
 - **Cluster is refused** (`UnsupportedArgumentError('redis-queue:cluster')`): BullMQ needs a
   hash-tagged prefix to keep a queue's keys in one slot, and the prefix here is shared with the
   record namespace. Failing at connect beats failing per-command with CROSSSLOT.
-- **`enqueueProtocol` builds an UNSIGNED envelope.** The auth middleware that adds the guard's
-  header wraps only `entrypoint.invoke`/`call`, so a hand-enqueued job for an entrypoint whose
-  served side carries a guard (Ed25519 service-to-service) fails at the bridge as
+- **`queueProtocolOf(ctx).enqueue` builds an UNSIGNED envelope.** The auth middleware that adds the
+  guard's header wraps only `entrypoint.invoke`/`call`, so a hand-enqueued job for an entrypoint
+  whose served side carries a guard (Ed25519 service-to-service) fails at the bridge as
   `auth:authorization:queue:<alias>` — no retry, nothing in a detached producer's log. A guarded
   route is reached through `call()` where it is bound as a CLIENT; in the process that SERVES it the
   binding has no `call`, so a producer there asks the guards' `authenticated(req)` for the header
@@ -51,9 +51,10 @@ remain protocol declarations end-to-end.
   reply the way the transport does when it needs the outcome (viable's `invokeSigned`). A server
   binding has `handle` only — `invoke` and `call` are undefined in the serving process.
 - **Valkey works** — RESP only, no modules, no TTLs, nothing depending on eviction.
-- **Schedules are BullMQ job schedulers** (bullmq ≥ 5.78: `upsertJobScheduler` /
-  `getJobSchedulers` / `removeJobScheduler`), id `owlmeans:<schedule id>`, reconciled by
-  `syncSchedules` inside the worker's `start()` for listened queues only. Rules: `scheduled-jobs`.
+- **Schedules are BullMQ job schedulers** (bullmq ≥ 5.78: `upsertJobScheduler` / `getJobSchedulers`
+  / `removeJobScheduler`), id `owlmeans:<schedule id>`, reconciled by
+  `queueScheduleHelper.syncSchedules` inside the worker's `start()` for listened queues only. Rules:
+  `scheduled-jobs`.
 - **The Ready-stage middleware is fired, not awaited, by `context.init()`** (`void applyMiddlewares`)
   — worker start and schedule reconciliation complete after `init()` resolves; specs poll.
 - **`ctx.service(alias)` throws for an un-initialized non-lazy service**, so a processor cannot be

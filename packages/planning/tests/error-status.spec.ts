@@ -26,6 +26,11 @@ const DECLARED: Record<string, number | undefined> = {
   LabelNotAllowed: 422,
   SpecificationSlotUnknown: 422,
   RelationshipRefused: 422,
+  SchemaConflict: 409,
+  SchemaInUse: 409,
+  SchemaSealed: 422,
+  SchemaInvalid: 422,
+  PlanningForbidden: 403,
   CommitTimeout: undefined,
   CommitFailed: undefined,
   PlanningUnsupported: undefined,
@@ -40,7 +45,7 @@ describe('planning refusals — declared HTTP statuses', () => {
     expect(classes.map(([name]) => name).sort()).toEqual(Object.keys(DECLARED).sort())
   })
 
-  test('an absent card is 404, a card in another state 409, refused content 422; faults declare nothing', () => {
+  test('an absent card is 404, a missing grant 403, a card in another state 409, refused content 422; faults declare nothing', () => {
     for (const [name, Class] of classes) {
       expect([name, statusOf(new Class('x'))]).toEqual([name, DECLARED[name]])
     }

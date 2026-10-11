@@ -1,4 +1,5 @@
-import { normalizeUserCode, OAUTH_CODE_TTL_SEC } from '@owlmeans/oauth'
+import { memoHelper } from '@owlmeans/context'
+import { oauthFormatHelper, OAuthRequestExpired, OAuthRequestNotFound, OAUTH_CODE_TTL_SEC } from '@owlmeans/oauth'
 import {
   OAUTH_PENDING_RESOURCE, PENDING_CODE_PREFIX, PENDING_DEVICE_INDEX_PREFIX,
   PENDING_REQUEST_PREFIX, PENDING_USER_CODE_INDEX_PREFIX
@@ -7,127 +8,124 @@ import type {
   OAuthAuthorizationCodeRecord, OAuthDeviceCodeIndexRecord, OAuthPendingRequestRecord,
   OAuthPendingResource, OAuthServerContext, OAuthUserCodeIndexRecord
 } from './types.js'
-
-/** Which resource this deployment stores pending requests in — configurable, defaulted. */
-export const pendingResourceAliasOf = (context: OAuthServerContext): string =>
-  context.cfg.oauth?.pendingResourceAlias ?? OAUTH_PENDING_RESOURCE
-
-const pending = (context: OAuthServerContext): OAuthPendingResource =>
-  context.resource<OAuthPendingResource>(pendingResourceAliasOf(context))
+import type { OAuthPendingHelper, OAuthPendingMatch } from './pending/types.js'
 
 /** Every TTL this module writes is seconds-from-now, never a duration already elapsed — a record
  * whose deadline has technically passed still gets a floor of one second rather than becoming a
  * "permanent" write on a backend that treats zero/negative as "no expiry". */
 const secondsUntil = (expiresAt: number): number => Math.max(1, Math.ceil((expiresAt - Date.now()) / 1000))
 
-// --- The canonical request, keyed by its own random id -----------------------------------------
+export const makeOAuthPendingHelper = (context: OAuthServerContext): OAuthPendingHelper => {
+  const pendingResourceAliasOf = (): string =>
+    context.cfg.oauth?.pendingResourceAlias ?? OAUTH_PENDING_RESOURCE
 
-export const createRequest = async (
-  context: OAuthServerContext, id: string, record: Omit<OAuthPendingRequestRecord, 'id'>
-): Promise<void> => {
-  await pending(context).create(
-    { ...record, id: PENDING_REQUEST_PREFIX + id } as OAuthPendingRequestRecord,
-    { ttl: secondsUntil(record.expiresAt) }
-  )
-}
+  const pending = (): OAuthPendingResource =>
+    context.resource<OAuthPendingResource>(pendingResourceAliasOf())
 
-export const loadRequestById = async (
-  context: OAuthServerContext, id: string
-): Promise<OAuthPendingRequestRecord | null> =>
-  await pending(context).load(PENDING_REQUEST_PREFIX + id) as OAuthPendingRequestRecord | null
+  // --- The canonical request, keyed by its own random id ---------------------------------------
 
-export const saveRequest = async (
-  context: OAuthServerContext, id: string, record: OAuthPendingRequestRecord
-): Promise<void> => {
-  await pending(context).save(
-    { ...record, id: PENDING_REQUEST_PREFIX + id }, { ttl: secondsUntil(record.expiresAt) }
-  )
-}
+  const createRequest = async (id: string, record: Omit<OAuthPendingRequestRecord, 'id'>): Promise<void> => {
+    await pending().create(
+      { ...record, id: PENDING_REQUEST_PREFIX + id } as OAuthPendingRequestRecord,
+      { ttl: secondsUntil(record.expiresAt) }
+    )
+  }
 
-export const deleteRequest = async (context: OAuthServerContext, id: string): Promise<void> => {
-  await pending(context).delete(PENDING_REQUEST_PREFIX + id)
-}
+  const loadRequestById = async (id: string): Promise<OAuthPendingRequestRecord | null> =>
+    await pending().load(PENDING_REQUEST_PREFIX + id) as OAuthPendingRequestRecord | null
 
-/**
- * What the consent screen's `:ref` param resolves through: a canonical request id (the code
- * grant's redirect names one directly) or a normalized user code (what a person typed, or what
- * `verification_uri_complete` carried) — the caller never has to know which kind of request it
- * is before asking.
- */
-export const resolveRequestRef = async (
-  context: OAuthServerContext, ref: string
-): Promise<{ id: string, record: OAuthPendingRequestRecord } | null> => {
-  const direct = await loadRequestById(context, ref)
-  if (direct != null) return { id: ref, record: direct }
+  const saveRequest = async (id: string, record: OAuthPendingRequestRecord): Promise<void> => {
+    await pending().save(
+      { ...record, id: PENDING_REQUEST_PREFIX + id }, { ttl: secondsUntil(record.expiresAt) }
+    )
+  }
 
-  const normalized = normalizeUserCode(ref)
-  const index = await pending(context).load(PENDING_USER_CODE_INDEX_PREFIX + normalized) as OAuthUserCodeIndexRecord | null
-  if (index == null) return null
+  const deleteRequest = async (id: string): Promise<void> => {
+    await pending().delete(PENDING_REQUEST_PREFIX + id)
+  }
 
-  const record = await loadRequestById(context, index.requestId)
+  const resolveRequestRef = async (ref: string): Promise<OAuthPendingMatch | null> => {
+    const direct = await loadRequestById(ref)
+    if (direct != null) return { id: ref, record: direct }
 
-  return record == null ? null : { id: index.requestId, record }
-}
+    const normalized = oauthFormatHelper.normalizeUserCode(ref)
+    const index = await pending().load(PENDING_USER_CODE_INDEX_PREFIX + normalized) as OAuthUserCodeIndexRecord | null
+    if (index == null) return null
 
-// --- The user-code index, device grant only -----------------------------------------------------
+    const record = await loadRequestById(index.requestId)
 
-export const createUserCodeIndex = async (
-  context: OAuthServerContext, userCode: string, requestId: string, expiresAt: number
-): Promise<void> => {
-  await pending(context).create(
-    { id: PENDING_USER_CODE_INDEX_PREFIX + userCode, requestId, expiresAt } as OAuthUserCodeIndexRecord,
-    { ttl: secondsUntil(expiresAt) }
-  )
-}
+    return record == null ? null : { id: index.requestId, record }
+  }
 
-export const deleteUserCodeIndex = async (context: OAuthServerContext, userCode: string): Promise<void> => {
-  await pending(context).delete(PENDING_USER_CODE_INDEX_PREFIX + userCode)
-}
+  const requirePending = async (ref: string): Promise<OAuthPendingMatch> => {
+    const found = await resolveRequestRef(ref)
+    if (found == null) throw new OAuthRequestNotFound(ref)
+    if (found.record.expiresAt < Date.now()) throw new OAuthRequestExpired(ref)
+    if (found.record.status !== 'pending') throw new OAuthRequestNotFound(ref)
 
-// --- The device-code index, what the token endpoint's poll resolves through ----------------------
+    return found
+  }
 
-export const createDeviceCodeIndex = async (
-  context: OAuthServerContext, deviceCodeHash: string, requestId: string, expiresAt: number
-): Promise<void> => {
-  await pending(context).create(
-    { id: PENDING_DEVICE_INDEX_PREFIX + deviceCodeHash, requestId, expiresAt } as OAuthDeviceCodeIndexRecord,
-    { ttl: secondsUntil(expiresAt) }
-  )
-}
+  // --- The user-code index, device grant only ---------------------------------------------------
 
-export const loadRequestByDeviceCodeHash = async (
-  context: OAuthServerContext, deviceCodeHash: string
-): Promise<{ id: string, record: OAuthPendingRequestRecord } | null> => {
-  const index = await pending(context).load(PENDING_DEVICE_INDEX_PREFIX + deviceCodeHash) as OAuthDeviceCodeIndexRecord | null
-  if (index == null) return null
+  const createUserCodeIndex = async (userCode: string, requestId: string, expiresAt: number): Promise<void> => {
+    await pending().create(
+      { id: PENDING_USER_CODE_INDEX_PREFIX + userCode, requestId, expiresAt } as OAuthUserCodeIndexRecord,
+      { ttl: secondsUntil(expiresAt) }
+    )
+  }
 
-  const record = await loadRequestById(context, index.requestId)
+  const deleteUserCodeIndex = async (userCode: string): Promise<void> => {
+    await pending().delete(PENDING_USER_CODE_INDEX_PREFIX + userCode)
+  }
 
-  return record == null ? null : { id: index.requestId, record }
-}
+  // --- The device-code index, what the token endpoint's poll resolves through --------------------
 
-export const deleteDeviceCodeIndex = async (context: OAuthServerContext, deviceCodeHash: string): Promise<void> => {
-  await pending(context).delete(PENDING_DEVICE_INDEX_PREFIX + deviceCodeHash)
-}
+  const createDeviceCodeIndex = async (deviceCodeHash: string, requestId: string, expiresAt: number): Promise<void> => {
+    await pending().create(
+      { id: PENDING_DEVICE_INDEX_PREFIX + deviceCodeHash, requestId, expiresAt } as OAuthDeviceCodeIndexRecord,
+      { ttl: secondsUntil(expiresAt) }
+    )
+  }
 
-// --- Authorization codes: single-use, consumed with `take()` -------------------------------------
+  const loadRequestByDeviceCodeHash = async (deviceCodeHash: string): Promise<OAuthPendingMatch | null> => {
+    const index = await pending().load(PENDING_DEVICE_INDEX_PREFIX + deviceCodeHash) as OAuthDeviceCodeIndexRecord | null
+    if (index == null) return null
 
-export const createAuthorizationCode = async (
-  context: OAuthServerContext, codeHash: string, record: Omit<OAuthAuthorizationCodeRecord, 'id'>
-): Promise<void> => {
-  await pending(context).create(
-    { ...record, id: PENDING_CODE_PREFIX + codeHash } as OAuthAuthorizationCodeRecord,
-    { ttl: OAUTH_CODE_TTL_SEC }
-  )
-}
+    const record = await loadRequestById(index.requestId)
 
-/** `null` for an unknown or already-consumed code — a replay reads exactly like a wrong one. */
-export const takeAuthorizationCode = async (
-  context: OAuthServerContext, codeHash: string
-): Promise<OAuthAuthorizationCodeRecord | null> => {
-  try {
-    return await pending(context).take(PENDING_CODE_PREFIX + codeHash) as OAuthAuthorizationCodeRecord
-  } catch {
-    return null
+    return record == null ? null : { id: index.requestId, record }
+  }
+
+  const deleteDeviceCodeIndex = async (deviceCodeHash: string): Promise<void> => {
+    await pending().delete(PENDING_DEVICE_INDEX_PREFIX + deviceCodeHash)
+  }
+
+  // --- Authorization codes: single-use, consumed with `take()` -----------------------------------
+
+  const createAuthorizationCode = async (
+    codeHash: string, record: Omit<OAuthAuthorizationCodeRecord, 'id'>
+  ): Promise<void> => {
+    await pending().create(
+      { ...record, id: PENDING_CODE_PREFIX + codeHash } as OAuthAuthorizationCodeRecord,
+      { ttl: OAUTH_CODE_TTL_SEC }
+    )
+  }
+
+  const takeAuthorizationCode = async (codeHash: string): Promise<OAuthAuthorizationCodeRecord | null> => {
+    try {
+      return await pending().take(PENDING_CODE_PREFIX + codeHash) as OAuthAuthorizationCodeRecord
+    } catch {
+      return null
+    }
+  }
+
+  return {
+    pendingResourceAliasOf, createRequest, loadRequestById, saveRequest, deleteRequest, resolveRequestRef,
+    requirePending, createUserCodeIndex, deleteUserCodeIndex, createDeviceCodeIndex, loadRequestByDeviceCodeHash,
+    deleteDeviceCodeIndex, createAuthorizationCode, takeAuthorizationCode,
   }
 }
+
+/** The pending-record store of a context — one per context. */
+export const oauthPendingOf = memoHelper.oncePer(makeOAuthPendingHelper)

@@ -1,22 +1,11 @@
 import { handler } from '@owlmeans/client'
-import type { OidcGuardOptions } from '@owlmeans/oidc'
-import {
-  appendOidcGuard as appendBasicOidcGuard,
-  oidcProtocols,
-} from '@owlmeans/oidc'
-import type { ParametrisedProps } from '@owlmeans/web-client'
-import { parametriseDispatcher } from '@owlmeans/web-client'
+import { type OidcGuardOptions, appendOidcGuard as appendBasicOidcGuard, oidcProtocols } from '@owlmeans/oidc'
+import { type ParametrisedProps, parametriseDispatcher } from '@owlmeans/web-client'
 import { bind, bindScreen } from '@owlmeans/client-entrypoint'
-import type { ClientProtocolEntrypoint } from '@owlmeans/client-entrypoint'
 import { authProtocols } from '@owlmeans/auth-common'
 import { Dispatcher } from './components/dispatcher.js'
 import { makeOidcAuthService } from './service.js'
-import type { Config, Context } from './types.js'
-
-type OidcEntrypoint =
-  | ClientProtocolEntrypoint<typeof oidcProtocols.init>
-  | ClientProtocolEntrypoint<typeof oidcProtocols.authenticate>
-  | ClientProtocolEntrypoint<typeof authProtocols.dispatcher>
+import type { Config, Context, OidcEntrypoint } from './types.js'
 
 export const appendOidcGuard = <C extends Config, T extends Context<C>>(
   context: T, opts?: OidcGuardOptions

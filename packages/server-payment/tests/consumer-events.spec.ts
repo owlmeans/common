@@ -1,14 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { PurchaseKind, withdrawalDeadlineOf } from '@owlmeans/payment'
-import {
-  billingProfiles, consumerEvents, fulfillments, paygateCustomers, purchases, subscriptions,
-} from '../src/utils.js'
+import { PurchaseKind, withdrawalDeadlineHelper } from '@owlmeans/payment'
 import {
   buyTopUp, ENTITY, invoiceOf, makeRightsContext, paidSession, PRO, requestStart, send,
 } from './consumer-fixtures.js'
-import { capturePaymentPurchase } from '../src/consumer/capture.js'
-import { subscriptionOf } from './fake-stripe.js'
-import type { FakeContext } from './fake-stripe.js'
+import { subscriptionOf, type FakeContext } from './fake-stripe.js'
+import { paymentAccessOf } from '../src/access.js'
+import { captureOf } from '../src/consumer/capture.js'
 
 const proSubscription = (startRequestId?: string, overrides: Record<string, unknown> = {}) => {
   const subscription = subscriptionOf({ id: 'sub_pro', customer: 'cus_1', latestInvoice: 'in_sub' }) as unknown as Record<string, any>
@@ -41,7 +38,7 @@ describe('webhook capture — one-time purchases', () => {
   test('the purchase row exists before the credits are granted, with its window and evidence', async () => {
     const fake = await makeRightsContext()
     const seen: unknown[] = []
-    fake.observed.onTopUp = async () => { seen.push(await purchases(fake.ctx).load({ sessionId: 'cs_pl' })) }
+    fake.observed.onTopUp = async () => { seen.push(await paymentAccessOf(fake.ctx).purchases().load({ sessionId: 'cs_pl' })) }
     const purchase = await buyTopUp(fake)
 
     expect(seen[0]).toEqual(expect.objectContaining({ purchaseId: 'stripe:cs_pl' }))
@@ -53,8 +50,8 @@ describe('webhook capture — one-time purchases', () => {
       textVersion: 'terms-v1',
     }))
     expect(purchase.contractRef).toMatch(/^CR-\d{6}-[2-9A-HJKMNP-Z]{6}$/)
-    expect(purchase.deadline).toEqual(withdrawalDeadlineOf(new Date(purchase.purchasedAt), { marginDays: 5 }))
-    expect((await fulfillments(fake.ctx).byExternalId('cs_pl', 'stripe'))).toEqual(expect.objectContaining({
+    expect(purchase.deadline).toEqual(withdrawalDeadlineHelper.withdrawalDeadlineOf(new Date(purchase.purchasedAt), { marginDays: 5 }))
+    expect((await paymentAccessOf(fake.ctx).fulfillments().byExternalId('cs_pl', 'stripe'))).toEqual(expect.objectContaining({
       country: 'PL', email: 'buyer@shop.eu', amountTotalMinor: 1_130, amountTaxMinor: 211, termsAccepted: true,
       purchaseId: 'stripe:cs_pl',
     }))
@@ -63,7 +60,7 @@ describe('webhook capture — one-time purchases', () => {
   test('the first purchase locks the country; a later one elsewhere is only a lock-mismatch event', async () => {
     const fake = await makeRightsContext()
     await buyTopUp(fake)
-    expect(await billingProfiles(fake.ctx).byEntity(ENTITY)).toEqual(expect.objectContaining({
+    expect(await paymentAccessOf(fake.ctx).billingProfiles().byEntity(ENTITY)).toEqual(expect.objectContaining({
       country: 'PL', region: 'eu', currency: 'eur', language: 'pl', source: 'checkout', ipCountry: 'PL',
       email: 'buyer@shop.eu', sessionId: 'cs_pl',
     }))
@@ -72,8 +69,8 @@ describe('webhook capture — one-time purchases', () => {
       metadata: { ipCountry: 'AT' },
     })
     expect(second.country).toBe('DE')
-    expect((await billingProfiles(fake.ctx).byEntity(ENTITY))?.country).toBe('PL')
-    const mismatch = (await consumerEvents(fake.ctx).list({ action: 'lock-mismatch' })).items
+    expect((await paymentAccessOf(fake.ctx).billingProfiles().byEntity(ENTITY))?.country).toBe('PL')
+    const mismatch = (await paymentAccessOf(fake.ctx).consumerEvents().list({ action: 'lock-mismatch' })).items
     expect(mismatch).toHaveLength(1)
     expect(JSON.parse(mismatch[0].detail ?? '{}')).toEqual(expect.objectContaining({ locked: 'PL', observed: 'DE', sessionId: 'cs_de' }))
   })
@@ -99,19 +96,19 @@ describe('webhook capture — one-time purchases', () => {
     const session = paidSession() as never
     // Not through the webhook handler, whose per-customer lock serializes one process: two processes race here.
     await Promise.all([
-      capturePaymentPurchase(fake.ctx, fake.stripe, session), capturePaymentPurchase(fake.ctx, fake.stripe, session),
+      captureOf(fake.ctx).capturePaymentPurchase(fake.stripe, session), captureOf(fake.ctx).capturePaymentPurchase(fake.stripe, session),
     ])
     await send(fake, 'checkout.session.completed', paidSession())
     expect(fake.mails.filter(mail => mail.subject.includes('CR-')).map(mail => mail.to)).toEqual(['buyer@shop.eu', 'archive@example.com'])
-    expect(await consumerEvents(fake.ctx).count({ action: 'mail', step: 'purchase' })).toBe(1)
-    expect((await purchases(fake.ctx).load({ sessionId: 'cs_pl' }))?.confirmationMailAt).toBeInstanceOf(Date)
+    expect(await paymentAccessOf(fake.ctx).consumerEvents().count({ action: 'mail', step: 'purchase' })).toBe(1)
+    expect((await paymentAccessOf(fake.ctx).purchases().load({ sessionId: 'cs_pl' }))?.confirmationMailAt).toBeInstanceOf(Date)
   })
 
   test('a checkout that collected no terms records no acceptance', async () => {
     const fake = await makeRightsContext()
     const purchase = await buyTopUp(fake, { consent: null, metadata: { termsCollected: 'false' } })
     expect(purchase.termsAccepted).toBeUndefined()
-    expect((await fulfillments(fake.ctx).byExternalId('cs_pl', 'stripe'))?.termsAccepted).toBeUndefined()
+    expect((await paymentAccessOf(fake.ctx).fulfillments().byExternalId('cs_pl', 'stripe'))?.termsAccepted).toBeUndefined()
   })
 
   test('a purchase outside the territories has no window and no confirmation', async () => {
@@ -124,13 +121,13 @@ describe('webhook capture — one-time purchases', () => {
     expect(purchase).toEqual(expect.objectContaining({ inScope: false, region: 'other', country: 'US' }))
     expect(purchase.deadline).toBeUndefined()
     expect(fake.mails).toHaveLength(0)
-    expect((await billingProfiles(fake.ctx).byEntity(ENTITY))?.currency).toBe('usd')
+    expect((await paymentAccessOf(fake.ctx).billingProfiles().byEntity(ENTITY))?.currency).toBe('usd')
   })
 
   test('customer webhooks store the paygate country and currency', async () => {
     const fake = await makeRightsContext()
     await send(fake, 'customer.updated', { id: 'cus_9', email: 'a@shop.eu', address: { country: 'fr' }, currency: 'EUR', metadata: { entityId: ENTITY } })
-    expect(await paygateCustomers(fake.ctx).loadByPgId('cus_9', 'stripe')).toEqual(expect.objectContaining({ country: 'FR', currency: 'eur' }))
+    expect(await paymentAccessOf(fake.ctx).paygateCustomers().loadByPgId('cus_9', 'stripe')).toEqual(expect.objectContaining({ country: 'FR', currency: 'eur' }))
   })
 })
 
@@ -141,7 +138,7 @@ describe('webhook capture — subscriptions', () => {
     const startRequestId = await requestStart(fake)
     const seen: unknown[] = []
     fake.observed.onSubscription = async event => {
-      if (event.change === 'created') seen.push(await purchases(fake.ctx).byPurchaseId('stripe:sub_pro'))
+      if (event.change === 'created') seen.push(await paymentAccessOf(fake.ctx).purchases().byPurchaseId('stripe:sub_pro'))
     }
     const subscription = proSubscription(startRequestId)
     fake.state.subscriptions.sub_pro = subscription as never
@@ -158,18 +155,18 @@ describe('webhook capture — subscriptions', () => {
     expect(stored.consentedAt).toEqual(stored.servicesStartedAt)
 
     await send(fake, 'checkout.session.completed', subscriptionSession({ customer_details: { address: { country: 'AT' }, email: 'owner@shop.eu', name: 'Anna' } }))
-    expect(await purchases(fake.ctx).byPurchaseId('stripe:sub_pro')).toEqual(expect.objectContaining({
+    expect(await paymentAccessOf(fake.ctx).purchases().byPurchaseId('stripe:sub_pro')).toEqual(expect.objectContaining({
       sessionId: 'cs_sub', country: 'AT', email: 'owner@shop.eu', termsAccepted: true, amountTotalMinor: 2_142,
     }))
-    expect(await subscriptions(fake.ctx).byExternalId('sub_pro', 'stripe')).toEqual(expect.objectContaining({
+    expect(await paymentAccessOf(fake.ctx).subscriptions().byExternalId('sub_pro', 'stripe')).toEqual(expect.objectContaining({
       checkoutSessionId: 'cs_sub', purchaseId: 'stripe:sub_pro', firstInvoiceId: 'in_sub', currency: 'eur', country: 'AT',
       email: 'owner@shop.eu', amountTotalMinor: 2_142, amountTaxMinor: 342, termsAccepted: true, startRequestId,
     }))
-    expect((await billingProfiles(fake.ctx).byEntity(ENTITY))?.country).toBe('AT')
+    expect((await paymentAccessOf(fake.ctx).billingProfiles().byEntity(ENTITY))?.country).toBe('AT')
     const confirmation = fake.mails.find(mail => mail.to === 'owner@shop.eu' && mail.subject.includes('CR-'))
     // The order confirmation is in the billing language; the start request is repeated verbatim, as shown (en).
     expect(confirmation?.subject).toStartWith('Bestellbestätigung')
-    expect(confirmation?.text).toContain('I expressly request and agree that Example starts the Pro platform services')
+    expect(confirmation?.text).toContain('I expressly request and agree that Example starts the Pro services — including the AI work')
     expect(confirmation?.text).toContain('https://app.example.com/legal/cancel')
   })
 
@@ -179,7 +176,7 @@ describe('webhook capture — subscriptions', () => {
     fake.state.subscriptions.sub_pro = proSubscription() as never
     await send(fake, 'checkout.session.completed', subscriptionSession())
     expect(fake.observed.subscription.map(event => event.change)).toEqual(['created'])
-    expect(await purchases(fake.ctx).byPurchaseId('stripe:sub_pro')).toEqual(expect.objectContaining({ sessionId: 'cs_sub', country: 'DE' }))
+    expect(await paymentAccessOf(fake.ctx).purchases().byPurchaseId('stripe:sub_pro')).toEqual(expect.objectContaining({ sessionId: 'cs_sub', country: 'DE' }))
     // Renewals are not purchases.
     await send(fake, 'invoice.paid', { id: 'in_renew', object: 'invoice', subscription: 'sub_pro', customer: 'cus_1', billing_reason: 'subscription_cycle' })
     expect(fake.stores['payment-purchase'].rows).toHaveLength(1)
@@ -199,7 +196,7 @@ describe('webhook capture — refunds', () => {
     expect(fake.observed.refund[0]).toEqual(expect.objectContaining({
       withdrawalId: 'decl_1', metadata: expect.objectContaining({ withdrawalId: 'decl_1' }), partial: false,
     }))
-    const purchase = await purchases(fake.ctx).byPurchaseId('stripe:cs_pl')
+    const purchase = await paymentAccessOf(fake.ctx).purchases().byPurchaseId('stripe:cs_pl')
     expect(purchase?.refundedMinor).toBe(1_130)
     expect(purchase?.refundedAt).toBeInstanceOf(Date)
   })
@@ -211,7 +208,7 @@ describe('webhook capture — refunds', () => {
       id: 're_p', object: 'refund', amount: 300, currency: 'eur', status: 'succeeded', payment_intent: 'pi_pl', charge: 'ch_pl',
     })
     expect(fake.observed.refund[0].withdrawalId).toBeUndefined()
-    const purchase = await purchases(fake.ctx).byPurchaseId('stripe:cs_pl')
+    const purchase = await paymentAccessOf(fake.ctx).purchases().byPurchaseId('stripe:cs_pl')
     expect(purchase?.refundedMinor).toBe(300)
     expect(purchase?.refundedAt).toBeUndefined()
   })

@@ -46,6 +46,11 @@
     "PlanningErrorCommitTimeout": "La modification est encore en cours d’enregistrement. Vérifiez de nouveau dans un instant.",
     "PlanningErrorCommitFailed": "La modification n’a pas pu être enregistrée",
     "PlanningErrorScopeMismatch": "Cet élément n’existe pas ou ne vous est pas accessible",
+    "PlanningErrorSchemaConflict": "Cette définition a été modifiée entre-temps. Actualisez la page puis réessayez.",
+    "PlanningErrorSchemaInUse": "Cette définition est encore utilisée et ne peut pas être retirée",
+    "PlanningErrorSchemaSealed": "Cette définition est figée et ne peut pas être modifiée ici",
+    "PlanningErrorSchemaInvalid": "Cette définition n’est pas valide",
+    "PlanningErrorForbidden": "Vous n’êtes pas autorisé à effectuer cette modification",
     "PlanningErrorUnsupported": "Cette opération n’est pas prise en charge pour cet élément"
   }
 }

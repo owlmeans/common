@@ -65,6 +65,56 @@ export enum CodeScope {
   Entity = 'entity',
 }
 
+/** What a data-defined schema record declares: a card type or a status flow. */
+export enum PlanningSchemaKind {
+  Type = 'type',
+  Flow = 'flow',
+  AssigneeType = 'assignee-type',
+}
+
+export enum AssigneeKind {
+  Human = 'human',
+  NonHuman = 'non-human',
+}
+
+export enum PlanningResourceKind {
+  Workcard = 'workcard',
+  Assignee = 'assignee',
+  Team = 'team',
+  Comment = 'comment',
+  Mention = 'mention',
+}
+
+export enum ProjectMode {
+  Opened = 'opened',
+  Closed = 'closed',
+}
+
+export const PLANNING_TEAM_MEMBER = 'planning:team-member'
+export const PLANNING_PROJECT_TEAM = 'planning:project-team'
+export const PLANNING_REPORTER = 'planning:reporter'
+export const PLANNING_ASSIGNEE = 'planning:assignee'
+
+/**
+ * The layer a resolved type or flow comes from. `code` is the in-process registry (plugins),
+ * `entity` an organization-wide record, `project` a record scoped to one project card.
+ */
+export enum SchemaOrigin {
+  Code = 'code',
+  Entity = 'entity',
+  Project = 'project',
+}
+
+/** How a `schema.define` request writes its declarations. */
+export enum SchemaWriteMode {
+  /** Each declaration lands at its layer's next version. */
+  Define = 'define',
+  /** Compare-and-set: each declaration's `version` must be its layer's next version. */
+  Put = 'put',
+  /** Only keys the layer lacks are written, at version 1. */
+  Seed = 'seed',
+}
+
 /** Service alias of the planning facade host. Identical on the server and in a client. */
 export const PLANNING_SERVICE = 'planning'
 
@@ -109,28 +159,3 @@ export const QUERY_TEXT_MAX = 256
 /** The longest list a wire query carries in one value (ids, parents). */
 export const MAX_QUERY_LIST = 500
 
-/**
- * The aliases one planning tree answers under, derived from the mount's base alias.
- *
- * Two mounts of the tree in one deployment are two base aliases, never two copies of this table —
- * which is why nothing here is a global constant.
- */
-export const planningAliases = (base: string) => Object.freeze({
-  base,
-  schema: Object.freeze({ list: `${base}:schema:list` }),
-  card: Object.freeze({
-    list: `${base}:card:list`,
-    summary: `${base}:card:summary`,
-    get: `${base}:card:get`,
-    transitions: `${base}:card:transitions`,
-    specifications: `${base}:card:specifications`,
-  }),
-  spec: Object.freeze({
-    get: `${base}:specification:get`,
-    revisions: `${base}:specification:revisions`,
-  }),
-  link: Object.freeze({ list: `${base}:link:list` }),
-  transition: Object.freeze({ get: `${base}:transition:get` }),
-  execute: `${base}:execute`,
-  commit: Object.freeze({ get: `${base}:commit:get`, events: `${base}:commit:events` }),
-})

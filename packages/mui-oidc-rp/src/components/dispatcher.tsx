@@ -11,9 +11,12 @@ import { useFlow } from '@owlmeans/web-flow'
 import { OidcAuthService } from '../types.js'
 import { DEFAULT_ALIAS } from '../consts.js'
 import {
-  LoginIntent, LoginOutcome, ResumeAction, resumeAction,
+  LoginIntent, LoginOutcome, ResumeAction, loginResumeHelper,
 } from '@owlmeans/client-auth/login'
 import { LoginSurrogateView, SurrogateStage } from '@owlmeans/web-client'
+import { logger } from '@owlmeans/log'
+
+const log = logger('mui-oidc-rp')
 
 export const Dispatcher: RoutedComponent<DispatcherProps> = DispatcherHOC(({ provideToken, navigate }) => {
   const context = useContext()
@@ -55,7 +58,7 @@ export const Dispatcher: RoutedComponent<DispatcherProps> = DispatcherHOC(({ pro
       return
     }
     if (error != null) {
-      console.error(`[oidc] authorization failed: ${error}${errorDescription != null ? ` — ${errorDescription}` : ''}`)
+      log.warn('Authorization refused by the provider', { reason: error, description: errorDescription }, { event: 'auth.refused' })
       return
     }
     const token = query.get(AUTH_QUERY)
@@ -106,7 +109,7 @@ export const Dispatcher: RoutedComponent<DispatcherProps> = DispatcherHOC(({ pro
         // A session already exists in THIS document. Whether it is useful here, or belongs to the
         // window that opened this one, is the plugin's call — the dispatcher reads no environment.
         const settled = await context.login().resume(authzToken)
-        switch (resumeAction(settled)) {
+        switch (loginResumeHelper.resumeAction(settled)) {
           case ResumeAction.Stop:
             return
           case ResumeAction.Render:

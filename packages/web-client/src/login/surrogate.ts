@@ -1,8 +1,4 @@
-import {
-  adoptToken, clearSurrogate, markSurrogate, revokeToken, surrogatePath, LoginIntent, LoginOutcome,
-  LOGIN_LOGOUT_MESSAGE, LOGIN_SURROGATE_HEIGHT, LOGIN_SURROGATE_NAME, LOGIN_SURROGATE_WIDTH,
-  LOGIN_TOKEN_MESSAGE,
-} from '@owlmeans/client-auth/login'
+import { surrogatePath, LoginIntent, LoginOutcome, LOGIN_LOGOUT_MESSAGE, LOGIN_SURROGATE_HEIGHT, LOGIN_SURROGATE_NAME, LOGIN_SURROGATE_WIDTH, LOGIN_TOKEN_MESSAGE, loginEnvHelper, loginTokenOf } from '@owlmeans/client-auth/login'
 import type { LoginContext, LoginEnv, LoginPlugin } from '@owlmeans/client-auth/login'
 import { SURROGATE_LOGIN, SURROGATE_LOGIN_PRIORITY } from './consts.js'
 import { awaitSurrogate } from './pump.js'
@@ -70,7 +66,7 @@ export const makeSurrogateLoginPlugin = (): LoginPlugin => {
       return LoginOutcome.Orphaned
     }
 
-    clearSurrogate()
+    loginEnvHelper.clearSurrogate()
     // Both windows are the same origin (the surrogate is this application's own login route), so
     // the origin is pinned rather than passed as `*` — the message carries a bearer token.
     window.opener.postMessage({ type: LOGIN_TOKEN_MESSAGE, token }, window.location.origin)
@@ -85,7 +81,7 @@ export const makeSurrogateLoginPlugin = (): LoginPlugin => {
     mode: 'surrogate',
     match: env => env.hasWindow && (env.embedded || env.surrogate),
 
-    enter: () => { markSurrogate() },
+    enter: () => { loginEnvHelper.markSurrogate() },
 
     begin: (ctx, request, env) => {
       // Already one window up — nothing to open, just run the flow.
@@ -119,7 +115,7 @@ export const makeSurrogateLoginPlugin = (): LoginPlugin => {
         if (data.token == null || data.token === '') {
           return LoginOutcome.Failed
         }
-        await adoptToken(ctx as LoginContext, data.token)
+        await loginTokenOf(ctx as LoginContext).adoptToken(data.token)
         // Adopting the token is not the end of the flow — running the caller's continuation is,
         // exactly as the redirect plugin does before it reports `Handled`. Without it the token
         // lands in the auth service and nothing else happens: the framed app keeps rendering its
@@ -155,7 +151,7 @@ export const makeSurrogateLoginPlugin = (): LoginPlugin => {
     logout: (ctx, request, env) => {
       // Already one window up — end the session here and tell the opener.
       if (env.surrogate) {
-        return revokeToken(ctx as LoginContext)
+        return loginTokenOf(ctx as LoginContext).revokeToken()
           .then(async () => await plugin.logoutComplete!(ctx, env))
       }
 
@@ -169,7 +165,7 @@ export const makeSurrogateLoginPlugin = (): LoginPlugin => {
       // The local session goes next, and UNCONDITIONALLY. A blocked window, a severed opener or a
       // user who closes the popup must never leave THIS document signed in: a logout that only
       // half happened is bad, and one that did not happen at all is worse.
-      const local = revokeToken(ctx as LoginContext)
+      const local = loginTokenOf(ctx as LoginContext).revokeToken()
       if (surrogate == null) {
         // `path == null` is an app whose entrypoint list predates the surrogate route — nothing a
         // retry would do differently. A `window.open` the browser refused is the one case worth
@@ -199,7 +195,7 @@ export const makeSurrogateLoginPlugin = (): LoginPlugin => {
       if (!env.hasOpener) {
         return LoginOutcome.Orphaned
       }
-      clearSurrogate()
+      loginEnvHelper.clearSurrogate()
       window.opener.postMessage({ type: LOGIN_LOGOUT_MESSAGE, ok: true }, window.location.origin)
       window.close()
 

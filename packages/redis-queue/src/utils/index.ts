@@ -1,4 +1,8 @@
 export * from './connection.js'
+export type * from './types.js'
+export type * from './connection/types.js'
+export type * from './record/types.js'
+export type * from './schedule/types.js'
 export * from './declaration.js'
 export * from './flow.js'
 export * from './record.js'

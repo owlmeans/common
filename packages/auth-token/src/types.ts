@@ -47,7 +47,7 @@ export interface AccessTokenRecord extends ResourceRecord {
 }
 
 /** What a caller may see. The hash never leaves the server. */
-export type AccessTokenView = Omit<AccessTokenRecord, 'hash'>
+export interface AccessTokenView extends Omit<AccessTokenRecord, 'hash'> {}
 
 export interface CreateAccessToken {
   name: string

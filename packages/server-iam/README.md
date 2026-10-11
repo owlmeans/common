@@ -7,12 +7,14 @@ One-call OIDC RP wiring and IAM gate for OwlMeans servers — `appendIam()` and 
 - `appendIam(context)` — registers the OIDC client, wrapping service, and IAM gate in a single call, replacing verbose manual wiring
 - `makeIamGate()` — produces a guard that asserts unscoped or resource-scoped permissions against the IAM backend (claims-first, UMA2 fallback)
 - Re-exports `hasPermission` from `@owlmeans/iam` for inline permission checks
+- `makeOrganizationScope(context, request)` — `.organizationOf(slug)` / `.organizationsOf()`: the organizations of a tenanted session, from its session record
+- `makeIamRuntimeClient(context, request)` — a typed client of the provider's runtime IAM API, acting as the request's subject
 - Designed for IAM consumers such as the viable target template backend
 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-iam@^0.1.18-rc.49
+bun add @owlmeans/server-iam@^0.1.18-rc.60
 ```
 
 ## Usage
@@ -45,7 +47,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.40
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

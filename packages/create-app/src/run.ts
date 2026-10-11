@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { run as installSkills } from '@owlmeans/agent-skills'
-import type { CreateArgs, PackageManager } from './args.js'
-import { defaultDescription, isValidSlug, slugify, titleize } from './naming.js'
-import { copyTemplate, isEmptyDir, templateDir } from './template.js'
+import type { CreateArgs, PackageManager } from './types.js'
+import { namingHelper } from './naming.js'
+import { templateHelper } from './template.js'
 
 const installArgs = (pm: PackageManager): string[] => pm === 'yarn' ? [] : ['install']
 
@@ -16,18 +16,18 @@ export const run = async (args: CreateArgs): Promise<number> => {
   }
 
   const dest = resolve(args.dir)
-  const slug = args.slug ?? slugify(args.dir)
-  if (!isValidSlug(slug)) {
+  const slug = args.slug ?? namingHelper.slugify(args.dir)
+  if (!namingHelper.isValidSlug(slug)) {
     process.stderr.write(
       `error: cannot derive a package slug from "${args.dir}" (got "${slug}")`
       + ' — pass one with --slug\n'
     )
     return 2
   }
-  const name = args.name ?? titleize(slug)
-  const description = args.description ?? defaultDescription(name)
+  const name = args.name ?? namingHelper.titleize(slug)
+  const description = args.description ?? namingHelper.defaultDescription(name)
 
-  if (!isEmptyDir(dest) && !args.yes) {
+  if (!templateHelper.isEmptyDir(dest) && !args.yes) {
     process.stderr.write(
       `error: ${dest} is not empty. Re-run with --yes to scaffold into it anyway.\n`,
     )
@@ -35,7 +35,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
   }
 
   log(`\nScaffolding OwlMeans app "${name}" into ${dest}\n`)
-  copyTemplate(templateDir(), dest, { slug, name, lang: args.lang, description }, { bare: args.bare })
+  templateHelper.copyTemplate(templateHelper.templateDir(), dest, { slug, name, lang: args.lang, description }, { bare: args.bare })
   log(args.bare
     ? '  ✓ template copied (common + api + web, bare shell)'
     : '  ✓ template copied (common + api + web)')
@@ -62,7 +62,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
     log(args.install
       ? '\nDeploying agent skills via @owlmeans/agent-skills…'
       : '\nDeploying harness guidance via @owlmeans/agent-skills (general skills only — re-run'
-        + '\n`npx @owlmeans/agent-skills@^0.1.18-rc.39` after installing to add the package-specific ones)…')
+        + '\n`npx @owlmeans/agent-skills@^0.1.18-rc.53` after installing to add the package-specific ones)…')
     try {
       const result = await installSkills({
         dir: dest,
@@ -74,7 +74,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
         help: false,
       })
       if (result.code !== 0) {
-        process.stderr.write(`  agent-skills exited with code ${result.code} — you can re-run \`npx @owlmeans/agent-skills@^0.1.18-rc.39\` later.\n`)
+        process.stderr.write(`  agent-skills exited with code ${result.code} — you can re-run \`npx @owlmeans/agent-skills@^0.1.18-rc.53\` later.\n`)
       }
     } catch (err) {
       process.stderr.write(`  agent-skills failed: ${err instanceof Error ? err.message : String(err)}\n`)
@@ -92,7 +92,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
     ? 'Add your entrypoints in sources/common/src/entrypoints.ts, handlers in sources/api\n'
       + 'and screens in sources/web/src/screens — the Home screen shows where they go.\n'
     : 'Open the "Session" page to exercise the in-memory session resource.\n')
-  log('Agent guidance was scaffolded: AGENTS.md (with a CLAUDE.md bridge), the skills in')
+  log('Agent guidance was scaffolded: AGENTS.md, the skills in')
   log('.agents/skills/ and the shared memory store at .agents/memory/MEMORY.md.')
   log('Open the project in any coding agent — on the first session it will ask what the')
   log('project is for and fill in its purpose for you.\n')

@@ -1,29 +1,21 @@
 import { assertContext, createService } from '@owlmeans/context'
-import type { BasicContext } from '@owlmeans/context'
-import { extractParams } from '@owlmeans/client-route'
+import { clientRouteHelper } from '@owlmeans/client-route'
 import type { ApiClient } from './types.js'
 import axios, { AxiosHeaders } from 'axios'
 import type { AxiosRequestTransformer } from 'axios'
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import { DEFAULT_ALIAS, UNAUTHORIZED_ERROR } from './consts.js'
-import { processResponse } from './utils/handler.js'
-import { BasicClientConfig } from '@owlmeans/client-config'
-import qs from 'qs'
+import { responseUtils } from './utils/response.js'
 import { makeSecurityHelper } from '@owlmeans/config'
-import { RouteMethod } from '@owlmeans/route'
-import { AUTH_HEADER, DEF_AUTH_SRV, TOKEN_UPDATE } from '@owlmeans/auth-common'
-import type { AuthService } from '@owlmeans/auth-common'
+import { AUTH_HEADER, DEF_AUTH_SRV, TOKEN_UPDATE, type AuthService } from '@owlmeans/auth-common'
+import type { Config, Context } from './types.local.js'
+import { bodyUtils } from './utils/body.js'
 
 /** Whether a request carried an authentication header of its own. */
 const presented = (headers?: Record<string, unknown>): boolean =>
   headers != null && Object.entries(headers).some(
     ([key, value]) => key.toLowerCase() === AUTH_HEADER && value != null && value !== ''
   )
-
-type Config = BasicClientConfig
-
-interface Context<C extends Config = Config> extends BasicContext<C> {
-}
 
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const location = `api.service:${alias}`
@@ -36,7 +28,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       const module = context.entrypoint<CommonEntrypoint>(request.alias)
       const route = module.route.route
       let path = module.path()
-      const params = extractParams(path)
+      const params = clientRouteHelper.extractParams(path)
       path = params.reduce((path, param) => {
         type Key = keyof typeof request.params
         if (request.params[param as Key] == null) {
@@ -54,28 +46,19 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         { host: request.host, base: request.base, forceUnsecure: request.unsecure }
       )
 
-      let transformer: AxiosRequestTransformer | undefined = undefined
-
-      let body = request.body != null && Object.entries((request.headers ?? {})).find(
-        ([key, value]) =>
-          key.toLowerCase() === 'content-type' && value?.includes('application/x-www-form-urlencoded')
-      ) ? qs.stringify(request.body) : request.body
-
-      // @TODO Probably this hack needs to be made a little bit less dirty
-      if (typeof body === 'string' && route.method === RouteMethod.POST) {
-        if (Object.keys(request.headers).every(key => key.toLowerCase() !== 'content-type')) {
-          request.headers['content-type'] = 'application/json'
-          // It fixes the case when final rest api under application/json can't
-          // properly accept canonized jsoned string value (put into quotes)
-          transformer = data => data
-        }
-      }
+      // A scalar JSON body (a string, a number, a boolean) is serialized here, so the server parses
+      // back the value the caller sent; objects and arrays are left to axios.
+      const body = bodyUtils.requestBodyOf(request.body, request.headers, route.method, module.filter?.body)
+      const transformer: AxiosRequestTransformer | undefined = body.verbatim ? data => data : undefined
+      const requestHeaders = body.contentType != null
+        ? { ...request.headers, 'content-type': body.contentType }
+        : request.headers
 
       const response = await axios.request({
         url, method: route.method,
         params: request.query,
-        data: body,
-        headers: request.headers,
+        data: body.data,
+        headers: requestHeaders,
         transformRequest: transformer,
         validateStatus: () => true,
         // Per-request timeout (ms); axios aborts the request and rejects on expiry.
@@ -111,7 +94,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         await context.service<AuthService>(DEF_AUTH_SRV).update(undefined)
       }
 
-      processResponse(response, reply)
+      responseUtils.processResponse(response, reply)
 
       return [reply.error ?? reply.value, reply.outcome] as any
     }

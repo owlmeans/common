@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { authorizationServerMetadata, isKnownResource, protectedResourceMetadata } from '../src/metadata.js'
+import { makeOAuthMetadataHelper } from '../src/metadata.js'
 import { handleAuthorize } from '../src/handlers/authorize.js'
-import { createPkcePair } from '@owlmeans/oauth'
+import { pkceHelper } from '@owlmeans/oauth'
 import { makeTestContext, TEST_CLIENT_ID, TEST_REDIRECT_URI } from './context.js'
 
 /**
@@ -15,8 +15,8 @@ describe('lazily-resolved URL options', () => {
     let calls = 0
     const context = makeTestContext({ issuer: () => { calls += 1; return `https://call-${calls}.example.com` } })
 
-    expect(authorizationServerMetadata(context).issuer).toBe('https://call-1.example.com')
-    expect(authorizationServerMetadata(context).issuer).toBe('https://call-2.example.com')
+    expect(makeOAuthMetadataHelper(context).authorizationServerMetadata().issuer).toBe('https://call-1.example.com')
+    expect(makeOAuthMetadataHelper(context).authorizationServerMetadata().issuer).toBe('https://call-2.example.com')
   })
 
   test('a function resource resolves in the protected-resource metadata', () => {
@@ -24,19 +24,19 @@ describe('lazily-resolved URL options', () => {
       resources: [{ resource: (ctx) => `${ctx.cfg.oauth!.issuer as string}` }],
     })
 
-    expect(protectedResourceMetadata(context, '')?.resource).toBe(context.cfg.oauth!.issuer)
+    expect(makeOAuthMetadataHelper(context).protectedResourceMetadata('')?.resource).toBe(context.cfg.oauth!.issuer)
   })
 
   test('isKnownResource resolves a function resource before comparing', () => {
     const context = makeTestContext({ resources: [{ resource: () => 'https://dynamic.example.com' }] })
 
-    expect(isKnownResource(context, 'https://dynamic.example.com')).toBe(true)
-    expect(isKnownResource(context, 'https://someone-else.example.com')).toBe(false)
+    expect(makeOAuthMetadataHelper(context).isKnownResource('https://dynamic.example.com')).toBe(true)
+    expect(makeOAuthMetadataHelper(context).isKnownResource('https://someone-else.example.com')).toBe(false)
   })
 
   test('a function consentUrl is used to build the redirect to consent', async () => {
     const context = makeTestContext({ consentUrl: () => 'https://dynamic-web.example.com/oauth/consent' })
-    const pkce = createPkcePair()
+    const pkce = pkceHelper.createPkcePair()
 
     const outcome = await handleAuthorize(context, {
       response_type: 'code', client_id: TEST_CLIENT_ID, redirect_uri: TEST_REDIRECT_URI,

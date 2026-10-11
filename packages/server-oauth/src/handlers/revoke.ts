@@ -1,7 +1,7 @@
 import { AUTH_TOKEN_RESOURCE } from '@owlmeans/auth-token'
 import type { AccessTokenResource } from '@owlmeans/server-auth-token'
-import { hashAccessToken } from '@owlmeans/server-auth-token'
 import type { OAuthServerContext } from '../types.js'
+import { tokenHashHelper } from '@owlmeans/server-auth-token'
 
 /**
  * `POST /oauth/revoke` — RFC 7009. The response is the SAME whether the token existed, was
@@ -14,7 +14,7 @@ export const handleRevoke = async (context: OAuthServerContext, body: Record<str
   if (token == null || token === '') return
 
   const tokens = context.resource<AccessTokenResource>(AUTH_TOKEN_RESOURCE)
-  const record = await tokens.load({ hash: hashAccessToken(token) })
+  const record = await tokens.load({ hash: tokenHashHelper.hashAccessToken(token) })
   if (record == null || record.revokedAt != null) return
 
   await tokens.save({ ...record, revokedAt: new Date(), updatedAt: new Date() })

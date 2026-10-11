@@ -1,20 +1,27 @@
 {
   "performance-consent": {
     "title": "Commencer à utiliser vos crédits maintenant ?",
+    "title_included": "Utiliser vos crédits rechargés maintenant ?",
     "intro": "Achats encore dans le délai de rétractation : {{count}}. Le dernier délai de rétractation prend fin le {{deadline}}.",
+    "intro_included": "Achats encore dans le délai de rétractation : {{count}}. Le dernier délai de rétractation prend fin le {{deadline}}. Les limites de crédits incluses dans votre plan sont toujours utilisées en premier ; ceci s’applique aux crédits que vous avez rechargés, une fois ces limites épuisées.",
     "purchase": "Crédits achetés le {{date}} ({{amount}}) : en tant que consommateur dans l’UE, vous pouvez vous rétracter de cet achat jusqu’au {{deadline}} inclus.",
     "request": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant, avant la fin du délai de rétractation, l’exécution du service payant — le travail d’IA et le contenu numérique qu’il produit.",
+    "request_included": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant, avant la fin du délai de rétractation, l’exécution du service payant — le travail d’IA et le contenu numérique qu’il produit —, payé avec mes crédits rechargés une fois épuisées les limites de crédits incluses dans mon plan, qui sont toujours utilisées en premier.",
     "acknowledgement": "Je reconnais perdre mon droit de rétractation pour les crédits que j’utilise dès que ce travail a été exécuté ; je reconnais aussi qu’en cas de rétractation, seuls les crédits que je n’ai pas utilisés me sont remboursés.",
     "checkbox": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant, avant la fin du délai de rétractation, l’exécution du service payant — le travail d’IA et le contenu numérique qu’il produit. Je reconnais perdre mon droit de rétractation pour les crédits que j’utilise dès que ce travail a été exécuté ; je reconnais aussi qu’en cas de rétractation, seuls les crédits que je n’ai pas utilisés me sont remboursés.",
+    "checkbox_included": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant, avant la fin du délai de rétractation, l’exécution du service payant — le travail d’IA et le contenu numérique qu’il produit —, payé avec mes crédits rechargés une fois épuisées les limites de crédits incluses dans mon plan, qui sont toujours utilisées en premier. Je reconnais perdre mon droit de rétractation pour les crédits que j’utilise dès que ce travail a été exécuté ; je reconnais aussi qu’en cas de rétractation, seuls les crédits que je n’ai pas utilisés me sont remboursés.",
     "confirm": "Commencer maintenant",
     "decline": "Pas maintenant"
   },
   "subscription-start": {
     "title": "Commencer les services {{plan}} maintenant ?",
     "intro": "En tant que consommateur dans l’UE, vous pouvez vous rétracter de cet abonnement dans un délai de 14 jours. Nous ne commençons les services avant la fin de ce délai qu’à votre demande expresse.",
-    "request": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant les services de plateforme {{plan}} et exécute le travail d’IA payé avec les crédits inclus chaque fois que je le lance, avant la fin du délai de rétractation de 14 jours.",
-    "acknowledgement": "Je reconnais qu’en cas de rétractation, je paie les services de plateforme fournis jusque-là, au prorata du temps écoulé, et je reconnais perdre mon droit de rétractation pour les crédits inclus que j’ai utilisés ; tout le reste m’est remboursé.",
-    "checkbox": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant les services de plateforme {{plan}} et exécute le travail d’IA payé avec les crédits inclus chaque fois que je le lance, avant la fin du délai de rétractation de 14 jours. Je reconnais qu’en cas de rétractation, je paie les services de plateforme fournis jusque-là, au prorata du temps écoulé, et je reconnais perdre mon droit de rétractation pour les crédits inclus que j’ai utilisés ; tout le reste m’est remboursé.",
+    "request": "Je demande expressément et j’accepte expressément que {{trader}} commence les services {{plan}} — y compris le travail d’IA dans la limite de l’utilisation incluse dans le plan — dès maintenant, avant la fin du délai de rétractation de 14 jours.",
+    "request_units": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant les services de plateforme {{plan}} et exécute le travail d’IA payé avec les crédits inclus chaque fois que je le lance, avant la fin du délai de rétractation de 14 jours.",
+    "acknowledgement": "Je reconnais qu’en cas de rétractation, je paie les services fournis jusque-là, au prorata des jours écoulés, et que tout le reste m’est remboursé.",
+    "acknowledgement_units": "Je reconnais qu’en cas de rétractation, je paie les services de plateforme fournis jusque-là, au prorata du temps écoulé, et je reconnais perdre mon droit de rétractation pour les crédits inclus que j’ai utilisés ; tout le reste m’est remboursé.",
+    "checkbox": "Je demande expressément et j’accepte expressément que {{trader}} commence les services {{plan}} — y compris le travail d’IA dans la limite de l’utilisation incluse dans le plan — dès maintenant, avant la fin du délai de rétractation de 14 jours. Je reconnais qu’en cas de rétractation, je paie les services fournis jusque-là, au prorata des jours écoulés, et que tout le reste m’est remboursé.",
+    "checkbox_units": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant les services de plateforme {{plan}} et exécute le travail d’IA payé avec les crédits inclus chaque fois que je le lance, avant la fin du délai de rétractation de 14 jours. Je reconnais qu’en cas de rétractation, je paie les services de plateforme fournis jusque-là, au prorata du temps écoulé, et je reconnais perdre mon droit de rétractation pour les crédits inclus que j’ai utilisés ; tout le reste m’est remboursé.",
     "confirm": "Continuer vers le paiement",
     "decline": "Annuler"
   },
@@ -92,7 +99,8 @@
     "start": {
       "subject": "Confirmation : votre demande de commencer les services {{plan}}",
       "body": "Le {{date}} (UTC), avant de souscrire à {{plan}}, vous nous avez fait la déclaration suivante :\n\n« {{statement}} »",
-      "rule": "Si vous vous rétractez pendant le délai de rétractation, vous payez les services de plateforme fournis jusque-là, au prorata du temps écoulé, et votre droit de rétractation prend fin pour les crédits inclus que vous avez utilisés ; tout le reste vous est remboursé."
+      "rule": "Si vous vous rétractez pendant le délai de rétractation, vous payez les services fournis jusque-là, au prorata des jours écoulés ; tout le reste vous est remboursé.",
+      "rule_units": "Si vous vous rétractez pendant le délai de rétractation, vous payez les services de plateforme fournis jusque-là, au prorata du temps écoulé, et votre droit de rétractation prend fin pour les crédits inclus que vous avez utilisés ; tout le reste vous est remboursé."
     },
     "purchase": {
       "subject": "Confirmation de commande {{contractRef}}",

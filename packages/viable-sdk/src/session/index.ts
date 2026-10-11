@@ -1,35 +1,23 @@
-import {
-  ConnectOpErrorKind, ConnectOpKind, ConnectSessionStatus
-} from '@owlmeans/viable-common'
-import type {
-  ConnectOp, ConnectOpResult, ConnectSessionView, ConfigurePayload, InquiryPayload, ModelTask,
-  SlotCommandPayload
-} from '@owlmeans/viable-common'
+import { ConnectOpErrorKind, ConnectOpKind, ConnectSessionStatus, type ConnectOp, type ConnectOpResult, type ConnectSessionView, type ConfigurePayload, type InquiryPayload, type ModelTask, type SlotCommandPayload } from '@owlmeans/viable-common'
 import { PULL_WAIT_MS } from '../consts.js'
-import type { ConnectorApi, LocalExecutor, OpenSessionArgs, SessionRuntime, SessionStats } from '../types.js'
-import { writeEnv } from '../project/env.js'
-import { readMarker, writeMarker } from '../project/marker.js'
+import type { LocalExecutor, SessionRuntime, SessionStats } from '../types.js'
+import { makeProjectEnvHelper } from '../project/env.js'
+import { makeMarkerHelper } from '../project/marker.js'
 import { QuestionQueue } from './questions.js'
 import { TaskQueue } from './tasks.js'
-
-export interface SessionOptions {
-  api: ConnectorApi
-  open: OpenSessionArgs
-  /** Absent for a cloud target: the platform's own pod executes its commands. */
-  executor?: LocalExecutor
-  /** Which deployment this is, recorded in the project's marker so a later connector finds it. */
-  apiUrl?: string
-  log?: (line: string) => void
-}
+import type { SessionOptions } from './types.js'
+import { EMPTY_PULL_PAUSE_MS, FAST_PULL_MS } from './consts.local.js'
 
 /**
  * One attached connector, running.
  *
- * The loop is deliberately simple and deliberately serial: pull operations, answer them one at a
- * time, put model tasks aside for the parent agent to drain. Serial because the thing on the other
- * end of a local operation is a filesystem the platform believes it is the only writer of — two
- * concurrent template writes into the same tree is not a throughput problem, it is a corrupted
- * tree.
+ * Two loops. The PULL loop never stops to execute anything: it files model tasks and questions for
+ * the parent agent and hands every local operation to the WORKER, which answers them one at a time.
+ * Serial because the thing on the other end of a local operation is a filesystem the platform
+ * believes it is the only writer of — two concurrent template writes into the same tree is not a
+ * throughput problem, it is a corrupted tree. Separate because a local command can take minutes (a
+ * `bun install`), and a pull loop that waited for it would leave a model task the platform is
+ * blocked on undelivered for exactly that long.
  *
  * Results are remembered by operation id. A connector that reconnects is handed everything still
  * outstanding, including whatever it had already answered when the connection dropped, and
@@ -51,12 +39,13 @@ const recordMarker = async (opts: SessionOptions, projectId: string): Promise<vo
   const dir = opts.open.projectDir
   if (dir == null) return
 
+  const markers = makeMarkerHelper(dir)
   try {
-    const existing = await readMarker(dir)
+    const existing = await markers.readMarker()
     if (existing?.projectId === projectId) return
 
     const status = await opts.api.project.status(projectId)
-    await writeMarker(dir, {
+    await markers.writeMarker({
       version: 1,
       apiUrl: opts.apiUrl ?? '',
       projectId,
@@ -75,6 +64,9 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
   const tasks = new TaskQueue()
   const questions = new QuestionQueue()
   const answered = new Map<string, ConnectOpResult>()
+  /** Local operations queued for or running on the worker — a redelivery of one is not queued twice. */
+  const working = new Set<string>()
+  let worker: Promise<void> = Promise.resolve()
 
   const stats: SessionStats = {
     opsDone: 0,
@@ -132,9 +124,25 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
       return
     }
 
+    // Handed to the worker and never awaited here, so the next pull still delivers the model task
+    // the platform may be blocked on while this one runs. A redelivery of an operation that is
+    // still queued or running is the same operation, and is not queued again.
+    if (working.has(op.id)) return
+    working.add(op.id)
+    worker = worker.then(async () => {
+      try {
+        if (!closed) await execute(op)
+      } finally {
+        working.delete(op.id)
+      }
+    })
+  }
+
+  /** One local operation, answered. Never throws: a failure is an answer too. */
+  const execute = async (op: ConnectOp): Promise<void> => {
     try {
       const value = op.kind === ConnectOpKind.Configure
-        ? await writeEnv(requireExecutor().dir, op.payload as ConfigurePayload)
+        ? await makeProjectEnvHelper(requireExecutor().dir).writeEnv(op.payload as ConfigurePayload)
         : await requireExecutor().execute(op.payload as SlotCommandPayload)
       stats.opsDone += 1
       await submit({ opId: op.id, sessionId: session.id, ok: true, value })
@@ -168,18 +176,23 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
   /**
    * The pull loop.
    *
-   * A long poll rather than a socket, as the first transport: it works through every proxy, needs
-   * no reconnection logic, and is the only option the URL-configured host has at all. The socket
-   * is an optimisation over it, not a replacement for it.
+   * A long poll, the connector's only transport: it works through every proxy and needs no
+   * reconnection logic.
    */
   const loop = async (): Promise<void> => {
     while (!closed) {
       try {
+        const startedAt = Date.now()
         const ops = await opts.api.pullOps(session.id, Math.floor(PULL_WAIT_MS / 1000))
         stats.lastActivityAt = Date.now()
         for (const op of ops) {
           if (closed) break
           await perform(op)
+        }
+        // A long poll that came back empty at once held nothing open — asking again straight away
+        // would spin against the platform.
+        if (ops.length < 1 && Date.now() - startedAt < FAST_PULL_MS) {
+          await new Promise(resolve => setTimeout(resolve, EMPTY_PULL_PAUSE_MS))
         }
       } catch (e) {
         if (closed) break
@@ -195,12 +208,14 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
     session,
     stats,
 
-    nextTask: async waitMs => {
-      const task = await tasks.take(waitMs)
+    nextTask: async (waitMs, signal) => {
+      const task = await tasks.take(waitMs, signal)
       if (task != null) stats.lastActivityAt = Date.now()
 
       return task
     },
+
+    taskAvailable: async (waitMs, signal) => await tasks.available(waitMs, signal),
 
     submitTask: async result => {
       const opId = tasks.opIdOf(result.taskId)
@@ -263,3 +278,5 @@ export { ConnectSessionStatus }
 export * from './queue.js'
 export * from './tasks.js'
 export * from './questions.js'
+
+export type { SessionOptions } from './types.js'

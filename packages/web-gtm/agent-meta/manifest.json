@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/web-gtm",
-  "version": "0.1.18-rc.32",
-  "generatedAt": "2026-09-25T21:19:37.947Z",
+  "version": "0.1.18-rc.37",
+  "generatedAt": "2026-10-08T21:27:54.286Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

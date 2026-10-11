@@ -1,51 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CallArguments, RegisteredEntrypoint, RequestShape } from '@owlmeans/entrypoint'
-import {
-  reviveConsentResponse, reviveConsentView, reviveReceipt, reviveStartResponse, reviveWithdrawalList,
-} from '@owlmeans/payment'
-import type {
-  CancellationBody, DeclarationReceipt, PerformanceConsentBody, PerformanceConsentResponse, PerformanceConsentView,
-  SubscriptionStartBody, SubscriptionStartQuery, SubscriptionStartResponse, SubscriptionStartView, WithdrawalBody,
-  WithdrawalCandidateList,
-} from '@owlmeans/payment'
-import { makeAsker, type EnsureOptions } from './ensure.js'
-import { isConsentRefusal } from './refusal.js'
-import type {
-  LegalLinksSource, PerformanceConsentDialogProps, SubscriptionStartDialogProps,
-} from './types.js'
-
-/** A protocol whose request carries `body`: the record, withdraw and cancel routes. */
-type BodyRequest<Body> = RequestShape & { body: Body }
+import { type CancellationBody, type DeclarationReceipt, type PerformanceConsentBody, type PerformanceConsentResponse, type PerformanceConsentView, type SubscriptionStartBody, type SubscriptionStartQuery, type SubscriptionStartResponse, type SubscriptionStartView, type WithdrawalBody, type WithdrawalCandidateList, consumerReviveHelper } from '@owlmeans/payment'
+import { fixedTextHelper } from './copy.js'
+import { makeAsker } from './ensure.js'
+import { consentRefusalHelper } from './refusal.js'
+import type { FixedText, LegalText, PerformanceConsentDialogProps, SubscriptionStartDialogProps, CancellationControl, DeclarationControl, PerformanceConsentControl, SubscriptionStartControl, SubscriptionStartParams, UsePerformanceConsentOptions, UseSubscriptionStartOptions, WithdrawalControl } from './types.js'
+import type { BodyRequest } from './types.local.js'
 
 /** One call argument built by the hook — the protocol's own `CallArguments`, completed here. */
 const argsOf = <Request extends RequestShape>(request: object): CallArguments<Request> =>
   [request] as unknown as CallArguments<Request>
-
-export interface UsePerformanceConsentOptions {
-  /** Read the view on mount, so `required` is known before anything asks. Default `false`. */
-  enabled?: boolean
-  uiLanguage?: string
-  links?: LegalLinksSource
-  /** Open the withdrawal function; the consent dialog closes (declined) first. */
-  onWithdraw?: () => void
-  /** After the consent was recorded — refresh an account feed, say. */
-  onRecorded?: (response: PerformanceConsentResponse) => void
-}
-
-export interface PerformanceConsentControl {
-  view: PerformanceConsentView | null
-  /** From the last read; `null` before any. */
-  required: boolean | null
-  /**
-   * `true` when no consent is needed or it was confirmed and recorded, `false` on a decline or a
-   * closed dialog. Reads the view fresh; a failed read answers `true`. Concurrent calls share one
-   * pending answer — one dialog.
-   */
-  ensure: (opts?: EnsureOptions) => Promise<boolean>
-  refresh: () => Promise<PerformanceConsentView | null>
-  /** Spread into ONE `PerformanceConsentDialog`. */
-  dialog: PerformanceConsentDialogProps
-}
 
 /**
  * The spend consent over two protocols — the view (`consent` GET) and the record (`giveConsent`
@@ -69,7 +33,7 @@ export const usePerformanceConsent = <RecordRequest extends BodyRequest<Performa
   const [error, setError] = useState(false)
 
   const load = useCallback(async (): Promise<PerformanceConsentView> => {
-    const next = reviveConsentView(await viewRef.current.call())
+    const next = consumerReviveHelper.reviveConsentView(await viewRef.current.call())
     setCurrent(next)
 
     return next
@@ -92,7 +56,7 @@ export const usePerformanceConsent = <RecordRequest extends BodyRequest<Performa
     setPending(true)
     setError(false)
     try {
-      const response = reviveConsentResponse(await recordRef.current.call(...argsOf<RecordRequest>({ body })))
+      const response = consumerReviveHelper.reviveConsentResponse(await recordRef.current.call(...argsOf<RecordRequest>({ body })))
       setCurrent(held => held == null ? held : { ...held, required: false, purchases: [] })
       setOpen(false)
       asker.settle(true)
@@ -100,7 +64,7 @@ export const usePerformanceConsent = <RecordRequest extends BodyRequest<Performa
     } catch (e) {
       setError(true)
       // A stale text version is refused with a 428: show the current wording to confirm again.
-      if (isConsentRefusal(e)) void load().catch(() => undefined)
+      if (consentRefusalHelper.isConsentRefusal(e)) void load().catch(() => undefined)
     } finally {
       setPending(false)
     }
@@ -126,31 +90,6 @@ export const usePerformanceConsent = <RecordRequest extends BodyRequest<Performa
   }
 
   return { view: current, required: current?.required ?? null, ensure, refresh, dialog }
-}
-
-export interface UseSubscriptionStartOptions {
-  uiLanguage?: string
-  links?: LegalLinksSource
-  onWithdraw?: () => void
-}
-
-export interface SubscriptionStartParams {
-  /** The plan's title as the application names it — part of the statement. */
-  planTitle: string
-  /** The price line the dialog shows above the statement. */
-  price?: ReactNode
-}
-
-export interface SubscriptionStartControl {
-  /**
-   * The start request id to send with the subscription checkout (`CreateCheckoutBody.
-   * startRequestId`); `''` when none is needed (or the view could not be read — the checkout's
-   * own refusal then decides); `null` when the person declined or closed the dialog.
-   */
-  ensure: (planSku: string, params: SubscriptionStartParams) => Promise<string | null>
-  view: SubscriptionStartView | null
-  /** Spread into ONE `SubscriptionStartDialog`. */
-  dialog: SubscriptionStartDialogProps
 }
 
 /**
@@ -198,7 +137,7 @@ export const useSubscriptionStart = <
     setPending(true)
     setError(false)
     try {
-      const response = reviveStartResponse(await recordRef.current.call(...argsOf<RecordRequest>({ body })))
+      const response = consumerReviveHelper.reviveStartResponse(await recordRef.current.call(...argsOf<RecordRequest>({ body })))
       setOpen(false)
       asker.settle(response.startRequestId)
     } catch {
@@ -223,16 +162,6 @@ export const useSubscriptionStart = <
   return { ensure, view: current, dialog }
 }
 
-export interface DeclarationControl<Body, Receipt> {
-  /** Send the declaration; the revived receipt, or `null` when it failed (`error` holds why). */
-  submit: (body: Body) => Promise<Receipt | null>
-  receipt: Receipt | null
-  pending: boolean
-  error: unknown
-  /** Forget the receipt and the error — before the form is shown again. */
-  reset: () => void
-}
-
 /** The submit half both statutory functions share: one protocol, one receipt. */
 const useDeclaration = <Body, Request extends BodyRequest<Body>, Receipt extends DeclarationReceipt>(
   entry: RegisteredEntrypoint<Request, Receipt>,
@@ -247,7 +176,7 @@ const useDeclaration = <Body, Request extends BodyRequest<Body>, Receipt extends
     setPending(true)
     setError(null)
     try {
-      const answer = reviveReceipt(await entryRef.current.call(...argsOf<Request>({ body })))
+      const answer = consumerReviveHelper.reviveReceipt(await entryRef.current.call(...argsOf<Request>({ body })))
       setReceipt(answer)
 
       return answer
@@ -265,20 +194,6 @@ const useDeclaration = <Body, Request extends BodyRequest<Body>, Receipt extends
   }, [])
 
   return { submit, receipt, pending, error, reset }
-}
-
-export interface WithdrawalControl<Receipt extends DeclarationReceipt> extends DeclarationControl<WithdrawalBody, Receipt> {
-  /** In-app: the contracts that can still be withdrawn from; `null` before the first read. */
-  list: WithdrawalCandidateList | null
-  load: () => Promise<WithdrawalCandidateList | null>
-  /** Spread into a `WithdrawalForm` / `WithdrawalDialog` (with `mode` and `language`). */
-  form: {
-    list: WithdrawalCandidateList | null
-    pending: boolean
-    error: boolean
-    receipt: Receipt | null
-    onSubmit: (body: WithdrawalBody) => Promise<Receipt | null>
-  }
 }
 
 /**
@@ -301,7 +216,7 @@ export const useWithdrawal = <Request extends BodyRequest<WithdrawalBody>, Recei
       return null
     }
     try {
-      const next = reviveWithdrawalList(await listRef.current.call())
+      const next = consumerReviveHelper.reviveWithdrawalList(await listRef.current.call())
       setCandidates(next)
 
       return next
@@ -327,16 +242,6 @@ export const useWithdrawal = <Request extends BodyRequest<WithdrawalBody>, Recei
   }
 }
 
-export interface CancellationControl<Receipt extends DeclarationReceipt> extends DeclarationControl<CancellationBody, Receipt> {
-  /** Spread into a `CancellationForm` (with `mode` and `language`). */
-  form: {
-    pending: boolean
-    error: boolean
-    receipt: Receipt | null
-    onSubmit: (body: CancellationBody) => Promise<Receipt | null>
-  }
-}
-
 /**
  * The cancellation function over a `cancel` POST — the account one answers a
  * `CancellationReceipt`, the public one a `DeclarationReceipt`.
@@ -356,3 +261,9 @@ export const useCancellation = <Request extends BodyRequest<CancellationBody>, R
     },
   }
 }
+
+/** `fixedTextHelper.paymentTextOf(lng)`, memoised for the language. */
+export const usePaymentText = (lng: string): FixedText => useMemo(() => fixedTextHelper.paymentTextOf(lng), [lng])
+
+/** `fixedTextHelper.legalTextOf(lng)`, memoised for the language. */
+export const useLegalText = (lng: string): LegalText => useMemo(() => fixedTextHelper.legalTextOf(lng), [lng])

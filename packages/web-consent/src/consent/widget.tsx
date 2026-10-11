@@ -1,8 +1,8 @@
 import { useCallback } from 'react'
 import type { FC } from 'react'
 import { Cookie } from 'lucide-react'
-import { defaultConsentTranslate, openConsent } from '@owlmeans/consent'
-import { cn } from '../lib/utils.js'
+import { consentStore, consentI18nHelper } from '@owlmeans/consent'
+import { webConsentUtils } from '../lib/utils.js'
 import type { ConsentMenuWidgetProps } from '../types.js'
 
 /**
@@ -16,23 +16,23 @@ import type { ConsentMenuWidgetProps } from '../types.js'
  * button while this row is reachable announces that from whatever component of its own stays
  * mounted for the menu's whole lifetime — see `useConsentMenuPresence` in `@owlmeans/web-panel/consent`.
  *
- * Uses `openConsent` directly rather than the `useConsent()` hook: that hook's mount itself
+ * Uses `consentStore.open` directly rather than the `useConsent()` hook: that hook's mount itself
  * triggers `consentStore.init()`, which a row that only needs to trigger a reopen must not do.
  */
 export const ConsentMenuWidget: FC<ConsentMenuWidgetProps> = props => {
-  const t = props.translate ?? defaultConsentTranslate(props.locale)
+  const t = props.translate ?? consentI18nHelper.defaultConsentTranslate(props.locale)
 
   const onClick = useCallback(() => {
     if (props.onSelect != null) {
       props.onSelect()
       return
     }
-    openConsent('reopen')
+    consentStore.open('reopen')
   }, [props.onSelect])
 
   return <button
     type="button" onClick={onClick} data-consent-menu-widget
-    className={cn(
+    className={webConsentUtils.cn(
       'flex w-full min-w-0 items-center gap-2 rounded-md text-left text-sm text-popover-foreground transition-colors hover:bg-accent',
       props.className
     )}

@@ -29,9 +29,7 @@ export interface RefedEntrypointHandler<R = {}> {
 }
 
 /** The server-local representation of a shared protocol declaration. */
-export type ServerProtocolEntrypoint<Protocol extends EntrypointProtocolDeclaration> = ServerEntrypoint<object> & {
-  readonly protocol: Protocol
-}
+export interface ServerProtocolEntrypoint<Protocol extends EntrypointProtocolDeclaration> extends ServerEntrypoint<object> { readonly protocol: Protocol }
 
 /** A handler that is inseparable from the protocol whose request it accepts. */
 export interface BoundEntrypointHandler<Protocol extends EntrypointProtocolDeclaration> {

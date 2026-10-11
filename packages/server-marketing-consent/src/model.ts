@@ -1,64 +1,6 @@
 import type { JSONSchemaType } from 'ajv'
-import type { ResourceRecord } from '@owlmeans/resource'
-import type {
-  MarketingConsentDecision, MarketingConsentMode, MarketingConsentSource, TermsDocumentRef,
-} from '@owlmeans/marketing-consent'
-
-/**
- * One subject's saved decisions, one record per subject (`id` = `subjectKey(subject)`).
- *
- * `decisions` is an ARRAY, never an object keyed by consent key. A dotted key such as
- * `"marketing.email"` is read as a PATH by both Mongo dot-notation queries and Postgres jsonb path
- * operators — an object-keyed shape breaks the moment a second consent key is added. This is the
- * single most important shape decision in this package; the Mongo/Postgres extensions that will
- * store this record must not "flatten" it into an object for convenience.
- */
-export interface MarketingConsentStateRecord extends ResourceRecord {
-  id: string
-  /** `subjectKey(subjectOf(req))` — see `./subject.js`. Also this record's own `id`. */
-  subject: string
-  userId: string
-  profileId?: string
-  entityId?: string
-  decisions: MarketingConsentDecision[]
-  terms?: {
-    documents: TermsDocumentRef[]
-    notices?: TermsDocumentRef[]
-    version: string
-    locale?: string
-    acceptedAt: string
-  }
-  gpc?: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-/**
- * Append-only evidence of every decision and terms acceptance ever recorded — GDPR Art. 7(1)
- * "demonstrate consent" material. Never updated or deleted, including on `purge()`: only the
- * current-state record is cleared there.
- */
-export interface MarketingConsentLogRecord extends ResourceRecord {
-  id: string
-  subject: string
-  userId: string
-  profileId?: string
-  entityId?: string
-  kind: 'consent' | 'terms'
-  /** Present when `kind === 'consent'`. */
-  key?: string
-  granted?: boolean
-  revisedAt?: string
-  mode?: MarketingConsentMode
-  /** Present when `kind === 'terms'`. */
-  documents?: TermsDocumentRef[]
-  notices?: TermsDocumentRef[]
-  version?: string
-  decidedAt: string
-  source: MarketingConsentSource
-  locale?: string
-  gpc?: boolean
-}
+import type { MarketingConsentDecision, TermsDocumentRef } from '@owlmeans/marketing-consent'
+import type { MarketingConsentLogRecord, MarketingConsentStateRecord } from './types.js'
 
 // `@owlmeans/marketing-consent`'s own `TermsDocumentRefSchema` (in its `src/schemas.ts`) is not
 // exported, so the shape is re-declared here rather than imported.

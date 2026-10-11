@@ -2,7 +2,7 @@ import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import type { ProvideParams } from './types.js'
 import { route, backend } from '@owlmeans/route'
 import { WL_PROVIDE, WL_PROVIDE_PATH } from './consts.js'
-import { ProvideParamsSchema } from './model/provider.js'
+import { ProvideParamsSchema } from './schemas.js'
 
 export const wledEntrypoints = {
   provide: protocol(

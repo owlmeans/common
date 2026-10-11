@@ -4,8 +4,8 @@ import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/cor
 import type { JSONSchemaType } from 'ajv'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  FileProviderRef, LlmPurpose, ModelEffort, ModelProvider, NullCapture, SpectatorArgument,
-  SpectatorEntryLogged,
+  CumulativeResults, FileProviderRef, LlmPurpose, ModelEffort, ModelProvider, NullCapture,
+  SpectatorArgument, SpectatorEntryLogged,
 } from '@owlmeans/llm-common'
 import type { PromptInput, PromptService } from './prompt/types.js'
 
@@ -20,22 +20,6 @@ export interface RefferedResult<T> {
   spectatorEntry?: SpectatorEntryLogged
   value?: T
   callback?: (arg: T) => Promise<void>
-}
-
-export interface RetryOptions {
-  retries: number
-  outputErrors?: boolean
-  /**
-   * Abort the retry loop for this call. Return the error to throw, or `null` to keep
-   * retrying. Consulted in addition to the globally registered resolvers
-   * (`registerFatalError`) and the provider plugins' `isFatal`.
-   */
-  fatal?: (e: unknown) => Error | null
-}
-
-/** Decides whether an error must abort a retry loop instead of being retried. */
-export interface FatalErrorResolver {
-  (e: unknown): Error | null
 }
 
 export interface LlmLogging {
@@ -69,6 +53,12 @@ export interface LlmModelOptions extends LlmLogging {
    * fall back to whatever they can decide without a model.
    */
   utility?: () => BaseChatModel | undefined
+  /**
+   * What the earlier steps of the pipeline this model works in produced — the execution's own
+   * `results`, which arrives here whenever the helper execution itself is passed as the options.
+   * Composed into `PromptBlock.Results`; ignored, like `prompt`, without a `prompts` resolver.
+   */
+  results?: CumulativeResults
 }
 
 export type ModelMessage = BaseMessage | MessageFieldWithRole
@@ -357,3 +347,6 @@ export interface LlmService extends InitializedService {
 export interface WithLlmService {
   llm: () => LlmService
 }
+
+/** The part of {@link LlmService} this package implements — see {@link llmServiceApi}. */
+export interface LlmServiceApi extends Pick<LlmService, 'models' | 'callbacks' | 'addCallbacks' | 'getModel' | 'configs'> {}

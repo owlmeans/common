@@ -1,16 +1,12 @@
 import Stripe from 'stripe'
-import { config as serverConfig, makeServerContext } from '@owlmeans/server-context'
-import type { ServerConfig } from '@owlmeans/server-context'
+import { config as serverConfig, makeServerContext, type ServerConfig } from '@owlmeans/server-context'
 import { AppType } from '@owlmeans/context'
 import {
-  CheckoutPricingMode, LimitKind, LimitWindow, PlanDuration, ProductType,
+  CheckoutPricingMode, LimitKind, LimitWindow, PlanDuration, ProductType, type PlanCapability,
 } from '@owlmeans/payment'
-import type { PlanCapability } from '@owlmeans/payment'
-import { applyQuery, firstMatch, matchCriteria, RecordExists, UnknownRecordError } from '@owlmeans/resource'
-import type { Criteria, ListOptions, ResourceRecord } from '@owlmeans/resource'
+import { RecordExists, UnknownRecordError, type Criteria, type ListOptions, type ResourceRecord, recordQueryHelper } from '@owlmeans/resource'
 import type { MongoResource } from '@owlmeans/mongo-resource'
-import { makeConsoleMailerService, MAILER_SERVICE } from '@owlmeans/mailer'
-import type { MailMessage } from '@owlmeans/mailer'
+import { makeConsoleMailerService, MAILER_SERVICE, type MailMessage } from '@owlmeans/mailer'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import {
   declareConsumerRights, declarePaymentPlan, declarePaymentPricing, declarePaymentProduct, portalBranding,
@@ -28,12 +24,12 @@ import {
   makePurchaseResource, makeSubscriptionResource, makeUsageCounterResource, makeUsageResource, makeWebhookResource,
 } from '../src/resource.js'
 import { appendPaymentGatewayService } from '../src/service.js'
-import { observer } from '../src/utils.js'
 import type {
-  CancellationEvent, Config, ConsentEvent, ConsumerRightsDef, ConsumerRightsOptions, DisputeEvent, PaymentFailedEvent,
-  PaymentPlanDef, PortalBrandingDef, PricingDef, RefundEvent, SubscriptionEvent, TopUpCompletion, UsageMeter,
-  WithdrawalEvent,
+  GatewayServiceOptions, CancellationEvent, Config, ConsentEvent, ConsumerRightsDef, ConsumerRightsOptions,
+  DisputeEvent, PaymentFailedEvent, PaymentPlanDef, PortalBrandingDef, PricingDef, RefundEvent, SubscriptionEvent,
+  TopUpCompletion, UsageMeter, WithdrawalEvent,
 } from '../src/types.js'
+import { paymentAccessOf } from '../src/access.js'
 
 // -----------------------------------------------------------------------------------------------
 // Catalogue — neutral names only
@@ -682,21 +678,21 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
   target.init = async () => undefined
   target.get = async (idOrWhere: string | Criteria<T>, opts?: { sort?: never[] }) => {
     guard('get')
-    const row = typeof idOrWhere === 'string' ? byId(idOrWhere) : firstMatch(store.rows, idOrWhere as Criteria<any>, opts)
+    const row = typeof idOrWhere === 'string' ? byId(idOrWhere) : recordQueryHelper.firstMatch(store.rows, idOrWhere as Criteria<any>, opts)
     if (row == null) throw new UnknownRecordError(JSON.stringify(idOrWhere))
     return out(row)
   }
   target.load = async (idOrWhere: string | Criteria<T>, opts?: { sort?: never[] }) => {
     guard('load')
-    const row = typeof idOrWhere === 'string' ? byId(idOrWhere) : firstMatch(store.rows, idOrWhere as Criteria<any>, opts)
+    const row = typeof idOrWhere === 'string' ? byId(idOrWhere) : recordQueryHelper.firstMatch(store.rows, idOrWhere as Criteria<any>, opts)
     return row == null ? null : out(row)
   }
   target.list = async (where?: Criteria<T>, opts?: ListOptions<T>) => {
     guard('list')
-    const result = applyQuery(store.rows, where as Criteria<any>, opts as ListOptions<any>)
+    const result = recordQueryHelper.applyQuery(store.rows, where as Criteria<any>, opts as ListOptions<any>)
     return { ...result, items: result.items.map(out) }
   }
-  target.count = async (where?: Criteria<T>) => store.rows.filter(row => matchCriteria(row, where)).length
+  target.count = async (where?: Criteria<T>) => store.rows.filter(row => recordQueryHelper.matchCriteria(row, where)).length
   target.create = async (record: Rec) => {
     guard('create')
     if (record.id != null) throw new RecordExists('id-present')
@@ -725,11 +721,11 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
   }
   target.purge = async (where: Criteria<T>) => {
     const before = store.rows.length
-    store.rows = store.rows.filter(row => !matchCriteria(row, where))
+    store.rows = store.rows.filter(row => !recordQueryHelper.matchCriteria(row, where))
     return before - store.rows.length
   }
 
-  const matchRaw = (filter: Rec) => store.rows.find(row => matchCriteria(row, filter))
+  const matchRaw = (filter: Rec) => store.rows.find(row => recordQueryHelper.matchCriteria(row, filter))
   const upsert = (filter: Rec, update: Rec, opts: Rec = {}): { doc: Rec | null, inserted: boolean } => {
     const found = matchRaw(filter)
     if (found != null) {
@@ -773,14 +769,14 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
       return { deletedCount: row != null ? 1 : 0 }
     },
     distinct: async (field: string, filter: Rec = {}) =>
-      [...new Set(store.rows.filter(row => matchCriteria(row, filter)).map(row => row[field]))],
+      [...new Set(store.rows.filter(row => recordQueryHelper.matchCriteria(row, filter)).map(row => row[field]))],
     aggregate: (pipeline: Rec[]) => ({
       toArray: async () => {
         guard('aggregate')
         let docs: Rec[] = store.rows.map(row => structuredClone(row))
         for (const stage of pipeline) {
           if (stage.$match != null) {
-            docs = docs.filter(doc => matchCriteria(doc, stage.$match))
+            docs = docs.filter(doc => recordQueryHelper.matchCriteria(doc, stage.$match))
           } else if (stage.$group != null) {
             const groups = new Map<string, Rec>()
             const { _id: key, ...accumulators } = stage.$group
@@ -814,13 +810,21 @@ export interface FakeContextOptions {
   catalogue?: CatalogueOptions
   /** Declare the catalogue yourself instead. */
   declare?: (cfg: Config) => void
-  /** The public host of the service (default `api.example.com`). */
+  /** This process's `cfg.service` (default `app`). */
+  service?: string
+  /** The public host of this process's service (default `api.example.com`). */
   host?: string
+  /** The base path of this process's service (default none). */
+  base?: string
+  /** Further backend services by alias, each on its own host (and base). */
+  services?: Record<string, { host: string, base?: string }>
   /** The configured webhook override secret. */
   webhookSecret?: string
   portal?: PortalBrandingDef
   pricing?: PricingDef
   stripe?: Partial<FakeStripeState>
+  /** Rows each store (by resource alias) holds before the context initializes — a shared database. */
+  seed?: Record<string, Rec[]>
   /** Declare a consumer-rights policy (with trader and mail options). */
   consumerRights?: ConsumerRightsDef
   /** The consumer-rights usage meter. */
@@ -831,8 +835,8 @@ export interface FakeContextOptions {
   gatewayFirst?: boolean
   /** The application's consumer-rights options (default: managed through the fake, with `meter`). */
   rights?: (stripe: Stripe) => ConsumerRightsOptions
-  /** The gateway's `manage` (default false). */
-  gatewayManage?: boolean
+  /** The gateway's options (default `{ manage: false }`); its Stripe client is always the fake. */
+  gateway?: GatewayServiceOptions
   /** Run on the context after the registrations, before it is configured and initialized. */
   wire?: (ctx: ApiContext) => void
 }
@@ -868,15 +872,19 @@ export interface FakeContext {
 }
 
 /**
- * A real server context — real catalogue, payment service, observer, gateway (unmanaged), gates and
- * entitlement service — over in-memory resources, with a fake Stripe for the plugin functions.
+ * A real server context — real catalogue, payment service, observer, gateway (unmanaged unless
+ * `gateway` says otherwise), gates and entitlement service — over in-memory resources, with a fake
+ * Stripe for the plugin functions and as the gateway's own client.
  */
 export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<FakeContext> => {
-  const cfg = serverConfig<ServerConfig>(SERVICE, {
-    services: {
-      [SERVICE]: { service: SERVICE, type: AppType.Backend, host: opts.host ?? HOST },
-    },
-  } as Partial<ServerConfig>) as unknown as Config
+  const own = opts.service ?? SERVICE
+  const services: Record<string, unknown> = {
+    [own]: { service: own, type: AppType.Backend, host: opts.host ?? HOST, ...(opts.base != null ? { base: opts.base } : {}) },
+  }
+  for (const [alias, { host, base }] of Object.entries(opts.services ?? {})) {
+    services[alias] = { service: alias, type: AppType.Backend, host, ...(base != null ? { base } : {}) }
+  }
+  const cfg = serverConfig<ServerConfig>(own, { services } as Partial<ServerConfig>) as unknown as Config
   if (opts.declare != null) {
     opts.declare(cfg)
   } else {
@@ -911,6 +919,7 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
   ] as const
   for (const [alias, resource] of resources) {
     stores[alias] = memoryResource(resource as unknown as MongoResource<ResourceRecord>)
+    stores[alias].rows.push(...structuredClone(opts.seed?.[alias] ?? []))
     ctx.registerResource(resource as never)
   }
   const { stripe, state } = makeFakeStripe(opts.stripe)
@@ -921,7 +930,7 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
   // The consumer-rights service manages the paygate through the fake; the gateway stays unmanaged.
   const rights = opts.rights?.(stripe)
     ?? { manage: true, stripe: async () => stripe, ...(opts.meter != null ? { usage: opts.meter } : {}) }
-  const gatewayOpts = { manage: opts.gatewayManage ?? false }
+  const gatewayOpts: GatewayServiceOptions = { manage: false, stripe: async () => stripe, ...opts.gateway }
   if (opts.gatewayFirst === true) {
     appendPaymentGatewayService(ctx as never, gatewayOpts)
     appendConsumerRights(ctx as never, rights)
@@ -937,7 +946,7 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
     topUp: [], subscription: [], refund: [], dispute: [], paymentFailed: [], consent: [], withdrawal: [],
     cancellation: [], failSubscription: 0, failTopUp: 0, failWithdrawal: 0,
   }
-  const completions = observer(ctx)
+  const completions = paymentAccessOf(ctx).observer()
   await completions.ready()
   completions.onTopUp(async event => {
     if (observed.failTopUp > 0) {

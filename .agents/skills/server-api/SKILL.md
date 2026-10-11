@@ -6,7 +6,7 @@ user-invocable: false
 
 # @owlmeans/server-api
 
-**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.43`
+**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.53`
 
 Make handlers from the protocol declaration so input and output types stay coupled to the shared
 contract:
@@ -37,6 +37,12 @@ export const serverBindings = [
 any protocol and receives all its typed sections plus request metadata. A successful callback
 return resolves the entrypoint with `EntrypointOutcome.Ok`; a thrown error rejects it.
 
+A body contract may be a scalar (`schema<string>({ type: 'string' })`, a number, a boolean): the
+server's JSON parser takes any JSON value, so `"abc"`, `42` or `false` reach the handler as that
+value. An unquoted string or an empty body under `application/json` is invalid JSON and answers
+400 before the handler runs — `@owlmeans/api` never sends either (it quotes a scalar body).
+`tests/json-body.spec.ts` runs it through `appendApiServer`.
+
 ## Wrap exactly once
 
 A handler is wrapped by `handlers<Context>()` exactly once — either shape above (create the bound
@@ -58,7 +64,7 @@ that one route with `HandlerMisconfiguredError`, instead of the opaque
 ## The status a thrown error answers
 
 A thrown error (or a rejected response) is answered with a body chosen by the exposure (§ Error
-exposure) and a status from `errorStatus(error)` (`./utils`), resolved in this order:
+exposure) and a status from `httpErrorHelper.errorStatus(error)` (`./utils`), resolved in this order:
 
 | Error | Status |
 |---|---|
@@ -73,6 +79,9 @@ exposure) and a status from `errorStatus(error)` (`./utils`), resolved in this o
   that is understood and refused — and a missing configuration, a broken peer, a timeout or a bug
   stays 500, because monitoring, logs, proxies and retry logic read a 5xx as the server failing.
   The table and the leaf-class rule are the `error` skill's.
+- The storage refusals of `@owlmeans/resource` declare theirs: `UnknownRecordError` answers 404,
+  `RecordExists` 409, every other `ResourceError` 500 — so a handler that lets a `get()` miss
+  escape answers 404, and one reading a row the request did not address uses `load` instead.
 - Declare it on the class: `public static httpStatus = 409` (`override` only when an ancestor
   already declares one). The declaration is structural — the package declaring an error never
   imports `@owlmeans/server-api` — and a static property is inherited, so a subclass answers its
@@ -80,14 +89,14 @@ exposure) and a status from `errorStatus(error)` (`./utils`), resolved in this o
 - The auth branches win over a declaration, in that order (`AuthForbidden extends
   AuthorizationError`, so 403 is tested first). An entitlement or permission refusal extends
   `AuthForbidden` rather than declaring 403.
-- `handleError` resolves the status on the error AS THROWN first, and asks the ENSURED
+- `httpErrorHelper.handleError` resolves the status on the error AS THROWN first, and asks the ENSURED
   (`ResilientError.ensure`) error only when that answers 500. The thrown object is the one whose
   class is certainly what was raised; the rebuild is what gives a status to a marshalled error that
   crossed a hop as a plain `Error`. `ensure` returns an error from any `@owlmeans/error` copy
   untouched, so a development body keeps the thrown class's `type` (`AuthFailedError|||api:auth:…`) even in a
-  process holding duplicate module copies (`bun --preserve-symlinks`). `executeResponse` ensures
+  process holding duplicate module copies (`bun --preserve-symlinks`). `payloadHelper.executeResponse` ensures
   nothing and answers the rejected error's status. `@owlmeans/server-socket` answers an upgrade
-  through the same `handleError`.
+  through the same `httpErrorHelper.handleError`.
 - An auth family is recognised by `instanceof` OR by an exact registered type name — the instance's
   `type` or any static `typeName` on its constructor chain — so a class from another module copy
   answers the same status. Match whole names, never substrings: a subclass's `typeName` does not
@@ -102,6 +111,30 @@ exposure) and a status from `errorStatus(error)` (`./utils`), resolved in this o
 `uploadedFile(request)` is the Fastify multipart boundary. Keep raw Fastify access there rather
 than reaching through `request.original` in application code.
 
+## Logging
+
+The server logs through `@owlmeans/log`, not a second pino, and **never with what a caller sent**: a
+request body, its raw form (`rawBody`), multipart fields and file bytes, headers (authorization,
+cookies) and query strings never reach a record. Two seams in `utils/log.ts` (`fastifyLogUtils`) hold
+that for every record Fastify or a plugin writes:
+
+| Seam | What it does |
+|---|---|
+| `loggerInstance` — the pino-shaped adapter (scope `http`) | every record's data passes `safeData`: a request object becomes `{ method, path }`, a reply `{ statusCode }`, bytes `[Buffer N bytes]`, any other class instance `[Name]`; the keys `body`, `rawBody`, `payload`, `files`, `file`, `headers`, `rawHeaders`, `query`, `querystring`, `cookies`, `cookie`, `authorization` are dropped at every depth (a number or boolean under them stays); every string — the message too — loses the query of a URL it names. Fastify's own pino serializers are ignored |
+| `logController` — a subclass of Fastify's `LogController` (5.12+; Fastify accepts only an instance of its class) | no per-request pair; a request the default error handler answers — a body the route schema refuses, an unparsable payload, a size or multipart limit, an error thrown by an intermediate's `preHandler` — goes to `failure`; a missing route is one debug `Route not found` with method and path |
+
+A request is one `debug` record from `onResponse` (method, path without the query, status, ms). A
+failed request is logged once — by `httpErrorHelper.handleError` for a handler's error, by the log
+controller for one Fastify answers itself — through `fastifyLogUtils.failure`, by what its status
+means: **5xx → `error`** (the error with its stack, the incident id when there is one), **403 → `warn`,
+`event: 'access.forbidden'`**, 401 → `debug`, `event: 'auth.refused'`, any other 4xx → `debug`
+`Request refused` with `code` (`FST_ERR_VALIDATION`, …) and message. Method, path and status only — a
+schema refusal therefore writes nothing at info. The response a refusal answers is Fastify's own
+(`{ statusCode, code, error, message }`), unchanged. The level and format come from `cfg.log`
+(`/log`); access lines at info are `cfg.log.debug: 'http'`. `tests/log-redaction.spec.ts` posts a
+schema-refused JSON and multipart body with a marker, an authorization header, a cookie and a query
+token, and asserts no record and no written line holds any of them.
+
 ## Error exposure
 
 An exact IAM `AuthForbidden` or `AccessError` refusal answers with
@@ -109,7 +142,7 @@ An exact IAM `AuthForbidden` or `AccessError` refusal answers with
 do not get this marker. The marker survives production exposure so browser clients can present a
 permission message while keeping diagnostic bodies private.
 
-`handleError` always assigns an incident UUID, attaches it to the logged error and returns it in the
+`httpErrorHelper.handleError` always assigns an incident UUID, attaches it to the logged error and returns it in the
 `X-Incident-ID` response header (`INCIDENT_ID_HEADER` in `./utils`, the same name and value
 `@owlmeans/api` exports; exposed through CORS).
 
@@ -118,8 +151,8 @@ permission message while keeping diagnostic bodies private.
   server log under the id.
 - **Development** (an explicit `cfg.http.errors.exposure = 'development'`): the typed marshalled
   form with message and stack, which the client rebuilds into its class.
-- A client reads a production failure with `@owlmeans/api`'s `./status` subpath: `httpStatusOf(e)`
-  (the status a 428 or 409 is acted on by) and `incidentIdOf(e)` (the id a person reports). Keep
+- A client reads a production failure with `@owlmeans/api`'s `./status` subpath: `apiStatusHelper.httpStatusOf(e)`
+  (the status a 428 or 409 is acted on by) and `.incidentIdOf(e)` (the id a person reports). Keep
   the default production-safe, and tell a client to report the incident id.
 
 Do not use unbound compatibility handler wrappers. For a WebSocket route use

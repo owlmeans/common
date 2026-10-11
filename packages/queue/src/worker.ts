@@ -1,53 +1,7 @@
 import type { Middleware } from '@owlmeans/context'
-import { MiddlewareStage, MiddlewareType, AppType } from '@owlmeans/context'
-import type { CommonEntrypoint } from '@owlmeans/entrypoint'
-import type { Config, Context, JobContext, JobEnvelope, JobProcessor, QueueWorkerService } from './types.js'
-import { handleJob } from './bridge.js'
+import { MiddlewareStage, MiddlewareType } from '@owlmeans/context'
+import type { Config, Context, QueueWorkerService } from './types.js'
 import { DEFAULT_ALIAS } from './consts.js'
-import { isQueueRoute, queueRouteOptions } from './route.js'
-
-/**
- * Every queued entrypoint this process both SERVES and LISTENS to, grouped by queue.
- *
- * Both halves are required and they answer different questions. Serving is about code — the alias
- * was bound here, so a handler exists. Listening is about deployment — this process was
- * configured to consume that queue. A worker that bound queues by what it can serve would make
- * every deployment of the same binary a worker for everything it happens to import.
- */
-export const servedJobs = <C extends Config, T extends Context<C>>(
-  context: T
-): Map<string, CommonEntrypoint[]> => {
-  const listen = context.cfg.queue?.listen ?? []
-  const served = new Map<string, CommonEntrypoint[]>()
-
-  context.entrypoints<CommonEntrypoint>().forEach(entrypoint => {
-    const route = entrypoint.route.route
-    if (route.type !== AppType.Backend || !isQueueRoute(route)) {
-      return
-    }
-    if (route.service != null && route.service !== context.cfg.service) {
-      return
-    }
-    const { queue } = queueRouteOptions(route)
-    if (entrypoint.handle == null || !listen.includes(queue)) {
-      return
-    }
-
-    served.set(queue, [...(served.get(queue) ?? []), entrypoint])
-  })
-
-  return served
-}
-
-/**
- * A processor that runs a queued entrypoint call. The driver dispatches by job name, and an
- * entrypoint job's name IS its alias — which is what lets one worker carry both entrypoint jobs
- * and the internal steps an application registers with `process()`.
- */
-export const entrypointProcessor = <C extends Config, T extends Context<C>>(
-  context: T
-): JobProcessor<JobEnvelope, unknown> =>
-  async (job: JobContext<JobEnvelope>) => await handleJob(context, job)
 
 /**
  * Start the worker once the context is ready.

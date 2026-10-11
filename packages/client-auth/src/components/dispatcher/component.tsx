@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { DispatcherRendererProps, TDispatcherHOC } from './types.js'
-import type { AuthToken } from '@owlmeans/auth'
 import { AUTH_QUERY, DISPATCHER } from '@owlmeans/auth'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { HOME } from '@owlmeans/context'
 import { DEFAULT_ALIAS, DEFAULT_ENTITY } from '../../consts.js'
 import type { AuthService } from '@owlmeans/auth-common'
 import { useNavigate } from '@owlmeans/client'
-import type { AbstractRequest } from '@owlmeans/entrypoint'
-import type { FlowService } from '@owlmeans/client-flow'
-import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
+import { type FlowService, DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
 import { FLOW_PLACEHOLDER, OidcAuthStep, STD_OIDC_FLOW } from '@owlmeans/flow'
 import { SERVICE_PARAM } from '@owlmeans/web-flow'
-import { landAfterLogin } from '../../login/land.js'
+import { loginLandingOf } from '../../login/land.js'
+import { logger } from '@owlmeans/log'
+import type { StateToken } from './types.local.js'
+
+const log = logger('client-auth:dispatcher')
 
 export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, alias, query, payload }) => {
   const [forwarding, setForwarding] = useState<StateToken | undefined>()
@@ -26,7 +27,7 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
       // post-sign-in landing decision (steps, landing hooks, the suspended flow, then HOME) and
       // takes priority over the ordinary HOME landing, resolved BEFORE `alias` is overwritten,
       // because once it is `HOME` there is no way back to tell the cases apart.
-      const landing = await landAfterLogin(context)
+      const landing = await loginLandingOf(context).landAfterLogin()
       if (landing.alias !== HOME) {
         await navigator.navigate(
           context.entrypoint<ClientEntrypoint<string>>(landing.alias),
@@ -43,8 +44,8 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
       if (query != null && AUTH_QUERY in query) {
         delete query[AUTH_QUERY]
       }
-      const landing = await landAfterLogin(
-        context, { fallback: { alias, params, query }, resume: false }
+      const landing = await loginLandingOf(context).landAfterLogin(
+        { fallback: { alias, params, query }, resume: false }
       )
       await navigator.navigate(
         context.entrypoint<ClientEntrypoint<string>>(landing.alias),
@@ -104,7 +105,7 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
           return await navigate()
         }).catch((e: Error) => {
           // @TODO Show error on the component
-          console.error(e)
+          log.error('Authentication failed', e, { event: 'auth.refused' })
         })
       }
     }
@@ -117,7 +118,3 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
   return <Renderer provideToken={provideToken} navigate={navigate} />
 }
 
-interface StateToken {
-  token: AuthToken
-  query?: AbstractRequest['params']
-}

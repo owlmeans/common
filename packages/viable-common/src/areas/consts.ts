@@ -1,4 +1,5 @@
 import { AccessLevel } from '../dev/consts.js'
+import type { ProjectTenancy } from './types.js'
 
 /**
  * The audiences a generated application serves.
@@ -110,3 +111,9 @@ export const AREA_TIER: Record<ProjectArea, string | null> = {
   [ProjectArea.Admin]: null,
   [ProjectArea.Operator]: ProjectArea.Operator,
 }
+
+/** The longest requester sentence a tenancy decision quotes — a card refuses a longer one. */
+export const TENANCY_QUOTE_MAX = 1024
+
+/** A single-organization application — what every project is until a decision says otherwise. */
+export const NO_TENANCY: ProjectTenancy = Object.freeze({ operators: false, users: false })

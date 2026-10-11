@@ -1,48 +1,36 @@
 import p from 'node:path'
 
-import {
-  commandDeadline, SlotCommandType, SlotFileCommand, SlotGitCommand, SlotShellCommand
-} from '@owlmeans/viable-common'
-import type {
-  SlotCommandPayload, SlotGitCommand as SlotGitCommandType, SubProject, TargetIntegrityReport,
-  TargetPaths
-} from '@owlmeans/viable-common'
+import { SlotCommandType, SlotFileCommand, SlotGitCommand, SlotShellCommand, type SlotCommandPayload, type SlotGitCommand as SlotGitCommandType, type SubProject, slotCommandHelper } from '@owlmeans/viable-common'
 
 import { createLocalFileHelper } from './files.js'
-import { dispatchGitCommand } from './git.js'
-import { forgetIntegrity, verifyTarget } from './integrity.js'
-import { targetPaths } from './layout.js'
+import { makeLocalGitHelper } from './git.js'
+import { integrityHelper } from './integrity.js'
+import { makeLayoutHelper } from './layout.js'
 import { createLocalShellHelper } from './shell.js'
-import { withDeadline } from './spawn.js'
+import { spawnHelper } from './spawn.js'
+import type { LocalSlotExecutor, LocalSlotExecutorOptions } from './types.js'
 
 export * from './errors.js'
 export * from './layout.js'
+export type * from './layout/types.js'
 export * from './integrity.js'
+export type * from './integrity/types.js'
 export * from './files.js'
+export type * from './files/types.js'
+export type * from './types.js'
 export * from './env.js'
+export type * from './env/types.js'
 export * from './health.js'
+export type * from './health/types.js'
+export * from './consts.js'
 export * from './boot-check.js'
 export * from './shell.js'
+export type * from './shell/types.js'
 export * from './git.js'
-export {
-  BUILD_TIMEOUT, MAX_OUTPUT_BUFFER, failureOutput, isAlive, killGroupAndWait, probeListening,
-  runCommand, runScript, signalGroup, waitForPortFree, withDeadline
-} from './spawn.js'
-
-export interface LocalSlotExecutorOptions {
-  /** Where the executor's own diagnostics go. NEVER stdout for a stdio MCP server. */
-  log?: (line: string) => void
-}
-
-export interface LocalSlotExecutor {
-  /** Answer one slot command against the local tree. */
-  execute: (payload: SlotCommandPayload) => Promise<unknown>
-  /** Which tree this directory holds, re-read per call. */
-  layout: () => TargetPaths
-  /** Whether the tree is still the generated application. */
-  integrity: () => Promise<TargetIntegrityReport>
-  dir: string
-}
+export type * from './git/types.js'
+export * from './spawn.js'
+export type * from './spawn/types.js'
+export { BUILD_TIMEOUT, MAX_OUTPUT_BUFFER } from './consts.js'
 
 /**
  * Answer the platform's slot commands against a directory on this machine.
@@ -69,25 +57,25 @@ export const makeLocalSlotExecutor = (
 
     log(`Executing command [${type}]: ${command}`)
 
-    return await withDeadline(`${type}:${command}`, commandDeadline(type, command), async () => {
+    return await spawnHelper.withDeadline(`${type}:${command}`, slotCommandHelper.commandDeadline(type, command), async () => {
       switch (type) {
         case SlotCommandType.Files:
           switch (command) {
             case SlotFileCommand.EmptyProject:
               await fileHelper.emptyProject(args?.ignore)
-              forgetIntegrity()
+              integrityHelper.forgetIntegrity()
 
               return {}
 
             case SlotFileCommand.DeleteProject:
               await fileHelper.deleteProject()
-              forgetIntegrity()
+              integrityHelper.forgetIntegrity()
 
               return {}
 
             case SlotFileCommand.InitializeProject:
               await fileHelper.initializeProject()
-              forgetIntegrity()
+              integrityHelper.forgetIntegrity()
 
               return {}
 
@@ -111,19 +99,19 @@ export const makeLocalSlotExecutor = (
 
             case SlotFileCommand.WriteFile:
               await fileHelper.writeFile(args?.filePath, args?.content)
-              forgetIntegrity()
+              integrityHelper.forgetIntegrity()
 
               return {}
 
             case SlotFileCommand.WriteSource:
               await fileHelper.writeSource(args?.file)
-              forgetIntegrity()
+              integrityHelper.forgetIntegrity()
 
               return {}
 
             case SlotFileCommand.DeleteFile:
               await fileHelper.deleteFile(args?.filePath, args?.noThrow)
-              forgetIntegrity()
+              integrityHelper.forgetIntegrity()
 
               return {}
 
@@ -138,14 +126,14 @@ export const makeLocalSlotExecutor = (
 
             case SlotFileCommand.Relocate: {
               const result = await fileHelper.relocate(args?.dir, args?.keep)
-              forgetIntegrity()
+              integrityHelper.forgetIntegrity()
 
               return result
             }
 
             case SlotFileCommand.RemoveTree:
               await fileHelper.removeTree(args?.dir)
-              forgetIntegrity()
+              integrityHelper.forgetIntegrity()
 
               return {}
 
@@ -182,7 +170,7 @@ export const makeLocalSlotExecutor = (
               const result = await shellHelper.build()
               // The tree changed, so the next spawn re-reads it rather than trusting the verdict
               // this build was admitted on.
-              forgetIntegrity()
+              integrityHelper.forgetIntegrity()
 
               return { result }
             }
@@ -225,11 +213,11 @@ export const makeLocalSlotExecutor = (
           }
 
         case SlotCommandType.Git: {
-          const result = await dispatchGitCommand(root, command as SlotGitCommandType, args)
+          const result = await makeLocalGitHelper(root).dispatchGitCommand(command as SlotGitCommandType, args)
           if (command === SlotGitCommand.Discard || command === SlotGitCommand.RevertTo) {
             // Both rewrite the working tree wholesale, so the memoized verdict describes a tree
             // that no longer exists.
-            forgetIntegrity()
+            integrityHelper.forgetIntegrity()
           }
 
           return result
@@ -243,8 +231,10 @@ export const makeLocalSlotExecutor = (
 
   return {
     execute,
-    layout: () => targetPaths(root),
-    integrity: async () => await verifyTarget(root),
+    layout: () => makeLayoutHelper(root).targetPaths(),
+    integrity: async () => await integrityHelper.verifyTarget(root),
     dir: root,
   }
 }
+
+export type { LocalSlotExecutor, LocalSlotExecutorOptions } from './types.js'

@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { MarketingConsentDefinition } from '@owlmeans/marketing-consent'
-import { carriesLinkToken, inlineLinks, localized, resolveLinks, rowTextOf } from '../src/components/inline.js'
-import type { Translate } from '../src/components/inline.js'
+import type { Translate } from '../src/components/types.js'
 import en from '../src/i18n/en.json' with { type: 'json' }
 // The domain package's own strings (`consent.*`, `link.*`) — the other half of the one resource.
 import domainEn from '../../marketing-consent/src/i18n/en.json' with { type: 'json' }
+import { inlineHelper } from '../src/components/inline.js'
 
 /** The package's own English strings, resolved the way the i18n runtime resolves a dotted key. */
 const bundle: Record<string, unknown> = { ...domainEn, ...en }
@@ -31,7 +31,7 @@ describe('inlineLinks', () => {
   ]
 
   test('draws each placeholder as an anchor, inside the sentence', () => {
-    const out = html(inlineLinks('Read the {{link}} and the {{link2}}.', links))
+    const out = html(inlineHelper.inlineLinks('Read the {{link}} and the {{link2}}.', links))
 
     expect(out).toBe(
       'Read the <a href="https://example.test/privacy" target="_blank" rel="noreferrer noopener" '
@@ -42,23 +42,23 @@ describe('inlineLinks', () => {
   })
 
   test('accepts spaced placeholders and leaves text without one alone', () => {
-    expect(html(inlineLinks('See {{ link }}.', links))).toContain('>Privacy Policy</a>.')
-    expect(html(inlineLinks('Nothing to link here.', links))).toBe('Nothing to link here.')
+    expect(html(inlineHelper.inlineLinks('See {{ link }}.', links))).toContain('>Privacy Policy</a>.')
+    expect(html(inlineHelper.inlineLinks('Nothing to link here.', links))).toBe('Nothing to link here.')
   })
 
   test('with dropSentence, a placeholder nobody configured takes its whole sentence away', () => {
     const text = 'We write to you. How we handle your data is described in the {{link}}. You can withdraw at any time.'
 
-    expect(html(inlineLinks(text, [], true))).toBe('We write to you. You can withdraw at any time.')
-    expect(html(inlineLinks(text, [links[0]], true))).toContain('described in the <a ')
+    expect(html(inlineHelper.inlineLinks(text, [], true))).toBe('We write to you. You can withdraw at any time.')
+    expect(html(inlineHelper.inlineLinks(text, [links[0]], true))).toContain('described in the <a ')
   })
 
   test('without dropSentence, only the placeholder itself is lost — a statement keeps its words', () => {
-    expect(html(inlineLinks('I agree to the {{link}}', []))).toBe('I agree to the ')
+    expect(html(inlineHelper.inlineLinks('I agree to the {{link}}', []))).toBe('I agree to the ')
   })
 
   test('a placeholder past the last link is dropped, not thrown on', () => {
-    expect(html(inlineLinks('A {{link}} and {{link3}}.', [links[0]]))).toContain('and .')
+    expect(html(inlineHelper.inlineLinks('A {{link}} and {{link3}}.', [links[0]]))).toContain('and .')
   })
 })
 
@@ -66,17 +66,17 @@ describe('localized', () => {
   const record = { en: 'Hello', pl: 'Cześć' }
 
   test('picks the exact language, then its base language, then English, then anything', () => {
-    expect(localized(record, 'pl')).toBe('Cześć')
-    expect(localized(record, 'pl-PL')).toBe('Cześć')
-    expect(localized(record, 'de')).toBe('Hello')
-    expect(localized({ fr: 'Salut' }, 'de')).toBe('Salut')
-    expect(localized(undefined, 'en')).toBeUndefined()
+    expect(inlineHelper.localized(record, 'pl')).toBe('Cześć')
+    expect(inlineHelper.localized(record, 'pl-PL')).toBe('Cześć')
+    expect(inlineHelper.localized(record, 'de')).toBe('Hello')
+    expect(inlineHelper.localized({ fr: 'Salut' }, 'de')).toBe('Salut')
+    expect(inlineHelper.localized(undefined, 'en')).toBeUndefined()
   })
 })
 
 describe('resolveLinks', () => {
   test('a link is labelled by its per-language label, then its label key, then "Learn more"', () => {
-    const links = resolveLinks(definition({
+    const links = inlineHelper.resolveLinks(definition({
       links: [
         { href: '/a', label: { en: 'Own label', pl: 'Własna etykieta' } },
         { href: '/b', labelKey: 'link.privacy' },
@@ -86,11 +86,36 @@ describe('resolveLinks', () => {
 
     expect(links.map(link => link.label)).toEqual(['Własna etykieta', 'Privacy Policy', 'Learn more'])
   })
+
+  test('explicit locale destinations preserve policy fragments and leave unmapped/customer links canonical', () => {
+    const configured = definition({
+      links: [{
+        href: 'https://example.test/privacy#marketing', labelKey: 'link.privacy',
+        hrefMap: {
+          pl: 'https://example.test/pl/privacy#marketing',
+          fr: 'https://example.test/fr/privacy#marketing',
+        },
+      }, { href: 'https://customer.test/own-policy#news' }],
+    })
+    for (const locale of ['pl', 'fr', 'pl-PL', 'fr-FR']) {
+      expect(inlineHelper.resolveLinks(configured, t, locale).map(link => link.href)).toEqual([
+        `https://example.test/${locale.split('-')[0]}/privacy#marketing`,
+        'https://customer.test/own-policy#news',
+      ])
+    }
+    for (const locale of [undefined, 'en', 'it']) {
+      expect(inlineHelper.resolveLinks(configured, t, locale).map(link => link.href)).toEqual([
+        'https://example.test/privacy#marketing', 'https://customer.test/own-policy#news',
+      ])
+    }
+    expect(html(inlineHelper.rowTextOf({ ...configured, label: { en: 'See the {{link}}.' } }, t, 'fr').statement))
+      .toContain('href="https://example.test/fr/privacy#marketing"')
+  })
 })
 
 describe('rowTextOf', () => {
   test('a standard consent reads its statement and detail from the bundle, with the link inside', () => {
-    const row = rowTextOf(definition({
+    const row = inlineHelper.rowTextOf(definition({
       key: 'marketing.email',
       labelKey: 'consent.marketing.email.label',
       descriptionKey: 'consent.marketing.email.description',
@@ -104,7 +129,7 @@ describe('rowTextOf', () => {
   })
 
   test('the same consent without links loses the sentence that pointed at one', () => {
-    const row = rowTextOf(definition({
+    const row = inlineHelper.rowTextOf(definition({
       key: 'marketing.email',
       labelKey: 'consent.marketing.email.label',
       descriptionKey: 'consent.marketing.email.description',
@@ -115,7 +140,7 @@ describe('rowTextOf', () => {
   })
 
   test('links whose text has no placeholder are appended to the detail as a link, never left stray', () => {
-    const row = rowTextOf(definition({
+    const row = inlineHelper.rowTextOf(definition({
       label: { en: 'I agree to the training use.' },
       description: { en: 'Sessions are used to improve the product.' },
       links: [{ href: 'https://example.test/training' }],
@@ -133,18 +158,18 @@ describe('rowTextOf', () => {
       links: [{ href: '/x', labelKey: 'link.privacy' }],
     })
 
-    expect(html(rowTextOf(custom, t, 'pl').statement)).toBe('Użycie do trenowania')
-    expect(html(rowTextOf(custom, t, 'de').statement)).toBe('Training use')
-    expect(html(rowTextOf(custom, t, 'de').detail)).toContain('Details in the <a href="/x"')
+    expect(html(inlineHelper.rowTextOf(custom, t, 'pl').statement)).toBe('Użycie do trenowania')
+    expect(html(inlineHelper.rowTextOf(custom, t, 'de').statement)).toBe('Training use')
+    expect(html(inlineHelper.rowTextOf(custom, t, 'de').detail)).toContain('Details in the <a href="/x"')
   })
 
   test('a consent with neither keys nor text falls back to its key', () => {
-    expect(html(rowTextOf(definition({ key: 'custom.bare' }), t, 'en').statement)).toBe('custom.bare')
-    expect(rowTextOf(definition({ key: 'custom.bare' }), t, 'en').detail).toBeNull()
+    expect(html(inlineHelper.rowTextOf(definition({ key: 'custom.bare' }), t, 'en').statement)).toBe('custom.bare')
+    expect(inlineHelper.rowTextOf(definition({ key: 'custom.bare' }), t, 'en').detail).toBeNull()
   })
 
   test('a statement keeps its words when its placeholder has no link', () => {
-    const row = rowTextOf(definition({ label: { en: 'I agree, see the {{link}}' } }), t, 'en')
+    const row = inlineHelper.rowTextOf(definition({ label: { en: 'I agree, see the {{link}}' } }), t, 'en')
 
     expect(html(row.statement)).toBe('I agree, see the ')
   })
@@ -152,9 +177,9 @@ describe('rowTextOf', () => {
 
 describe('carriesLinkToken', () => {
   test('sees every placeholder spelling', () => {
-    expect(carriesLinkToken('a {{link}} b')).toBe(true)
-    expect(carriesLinkToken('a {{link2}} b')).toBe(true)
-    expect(carriesLinkToken('a {{ link }} b')).toBe(true)
-    expect(carriesLinkToken('a {{date}} b')).toBe(false)
+    expect(inlineHelper.carriesLinkToken('a {{link}} b')).toBe(true)
+    expect(inlineHelper.carriesLinkToken('a {{link2}} b')).toBe(true)
+    expect(inlineHelper.carriesLinkToken('a {{ link }} b')).toBe(true)
+    expect(inlineHelper.carriesLinkToken('a {{date}} b')).toBe(false)
   })
 })

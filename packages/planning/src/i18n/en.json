@@ -46,6 +46,11 @@
     "PlanningErrorCommitTimeout": "The change is still being saved — check again shortly",
     "PlanningErrorCommitFailed": "The change could not be saved",
     "PlanningErrorScopeMismatch": "This item does not exist or is not available to you",
+    "PlanningErrorSchemaConflict": "This definition was changed in the meantime — reload and try again",
+    "PlanningErrorSchemaInUse": "This definition is still in use and cannot be retired",
+    "PlanningErrorSchemaSealed": "This definition is fixed and cannot be changed here",
+    "PlanningErrorSchemaInvalid": "This definition is not valid",
+    "PlanningErrorForbidden": "You are not allowed to make this change",
     "PlanningErrorUnsupported": "This operation is not supported for this item"
   }
 }

@@ -1,15 +1,5 @@
-import type { FC, ReactNode } from 'react'
-import type { Translate } from './inline.js'
-
-export interface ConsentRowProps {
-  /** The native checkbox. */
-  checkbox: ReactNode
-  /** What the person agrees to. */
-  statement: ReactNode
-  detail?: ReactNode
-  /** Muted lines under the detail — a note, the last-updated date. */
-  notes?: ReactNode
-}
+import type { FC } from 'react'
+import type { Translate, ConsentRowProps } from './types.js'
 
 /**
  * One row of the consent list: a checkbox and its words. The Terms confirmation and every consent

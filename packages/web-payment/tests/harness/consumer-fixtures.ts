@@ -22,8 +22,9 @@ export const LINKS: Record<string, ConsumerRightsLinks> = Object.fromEntries(['e
 
 export const linksOf = (lng: string): ConsumerRightsLinks => LINKS[lng] ?? LINKS.en
 
-export const consentView = (lng: string): PerformanceConsentView => ({
+export const consentView = (lng: string, context?: string | null): PerformanceConsentView => ({
   required: true, region: ConsumerRegion.Eu, country: lng.toUpperCase(), language: lng, trader: TRADER,
+  ...(context != null ? { context } : {}),
   textVersion: 'terms-2026-09', copyVersion: '2026-09-23', links: linksOf(lng),
   purchases: [
     {
@@ -41,9 +42,9 @@ export const consentView = (lng: string): PerformanceConsentView => ({
   at: new Date('2026-09-27T12:00:00Z'),
 })
 
-export const startView = (lng: string): SubscriptionStartView => ({
-  required: true, planSku: 'pro-monthly', language: lng, trader: TRADER, textVersion: 'terms-2026-09',
-  copyVersion: '2026-09-23', links: linksOf(lng), region: ConsumerRegion.Eu,
+export const startView = (lng: string, context?: string | null): SubscriptionStartView => ({
+  required: true, planSku: 'pro-monthly', language: lng, trader: TRADER, ...(context != null ? { context } : {}),
+  textVersion: 'terms-2026-09', copyVersion: '2026-09-23', links: linksOf(lng), region: ConsumerRegion.Eu,
 })
 
 /** What the account withdrawal list answers on the wire — dates as ISO strings. */

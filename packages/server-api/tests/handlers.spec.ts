@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
 import { handlers } from '../src/protocol.js'
 import { HandlerMisconfiguredError } from '../src/errors.js'
+import { addLogPlugin, memoryPlugin, removeLogPlugin } from '@owlmeans/log'
 
 /**
  * A protocol-bound implementation is run with the smallest binding context the transport needs —
@@ -64,9 +65,8 @@ describe('@owlmeans/server-api — handlers() wrap-once tolerance', () => {
     const protocol = protocolFor('api.thing.warn-once')
     const bound = api.request(protocol, async () => 'ok')
 
-    const warnings: unknown[][] = []
-    const original = console.warn
-    console.warn = (...args: unknown[]) => { warnings.push(args) }
+    const memory = memoryPlugin('handlers-warn')
+    addLogPlugin(memory)
     try {
       // Each call is a deliberate double wrap — the exact shape `tsc` rejects at the real call
       // site (TS2345) — so it is exercised here through `any`, the same way `body`/`params`
@@ -75,9 +75,9 @@ describe('@owlmeans/server-api — handlers() wrap-once tolerance', () => {
       (api as any).body(protocol, bound);
       (api as any).params(protocol, bound)
     } finally {
-      console.warn = original
+      removeLogPlugin('handlers-warn')
     }
 
-    expect(warnings.length).toBe(1)
+    expect(memory.records.filter(record => record.level === 'warn').length).toBe(1)
   })
 })

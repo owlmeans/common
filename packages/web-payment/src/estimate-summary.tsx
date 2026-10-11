@@ -1,11 +1,11 @@
-import { Fragment, useMemo, type ReactNode } from 'react'
+import { Fragment, useMemo } from 'react'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
-import { COUNTRY_CODES, TaxEstimateStatus, estimateOf } from '@owlmeans/payment'
+import { COUNTRY_CODES, TaxEstimateStatus, priceEstimateHelper } from '@owlmeans/payment'
 import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { money } from './format.js'
-import type { PriceEstimateControl } from './types.js'
+import type { CountrySelectProps, PriceEstimateAmountProps, PriceEstimateSummaryProps } from './types.js'
+import { formatHelper } from './format.js'
 
 const localMoney = (amount: number, currency: string, locale: string): string => {
   try {
@@ -24,20 +24,6 @@ const useCountryOptions = (locale: string): Array<{ code: string, name: string }
     .map(code => ({ code, name: names?.of(code) ?? code }))
     .sort((a, b) => collator.compare(a.name, b.name))
 }, [locale])
-
-export interface CountrySelectProps {
-  /** ISO 3166-1 alpha-2, or `''` for the placeholder. */
-  value: string
-  onChange: (country: string) => void
-  /** Defaults to the `estimate.country` string (also the field's own label). */
-  label?: string
-  id?: string
-  className?: string
-  /** The country cannot be changed here — a billing country locked by the first purchase. */
-  disabled?: boolean
-  /** A line under the picker — why it is disabled, typically. */
-  note?: ReactNode
-}
 
 /**
  * The billing-country picker alone — the piece `PriceEstimateSummary` composes for a single,
@@ -73,16 +59,6 @@ export const CountrySelect = ({
   </div>
 }
 
-export interface PriceEstimateAmountProps {
-  control: Pick<PriceEstimateControl, 'estimate' | 'loading' | 'failed'>
-  /** The amount to show tax and a total for — may differ from the estimate's own reference amount. */
-  subtotalMinor: number
-  currency: string
-  /** Appended after the total row, e.g. `"/ month"`. */
-  suffix?: string
-  className?: string
-}
-
 /**
  * What Stripe Tax says at the estimate's country, with NO country picker of its own: the rate(s),
  * an estimated total, and one sentence for whichever status leaves no number to trust (reverse
@@ -101,7 +77,7 @@ export const PriceEstimateAmount = ({ control, subtotalMinor, currency, suffix, 
   const [locale] = useLanguage()
   const { estimate, loading, failed } = control
 
-  const derived = estimate != null ? estimateOf(subtotalMinor, estimate) : null
+  const derived = estimate != null ? priceEstimateHelper.estimateOf(subtotalMinor, estimate) : null
   const status = estimate?.tax.status
   const numeric = status === TaxEstimateStatus.Taxed || status === TaxEstimateStatus.ReverseCharge
     || status === TaxEstimateStatus.None
@@ -114,10 +90,10 @@ export const PriceEstimateAmount = ({ control, subtotalMinor, currency, suffix, 
   const local = derived?.local
   const taxText = local != null
     ? (derived?.taxMinor != null ? localMoney(local.taxAmount, local.currency, locale) : null)
-    : (derived?.taxMinor != null ? money(derived.taxMinor, currency, locale) : null)
+    : (derived?.taxMinor != null ? formatHelper.money(derived.taxMinor, currency, locale) : null)
   const totalText = local != null
     ? (derived?.totalMinor != null ? localMoney(local.totalAmount, local.currency, locale) : null)
-    : (derived?.totalMinor != null ? money(derived.totalMinor, currency, locale) : null)
+    : (derived?.totalMinor != null ? formatHelper.money(derived.totalMinor, currency, locale) : null)
   const approx = local != null ? '≈ ' : ''
 
   return <div data-price-estimate="" data-status={status ?? 'pending'} className={cn('grid gap-1.5', className)}>
@@ -143,16 +119,6 @@ export const PriceEstimateAmount = ({ control, subtotalMinor, currency, suffix, 
       </p>
     </>}
   </div>
-}
-
-export interface PriceEstimateSummaryProps {
-  control: PriceEstimateControl
-  /** The amount the summary shows tax and a total for — may differ from the estimate's own reference amount. */
-  subtotalMinor: number
-  currency: string
-  /** Appended after the total row, e.g. `"/ month"`. */
-  suffix?: string
-  className?: string
 }
 
 /**

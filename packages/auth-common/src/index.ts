@@ -1,4 +1,5 @@
 export type * from './types.js'
+export type * from './entity/types.js'
 
 export * from './schemas.js'
 export * from './entrypoints.js'

@@ -1,38 +1,18 @@
-import { useCallback, useState } from 'react'
-import type { CSSProperties, FC, ReactNode } from 'react'
+import { useCallback, useState, type CSSProperties, type FC, type ReactNode } from 'react'
 import { useContext } from '@owlmeans/client'
 import type { CommonConfig } from '@owlmeans/config'
 import type { LoginContext, LoginMethod, LoginScreenProps, LoginService } from './types.js'
+import type { TermsSentencePart } from './terms/types.js'
 import { LOGIN_SERVICE } from './consts.js'
-import { primaryLoginMethod } from './methods.js'
-import {
-  acceptTerms, resolveTerms, termsAccepted, termsDeferred, termsLabelResolver, termsSentence,
-} from './terms.js'
-import type { TermsSentencePart } from './terms.js'
+import { loginMethodsHelper } from './methods.js'
+import { loginTermsHelper } from './terms.js'
 import { resolveCredit } from './credit.js'
+import { box, page } from './consts.local.js'
 
 const renderParts = (parts: TermsSentencePart[]): ReactNode =>
   parts.map((part, index) => part.href != null
     ? <a key={index} href={part.href} target="_blank" rel="noreferrer noopener">{part.text}</a>
     : <span key={index}>{part.text}</span>)
-
-/**
- * The page the card sits in.
- *
- * It carries its own viewport height because this screen is rendered straight out of the
- * dispatcher, into whatever the application happens to have around it — which is usually nothing
- * with a height, so a percentage minimum would resolve to zero and leave the card at the top.
- */
-const page: CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  minHeight: '100dvh', padding: '1rem',
-  fontFamily: 'system-ui, sans-serif', lineHeight: 1.5,
-}
-
-// Centred throughout, so the plain screen and the styled one read the same way.
-const box: CSSProperties = {
-  width: '100%', maxWidth: '24rem', padding: '1.5rem', textAlign: 'center',
-}
 
 const button = (emphasis?: string): CSSProperties => ({
   display: 'block', width: '100%', marginTop: '.5rem', padding: '.625rem 1rem',
@@ -62,19 +42,19 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
 
   const login = context.service<LoginService>(LOGIN_SERVICE)
   const env = login.env()
-  const resolved = resolveTerms(props.terms ?? cfg?.terms)
+  const resolved = loginTermsHelper.resolveTerms(props.terms ?? cfg?.terms)
   const credit = resolveCredit(cfg?.credit, brand, context.cfg.service)
-  const resolveLabel = termsLabelResolver(t, props.locale)
-  const deferred = termsDeferred(context)
+  const resolveLabel = loginTermsHelper.termsLabelResolver(t, props.locale)
+  const deferred = loginTermsHelper.termsDeferred(context)
 
-  const [accepted, setAccepted] = useState(() => termsAccepted(resolved))
+  const [accepted, setAccepted] = useState(() => loginTermsHelper.termsAccepted(resolved))
   const [attempted, setAttempted] = useState(false)
 
   const all = login.methods({ context, env })
   const methods = typeof props.methods === 'function'
     ? props.methods(all)
     : props.methods ?? all
-  const primary = primaryLoginMethod(methods)
+  const primary = loginMethodsHelper.primaryLoginMethod(methods)
 
   const blocked = resolved != null && resolved.required && !deferred && !accepted
 
@@ -89,7 +69,7 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
   const onAccept = useCallback((value: boolean) => {
     setAccepted(value)
     setAttempted(false)
-    acceptTerms(resolved, value)
+    loginTermsHelper.acceptTerms(resolved, value)
   }, [resolved])
 
   return <div data-login-screen style={page}><div style={box}>
@@ -125,7 +105,7 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
           type="checkbox" checked={accepted} data-login-terms
           onChange={event => onAccept(event.target.checked)}
         />{' '}
-        {renderParts(termsSentence(
+        {renderParts(loginTermsHelper.termsSentence(
           t('login.terms.accept', 'I have read and agree to the {{documents}}.'),
           resolved, props.locale, resolveLabel
         ))}
@@ -138,14 +118,14 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
 
     {/* Outside the checkbox's label: a privacy disclosure is not something it consents to. */}
     {resolved != null && <p data-login-privacy style={{ fontSize: '.875rem' }}>
-      {renderParts(termsSentence(
+      {renderParts(loginTermsHelper.termsSentence(
         t('login.terms.notice', 'How we handle your personal data: {{notices}}.'),
         resolved, props.locale, resolveLabel
       ))}
     </p>}
 
     {attempted && blocked && resolved != null && <p role="alert" style={{ color: '#b00', fontSize: '.875rem' }}>
-      {renderParts(termsSentence(
+      {renderParts(loginTermsHelper.termsSentence(
         t('login.terms.required', 'Please confirm the {{documents}} to continue.'),
         resolved, props.locale, resolveLabel
       ))}

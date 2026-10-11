@@ -46,6 +46,11 @@
     "PlanningErrorCommitTimeout": "El cambio aún se está guardando — vuelve a comprobarlo en breve",
     "PlanningErrorCommitFailed": "No se pudo guardar el cambio",
     "PlanningErrorScopeMismatch": "Este elemento no existe o no está disponible para ti",
+    "PlanningErrorSchemaConflict": "Esta definición cambió mientras tanto — recarga e inténtalo de nuevo",
+    "PlanningErrorSchemaInUse": "Esta definición todavía está en uso y no se puede retirar",
+    "PlanningErrorSchemaSealed": "Esta definición es fija y no se puede cambiar aquí",
+    "PlanningErrorSchemaInvalid": "Esta definición no es válida",
+    "PlanningErrorForbidden": "No tienes permiso para hacer este cambio",
     "PlanningErrorUnsupported": "Esta operación no es compatible con este elemento"
   }
 }

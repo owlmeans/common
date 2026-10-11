@@ -1,10 +1,10 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser } from '@owlmeans/test-ui'
 import { OAUTH_DONE_PATH } from '@owlmeans/oauth'
 import en from '../src/i18n/en.json' with { type: 'json' }
 import { open, TIMEOUT } from './helpers.js'
+import { browserHelper } from '@owlmeans/test-ui'
 
-afterAll(async () => { await closeBrowser() })
+afterAll(async () => { await browserHelper.closeBrowser() })
 
 describe('done screen', () => {
   test('a device sign-in tells the person to close the window — the application picks it up', async () => {

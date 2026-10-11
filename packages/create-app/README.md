@@ -9,7 +9,7 @@ bun create @owlmeans/app my-app
 # or
 yarn create @owlmeans/app my-app
 # or
-npx @owlmeans/create-app@^0.1.18-rc.48 my-app
+npx @owlmeans/create-app@^0.1.18-rc.62 my-app
 ```
 
 ## What it generates
@@ -18,8 +18,7 @@ A bun-workspace monorepo with three packages and **no authentication**:
 
 ```
 my-app/
-├── AGENTS.md                       # agent context, read by every coding agent
-├── CLAUDE.md                       # thin bridge: imports AGENTS.md, links skills for Claude Code
+├── AGENTS.md                       # agent context, read by every coding agent (Claude Code included)
 ├── .agents/skills/<name>/SKILL.md  # deployed agent skills
 ├── .agents/memory/MEMORY.md        # shared agent memory index
 ├── sources/
@@ -32,6 +31,13 @@ The web app ships a basic shadcn UI **navigation + layout** and a **Session** sc
 that creates, lists and removes items held in a **session-scoped in-memory resource**
 (`@owlmeans/static-resource`) on the backend — no database required.
 
+Logging goes through [`@owlmeans/log`](https://www.npmjs.com/package/@owlmeans/log), with the level
+set per environment and never in code: the api's `config.ts` reads `LOG_LEVEL` (default `info`) and
+`LOG_DEBUG` from the Bun runtime, the web's reads `VITE_LOG_LEVEL` (default `debug` under `vite`,
+`info` in a build) and `VITE_LOG_DEBUG` at build time. The shared `sources/common` config runs in
+both runtimes, so it sets no level and no `cfg.debug` flag. Local values go in the git-ignored
+`sources/api/.env` / `sources/web/.env`.
+
 By default the scaffolder also installs dependencies and **deploys agent guidance**
 into the project via [`@owlmeans/agent-skills`](https://www.npmjs.com/package/@owlmeans/agent-skills)
 (`.agents/skills/`).
@@ -39,7 +45,7 @@ into the project via [`@owlmeans/agent-skills`](https://www.npmjs.com/package/@o
 `AGENTS.md` carries the four mandatory sections a real OwlMeans monorepo uses — **Git Workflow**,
 **Reporting**, **Memory**, **Self-Education** — plus a project-purpose placeholder your agent fills
 in on its first session. GitHub Copilot and Codex read `AGENTS.md` and `.agents/skills/` natively;
-Claude Code reads `CLAUDE.md`, which imports `AGENTS.md` and keeps per-skill symlinks in
+Claude Code reads `AGENTS.md` too and keeps per-skill symlinks in
 `.claude/skills/` fresh through `sh .agents/scripts/link-skills.sh`. The harness guidance (memory
 protocol, self-education, git policy, skill authoring, reuse-first) ships with the template, so it
 is present even with `--no-install`.
@@ -90,8 +96,9 @@ scaffold({
 })
 ```
 
-`templateDir()`, `copyTemplate(src, dest, replacements, { bare })` and `isEmptyDir(dir)` are
-exported for callers that want the pieces; `run(args)` is the full CLI flow.
+`templateHelper.templateDir()`, `templateHelper.copyTemplate(src, dest, replacements, { bare })` and
+`templateHelper.isEmptyDir(dir)` are exported for callers that want the pieces (`namingHelper` and
+`argsHelper` likewise); `run(args)` is the full CLI flow.
 
 ## Running the generated app
 

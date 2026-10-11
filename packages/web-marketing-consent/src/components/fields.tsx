@@ -1,21 +1,8 @@
-import { useEffect, useRef } from 'react'
-import type { FC } from 'react'
-import type { UseMarketingConsentModel } from '../hooks/use-marketing-consent.js'
-import { rowTextOf } from './inline.js'
-import type { Translate } from './inline.js'
+import { useEffect, useRef, type FC } from 'react'
 import { ConsentRow, RevisedLine } from './row.js'
 import { ConsentTerms } from './terms.js'
-
-export interface ConsentFieldsProps {
-  t: Translate
-  model: UseMarketingConsentModel
-  /**
-   * The sign-in screen's own translator (`auth` resource), which the Terms row speaks in. Given
-   * only by the screen: the settings card has no Terms row and passes nothing.
-   */
-  termsT?: Translate
-  locale?: string
-}
+import type { ConsentFieldsProps } from './types.js'
+import { inlineHelper } from './inline.js'
 
 /**
  * The select-all/list body shared by `MarketingConsentScreen` and `MarketingConsentPreferences` —
@@ -43,13 +30,14 @@ export const ConsentFields: FC<ConsentFieldsProps> = ({ t, model, termsT, locale
 
   const showTerms = termsT != null && model.terms.needed
   const rows = model.groups.reduce((count, group) => count + group.items.length, 0) + (showTerms ? 1 : 0)
+  const requiredOnly = model.bulkSelection === 'required'
   const note = t('screen.required-note', '* Required')
   const marked = note.startsWith('*')
 
   return (
     <div className="flex flex-col gap-5" data-marketing-consent-fields="">
-      {/* One row is nothing to select "all" of. */}
-      {rows > 1 && (
+      {/* Required-only mode never offers a bulk optional-purpose choice, including in settings. */}
+      {(requiredOnly ? showTerms : rows > 1) && (
         <label
           data-marketing-consent-all-frame=""
           className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-3 text-sm font-medium cursor-pointer"
@@ -65,7 +53,7 @@ export const ConsentFields: FC<ConsentFieldsProps> = ({ t, model, termsT, locale
             checked={model.allChecked}
             onChange={event => model.toggleAll(event.target.checked)}
           />
-          {t('screen.all', 'Select all')}
+          {requiredOnly ? t('screen.all-required', 'Select required agreements') : t('screen.all', 'Select all')}
         </label>
       )}
 
@@ -73,7 +61,7 @@ export const ConsentFields: FC<ConsentFieldsProps> = ({ t, model, termsT, locale
         {showTerms && <ConsentTerms termsT={termsT} t={t} model={model.terms} locale={locale} />}
 
         {model.groups.flatMap(group => group.items).map(item => {
-          const { statement, detail } = rowTextOf(item.definition, t, locale)
+          const { statement, detail } = inlineHelper.rowTextOf(item.definition, t, locale)
 
           return (
             <ConsentRow

@@ -1,37 +1,26 @@
-import { Ajv } from 'ajv'
-import type { JSONSchemaType } from 'ajv'
-import { AIMessage, BaseMessage } from '@langchain/core/messages'
-import type { AIMessageChunk, MessageContent, MessageFieldWithRole } from '@langchain/core/messages'
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { StructuredMode } from '@owlmeans/llm-common'
-import type { NullKind } from '@owlmeans/llm-common'
+import { Ajv, type JSONSchemaType } from 'ajv'
+import { AIMessage, BaseMessage, type AIMessageChunk, type MessageContent, type MessageFieldWithRole } from '@langchain/core/messages'
+import { StructuredMode, type NullKind } from '@owlmeans/llm-common'
+import { logger } from '@owlmeans/log'
 import { DEFAULT_MODEL_RETRIES, MAX_CACHE_BREAKPOINTS } from './consts.js'
-import { LlmModelError } from './errors.js'
+import { LlmMissconfiguredError, LlmModelError } from './errors.js'
 import type { LlmPlugin } from './plugins/types.js'
-import { coerceToSchema, parseJsonContent } from './helpers/json.js'
+import { jsonHelper } from './helpers/json.js'
 import { normalizeInput } from './helpers/messages.js'
-import { withRetry } from './helpers/retry.js'
+import { retryHelper } from './helpers/retry.js'
 import { spectate } from './helpers/spectate.js'
-import type { ModelConfig } from './types.js'
-import { idleTimeout, resolveOutputCap } from './utils/config.js'
+import type { ModelConfig, LlmAskOptions, LlmInvokeOptions, LlmModel, LlmModelOptions, LlmRequestOptions, LlmSpectator, LlmTalkOptions, ModelInput, RefferedResult } from './types.js'
+import { configUtils } from './utils/config.js'
 import { reportNull } from './utils/null-report.js'
-import type { NullReportParams } from './utils/null-report.js'
-import { applyNoThink, dropBlankContent, ensureJsonMention, stripCacheMarkers } from './utils/prompt.js'
-import { rungAt, rungsOf } from './utils/rungs.js'
-import type { Rung } from './utils/rungs.js'
-import { resolveSchemaValidator, toToolName, unwrapNamed } from './utils/schema.js'
-import { streamWithDeadline } from './utils/stream.js'
-import type {
-  LlmAskOptions, LlmInvokeOptions, LlmModel, LlmModelOptions, LlmRequestOptions,
-  LlmSpectator, LlmTalkOptions, ModelInput, RefferedResult,
-} from './types.js'
+import type { NullReportParams } from './utils/null-report/types.js'
+import type { Rung } from './utils/rungs/types.js'
+import { rungUtils } from './utils/rungs.js'
+import { streamUtils } from './utils/stream.js'
+import type { ActiveRung, StreamOptions } from './types.local.js'
+import { promptUtils } from './utils/prompt.js'
+import { schemaUtils } from './utils/schema.js'
 
-type StreamOptions = Parameters<BaseChatModel['stream']>[1]
-
-/** The rung an attempt runs on, and the instance refined for that attempt. */
-interface ActiveRung extends Rung {
-  refined: BaseChatModel
-}
+const log = logger('llm')
 
 const isSystem = (msg: MessageFieldWithRole): boolean =>
   msg instanceof BaseMessage ? msg.getType() === 'system' : `${msg.role}` === 'system'
@@ -95,13 +84,14 @@ export const makeLlmModel = ({
   prompts,
   files,
   utility,
+  results,
 }: LlmModelOptions, spectator: LlmSpectator): LlmModel => {
 
   const ajv = new Ajv({ strict: false })
 
   // Each rung's config and plugin are static per model instance: a REFINED instance is
   // rebuilt from `lc_kwargs` and does not reliably carry the metadata back.
-  const rungs = rungsOf(model)
+  const rungs = rungUtils.rungsOf(model)
 
   /**
    * Where on the escalation ladder this call starts.
@@ -124,8 +114,8 @@ export const makeLlmModel = ({
    * is the whole point: a prompt cache is a PREFIX match, so the bytes every call shares
    * have to be physically ahead of the bytes that differ.
    *
-   * Rendered for one rung: the system blocks, cache markers and the thinking switch are
-   * provider dialect, so a fallback on another provider needs its own rendering.
+   * Rendered for one rung: the system blocks, cache markers, the thinking switch and the tool
+   * instruction are provider dialect, so a fallback on another provider needs its own rendering.
    */
   const prepare = async (
     input: ModelInput,
@@ -134,14 +124,15 @@ export const makeLlmModel = ({
     cacheMax: number,
     json: boolean,
     callSkills: string[] | undefined,
+    toolName: string | undefined,
     { model, plugin, config }: Rung,
   ): Promise<MessageFieldWithRole[]> => {
     const msgs = normalizeInput(input)
     // The caller may hand back messages this pipeline marked on a PREVIOUS call — the
     // markers live on its own objects. The budget is per request, so clear them and
     // re-place our own below; otherwise they accumulate until the provider 400s.
-    stripCacheMarkers(msgs)
-    dropBlankContent(msgs)
+    promptUtils.stripCacheMarkers(msgs)
+    promptUtils.dropBlankContent(msgs)
     let reserved = 0
 
     if (prompts != null) {
@@ -153,7 +144,7 @@ export const makeLlmModel = ({
           callSkills: callSkills ?? prompt?.callSkills,
         },
         msgs,
-        { model, provider: plugin, purpose, action, cacheMax, files, utility },
+        { model, provider: plugin, purpose, action, cacheMax, files, utility, results },
       )
       if (composed.system != null) {
         msgs.unshift(composed.system)
@@ -166,20 +157,19 @@ export const makeLlmModel = ({
       }
     }
 
-    if (json) ensureJsonMention(msgs)
+    if (json) promptUtils.ensureJsonMention(msgs)
+    // A model that refuses a pinned tool is asked for it in words; `toolChoice` sends `auto`.
+    if (toolName != null && plugin?.pinsTool?.(config) === false) promptUtils.ensureToolCall(msgs, toolName)
     // The soft switch is for models with no request-level control; a plugin that sends the
     // real parameter must not also get the directive as prompt text.
-    applyNoThink(msgs, config.disableThinking === true && plugin?.suppressesThinking?.(config) !== true)
+    promptUtils.applyNoThink(msgs, config.disableThinking === true && plugin?.suppressesThinking?.(config) !== true)
     // Cache markers replace string content with content blocks, so they must go last.
     const ttl = prompt?.cacheTtl
     const marked = plugin?.patchCache?.(msgs, {
       model, useCache, cacheMax, reserved, ...(ttl != null ? { ttl } : {}),
     })
     if (reserved > 0 || marked === true) {
-      console.log(
-        `Prompt caching for ${plugin?.type}: ${reserved} system breakpoint(s)`
-        + `${marked === true ? ', 1 message breakpoint' : ''}`
-      )
+      log.debug('Prompt caching', { provider: plugin?.type, systemBreakpoints: reserved, messageBreakpoint: marked === true })
     }
 
     return msgs
@@ -198,13 +188,14 @@ export const makeLlmModel = ({
     cacheMax: number,
     json: boolean,
     callSkills?: string[],
+    toolName?: string,
   ): (rung: Rung) => Promise<MessageFieldWithRole[]> => {
     let prepared: { family: string | undefined, msgs: MessageFieldWithRole[] } | null = null
     return async rung => {
       const family = rung.plugin?.family
       if (prepared == null || prepared.family !== family) {
         prepared = {
-          family, msgs: await prepare(input, action, useCache, cacheMax, json, callSkills, rung),
+          family, msgs: await prepare(input, action, useCache, cacheMax, json, callSkills, toolName, rung),
         }
       }
       return prepared.msgs
@@ -230,7 +221,7 @@ export const makeLlmModel = ({
       try {
         await spectator.error?.({ action, error })
       } catch (observerError) {
-        console.warn('[MODEL-ERROR] spectator observation failed', observerError)
+        log.warn('Model spectator observation failed', observerError)
       }
       throw error
     }
@@ -263,27 +254,38 @@ export const makeLlmModel = ({
    * structured-output call) is taken from the rung's own plugin, never the primary's.
    */
   const refineModel = (attempt: number, temperature?: number): ActiveRung => {
-    const { rung, rungAttempt } = rungAt(rungs, attempt)
+    const { rung, rungAttempt } = rungUtils.rungAt(rungs, attempt)
     if (rung.index > 0 && rungAttempt === 0) {
-      console.warn(
-        `${rung.model.getName()}: switching to fallback ${rung.index} (${rung.config.model})`
-        + ` after ${attempt} failed attempts`
-      )
+      log.warn('Switching to fallback model', {
+        model: rung.model.getName(), fallback: rung.index, fallbackModel: rung.config.model, attempts: attempt,
+      })
     }
     if (rung.plugin == null) return { ...rung, refined: rung.model }
 
     // Read from the ACTIVE rung, so the escalator sizes the model it is actually talking to.
-    const maxOutputCap = resolveOutputCap(rung.config)
+    const maxOutputCap = configUtils.resolveOutputCap(rung.config)
     const refined = rung.plugin.refine({
       base: rung.model, attempt, rungAttempt, temperature, maxOutputCap,
     })
 
     if (attempt > 0) {
       const maxTokens = (refined as unknown as { maxTokens?: number }).maxTokens
-      console.warn(`${refined.getName()}: retry attempt ${attempt}, maxTokens now ${maxTokens}`)
+      log.warn('Model retry attempt', { model: refined.getName(), attempt, outputLimit: maxTokens })
     }
 
     return { ...rung, refined }
+  }
+
+  /**
+   * Refuse a schema this rung's provider would not show the model as written — before the rung's
+   * request, and fatally: the model cannot answer a property it is never shown, and each retry
+   * would fail validation the same way.
+   */
+  const assertSchemaShown = ({ plugin, config }: Rung, schema: unknown): void => {
+    const defects = plugin?.schemaDefects?.(config, schema) ?? []
+    if (defects.length > 0) {
+      throw new LlmMissconfiguredError(`schema-hidden:${config.model ?? config.alias}: ${defects.join('; ')}`)
+    }
   }
 
   /** How this rung should be asked for schema-conforming output. */
@@ -319,18 +321,27 @@ export const makeLlmModel = ({
       if (mode === StructuredMode.Native) {
         return refined.stream(msgs, { ...base, ...responseFormat && { response_format: responseFormat } } as unknown as StreamOptions)
       }
-      // langchain converts the OpenAI-shaped tool DEFINITION for either provider, but the
-      // `tool_choice` shape is NOT converted — the plugin supplies the right spelling.
+      // langchain converts the OpenAI-shaped tool DEFINITION (with `strict`) for either provider,
+      // but the `tool_choice` shape is NOT converted — the plugin supplies the right spelling, and
+      // for a model that refuses a pinned tool the automatic choice. A reply with no tool call
+      // then falls to the content fallback below and, failing that, is a null result retried.
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const strict = plugin?.strictTool?.(active.config, innerSchema) === true
       const bound = refined.bindTools!(
-        [{ type: 'function', function: { name: toolName, description: '', parameters: innerSchema } }],
-        { tool_choice: plugin?.toolChoice(toolName) ?? { type: 'function', function: { name: toolName } } }
+        [{
+          type: 'function',
+          function: { name: toolName, description: '', parameters: innerSchema, ...(strict ? { strict } : {}) },
+        }],
+        {
+          tool_choice: plugin?.toolChoice(toolName, active.config)
+            ?? { type: 'function', function: { name: toolName } },
+        }
       )
       return bound.stream(msgs, base)
     }
 
     let piece: AIMessageChunk | null = null
-    for await (const rawChunk of streamWithDeadline(start, idleTimeout(active.config))) {
+    for await (const rawChunk of streamUtils.streamWithDeadline(start, configUtils.idleTimeout(active.config))) {
       const chunk = rawChunk as AIMessageChunk
       piece = piece == null ? chunk : (piece.concat(chunk) as AIMessageChunk)
     }
@@ -339,13 +350,13 @@ export const makeLlmModel = ({
     if (mode === StructuredMode.Tool) {
       const rawArgs = piece?.tool_calls?.[0]?.args ?? null
       result = rawArgs != null
-        ? (typeof rawArgs === 'string' ? parseJsonContent(rawArgs) as T | null : rawArgs as T)
+        ? (typeof rawArgs === 'string' ? jsonHelper.parseJsonContent(rawArgs) as T | null : rawArgs as T)
         : null
     }
     // Content fallback: some models ignore the pinned tool (or the JSON mode) and emit the
     // schema-shaped JSON as plain content.
     if (result == null && piece != null) {
-      const recovered = parseJsonContent(piece.content)
+      const recovered = jsonHelper.parseJsonContent(piece.content)
       if (recovered != null) result = recovered as T
     }
 
@@ -363,17 +374,17 @@ export const makeLlmModel = ({
       return await observeFailure(action, async () => {
         const prepared = preparing(input, action, useCache, cacheMax, false, skills)
         const seed = ladderSeed(escalation)
-        await prepared(rungAt(rungs, seed).rung)
-        return await withRetry({ retries, outputErrors, fatal }, async i => {
+        await prepared(rungUtils.rungAt(rungs, seed).rung)
+        return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i)
         const { refined } = active
         const msgs = await prepared(active)
-        console.log('Use model to ask: ', refined.getName(), refined.lc_kwargs.model)
+        log.debug('Use model to ask', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
-        for await (const chunk of streamWithDeadline(
+        for await (const chunk of streamUtils.streamWithDeadline(
           signal => refined.stream(msgs, { runName: action, metadata: { purpose }, signal }),
-          idleTimeout(active.config),
+          configUtils.idleTimeout(active.config),
         )) {
           result = result == null ? chunk : result.concat(chunk)
         }
@@ -441,17 +452,17 @@ export const makeLlmModel = ({
       return await observeFailure(action, async () => {
         const prepared = preparing(input, action, useCache, cacheMax, false, skills)
         const seed = ladderSeed(escalation)
-        await prepared(rungAt(rungs, seed).rung)
-        return await withRetry({ retries, outputErrors, fatal }, async i => {
+        await prepared(rungUtils.rungAt(rungs, seed).rung)
+        return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i)
         const { refined } = active
         const msgs = await prepared(active)
-        console.log('Use model to talk: ', refined.getName(), refined.lc_kwargs.model)
+        log.debug('Use model to talk', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
-        for await (const chunk of streamWithDeadline(
+        for await (const chunk of streamUtils.streamWithDeadline(
           signal => refined.stream(msgs, { runName: action, metadata: { purpose }, signal }),
-          idleTimeout(active.config),
+          configUtils.idleTimeout(active.config),
         )) {
           result = result == null ? chunk : result.concat(chunk)
         }
@@ -485,17 +496,18 @@ export const makeLlmModel = ({
       }: LlmInvokeOptions<T>
     ) => {
       return await observeFailure(action, async () => {
-        const prepared = preparing(input, action, useCache, cacheMax, true, skills)
-        const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
-        const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
+        const { name, innerSchema, validate } = schemaUtils.resolveSchemaValidator<T>(ajv, schema)
+        const toolName = schemaUtils.toToolName((innerSchema as { title?: string }).title ?? name)
+        const prepared = preparing(input, action, useCache, cacheMax, true, skills, toolName)
 
         const seed = ladderSeed(escalation)
-        await prepared(rungAt(rungs, seed).rung)
-        return await withRetry({ retries, outputErrors, fatal }, async i => {
+        await prepared(rungUtils.rungAt(rungs, seed).rung)
+        return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i, temperature)
+        assertSchemaShown(active, innerSchema)
         const { refined } = active
         const msgs = await prepared(active)
-        console.log('Use model invoke: ', refined.getName(), refined.lc_kwargs.model)
+        log.debug('Use model invoke', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         const { piece, result: collected } = await streamStructured(active, msgs, innerSchema, toolName, action)
         let result: T | null = collected
@@ -510,8 +522,8 @@ export const makeLlmModel = ({
         const entry = await spectate(spectator, 'invoke')(msgs, message, action, i, startedAt)
         if (ref != null) ref.spectatorEntry = entry
 
-        result = unwrapNamed(result, name)
-        result = coerceToSchema(result, innerSchema) as T
+        result = schemaUtils.unwrapNamed(result, name)
+        result = jsonHelper.coerceToSchema(result, innerSchema) as T
 
         if (filter != null) {
           const preFilter = result
@@ -542,17 +554,18 @@ export const makeLlmModel = ({
       }: LlmRequestOptions
     ) => {
       return await observeFailure(action, async () => {
-        const prepared = preparing(input, action, useCache, cacheMax, true, skills)
-        const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
-        const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
+        const { name, innerSchema, validate } = schemaUtils.resolveSchemaValidator<T>(ajv, schema)
+        const toolName = schemaUtils.toToolName((innerSchema as { title?: string }).title ?? name)
+        const prepared = preparing(input, action, useCache, cacheMax, true, skills, toolName)
 
         const seed = ladderSeed(escalation)
-        await prepared(rungAt(rungs, seed).rung)
-        return await withRetry({ retries, outputErrors, fatal }, async i => {
+        await prepared(rungUtils.rungAt(rungs, seed).rung)
+        return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i)
+        assertSchemaShown(active, innerSchema)
         const { refined } = active
         const msgs = await prepared(active)
-        console.log('Use model request: ', refined.getName(), refined.lc_kwargs.model)
+        log.debug('Use model request', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         const { piece, result: collected } = await streamStructured(active, msgs, innerSchema, toolName, action)
         let result: T | null = collected
@@ -569,8 +582,8 @@ export const makeLlmModel = ({
 
         // Structured output delivers the JSON as parsed tool arguments, not as message
         // content. Surface it on `.content` so the AIMessage contract callers rely on holds.
-        result = unwrapNamed(result, name)
-        result = coerceToSchema(result, innerSchema) as T
+        result = schemaUtils.unwrapNamed(result, name)
+        result = jsonHelper.coerceToSchema(result, innerSchema) as T
         message.content = JSON.stringify(result)
 
         if (filter != null) {

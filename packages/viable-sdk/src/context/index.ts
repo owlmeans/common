@@ -1,38 +1,21 @@
 import { AppType } from '@owlmeans/context'
-import { makeClientContext } from '@owlmeans/client-context'
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import { makeClientContext, type ClientConfig, type ClientContext } from '@owlmeans/client-context'
 import { bind } from '@owlmeans/client-entrypoint'
 import { appendPlanningClient } from '@owlmeans/client-planning'
-import { openProtocol, protocols } from '@owlmeans/entrypoint'
-import type { EntrypointTree } from '@owlmeans/entrypoint'
-import { makePlanningProtocols } from '@owlmeans/planning'
-import type { PlanningProtocols } from '@owlmeans/planning'
+import { openProtocol, protocols, type EntrypointTree } from '@owlmeans/entrypoint'
+import { makePlanningProtocols, type PlanningProtocols } from '@owlmeans/planning'
 import { route } from '@owlmeans/route'
 import { authMiddleware, DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { makeTokenCarrierGuard } from '@owlmeans/auth-token'
-import { connect, connectProtocols, CONNECT_TOKEN_PREFIX } from '@owlmeans/viable-common'
+import { connect, connectProtocols, CONNECT_TOKEN_PREFIX, ConnectLlm } from '@owlmeans/viable-common'
+import { appendCallCollectTransport } from '../api/collect.js'
 import { COMMIT_POLL_SEC, SDK_SERVICE, TOOL_DEADLINE_MS } from '../consts.js'
 import { SdkAuthError, SdkMisconfigured } from '../errors.js'
+import { PLANNING_BASE_ALIAS, PLANNING_BASE_PATH, UPDATE_BASE } from './consts.local.js'
+import type { SdkContextOptions } from './types.js'
 
-/**
- * The platform's websocket namespace, which the connector's socket route is declared under.
- *
- * A literal because it belongs to manager-api: the contract package takes it as a parameter for
- * exactly this reason, so that neither end has to import the other's constants.
- */
-const UPDATE_BASE = 'viable:manager-api:update:base'
 const updateBase = openProtocol(route(UPDATE_BASE, '/update'))
 
-/**
- * The base alias and path manager-api mounts the planning protocol tree under.
- *
- * Literals for the same reason as {@link UPDATE_BASE}: they belong to manager-api, and
- * `makePlanningProtocols` takes them as parameters so neither end imports the other's constants.
- * Every planning alias and path derives from these, so the two ends agree on a route only while
- * both build the tree from the same base, path and socket base.
- */
-const PLANNING_BASE_ALIAS = 'viable:manager-api:planning'
-const PLANNING_BASE_PATH = '/planning'
 
 /**
  * The planning tree exactly as manager-api mounts it, minus the ownership gate — a gate is the
@@ -43,22 +26,6 @@ const sdkPlanningProtocols = (): PlanningProtocols => makePlanningProtocols({
   guards: DEFAULT_GUARD,
   socketBase: updateBase,
 })
-
-export interface SdkContextOptions {
-  apiUrl: string
-  /**
-   * A fixed token, or a thunk resolved on every request. The thunk form is what lets a
-   * credential holder (`@owlmeans/cli-auth`) hand the carrier guard something that changes
-   * across the process's lifetime — empty before a sign-in completes, a real token after — with
-   * no reconfiguration in between.
-   */
-  token: string | (() => string | Promise<string>)
-  /** The service alias the API is registered under. One deployment, one alias. */
-  service?: string
-  /** Called when the platform rejects a request that presented this token — a credential holder
-   * wires this to forgetting a dead token (and signing in again) or reporting the problem. */
-  onRejected?: () => void | Promise<void>
-}
 
 /**
  * A client context that speaks to a viable deployment with one access token.
@@ -125,20 +92,19 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
     onRejected: opts.onRejected,
   }))
   context.registerMiddleware(authMiddleware)
+  // ONE transport in front of the API client for every bound route — the connector's and the
+  // planning client's. In the delegated mode it names each write (`x-viable-call`) and collects an
+  // early `{ pending }` answer until the call settles; otherwise it only forwards.
+  appendCallCollectTransport(context, { delegated: opts.llm === ConnectLlm.Local })
 
-  const surface = connectProtocols({
-    guard: DEFAULT_GUARD,
-    updateBase,
-  })
+  const surface = connectProtocols({ guard: DEFAULT_GUARD })
   // The story tools speak planning: the same tree the platform mounts, reached with the same token.
-  // Its commit socket hangs under the platform's `/update` base as well, which is one more reason
-  // that base is declared here.
   const planning = sdkPlanningProtocols()
 
-  // The socket routes hang under the platform's own websocket base, so that base has to exist
-  // here too — a parent a registry cannot resolve fails the whole context at init, not the one
-  // call that would have used it. It is a declaration-only namespace, so its client binding has
-  // no screen or request implementation.
+  // The planning commit feed hangs under the platform's own websocket base, so that base has to
+  // exist here too — a parent a registry cannot resolve fails the whole context at init, not the
+  // one call that would have used it. It is a declaration-only namespace, so its client binding has
+  // no screen or request implementation, and the SDK never opens the feed.
   const entrypoints = [
     bind(updateBase),
     ...protocols(surface).map(declaration => bind(declaration)),
@@ -156,7 +122,7 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
     // No socket opener: a commit is awaited by long poll only, which is the only transport the SDK
     // speaks and the one that survives every proxy.
     poll: COMMIT_POLL_SEC,
-    timeout: TOOL_DEADLINE_MS,
+    timeout: opts.timeout ?? TOOL_DEADLINE_MS,
     // Nothing a tool does reads a flow or a type, and the bundle would otherwise be fetched in the
     // background the moment the context is ready — a network call from a server nobody has asked
     // anything yet. `model()` still loads it on first use.
@@ -169,3 +135,5 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
 }
 
 export { connect }
+
+export type { SdkContextOptions } from './types.js'

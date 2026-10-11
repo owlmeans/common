@@ -9,9 +9,17 @@ export class AuthError extends ResilientError {
   }
 }
 
+/**
+ * The request names an authentication method, provider or identity this server does not know — an
+ * unregistered plugin type, a sign-in method a gate refuses, a request carrying no organization.
+ * That is the caller's request, not a crashed server, so it answers 400 (`httpStatus`, read by
+ * `@owlmeans/server-api`). It is outside the authorization family on purpose: a failed credential
+ * stays 401 (`AuthorizationError`) and a refused permission 403 (`AuthForbidden`).
+ */
 export class AuthUnknown extends AuthError {
   public static override typeName: string = `${AuthError.typeName}Unknown`
-  
+  public static httpStatus = 400
+
   constructor(message: string = 'error') {
     super(`unknown:${message}`)
     this.type = AuthUnknown.typeName

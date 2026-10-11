@@ -32,6 +32,25 @@ with `--changed` after step 4 and bump what it reports: the doc and skill update
 changes, the second bump moves the docs again, and the release never converges. Install and align
 every consumer's lockfile after npm serves the new versions.
 
+**A plan run after the agent-meta sync lists ~100 packages, and that is expected.** The sync
+rewrites the embedded skills of every package whose canonical skill drifted — general-scope skills
+land in `@owlmeans/agent-skills`, and root packages such as `auth` drag their whole dependent graph —
+so `--changed` then sees skill-only drift across the repo. Two ways to release, decided before step 1:
+
+- **Ship only code** — leave the drift: run the steps in order, publish with `--all` (it ships only
+  what step 1 bumped; every other declared version is already on npm and is skipped). A package
+  carrying only skill drift ships it with its next code change; its npm copy lags until then.
+- **Ship the skills too** (the operator asked to reconcile the embedded skills) — run
+  `sync-agent-meta.ts` for common, internal and viable-agent `--seed-only` BEFORE step 1, so the one
+  change detection sees the drift and bumps it with its dependents; steps 2–4 then run as written (the
+  second sync only moves version text). The plan is then ~100 packages; when it is empty afterwards
+  (`--dry-run` says `nothing to publish`), the release converged.
+
+**Build from clean until the build passes.** A workspace filter build runs packages concurrently, so a
+package can compile before the `build/` of a dependency exists (`TS2307 Cannot find module
+'@owlmeans/<dep>'`); each pass finds more of them built. A few packages need two passes, a full clean
+of ~100 packages needed three — repeat until the exit code is 0.
+
 ## Never publish without being told to
 
 **Publishing is irreversible, public, and affects every downstream consumer. Ask the operator and
@@ -148,9 +167,8 @@ downstream lockfile churns for nothing.
 ## A registry-only file is usually a stale build leftover
 
 `tsc -b` never deletes an output whose source was removed, so a publish from a `build/` that was not
-cleaned ships compiled files of sources deleted long before (seen 2026-09: `flow/build/advertise.js`,
-`postgres/build/health.js`, `agent-skills/build/llm/*`, `web-panel/build/hooks` — their sources went in
-one migration commit, and the 2026-09-17 batch still carried them). A diff of a local pack against
+cleaned ships compiled files of sources deleted long before ([[versioning]] memory names the known
+cases). A diff of a local pack against
 the published tarball that shows files ONLY in the registry copy, with no `src/` counterpart in that
 tarball and nothing importing them, is dead weight — **not** newer content and **not** a sign the tree
 lags (`git log --diff-filter=D -- packages/<pkg>/src` finds the deletion). Do not skip a package for
@@ -158,10 +176,9 @@ it; clean `build/` and `tsconfig.tsbuildinfo` and rebuild before the plan so the
 shipping.
 
 A plan that lists most of the repo is expected when a few root packages (`basic-ids`, `context`,
-`config`, `flow`, `i18n`) really changed — every dependent follows. It is NOT expected from
-propagation: the harness no longer rewrites admitted pins in packages outside the release, nor
-hashes their `build/` — so a plan that widens after steps 2–4 means a real content edit landed in
-them. A `0.0.x` package needs every consumer pin moved (a caret on `0.0.n` is exact).
+`config`, `flow`, `i18n`) really changed — every dependent follows. Propagation itself never widens
+it: the harness rewrites no admitted pin outside the release and hashes no `build/`, so a plan that
+widens after steps 2–3 means a real content edit landed (after step 4, see the agent-meta rule above). A `0.0.x` package needs every consumer pin moved (a caret on `0.0.n` is exact).
 
 ## How "changed" is decided
 
@@ -240,8 +257,7 @@ when their own content changed, and their bump no longer rewrites any other pack
 
 Keep it that way when authoring: a shipped skill pins only its OWN package. An example of pinning
 another package writes `"@owlmeans/x": "^<version>"` — the sync leaves a placeholder as written,
-while a live version would be re-synced on every release of `x` and republish the skill's owner
-(`reuse-code` pinning `@owlmeans/queue` used to drag `agent-skills` into every `queue` release).
+while a live version would be re-synced on every release of `x` and republish the skill's owner.
 
 A fix found after a publish is its own release: the fixed package and its dependents only. Do not
 fold unrelated edits into it — a canonical skill of a widely depended package widens it for nothing.
@@ -321,9 +337,8 @@ viable-agent template and this repo's `create-app` template). `--check` on the s
 `overrides`/`resolutions` entries too, not only the four dependency blocks — refreshed to the
 current version while keeping each entry's OWN operator (exact stays exact, `^`/`~` stay as
 written), since an override forces one resolved version onto the whole tree and its author already
-chose that operator on purpose. A template root override left exact and unswept is exactly the
-failure mode this closes: it goes unsatisfiable the moment a sibling dependency range moves past
-it, which built cleanly here and only failed inside a freshly staged target.
+chose that operator on purpose. An unswept exact template override goes unsatisfiable the moment a
+sibling range moves past it — invisible here, failing only inside a freshly staged target.
 
 ### `Published N/N` is not "installable yet"
 

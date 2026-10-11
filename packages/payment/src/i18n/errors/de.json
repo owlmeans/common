@@ -3,6 +3,7 @@
   "PaymentErrorPaygate": "Der Zahlungsanbieter konnte die Anfrage nicht ausführen",
   "PaymentErrorPaygateUnknown": "Dieser Zahlungsanbieter wird nicht unterstützt",
   "PaymentErrorPaygateMapping": "Die Daten des Zahlungsanbieters konnten nicht zugeordnet werden",
+  "PaymentErrorPaygateSignature": "Die Webhook-Signatur fehlt oder ist ungültig.",
   "PaymentErrorPaygateWebhookSetup": "Zahlungsbenachrichtigungen sind nicht eingerichtet",
   "PaymentErrorPaygatePortalUnavailable": "Die Abrechnungsverwaltung ist für dieses Konto noch nicht verfügbar",
   "PaymentErrorProduct": "Dieses Produkt ist nicht verfügbar",

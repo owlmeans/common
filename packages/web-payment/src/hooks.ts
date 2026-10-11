@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react'
 import type { CallArguments, RegisteredEntrypoint, RequestShape } from '@owlmeans/entrypoint'
 import { usePolled } from './poll.js'
-import { openCheckout, type CheckoutTarget } from './service.js'
-import type { CheckoutResult } from './types.js'
+import { openCheckout } from './service.js'
+import type { CheckoutTarget, CheckoutResult } from './types.js'
 
 export const useCheckout = (target: CheckoutTarget = '_self') => {
   const [pending, setPending] = useState(false)

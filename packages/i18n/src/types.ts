@@ -1,4 +1,4 @@
-import type { I18nTier } from './consts.js'
+import type { I18nTier, SUPPORTED_LNGS } from './consts.js'
 
 export interface I18nStorage {
   data: I18nNamespaces
@@ -43,7 +43,7 @@ export interface I18nConfig {
 }
 
 /** Registers a language's resources (typically a dynamic `import()` of a module that calls `addI18nLib` / `addI18nApp`). */
-export type I18nLoader = () => Promise<unknown>
+export interface I18nLoader { (): Promise<unknown> }
 
 export interface I18nLoaderEntry {
   loader: I18nLoader
@@ -61,3 +61,5 @@ export interface I18nLanguageLoaders {
 export interface I18nLoaderStorage {
   data: Record<string, I18nLanguageLoaders>
 }
+
+export type SupportedLng = typeof SUPPORTED_LNGS[number]

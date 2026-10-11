@@ -6,10 +6,10 @@ import { DEFAULT_ALIAS as AUTH_SERVICE } from '@owlmeans/client-auth'
 import type { AuthService } from '@owlmeans/auth-common'
 import { GOOGLE_CLIENT_AUTH } from '@owlmeans/oidc'
 import { useContext, useValue } from '@owlmeans/client'
-import { landAfterLogin, landingUrl } from '@owlmeans/client-auth/login'
+import { loginLandingOf } from '@owlmeans/client-auth/login'
 import type { Module } from '@owlmeans/web-client'
 import { Progress } from '../../@/components/ui/progress.js'
-import { extractGoogleUrl, buildCallbackCredentials } from './helpers.js'
+import { googleClientHelper } from './helpers.js'
 
 export const googleClientPlugin: AuthenticationPlugin = {
   type: GOOGLE_CLIENT_AUTH,
@@ -37,7 +37,7 @@ export const googleClientPlugin: AuthenticationPlugin = {
             const code = url.searchParams.get('code')
 
             if (code != null) {
-              const auth: AuthCredentials = buildCallbackCredentials(
+              const auth: AuthCredentials = googleClientHelper.buildCallbackCredentials(
                 url.searchParams.toString(),
                 type,
                 control.allowance?.challenge ?? '',
@@ -54,8 +54,9 @@ export const googleClientPlugin: AuthenticationPlugin = {
               // consent screen that suspended itself here before sending the browser to sign in
               // both take priority over the app's own home — `landAfterLogin` is the whole
               // decision.
-              const landing = await landAfterLogin(context)
-              window.location.href = await landingUrl(context, landing)
+              const landings = loginLandingOf(context)
+              const landing = await landings.landAfterLogin()
+              window.location.href = await landings.landingUrl(landing)
 
               return
             }
@@ -77,7 +78,7 @@ export const googleClientPlugin: AuthenticationPlugin = {
             const source = await context.entrypoint<Module<string>>(CAUTHEN_AUTHEN_TYPED).url({
               params: { type }
             }, { absolute: true })
-            const url = extractGoogleUrl(control.allowance.challenge, source)
+            const url = googleClientHelper.extractGoogleUrl(control.allowance.challenge, source)
 
             // Persist control state before redirect
             await control.persist()

@@ -11,7 +11,7 @@ Multi-level translation resource registration for OwlMeans applications.
 ## Installation
 
 ```bash
-bun add @owlmeans/i18n@^0.1.18-rc.37
+bun add @owlmeans/i18n@^0.1.18-rc.39
 ```
 
 ## Usage
@@ -19,32 +19,42 @@ bun add @owlmeans/i18n@^0.1.18-rc.37
 Register translations for a package at startup:
 
 ```typescript
-import { addI18nApp } from '@owlmeans/i18n'
+import { i18nHelper } from '@owlmeans/i18n'
 
 // Register app-level translations (highest priority)
-addI18nApp('en', 'manager-web', {
+i18nHelper.addI18nApp('en', 'manager-web', {
   'project.create.title': 'Create Project',
   'project.create.submit': 'Create',
 })
 
 // Register library-level translations (lower priority — overridable by apps)
-import { addI18n } from '@owlmeans/i18n'
-addI18n('en', 'client-panel', { 'form.submit': 'Submit' })
+i18nHelper.addI18nLib('en', 'client-panel', { 'form.submit': 'Submit' })
 ```
 
 ## API
 
-### `addI18nApp(lng, resource, data, opts?)`
+All registration and loading goes through the `i18nHelper` object (`createI18nHelper()` builds one
+over the same process-wide storage).
 
-Register translations at app priority (highest). Typically called in `src/i18n.ts`.
+### `i18nHelper.addI18nApp(lng, resource, data, opts?)`
 
-### `addI18n(level, lng, resource, data, opts?)`
+Register translations at app tier (highest). Typically called in `src/i18n.ts`.
 
-Register translations at a specific `I18nLevel`. Lower levels are overridden by higher ones.
+### `i18nHelper.addI18nLib(lng, resource, data, opts?)`
 
-### `I18nLevel`
+Register translations at library tier (namespace `lib` by default). App-tier bundles override them.
 
-Priority levels: `Lib` < `Package` < `App`. App-level translations win over library translations for the same key.
+### `i18nHelper.initI18nResource(lng, resource, ns?)` / `i18nHelper.resolveI18nResource(lng, resource, ns?)`
+
+Drain the bundles of one slot in merge order, or read their merged result without draining.
+
+### `i18nHelper.addI18nLoader(lng, loader)` / `i18nHelper.loadI18nLanguage(lng)` / `i18nHelper.isI18nLanguageLoaded(lng)`
+
+Register lazy language loaders, await them, and check whether they completed.
+
+### `I18nTier`
+
+Priority tiers: `Library` < `App`. App-tier translations win over library translations for the same key.
 
 ### `i18nStorage`
 
@@ -62,7 +72,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.39
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -2,8 +2,10 @@ import { describe, expect, test } from 'bun:test'
 import { UnsupportedArgumentError } from '@owlmeans/resource'
 import { ObjectId } from 'mongodb'
 
-import { criteriaToFilter, sortToMongo } from '../src/utils/criteria.js'
+import { mongoCriteriaHelper } from '../src/utils/criteria.js'
 import type { MongoReference } from '../src/types.js'
+
+const { criteriaToFilter, sortToMongo } = mongoCriteriaHelper
 
 const HEX = '6712abcdef0123456789abcd'
 const OTHER = '6712abcdef0123456789abce'

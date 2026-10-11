@@ -1,11 +1,14 @@
 import type { Card, Project, Specification } from '@owlmeans/planning'
 import type { ProjectArea } from '../areas/consts.js'
+import type { WorkKind } from '../blueprint/consts.js'
+import type { ViableTenancyDecision } from '../areas/types.js'
 import type { StoryKind } from '../ba/consts.js'
 import type { ConnectLlm, ConnectTarget } from '../connect/consts.js'
 import type { ProjectOrigin } from '../convert/types.js'
-import type { StoryActor } from '../design/runtime.js'
+import type { StoryActor } from '../design/consts.js'
 import type { StoryWriteInput } from '../metadata/types.js'
 
+// Kept as a type: card fields must satisfy `Record<string, unknown>`, which needs the implicit index signature of a type literal.
 /**
  * What a `viable:project` card keeps under `fields`.
  *
@@ -24,14 +27,16 @@ export type ViableProjectFields = {
   blueprintCase?: string
   /** How a game is played; absent for every other case. */
   gameKind?: string
+  /** Which kind of work a work-management product keeps; absent for every other case. */
+  workKind?: WorkKind
+  /** The requester's sentence the work-management case was verified against. */
+  caseQuote?: string
   /** Where the tree lives; absent is the platform's own slot. */
   target?: ConnectTarget
   /** Where converted code came from; present only on an import. */
   origin?: ProjectOrigin
   /** Who performs a run's model calls on this project; absent inherits the owner's preference. */
   connectLlmMode?: ConnectLlm
-  /** Who performs a conversion's model calls on this project; absent inherits. */
-  converterLlmMode?: ConnectLlm
   /**
    * The landing-gate decision: which story a guest can start on the landing page.
    *
@@ -42,6 +47,14 @@ export type ViableProjectFields = {
    * "none" and no later run would ask again. `at` is when it was decided, an ISO timestamp.
    */
   landing?: ViableLandingDecision
+  /**
+   * Whether the target splits its operators and its end users into tenant organizations.
+   *
+   * ABSENT means never decided and reads as a single-organization application, exactly as every
+   * project before tenancy. It reaches a run through the blueprint reference (`BlueprintRef.tenancy`)
+   * only when a flag is on.
+   */
+  tenancy?: ViableTenancyDecision
 }
 
 /** The recorded landing-gate decision — see {@link ViableProjectFields.landing}. */
@@ -51,6 +64,7 @@ export interface ViableLandingDecision {
   at: string
 }
 
+// Kept as a type: card fields must satisfy `Record<string, unknown>`, which needs the implicit index signature of a type literal.
 /**
  * What a `viable:user-story` card keeps under `fields`.
  *
@@ -88,7 +102,7 @@ export interface ViableStoryCard extends Card {
 }
 
 /** A document under a Viable card — the brief parts, the scaffold plan, a story design. */
-export type ViableSpecification = Specification
+export interface ViableSpecification extends Specification {}
 
 /**
  * What a develop run hands the metadata store beside the card.
@@ -96,6 +110,4 @@ export type ViableSpecification = Specification
  * The code, the narrative, the primary flag and the landing flag are the CARD's and are never
  * passed separately — a second copy is a second answer. `status` defaults to the card's own.
  */
-export type StoryWriteContent =
-  & Omit<StoryWriteInput, 'code' | 'narrative' | 'primary' | 'landing' | 'status'>
-  & { status?: string }
+export interface StoryWriteContent extends Omit<StoryWriteInput, 'code' | 'narrative' | 'primary' | 'landing' | 'status'> { status?: string }

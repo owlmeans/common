@@ -1,7 +1,4 @@
-import type {
-  DbLocker, LockableResource, MigratableResource, Resource,
-  ResourceDbService, ResourceRecord, WriteOptions
-} from '@owlmeans/resource'
+import type { Criteria, DbLocker, LockableResource, MigratableResource, Resource, ResourceDbService, ResourceRecord, WriteOptions, MigrationRegistry } from '@owlmeans/resource'
 import type { AnySchema } from 'ajv'
 import type { Pool, PoolClient, QueryResultRow } from 'pg'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
@@ -119,6 +116,13 @@ export interface PostgresResource<T extends ResourceRecord>
   upsert: (record: Partial<T>, conflict?: string[]) => Promise<T>
   /** Merge semantics — `update()` replaces the whole record, mirroring mongo's `replaceOne`. */
   patch: (record: Partial<T>, opts?: WriteOptions) => Promise<T>
+  /**
+   * `count(*)` of the rows matching `criteria`, per distinct combination of `fields` — one
+   * `GROUP BY` round trip. Each answer carries the group's values (by property name) and `count`.
+   */
+  countBy: (
+    criteria: Criteria<T> | undefined, fields: Array<keyof T & string>
+  ) => Promise<Array<Record<string, unknown> & { count: number }>>
 }
 
 /** Compiled, database ready description of a resource's table. */
@@ -251,6 +255,7 @@ export interface PgReferenceSpec {
   onUpdate?: PgReferentialAction | `${PgReferentialAction}`
 }
 
+// Kept as a type: it merges an index signature over the table's own members, which an interface refuses.
 /**
  * The Drizzle table `specToTable` compiles from a {@link TableSpec}.
  *
@@ -313,4 +318,10 @@ export type DdlKind =
 export interface DdlPlan {
   fresh: boolean
   statements: DdlStatement[]
+}
+
+export interface PostgresDeclaration {
+  schema?: AnySchema
+  indexes: PgIndexSpec[]
+  migrations: MigrationRegistry<PostgresTx>
 }

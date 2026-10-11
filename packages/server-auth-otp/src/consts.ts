@@ -12,3 +12,10 @@ export {
   OTP_AUTH_TYPE, OTP_SERVICE, OTP_RESOURCE, OTP_TTL_SECONDS, OTP_CODE_LENGTH,
   OTP_MAX_FAILED_ATTEMPTS,
 } from '@owlmeans/auth-otp'
+
+export enum OtpChallengeOutcome {
+  Verified = 'verified',
+  Invalid = 'invalid',
+  Exhausted = 'exhausted',
+  Missing = 'missing',
+}

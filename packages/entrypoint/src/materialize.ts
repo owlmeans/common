@@ -1,11 +1,5 @@
 import { entrypoint } from './entrypoint.js'
-import type { CommonEntrypoint, CommonEntrypointOptions, Filter } from './types.js'
-import type { EntrypointProtocolDeclaration } from './protocol.js'
-
-/** A context-bound entrypoint made from an immutable protocol declaration. */
-export type MaterializedEntrypoint<Protocol extends EntrypointProtocolDeclaration> = CommonEntrypoint & {
-  readonly protocol: Protocol
-}
+import type { CommonEntrypointOptions, Filter, EntrypointProtocolDeclaration, MaterializedEntrypoint } from './types.js'
 
 const filterOf = (protocol: EntrypointProtocolDeclaration): Filter | undefined => {
   const request = protocol.contract?.requestSchemas

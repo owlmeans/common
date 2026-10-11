@@ -1,18 +1,15 @@
 import type { FC } from 'react'
-import { CookieConsent, CookiePolicy } from '@owlmeans/web-consent'
-import type { CookieConsentProps, CookiePolicyProps, ConsentLocale } from '@owlmeans/web-consent'
+import {
+  CookieConsent, CookiePolicy, type ConsentGeoOptions, type CookieConsentProps, type CookiePolicyProps,
+} from '@owlmeans/web-consent'
 import { useLanguage } from '@owlmeans/client-i18n'
-import { SUPPORTED_LNGS } from '@owlmeans/i18n'
 import { useContext } from '../context.js'
 import type { AppConfig, AppContext } from '../types.js'
 import { useConsentTranslate } from './translate.js'
 import { useConsentWidgetPresent } from './presence.js'
-import type { ConsentWidgetServiceAppend } from './types.js'
-
-interface BoundCookieConsentProps extends CookieConsentProps {
-  /** Whether a host menu currently offers the preferences row — see `useConsentMenuPresence`. */
-  menuPresent?: boolean
-}
+import type { ConsentGeoPluginAppend, ConsentWidgetServiceAppend } from './types.js'
+import { _localeParity } from './consts.local.js'
+import type { BoundCookieConsentProps } from './types.local.js'
 
 const BoundCookieConsent: FC<BoundCookieConsentProps> = ({ menuPresent, ...props }) => {
   const [lng] = useLanguage()
@@ -29,6 +26,17 @@ const BoundCookieConsent: FC<BoundCookieConsentProps> = ({ menuPresent, ...props
 
 const MenuAwareCookieConsent: FC<CookieConsentProps> = props =>
   <BoundCookieConsent {...props} menuPresent={useConsentWidgetPresent()} />
+
+/**
+ * The geo gate in force: the prop, else `cfg.cookieConsent.geo`, else — when the application
+ * appended a locator of its own — the gate with nothing but that locator.
+ */
+const geoOf = (
+  prop: ConsentGeoOptions | undefined, context: AppContext<AppConfig> & Partial<ConsentGeoPluginAppend>
+): ConsentGeoOptions | undefined =>
+  prop ?? context.cfg.cookieConsent?.geo ?? (typeof context.consentGeo === 'function' ? {} : undefined)
+
+void _localeParity
 
 /**
  * The consent dialog, bound to this application's language and translations.
@@ -49,26 +57,28 @@ const MenuAwareCookieConsent: FC<CookieConsentProps> = props =>
  * while the context is built, before anything renders.
  */
 export const PanelCookieConsent: FC<CookieConsentProps> = props => {
-  const context = useContext<AppConfig, AppContext<AppConfig> & Partial<ConsentWidgetServiceAppend>>()
+  const context = useContext<
+    AppConfig, AppContext<AppConfig> & Partial<ConsentWidgetServiceAppend & ConsentGeoPluginAppend>
+  >()
+  const mode = props.mode ?? context.cfg.cookieConsent?.mode
+  const geo = geoOf(props.geo, context)
+  const bound = { ...props, ...(mode != null ? { mode } : {}), ...(geo != null ? { geo } : {}) }
 
   return typeof context.consentWidget === 'function'
-    ? <MenuAwareCookieConsent {...props} />
-    : <BoundCookieConsent {...props} />
-}
-
-export const PanelCookiePolicy: FC<CookiePolicyProps> = props => {
-  const [lng] = useLanguage()
-  const locale = props.locale ?? lng
-  const translate = useConsentTranslate(locale, props.translate)
-
-  return <CookiePolicy {...props} locale={locale} translate={translate} />
+    ? <MenuAwareCookieConsent {...bound} />
+    : <BoundCookieConsent {...bound} />
 }
 
 /**
- * The consent package carries its own locale list because it must build with no dependency on the
- * i18n package at all. This assertion is what keeps the two from drifting: a language added to the
- * framework and not to the bundle fails here, at build time, rather than as a dialog rendering
- * English to the one reader who cannot report it.
+ * The cookie-policy page, bound like the dialog — and told about the geo gate the same way, so it
+ * states the regional rule exactly when the dialog applies it.
  */
-const _localeParity: readonly ConsentLocale[] = SUPPORTED_LNGS as readonly ConsentLocale[]
-void _localeParity
+export const PanelCookiePolicy: FC<CookiePolicyProps> = props => {
+  const context = useContext<AppConfig, AppContext<AppConfig> & Partial<ConsentGeoPluginAppend>>()
+  const [lng] = useLanguage()
+  const locale = props.locale ?? lng
+  const translate = useConsentTranslate(locale, props.translate)
+  const geo = geoOf(props.geo, context)
+
+  return <CookiePolicy {...props} {...(geo != null ? { geo } : {})} locale={locale} translate={translate} />
+}

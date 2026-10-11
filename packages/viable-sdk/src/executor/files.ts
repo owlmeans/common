@@ -1,68 +1,48 @@
 import fs from 'fs-extra'
-import { globby } from 'globby'
+import { globHelper } from './glob.js'
 import fsp from 'node:fs/promises'
 import p from 'node:path'
 
-import {
-  binaryByExtension, BINARY_PROBE_BYTES, CENSUS_MAX_ENTRIES, CENSUS_MAX_HEAD_BYTES,
-  CENSUS_SKIP_DIRS, CONNECT_MARKER_DIR, METADATA_SUFFIXES, SOURCE_LIST_EXCLUSIONS, SubProject
-} from '@owlmeans/viable-common'
-import type { FileStat, StatTreeResult } from '@owlmeans/viable-common'
+import { BINARY_PROBE_BYTES, CENSUS_MAX_ENTRIES, CENSUS_MAX_HEAD_BYTES, CONNECT_MARKER_DIR, METADATA_SUFFIXES, SOURCE_LIST_EXCLUSIONS, SubProject, type FileStat, type StatTreeResult, censusHelper } from '@owlmeans/viable-common'
 
 import { FileCommandRefused, SandboxPathError } from './errors.js'
-import { subprojectDir, targetPaths } from './layout.js'
+import { makeLayoutHelper } from './layout.js'
+import { WALK_SKIP } from './consts.local.js'
+import type { LocalSourceFile, SourceListOptions } from './types.js'
+import type { LocalFileHelper } from './files/types.js'
 
-/** What `readSource` and friends answer with — the shape the platform's file helpers parse. */
-export interface LocalSourceFile {
-  path: string
-  code?: string
-}
+const wrapWithSlashes = (path: string) => path.endsWith('/') ? path : `${path}/`
 
-export interface SourceListOptions {
-  skipUIElements?: boolean
-  excludes?: string[]
-}
+const cleanUpPath = (file: string, { rootPath }: { rootPath: string }) =>
+  file.replace(rootPath, '').replace(/^\/+/, '')
 
 /**
- * What a tree walk never descends into.
+ * Resolve a caller-supplied project path to the absolute path it names inside the project.
  *
- * {@link CENSUS_SKIP_DIRS} is the shared half — the two directories that are never the repository
- * in any tree, spread from `@owlmeans/viable-common` rather than restated, because the publisher
- * and the library-local helper walk the SAME question and a caller cannot tell which executor
- * produced the listing it is holding. This one used to add `dist`, `build` and `.next` on top,
- * which are ordinary directory names an origin may keep sources in: the same repository then had
- * one `total` here and another one in the slot.
+ * Paths arrive from the platform in both shapes — root-relative (`sources/web/src/app.tsx`) and
+ * already absolute — so **every** fs call has to apply the same normalization, not just the read
+ * side. Concatenating an absolute path onto the root instead builds a shadow tree: the write
+ * reports success, a later read of the same name resolves to the untouched original, and the
+ * change looks like it was silently ignored.
  *
- * {@link CONNECT_MARKER_DIR} is added for a reason that belongs to this executor alone: it is THIS
- * CONNECTOR's directory, not the origin's. It holds the local key pair and the run record and
- * never a line of the application, while a census exists to be followed by a `readHead` of what it
- * listed — and nothing downstream knows which of the two wrote a path.
+ * The refusal is confinement, not sanitization: only a fully resolved path can be compared to the
+ * root, and a `..`-to-`.` replace at one caller is a guard on that caller rather than on the tree.
  */
-const WALK_SKIP = new Set([...CENSUS_SKIP_DIRS, CONNECT_MARKER_DIR])
+const resolveInProject = (file: string, { rootPath }: { rootPath: string }) => {
+  const resolved = p.resolve(rootPath, cleanUpPath(file, { rootPath }))
+  const root = p.resolve(rootPath)
 
-/**
- * Whether a file is binary, by git's own heuristic: a NUL byte near the beginning.
- *
- * Asked only where {@link binaryByExtension} says nothing, and that ordering is the contract
- * rather than an optimization: a probe alone answers `false` for a small `.ico` with no NUL in its
- * first bytes, so a census run here and the same census run in the slot disagreed about one file
- * of one repository — with the tail table consulted first, all three executors agree.
- */
-const isBinary = async (path: string, size: number): Promise<boolean> => {
-  if (size < 1) return false
-  const handle = await fsp.open(path, 'r').catch(() => null)
-  if (handle == null) return false
-  try {
-    const length = Math.min(size, BINARY_PROBE_BYTES)
-    const buffer = Buffer.alloc(length)
-    const { bytesRead } = await handle.read(buffer, 0, length, 0)
-
-    return buffer.subarray(0, bytesRead).includes(0)
-  } catch {
-    return false
-  } finally {
-    await handle.close()
+  if (resolved !== root && !resolved.startsWith(wrapWithSlashes(root))) {
+    throw new SandboxPathError(file)
   }
+
+  return resolved
+}
+
+const normalizePaths = (files: string | string[], { rootPath }: { rootPath: string }) => {
+  const fileList = Array.isArray(files) ? files : [files]
+
+  return fileList.map(file => file.startsWith('/') ? cleanUpPath(file, { rootPath }) : file)
 }
 
 /**
@@ -72,14 +52,40 @@ const isBinary = async (path: string, size: number): Promise<boolean> => {
  * the agent's remote helper sends a `SlotFileCommand` and parses one of these answers, and it has
  * no way to know whether a pod or a laptop produced it.
  */
-export const createLocalFileHelper = (projectPath: string) => {
+export const createLocalFileHelper = (projectPath: string): LocalFileHelper => {
   const rootPath = wrapWithSlashes(p.resolve(projectPath))
+
+  /**
+   * Whether a file is binary, by git's own heuristic: a NUL byte near the beginning.
+   *
+   * Asked only where {@link binaryByExtension} says nothing, and that ordering is the contract
+   * rather than an optimization: a probe alone answers `false` for a small `.ico` with no NUL in its
+   * first bytes, so a census run here and the same census run in the slot disagreed about one file
+   * of one repository — with the tail table consulted first, all three executors agree.
+   */
+  const isBinary = async (path: string, size: number): Promise<boolean> => {
+    if (size < 1) return false
+    const handle = await fsp.open(path, 'r').catch(() => null)
+    if (handle == null) return false
+    try {
+      const length = Math.min(size, BINARY_PROBE_BYTES)
+      const buffer = Buffer.alloc(length)
+      const { bytesRead } = await handle.read(buffer, 0, length, 0)
+
+      return buffer.subarray(0, bytesRead).includes(0)
+    } catch {
+      return false
+    } finally {
+      await handle.close()
+    }
+  }
 
   // Every path below asks the tree which layout it holds, per call, rather than closing over one
   // answer: a project is re-initialized in place, and this helper outlives that. `packages/` for
   // a target generated before the move, `sources/` for one generated after it.
-  const layout = () => targetPaths(rootPath)
-  const dirOf = (role: SubProject) => subprojectDir(rootPath, role)
+  const targetLayout = makeLayoutHelper(rootPath)
+  const layout = () => targetLayout.targetPaths()
+  const dirOf = (role: SubProject) => targetLayout.subprojectDir(role)
 
   /**
    * What a wipe must never take, whatever the caller asked to keep.
@@ -125,19 +131,7 @@ export const createLocalFileHelper = (projectPath: string) => {
     return { keep, isKept: (rel: string) => keep.has(rel), holdsKept }
   }
 
-  const helper = {
-    /**
-     * Wipe the project, keeping what the caller names and what is never ours to delete.
-     *
-     * The kept paths are project-relative and may be NESTED — `.agents/memory/history.md` is one
-     * the reinit pipeline passes, and `sources/web/.env` is one this helper adds itself. Matching
-     * them against top-level `readdir` names alone is what deleted the first: `.agents` matched
-     * nothing in the ignore set, so the whole harness tree went along with the one file the
-     * caller had explicitly asked to preserve — and nothing failed.
-     *
-     * So a directory is removed whole only when nothing kept lives under it; otherwise it is
-     * walked and pruned entry by entry.
-     */
+  const helper: LocalFileHelper = {
     emptyProject: async (ignore?: string[]) => {
       // `holdsKept` says something kept lives below here, so this directory has to be walked
       // rather than removed.
@@ -176,14 +170,6 @@ export const createLocalFileHelper = (projectPath: string) => {
       await helper.emptyProject()
     },
 
-    /**
-     * Finish an installed template: make sure the root manifest declares its workspaces.
-     *
-     * The agent pushes every template file itself, so this is only the finalizer. The workspace
-     * list is written only when the manifest does not already declare one — the template ships
-     * `["sources/*"]`, and injecting the explicit list beside it produced a manifest carrying the
-     * key TWICE, valid only because JSON keeps the last one.
-     */
     initializeProject: async () => {
       const manifestPath = `${rootPath}package.json`
       if (await fs.pathExists(manifestPath) === false) {
@@ -217,7 +203,7 @@ ${present.map(path => `          "${path}"`).join(',\n')}
       const { skipUIElements = false, excludes = [] } = options
       pattern = pattern.startsWith(rootPath) ? pattern : p.join(rootPath, pattern)
 
-      const files = await globby([
+      const files = await globHelper.list([
         pattern,
         `!${rootPath}**/rollup.config.js`,
         `!${rootPath}**/rollup.build.mjs`,
@@ -262,7 +248,7 @@ ${present.map(path => `          "${path}"`).join(',\n')}
       const resolved = patterns.map(
         pattern => pattern.startsWith(rootPath) ? pattern : p.join(rootPath, pattern)
       )
-      const files = await globby(resolved)
+      const files = await globHelper.list(resolved)
 
       return files.map(file => cleanUpPath(file, { rootPath }))
     },
@@ -328,25 +314,6 @@ ${present.map(path => `          "${path}"`).join(',\n')}
       }
     },
 
-    /**
-     * The tree, one line per file, bounded.
-     *
-     * One command rather than a listing plus a read per entry: the caller is a census over a
-     * repository somebody else wrote, which may hold a hundred thousand files, and one round trip
-     * each — over a connector, on somebody's laptop — is not a slower walk but a walk that never
-     * finishes.
-     *
-     * `total` counts what the walk SAW and `entries` what it returned. They differ once the limit
-     * is reached, and that difference is the only thing that tells a caller its picture of the
-     * tree is partial: a listing that reported only its own length would be indistinguishable
-     * from a small repository.
-     *
-     * Every entry's `path` is relative to the directory ASKED FOR, not to the project root. That
-     * is the contract the in-process helper and the publisher answer, and one executor answering
-     * a different relativity is worse than either choice: the caller is a census that follows a
-     * listing with a `readHead` of what it listed, and nothing downstream knows which of the
-     * three produced the path it is holding.
-     */
     statTree: async (dir?: string, limit?: number): Promise<StatTreeResult> => {
       const start = dir != null && dir !== ''
         ? resolveInProject(dir, { rootPath })
@@ -373,7 +340,7 @@ ${present.map(path => `          "${path}"`).join(',\n')}
           const stat = await fs.stat(child).catch(() => null)
           if (stat == null) continue
           const rel = p.relative(start, child)
-          const known = binaryByExtension(rel)
+          const known = censusHelper.binaryByExtension(rel)
           entries.push({
             path: rel,
             bytes: stat.size,
@@ -388,14 +355,6 @@ ${present.map(path => `          "${path}"`).join(',\n')}
       return { entries, truncated: total > entries.length, total }
     },
 
-    /**
-     * The first bytes of one file, decoded as text.
-     *
-     * A classification reads a head; reading whole files to do it would hold a megabyte export in
-     * memory to look at its first line. Whatever the decoding produces for a binary head is the
-     * answer — that IS the signal an entropy classification wants, and cleaning it up would hide
-     * the one thing the caller is asking about.
-     */
     readHead: async (filePath: string, bytes: number): Promise<string> => {
       // Confinement first, and it is the ONE thing here that still raises: a path resolving
       // outside the project is a caller's bug, never an entry of a tree.
@@ -423,22 +382,6 @@ ${present.map(path => `          "${path}"`).join(',\n')}
       }
     },
 
-    /**
-     * Move everything in the project root under one directory, leaving a named few where they are.
-     *
-     * What makes a converted project possible: the origin's own tree goes below, a Viable target
-     * is grown above it, and the two never share a path. It is the same walk `emptyProject` does —
-     * kept paths may be nested, a directory holding one is walked rather than moved, and a
-     * directory left empty by that walk does not survive as a shell.
-     *
-     * The always-keep set applies here too and for the same reason: `.git` is the developer's
-     * history and moving it under the origin would take the project's whole history with it,
-     * `.viable` is how a later session recognizes the project, and the two `.env` files hold what
-     * the platform cannot re-derive.
-     *
-     * Refuses a destination that already holds something. A relocation into an occupied directory
-     * interleaves two trees, and nothing afterwards can tell which files came from where.
-     */
     relocate: async (dir: string, keep?: string[]): Promise<{ moved: number, kept: string[] }> => {
       // Resolved FIRST, and the project-relative name derived back from the resolved path. A
       // destination arrives in both shapes like every other path a caller sends, and normalizing
@@ -500,13 +443,6 @@ ${present.map(path => `          "${path}"`).join(',\n')}
       return { moved, kept: [...kept] }
     },
 
-    /**
-     * Delete a directory and everything under it — the purge of a relocated origin.
-     *
-     * Refuses the project root: emptying the project is `emptyProject`, which has a keep list this
-     * does not, and a purge that resolved to `.` would take the developer's `.git` and `.env` with
-     * the origin it was asked to remove.
-     */
     removeTree: async (dir: string): Promise<void> => {
       const path = resolveInProject(dir, { rootPath })
       if (path === p.resolve(rootPath)) {
@@ -526,7 +462,7 @@ ${present.map(path => `          "${path}"`).join(',\n')}
           ? `${rootPath}${layout().dir}/${dirOf(SubProject.Backend)}/src/**/*.ts`
           : `${rootPath}**/*.ts`
 
-      const files = await globby([
+      const files = await globHelper.list([
         searchPattern,
         `!${rootPath}**/node_modules/**/*`,
         `!${rootPath}**/owlmeans.ts`,
@@ -550,42 +486,6 @@ ${present.map(path => `          "${path}"`).join(',\n')}
   }
 
   return helper
-}
-
-export type LocalFileHelper = ReturnType<typeof createLocalFileHelper>
-
-const wrapWithSlashes = (path: string) => path.endsWith('/') ? path : `${path}/`
-
-const cleanUpPath = (file: string, { rootPath }: { rootPath: string }) =>
-  file.replace(rootPath, '').replace(/^\/+/, '')
-
-/**
- * Resolve a caller-supplied project path to the absolute path it names inside the project.
- *
- * Paths arrive from the platform in both shapes — root-relative (`sources/web/src/app.tsx`) and
- * already absolute — so **every** fs call has to apply the same normalization, not just the read
- * side. Concatenating an absolute path onto the root instead builds a shadow tree: the write
- * reports success, a later read of the same name resolves to the untouched original, and the
- * change looks like it was silently ignored.
- *
- * The refusal is confinement, not sanitization: only a fully resolved path can be compared to the
- * root, and a `..`-to-`.` replace at one caller is a guard on that caller rather than on the tree.
- */
-const resolveInProject = (file: string, { rootPath }: { rootPath: string }) => {
-  const resolved = p.resolve(rootPath, cleanUpPath(file, { rootPath }))
-  const root = p.resolve(rootPath)
-
-  if (resolved !== root && !resolved.startsWith(wrapWithSlashes(root))) {
-    throw new SandboxPathError(file)
-  }
-
-  return resolved
-}
-
-const normalizePaths = (files: string | string[], { rootPath }: { rootPath: string }) => {
-  const fileList = Array.isArray(files) ? files : [files]
-
-  return fileList.map(file => file.startsWith('/') ? cleanUpPath(file, { rootPath }) : file)
 }
 
 /**

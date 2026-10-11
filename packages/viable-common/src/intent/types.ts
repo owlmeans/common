@@ -1,3 +1,4 @@
+import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 import type { ResourceRecord } from '@owlmeans/resource'
 
 /** What the public site sends: the prompt and the person's confirmation of its processing. */
@@ -42,4 +43,13 @@ export interface IntentProtocolOptions {
   path?: string
   /** Path of the landing screen; defaults to `/start`. */
   landing?: string
+}
+
+/** The intent-first hand-off tree {@link makeIntentProtocols} declares. */
+export interface IntentProtocols {
+  base: EntrypointProtocol<OpenRequest, OpenValue>
+  stash: EntrypointProtocol<{ body: IntentStashBody }, IntentStashResult>
+  pickup: EntrypointProtocol<{ body: IntentPickupBody }, IntentPickupResult>
+  /** The landing screen — `sticky`, an in-app screen a visitor reaches from another origin. */
+  landing: EntrypointProtocol<OpenRequest, OpenValue>
 }

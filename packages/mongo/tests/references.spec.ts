@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { makeMongoResource, resetDeclarations } from '@owlmeans/mongo-resource'
+import { makeMongoResource, mongoDeclarationHelper } from '@owlmeans/mongo-resource'
 import type { MongoResource } from '@owlmeans/mongo-resource'
 import { MisshapedRecord } from '@owlmeans/resource'
 import type { ResourceRecord } from '@owlmeans/resource'
@@ -304,7 +304,7 @@ describe('@owlmeans/mongo — ObjectId references', () => {
     expect(await ledgerOf(mongo, 'ref-stable')).toHaveLength(1)
 
     /** A fresh process: declarations rebuilt from source, ledger untouched. */
-    resetDeclarations('ref-stable')
+    mongoDeclarationHelper.resetDeclarations('ref-stable')
     const { mongo: rebooted } = await boot(spec)
     expect(await ledgerOf(rebooted, 'ref-stable')).toHaveLength(1)
   })

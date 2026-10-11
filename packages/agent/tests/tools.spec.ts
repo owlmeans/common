@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { tool } from '@langchain/core/tools'
 import * as z from 'zod'
-import { isToolError, safeInvokeTool } from '../src/index.js'
 import type { AgentToolSet } from '../src/index.js'
+import { toolHelper } from '../src/index.js'
 
 /**
  * No model involved: these pin the containment contract the tool loop depends on, which is what
@@ -33,21 +33,21 @@ const callOf = (name: string, args: Record<string, unknown>) =>
 
 describe('agent — tool invocation is contained', () => {
   test('passes a valid call through to the tool', async () => {
-    expect(await safeInvokeTool(tools, callOf('get_structured_list', { type: 'ui-layout' })))
+    expect(await toolHelper.safeInvokeTool(tools, callOf('get_structured_list', { type: 'ui-layout' })))
       .toBe('listed:ui-layout')
   })
 
   test('an out-of-enum argument resolves to an error naming the valid options', async () => {
-    const result = await safeInvokeTool(tools, callOf('get_structured_list', { type: 'ui-navigation' }))
+    const result = await toolHelper.safeInvokeTool(tools, callOf('get_structured_list', { type: 'ui-navigation' }))
 
-    expect(isToolError(result)).toBe(true)
+    expect(toolHelper.isToolError(result)).toBe(true)
     expect((result as { error: string }).error).toContain('ui-screens')
   })
 
   test('a throwing tool resolves to an error instead of rejecting', async () => {
-    const result = await safeInvokeTool(tools, callOf('explodes', {}))
+    const result = await toolHelper.safeInvokeTool(tools, callOf('explodes', {}))
 
-    expect(isToolError(result)).toBe(true)
+    expect(toolHelper.isToolError(result)).toBe(true)
     expect((result as { error: string }).error).toContain('the tool itself failed')
   })
 
@@ -56,12 +56,12 @@ describe('agent — tool invocation is contained', () => {
     // variable would otherwise lose the tool permanently.
     const mismatched = { some_local_name: tools.get_structured_list } as unknown as AgentToolSet
 
-    expect(await safeInvokeTool(mismatched, callOf('get_structured_list', { type: 'ui-layout' })))
+    expect(await toolHelper.safeInvokeTool(mismatched, callOf('get_structured_list', { type: 'ui-layout' })))
       .toBe('listed:ui-layout')
   })
 
   test('an unknown tool name resolves to an error instead of throwing', async () => {
-    const result = await safeInvokeTool(tools, callOf('hallucinated_tool', {}))
+    const result = await toolHelper.safeInvokeTool(tools, callOf('hallucinated_tool', {}))
 
     expect((result as { error: string }).error).toContain('not found')
   })
@@ -83,9 +83,9 @@ describe('agent — tool invocation is contained', () => {
     } as unknown as AgentToolSet
     const fatal = (e: unknown): boolean => e instanceof OutOfTokens
 
-    expect(safeInvokeTool(exploding, callOf('broke', {}), fatal)).rejects.toThrow('no balance')
+    expect(toolHelper.safeInvokeTool(exploding, callOf('broke', {}), fatal)).rejects.toThrow('no balance')
 
-    const contained = await safeInvokeTool(exploding, callOf('ordinary', {}), fatal)
-    expect(isToolError(contained)).toBe(true)
+    const contained = await toolHelper.safeInvokeTool(exploding, callOf('ordinary', {}), fatal)
+    expect(toolHelper.isToolError(contained)).toBe(true)
   })
 })

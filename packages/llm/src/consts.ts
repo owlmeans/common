@@ -1,5 +1,4 @@
-import { ExecutionEffort } from '@owlmeans/llm-common'
-import type { CacheTtl, ModelConfigPatch } from '@owlmeans/llm-common'
+import { ExecutionEffort, type CacheTtl, type ModelConfigPatch } from '@owlmeans/llm-common'
 
 /** Context-service alias for the {@link LlmService} (model factory / registry). */
 export const LLM_SERVICE = 'owlmeans-llm-service'

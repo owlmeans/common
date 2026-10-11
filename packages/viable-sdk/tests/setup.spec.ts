@@ -3,8 +3,9 @@ import fse from 'fs-extra'
 import os from 'node:os'
 import path from 'node:path'
 import { CONNECT_ENV_BEGIN, CONNECT_ENV_END } from '@owlmeans/viable-common'
-import { missingServices, redactUrl, renderSetupGuide, setUserEnv } from '../src/project/setup.js'
-import type { SetupReport } from '../src/project/setup.js'
+import { setupHelper } from '../src/project/setup.js'
+import { makeSetupReportModel } from '../src/project/report.js'
+import type { SetupReport } from '../src/project/types.js'
 
 const report = (patch: Partial<SetupReport> = {}): SetupReport => ({
   dir: '/tmp/project',
@@ -32,7 +33,7 @@ describe('what the connector says when a project cannot run yet', () => {
     // one installed here, or they may prefer a hosted tier and never install anything. Guessing
     // means either a container nobody asked for or a connection string for a database that does
     // not exist — and the second surfaces minutes later as a boot error nobody can place.
-    const said = renderSetupGuide(report())
+    const said = makeSetupReportModel(report()).renderSetupGuide()
 
     expect(said).toContain('ASK THE USER')
     expect(said).toContain('I already have one')
@@ -43,20 +44,20 @@ describe('what the connector says when a project cannot run yet', () => {
   })
 
   test('it names a way to install and a way to sign up', () => {
-    const said = renderSetupGuide(report())
+    const said = makeSetupReportModel(report()).renderSetupGuide()
 
     expect(said).toContain('docker run')
     expect(said).toContain('supabase.com')
   })
 
   test('a queue is offered only to a project that has a worker', () => {
-    expect(renderSetupGuide(report())).not.toContain('upstash.com')
-    expect(renderSetupGuide(report({ needsWorker: true }))).toContain('upstash.com')
-    expect(renderSetupGuide(report())).toContain('no background worker')
+    expect(makeSetupReportModel(report()).renderSetupGuide()).not.toContain('upstash.com')
+    expect(makeSetupReportModel(report({ needsWorker: true })).renderSetupGuide()).toContain('upstash.com')
+    expect(makeSetupReportModel(report()).renderSetupGuide()).toContain('no background worker')
   })
 
   test('without docker it names the platform package instead', () => {
-    const said = renderSetupGuide(report({ tools: { bun: true, git: true, docker: false } }))
+    const said = makeSetupReportModel(report({ tools: { bun: true, git: true, docker: false } })).renderSetupGuide()
 
     expect(said).toContain('apt install')
     expect(said).not.toContain('docker run')
@@ -65,43 +66,43 @@ describe('what the connector says when a project cannot run yet', () => {
   test('a configured but unreachable database is called that, not "missing"', () => {
     // The two need different answers: one is a typo or a stopped service, the other is a decision
     // nobody has made yet.
-    const said = renderSetupGuide(report({
+    const said = makeSetupReportModel(report({
       database: { configured: true, reachable: false, redacted: 'postgres://***@db:5432/app' },
-    }))
+    })).renderSetupGuide()
 
     expect(said).toContain('NOT answering')
   })
 
   test('with everything in place it stops asking and says what to call', () => {
-    const said = renderSetupGuide(report({ database: { configured: true, reachable: true } }))
+    const said = makeSetupReportModel(report({ database: { configured: true, reachable: true } })).renderSetupGuide()
 
     expect(said).not.toContain('ASK THE USER')
     expect(said).toContain('run_local')
   })
 
   test('an unignored .env is a warning, because a credential is about to go into it', () => {
-    expect(renderSetupGuide(report({ envIgnored: false }))).toContain('NOT git-ignored')
+    expect(makeSetupReportModel(report({ envIgnored: false })).renderSetupGuide()).toContain('NOT git-ignored')
   })
 
   test('the platform placeholder does not count as configured', () => {
     // It is written by the platform so that a boot failure names a connection rather than a
     // missing key — it is not somebody's database.
-    expect(missingServices(report())).toContain('database')
+    expect(makeSetupReportModel(report()).missingServices()).toContain('database')
   })
 })
 
 describe('a credential never appears in full where it does not have to', () => {
   test('the user and password are removed', () => {
-    expect(redactUrl('postgres://me:secret@db.example:5432/app'))
+    expect(setupHelper.redactUrl('postgres://me:secret@db.example:5432/app'))
       .toBe('postgres://***@db.example:5432/app')
   })
 
   test('a string that is not a URL is still redacted', () => {
-    expect(redactUrl('weird//me:secret@host/db')).not.toContain('secret')
+    expect(setupHelper.redactUrl('weird//me:secret@host/db')).not.toContain('secret')
   })
 
   test('a URL with no credentials is left alone', () => {
-    expect(redactUrl('redis://localhost:6379')).toContain('localhost:6379')
+    expect(setupHelper.redactUrl('redis://localhost:6379')).toContain('localhost:6379')
   })
 })
 
@@ -111,7 +112,7 @@ describe('where the user\'s own values are written', () => {
       '.env': `${CONNECT_ENV_BEGIN}\nDATABASE_URL=placeholder\nOIDC_CLIENT=c\n${CONNECT_ENV_END}\n`,
     })
 
-    await setUserEnv(dir, { DATABASE_URL: 'postgres://me@localhost:5432/mine' })
+    await setupHelper.setUserEnv(dir, { DATABASE_URL: 'postgres://me@localhost:5432/mine' })
     const written = await fse.readFile(path.join(dir, '.env'), 'utf-8')
 
     // The platform's line is untouched — it composes its half whole on every push — and the
@@ -125,8 +126,8 @@ describe('where the user\'s own values are written', () => {
     // Two copies of a credential is one of them being quietly ignored.
     const dir = await sandbox({ '.env': 'FOO=1\n' })
 
-    await setUserEnv(dir, { DATABASE_URL: 'postgres://a@h:5432/d' })
-    await setUserEnv(dir, { DATABASE_URL: 'postgres://b@h:5432/d' })
+    await setupHelper.setUserEnv(dir, { DATABASE_URL: 'postgres://a@h:5432/d' })
+    await setupHelper.setUserEnv(dir, { DATABASE_URL: 'postgres://b@h:5432/d' })
     const written = await fse.readFile(path.join(dir, '.env'), 'utf-8')
 
     expect(written.split('DATABASE_URL=')).toHaveLength(2)
@@ -137,7 +138,7 @@ describe('where the user\'s own values are written', () => {
   test('a file that does not exist yet is created', async () => {
     const dir = await sandbox()
 
-    const { written, file } = await setUserEnv(dir, { VALKEY_URL: 'redis://localhost:6379' })
+    const { written, file } = await setupHelper.setUserEnv(dir, { VALKEY_URL: 'redis://localhost:6379' })
 
     expect(written).toEqual(['VALKEY_URL'])
     expect(await fse.readFile(file, 'utf-8')).toContain('redis://localhost:6379')
@@ -146,7 +147,7 @@ describe('where the user\'s own values are written', () => {
   test('an empty value writes nothing', async () => {
     const dir = await sandbox({ '.env': 'FOO=1\n' })
 
-    const { written } = await setUserEnv(dir, { DATABASE_URL: '   ' })
+    const { written } = await setupHelper.setUserEnv(dir, { DATABASE_URL: '   ' })
 
     expect(written).toEqual([])
     expect(await fse.readFile(path.join(dir, '.env'), 'utf-8')).toBe('FOO=1\n')

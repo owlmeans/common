@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { TaxBehavior } from '@owlmeans/payment'
 import type { PricingDef } from '../src/types.js'
-import { syncStripeProducts } from '../src/sync.js'
 import { makeFakeContext, PLANS_PRODUCT, PRO } from './fake-stripe.js'
 import type { FakeContextOptions } from './fake-stripe.js'
+import { productSyncOf } from '../src/sync.js'
 
 const exclusive: PricingDef = {
   tax: { automatic: true, collectTaxId: true, estimate: false, behavior: TaxBehavior.Exclusive },
@@ -28,27 +28,27 @@ const proPrice = (fake: Awaited<ReturnType<typeof withProProduct>>) =>
 describe('@owlmeans/server-payment — price tax_behavior sync', () => {
   test('an undeclared policy creates a price with no forced tax_behavior (Stripe defaults it to unspecified)', async () => {
     const fake = await withProProduct()
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     expect(proPrice(fake)?.tax_behavior).toBe('unspecified')
   })
 
   test('re-syncing an unchanged, undeclared catalogue makes no paygate call', async () => {
     const fake = await withProProduct()
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     fake.state.calls.length = 0
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     expect(fake.state.calls).toEqual([])
   })
 
   test('a declared behavior sets tax_behavior on a freshly created price', async () => {
     const fake = await withProProduct({ pricing: exclusive })
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     expect(proPrice(fake)?.tax_behavior).toBe('exclusive')
   })
 
   test("a declared behavior updates a pre-existing 'unspecified' price IN PLACE — the id is kept", async () => {
     const fake = await withProProduct({ pricing: exclusive, stripe: { prices: [existingProPrice('unspecified')] } })
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     expect(fake.state.calls).toContain('prices.update')
     // PRO's own price keeps its id (an update, not a replacement) — TEAM's plan has no price
     // fixture, so it legitimately goes through `prices.create` alongside it.
@@ -59,7 +59,7 @@ describe('@owlmeans/server-payment — price tax_behavior sync', () => {
     const fake = await withProProduct({
       pricing: exclusive, stripe: { prices: [existingProPrice('unspecified')], taxSettings: inclusiveAccountDefault },
     })
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     expect(fake.state.calls).toContain('tax.settings.retrieve')
     expect(fake.state.calls).not.toContain('prices.update')
     expect(proPrice(fake)?.tax_behavior).toBe('unspecified')
@@ -70,14 +70,14 @@ describe('@owlmeans/server-payment — price tax_behavior sync', () => {
       pricing: { ...exclusive, stripe: { migrateUnspecifiedPrices: true } },
       stripe: { prices: [existingProPrice('unspecified')], taxSettings: inclusiveAccountDefault },
     })
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     expect(fake.state.calls).not.toContain('tax.settings.retrieve')
     expect(proPrice(fake)?.tax_behavior).toBe('exclusive')
   })
 
   test('a price already carrying the OPPOSITE behavior is deactivated and replaced, never mutated', async () => {
     const fake = await withProProduct({ pricing: exclusive, stripe: { prices: [existingProPrice('inclusive')] } })
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     const old = fake.state.prices.find(item => item.id === 'price_pro_existing')
     const fresh = proPrice(fake)
     expect(old?.active).toBe(false)
@@ -91,7 +91,7 @@ describe('@owlmeans/server-payment — price tax_behavior sync', () => {
       pricing: { ...exclusive, stripe: { settlementCurrency: 'eur' } },
       stripe: { fxRates: { usd: { exchangeRate: 0.853568, referenceRate: 0.8726 } } },
     })
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     expect(proPrice(fake)).toEqual(expect.objectContaining({ currency: 'eur', unit_amount: 1_746 }))
     expect(fake.state.rawRequests).toContainEqual(expect.objectContaining({
       params: { to_currency: 'eur', 'from_currencies[]': 'usd', lock_duration: 'none' },
@@ -103,10 +103,10 @@ describe('@owlmeans/server-payment — price tax_behavior sync', () => {
       pricing: { ...exclusive, stripe: { settlementCurrency: 'eur' } },
       stripe: { fxRates: { usd: { exchangeRate: 0.853568, referenceRate: 0.8726 } } },
     })
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     const first = proPrice(fake)
     fake.state.fxRates.usd = { exchangeRate: 0.88, referenceRate: 0.9 }
-    await syncStripeProducts(fake.ctx, fake.stripe)
+    await productSyncOf(fake.ctx).syncStripeProducts(fake.stripe)
     expect(first?.active).toBe(false)
     expect(proPrice(fake)).toEqual(expect.objectContaining({ currency: 'eur', unit_amount: 1_800 }))
     expect(proPrice(fake)?.id).not.toBe(first?.id)

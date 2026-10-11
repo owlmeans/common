@@ -1,5 +1,4 @@
-import { appendStateResource } from '@owlmeans/state'
-import type { StateAlias } from '@owlmeans/state'
+import { appendStateResource, type StateAlias } from '@owlmeans/state'
 import type { JobView } from '@owlmeans/job'
 import { JOBS } from './consts.js'
 import type { Config, Context } from './types.js'

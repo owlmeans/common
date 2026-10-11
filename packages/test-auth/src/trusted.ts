@@ -1,12 +1,7 @@
 import { appendContextual } from '@owlmeans/context'
 import type { TrustedRecord } from '@owlmeans/auth-common'
-import type { Criteria, FirstOptions, Resource } from '@owlmeans/resource'
-import { UnsupportedArgumentError } from '@owlmeans/resource'
-
-const TRUSTED_DEFAULT_ALIAS = 'TRUSTED'
-
-/** The fields a `trust()` lookup keys on — the only index this map has. */
-const SUPPORTED_FIELDS = ['id', 'name']
+import { type Criteria, type FirstOptions, type Resource, UnsupportedArgumentError } from '@owlmeans/resource'
+import { SUPPORTED_FIELDS, TRUSTED_DEFAULT_ALIAS } from './consts.local.js'
 
 const notImplemented = (op: string): never => {
   throw new Error(`@owlmeans/test-auth: in-memory TRUSTED resource does not implement ${op}()`)

@@ -2,13 +2,14 @@ import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import type { LazyService } from '@owlmeans/context'
 import type { AbstractRequest, EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
 import type {
-  CommitFilter, CommitSource, CommitState, PlanningFacade, PlanningProtocols, PlanningSchemaRegistry,
-  PlanningScope, PlanningService, Relationship, RelationshipQuery, TransitionAction, Workcard,
-  WorkcardKind, WorkcardQuery,
+  CommitFilter, CommitSource, CommitState, PlanningDefinitions, PlanningFacade, PlanningProtocols,
+  PlanningSchemaRegistry, PlanningScope, PlanningService, Relationship, RelationshipQuery, TransitionAction,
+  Workcard, WorkcardKind, WorkcardQuery,
 } from '@owlmeans/planning'
 import type { Criteria, ResourceRecord } from '@owlmeans/resource'
 import type { Connection } from '@owlmeans/socket'
 import type { StateAlias, StateResource } from '@owlmeans/state'
+import type { PlanningClientLifecycle } from './lifecycle/types.js'
 
 export interface Config extends ClientConfig { }
 
@@ -24,6 +25,8 @@ export interface PlanningSocketOpener {
 }
 
 export interface PlanningClientOptions {
+  /** Current organization slug and authenticated session identity; never an organization record id on the wire. */
+  scopeKey?: () => string | undefined
   /** The tree the server mounted — the same `makePlanningProtocols` call, alias for alias. */
   protocols: PlanningProtocols
   /**
@@ -49,13 +52,34 @@ export interface PlanningClientOptions {
 
 /** What `appendPlanningClient` registers under `PLANNING_SERVICE`. */
 export interface PlanningClientService extends PlanningService, LazyService {
+  /** Shared by stock facades and feeds; local mutations never cross its close boundary. */
+  lifecycle: PlanningClientLifecycle
+  scopeKey: () => string
+  registerFeed: (feed: PlanningFeed) => import('@owlmeans/planning').Unsubscribe
   /** A facade over the remote tree. The scope is advisory (see {@link PlanningClientOptions.scope}). */
   for: (scope?: Partial<PlanningScope>) => PlanningFacade
   commits: RemoteCommitSource
   /** The registry, loaded from the server's bundle — once, unless `force`d. */
   loadSchemas: (opts?: { force?: boolean }) => Promise<PlanningSchemaRegistry>
-  /** Release the shared commit socket. */
+  /** Cancel old requests and feeds, drain local mutations, close the socket and clear mirrors. */
   close: () => Promise<void>
+  /** Data-defined types and flows — present when the tree was declared with `definitions: true`. */
+  definitions?: RemoteDefinitions
+}
+
+/** The client half of `PlanningDefinitions`: layers cached per project, dropped on any write. */
+export interface RemoteDefinitions extends PlanningDefinitions {
+  /** Forget every cached layer — the next read asks the server. */
+  invalidate: () => void
+}
+
+export interface RemoteDefinitionsOptions {
+  lifecycle?: PlanningClientLifecycle
+  scopeKey?: () => string
+  /** Milliseconds, for every definitions call. */
+  timeout?: number
+  /** Called after every write (the service reloads its own bundle on the next `model()`). */
+  onWrite?: () => void
 }
 
 export interface WithPlanningClient {
@@ -65,11 +89,13 @@ export interface WithPlanningClient {
 export interface RemoteCommitSource extends CommitSource {
   /** A socket is open under this source. */
   connected: () => boolean
-  /** Release the shared socket. Subscriptions stop receiving until the next `subscribe`. */
+  /** Cancel waits and subscriptions and release the socket, including a late-opening carrier. */
   close: () => Promise<void>
 }
 
 export interface RemoteCommitSourceOptions {
+  lifecycle?: PlanningClientLifecycle
+  scopeKey?: () => string
   socket?: PlanningSocketOpener
   /** Seconds. */
   poll?: number
@@ -80,12 +106,16 @@ export interface RemoteCommitSourceOptions {
 }
 
 export interface RemoteFacadeOptions {
+  lifecycle?: PlanningClientLifecycle
+  scopeKey?: () => string
   commits: RemoteCommitSource
   schemas: PlanningSchemaRegistry
   /** Resolves the registry before a model is built. */
   loadSchemas?: () => Promise<PlanningSchemaRegistry>
   timeout?: number
   stores?: () => PlanningStores | null
+  /** The data-defined schema surface, shared by every facade of the service. */
+  definitions?: RemoteDefinitions
 }
 
 /** One row per transition the client wrote or saw settle. */
@@ -105,12 +135,20 @@ export interface PlanningCommitRecord extends ResourceRecord {
 }
 
 export interface PlanningStoreAliases {
+  mentions: StateAlias<import('@owlmeans/planning').CommentMention>
+  comments: StateAlias<import('@owlmeans/planning').Comment>
+  teams: StateAlias<import('@owlmeans/planning').Team>
+  assignees: StateAlias<import('@owlmeans/planning').Assignee>
   cards: StateAlias<Workcard>
   links: StateAlias<Relationship>
   commits: StateAlias<PlanningCommitRecord>
 }
 
 export interface PlanningStores {
+  mentions: StateResource<import('@owlmeans/planning').CommentMention>
+  comments: StateResource<import('@owlmeans/planning').Comment>
+  teams: StateResource<import('@owlmeans/planning').Team>
+  assignees: StateResource<import('@owlmeans/planning').Assignee>
   cards: StateResource<Workcard>
   links: StateResource<Relationship>
   commits: StateResource<PlanningCommitRecord>
@@ -160,4 +198,14 @@ export interface PlanningFeed extends Readonly<PlanningFeedState> {
   refresh: () => Promise<void>
   /** Stop folding frames and refreshing. The shared socket stays open. */
   stop: () => Promise<void>
+}
+
+export interface PlanningResourceFeedOptions {
+  assignees?: import('@owlmeans/planning').AssigneeQuery
+  teams?: import('@owlmeans/planning').TeamQuery
+  comments?: import('@owlmeans/planning').CommentQuery
+  mentions?: import('@owlmeans/planning').MentionQuery
+  refresh?: number
+  scope?: Partial<PlanningScope>
+  onChange?: (state: PlanningFeedState) => void
 }

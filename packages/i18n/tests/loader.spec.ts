@@ -1,6 +1,6 @@
 import { describe, expect, test, beforeEach } from 'bun:test'
 import {
-  addI18nLib, addI18nLoader, initI18nResource, isI18nLanguageLoaded, loadI18nLanguage, LIB_NAMESPACE
+  LIB_NAMESPACE, i18nHelper
 } from '@owlmeans/i18n'
 import { resetStorage } from './context.js'
 
@@ -19,29 +19,29 @@ const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0))
 
 describe('@owlmeans/i18n — language loaders', () => {
   test('a language with no loaders resolves at once and counts as loaded', async () => {
-    expect(isI18nLanguageLoaded('pl')).toBe(true)
-    await loadI18nLanguage('pl')
-    expect(isI18nLanguageLoaded('pl')).toBe(true)
+    expect(i18nHelper.isI18nLanguageLoaded('pl')).toBe(true)
+    await i18nHelper.loadI18nLanguage('pl')
+    expect(i18nHelper.isI18nLanguageLoaded('pl')).toBe(true)
   })
 
   test('concurrent calls both await a loader added while they are pending', async () => {
     const first = gate()
     const late = gate()
     let lateRuns = 0
-    addI18nLoader('de', async () => {
+    i18nHelper.addI18nLoader('de', async () => {
       await first.promise
-      addI18nLib('de', 'errors', { minLength: 'Zu kurz' })
+      i18nHelper.addI18nLib('de', 'errors', { minLength: 'Zu kurz' })
     })
 
     let aDone = false
     let bDone = false
-    const a = loadI18nLanguage('de').then(() => { aDone = true })
-    const b = loadI18nLanguage('de').then(() => { bDone = true })
+    const a = i18nHelper.loadI18nLanguage('de').then(() => { aDone = true })
+    const b = i18nHelper.loadI18nLanguage('de').then(() => { bDone = true })
 
-    addI18nLoader('de', async () => {
+    i18nHelper.addI18nLoader('de', async () => {
       lateRuns++
       await late.promise
-      addI18nLib('de', 'buttons', { ok: 'OK (de)' })
+      i18nHelper.addI18nLib('de', 'buttons', { ok: 'OK (de)' })
     })
     await flush()
     // Requested already, so the late loader started on registration — and only once.
@@ -51,64 +51,64 @@ describe('@owlmeans/i18n — language loaders', () => {
     await flush()
     expect(aDone).toBe(false)
     expect(bDone).toBe(false)
-    expect(isI18nLanguageLoaded('de')).toBe(false)
+    expect(i18nHelper.isI18nLanguageLoaded('de')).toBe(false)
 
     late.open()
     await Promise.all([a, b])
     expect(lateRuns).toBe(1)
-    expect(isI18nLanguageLoaded('de')).toBe(true)
-    expect(initI18nResource('de', 'errors', LIB_NAMESPACE)![0].data).toMatchObject({ minLength: 'Zu kurz' })
-    expect(initI18nResource('de', 'buttons', LIB_NAMESPACE)![0].data).toMatchObject({ ok: 'OK (de)' })
+    expect(i18nHelper.isI18nLanguageLoaded('de')).toBe(true)
+    expect(i18nHelper.initI18nResource('de', 'errors', LIB_NAMESPACE)![0].data).toMatchObject({ minLength: 'Zu kurz' })
+    expect(i18nHelper.initI18nResource('de', 'buttons', LIB_NAMESPACE)![0].data).toMatchObject({ ok: 'OK (de)' })
   })
 
   test('a failed loader is retried by the next call; completed ones never re-run', async () => {
     let okRuns = 0
     let flakyRuns = 0
-    addI18nLoader('ru', async () => { okRuns++ })
-    addI18nLoader('ru', async () => {
+    i18nHelper.addI18nLoader('ru', async () => { okRuns++ })
+    i18nHelper.addI18nLoader('ru', async () => {
       flakyRuns++
       if (flakyRuns === 1) {
         throw new Error('network down')
       }
-      addI18nLib('ru', 'errors', { minLength: 'Слишком коротко' })
+      i18nHelper.addI18nLib('ru', 'errors', { minLength: 'Слишком коротко' })
     })
 
-    await expect(loadI18nLanguage('ru')).rejects.toThrow('network down')
-    expect(isI18nLanguageLoaded('ru')).toBe(false)
+    await expect(i18nHelper.loadI18nLanguage('ru')).rejects.toThrow('network down')
+    expect(i18nHelper.isI18nLanguageLoaded('ru')).toBe(false)
     expect(okRuns).toBe(1)
     expect(flakyRuns).toBe(1)
 
-    await loadI18nLanguage('ru')
-    expect(isI18nLanguageLoaded('ru')).toBe(true)
+    await i18nHelper.loadI18nLanguage('ru')
+    expect(i18nHelper.isI18nLanguageLoaded('ru')).toBe(true)
     expect(okRuns).toBe(1)
     expect(flakyRuns).toBe(2)
-    expect(initI18nResource('ru', 'errors', LIB_NAMESPACE)![0].data).toMatchObject({ minLength: 'Слишком коротко' })
+    expect(i18nHelper.initI18nResource('ru', 'errors', LIB_NAMESPACE)![0].data).toMatchObject({ minLength: 'Слишком коротко' })
 
-    await loadI18nLanguage('ru')
+    await i18nHelper.loadI18nLanguage('ru')
     expect(okRuns).toBe(1)
     expect(flakyRuns).toBe(2)
   })
 
   test('a loader added after a call resolved is awaited by the next call', async () => {
     let firstRuns = 0
-    addI18nLoader('uk', async () => { firstRuns++ })
-    await loadI18nLanguage('uk')
-    expect(isI18nLanguageLoaded('uk')).toBe(true)
+    i18nHelper.addI18nLoader('uk', async () => { firstRuns++ })
+    await i18nHelper.loadI18nLanguage('uk')
+    expect(i18nHelper.isI18nLanguageLoaded('uk')).toBe(true)
 
     const late = gate()
     let lateRuns = 0
-    addI18nLoader('uk', async () => {
+    i18nHelper.addI18nLoader('uk', async () => {
       lateRuns++
       await late.promise
-      addI18nLib('uk', 'errors', { minLength: 'Занадто коротко' })
+      i18nHelper.addI18nLib('uk', 'errors', { minLength: 'Занадто коротко' })
     })
     // The language was requested before, so registration starts the loader straight away.
-    expect(isI18nLanguageLoaded('uk')).toBe(false)
+    expect(i18nHelper.isI18nLanguageLoaded('uk')).toBe(false)
     await flush()
     expect(lateRuns).toBe(1)
 
     let done = false
-    const next = loadI18nLanguage('uk').then(() => { done = true })
+    const next = i18nHelper.loadI18nLanguage('uk').then(() => { done = true })
     await flush()
     expect(done).toBe(false)
 
@@ -116,38 +116,38 @@ describe('@owlmeans/i18n — language loaders', () => {
     await next
     expect(lateRuns).toBe(1)
     expect(firstRuns).toBe(1)
-    expect(isI18nLanguageLoaded('uk')).toBe(true)
-    expect(initI18nResource('uk', 'errors', LIB_NAMESPACE)![0].data).toMatchObject({ minLength: 'Занадто коротко' })
+    expect(i18nHelper.isI18nLanguageLoaded('uk')).toBe(true)
+    expect(i18nHelper.initI18nResource('uk', 'errors', LIB_NAMESPACE)![0].data).toMatchObject({ minLength: 'Занадто коротко' })
   })
 
   test('a loader added while a call is pending is included in that same call', async () => {
     const first = gate()
-    addI18nLoader('es', () => first.promise)
+    i18nHelper.addI18nLoader('es', () => first.promise)
 
     let done = false
-    const call = loadI18nLanguage('es').then(() => { done = true })
+    const call = i18nHelper.loadI18nLanguage('es').then(() => { done = true })
 
     let lateRuns = 0
-    addI18nLoader('es', async () => {
+    i18nHelper.addI18nLoader('es', async () => {
       lateRuns++
-      addI18nLib('es', 'errors', { minLength: 'Demasiado corto' })
+      i18nHelper.addI18nLib('es', 'errors', { minLength: 'Demasiado corto' })
     })
 
     first.open()
     await call
     expect(done).toBe(true)
     expect(lateRuns).toBe(1)
-    expect(initI18nResource('es', 'errors', LIB_NAMESPACE)![0].data).toMatchObject({ minLength: 'Demasiado corto' })
+    expect(i18nHelper.initI18nResource('es', 'errors', LIB_NAMESPACE)![0].data).toMatchObject({ minLength: 'Demasiado corto' })
   })
 
   test('a loader registered before any request does not run until the language is requested', async () => {
     let runs = 0
-    addI18nLoader('be', async () => { runs++ })
+    i18nHelper.addI18nLoader('be', async () => { runs++ })
     await flush()
     expect(runs).toBe(0)
-    expect(isI18nLanguageLoaded('be')).toBe(false)
+    expect(i18nHelper.isI18nLanguageLoaded('be')).toBe(false)
 
-    await loadI18nLanguage('be')
+    await i18nHelper.loadI18nLanguage('be')
     expect(runs).toBe(1)
   })
 })

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { AuthenFailed, AuthRole } from '@owlmeans/auth'
 import { makeAuthModel } from '../src/manager/model.js'
-import { AuthChallengeReplayPolicy } from '../src/manager/plugins/replay-policy.js'
+import { AuthChallengeReplayPolicy } from '../src/manager/plugins/consts.js'
 import { registerPlugin } from '../src/manager/plugins/index.js'
 import { makeTestContext } from './context.js'
 

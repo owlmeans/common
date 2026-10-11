@@ -10,7 +10,7 @@ import { handleDeviceAuthorization } from './handlers/device.js'
 import { handleRegister } from './handlers/register.js'
 import { handleRevoke } from './handlers/revoke.js'
 import { handleToken } from './handlers/token.js'
-import { authorizationServerMetadata, protectedResourceMetadata } from './metadata.js'
+import { oauthMetadataOf } from './metadata.js'
 import type { OAuthServerContext } from './types.js'
 
 const asQuery = (request: FastifyRequest): Record<string, string | undefined> =>
@@ -21,7 +21,7 @@ const asForm = (request: FastifyRequest): Record<string, string | undefined> =>
 
 const sendResourceMetadata = (oauthCtx: OAuthServerContext, resourcePath: string) =>
   async (_request: FastifyRequest, reply: import('fastify').FastifyReply): Promise<void> => {
-    const metadata = protectedResourceMetadata(oauthCtx, resourcePath)
+    const metadata = oauthMetadataOf(oauthCtx).protectedResourceMetadata(resourcePath)
     if (metadata == null) {
       await reply.code(404).send({ error: 'not_found' })
 
@@ -65,7 +65,7 @@ export const appendOAuthRoutes = (context: OAuthServerContext): void => {
         )
 
         instance.get(OAUTH_AS_METADATA_PATH, async (_request, reply) => {
-          await reply.header('cache-control', 'public, max-age=3600').send(authorizationServerMetadata(oauthCtx))
+          await reply.header('cache-control', 'public, max-age=3600').send(oauthMetadataOf(oauthCtx).authorizationServerMetadata())
         })
 
         // Two routes, not one wildcard, so the captured suffix is unambiguous: the root resource
@@ -111,7 +111,3 @@ export const appendOAuthRoutes = (context: OAuthServerContext): void => {
     },
   } satisfies Middleware)
 }
-
-/** What a resource server (this platform's own REST API, or its `/mcp` host) answers a bare or
- * rejected request with — re-exported here so a consumer imports one package for both halves. */
-export { protectedResourceChallenge } from './metadata.js'

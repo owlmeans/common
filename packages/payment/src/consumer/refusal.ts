@@ -1,13 +1,7 @@
 import { isResilientError, ResilientError } from '@owlmeans/error'
 import { ConsentKind } from '../consts.js'
 import { PerformanceConsentRequired, SubscriptionStartRequired } from '../errors.js'
-
-const MARKERS: Array<[string, ConsentKind]> = [
-  ['performance-consent-required', ConsentKind.Performance],
-  [PerformanceConsentRequired.typeName, ConsentKind.Performance],
-  ['subscription-start-required', ConsentKind.SubscriptionStart],
-  [SubscriptionStartRequired.typeName, ConsentKind.SubscriptionStart],
-]
+import { CONSENT_REFUSAL_MARKERS } from './consts.local.js'
 
 /**
  * Which express request a refusal asks for: `performance` (spend consent), `subscription-start`,
@@ -37,5 +31,5 @@ export const consentRefusalOf = (error: unknown): ConsentKind | null => {
   const { message, type } = error as { message?: unknown, type?: unknown }
   const texts = [message, type].filter((text): text is string => typeof text === 'string')
 
-  return MARKERS.find(([marker]) => texts.some(text => text.includes(marker)))?.[1] ?? null
+  return CONSENT_REFUSAL_MARKERS.find(([marker]) => texts.some(text => text.includes(marker)))?.[1] ?? null
 }

@@ -1,18 +1,18 @@
 import { describe, expect, test } from 'bun:test'
 import { JobViewStatus } from '@owlmeans/job'
 import { JobState } from '@owlmeans/queue'
-import { jobViewOf, publicJobError, sanitizeJobJson } from '../src/utils/view.js'
+import { jobViewHelper } from '../src/utils/view.js'
 
 describe('@owlmeans/server-job — public projection boundary', () => {
   test('maps only allowlisted fields and never copies a broker payload or raw failure', () => {
-    const view = jobViewOf({
+    const view = jobViewHelper.jobViewOf({
       id: 'broker-id', queue: 'private-lane', name: 'internal:build',
       data: { accessToken: 'secret' }, error: 'stack and connection string',
       state: JobState.Failed, progress: { percent: 65, secret: 'drop' },
       createdAt: '2026-09-18T10:00:00.000Z', finishedAt: '2026-09-18T10:01:00.000Z',
     }, {
       id: 'opaque-id', kind: 'export', summary: 'Export failed',
-      error: publicJobError('export-failed'),
+      error: jobViewHelper.publicJobError('export-failed'),
     })
 
     expect(view).toMatchObject({
@@ -31,14 +31,14 @@ describe('@owlmeans/server-job — public projection boundary', () => {
     input.visible = { ok: true, fn: () => 'drop', infinity: Number.POSITIVE_INFINITY }
     input.list = [1, undefined, Symbol('drop'), 'kept']
 
-    const sanitized = sanitizeJobJson(input) as Record<string, unknown>
+    const sanitized = jobViewHelper.sanitizeJobJson(input) as Record<string, unknown>
     expect(sanitized).toEqual({ visible: { ok: true }, list: [1, 'kept'] })
     expect(Object.getPrototypeOf(sanitized)).toBeNull()
     expect(sanitized).not.toHaveProperty('inherited')
   })
 
   test('caps public text before it reaches a serializer or a browser store', () => {
-    const view = jobViewOf({
+    const view = jobViewHelper.jobViewOf({
       id: 'raw', queue: 'lane', name: 'internal', state: JobState.Active,
       progress: { message: 'm'.repeat(900) },
     }, {

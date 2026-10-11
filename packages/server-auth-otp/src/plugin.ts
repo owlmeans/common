@@ -1,14 +1,9 @@
 import { ALL_SCOPES, AuthenFailed, AuthRole, AuthenticationType } from '@owlmeans/auth'
-import type { AuthPlugin } from '@owlmeans/server-auth/manager/plugins'
-import { AuthChallengeReplayPolicy, registerPlugin } from '@owlmeans/server-auth/manager/plugins'
-import type { OtpService } from '@owlmeans/auth-otp'
-import { OTP_AUTH_TYPE, OTP_SERVICE } from '@owlmeans/auth-otp'
-import type { IdentityLinkingService } from '@owlmeans/server-auth-identity'
-import { AUTH_IDENTITY_LINKING } from '@owlmeans/server-auth-identity'
+import { type AuthPlugin, type AuthPluginFactory, AuthChallengeReplayPolicy, registerPlugin } from '@owlmeans/server-auth/manager/plugins'
+import { type OtpService, OTP_AUTH_TYPE, OTP_SERVICE } from '@owlmeans/auth-otp'
+import { type IdentityLinkingService, AUTH_IDENTITY_LINKING } from '@owlmeans/server-auth-identity'
 import type { OtpConfig, OtpContext } from './types.js'
-
-// Separates the email from the opaque issuance id inside the signed challenge.
-const CHALLENGE_DELIMITER = '::'
+import { CHALLENGE_DELIMITER } from './consts.local.js'
 
 /** Factory that creates the email-OTP AuthPlugin bound to the given context. */
 const otpPlugin = <C extends OtpConfig, T extends OtpContext<C>>(context: T): AuthPlugin => ({
@@ -76,6 +71,6 @@ const otpPlugin = <C extends OtpConfig, T extends OtpContext<C>>(context: T): Au
 
 /** Register the email-OTP plugin into the server-auth plugin registry. Call once at context setup. */
 export const appendOtpPlugin = <C extends OtpConfig, T extends OtpContext<C>>(context: T): T => {
-  registerPlugin(OTP_AUTH_TYPE, otpPlugin as Parameters<typeof registerPlugin>[1])
+  registerPlugin(OTP_AUTH_TYPE, otpPlugin as AuthPluginFactory)
   return context
 }

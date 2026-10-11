@@ -1,15 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
-import {
-  CONSENT_KEY, CONSENT_LOCALES, CONSENT_SCHEMA_VERSION, defaultConsentTranslate,
-} from '@owlmeans/consent'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
+import { CONSENT_KEY, CONSENT_LOCALES, CONSENT_SCHEMA_VERSION, consentI18nHelper } from '@owlmeans/consent'
 import { HARNESS_URL } from './context.js'
 
 // Browser work does not fit the 5s default: a cold harness compiles the app on first request.
 const TIMEOUT = 60_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 const base = HARNESS_URL.replace(/\/$/, '')
@@ -136,7 +134,7 @@ describe('@owlmeans/web-consent — the dialog', () => {
   }, TIMEOUT)
 
   test('refusing a category denies its signal, and the decision survives a remount', async () => {
-    const { page, close } = await mountComponent({ url: `${base}/?categories=custom` })
+    const { page, close } = await mountComponent({ url: `${base}/?categories=custom&mode=window` })
     try {
       await page.waitForSelector('[data-consent-dialog]')
       // Save without granting the optional category: the essential row is locked on, the other is
@@ -212,11 +210,11 @@ describe('@owlmeans/web-consent — the dialog', () => {
     }
   }, TIMEOUT)
 
-  test('the dialog is flat: theme tokens, hairlines and pills — no gradient, shadow or blur', async () => {
-    // It is the first thing every new visitor of a generated app sees, and that app's rule is no
-    // gradient, glow, shadow or backdrop-filter anywhere. Asserted on the class lists for the same
-    // reason as the re-open button below: the harness compiles no stylesheet.
-    const { page, close } = await mountComponent({ url: `${base}/` })
+  test('the window is flat: theme tokens, hairlines and pills — no gradient, shadow or blur', async () => {
+    // A first visit in `window` mode, and every later opening in either mode, meets it — and a
+    // generated app's rule is no gradient, glow, shadow or backdrop-filter anywhere. Asserted on the
+    // class lists for the same reason as the re-open button below: the harness compiles no stylesheet.
+    const { page, close } = await mountComponent({ url: `${base}/?mode=window` })
     try {
       const dialog = page.locator('[data-consent-dialog]')
       await dialog.waitFor()
@@ -249,38 +247,44 @@ describe('@owlmeans/web-consent — the dialog', () => {
     }
   }, TIMEOUT)
 
-  test('the re-open button brings the dialog back with a reason', async () => {
+  test('the re-open button brings back the preferences window — never the bar', async () => {
     const { page, close } = await seeded({ essential: true, analytics: false, marketing: false, v: CONSENT_SCHEMA_VERSION })
     try {
       await page.locator('[data-consent-reopen]').click()
       await page.waitForSelector('[data-consent-dialog]')
-      // The reason is what lets a host explain WHY it reopened — a login gate reads differently
-      // from a footer link, and a dialog that cannot say which is not answerable.
-      expect(await page.locator('[data-consent-reason]').count()).toBeGreaterThanOrEqual(0)
+      // A visitor who reopens wants to CHANGE something, so it is the switches they get, seeded
+      // with the answer they gave; the sign-in line is only for a window the sign-in gate raised.
+      expect(await page.locator('[data-consent-dialog]').getAttribute('data-consent-mode')).toBe('window')
+      expect(await page.locator('[data-consent-bar]').count()).toBe(0)
+      expect(await page.locator('[data-consent-reason]').count()).toBe(0)
     } finally {
       await close()
     }
   }, TIMEOUT)
 
-  test('every supported locale renders wording, never a bare key', async () => {
-    // Seven languages are a shipped contract. A missing bundle does not throw — it renders the
+  test('every supported locale renders wording, never a bare key — on the bar and the window', async () => {
+    // Eight languages are a shipped contract. A missing bundle does not throw — it renders the
     // key — so the visible string is the only thing worth asserting.
     for (const locale of CONSENT_LOCALES) {
-      const { page, close } = await mountComponent({ url: `${base}/?locale=${locale}` })
-      try {
-        const dialog = page.locator('[data-consent-dialog]')
-        await dialog.waitFor()
-        const text = await dialog.innerText()
+      const translate = consentI18nHelper.defaultConsentTranslate(locale)
+      for (const [mode, titleKey] of [['bar', 'barTitle'], ['window', 'title']] as const) {
+        const { page, close } = await mountComponent({ url: `${base}/?locale=${locale}&mode=${mode}` })
+        try {
+          const dialog = page.locator('[data-consent-dialog]')
+          await dialog.waitFor()
+          const text = await dialog.innerText()
 
-        expect(text).not.toContain('consent.')
-        expect(text.length).toBeGreaterThan(40)
-        // And it is genuinely THAT language's wording, not English shown seven times.
-        expect(text).toContain(defaultConsentTranslate(locale)('consent.title', ''))
-      } finally {
-        await close()
+          expect(text).not.toContain('consent.')
+          expect(text.length).toBeGreaterThan(40)
+          // And it is genuinely THAT language's wording, not English shown eight times.
+          expect(translate(titleKey, '')).not.toBe('')
+          expect(text).toContain(translate(titleKey, ''))
+        } finally {
+          await close()
+        }
       }
     }
-  }, TIMEOUT * 3)
+  }, TIMEOUT * 4)
 })
 
 describe('@owlmeans/web-consent — the policy page', () => {
@@ -361,9 +365,9 @@ describe('@owlmeans/web-consent — the policy page', () => {
       await analytics.waitFor()
       const text = await analytics.innerText()
 
-      expect(text).toContain(defaultConsentTranslate('de')('policyProvider', ''))
-      expect(text).toContain(defaultConsentTranslate('de')('policyPurpose', ''))
-      expect(defaultConsentTranslate('de')('policyProvider', '')).not.toBe('Provider')
+      expect(text).toContain(consentI18nHelper.defaultConsentTranslate('de')('policyProvider', ''))
+      expect(text).toContain(consentI18nHelper.defaultConsentTranslate('de')('policyPurpose', ''))
+      expect(consentI18nHelper.defaultConsentTranslate('de')('policyProvider', '')).not.toBe('Provider')
     } finally {
       await close()
     }
@@ -374,7 +378,7 @@ describe('@owlmeans/web-consent — the policy page', () => {
     try {
       const policy = page.locator('[data-cookie-policy]')
       await policy.waitFor()
-      const de = defaultConsentTranslate('de')
+      const de = consentI18nHelper.defaultConsentTranslate('de')
 
       expect(await policy.locator('a[href="https://example.test/privacy"]').innerText())
         .toBe(de('privacy', ''))

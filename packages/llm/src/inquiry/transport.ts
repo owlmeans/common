@@ -1,6 +1,7 @@
 import type { InquiryTransport } from '@owlmeans/llm-common'
-import { registerFatalError } from '../helpers/retry.js'
+import { retryHelper } from '../helpers/retry.js'
 import { InquiryUnavailable } from './errors.js'
+import type { InquiryTransportRegistry } from './transport/types.js'
 
 /**
  * Which channel reaches which person.
@@ -13,30 +14,43 @@ import { InquiryUnavailable } from './errors.js'
  */
 const transports: Record<string, InquiryTransport> = {}
 
-export const registerInquiryTransport = (key: string, transport: InquiryTransport): void => {
-  transports[key] = transport
-}
-
-export const releaseInquiryTransport = (key: string): void => {
-  delete transports[key]
-}
-
-export const hasInquiryTransport = (key: string): boolean => transports[key] != null
-
-/**
- * The transport for a key, or a fatal refusal — never a wait.
- *
- * Named `inquiryTransportFor` rather than `transportFor`: `@owlmeans/llm` and
- * `@owlmeans/llm-delegate` are re-exported into one namespace by `@owlmeans/viable`.
- */
-export const inquiryTransportFor = (key: string | undefined): InquiryTransport => {
-  if (key == null || transports[key] == null) {
-    throw new InquiryUnavailable(key ?? 'unkeyed')
-  }
-
-  return transports[key]
-}
-
 // Beside the throw, so no caller has to remember: an absent channel aborts every retry loop at
 // once instead of being spent through as if the answer might come next time.
-registerFatalError(e => e instanceof InquiryUnavailable ? e : null)
+retryHelper.registerFatalError(e => e instanceof InquiryUnavailable ? e : null)
+
+export const createInquiryTransportRegistry = (): InquiryTransportRegistry => {
+  const register = (key: string, transport: InquiryTransport): void => {
+    transports[key] = transport
+  }
+
+  const release = (key: string): void => {
+    delete transports[key]
+  }
+
+  const has = (key: string): boolean => transports[key] != null
+
+  const transportFor = (key: string | undefined): InquiryTransport => {
+    if (key == null || transports[key] == null) {
+      throw new InquiryUnavailable(key ?? 'unkeyed')
+    }
+
+    return transports[key]
+  }
+
+  return { register, release, has, transportFor }
+}
+
+export const inquiryTransportRegistry = createInquiryTransportRegistry()
+
+/** @deprecated compat:factory-refactor — use `inquiryTransportRegistry.register(…)` */
+export const registerInquiryTransport = (key: string, transport: InquiryTransport): void =>
+  inquiryTransportRegistry.register(key, transport)
+
+/** @deprecated compat:factory-refactor — use `inquiryTransportRegistry.release(…)` */
+export const releaseInquiryTransport = (key: string): void => inquiryTransportRegistry.release(key)
+
+/** @deprecated compat:factory-refactor — use `inquiryTransportRegistry.has(…)` */
+export const hasInquiryTransport = (key: string): boolean => inquiryTransportRegistry.has(key)
+
+/** @deprecated compat:factory-refactor — use `inquiryTransportRegistry.transportFor(…)` */
+export const inquiryTransportFor = (key: string | undefined): InquiryTransport => inquiryTransportRegistry.transportFor(key)

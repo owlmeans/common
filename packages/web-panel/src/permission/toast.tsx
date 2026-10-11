@@ -1,11 +1,6 @@
 import type { FC } from 'react'
 import { useI18nLib } from '@owlmeans/client-i18n'
-
-export interface PermissionDeniedToastProps {
-  alias: string
-  status: number | null
-  incidentId: string | null
-}
+import type { PermissionDeniedToastProps } from './types.js'
 
 /** A refusal is actionable context for the user, with diagnostics outside the explanation. */
 export const PermissionDeniedToast: FC<PermissionDeniedToastProps> = ({ alias, status, incidentId }) => {

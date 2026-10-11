@@ -1,23 +1,12 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import type { RegisteredEntrypoint, RequestShape } from '@owlmeans/entrypoint'
-import type { PerformanceConsentBody, PerformanceConsentResponse, PerformanceConsentView } from '@owlmeans/payment'
-import { makeConsentGate, passThroughGate, type ConsentGate } from './ensure.js'
-import { usePerformanceConsent, type UsePerformanceConsentOptions } from './hooks.js'
+import { createContext, useContext, useMemo } from 'react'
+import type { RequestShape } from '@owlmeans/entrypoint'
+import type { PerformanceConsentBody } from '@owlmeans/payment'
+import { makeConsentGate, passThroughGate } from './ensure.js'
+import { usePerformanceConsent } from './hooks.js'
 import { PerformanceConsentDialog } from './performance-consent-dialog.js'
-
-export interface ConsentGateValue extends ConsentGate {
-  /** From the last read of the view; `null` before any, and always outside a provider. */
-  required: boolean | null
-}
+import type { ConsentGateValue, PerformanceConsentProviderProps } from './types.js'
 
 const ConsentGateContext = createContext<ConsentGateValue | null>(null)
-
-export interface PerformanceConsentProviderProps<RecordRequest extends RequestShape & { body: PerformanceConsentBody }> {
-  view: RegisteredEntrypoint<{}, PerformanceConsentView>
-  record: RegisteredEntrypoint<RecordRequest, PerformanceConsentResponse>
-  options?: UsePerformanceConsentOptions
-  children?: ReactNode
-}
 
 /**
  * ONE spend-consent dialog for the whole application, and the gate every action that may spend

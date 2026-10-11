@@ -1,4 +1,4 @@
-import { mongoGate, randomNamespace } from '@owlmeans/test-integration'
+import { randomNamespace, gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, MongoEnv } from '@owlmeans/test-integration'
 import { appendMongo } from '@owlmeans/mongo'
 import type { MongoDbService } from '@owlmeans/mongo-resource'
@@ -13,7 +13,7 @@ import { appendMarketingConsentMongo } from '../src/helper.js'
  * `@owlmeans/mongo`'s and `@owlmeans/server-payment`'s own `tests/context.ts`. One database per
  * suite, dropped by that suite's own teardown.
  */
-export const gate: IntegrationGate<MongoEnv> = mongoGate()
+export const gate: IntegrationGate<MongoEnv> = gateHelper.mongoGate()
 
 const url = (): string => gate.env.MONGO_URL as string
 

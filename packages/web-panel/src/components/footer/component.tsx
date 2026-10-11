@@ -1,5 +1,5 @@
 import type { FC } from 'react'
-import { defaultNavTranslate, resolveNavLabel } from '@owlmeans/client-panel'
+import { navLabelHelper } from '@owlmeans/client-panel'
 import { cn } from '../../@/lib/utils.js'
 import { Link } from '../link.js'
 import { ThemeToggle } from '../scheme/toggle.js'
@@ -34,7 +34,7 @@ import type { FooterProps } from './types.js'
  * application's own footer layout does.
  */
 export const Footer: FC<FooterProps> = ({
-  links, translate = defaultNavTranslate, children, content, className, style, containerClassName,
+  links, translate = navLabelHelper.defaultNavTranslate, children, content, className, style, containerClassName,
   themeToggle
 }) => {
   const credit = useShellCredit()
@@ -51,7 +51,7 @@ export const Footer: FC<FooterProps> = ({
       {content != null && <div data-footer-content className="w-full self-stretch text-start">{content}</div>}
       {hasLinks && <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
         {links?.map((link, idx) => {
-          const label = resolveNavLabel(
+          const label = navLabelHelper.resolveNavLabel(
             translate, link.label, `modules.${link.alias ?? link.href ?? ''}`, link.alias ?? link.href
           )
 

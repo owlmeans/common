@@ -260,3 +260,28 @@ export type DeviceSignInOutcome =
   | { status: 'denied' }
   | { status: 'expired' }
   | { status: 'aborted' }
+
+export interface PollDeviceTokenOptions {
+  clientId: string
+  deviceCode: string
+  /** Seconds, from the device-authorization response. Grows on `slow_down`. */
+  interval: number
+  expiresAt: number
+  signal?: AbortSignal
+  /** Called whenever the interval changes, so a caller polling in the background can log it. */
+  onInterval?: (seconds: number) => void
+  /** Override for tests. Production callers take the RFC 8628 default. */
+  slowDownStepSec?: number
+}
+
+/**
+ * PKCE (RFC 7636), S256 only.
+ *
+ * OAuth 2.1 requires `S256` "when technically capable" — every runtime this family targets (a
+ * browser, Node, Bun) carries `SubtleCrypto`-equivalent hashing, so the plain method is never
+ * offered.
+ */
+export interface PkcePair {
+  verifier: string
+  challenge: string
+}

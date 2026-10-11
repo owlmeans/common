@@ -1,7 +1,7 @@
 import type { ServerRouteModel, ServerRouteOptions } from './types.js'
 import { DEFAULT_FIELD } from './consts.js'
 import { matchToPathes } from './utils/route.js'
-import { overrideParams } from '@owlmeans/route/utils'
+import { routeDeclarationHelper } from '@owlmeans/route/utils'
 import type { RouteModel } from '@owlmeans/route'
 
 /**
@@ -28,7 +28,7 @@ export const route = <R>(route: RouteModel, intermediate: boolean, opts?: Server
     }
   }
 
-  overrideParams(model.route, opts?.overrides)
+  routeDeclarationHelper.overrideParams(model.route, opts?.overrides)
 
   return model
 }

@@ -1,17 +1,11 @@
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import { appendContextual, assertContext } from '@owlmeans/context'
-import {
-  applyQuery, filterRecords, firstMatch, MisshapedRecord, RecordExists, ResourceError,
-  UnknownRecordError, UnsupportedArgumentError
-} from '@owlmeans/resource'
-import type { Criteria, FirstOptions, ListOptions, ResourceRecord } from '@owlmeans/resource'
+import { MisshapedRecord, recordQueryHelper, RecordExists, ResourceError, UnknownRecordError, UnsupportedArgumentError, type Criteria, type FirstOptions, type ListOptions, type ResourceRecord } from '@owlmeans/resource'
 import { DEFAULT_DB_ALIAS, LIST_KEY } from './consts.js'
 import type { ClientDb, ClientDbService, ClientResource } from './types.js'
 import { base58 } from '@scure/base'
-import { randomBytes } from '@noble/hashes/utils'
+import { randomBytes } from '@noble/hashes/utils.js'
+import type { Config, Context } from './types.local.js'
 
-type Config = ClientConfig
-interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 /**
  * A key-value client store dressed as a resource: records live under their own id and a list of
@@ -56,7 +50,7 @@ export const appendClientResource = <
     idOrWhere: string | Criteria<R>, opts?: FirstOptions<R>
   ): Promise<R | null> => typeof idOrWhere === 'string'
     ? await assert().get<R>(idOrWhere) ?? null
-    : firstMatch(await readAll(), idOrWhere, opts)
+    : recordQueryHelper.firstMatch(await readAll(), idOrWhere, opts)
 
   const resource: ClientResource<R> = appendContextual<ClientResource<R>>(alias, {
     init: async () => {
@@ -84,10 +78,10 @@ export const appendClientResource = <
         throw new UnsupportedArgumentError('page-without-size')
       }
 
-      return applyQuery(await readAll(), where, opts)
+      return recordQueryHelper.applyQuery(await readAll(), where, opts)
     },
 
-    count: async (where?: Criteria<R>) => filterRecords(await readAll(), where).length,
+    count: async (where?: Criteria<R>) => recordQueryHelper.filterRecords(await readAll(), where).length,
 
     create: async (record: Partial<R>) => {
       const db = assert()
@@ -149,7 +143,7 @@ export const appendClientResource = <
       if (where == null || Object.keys(where).length < 1) {
         throw new UnsupportedArgumentError('purge:empty-criteria')
       }
-      const matched = filterRecords(await readAll(), where)
+      const matched = recordQueryHelper.filterRecords(await readAll(), where)
       for (const record of matched) {
         if (record.id != null) {
           await resource.delete(record.id)

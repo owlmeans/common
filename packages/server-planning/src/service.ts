@@ -1,29 +1,14 @@
-import { createLazyService } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { makeSchemaRegistry, PlanningError } from '@owlmeans/planning'
-import type { PlanningService, PlanningStore, Transition, WithPlanningService } from '@owlmeans/planning'
+import { makePlanningInvariants } from './invariants.js'
+import { createLazyService, type BasicConfig, type BasicContext } from '@owlmeans/context'
+import { makeSchemaRegistry, PlanningError, type PlanningService, type PlanningStore, type Transition, type WithPlanningService } from '@owlmeans/planning'
 import { DEFAULT_ALIAS } from './consts.js'
+import { makeSchemaViews } from './definitions.js'
 import { makeStoreFacade } from './facade.js'
 import { makePluginRegistry } from './registry.js'
-import type { PluginRegistry } from './registry.js'
 import { makeCompositeStore } from './store/composite.js'
 import { makeMemoryPlanningStore } from './store/memory.js'
 import type { BindablePlanningStore } from './store/types.js'
-import type { PlanningHostService, PlanningServiceOptions } from './types.js'
-
-export type PlanningServiceApi = Pick<PlanningService, 'use' | 'plugins' | 'schemas' | 'store' | 'for' | 'committed'>
-
-/** What the facade and the executor reach the service through. */
-export interface PlanningRuntime {
-  service: () => PlanningService
-  registry: PluginRegistry
-  options: PlanningServiceOptions
-  context: () => BasicContext<BasicConfig> | undefined
-  /** The composite store reads and commits go through. */
-  reader: () => PlanningStore
-  /** Every distinct store: the default one first, then each plugin's. */
-  stores: () => PlanningStore[]
-}
+import type { PlanningHostService, PlanningServiceOptions, PlanningRuntime, PlanningServiceApi } from './types.js'
 
 const contextOf = (service: PlanningService): BasicContext<BasicConfig> | undefined =>
   (service as Partial<PlanningHostService>).ctx as BasicContext<BasicConfig> | undefined
@@ -45,6 +30,8 @@ export const planningServiceApi = (
       return
     }
     bound.add(store)
+    store.validateProjection = async (before, after, transition) => await makePlanningInvariants(runtime).validate(before, after, transition)
+    store.projectReferences = async (after, transition) => await makePlanningInvariants(runtime).references(after, transition)
     ;(store as BindablePlanningStore).bind?.(async event => { await self().committed(event) })
   }
 
@@ -53,6 +40,12 @@ export const planningServiceApi = (
   bind(fallback)
 
   let reader: { version: number, store: PlanningStore } | undefined
+
+  const views = makeSchemaViews({
+    code: () => schemas,
+    version: () => registry.version(),
+    port: () => fallback.schemas,
+  })
 
   const runtime: PlanningRuntime = {
     service: self,
@@ -66,6 +59,9 @@ export const planningServiceApi = (
       return reader.store
     },
     stores: () => [...new Set([fallback, ...registry.routes(runtime.context()).map(route => route.store)])],
+    schemaStore: () => fallback.schemas,
+    schemasFor: views.of,
+    scopedSchemas: views.scoped,
   }
 
   options.plugins?.forEach(registry.use)

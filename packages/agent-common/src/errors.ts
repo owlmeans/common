@@ -21,7 +21,7 @@ export class AgentRunStateError extends AgentCommonError {
 /**
  * A pipeline declaration is not runnable.
  *
- * Thrown by {@link import('./pipeline.js').validatePipelineSpec} and by the runner's own build
+ * Thrown by {@link import('./models/pipeline-spec/types.js').PipelineSpecModel.validate} and by the runner's own build
  * step, and it always names EVERY fault it found rather than the first: a spec is authored once and
  * fixed once, and reporting faults one per build turns a five-minute edit into five builds.
  */

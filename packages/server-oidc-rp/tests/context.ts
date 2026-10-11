@@ -1,5 +1,5 @@
 import { AppType, makeBasicContext } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
+import type { BasicContext } from '@owlmeans/context'
 import { createStaticResource } from '@owlmeans/static-resource'
 import { AUTH_CACHE } from '@owlmeans/server-auth'
 import { makeOidcClientService } from '../src/service.js'

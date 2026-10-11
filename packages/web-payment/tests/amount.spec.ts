@@ -1,18 +1,18 @@
 import { describe, expect, test } from 'bun:test'
-import { inputAmount, parseAmountMinor } from '../src/amount.js'
+import { amountInputHelper } from '../src/amount.js'
 import { openCheckout } from '../src/service.js'
 
 describe('localized amount input', () => {
   test('preserves cent precision', () => {
-    expect(parseAmountMinor('5.01', 'en')).toBe(501)
-    expect(inputAmount(501, 'en')).toBe('5.01')
+    expect(amountInputHelper.parseAmountMinor('5.01', 'en')).toBe(501)
+    expect(amountInputHelper.inputAmount(501, 'en')).toBe('5.01')
   })
   test('accepts locale decimal separators', () => {
-    expect(parseAmountMinor('10,21', 'pl')).toBe(1021)
+    expect(amountInputHelper.parseAmountMinor('10,21', 'pl')).toBe(1021)
   })
   test('rejects excess precision and non-numeric input', () => {
-    expect(parseAmountMinor('5.001', 'en')).toBeNull()
-    expect(parseAmountMinor('five', 'en')).toBeNull()
+    expect(amountInputHelper.parseAmountMinor('5.001', 'en')).toBeNull()
+    expect(amountInputHelper.parseAmountMinor('five', 'en')).toBeNull()
   })
 })
 

@@ -1,13 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { CancellationKind } from '@owlmeans/payment'
-import type { CancellationBody, CancellationReceipt } from '@owlmeans/payment'
+import { CancellationKind, type CancellationBody, type CancellationReceipt } from '@owlmeans/payment'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { dayUtc, momentUtc } from '../format.js'
-import { useLegalText, usePaymentText } from './copy.js'
+import { useLegalText, usePaymentText } from './hooks.js'
 import { Choice, Field, Honeypot, isEmail } from './fields.js'
 import { ErrorLine, LanguageToggle, useShownLanguage } from './legal.js'
 import type { CancellationFormProps, DeclarationStep } from './types.js'
+import { formatHelper } from '../format.js'
 
 const isCancellationReceipt = (receipt: object): receipt is CancellationReceipt => 'status' in receipt
 
@@ -96,7 +95,7 @@ export const CancellationForm = ({
   const kindLabel = (value: CancellationKind) => legal(value === CancellationKind.Extraordinary
     ? 'cancellation.kind-extraordinary' : 'cancellation.kind-ordinary')
   const effectiveLabel = (declared: CancellationBody) => declared.effective === 'date' && declared.date != null
-    ? dayUtc(`${declared.date}T00:00:00Z`, language.shown) : legal('cancellation.effective-earliest')
+    ? formatHelper.dayUtc(`${declared.date}T00:00:00Z`, language.shown) : legal('cancellation.effective-earliest')
   const summary = (declared: CancellationBody, hook?: string) =>
     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg border bg-muted/30 p-4 text-sm"
       {...(hook != null ? { [hook]: '' } : {})}>
@@ -124,16 +123,16 @@ export const CancellationForm = ({
       data-effective-at={effectiveKnown ? effectiveAt.toISOString() : undefined}>
       <h3 className="text-sm font-medium">{text('consumer.receipt')}</h3>
       <p className="text-sm">{receipt.mailed
-        ? legal('cancellation.received', { date: momentUtc(receivedAt, language.shown), email: declared.email })
-        : `${text('consumer.received-at')}: ${momentUtc(receivedAt, language.shown)} (UTC). ${text('consumer.not-mailed')}`}</p>
+        ? legal('cancellation.received', { date: formatHelper.momentUtc(receivedAt, language.shown), email: declared.email })
+        : `${text('consumer.received-at')}: ${formatHelper.momentUtc(receivedAt, language.shown)} (UTC). ${text('consumer.not-mailed')}`}</p>
       {effectiveKnown && <p className="text-sm font-medium" data-cancellation-effective="">
-        {text('cancellation.effective-at', { date: dayUtc(effectiveAt, language.shown) })}
+        {text('cancellation.effective-at', { date: formatHelper.dayUtc(effectiveAt, language.shown) })}
       </p>}
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg border p-4 text-sm">
         <dt className="text-muted-foreground">{text('consumer.reference')}</dt>
         <dd data-cancellation-reference="">{receipt.declarationId}</dd>
         <dt className="text-muted-foreground">{text('consumer.received-at')}</dt>
-        <dd data-cancellation-received-at="">{momentUtc(receivedAt, language.shown)} (UTC)</dd>
+        <dd data-cancellation-received-at="">{formatHelper.momentUtc(receivedAt, language.shown)} (UTC)</dd>
         {status != null && <>
           <dt className="text-muted-foreground">{text('consumer.status')}</dt>
           <dd data-cancellation-status="">{text(`cancellation.status.${status}`)}</dd>

@@ -1,20 +1,7 @@
-import { ResilientError } from './resilient.js'
+import { ResilientError } from './errors.js'
 import type { Converter, ResilientErrorConstructor } from './types.js'
 
-export const createErrorConverter = (
-  resilientErrorClass: ResilientErrorConstructor,
-  errorClass?: ErrorConstructor
-): Converter => {
-  return {
-    match: err => errorClass != null && err instanceof errorClass,
-    convert: err => new resilientErrorClass(err.message, err.stack),
-    isMarshaled: err =>
-      err.message.startsWith(resilientErrorClass.typeName + ResilientError.separator),
-    unmarshal: unmarshal(resilientErrorClass)
-  }
-}
-
-export const unmarshal = <T extends ResilientError = ResilientError>(errorClass: ResilientErrorConstructor) =>
+const unmarshal = <T extends ResilientError = ResilientError>(errorClass: ResilientErrorConstructor) =>
   (err: Error): T => {
     if (err instanceof errorClass) {
       return err as T
@@ -35,3 +22,16 @@ export const unmarshal = <T extends ResilientError = ResilientError>(errorClass:
     error.finalizeUnmarshal()
     return error as T
   }
+
+export const createErrorConverter = (
+  resilientErrorClass: ResilientErrorConstructor,
+  errorClass?: ErrorConstructor
+): Converter => {
+  return {
+    match: err => errorClass != null && err instanceof errorClass,
+    convert: err => new resilientErrorClass(err.message, err.stack),
+    isMarshaled: err =>
+      err.message.startsWith(resilientErrorClass.typeName + ResilientError.separator),
+    unmarshal: unmarshal(resilientErrorClass)
+  }
+}

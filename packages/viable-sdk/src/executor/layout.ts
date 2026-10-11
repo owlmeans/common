@@ -1,8 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { LAYOUT_MARKERS, LAYOUTS, subprojectDirOf, TargetLayout } from '@owlmeans/viable-common'
+import { LAYOUTS, TargetLayout, slotLayoutHelper } from '@owlmeans/viable-common'
 import type { SubProject, TargetPaths } from '@owlmeans/viable-common'
+
+import { LAYOUT_MARKER_PATHS } from './consts.local.js'
+import type { LayoutHelper } from './layout/types.js'
 
 /**
  * Where a target project's packages live, in THIS directory.
@@ -15,104 +18,53 @@ import type { SubProject, TargetPaths } from '@owlmeans/viable-common'
  * Platform vs target: this describes a TARGET project's directory shape. Nothing about the SDK's
  * own repository is v1 or v2.
  */
-
-const MARKERS: Array<[TargetLayout, string]> = LAYOUT_MARKERS.map(
-  ([layout, marker]) => [layout, path.join(...marker.split('/'))]
-)
-
-/**
- * Read the directory and say which layout its target project has.
- *
- * An empty or half-installed tree answers `V1`, matching the publisher: a project that has not
- * been initialized yet resolves the paths it always did, and the answer flips by itself the
- * moment a v2 tree lands.
- *
- * Deliberately un-memoized. It is two `stat`s against a page cache the process touches
- * constantly, while a re-initialization replaces the tree wholesale under a running connector —
- * a remembered verdict would then resolve every path into a directory that no longer exists,
- * with a `posix_spawn` ENOENT as the only symptom.
- */
-export const detectLayout = (dir: string): TargetLayout => {
-  for (const [layout, marker] of MARKERS) {
-    if (fs.existsSync(path.join(dir, marker))) {
-      return layout
+export const makeLayoutHelper = (dir: string): LayoutHelper => {
+  const detectLayout = (): TargetLayout => {
+    for (const [layout, marker] of LAYOUT_MARKER_PATHS) {
+      if (fs.existsSync(path.join(dir, marker))) {
+        return layout
+      }
     }
+
+    return TargetLayout.V1
   }
 
-  return TargetLayout.V1
-}
+  const targetPaths = (): TargetPaths => LAYOUTS[detectLayout()]
 
-/** Where every role lives in this directory's target project. */
-export const targetPaths = (dir: string): TargetPaths => LAYOUTS[detectLayout(dir)]
+  const apiPath = (): string => {
+    const paths = targetPaths()
 
-/** Absolute path of the package that runs as the target's HTTP server. */
-export const apiPath = (dir: string): string => {
-  const paths = targetPaths(dir)
+    return path.resolve(dir, paths.dir, paths.api)
+  }
 
-  return path.resolve(dir, paths.dir, paths.api)
-}
+  const webPath = (): string => {
+    const paths = targetPaths()
 
-/** Absolute path of the package whose `dist/` is served to a browser. */
-export const webPath = (dir: string): string => {
-  const paths = targetPaths(dir)
+    return path.resolve(dir, paths.dir, paths.web)
+  }
 
-  return path.resolve(dir, paths.dir, paths.web)
-}
+  const workerPath = (): string | null => {
+    const paths = targetPaths()
 
-/**
- * Absolute path of the package that runs as the target's queue worker, or `null` when this
- * layout has no such package at all.
- *
- * A path, not a verdict: it answers where a worker WOULD live and says nothing about whether one
- * is there. {@link hasWorker} is the disk read.
- */
-export const workerPath = (dir: string): string | null => {
-  const paths = targetPaths(dir)
+    return paths.worker == null ? null : path.resolve(dir, paths.dir, paths.worker)
+  }
 
-  return paths.worker == null ? null : path.resolve(dir, paths.dir, paths.worker)
-}
+  const hasWorker = (): boolean => {
+    const worker = workerPath()
 
-/**
- * Whether this target project has a queue worker.
- *
- * Read from disk rather than from a record, for the same reason the layout is: what runs is
- * whatever was generated, a re-initialization can replace it under a running connector, and a
- * remembered answer would supervise a package that is no longer there — or miss one that has
- * just arrived. The manifest and not the directory, because a half-finished install leaves the
- * directory behind.
- */
-export const hasWorker = (dir: string): boolean => {
-  const worker = workerPath(dir)
+    return worker != null && fs.existsSync(path.join(worker, 'package.json'))
+  }
 
-  return worker != null && fs.existsSync(path.join(worker, 'package.json'))
-}
+  const subprojectDir = (role: SubProject): string =>
+    slotLayoutHelper.subprojectDirOf(detectLayout(), role)
 
-/**
- * Resolve a wire-level subproject role to the directory it names in this tree.
- *
- * `SubProject` is a ROLE and stays one: the vocabulary on the wire is not rewritten, it is
- * mapped, per layout. An unknown value — a role from a platform newer than this connector —
- * falls back to the role's own name, which fails visibly rather than resolving to some other
- * package's directory.
- */
-export const subprojectDir = (dir: string, role: SubProject): string =>
-  subprojectDirOf(detectLayout(dir), role)
+  const libraryPaths = (): string[] => {
+    const paths = targetPaths()
 
-/**
- * Absolute paths of the packages that must be built before anything that imports them, in
- * dependency order — see `TargetPaths.libraries`.
- *
- * Every bundled package keeps its dependencies external, so `<slug>-common` and (on v2)
- * `<slug>-backend` are resolved from `node_modules` at RUN time and followed to their `main`.
- * Nothing else builds them: the api, web and worker builds each run inside their own directory.
- * Missing directories are dropped — a build spawned into one that does not exist reports
- * `ENOENT … posix_spawn '/bin/sh'`, which blames the toolchain for a tree that is simply
- * incomplete.
- */
-export const libraryPaths = (dir: string): string[] => {
-  const paths = targetPaths(dir)
+    return paths.libraries
+      .map(pkg => path.resolve(dir, paths.dir, pkg))
+      .filter(library => fs.existsSync(library))
+  }
 
-  return paths.libraries
-    .map(pkg => path.resolve(dir, paths.dir, pkg))
-    .filter(library => fs.existsSync(library))
+  return { detectLayout, targetPaths, apiPath, webPath, workerPath, hasWorker, subprojectDir, libraryPaths }
 }

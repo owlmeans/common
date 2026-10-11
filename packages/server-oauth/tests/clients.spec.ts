@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { forgetCachedClientIdMetadataDocument, registerDcrClient, resolveClient } from '../src/clients.js'
+import { cimdHelper } from '../src/cimd.js'
+import { makeOAuthClientsHelper } from '../src/clients.js'
 import { handleRegister } from '../src/handlers/register.js'
 import { makeTestContext, TEST_CLIENT_ID } from './context.js'
 
@@ -10,7 +11,7 @@ const originalFetch = globalThis.fetch
 
 afterEach(() => {
   globalThis.fetch = originalFetch
-  forgetCachedClientIdMetadataDocument(CIMD_URL)
+  cimdHelper.forgetCachedClientIdMetadataDocument(CIMD_URL)
 })
 
 const jsonResponse = (body: unknown, headers: Record<string, string> = {}): Response =>
@@ -25,14 +26,14 @@ const CIMD_DOC = {
 describe('resolveClient — static', () => {
   test('finds a client declared in configuration', async () => {
     const context = makeTestContext()
-    const client = await resolveClient(context, TEST_CLIENT_ID)
+    const client = await makeOAuthClientsHelper(context).resolveClient(TEST_CLIENT_ID)
     expect(client?.origin).toBe('static')
     expect(client?.clientName).toBe('Viable MCP')
   })
 
   test('answers null for a name nothing declared, fetched, or registered', async () => {
     const context = makeTestContext()
-    expect(await resolveClient(context, 'nobody')).toBeNull()
+    expect(await makeOAuthClientsHelper(context).resolveClient('nobody')).toBeNull()
   })
 })
 
@@ -41,7 +42,7 @@ describe('resolveClient — Client ID Metadata Documents', () => {
     globalThis.fetch = (async () => jsonResponse(CIMD_DOC)) as typeof fetch
     const context = makeTestContext()
 
-    const client = await resolveClient(context, CIMD_URL)
+    const client = await makeOAuthClientsHelper(context).resolveClient(CIMD_URL)
     expect(client?.origin).toBe('cimd')
     expect(client?.clientName).toBe('Example MCP Client')
     expect(client?.redirectUris).toEqual(CIMD_DOC.redirect_uris)
@@ -51,14 +52,14 @@ describe('resolveClient — Client ID Metadata Documents', () => {
     globalThis.fetch = (async () => jsonResponse({ ...CIMD_DOC, client_id: 'https://someone-else.example/doc.json' })) as typeof fetch
     const context = makeTestContext()
 
-    expect(await resolveClient(context, CIMD_URL)).toBeNull()
+    expect(await makeOAuthClientsHelper(context).resolveClient(CIMD_URL)).toBeNull()
   })
 
   test('refuses a document missing redirect_uris', async () => {
     globalThis.fetch = (async () => jsonResponse({ client_id: CIMD_URL, client_name: 'X', redirect_uris: [] })) as typeof fetch
     const context = makeTestContext()
 
-    expect(await resolveClient(context, CIMD_URL)).toBeNull()
+    expect(await makeOAuthClientsHelper(context).resolveClient(CIMD_URL)).toBeNull()
   })
 
   test('never treats an ordinary client_id string as a CIMD URL', async () => {
@@ -66,7 +67,7 @@ describe('resolveClient — Client ID Metadata Documents', () => {
     globalThis.fetch = (async () => { called = true; return jsonResponse(CIMD_DOC) }) as typeof fetch
     const context = makeTestContext()
 
-    expect(await resolveClient(context, 'not-a-url')).toBeNull()
+    expect(await makeOAuthClientsHelper(context).resolveClient('not-a-url')).toBeNull()
     expect(called).toBe(false)
   })
 
@@ -75,7 +76,7 @@ describe('resolveClient — Client ID Metadata Documents', () => {
     globalThis.fetch = (async () => { called = true; return jsonResponse(CIMD_DOC) }) as typeof fetch
     const context = makeTestContext({ allowClientIdMetadataDocuments: false })
 
-    expect(await resolveClient(context, CIMD_URL)).toBeNull()
+    expect(await makeOAuthClientsHelper(context).resolveClient(CIMD_URL)).toBeNull()
     expect(called).toBe(false)
   })
 
@@ -84,8 +85,8 @@ describe('resolveClient — Client ID Metadata Documents', () => {
     globalThis.fetch = (async () => { calls += 1; return jsonResponse(CIMD_DOC, { 'cache-control': 'max-age=3600' }) }) as typeof fetch
     const context = makeTestContext()
 
-    await resolveClient(context, CIMD_URL)
-    await resolveClient(context, CIMD_URL)
+    await makeOAuthClientsHelper(context).resolveClient(CIMD_URL)
+    await makeOAuthClientsHelper(context).resolveClient(CIMD_URL)
     expect(calls).toBe(1)
   })
 
@@ -94,7 +95,7 @@ describe('resolveClient — Client ID Metadata Documents', () => {
     globalThis.fetch = (async () => { called = true; return jsonResponse(CIMD_DOC) }) as typeof fetch
     const context = makeTestContext()
 
-    expect(await resolveClient(context, 'https://127.0.0.1/client.json')).toBeNull()
+    expect(await makeOAuthClientsHelper(context).resolveClient('https://127.0.0.1/client.json')).toBeNull()
     expect(called).toBe(false)
   })
 })
@@ -107,7 +108,7 @@ describe('Dynamic Client Registration', () => {
     const clientId = (outcome.body as any).client_id as string
     expect((outcome.body as any).token_endpoint_auth_method).toBe('none')
 
-    const resolved = await resolveClient(context, clientId)
+    const resolved = await makeOAuthClientsHelper(context).resolveClient(clientId)
     expect(resolved?.origin).toBe('dcr')
     expect(resolved?.clientName).toBe('A CLI')
   })
@@ -139,6 +140,6 @@ describe('Dynamic Client Registration', () => {
   test('registerDcrClient rejects more than the configured maximum of redirect URIs', async () => {
     const context = makeTestContext()
     const many = Array.from({ length: 11 }, (_, i) => `http://localhost:${3000 + i}/cb`)
-    await expect(registerDcrClient(context, { redirect_uris: many })).rejects.toThrow()
+    await expect(makeOAuthClientsHelper(context).registerDcrClient({ redirect_uris: many })).rejects.toThrow()
   })
 })

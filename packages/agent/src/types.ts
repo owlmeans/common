@@ -4,12 +4,11 @@ import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { BasicConfig, BasicContext, InitializedService } from '@owlmeans/context'
 import type { FlowModel, FlowProvider, ShallowFlow } from '@owlmeans/flow'
 import type { Execution, LlmPlugin, ModelInputItem, PromptService } from '@owlmeans/llm'
-import type { AgentRunStatus, ConversationEvent, ConversationRef } from '@owlmeans/agent-common'
+import type { AgentRunStatus, ConversationEvent, ConversationRef, PipelineSpec, PipelineState } from '@owlmeans/agent-common'
 import type { BaseCheckpointSaver } from '@langchain/langgraph'
-import type { PipelineSpec, PipelineState } from '@owlmeans/agent-common'
-import type { AgentTransport } from './runtime/transport.js'
+import type { AgentTransport } from './runtime/types.js'
 import type { ConversationStore, PipelineRunStore } from './stores/types.js'
-import type { PipelineModel, PipelineOptions } from './pipeline/types.js'
+import type { PipelineModel, PipelineOptions } from './pipeline/runner/types.js'
 
 /** Tools an agent may call, keyed however the caller likes — resolution is by `tool.name`. */
 export interface AgentToolSet { [key: string]: StructuredToolInterface }
@@ -186,4 +185,8 @@ export interface WithAgentsService {
   agents: () => AgentService
 }
 
-export type AgentContext<C extends BasicConfig = BasicConfig> = BasicContext<C> & WithAgentsService
+export interface AgentContext<C extends BasicConfig = BasicConfig> extends BasicContext<C>, WithAgentsService {}
+
+export interface AgentServiceApi extends Pick<
+  AgentService, 'agent' | 'use' | 'plugins' | 'flow' | 'transport' | 'conversation' | 'pipeline'
+> {}

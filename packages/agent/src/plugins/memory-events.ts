@@ -1,31 +1,9 @@
 import { tool } from '@langchain/core/tools'
 import { DEFAULT_EVENT_WINDOW, DEFAULT_MEMORY_EVENTS_LIMIT, truncateAt } from '@owlmeans/agent-common'
-import type { MemoryEvent } from '@owlmeans/agent-common'
 import type { MemoryEventStore } from '../stores/types.js'
 import type { AgentPlugin, AgentRun, AgentToolSet } from '../types.js'
-
-export interface MemoryEventsApi {
-  append: (scope: string, kind: string, content: string) => Promise<MemoryEvent>
-  /** Newest first. */
-  read: (scope: string, limit?: number) => Promise<MemoryEvent[]>
-}
-
-export interface MemoryEventsOptions {
-  store?: MemoryEventStore
-  scope?: (run: AgentRun) => string
-  /** How many events a scope keeps. Older ones are dropped on append. */
-  limit?: number
-  /** How many events are put back into the prompt. */
-  window?: number
-  /** Cap on a single entry. */
-  maxEventChars?: number
-  tools?: boolean
-}
-
-export const MEMORY_EVENTS_PLUGIN = 'agent-memory-events'
-
-/** One entry's ceiling. An event is a line in a log, not a document. */
-export const DEFAULT_MEMORY_EVENT_CHARS = 400
+import { DEFAULT_MEMORY_EVENT_CHARS, MEMORY_EVENTS_PLUGIN } from './consts.js'
+import type { MemoryEventsApi, MemoryEventsOptions } from './types.js'
 
 /**
  * Sequence memory: what happened, in order, bounded.
@@ -38,7 +16,7 @@ export const DEFAULT_MEMORY_EVENT_CHARS = 400
  * The bound is per scope, and pruning is per scope, so a busy subject cannot evict a quiet one's
  * whole history.
  */
-export const memoryEvents = (
+export const makeMemoryEventsApi = (
   store: MemoryEventStore,
   options: Pick<MemoryEventsOptions, 'limit' | 'maxEventChars'> = {},
 ): MemoryEventsApi => {
@@ -57,7 +35,7 @@ export const memoryEvents = (
 export const memoryEventsPlugin = (options: MemoryEventsOptions = {}): AgentPlugin => {
   const { store, window = DEFAULT_EVENT_WINDOW, tools: withTools = true } = options
   const scopeOf = (run: AgentRun): string => options.scope?.(run) ?? run.conversation.scope
-  const api = (): MemoryEventsApi | null => store == null ? null : memoryEvents(store, options)
+  const api = (): MemoryEventsApi | null => store == null ? null : makeMemoryEventsApi(store, options)
 
   return {
     alias: MEMORY_EVENTS_PLUGIN,
@@ -127,3 +105,9 @@ export const memoryEventsPlugin = (options: MemoryEventsOptions = {}): AgentPlug
     },
   }
 }
+
+/** @deprecated compat:factory-refactor — use `makeMemoryEventsApi(…)` */
+export const memoryEvents = (
+  store: MemoryEventStore,
+  options: Pick<MemoryEventsOptions, 'limit' | 'maxEventChars'> = {},
+): MemoryEventsApi => makeMemoryEventsApi(store, options)

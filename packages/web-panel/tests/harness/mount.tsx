@@ -18,7 +18,8 @@ import {
 } from '../../src/index.js'
 import { LoginScreen } from '../../src/components/login/index.js'
 import {
-  PanelCookieConsent, PanelConsentMenuWidget, appendConsentWidgetService, useConsentMenuPresence
+  PanelCookieConsent, PanelConsentMenuWidget, appendConsentWidgetService, useConsentMenuPresence,
+  appendConsentGeoPlugin,
 } from '../../src/consent/index.js'
 import { LoginOutcome, ensureLoginService } from '@owlmeans/client-auth/login'
 import type { LoginMethod } from '@owlmeans/client-auth/login'
@@ -87,10 +88,18 @@ const method = (id: string, over?: Partial<LoginMethod>): LoginMethod => ({
 })
 
 /** The sign-in screen, with the terms confirmation the configuration requires. */
-const LoginHarness: FC = () => <LoginScreen
-  Logo={() => <span id="login-logo">logo</span>}
-  translate={(_key, defaultValue) => defaultValue}
-/>
+const LoginHarness: FC = () => {
+  const [locale, setLocale] = useState<string | undefined>(localizedTerms ? 'pl' : undefined)
+
+  return <>
+    {localizedTerms && <button id="login-language-fr" onClick={() => setLocale('fr')}>Français</button>}
+    <LoginScreen
+      Logo={() => <span id="login-logo">logo</span>}
+      translate={(_key, defaultValue) => defaultValue}
+      locale={locale}
+    />
+  </>
+}
 
 // `?header=broken` simulates the layout-restyle bug this harness pins: a `headerClassName`
 // carrying an invalid Tailwind v4 arbitrary-value background (v3 syntax, silently dropped) and a
@@ -110,6 +119,12 @@ const mobileMenu = new URLSearchParams(window.location.search).get('mobileMenu')
 // service — an application using the dialog on its own. `?consent=menu` appends the service, so
 // the footer's "Cookie settings" control takes over the floating button's job.
 const consentMode = new URLSearchParams(window.location.search).get('consent')
+// `?consentCfg=window|bar` sets `cfg.cookieConsent.mode`; `?modeProp=bar|window` passes `mode` as a
+// prop on top of it (the prop must win). `?consentGeo=<CC>|fail` appends a context-level locator
+// with `appendConsentGeoPlugin` — the gate turns on with no `geo` configured anywhere.
+const consentCfg = new URLSearchParams(window.location.search).get('consentCfg')
+const modeProp = new URLSearchParams(window.location.search).get('modeProp')
+const consentGeo = new URLSearchParams(window.location.search).get('consentGeo')
 // `?skip=off` passes `skipLinkLabel={false}` — an application that renders its own skip link.
 const skipOff = new URLSearchParams(window.location.search).get('skip') === 'off'
 // `?themeToggle=1` asks for the footer's light/dark switcher. Absent, the prop is not passed.
@@ -118,6 +133,8 @@ const themeToggle = new URLSearchParams(window.location.search).get('themeToggle
 // confirmation — the shape that pins the "still exactly one checkbox" and "documents render
 // outside the notice" rules even when there is more than terms+privacy to show.
 const extendedTerms = new URLSearchParams(window.location.search).get('terms') === 'extended'
+// `?terms=localized` selects known translated destinations using the live screen locale.
+const localizedTerms = new URLSearchParams(window.location.search).get('terms') === 'localized'
 // `?defer=bound` registers a step that CONFIRMS the terms, bound to a real screen — the sign-in
 // screen must then show no checkbox, only the privacy notice, and block nothing.
 // `?defer=unbound` registers the same step but never binds its entrypoint — the checkbox must
@@ -127,6 +144,9 @@ const defer = new URLSearchParams(window.location.search).get('defer')
 // `@owlmeans/web-consent`'s `CookieConsent` with nothing lost in between (the props already just
 // spread through; this is what pins that they keep doing so).
 const withDomains = new URLSearchParams(window.location.search).get('domains') === '1'
+// `?provider=top|inline` configures who signs the person in — the disclosure a platform-hosted
+// app shows. A product name is set only then, so every other screen keeps the brand it always had.
+const providerPlacement = new URLSearchParams(window.location.search).get('provider')
 
 /**
  * The footer's "Cookie settings" control — the menu widget, rendered from an always-mounted
@@ -278,6 +298,16 @@ base.security = {
       // is given, and blocking must SAY so rather than swallow the click.
       terms: {
         required: true, terms: 'https://example.test/terms', privacy: 'https://example.test/privacy',
+        ...(localizedTerms ? {
+          billing: { href: 'https://example.test/billing', revisedAt: '2026-10-04' },
+          cookies: 'https://example.test/cookies', showRevision: true,
+          localizedHrefs: {
+            terms: { pl: 'https://example.test/pl/terms', fr: 'https://example.test/fr/terms' },
+            billing: { pl: 'https://example.test/pl/billing', fr: 'https://example.test/fr/billing' },
+            privacy: { pl: 'https://example.test/pl/privacy', fr: 'https://example.test/fr/privacy' },
+            cookies: { pl: 'https://example.test/pl/cookies', fr: 'https://example.test/fr/cookies' },
+          },
+        } : {}),
         ...(extendedTerms ? {
           billing: { href: 'https://example.test/billing', revisedAt: '2026-01-01' },
           product: { name: 'Harness', href: 'https://example.test/product' },
@@ -289,14 +319,26 @@ base.security = {
         } : {}),
       },
       credit: { poweredBy: true, product: 'Harness', organization: 'Acme' },
+      ...(providerPlacement === 'top' || providerPlacement === 'inline' ? {
+        provider: {
+          name: 'Harness IAM', operator: 'Harness Hosting', info: 'https://example.test/about',
+          placement: providerPlacement,
+        },
+      } : {}),
     },
   },
+}
+if (providerPlacement != null) {
+  base.brand = { ...base.brand, name: 'Harness App' }
 }
 // Every other screen in this harness stays unaffected: nothing ever reports into the status
 // service unless `#report-lost` is clicked, so the flag being on by default costs nothing. A
 // test that needs the OFF case loads `?reloadDialog=0` — one harness process, both branches.
 const reloadDialogEnabled = new URLSearchParams(window.location.search).get('reloadDialog') !== '0'
 ;(base as { socket?: { reloadDialog?: boolean } }).socket = { reloadDialog: reloadDialogEnabled }
+if (consentCfg === 'window' || consentCfg === 'bar') {
+  ;(base as { cookieConsent?: { mode: 'window' | 'bar' } }).cookieConsent = { mode: consentCfg }
+}
 
 // `ready` stays false: the Router compiles the entrypoint tree into routes ONLY while the
 // context is un-initialized, so a pre-readied context renders a blank page.
@@ -306,6 +348,18 @@ context.serviceRoute(SERVICE, true)
 context.serviceRoute(API, true)
 if (consentMode === 'menu') {
   appendConsentWidgetService(context as never)
+}
+if (consentGeo != null) {
+  appendConsentGeoPlugin(context as never, {
+    alias: 'harness-geo',
+    locate: async () => {
+      if (consentGeo === 'fail') {
+        throw new Error('the harness locator cannot tell')
+      }
+
+      return { country: consentGeo }
+    },
+  })
 }
 
 ensureLoginService(context as never).registerMethodSource({
@@ -378,5 +432,6 @@ createRoot(document.getElementById('root')!).render(<PanelApp context={context a
   {consentMode != null && <PanelCookieConsent
     policyHref="/cookies"
     {...(withDomains ? { linker: { domains: ['harness-partner.test'] } } : {})}
+    {...(modeProp === 'window' || modeProp === 'bar' ? { mode: modeProp } : {})}
   />}
 </PanelApp>)

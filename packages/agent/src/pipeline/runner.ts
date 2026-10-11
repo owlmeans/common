@@ -1,20 +1,36 @@
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph'
-import type { BaseCheckpointSaver } from '@langchain/langgraph'
-import {
-  AgentRunStateError, DEFAULT_MAX_STATE_CHARS, INQUIRY_ANSWERS_KEY, PipelineNotIdempotentError,
-  PipelineNotResumableError, PipelineRunStatus, PipelineSpecError, PipelineStateTooLargeError,
-  PipelineVersionError,
-  orderPipelineSteps, pipelineDescendants, pipelineStep, validatePipelineSpec,
-} from '@owlmeans/agent-common'
+import { AgentRunStateError, DEFAULT_MAX_STATE_CHARS, INQUIRY_ANSWERS_KEY, PipelineNotIdempotentError, PipelineNotResumableError, PipelineRunStatus, PipelineSpecError, PipelineStateTooLargeError, PipelineVersionError, type PipelineProgress, type PipelineRun, type PipelineRunInquiry, type PipelineSpec, type PipelineState, type PipelineStepSpec, makePipelineSpecModel } from '@owlmeans/agent-common'
+import { DEFAULT_INQUIRY_ANSWER_CHARS, type InquiryAnswer, inquiryHelper } from '@owlmeans/llm-common'
+import { logger } from '@owlmeans/log'
 import type {
-  PipelineProgress, PipelineRun, PipelineRunInquiry, PipelineSpec, PipelineState, PipelineStepSpec,
-} from '@owlmeans/agent-common'
-import { DEFAULT_INQUIRY_ANSWER_CHARS, capAnswer, stateAnswerOf } from '@owlmeans/llm-common'
-import type { InquiryAnswer } from '@owlmeans/llm-common'
-import type {
-  PipelineInvokeArgs, PipelineModel, PipelineOptions, PipelineResult, PipelineRunContext,
-  PipelineStep, PipelineStepMapping,
-} from './types.js'
+  PipelineEnterMode, PipelineInvokeArgs, PipelineModel, PipelineOptions, PipelineParentRef,
+  PipelinePlugin, PipelineResult, PipelineRunContext, PipelineStep, PipelineStepContribution,
+  PipelineStepMapping,
+} from './runner/types.js'
+import type { StepResults } from './results/types.js'
+import { DEFAULT_PIPELINE_PLUGIN_ORDER, MAX_INQUIRY_ROUNDS } from './consts.local.js'
+import type { LooseGraph } from './runner/types.local.js'
+
+const log = logger('agent:pipeline')
+
+/**
+ * Plugins seated by alias — a second registration replaces the first in its place — and ordered
+ * by `order`, then by where each alias was first seated.
+ */
+const seatPlugins = <S extends PipelineState, C>(
+  plugins: readonly PipelinePlugin<S, C>[],
+): PipelinePlugin<S, C>[] => {
+  const seats = new Map<string, { plugin: PipelinePlugin<S, C>, index: number }>()
+  plugins.forEach((plugin, index) => {
+    seats.set(plugin.alias, { plugin, index: seats.get(plugin.alias)?.index ?? index })
+  })
+
+  return [...seats.values()]
+    .sort((a, b) =>
+      (a.plugin.order ?? DEFAULT_PIPELINE_PLUGIN_ORDER) - (b.plugin.order ?? DEFAULT_PIPELINE_PLUGIN_ORDER)
+      || a.index - b.index)
+    .map(seat => seat.plugin)
+}
 
 /**
  * Ends a run on purpose, with work left to do.
@@ -35,40 +51,11 @@ const asError = (e: unknown): Error => e instanceof Error ? e : new Error(String
 
 const nowIso = (): string => new Date().toISOString()
 
-/**
- * How many questions ONE composing step may relay for its child before it gives up.
- *
- * A composed pipeline that keeps asking is a pipeline that will never finish, and the parent is the
- * only place with a count to bound it: each round is a fresh child invocation, so nothing else in
- * the stack can see that it is the same step asking again.
- */
-const MAX_INQUIRY_ROUNDS = 8
-
 /** The answers a state carries, as a map. Total: a state that has never been asked has none. */
 const answersIn = (state: unknown, key: string): Record<string, InquiryAnswer> => {
   const held = (state as Record<string, unknown> | null | undefined)?.[key]
 
   return typeof held === 'object' && held != null ? held as Record<string, InquiryAnswer> : {}
-}
-
-/**
- * The graph builder, seen loosely.
- *
- * `StateGraph`'s node names are a generic parameter that only a literal-typed builder chain can
- * satisfy, and a pipeline's nodes come from data. The precision belongs at THIS package's public
- * boundary — `PipelineSpec`, `PipelineStep`, `PipelineModel` are all exact — not in the three lines
- * that hand LangGraph a name it will look up in a map either way.
- */
-interface LooseGraph {
-  addNode: (
-    name: string,
-    fn: (state: unknown) => Promise<Record<string, unknown>>,
-    options?: Record<string, unknown>,
-  ) => LooseGraph
-  addEdge: (start: string | string[], end: string) => LooseGraph
-  compile: (options?: { checkpointer?: BaseCheckpointSaver }) => {
-    invoke: (input: unknown, config?: Record<string, unknown>) => Promise<unknown>
-  }
 }
 
 /**
@@ -92,7 +79,8 @@ interface LooseGraph {
 export const makePipeline = <S extends PipelineState, C>(
   spec: PipelineSpec, options: PipelineOptions<S, C>,
 ): PipelineModel<S, C> => {
-  validatePipelineSpec(spec)
+  const specModel = makePipelineSpecModel(spec)
+  specModel.validate()
 
   const handlers = new Map<string, PipelineStep<S, C>>()
   const faults: string[] = []
@@ -114,7 +102,7 @@ export const makePipeline = <S extends PipelineState, C>(
     throw new PipelineSpecError(`${spec.alias}: ${faults.join('; ')}`)
   }
 
-  const order = orderPipelineSteps(spec)
+  const order = specModel.orderSteps()
   const total = order.length
   const runs = options.runs
   const maxStateChars = options.maxStateChars ?? DEFAULT_MAX_STATE_CHARS
@@ -124,10 +112,42 @@ export const makePipeline = <S extends PipelineState, C>(
   const terminals = spec.steps
     .filter(declared => !spec.steps.some(other => (other.after ?? []).includes(declared.step)))
     .map(declared => declared.step)
+  const seated = seatPlugins(options.plugins ?? [])
+  // Tested at every hook site, so a pipeline that seats nothing awaits nothing it did not await
+  // before the seam existed — not even a no-op — and its parallel steps interleave exactly as they did.
+  const hooked = seated.length > 0
+
+  /**
+   * One hook of every seated plugin, in order, collecting what each returned.
+   *
+   * A plugin that throws is logged and skipped: it is an enhancement, and losing one costs what it
+   * adds, never the work. Two things escape — the runner's own stop signal, and an error the
+   * pipeline calls fatal. The caller of this function routes the second down the fatal path.
+   */
+  const eachPlugin = async <T>(
+    hook: string, call: (plugin: PipelinePlugin<S, C>) => T | void | Promise<T | void>,
+  ): Promise<T[]> => {
+    const answers: T[] = []
+    for (const plugin of seated) {
+      try {
+        const answer = await call(plugin)
+        if (answer != null) {
+          answers.push(answer)
+        }
+      } catch (e) {
+        if (isStop(e) || options.fatal?.(e) === true) {
+          throw e
+        }
+        log.warn('Pipeline plugin failed', { plugin: plugin.alias, hook, alias: spec.alias, error: e })
+      }
+    }
+
+    return answers
+  }
 
   /** The copy of an answer this pipeline's STATE is allowed to hold. */
   const forState = (answer: InquiryAnswer): InquiryAnswer =>
-    stateAnswerOf(capAnswer(answer, maxAnswerChars))
+    inquiryHelper.stateAnswerOf(inquiryHelper.capAnswer(answer, maxAnswerChars))
 
   /**
    * Fold every source of answers into the live state, later sources winning per id.
@@ -161,7 +181,9 @@ export const makePipeline = <S extends PipelineState, C>(
       signal?: AbortSignal
       onProgress?: (progress: PipelineProgress) => void
     },
+    entry: { mode: PipelineEnterMode, parent?: PipelineParentRef },
   ): Promise<PipelineResult<S>> => {
+    const startedAt = Date.now()
     const deadline = args.budgetMs != null ? Date.now() + args.budgetMs : undefined
     const controller = new AbortController()
     const onAbort = (): void => controller.abort()
@@ -194,7 +216,7 @@ export const makePipeline = <S extends PipelineState, C>(
         args.onProgress?.(progress)
       } catch (e) {
         // Progress is narration. A consumer that throws must not take the work with it.
-        console.warn(`Pipeline progress reporter failed for ${spec.alias}:`, e)
+        log.warn('Pipeline progress reporter failed', { alias: spec.alias, error: e })
       }
     }
 
@@ -262,6 +284,9 @@ export const makePipeline = <S extends PipelineState, C>(
         `[pipe:${spec.alias}:${row.runId}] row saved · completed=${row.completed.length}`
         + `/${total} chars=${row.stateChars}`,
       )
+      log.debug('Pipeline row saved', {
+        alias: spec.alias, runId: row.runId, completed: row.completed.length, steps: total, chars: row.stateChars,
+      })
     }
 
     const contextFor = (step: string): PipelineRunContext<S, C> => {
@@ -298,7 +323,7 @@ export const makePipeline = <S extends PipelineState, C>(
             : null
 
           if (answer != null) {
-            const capped = capAnswer({ ...answer, inquiryId: inquiry.id }, maxAnswerChars)
+            const capped = inquiryHelper.capAnswer({ ...answer, inquiryId: inquiry.id }, maxAnswerChars)
             // The state keeps the DECISION and a short excerpt of any prose; the step is handed the
             // whole answer. A state is scalars and keys, and two long answers would spend a
             // pipeline's whole state budget on text nothing replays from.
@@ -310,7 +335,7 @@ export const makePipeline = <S extends PipelineState, C>(
             // person has already answered to be asked again on the next entry.
             await ctx.mark({
               [answersKey]: {
-                ...answersIn(live, answersKey), [inquiry.id]: stateAnswerOf(capped),
+                ...answersIn(live, answersKey), [inquiry.id]: inquiryHelper.stateAnswerOf(capped),
               },
             } as Partial<S>)
 
@@ -334,7 +359,7 @@ export const makePipeline = <S extends PipelineState, C>(
           } catch (e) {
             // The terminal write freezes the state instead of re-serializing it, so the run still
             // parks with its question on the row.
-            console.warn(`Pipeline ${spec.alias}:${step} could not save the state it parked on:`, e)
+            log.warn('Pipeline could not save the state it parked on', { alias: spec.alias, step, error: e })
           }
 
           throw new PipelineStopSignal('inquiry')
@@ -342,6 +367,27 @@ export const makePipeline = <S extends PipelineState, C>(
       }
 
       return ctx
+    }
+
+    /**
+     * `passStep` of every plugin. Called where no step body is running — a guard skip, an optional
+     * failure already caught — so a fatal plugin error is routed down the fatal path HERE, exactly
+     * as the step's own catch would route a fatal step error.
+     */
+    const passing = async (
+      step: string, ctx: PipelineRunContext<S, C>, reason: 'skipped' | 'failed', error?: Error,
+    ): Promise<void> => {
+      try {
+        await eachPlugin('passStep', plugin => plugin.passStep?.({
+          step, ctx, state: live as Readonly<S>, reason, ...(error != null ? { error } : {}),
+        }))
+      } catch (e) {
+        if (!isStop(e)) {
+          outcome.fatal = e
+          outcome.failedAt = step
+        }
+        throw e
+      }
     }
 
     const nodeFor = (declared: PipelineStepSpec) =>
@@ -359,6 +405,7 @@ export const makePipeline = <S extends PipelineState, C>(
         // engine decides to replay, which is what makes a resume correct with no checkpointer.
         if (seeded.has(step)) {
           trace(`[pipe:${spec.alias}:${row.runId}] step ${index}/${total} ${step} (inherited)`)
+          log.debug('Pipeline step inherited', { alias: spec.alias, runId: row.runId, step, index, steps: total })
           report({ pipeline: spec.alias, runId: row.runId, step, index, total, skipped: true })
 
           return { completed: [step] }
@@ -379,23 +426,47 @@ export const makePipeline = <S extends PipelineState, C>(
             outcome.error = asError(e)
             throw e
           }
-          console.warn(`Pipeline guard for ${spec.alias}:${step} failed, running the step:`, e)
+          log.warn('Pipeline guard failed, running the step', { alias: spec.alias, step, error: e })
         }
 
         if (skip) {
           trace(`[pipe:${spec.alias}:${row.runId}] step ${index}/${total} ${step} (skip)`)
+          log.debug('Pipeline step skipped', { alias: spec.alias, runId: row.runId, step, index, steps: total })
           report({ pipeline: spec.alias, runId: row.runId, step, index, total, skipped: true })
+          if (hooked) {
+            await passing(step, ctx, 'skipped')
+          }
           await commit({ completed: step })
 
           return { completed: [step] }
         }
 
         trace(`[pipe:${spec.alias}:${row.runId}] step ${index}/${total} ${step} (run)`)
+        log.debug('Pipeline step started', { alias: spec.alias, runId: row.runId, step, index, steps: total })
         report({ pipeline: spec.alias, runId: row.runId, step, index, total })
 
         try {
+          if (hooked) {
+            const offered = await eachPlugin<PipelineStepContribution>('beforeStep', plugin => plugin.beforeStep?.({
+              step, ctx, state: live as Readonly<S>,
+            }))
+            const results = offered.find(contribution => contribution.results != null)?.results
+            if (results != null) {
+              // Only ever set when a plugin offers it: a step of a pipeline that seats none must
+              // not even see the key.
+              (ctx as { results?: StepResults }).results = results
+            }
+          }
           const patch = (await handler.run(live as Readonly<S>, ctx)) ?? {}
           Object.assign(live, patch)
+          if (hooked) {
+            // Before the commit that marks the step complete, so whatever a plugin persists about
+            // the step lands before the step is durably done — a crash between the two leaves the
+            // step to be run again, never a done step with nothing recorded about it.
+            await eachPlugin('afterStep', plugin => plugin.afterStep?.({
+              step, ctx, state: live as Readonly<S>, patch: patch as Partial<S>,
+            }))
+          }
           await commit({ completed: step })
           if (outcome.failedAt === step) {
             // A retry that succeeded. Nothing failed here after all.
@@ -422,7 +493,10 @@ export const makePipeline = <S extends PipelineState, C>(
           }
           if (declared.optional === true) {
             const warning = `${step}: ${asError(e).message}`
-            console.warn(`Pipeline ${spec.alias}:${step} failed and is optional:`, e)
+            log.warn('Pipeline optional step failed', { alias: spec.alias, runId: row.runId, step, error: e })
+            if (hooked) {
+              await passing(step, ctx, 'failed', asError(e))
+            }
             await commit({ completed: step, warning })
 
             return { completed: [step], warnings: [warning] }
@@ -476,7 +550,66 @@ export const makePipeline = <S extends PipelineState, C>(
       options.checkpointer != null ? { checkpointer: options.checkpointer } : undefined,
     )
 
+    const resultOf = (error: Error | null = outcome.error): PipelineResult<S> => ({
+      runId: row.runId,
+      status: row.status,
+      state: live,
+      completed: [...row.completed],
+      pending: [...row.pending],
+      warnings: [...row.warnings],
+      ...(row.failedAt != null && row.failedAt !== '' ? { failedAt: row.failedAt } : {}),
+      ...(error != null ? { error } : {}),
+      ...(row.note != null ? { note: row.note } : {}),
+      ...(row.inquiry != null ? { inquiry: row.inquiry } : {}),
+    })
+
+    /**
+     * `exit` of every plugin, with the result the caller is about to receive. On a run already
+     * leaving with a fatal error nothing more may escape; otherwise a fatal plugin error takes the
+     * fatal path — the row written `Failed` first, then the error rethrown.
+     */
+    const exiting = async (result: PipelineResult<S>, escaping: boolean): Promise<void> => {
+      try {
+        await eachPlugin('exit', plugin => plugin.exit?.({
+          spec, runId: row.runId, deps: args.deps, result,
+        }))
+      } catch (e) {
+        if (escaping) {
+          log.warn('Pipeline plugin failed on exit', { alias: spec.alias, runId: row.runId, error: e })
+          return
+        }
+        await commit({
+          status: PipelineRunStatus.Failed,
+          failedAt: row.completed[row.completed.length - 1] ?? order[0],
+          error: asError(e).message,
+          freezeState: true,
+        }).catch(saveError => log.error('Pipeline could not record a fatal outcome', saveError))
+        throw e
+      }
+    }
+
     try {
+      if (hooked) {
+        try {
+          await eachPlugin('enter', plugin => plugin.enter?.({
+            spec,
+            runId: row.runId,
+            scope: row.scope,
+            ...(row.entityId != null ? { entityId: row.entityId } : {}),
+            deps: args.deps,
+            mode: entry.mode,
+            inherited: order.filter(step => seeded.has(step)),
+            state: live as Readonly<S>,
+            ...(entry.parent != null ? { parent: entry.parent } : {}),
+          }))
+        } catch (e) {
+          // Only a fatal error or a stop gets here; a fatal one is recorded the way a step's is.
+          if (!isStop(e)) {
+            outcome.fatal = e
+          }
+          throw e
+        }
+      }
       await compiled.invoke(
         { state: { ...live }, completed: [...row.completed], warnings: [...row.warnings] },
         {
@@ -488,6 +621,9 @@ export const makePipeline = <S extends PipelineState, C>(
       )
       if (outcome.stopped == null) {
         await commit({ status: PipelineRunStatus.Done })
+        log.info('Pipeline completed', {
+          alias: spec.alias, runId: row.runId, ms: Date.now() - startedAt, completed: row.completed.length, steps: total,
+        }, { event: 'job.complete' })
       }
     } catch (e) {
       if (isStop(e) || outcome.stopped != null) {
@@ -499,13 +635,24 @@ export const makePipeline = <S extends PipelineState, C>(
             : `stopped: ${outcome.stopped ?? 'budget'}`,
           freezeState: true,
         })
+        log.info('Pipeline stopped', {
+          alias: spec.alias, runId: row.runId, reason: outcome.stopped ?? 'budget', ms: Date.now() - startedAt,
+          completed: row.completed.length, steps: total,
+        }, { event: 'job.stop' })
       } else if (outcome.fatal != null) {
         await commit({
           status: PipelineRunStatus.Failed,
           failedAt: outcome.failedAt ?? row.completed[row.completed.length - 1] ?? order[0],
           error: asError(outcome.fatal).message,
           freezeState: true,
-        }).catch(saveError => console.error('Pipeline could not record a fatal outcome:', saveError))
+        }).catch(saveError => log.error('Pipeline could not record a fatal outcome', saveError))
+        log.error('Pipeline failed', {
+          alias: spec.alias, runId: row.runId, step: row.failedAt, ms: Date.now() - startedAt,
+          completed: row.completed.length, message: asError(outcome.fatal).message, error: asError(outcome.fatal),
+        }, { event: 'job.fail' })
+        if (hooked) {
+          await exiting(resultOf(asError(outcome.fatal)), true)
+        }
         throw outcome.fatal
       } else {
         outcome.error = outcome.error ?? asError(e)
@@ -514,24 +661,22 @@ export const makePipeline = <S extends PipelineState, C>(
           failedAt: outcome.failedAt ?? '',
           error: outcome.error.message,
           freezeState: true,
-        }).catch(saveError => console.error('Pipeline could not record a failure:', saveError))
+        }).catch(saveError => log.error('Pipeline could not record a failure', saveError))
+        log.warn('Pipeline failed', {
+          alias: spec.alias, runId: row.runId, step: outcome.failedAt ?? '', ms: Date.now() - startedAt,
+          completed: row.completed.length, message: outcome.error.message, error: outcome.error,
+        }, { event: 'job.fail' })
       }
     } finally {
       args.signal?.removeEventListener('abort', onAbort)
     }
 
-    return {
-      runId: row.runId,
-      status: row.status,
-      state: live,
-      completed: [...row.completed],
-      pending: [...row.pending],
-      warnings: [...row.warnings],
-      ...(row.failedAt != null && row.failedAt !== '' ? { failedAt: row.failedAt } : {}),
-      ...(outcome.error != null ? { error: outcome.error } : {}),
-      ...(row.note != null ? { note: row.note } : {}),
-      ...(row.inquiry != null ? { inquiry: row.inquiry } : {}),
+    const result = resultOf()
+    if (hooked) {
+      await exiting(result, false)
     }
+
+    return result
   }
 
   const freshRow = (args: PipelineInvokeArgs<C>): PipelineRun => ({
@@ -594,8 +739,14 @@ export const makePipeline = <S extends PipelineState, C>(
         `[pipe:${spec.alias}:${row.runId}] ${resuming ? 'continue' : 'start'}`
         + ` · steps=${total} inherited=${seeded.size} attempt=${row.attempts}`,
       )
+      log.info(resuming ? 'Pipeline continued' : 'Pipeline started', {
+        alias: spec.alias, runId: row.runId, steps: total, inherited: seeded.size, attempt: row.attempts,
+      }, { event: resuming ? 'job.continue' : 'job.start' })
 
-      return await execute(row, live, seeded, args)
+      return await execute(row, live, seeded, args, {
+        mode: args.restart === true ? 'restart' : resuming ? 'continue' : 'fresh',
+        ...(args.parent != null ? { parent: args.parent } : {}),
+      })
     },
 
     resume: async (runId, args) => {
@@ -616,9 +767,9 @@ export const makePipeline = <S extends PipelineState, C>(
 
       let completed = [...existing.completed]
       if (args.from != null) {
-        const rerun = pipelineDescendants(spec, args.from)
+        const rerun = specModel.descendants(args.from)
         const blocked = rerun.filter(step =>
-          completed.includes(step) && pipelineStep(spec, step)?.nonIdempotent === true)
+          completed.includes(step) && specModel.stepOf(step)?.nonIdempotent === true)
         if (blocked.length > 0 && args.force !== true) {
           throw new PipelineNotIdempotentError(`${runId}:${blocked.join(',')}`)
         }
@@ -649,8 +800,12 @@ export const makePipeline = <S extends PipelineState, C>(
         + `${args.from != null ? ` from=${args.from}` : ''} inherited=${completed.length}/${total}`
         + ` attempt=${row.attempts}`,
       )
+      log.info('Pipeline resumed', {
+        alias: spec.alias, runId, steps: total, inherited: completed.length, attempt: row.attempts,
+        ...(args.from != null ? { from: args.from } : {}),
+      }, { event: 'job.resume' })
 
-      return await execute(row, live, new Set(completed), args)
+      return await execute(row, live, new Set(completed), args, { mode: 'continue' })
     },
 
     snapshot: async runId => (await runs?.load(runId)) ?? null,
@@ -681,6 +836,14 @@ export const makePipeline = <S extends PipelineState, C>(
               return remaining != null ? { budgetMs: remaining } : {}
             })(),
             signal: ctx.signal,
+            // Where the child sits, for its plugins: a results ledger shared with the parent, and
+            // the parent's view for this step as what the child's first step starts from.
+            parent: {
+              pipeline: ctx.spec.alias,
+              runId: ctx.runId,
+              step,
+              ...(ctx.results != null ? { results: ctx.results } : {}),
+            },
           })
 
           if (result.status === PipelineRunStatus.Waiting) {

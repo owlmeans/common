@@ -1,15 +1,11 @@
 import type { FC } from 'react'
 import { useContext } from '@owlmeans/client'
 import { useI18nLib } from '@owlmeans/client-i18n'
-import { resolveCredit } from '@owlmeans/client-auth/login'
-import type { ResolvedCredit } from '@owlmeans/client-auth/login'
+import { resolveCredit, type ResolvedCredit } from '@owlmeans/client-auth/login'
 import type { CommonConfig } from '@owlmeans/config'
 import { cn } from '../../@/lib/utils.js'
-import { OWLMEANS_URL } from '../login/credit.js'
-
-export interface ShellCreditProps {
-  className?: string
-}
+import { OWLMEANS_URL } from '../login/consts.js'
+import type { ShellCreditProps } from './types.js'
 
 /**
  * The platform credit and the owner's own copyright notice, resolved from the same

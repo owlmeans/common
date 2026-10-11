@@ -1,14 +1,14 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 import type { Page } from '@owlmeans/test-ui'
-import { CONSENT_KEY, CONSENT_LINK_MAX_AGE, CONSENT_LINK_PARAM, encodeConsentLink } from '@owlmeans/consent'
+import { CONSENT_KEY, CONSENT_LINK_MAX_AGE, CONSENT_LINK_PARAM, consentLinkHelper } from '@owlmeans/consent'
 import { HARNESS_URL } from './context.js'
 
 // Browser work does not fit the 5s default: a cold harness compiles the app on first request.
 const TIMEOUT = 60_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 const base = HARNESS_URL.replace(/\/$/, '')
@@ -58,7 +58,7 @@ describe('@owlmeans/web-consent — the linker: domain disclosure', () => {
 
 describe('@owlmeans/web-consent — the linker: adoption', () => {
   test('a fresh, correctly-referred link is adopted: no dialog, storage written, URL clean', async () => {
-    const owlcc = encodeConsentLink({ essential: true, analytics: true, marketing: false })
+    const owlcc = consentLinkHelper.encodeConsentLink({ essential: true, analytics: true, marketing: false })
     const { page, close } = await mountComponent({ url: `${base}/`, waitUntil: 'commit' })
     try {
       await page.goto(`${base}/?linker=1&owlcc=${owlcc}`, {
@@ -83,7 +83,7 @@ describe('@owlmeans/web-consent — the linker: adoption', () => {
   }, TIMEOUT)
 
   test('no referrer at all: the dialog still shows, and the parameter is still stripped', async () => {
-    const owlcc = encodeConsentLink({ essential: true, analytics: true, marketing: true })
+    const owlcc = consentLinkHelper.encodeConsentLink({ essential: true, analytics: true, marketing: true })
     const { page, close } = await mountComponent({
       url: `${base}/?linker=1&owlcc=${owlcc}`, waitUntil: 'domcontentloaded',
     })
@@ -96,7 +96,7 @@ describe('@owlmeans/web-consent — the linker: adoption', () => {
   }, TIMEOUT)
 
   test('a foreign (unlisted) referrer: refused, dialog shows', async () => {
-    const owlcc = encodeConsentLink({ essential: true, analytics: true, marketing: true })
+    const owlcc = consentLinkHelper.encodeConsentLink({ essential: true, analytics: true, marketing: true })
     const { page, close } = await mountComponent({ url: `${base}/`, waitUntil: 'commit' })
     try {
       await page.goto(`${base}/?linker=1&owlcc=${owlcc}`, {
@@ -130,7 +130,7 @@ describe('@owlmeans/web-consent — the linker: adoption', () => {
         ([key, value]) => window.localStorage.setItem(key as string, value as string),
         [CONSENT_KEY, JSON.stringify({ essential: true, analytics: false, marketing: false, v: 2 })]
       )
-      const owlcc = encodeConsentLink({ essential: true, analytics: true, marketing: true })
+      const owlcc = consentLinkHelper.encodeConsentLink({ essential: true, analytics: true, marketing: true })
       await page.goto(`${base}/?linker=1&owlcc=${owlcc}`, {
         waitUntil: 'domcontentloaded', referer: `${PARTNER_ORIGIN}/`,
       })

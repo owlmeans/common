@@ -1,6 +1,6 @@
-import { postgresGate, randomNamespace } from '@owlmeans/test-integration'
+import { randomNamespace, gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, PostgresEnv } from '@owlmeans/test-integration'
-import { PgAutoSync, resetDeclarations } from '@owlmeans/postgres-resource'
+import { PgAutoSync, pgDeclarationHelper } from '@owlmeans/postgres-resource'
 import { config, makeServerContext } from '@owlmeans/server-context'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import { Pool } from 'pg'
@@ -17,7 +17,7 @@ import { appendMarketingConsentPostgres } from '../src/index.js'
  * importing the sibling package's own `tests/context.ts`, which is test-only source that no
  * package exports.
  */
-export const gate: IntegrationGate<PostgresEnv> = postgresGate()
+export const gate: IntegrationGate<PostgresEnv> = gateHelper.postgresGate()
 
 const url = (): string => gate.env.POSTGRES_URL as string
 
@@ -48,8 +48,8 @@ export const makeSuite = (label: string): Suite => {
 
   const boot = async (): Promise<Booted> => {
     /** A fresh declaration per suite run — this spec simulates a freshly started process. */
-    resetDeclarations(RES_MARKETING_CONSENT_STATE)
-    resetDeclarations(RES_MARKETING_CONSENT_LOG)
+    pgDeclarationHelper.resetDeclarations(RES_MARKETING_CONSENT_STATE)
+    pgDeclarationHelper.resetDeclarations(RES_MARKETING_CONSENT_LOG)
 
     const cfg: ServerConfig = config('mc-pg-test', {
       dbs: [{

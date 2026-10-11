@@ -32,5 +32,12 @@
   "privacy": "Polityka prywatności",
   "terms": "Regulamin",
   "domains": "Ten wybór dotyczy: {{domains}}.",
-  "policyDomains": "Ten wybór dotyczy następujących domen:"
+  "policyDomains": "Ten wybór dotyczy następujących domen:",
+  "barTitle": "Pliki cookie w tym serwisie",
+  "barDescription": "Używamy niezbędnych plików cookie, aby serwis działał — do logowania, zapewnienia bezpieczeństwa i zapamiętania Twoich wyborów. Za Twoją zgodą użylibyśmy również tych opcjonalnych plików cookie: {{categories}}. Pozostają wyłączone, dopóki na nie nie zezwolisz, a swój wybór możesz w każdej chwili zmienić lub wycofać w preferencjach plików cookie.",
+  "barDescriptionEssential": "Ten serwis używa wyłącznie niezbędnych plików cookie — do logowania, zapewnienia bezpieczeństwa i zapamiętania Twoich wyborów. Nie wymagają one zgody i nie można ich wyłączyć.",
+  "acceptMandatory": "Akceptuj tylko niezbędne",
+  "locating": "Sprawdzamy Twój region…",
+  "autoReason": "Te ustawienia zastosowano automatycznie, ponieważ tam, skąd przeglądasz serwis, zgoda na pliki cookie nie jest wymagana. Możesz je zmienić w każdej chwili.",
+  "policyRegional": "Tam, gdzie prawo miejsca pobytu odwiedzającego wymaga uprzedniej zgody — w UE i EOG, w Wielkiej Brytanii, Szwajcarii i innych krajach o podobnych przepisach — opcjonalne pliki cookie pozostają wyłączone, dopóki odwiedzający na nie nie zezwoli. W pozostałych krajach są domyślnie włączone, chyba że przeglądarka wysyła sygnał Global Privacy Control, który traktujemy jako odmowę; w każdej chwili można je wyłączyć przyciskiem poniżej."
 }

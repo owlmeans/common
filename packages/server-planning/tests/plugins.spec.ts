@@ -1,3 +1,4 @@
+import { configureLog, logConfig } from '@owlmeans/log'
 import { describe, expect, test } from 'bun:test'
 import { CommitState, PlanningRefused, TransitionAction, WorkcardKind } from '@owlmeans/planning'
 import { makeMemoryPlanningStore } from '../src/store/memory.js'
@@ -66,8 +67,8 @@ describe('@owlmeans/server-planning — plugins', () => {
       ],
     }, { sync: false })
     const planning = facade()
-    const errors = console.error
-    console.error = () => undefined
+    const { level } = logConfig()
+    configureLog({ level: 'silent' })
     try {
       const receipt = await planning.execute({ card: { kind: WorkcardKind.Project, type: PROJECT, title: 'Later' }, action: TransitionAction.Create })
       expect(receipt.transition.commit.state).toBe(CommitState.Pending)
@@ -80,7 +81,7 @@ describe('@owlmeans/server-planning — plugins', () => {
       expect(seen).toEqual([`${receipt.transition.card}:committed:test`])
       expect((await receipt.committed({ timeout: 100 }))!.title).toBe('Later')
     } finally {
-      console.error = errors
+      configureLog({ level })
     }
   })
 })

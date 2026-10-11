@@ -1,4 +1,4 @@
-import type { IntegrityRule, TargetLayout } from './consts.js'
+import { type IntegrityRule, TargetLayout } from './consts.js'
 
 /** One reason a tree was refused. */
 export interface IntegrityViolation {
@@ -34,4 +34,39 @@ export interface TargetIntegrityReport {
  * The file map handed to the verifier: every path in `TARGET_INTEGRITY_FILES`, with `null` for
  * one that could not be read. The verifier does no IO — see `verifyTargetShape`.
  */
-export type TargetFileMap = Record<string, string | null>
+export interface TargetFileMap {
+  [path: string]: string | null
+}
+
+/**
+ * Everything one layout asserts about a tree.
+ *
+ * One record per layout rather than a set of parallel constants, because the rules are the same
+ * questions asked of a different package set: a rule that exists for one layout and is forgotten
+ * for the other is a hole that nothing fails on.
+ */
+export interface TargetLayoutManifest {
+  layout: TargetLayout
+  /** Directory holding the workspace packages, relative to the sandbox root. */
+  dir: string
+  /** Package directory names, in build order. */
+  packages: readonly string[]
+  /** The one file whose presence identifies this layout and appears in no other. */
+  probe: string
+  /** Every file the verifier reads for this layout. */
+  files: readonly string[]
+  /** Files no user-facing write may touch in a tree of this layout. */
+  protectedFiles: readonly string[]
+  /** The exact `scripts.build` each package must declare. */
+  buildScripts: Readonly<Record<string, string>>
+  /** Framework dependencies without which a package cannot be the generated app. */
+  requiredDeps: Readonly<Record<string, readonly string[]>>
+  /** The workspace siblings each package must depend on. */
+  workspaceDeps: Readonly<Record<string, readonly string[]>>
+  /** The glob spelling of the root manifest's workspace list. */
+  workspaceGlob: string
+  /** The written-out spelling of the same list. */
+  workspaceEntries: readonly string[]
+  /** Markers proving an entry file is still the framework's entry, keyed by file. */
+  markers: Readonly<Record<string, readonly string[]>>
+}

@@ -1,7 +1,6 @@
-import { useRef } from 'react'
-import type { FC, MouseEvent } from 'react'
+import { useRef, type FC, type MouseEvent } from 'react'
 import { useNavigate } from '@owlmeans/client'
-import { defaultNavTranslate } from '@owlmeans/client-panel'
+import { navLabelHelper } from '@owlmeans/client-panel'
 import { cn } from '../../@/lib/utils.js'
 import { Footer } from '../footer/component.js'
 
@@ -9,31 +8,7 @@ import { MobileNav } from './mobile.js'
 import { SideNav } from './side.js'
 import { TopNav } from './top.js'
 import type { NavLayoutProps } from './types.js'
-
-/**
- * The horizontal rhythm of the whole page, applied identically to the header row, the content
- * and the footer row.
- *
- * It lives in ONE constant because the three regions have to agree: a content area with its own
- * width sits visibly inset from a full-width header, which reads as a mistake rather than as a
- * design. Adjust it through `containerClassName`, which is MERGED over this — never by giving
- * the content a width of its own.
- */
-const CONTAINER = 'mx-auto w-full max-w-6xl px-4'
-
-/**
- * Invisible until it takes focus, then a pill in the top-left corner above everything — the
- * inverse of the page's own surface (`bg-foreground text-background`), so it reads on any theme.
- *
- * The padding is focus-only: `sr-only` zeroes padding, but a plain `px-4` sorts after it and wins,
- * which leaves a 32px box behind the clip instead of the 1px one assistive tech expects.
- */
-const SKIP_LINK = [
-  'sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-3',
-  'rounded-full bg-foreground text-sm font-semibold text-background',
-  'outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2',
-  'focus-visible:ring-offset-background',
-].join(' ')
+import { CONTAINER, SKIP_LINK } from './consts.local.js'
 
 /**
  * The standard two-layer application shell.
@@ -51,7 +26,7 @@ const SKIP_LINK = [
  * — and moves focus to `<main id="main">`, past the brand, the menus and the actions.
  */
 export const NavLayout: FC<NavLayoutProps> = ({
-  nav, translate = defaultNavTranslate, title, home, actions, footer, children, className, style,
+  nav, translate = navLabelHelper.defaultNavTranslate, title, home, actions, footer, children, className, style,
   headerClassName, contentClassName, containerClassName, mobileMenu = false, skipLinkLabel,
   themeToggle
 }) => {

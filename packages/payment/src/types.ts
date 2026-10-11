@@ -252,6 +252,14 @@ export interface PricingPolicy {
   currency: {
     /** Stripe Adaptive Pricing (`adaptive_pricing.enabled`) on every checkout session. */
     adaptive?: boolean
+    /**
+     * The conversion fee Adaptive Pricing adds to Stripe's base rate, as a fraction (`0.04` = 4%; Stripe
+     * documents 2–4% and decides it per currency) — a buyer pays `base-rate conversion × (1 + fee)`.
+     * The local-currency line of an estimate applies it, so a quoted total is the one Checkout shows.
+     * Absent: the FX Quotes API's own fee-inclusive rate (its `fx_fee_rate`, 2%), which is what a
+     * conversion through Stripe's FX costs, not what Adaptive Pricing charges. Requires `adaptive`.
+     */
+    adaptiveFeeRate?: number
     /** Serve the "≈ local total" line of an estimate. Requires `currency.adaptive`. */
     estimate: boolean
     /** How long an FX quote may be served from cache. Absent: the gateway's own default. */
@@ -311,10 +319,12 @@ export interface PriceEstimate {
     currency: string
     /**
      * Integration-currency (`currency` above) units per one unit of `local.currency`, fee-inclusive
-     * (Stripe FX Quotes `exchange_rate`, requested `to_currency: currency, from_currencies:
-     * [local.currency]`). A local amount is `amountInCurrency / exchangeRate`.
+     * (Stripe FX Quotes, requested `to_currency: currency, from_currencies: [local.currency]`): the
+     * quote's `base_rate / (1 + currency.adaptiveFeeRate)` when the policy declares the Adaptive Pricing
+     * fee, else the quote's own `exchange_rate`. A local amount is `amountInCurrency / exchangeRate`.
      */
     exchangeRate: number
+    /** The conversion fee `exchangeRate` includes: `currency.adaptiveFeeRate`, else the quote's `fx_fee_rate`. */
     fxFeeRate?: number
   }
 }
@@ -422,6 +432,11 @@ export interface ConsumerRightsPolicy {
   startRequestTtlSeconds?: number
   /** Whether a buyer with a business tax id is exempt. Off by default: everyone is protected. */
   exemptBusinesses?: boolean
+  /**
+   * The copy variant of the performance consent (`^[a-z][a-z0-9-]*$`): its texts are read as
+   * `<key>_<consentContext>` first, the base key where no variant exists. Absent: the base texts.
+   */
+  consentContext?: string
 }
 
 /** An entity's billing country, fixed at the first purchase. */
@@ -469,6 +484,8 @@ export interface PerformanceConsentView {
   language: string
   /** The trader named in the statement. */
   trader: string
+  /** The policy's `consentContext`: the copy variant the statement is rendered with. */
+  context?: string
   textVersion: string
   copyVersion: string
   links: ConsumerRightsLinks
@@ -505,6 +522,11 @@ export interface SubscriptionStartView {
   planSku: string
   language: string
   trader: string
+  /**
+   * The copy variant the statement is rendered with — `startContextOf(plan)`: `'units'` for a plan
+   * with a `units` withdrawal component, absent for one withdrawn pro rata by time only.
+   */
+  context?: string
   textVersion: string
   copyVersion: string
   links: ConsumerRightsLinks
@@ -679,4 +701,65 @@ export interface PlanPriceList {
 
 export interface PlanPricesQuery {
   productSku: string
+}
+
+export interface EntitlementParam {
+  /** Capability scope. Absent means any scope. */
+  scope?: string
+  /** The permission key inside `PermissionSet.permissions`. */
+  permission: string
+  /** Numeric floor: `credits>=100` passes when the held value is a number at least that big. */
+  atLeast?: number
+}
+
+export interface LimitExhaustedDetails {
+  key: string
+  used: number
+  limit: number
+  /** When the window renews. Absent for a limit that never renews. */
+  resetsAt?: Date
+}
+
+export interface PerformanceConsentRequiredDetails {
+  /** How many open purchases wait for consent. */
+  pending: number
+  /** The latest of their deadlines. */
+  deadline?: Date
+}
+
+export interface BillingCountryLockedDetails {
+  /** The locked country. */
+  country: string
+  /** The country the request declared. */
+  requested?: string
+}
+
+export interface CheckoutLimitExceededDetails {
+  /** The key of the narrowing that set the maximum. */
+  reason: string
+  /** The narrowed maximum, net minor units — below the policy minimum when nothing may be bought. */
+  maximumMinor: number
+  currency: string
+  resetsAt?: Date
+}
+
+export interface AmountEstimate {
+  subtotalMinor: number
+  /** `null` when `estimate` cannot be rescaled to this amount (see `TaxEstimate.scalable`). */
+  taxMinor: number | null
+  totalMinor: number | null
+  /**
+   * The subtotal, tax and total in the country's own currency, in major units — present only
+   * alongside a non-`null` `totalMinor`. A UI showing `local` shows ONLY `local` for the tax and
+   * total (marked `≈`, since it is Stripe's own rate at read time, not the checkout rate); the
+   * integration-currency amounts stay the reference for bookkeeping, never a second figure to show
+   * alongside the converted one.
+   */
+  local?: { currency: string; subtotalAmount: number; taxAmount: number; totalAmount: number }
+}
+
+export interface LimitParam {
+  key: string
+  /** How much room the requirement needs. `1` when the parameter states no floor. */
+  atLeast: number
 }

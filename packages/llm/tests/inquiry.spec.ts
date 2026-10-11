@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { DEFAULT_INQUIRY_ANSWER_CHARS, InquiryKind, InquiryPolicy } from '@owlmeans/llm-common'
 import type { Inquiry, InquiryAnswer } from '@owlmeans/llm-common'
-import {
-  DEFAULT_EFFORT, executionInquiry, hasInquiryTransport, inquiryTransportFor, InquiryDeclined,
-  InquiryUnavailable, isFatalError, makeExecutionService, makeLlmService,
-  registerInquiryTransport, releaseInquiryTransport,
-} from '@owlmeans/llm'
+import { DEFAULT_EFFORT, executionInquiry, InquiryDeclined, InquiryUnavailable, makeExecutionService, makeLlmService, inquiryTransportRegistry, retryHelper } from '@owlmeans/llm'
 import type {
   Execution, ExecutionService, ExecutionShape, ProjectExecution, ProjectExecutionInput,
 } from '@owlmeans/llm'
@@ -64,7 +60,7 @@ let asked: Inquiry[]
 
 /** A channel that records what it was asked and answers what the spec told it to. */
 const seat = (answer: (asked: Inquiry) => InquiryAnswer | Promise<InquiryAnswer>): void => {
-  registerInquiryTransport(KEY, {
+  inquiryTransportRegistry.register(KEY, {
     ask: async question => {
       asked.push(question)
 
@@ -85,27 +81,27 @@ beforeEach(() => {
   service = makeExecutionService(`spec-inquiry-${Math.trunc(performance.now() * 1000)}`)
 })
 
-afterEach(() => releaseInquiryTransport(KEY))
+afterEach(() => inquiryTransportRegistry.release(KEY))
 
 describe('@owlmeans/llm — the inquiry transport registry', () => {
   test('a channel is seated under a key and released again', () => {
-    expect(hasInquiryTransport(KEY)).toBe(false)
+    expect(inquiryTransportRegistry.has(KEY)).toBe(false)
     seat(() => ({ inquiryId: 'q1', value: 'mongo' }))
-    expect(hasInquiryTransport(KEY)).toBe(true)
-    expect(inquiryTransportFor(KEY)).toBeDefined()
-    releaseInquiryTransport(KEY)
-    expect(hasInquiryTransport(KEY)).toBe(false)
+    expect(inquiryTransportRegistry.has(KEY)).toBe(true)
+    expect(inquiryTransportRegistry.transportFor(KEY)).toBeDefined()
+    inquiryTransportRegistry.release(KEY)
+    expect(inquiryTransportRegistry.has(KEY)).toBe(false)
   })
 
   test('an unseated key refuses at once rather than waiting for one to arrive', () => {
-    expect(() => inquiryTransportFor(KEY)).toThrow(InquiryUnavailable)
-    expect(() => inquiryTransportFor(undefined)).toThrow(InquiryUnavailable)
+    expect(() => inquiryTransportRegistry.transportFor(KEY)).toThrow(InquiryUnavailable)
+    expect(() => inquiryTransportRegistry.transportFor(undefined)).toThrow(InquiryUnavailable)
   })
 
   test('an absent channel is fatal, so no retry ladder spends itself on it', () => {
-    expect(isFatalError(new InquiryUnavailable('x'))).not.toBeNull()
+    expect(retryHelper.isFatalError(new InquiryUnavailable('x'))).not.toBeNull()
     // A decline is an answer, not a fault: nothing above may abort a run over one.
-    expect(isFatalError(new InquiryDeclined('q1'))).toBeNull()
+    expect(retryHelper.isFatalError(new InquiryDeclined('q1'))).toBeNull()
   })
 })
 

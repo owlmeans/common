@@ -1,14 +1,12 @@
 import { lazy, Suspense, Component, useState } from 'react'
-import type { ComponentType, ReactNode } from 'react'
 import { handler } from './helper.js'
-import { isChunkLoadError, recoverFromChunkError, retryImport } from './lazy-retry.js'
-import type { HandledRenderer } from './utils/route.js'
+import { lazyRetryHelper } from './lazy-retry.js'
+import type { HandledRenderer } from './utils/types.js'
 import type {
   ComponentExport, ExportProps, LazyComponent, LazyComponentOptions, LazyHandler
 } from './types.js'
+import type { LazyErrorBoundaryProps, LazyErrorBoundaryState, LazyModule, Loaded } from './types.local.js'
 
-type Loaded = ComponentType<any>
-type LazyModule = { default: Loaded }
 
 /**
  * Wrap an async module import as a stable lazily-loaded component with a `.preload()`.
@@ -37,7 +35,7 @@ export const lazyComponent = <M, K extends ComponentExport<M>>(
   let loaded: Loaded | undefined
   let loading: Promise<Loaded> | undefined
 
-  const fetchModule = (): Promise<M> => opts?.retry === false ? load() : retryImport(load, opts?.retry)
+  const fetchModule = (): Promise<M> => opts?.retry === false ? load() : lazyRetryHelper.retryImport(load, opts?.retry)
 
   const runLoad = (): Promise<Loaded> => loading ??= fetchModule().then(module => {
     const Comp = (module as unknown as Record<string, Loaded | undefined>)[exportName]
@@ -83,24 +81,6 @@ export const lazyComponent = <M, K extends ComponentExport<M>>(
   return Object.assign(Lazy, { preload }) as unknown as LazyComponent<ExportProps<M, K>>
 }
 
-interface LazyErrorBoundaryProps {
-  error: LazyComponentOptions['error']
-  /** Start the guarded reload for a chunk failure even though `error` is given. */
-  reload: boolean
-  fallback: ReactNode
-  props: Record<string, unknown>
-  /** Swap the failed lazy for the recreated one — batched with the boundary's own reset. */
-  onRetry: () => void
-  children: ReactNode
-}
-
-interface LazyErrorBoundaryState {
-  failed: boolean
-  error: unknown
-  /** A guarded reload has started: keep the fallback up until the new document replaces this one. */
-  reloading?: boolean
-}
-
 class LazyErrorBoundary extends Component<LazyErrorBoundaryProps, LazyErrorBoundaryState> {
   override state: LazyErrorBoundaryState = { failed: false, error: undefined }
 
@@ -112,8 +92,8 @@ class LazyErrorBoundary extends Component<LazyErrorBoundaryProps, LazyErrorBound
     // A chunk that failed for good is recovered by a new document: always without a surface of its
     // own, and with one when asked (`reload`) — a whole screen rather than a piece that degrades.
     // The reload is guarded (once a minute per tab); when the guard refuses, the surface stays.
-    if (isChunkLoadError(error) && (this.props.error === undefined || this.props.reload)) {
-      if (recoverFromChunkError()) {
+    if (lazyRetryHelper.isChunkLoadError(error) && (this.props.error === undefined || this.props.reload)) {
+      if (lazyRetryHelper.recoverFromChunkError()) {
         this.setState({ reloading: true })
       }
     }
@@ -136,7 +116,7 @@ class LazyErrorBoundary extends Component<LazyErrorBoundaryProps, LazyErrorBound
     if (error !== undefined) {
       return typeof error === 'function' ? error(props, this.state.error, this.retry) : error
     }
-    if (isChunkLoadError(this.state.error)) {
+    if (lazyRetryHelper.isChunkLoadError(this.state.error)) {
       return fallback
     }
     // Not a chunk failure and no surface for it: the application's own boundary decides.

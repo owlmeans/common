@@ -1,10 +1,9 @@
-import type { Middleware } from '@owlmeans/context'
-import { MiddlewareType, MiddlewareStage, AppType } from '@owlmeans/context'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { type Middleware, MiddlewareType, MiddlewareStage, AppType } from '@owlmeans/context'
 import { AuthUnknown } from '@owlmeans/auth'
 import { ResilientError } from '@owlmeans/error'
 import { DEFAULT_ALIAS } from '@owlmeans/client-auth'
 import { AuthService } from '@owlmeans/auth-common'
+import type { Perked } from './types.local.js'
 
 export const logoutMiddleware: Middleware = {
   type: MiddlewareType.Context,
@@ -47,6 +46,3 @@ export const logoutMiddleware: Middleware = {
   }
 }
 
-interface Perked extends ClientEntrypoint<unknown> {
-  _auth_web_middleware_applied?: boolean
-}

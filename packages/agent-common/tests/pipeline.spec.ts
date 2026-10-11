@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { InquiryKind } from '@owlmeans/llm-common'
-import {
-  INQUIRY_ANSWERS_KEY, PipelineRunStatus,
-  orderPipelineSteps, pipelineDescendants, pipelineStep, validatePipelineSpec,
-} from '../src/index.js'
+import { INQUIRY_ANSWERS_KEY, PipelineRunStatus, makePipelineSpecModel } from '../src/index.js'
 import type { PipelineRun, PipelineSpec } from '../src/index.js'
 
 /**
@@ -18,25 +15,25 @@ const spec = (steps: PipelineSpec['steps'], version = 1): PipelineSpec =>
 
 describe('agent-common — pipeline spec validation', () => {
   test('accepts a linear spec', () => {
-    expect(() => validatePipelineSpec(spec([
+    expect(() => makePipelineSpecModel(spec([
       { step: 'a' }, { step: 'b', after: ['a'] }, { step: 'c', after: ['b'] },
-    ]))).not.toThrow()
+    ])).validate()).not.toThrow()
   })
 
   test('refuses an empty step list, an empty alias and a bad version at once', () => {
-    expect(() => validatePipelineSpec({ alias: '', version: 0, steps: [] }))
+    expect(() => makePipelineSpecModel({ alias: '', version: 0, steps: [] }).validate())
       .toThrow(/alias is empty.*version.*no steps/s)
   })
 
   test('names EVERY fault in one message rather than the first', () => {
     let message = ''
     try {
-      validatePipelineSpec(spec([
+      makePipelineSpecModel(spec([
         { step: 'a' },
         { step: 'a' },
         { step: 'b', after: ['nope'] },
         { step: 'c', nonIdempotent: true, attempts: 3 },
-      ]))
+      ])).validate()
     } catch (e) {
       message = (e as Error).message
     }
@@ -46,41 +43,41 @@ describe('agent-common — pipeline spec validation', () => {
   })
 
   test('refuses a step that waits on itself', () => {
-    expect(() => validatePipelineSpec(spec([{ step: 'a', after: ['a'] }])))
+    expect(() => makePipelineSpecModel(spec([{ step: 'a', after: ['a'] }])).validate())
       .toThrow(/declares itself/)
   })
 
   test('refuses a cycle', () => {
-    expect(() => validatePipelineSpec(spec([
+    expect(() => makePipelineSpecModel(spec([
       { step: 'a', after: ['c'] }, { step: 'b', after: ['a'] }, { step: 'c', after: ['b'] },
-    ]))).toThrow(/cycle/)
+    ])).validate()).toThrow(/cycle/)
   })
 
   test('refuses attempts below one and a non-positive timeout', () => {
-    expect(() => validatePipelineSpec(spec([{ step: 'a', attempts: 0 }]))).toThrow(/attempts/)
-    expect(() => validatePipelineSpec(spec([{ step: 'a', timeout: 0 }]))).toThrow(/timeout/)
+    expect(() => makePipelineSpecModel(spec([{ step: 'a', attempts: 0 }])).validate()).toThrow(/attempts/)
+    expect(() => makePipelineSpecModel(spec([{ step: 'a', timeout: 0 }])).validate()).toThrow(/timeout/)
   })
 
   test('allows attempts above one on an idempotent step', () => {
-    expect(() => validatePipelineSpec(spec([{ step: 'a', attempts: 3 }]))).not.toThrow()
+    expect(() => makePipelineSpecModel(spec([{ step: 'a', attempts: 3 }])).validate()).not.toThrow()
   })
 })
 
 describe('agent-common — pipeline ordering', () => {
   test('respects `after` and keeps declaration order as the tie-break', () => {
     // `c` and `b` are both ready after `a`; declaration order decides, not a set's iteration.
-    expect(orderPipelineSteps(spec([
+    expect(makePipelineSpecModel(spec([
       { step: 'a' }, { step: 'c', after: ['a'] }, { step: 'b', after: ['a'] },
-    ]))).toEqual(['a', 'c', 'b'])
+    ])).orderSteps()).toEqual(['a', 'c', 'b'])
   })
 
   test('orders a fan-out/join graph so the join comes last', () => {
-    const order = orderPipelineSteps(spec([
+    const order = makePipelineSpecModel(spec([
       { step: 'left' },
       { step: 'right' },
       { step: 'deeper', after: ['right'] },
       { step: 'join', after: ['left', 'deeper'] },
-    ]))
+    ])).orderSteps()
     expect(order.indexOf('join')).toBe(3)
     expect(order.indexOf('deeper')).toBeGreaterThan(order.indexOf('right'))
   })
@@ -89,14 +86,14 @@ describe('agent-common — pipeline ordering', () => {
     const declared = spec([
       { step: 'a' }, { step: 'b' }, { step: 'c', after: ['a', 'b'] }, { step: 'd', after: ['a'] },
     ])
-    expect(orderPipelineSteps(declared)).toEqual(orderPipelineSteps(declared))
+    expect(makePipelineSpecModel(declared).orderSteps()).toEqual(makePipelineSpecModel(declared).orderSteps())
   })
 
   test('throws on an unknown `after` and on a cycle', () => {
-    expect(() => orderPipelineSteps(spec([{ step: 'a', after: ['ghost'] }]))).toThrow(/unknown step/)
-    expect(() => orderPipelineSteps(spec([
+    expect(() => makePipelineSpecModel(spec([{ step: 'a', after: ['ghost'] }])).orderSteps()).toThrow(/unknown step/)
+    expect(() => makePipelineSpecModel(spec([
       { step: 'a', after: ['b'] }, { step: 'b', after: ['a'] },
-    ]))).toThrow(/cycle/)
+    ])).orderSteps()).toThrow(/cycle/)
   })
 })
 
@@ -110,21 +107,21 @@ describe('agent-common — descendants', () => {
   ])
 
   test('a step and everything that transitively waits on it, in order', () => {
-    expect(pipelineDescendants(graph, 'b')).toEqual(['b', 'd'])
-    expect(pipelineDescendants(graph, 'a')).toEqual(['a', 'b', 'c', 'd'])
+    expect(makePipelineSpecModel(graph).descendants('b')).toEqual(['b', 'd'])
+    expect(makePipelineSpecModel(graph).descendants('a')).toEqual(['a', 'b', 'c', 'd'])
   })
 
   test('leaves an unrelated branch alone', () => {
-    expect(pipelineDescendants(graph, 'b')).not.toContain('aside')
+    expect(makePipelineSpecModel(graph).descendants('b')).not.toContain('aside')
   })
 
   test('refuses a step the spec does not declare', () => {
-    expect(() => pipelineDescendants(graph, 'ghost')).toThrow(/pipeline-step/)
+    expect(() => makePipelineSpecModel(graph).descendants('ghost')).toThrow(/pipeline-step/)
   })
 
   test('pipelineStep answers null rather than throwing', () => {
-    expect(pipelineStep(graph, 'ghost')).toBeNull()
-    expect(pipelineStep(graph, 'a')?.step).toBe('a')
+    expect(makePipelineSpecModel(graph).stepOf('ghost')).toBeNull()
+    expect(makePipelineSpecModel(graph).stepOf('a')?.step).toBe('a')
   })
 })
 

@@ -5,7 +5,7 @@ import type { RoutedComponent } from '@owlmeans/client'
 import { useI18nLib } from '@owlmeans/client-i18n'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { makeFlowModel } from '@owlmeans/flow'
-import { normalizeUserCode, oauthFlow, OAuthFlowStep, OAUTH_PAYLOAD_REF } from '@owlmeans/oauth'
+import { oauthFlow, oauthFormatHelper, OAuthFlowStep, OAUTH_PAYLOAD_REF } from '@owlmeans/oauth'
 import { OAUTH_I18N } from '../consts.js'
 import { Button } from '../@/components/ui/button.js'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../@/components/ui/card.js'
@@ -29,7 +29,7 @@ export const OAuthDeviceScreen: RoutedComponent = () => {
   const proceed = useCallback(async (typed: string) => {
     const model = await makeFlowModel(oauthFlow)
     model.enter(OAuthFlowStep.Verify)
-    model.updatePayload({ [OAUTH_PAYLOAD_REF]: normalizeUserCode(typed) })
+    model.updatePayload({ [OAUTH_PAYLOAD_REF]: oauthFormatHelper.normalizeUserCode(typed) })
     model.transit('next', true)
     const destination = model.step()
     await nav.navigate(

@@ -190,3 +190,12 @@ export interface AllowanceResponse {
 export interface AuthToken {
   token: string
 }
+
+/**
+ * Shape of the value packed into `AuthCredentials.credential` by the supervisor
+ * web plugin: the client `salt` plus the `signature` over `buildSupervisorPayload`.
+ */
+export interface SupervisorCredentialPayload {
+  salt: string
+  signature: string
+}

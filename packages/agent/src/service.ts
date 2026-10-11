@@ -1,20 +1,14 @@
-import { createService } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { AGENTS_SERVICE, agentFlows } from '@owlmeans/agent-common'
-import type { ConversationRef } from '@owlmeans/agent-common'
-import { DEFAULT_EVENT_WINDOW } from '@owlmeans/agent-common'
+import { createService, type BasicConfig, type BasicContext } from '@owlmeans/context'
+import { AGENTS_SERVICE, agentFlows, type ConversationRef, DEFAULT_EVENT_WINDOW } from '@owlmeans/agent-common'
+import { logger } from '@owlmeans/log'
 import { DEFAULT_PLUGIN_ORDER } from './consts.js'
 import { makeAgentModel } from './model.js'
 import { makePipeline } from './pipeline/runner.js'
 import { makeStaticFlowProvider } from './runtime/provider.js'
 import { inProcessTransport } from './runtime/transport.js'
-import type {
-  AgentModel, AgentPlugin, AgentService, AgentServiceOptions, ConversationApi, WithAgentsService,
-} from './types.js'
+import type { AgentModel, AgentPlugin, AgentService, AgentServiceOptions, ConversationApi, WithAgentsService, AgentServiceApi } from './types.js'
 
-export type AgentServiceApi = Pick<
-  AgentService, 'agent' | 'use' | 'plugins' | 'flow' | 'transport' | 'conversation' | 'pipeline'
->
+const log = logger('agent')
 
 /**
  * The service body, without context registration.
@@ -72,7 +66,7 @@ export const agentServiceApi = (
           checkpointer = await plugin.checkpointer?.(pipelineOptions.scope)
         } catch (e) {
           // A checkpointer that cannot be built costs replay, never the work.
-          console.warn(`Agent plugin ${plugin.alias} could not supply a checkpointer:`, e)
+          log.warn('Agent plugin could not supply a checkpointer', { plugin: plugin.alias, error: e })
         }
       }
 

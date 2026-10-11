@@ -20,8 +20,8 @@ Keys are addressed as: `(namespace, resource.prefix.key)`.
 
 | Who registers | Helper | namespace | key path |
 |---|---|---|---|
-| `@owlmeans/*` library package | `addI18nLib` | `'lib'` | `resource.prefix.key` |
-| App or shared project package | `addI18nApp` | resource name | `resource.prefix.key` |
+| `@owlmeans/*` library package | `i18nHelper.addI18nLib` | `'lib'` | `resource.prefix.key` |
+| App or shared project package | `i18nHelper.addI18nApp` | resource name | `resource.prefix.key` |
 
 The **resource name** is a stable identifier for the registering package, e.g. `'errors'`, `'payment'`, `'viable-manager-web'`.
 
@@ -31,7 +31,7 @@ A key like `t('title')` resolves to `namespace : resource.prefix.key`. The prefi
 
 Example chain:
 ```
-addI18nApp('en', 'viable-manager-web', data)
+i18nHelper.addI18nApp('en', 'viable-manager-web', data)
 // data = { "home-screen": { "title": "Welcome" } }
 
 const t = useI18nApp(undefined, 'home-screen')
@@ -83,14 +83,14 @@ fallbacks; a surrounding `PanelContext` is what redirects it.
 ## App-level override of library strings
 
 App-tier registrations deep-merge over Library-tier for the same `(ns, resource)` — and the
-namespace has to be said out loud, because `addI18nApp` defaults it to the **resource** name while
-the library's bundle sits in `lib`:
+namespace has to be said out loud, because `i18nHelper.addI18nApp` defaults it to the **resource**
+name while the library's bundle sits in `lib`:
 ```typescript
 import '@owlmeans/error'                              // Library tier: lib:errors.*
-import { addI18nApp, LIB_NAMESPACE } from '@owlmeans/i18n'
+import { i18nHelper, LIB_NAMESPACE } from '@owlmeans/i18n'
 import myErrors from './i18n/en.json'
 
-addI18nApp('en', 'errors', myErrors, { ns: LIB_NAMESPACE })   // App tier wins for matching keys
+i18nHelper.addI18nApp('en', 'errors', myErrors, { ns: LIB_NAMESPACE })   // App tier wins for matching keys
 ```
 
 Drop `{ ns: LIB_NAMESPACE }` and the app bundle lands in namespace `errors` while `useI18nLib('errors')`
@@ -107,8 +107,9 @@ When adding translatable strings to any package:
 
 A library package (`@owlmeans/*`) always registers every language synchronously at import: it has
 no boot step that could await a loader, and a bundle registered after its slot was first drained
-never renders. An APPLICATION may instead defer a language's pack with `addI18nLoader`, provided it
-`await`s `prepareI18n(config)` before its first render (`i18n`, `client-i18n` skills).
+never renders. An APPLICATION may instead defer a language's pack with `i18nHelper.addI18nLoader`,
+provided it `await`s `i18nInstanceHelper.prepareI18n(config)` before its first render (`i18n`,
+`client-i18n` skills).
 
 ## Language switcher
 

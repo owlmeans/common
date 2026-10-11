@@ -1,15 +1,7 @@
-import { backend } from '@owlmeans/route'
-import type { RouteDeclaration, RouteModel, RouteOptions } from '@owlmeans/route'
-import { UnknownQueue } from './errors.js'
-
-/** The transport identifier owned by the queue package. */
-export const QUEUE_PROTOCOL = 'queue' as const
-
-/** Queue-owned options stored in a generic route declaration. */
-export interface QueueRouteOptions extends Omit<RouteOptions, 'protocol' | 'protocolOptions'> {
-  queue: string
-  reply?: boolean
-}
+import { backend, type RouteDeclaration, type RouteModel, type RouteOptions } from '@owlmeans/route'
+import { QUEUE_PROTOCOL } from './consts.js'
+import type { QueueRouteOptions } from './types.js'
+import { queueRouteHelper } from './queue-route.js'
 
 /** Declare a backend route carried by a queue. */
 export const job = (
@@ -23,26 +15,9 @@ export const job = (
   return declaration
 }
 
-/** Whether a declaration belongs to the queue transport. */
-export const isQueueRoute = (route: RouteDeclaration | RouteModel): boolean =>
-  ('route' in route ? route.route : route).protocol === QUEUE_PROTOCOL
+/** @deprecated compat:factory-refactor — use `queueRouteHelper.isQueueRoute(…)` */
+export const isQueueRoute = (route: RouteDeclaration | RouteModel): boolean => queueRouteHelper.isQueueRoute(route)
 
-/** Read and validate queue-owned route options. */
-export const queueRouteOptions = (
-  route: RouteDeclaration | RouteModel,
-): Pick<QueueRouteOptions, 'queue' | 'reply'> => {
-  const declaration = 'route' in route ? route.route : route
-  if (declaration.protocol !== QUEUE_PROTOCOL
-    || declaration.protocolOptions == null
-    || typeof declaration.protocolOptions !== 'object') {
-    throw new UnknownQueue(`${declaration.alias}: not a queue protocol`)
-  }
-  const options = declaration.protocolOptions as Record<string, unknown>
-  if (typeof options.queue !== 'string' || options.queue.trim() === '') {
-    throw new UnknownQueue(`${declaration.alias}: route declares no queue`)
-  }
-  if (options.reply != null && typeof options.reply !== 'boolean') {
-    throw new UnknownQueue(`${declaration.alias}: invalid queue reply option`)
-  }
-  return { queue: options.queue, reply: options.reply as boolean | undefined }
-}
+/** @deprecated compat:factory-refactor — use `queueRouteHelper.queueRouteOptions(…)` */
+export const queueRouteOptions = (route: RouteDeclaration | RouteModel): Pick<QueueRouteOptions, 'queue' | 'reply'> =>
+  queueRouteHelper.queueRouteOptions(route)

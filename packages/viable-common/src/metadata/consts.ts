@@ -116,3 +116,40 @@ export const METADATA_SUFFIXES = [SPEC_SUFFIX, UX_SUFFIX, UI_SUFFIX]
 
 /** The trees the pipeline writes into — excluded wholesale when source files are enumerated. */
 export const METADATA_DIRS = [HARNESS_DIR, DOCS_DIR]
+
+export enum MetadataKind {
+  Project = 'project',
+  Story = 'story',
+  Source = 'source',
+  History = 'history',
+}
+
+export enum MetadataListKind {
+  Stories = 'stories',
+  Meta = 'meta',
+  // All metadata: the docs/ and .agents/ trees + co-located *.spec/.ux/.ui.md beside sources
+  All = 'all',
+}
+
+/**
+ * What a registry entry names.
+ *
+ * One entry per artifact the pipeline can generate, so that "where does this live" and "what is
+ * it called" have exactly one answer for the whole life of the project.
+ */
+export enum RegistryKind {
+  /** The single directory segment an entity owns across models/, resources/ and backend models/ */
+  EntityDir = 'entity-dir',
+  ModelType = 'model-type',
+  Resource = 'resource',
+  BackendModel = 'backend-model',
+  ApiHandlers = 'api-handlers',
+  Service = 'service',
+  Layout = 'layout',
+  Screen = 'screen',
+  Component = 'component',
+  ViewModel = 'view-model',
+  State = 'state',
+  /** Alias-only entry for one endpoint — carries no source path of its own */
+  ApiEntrypoint = 'api-entrypoint',
+}

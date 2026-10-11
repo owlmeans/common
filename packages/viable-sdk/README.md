@@ -4,7 +4,7 @@ Drive the OwlMeans Viable platform from outside it.
 
 Viable turns a description into a running full-stack application. This package is what lets
 something that is not the Viable manager do that: a coding agent through
-[`@owlmeans/viable-mcp`](../viable-mcp), a CLI, a test. It owns the four things such a client
+[`@owlmeans/viable-mcp`](https://www.npmjs.com/package/@owlmeans/viable-mcp), a CLI, a test. It owns the four things such a client
 needs and the platform cannot supply:
 
 - **a client context** that authenticates with one long-lived access token and nothing else;
@@ -51,8 +51,11 @@ const session = await openSession({
 const job = await api.project.create('a tool for tracking gym workouts', ConnectTarget.Local)
 ```
 
-The session runs its own loop from that point: operations arrive, the executor answers them, model
-tasks queue for the parent agent.
+`apiUrl` is the platform's public API origin — path-less, the host that serves the connector,
+planning, `/mcp` and the OAuth sign-in (`CONNECT_DEFAULT_API_URL` in production).
+
+The session runs its own loop from that point — a long poll: operations arrive, the executor
+answers them, model tasks queue for the parent agent.
 
 ## Rules worth knowing before you change something
 
@@ -60,7 +63,7 @@ tasks queue for the parent agent.
 sixty. Anything that takes minutes is a JOB: it returns at once and is polled. A tool that blocked
 would be reported to the user as a hung server rather than as a slow platform.
 
-**A tool that cannot work in a mode is hidden, not failing.** `visibleTools(host)` is the whole
+**A tool that cannot work in a mode is hidden, not failing.** `catalogueHelper.visibleTools(host)` is the whole
 catalogue a parent sees, and it is exactly the set of things that work for it. A tool offered and
 then refused is one an agent tries once and remembers as broken.
 
@@ -68,18 +71,33 @@ then refused is one an agent tries once and remembers as broken.
 platform believes it is the only writer of. Two concurrent template writes into one tree is not a
 throughput problem, it is a corrupted tree.
 
-**Results are cached by operation id.** A connector that reconnects is handed everything still
-outstanding, including what it had already answered when the connection dropped. Re-running a build
+**Results are cached by operation id.** A connector that polls again after a restart or a lost
+answer is handed everything still outstanding, including what it had already answered. Re-running a build
 because an acknowledgement was lost is exactly the cost that cache avoids.
 
-**A malformed model-task answer is refused locally.** `parseTaskResult` checks the answer against
+**A malformed model-task answer is refused locally.** `makeTaskEnvelopeModel(task).parseTaskResult` checks the answer against
 the task before the platform ever sees it — with the subagent's context still open, so the parent
 can retry immediately. A malformed answer that reached the platform would cost a whole new task, a
 new subagent and another wait.
 
-**The harness installer never writes the token.** Each configuration references the environment
-variable in its own syntax, so what it writes is safe to commit. `tests/harness.spec.ts` greps
-every written file for a token shape.
+**A host adds its own tools as extensions.** Tools the SDK does not implement — the agent-setup
+pair `describe_harness` / `install_harness`, for one — reach the catalogue through
+`ToolHost.extensions`. They are listed, filtered by their own `availability` and registered exactly
+like the catalogue's tools; a host that passes none offers none:
+
+```typescript
+import { registerCatalogue, toolHostHelper, ToolHostKind, type ToolDefinition, type ToolHost } from '@owlmeans/viable-sdk'
+
+const ping: ToolDefinition = {
+  name: 'ping', title: 'Ping', description: 'Answers pong.', input: {},
+  availability: toolHostHelper.anyHost,
+  annotations: { readOnlyHint: true },
+  run: async () => ({ text: 'pong' }),
+}
+
+const host: ToolHost = { kind: ToolHostKind.Stdio, target, llm, harness, hasExecutor: true, extensions: [ping] }
+registerCatalogue(server, { ...deps, host })
+```
 
 ## Tests
 
@@ -93,7 +111,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.40
+npx @owlmeans/agent-skills@^0.1.18-rc.53
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

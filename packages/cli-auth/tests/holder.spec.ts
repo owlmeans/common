@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { makeCliCredentials } from '../src/holder.js'
-import { readCredentialsFile } from '../src/env-file.js'
+import { envFileHelper } from '../src/env-file.js'
 import { ENV_CREDENTIALS_FILE } from '../src/consts.js'
 
 const originalFetch = globalThis.fetch
@@ -100,16 +100,14 @@ describe('token()', () => {
   })
 
   test('refuses a file token bound to a different API URL', async () => {
-    const { setEnvValues } = await import('../src/env-file.js')
-    await setEnvValues(credentialsPath, { VIABLE_API_TOKEN: 'vib_other', VIABLE_API_URL: 'https://other.example.com' })
+    await envFileHelper.setEnvValues(credentialsPath, { VIABLE_API_TOKEN: 'vib_other', VIABLE_API_URL: 'https://other.example.com' })
 
     const credentials = makeCliCredentials(opts())
     expect(await credentials.token()).toBeNull()
   })
 
   test('accepts a file token when no URL was ever recorded', async () => {
-    const { setEnvValues } = await import('../src/env-file.js')
-    await setEnvValues(credentialsPath, { VIABLE_API_TOKEN: 'vib_no-url-recorded' })
+    await envFileHelper.setEnvValues(credentialsPath, { VIABLE_API_TOKEN: 'vib_no-url-recorded' })
 
     const credentials = makeCliCredentials(opts())
     expect(await credentials.token()).toBe('vib_no-url-recorded')
@@ -154,7 +152,7 @@ describe('require()', () => {
     expect(notifications.some(m => m.includes('CODE-1'))).toBe(true)
     expect(notifications).toContain('Signed in.')
 
-    const file = await readCredentialsFile({ [ENV_CREDENTIALS_FILE]: credentialsPath })
+    const file = await envFileHelper.readCredentialsFile({ [ENV_CREDENTIALS_FILE]: credentialsPath })
     expect(file.VIABLE_API_TOKEN).toBe('vib_new-token')
     expect(file.VIABLE_API_URL).toBe(ISSUER)
   })

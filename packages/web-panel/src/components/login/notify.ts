@@ -1,14 +1,9 @@
-import { initI18nResource, LIB_NAMESPACE } from '@owlmeans/i18n'
-import { getI18nInstance } from '@owlmeans/client-i18n/utils'
+import { LIB_NAMESPACE, i18nHelper } from '@owlmeans/i18n'
+import { i18nInstanceHelper } from '@owlmeans/client-i18n/utils'
 import type { ClientConfig } from '@owlmeans/client-context'
 import { toast } from 'sonner'
-import { LoginOutcome } from '@owlmeans/client-auth/login'
-import type { LoginNotifier } from '@owlmeans/client-auth/login'
-
-const AUTH_RESOURCE = 'auth'
-
-const POPUP_BLOCKED_FALLBACK =
-  "The sign-in window was blocked. Click the blocked pop-up icon in your browser's address bar to open it."
+import { LoginOutcome, type LoginNotifier } from '@owlmeans/client-auth/login'
+import { AUTH_RESOURCE, POPUP_BLOCKED_FALLBACK } from './consts.local.js'
 
 /**
  * Translate an `auth`-library key with no mounted component to read it through.
@@ -20,8 +15,8 @@ const POPUP_BLOCKED_FALLBACK =
  * memoized), and the other later gets `null` back and no-ops with the bundle already there.
  */
 const translateAuth = (cfg: ClientConfig, key: string, fallback: string): string => {
-  const i18n = getI18nInstance(cfg)
-  const resources = initI18nResource(i18n.language, AUTH_RESOURCE, LIB_NAMESPACE)
+  const i18n = i18nInstanceHelper.getI18nInstance(cfg)
+  const resources = i18nHelper.initI18nResource(i18n.language, AUTH_RESOURCE, LIB_NAMESPACE)
   resources?.forEach(
     resource => i18n.addResourceBundle(
       i18n.language, LIB_NAMESPACE, { [AUTH_RESOURCE]: resource.data }, true, true

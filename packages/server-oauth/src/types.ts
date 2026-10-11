@@ -63,7 +63,7 @@ export interface OAuthServerConfig extends ServerConfig {
   oauth?: OAuthServerOptions
 }
 
-export type OAuthServerContext<C extends OAuthServerConfig = OAuthServerConfig> = ServerContext<C> & ApiServerAppend
+export interface OAuthServerContext<C extends OAuthServerConfig = OAuthServerConfig> extends ServerContext<C>, ApiServerAppend {}
 
 // --- Pending records, all sharing one resource -------------------------------------------------
 

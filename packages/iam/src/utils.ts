@@ -1,34 +1,19 @@
 import type { Authorization, PermissionSet } from '@owlmeans/auth'
-import type { IamPermissionDefinition } from './types.js'
+import type { OidcPermissionSetClaim } from '@owlmeans/oidc'
+import type { HasPermissionOptions } from './utils/types.js'
 
-/** Resolve inherited blanket permissions without writing them onto a person's profile. */
-export const mergePermissionDefaults = (
-  stored: PermissionSet[], clientId: string, definitions: IamPermissionDefinition[]
-): PermissionSet[] => {
-  const scoped = stored.filter(set => set.scope === clientId)
-  const explicit = new Set(scoped
-    .filter(set => set.title == null && set.resources == null)
-    .flatMap(set => Object.keys(set.permissions)))
-  const inherited = definitions
-    .filter(def => def.defaultEnabled === true && !explicit.has(def.name))
-    .map(def => def.name)
-
-  return inherited.length === 0 ? scoped : [
-    ...scoped,
-    { scope: clientId, permissions: Object.fromEntries(inherited.map(name => [name, true])) },
-  ]
-}
-
-export interface HasPermissionOptions {
-  /** Restrict the check to PermissionSets of this scope (the project's clientId). */
-  scope?: string
-  /** Resource-scoped check: the set must list this id — unless the set itself is unscoped. */
-  resourceId?: string
-}
+/** The organization a set is bound to, when it is a claim set that kept its binding. */
+const boundTo = (set: PermissionSet): string | undefined => (set as OidcPermissionSetClaim).entitySlug
 
 /**
  * True when any PermissionSet grants `permission`. An unscoped set (no resources)
  * satisfies a resourceId check too — a project-wide grant covers every resource.
+ *
+ * The organization follows the same rule the other way round, fail-closed: a set without a binding
+ * applies everywhere, a bound one only when `opts.entitySlug` names its organization. A relying
+ * party strips the binding from the sets of the organization a session acts in and drops every
+ * other bound set, so a bound set reaching a check is one that leaked — and it must not count
+ * merely because the caller did not say where the request acts.
  */
 export const hasPermission = (
   auth: Authorization,
@@ -38,4 +23,5 @@ export const hasPermission = (
   (opts?.scope == null || set.scope === opts.scope)
   && set.permissions[permission] === true
   && (opts?.resourceId == null || set.resources == null || set.resources.includes(opts.resourceId))
+  && (boundTo(set) == null || (opts?.entitySlug != null && boundTo(set) === opts.entitySlug))
 ) ?? false

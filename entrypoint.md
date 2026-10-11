@@ -319,7 +319,7 @@ Update content (not renamed but mention modules heavily):
 
 **Root docs**
 
-- `CLAUDE.md` — Core layer list (`entrypoint` replaces `module`); Server/Client layer lists; Additional Context skill index; skill auto-invoke notes.
+- `AGENTS.md` — Core layer list (`entrypoint` replaces `module`); Server/Client layer lists; Additional Context skill index; skill auto-invoke notes.
 - `README.md` — Concept definition section; install targets; `entrypoint()` + `route()` examples.
 - `tree.md` — Add new packages in build order; update any explicit "module" references.
 
@@ -359,7 +359,7 @@ Update the concept-defining text in:
 4. Update context call-sites: `ctx.registerModule` → `ctx.registerEntrypoint`, etc.
 5. Run `bun run build` — green.
 6. **Metadata updates:**
-   - `CLAUDE.md` — architecture layers, DI patterns
+   - `AGENTS.md` — architecture layers, DI patterns
    - `.github/copilot-instructions.md` — DI system section, `replaceEntrypoint()`, `wlInfoModules` naming
    - `.github/instructions/*.instructions.md` — any that reference modules (WL, keycloak instructions)
    - `.claude/skills/` — update any skills that document module patterns
@@ -384,7 +384,7 @@ This is the scaffold for generated packages. Files that reference modules:
 2. Migrate any other light usage in common/library subdirs.
 3. **Metadata updates:**
    - Update any skill files that mention modules (even lightly).
-   - `CLAUDE.md` if it references module-family packages.
+   - `AGENTS.md` if it references module-family packages.
    - `.github/copilot-instructions.md` has no module refs (confirmed) — verify, no change expected.
 4. Run build — green.
 
@@ -410,7 +410,7 @@ Key patterns to migrate (from Copilot instructions and code):
 3. Update context call-sites.
 4. Run `bun run build` — green.
 5. **Metadata updates:**
-   - `CLAUDE.md` — architecture layers, module contract patterns
+   - `AGENTS.md` — architecture layers, module contract patterns
    - `.github/copilot-instructions.md` — heavy module references, viable-common contracts, elevation
    - `.github/instructions/viable-auth.instructions.md` — auth module naming
    - `.claude/skills/` — `viable-auth`, any module-referencing skills
@@ -483,7 +483,7 @@ Quick-reference checklist for execution. Tick as phases complete.
 - [ ] Skills updated: `server-app`, `route`, `*-route`, `web-router`, `router`, `context`, `server-context`
 - [ ] `.github/copilot-instructions.md` updated
 - [ ] `.github/instructions/` — renamed + updated
-- [ ] `CLAUDE.md` updated
+- [ ] `AGENTS.md` updated
 - [ ] `README.md` updated
 - [ ] Package READMEs updated (shims + new canonical)
 - [ ] Memory file added + `MEMORY.md` index updated
@@ -493,7 +493,7 @@ Quick-reference checklist for execution. Tick as phases complete.
 - [ ] `nested-agent-context` discovery run
 - [ ] All imports + call-sites migrated
 - [ ] Build green
-- [ ] `CLAUDE.md`, `copilot-instructions.md`, instructions updated
+- [ ] `AGENTS.md`, `copilot-instructions.md`, instructions updated
 
 ### Phase 4 — `viable-agent`
 
@@ -509,4 +509,4 @@ Quick-reference checklist for execution. Tick as phases complete.
 - [ ] All `module(` call-sites migrated (~81)
 - [ ] Context call-sites migrated
 - [ ] Build green
-- [ ] `copilot-instructions.md`, `CLAUDE.md`, `viable-auth` instructions, skills updated
+- [ ] `copilot-instructions.md`, `AGENTS.md`, `viable-auth` instructions, skills updated

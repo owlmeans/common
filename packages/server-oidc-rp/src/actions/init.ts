@@ -12,9 +12,9 @@ import { authService, DEFAULT_ALIAS } from '../consts.js'
 // import type { Client } from 'openid-client'
 
 import { base64urlnopad as base64 } from '@scure/base'
-import { randomBytes } from '@noble/hashes/utils'
-import { sha256 } from '@noble/hashes/sha2'
-import { cache, verifierId } from '../utils/cache.js'
+import { randomBytes } from '@noble/hashes/utils.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { oidcCacheOf } from '../utils/cache.js'
 import { requestedScope } from '../utils/scope.js'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 
@@ -79,13 +79,17 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
   // }
 
   const verifier = base64.encode(randomBytes(32))
-  const challenge = base64.encode(sha256(verifier))
+  const challenge = base64.encode(sha256(new TextEncoder().encode(verifier)))
 
-  await cache(context).create({
-    id: verifierId(challenge),
+  const oidcCache = oidcCacheOf(context)
+  await oidcCache.resource().create({
+    id: oidcCache.verifierId(challenge),
     verifier,
     client: client.getClientId(),
     ...(entityIdUsedForResolution ? { entityId } : {}),
+    // Only a request: the exchange honours it when the provider names that organization among the
+    // subject's, and starts the session in the home one otherwise.
+    ...(body.entitySlug != null ? { entitySlug: body.entitySlug } : {}),
   }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
   // The dispatcher is a FRONTEND route, and this is a server context — the entrypoint registered

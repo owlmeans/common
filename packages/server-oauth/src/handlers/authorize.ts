@@ -1,21 +1,12 @@
 import {
   createIdOfLength, IdStyle
 } from '@owlmeans/basic-ids'
-import {
-  matchesRedirectUri, OAUTH_REQUEST_TTL_SEC, PKCE_METHOD_S256
-} from '@owlmeans/oauth'
-import type { AuthorizeQuery } from '@owlmeans/oauth'
-import { createRequest } from '../pending.js'
-import { resolveClient } from '../clients.js'
-import { isKnownResource, requireIssuer, resolveOAuthUrl } from '../metadata.js'
+import { oauthFormatHelper, OAUTH_REQUEST_TTL_SEC, PKCE_METHOD_S256, type AuthorizeQuery } from '@owlmeans/oauth'
+import { oauthPendingOf } from '../pending.js'
+import { oauthClientsOf } from '../clients.js'
+import { oauthMetadataOf } from '../metadata.js'
 import type { OAuthServerContext } from '../types.js'
-
-export type AuthorizeOutcome =
-  // The client or its redirect URI could not be trusted — nothing is redirected to, ever.
-  | { kind: 'refused', status: number, message: string }
-  // Client and redirect URI check out; everything else wrong is safe to report AT the redirect.
-  | { kind: 'redirect', location: string }
-  | { kind: 'to-consent', location: string }
+import type { AuthorizeOutcome } from './types.js'
 
 const errorRedirect = (
   redirectUri: string, error: string, state: string | undefined, issuer: string
@@ -45,16 +36,17 @@ export const handleAuthorize = async (
     return { kind: 'refused', status: 400, message: 'client_id is required' }
   }
 
-  const client = await resolveClient(context, query.client_id)
+  const metadata = oauthMetadataOf(context)
+  const client = await oauthClientsOf(context).resolveClient(query.client_id)
   if (client == null) {
     return { kind: 'refused', status: 400, message: 'Unknown client' }
   }
 
-  if (query.redirect_uri == null || !client.redirectUris.some(registered => matchesRedirectUri(registered, query.redirect_uri!))) {
+  if (query.redirect_uri == null || !client.redirectUris.some(registered => oauthFormatHelper.matchesRedirectUri(registered, query.redirect_uri!))) {
     return { kind: 'refused', status: 400, message: 'redirect_uri does not match this client\'s registration' }
   }
 
-  const issuer = requireIssuer(context)
+  const issuer = metadata.requireIssuer()
   const redirectUri = query.redirect_uri
 
   if (query.response_type !== 'code') {
@@ -63,13 +55,13 @@ export const handleAuthorize = async (
   if (query.code_challenge_method !== PKCE_METHOD_S256 || query.code_challenge == null || query.code_challenge === '') {
     return errorRedirect(redirectUri, 'invalid_request', query.state, issuer)
   }
-  if (query.resource != null && !isKnownResource(context, query.resource)) {
+  if (query.resource != null && !metadata.isKnownResource(query.resource)) {
     return errorRedirect(redirectUri, 'invalid_target', query.state, issuer)
   }
 
   const id = createIdOfLength(24, IdStyle.Base58)
   const now = Date.now()
-  await createRequest(context, id, {
+  await oauthPendingOf(context).createRequest(id, {
     kind: 'code',
     clientId: client.clientId,
     clientOrigin: client.origin,
@@ -83,7 +75,7 @@ export const handleAuthorize = async (
     expiresAt: now + OAUTH_REQUEST_TTL_SEC * 1000,
   })
 
-  const consent = new URL(resolveOAuthUrl(context, context.cfg.oauth!.consentUrl))
+  const consent = new URL(metadata.resolveOAuthUrl(context.cfg.oauth!.consentUrl))
   consent.searchParams.set('ref', id)
 
   return { kind: 'to-consent', location: consent.toString() }

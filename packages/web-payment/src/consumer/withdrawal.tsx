@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { baseLanguageOf } from '@owlmeans/payment'
-import type { WithdrawalBody, WithdrawalCandidate, WithdrawalReceipt } from '@owlmeans/payment'
+import { type WithdrawalBody, type WithdrawalCandidate, type WithdrawalReceipt, consumerRightsPolicyHelper } from '@owlmeans/payment'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { dayUtc, lastDayUtc, momentUtc, money } from '../format.js'
-import { legalTextOf, paymentTextOf, useLegalText, usePaymentText } from './copy.js'
+import { fixedTextHelper } from './copy.js'
+import { useLegalText, usePaymentText } from './hooks.js'
 import { Choice, Field, Honeypot, isEmail } from './fields.js'
 import { ErrorLine, LanguageToggle, useShownLanguage, useUiLanguage } from './legal.js'
 import type {
   DeclarationStep, WithdrawalDialogProps, WithdrawalFormProps, WithdrawalFunctionButtonProps,
 } from './types.js'
+import type { StepsProps } from './types.local.js'
+import { formatHelper } from '../format.js'
 
 /**
  * The withdrawal function's entry (CRD Art. 11a; § 356a BGB "Vertrag widerrufen"; L221-21
@@ -23,9 +24,9 @@ export const WithdrawalFunctionButton = ({
   language, uiLanguage, onClick, disabled, variant = 'outline', className,
 }: WithdrawalFunctionButtonProps) => {
   const ui = useUiLanguage(uiLanguage)
-  const contract = baseLanguageOf(language) || ui
-  const label = legalTextOf(contract)('withdrawal.function')
-  const title = contract !== ui ? legalTextOf(ui)('withdrawal.function') : undefined
+  const contract = consumerRightsPolicyHelper.baseLanguageOf(language) || ui
+  const label = fixedTextHelper.legalTextOf(contract)('withdrawal.function')
+  const title = contract !== ui ? fixedTextHelper.legalTextOf(ui)('withdrawal.function') : undefined
 
   return <Button type="button" variant={variant} onClick={onClick} disabled={disabled} title={title} lang={contract}
     data-withdrawal-function="" data-language={contract} className={className}>
@@ -34,18 +35,6 @@ export const WithdrawalFunctionButton = ({
 }
 
 const isWithdrawalReceipt = (receipt: object): receipt is WithdrawalReceipt => 'status' in receipt
-
-interface Frame {
-  title: string
-  intro: string
-  language: string
-  step: DeclarationStep
-}
-
-interface StepsProps extends WithdrawalFormProps {
-  /** How the title and intro are rendered — a section heading, or a dialog's title. */
-  frame: (frame: Frame, body: ReactNode) => ReactNode
-}
 
 /** The three steps, framed by the caller. */
 const WithdrawalSteps = ({
@@ -86,7 +75,7 @@ const WithdrawalSteps = ({
   const current: DeclarationStep = receipt != null ? 'receipt' : step
 
   const format = (minor: number, currency: string) => formatAmount != null
-    ? formatAmount(minor, currency, language.shown) : money(minor, currency, language.shown)
+    ? formatAmount(minor, currency, language.shown) : formatHelper.money(minor, currency, language.shown)
   const candidate: WithdrawalCandidate | undefined = candidates.find(item => item.purchaseId === purchaseId)
   const contract = mode === 'in-app' ? candidate?.contractRef ?? '' : contractRef.trim()
   const errors = {
@@ -140,13 +129,13 @@ const WithdrawalSteps = ({
       data-declaration-id={receipt.declarationId} data-received-at={Number.isNaN(receivedAt.getTime()) ? undefined : receivedAt.toISOString()}>
       <h3 className="text-sm font-medium">{text('consumer.receipt')}</h3>
       <p className="text-sm">{receipt.mailed
-        ? legal('withdrawal.received', { date: momentUtc(receivedAt, language.shown), email: declared.email })
-        : `${text('consumer.received-at')}: ${momentUtc(receivedAt, language.shown)} (UTC). ${text('consumer.not-mailed')}`}</p>
+        ? legal('withdrawal.received', { date: formatHelper.momentUtc(receivedAt, language.shown), email: declared.email })
+        : `${text('consumer.received-at')}: ${formatHelper.momentUtc(receivedAt, language.shown)} (UTC). ${text('consumer.not-mailed')}`}</p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg border p-4 text-sm">
         <dt className="text-muted-foreground">{text('consumer.reference')}</dt>
         <dd data-withdrawal-reference="">{receipt.declarationId}</dd>
         <dt className="text-muted-foreground">{text('consumer.received-at')}</dt>
-        <dd data-withdrawal-received-at="">{momentUtc(receivedAt, language.shown)} (UTC)</dd>
+        <dd data-withdrawal-received-at="">{formatHelper.momentUtc(receivedAt, language.shown)} (UTC)</dd>
         <dt className="text-muted-foreground">{legal('withdrawal.name')}</dt><dd>{declared.name}</dd>
         <dt className="text-muted-foreground">{legal('withdrawal.contract')}</dt><dd>{declared.contractRef ?? ''}</dd>
         <dt className="text-muted-foreground">{legal('withdrawal.email')}</dt><dd>{declared.email}</dd>
@@ -196,9 +185,9 @@ const WithdrawalSteps = ({
                 className="grid gap-0.5">
                 <span className="font-medium">{item.contractRef} · {text(`withdrawal.kind.${item.kind}`)}</span>
                 <span className="text-muted-foreground text-xs">
-                  {text('withdrawal.purchased', { date: dayUtc(item.purchasedAt, language.shown) })}
+                  {text('withdrawal.purchased', { date: formatHelper.dayUtc(item.purchasedAt, language.shown) })}
                   {' · '}{text('withdrawal.paid', { amount: format(item.amountTotalMinor, item.currency) })}
-                  {' · '}{text('withdrawal.until', { date: lastDayUtc(item.deadline, language.shown) })}
+                  {' · '}{text('withdrawal.until', { date: formatHelper.lastDayUtc(item.deadline, language.shown) })}
                 </span>
                 <span className="text-xs">{estimateLine(item)}</span>
               </span>
@@ -265,7 +254,7 @@ export const WithdrawalDialog = ({ open, onOpenChange, className, ...props }: Wi
       {...props}
       onClose={() => onOpenChange(false)}
       frame={(frame, body) => <DialogContent
-        closeLabel={paymentTextOf(frame.language)('consumer.close')}
+        closeLabel={fixedTextHelper.paymentTextOf(frame.language)('consumer.close')}
         data-withdrawal-dialog="" data-language={frame.language} data-step={frame.step}
         className={cn('max-h-[90vh] overflow-y-auto', className)}
       >

@@ -1,4 +1,5 @@
 export type * from './types.js'
+export type * from './fold/types.js'
 
 export * from './commits.js'
 export * from './composite.js'

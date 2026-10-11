@@ -2,16 +2,34 @@ import { assertContext, createService } from '@owlmeans/context'
 import type { SocketService } from './types.js'
 import type { Config, Context, Request } from '@owlmeans/server-api'
 import { DEFAULT_ALIAS } from './consts.js'
+import { CLOSE_REASON_LIMIT } from './consts.local.js'
 import type { FixerService, ServerEntrypoint } from '@owlmeans/server-entrypoint'
 import { canServerModule } from './utils/server.js'
 import { fastifyWebsocket } from '@fastify/websocket'
 import type { WebSocket } from '@fastify/websocket'
 import {
-  authorize, errorExposure, executeResponse, extractContext, handleError, populateContext, provideRequest
+  authorize, httpErrorHelper, makeRequestContextHelper, payloadHelper
 } from '@owlmeans/server-api/utils'
 import { EntrypointOutcome, provideResponse } from '@owlmeans/entrypoint'
 import type { AbstractRequest, GateService } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
+import { logger, logThrottle } from '@owlmeans/log'
+
+const log = logger('server-socket')
+
+/**
+ * A close reason is at most 123 UTF-8 bytes (RFC 6455): longer is cut by one transport and thrown
+ * on by another, so the marshalled refusal is clipped on a character boundary to fit.
+ */
+const closeReason = (reason: string): string => {
+  const encoder = new TextEncoder()
+  let clipped = reason
+  while (encoder.encode(clipped).length > CLOSE_REASON_LIMIT) {
+    clipped = clipped.slice(0, -1)
+  }
+
+  return clipped
+}
 
 export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketService => {
   const service: SocketService = createService<SocketService>(alias, {
@@ -24,7 +42,8 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
 
       await api.server.register(async server => {
         server.addHook('preHandler', async (req, reply) => {
-          const context = extractContext(req, service.ctx as Context, alias)
+          const requestContext = makeRequestContextHelper(req)
+          const context = requestContext.extractContext(service.ctx as Context, alias)
           await context?.entrypoints<ServerEntrypoint<Request>>()
             .filter(module => canServerModule(context, module) && !module.route.isIntermediate())
             .reduce<Promise<Context>>(async (ctx, module) => {
@@ -40,27 +59,27 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
 
               try {
                 const response = provideResponse(reply)
-                const request = provideRequest(module.alias, req, true)
+                const request = payloadHelper.provideRequest(module.alias, req, true)
 
                 const authorized = await authorize(context, module, req, reply)
                 context = authorized[0]
                 module = authorized[1]
 
-                populateContext(req, context)
+                requestContext.populateContext(context)
 
                 // @TODO there code duplication with server-api
                 const gates = module.getGates()
                 for (const [srv, params] of gates) {
                   const gate: GateService = context.service(srv)
                   await gate.assert(request, response, params)
-                  executeResponse(response, reply, true)
+                  payloadHelper.executeResponse(response, reply, true)
                 }
               } catch (error) {
                 if (module.fixer != null) {
                   const fixer: FixerService = context.service(module.fixer)
                   fixer.handle(reply, ResilientError.ensure(error as Error))
                 } else {
-                  handleError(error as Error, reply, errorExposure(context.cfg))
+                  httpErrorHelper.handleError(error as Error, reply, httpErrorHelper.errorExposure(context.cfg))
                 }
               }
 
@@ -83,21 +102,31 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
               headers: module.filter?.headers ?? {}
             }, websocket: true
           }, (conn, req) => {
-            const request = provideRequest(module.alias, req, true)
+            const request = payloadHelper.provideRequest(module.alias, req, true)
             request.body = conn
 
-            conn.on('error', (error: Error) => console.error('WebSocket error: ', error))
+            conn.on('error', (error: Error) => log.error('WebSocket error', { route: module.alias, error }))
 
             void module.handle<AbstractRequest<WebSocket>>(request, {
               resolve: (value, outcome) => {
-                conn.send(typeof value === 'string' ? value : JSON.stringify(value))
+                // A connection handler that only wires listeners resolves with nothing. There is no
+                // message to send then, and an empty frame is not one: the transport refuses it, and
+                // the refusal would close a socket that is just getting started.
+                if (value !== undefined && value !== null) {
+                  conn.send(typeof value === 'string' ? value : JSON.stringify(value))
+                }
                 if (outcome === EntrypointOutcome.Ok) {
                   conn.close()
                 }
               },
               reject: error => {
-                console.error('Connection rejected: ', error)
-                conn.close(1011, ResilientError.ensure(error).marshal().message)
+                const refusal = ResilientError.ensure(error)
+                const details = { route: module.alias, reason: refusal.type, error }
+                log.debug('Connection rejected', details)
+                if (logThrottle(`socket.refused:${module.alias}:${refusal.type}`, 60_000)) {
+                  log.warn('Connection rejected', details, { event: 'socket.refused' })
+                }
+                conn.close(1011, closeReason(refusal.marshal({ includeStack: false }).message))
               }
             })
 

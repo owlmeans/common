@@ -1,51 +1,48 @@
-import { requireEntityKey } from '@owlmeans/auth-common'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
-import { PLANNING_SERVICE } from '@owlmeans/planning'
-import type { PlanningFacade, PlanningScope, PlanningService, TransitionActor } from '@owlmeans/planning'
-import type { PlanningHandlerOptions, PlanningHostService } from '../types.js'
+import type { PlanningFacade, PlanningScope, PlanningService, TransitionActor, Workcard } from '@owlmeans/planning'
+import type { PlanningAccess, PlanningAccessGrants, PlanningHandlerOptions } from '../types.js'
+import { makePlanningAccessModel } from './access.js'
+import { planningHandlerOf } from './handler.js'
+import { makeRequestScope } from './request.js'
+import type { HandlerScope } from './types.js'
 
-const clean = <T extends object>(record: T): T =>
-  Object.fromEntries(Object.entries(record).filter(([, value]) => value != null && value !== '')) as T
+/** @deprecated compat:factory-refactor — use `makeRequestScope(req).actorOf()` */
+export const actorOf = (req: AbstractRequest): TransitionActor => makeRequestScope(req).actorOf()
 
-/** The authenticated subject of a request, as a transition names it. */
-export const actorOf = (req: AbstractRequest): TransitionActor => clean({
-  profileId: req.auth?.profileId,
-  userId: req.auth?.userId,
-})
+/** @deprecated compat:factory-refactor — use `makeRequestScope(req).scopeOf(…)` */
+export const scopeOf = (req: AbstractRequest, extra?: Partial<PlanningScope>): PlanningScope =>
+  makeRequestScope(req).scopeOf(extra)
 
-/**
- * The scope a request reads and writes as.
- *
- * `entityId` is `requireEntityKey(req)` — the resolved organization id, never a value from the
- * body or the query — and `extra` cannot replace it; `extra` adds what the deployment derives
- * (a `channel`, a `service`). The actor is the authenticated subject plus that channel.
- *
- * @throws {AuthorizationError} when the request carries no organization
- */
-export const scopeOf = (req: AbstractRequest, extra?: Partial<PlanningScope>): PlanningScope => {
-  const entityId = requireEntityKey(req)
-  const subject = actorOf(req)
-  const channel = extra?.channel ?? extra?.actor?.channel
+/** @deprecated compat:factory-refactor — use `makeRequestScope(req).accessScopeOf(…)` */
+export const accessScopeOf = (
+  req: AbstractRequest, access: PlanningAccess, extra?: Partial<PlanningScope>
+): PlanningScope => makeRequestScope(req).accessScopeOf(access, extra)
 
-  return clean({
-    ...extra,
-    ...subject,
-    entityId,
-    channel,
-    actor: clean({ ...extra?.actor, ...subject, channel }),
-  }) as PlanningScope
-}
-
+/** @deprecated compat:factory-refactor — use `planningHandlerOf(ctx).planningServiceOf(…)` */
 export const planningServiceOf = (
   ctx: BasicContext<BasicConfig>, opts?: Pick<PlanningHandlerOptions, 'service'>
-): PlanningService => ctx.service<PlanningHostService>(opts?.service ?? PLANNING_SERVICE)
+): PlanningService => planningHandlerOf(ctx).planningServiceOf(opts)
 
-/** The facade a handler works through: the request's scope plus what `opts.scope` derives. */
+/** @deprecated compat:factory-refactor — use `planningHandlerOf(ctx).handlerScopeOf(…)` */
+export const handlerScopeOf = async (
+  ctx: BasicContext<BasicConfig>, req: AbstractRequest, opts?: PlanningHandlerOptions
+): Promise<HandlerScope> => await planningHandlerOf(ctx).handlerScopeOf(req, opts)
+
+/** @deprecated compat:factory-refactor — use `planningHandlerOf(ctx).handlerFacade(…)` */
 export const handlerFacade = async (
   ctx: BasicContext<BasicConfig>, req: AbstractRequest, opts?: PlanningHandlerOptions
-): Promise<PlanningFacade> => {
-  const extra = await opts?.scope?.(req, ctx)
+): Promise<PlanningFacade> => await planningHandlerOf(ctx).handlerFacade(req, opts)
 
-  return planningServiceOf(ctx, opts).for(scopeOf(req, extra ?? undefined))
-}
+/** @deprecated compat:factory-refactor — use `makePlanningAccessModel(access).assertGranted(…)` */
+export const assertGranted = (
+  access: PlanningAccess | undefined, grant: keyof PlanningAccessGrants, target?: string
+): void => makePlanningAccessModel(access).assertGranted(grant, target)
+
+/** @deprecated compat:factory-refactor — use `makePlanningAccessModel(access).writableIn(…)` */
+export const writableIn = (access: PlanningAccess | undefined, card: Pick<Workcard, 'id' | 'parents'>): boolean =>
+  makePlanningAccessModel(access).writableIn(card)
+
+/** @deprecated compat:factory-refactor — use `makePlanningAccessModel(access).assertWrites(…)` */
+export const assertWrites = (access: PlanningAccess | undefined, target?: string): void =>
+  makePlanningAccessModel(access).assertWrites(target)

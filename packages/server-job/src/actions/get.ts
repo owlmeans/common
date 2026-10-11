@@ -1,6 +1,8 @@
+import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
 import { handlers } from '@owlmeans/server-api'
+import type { BoundEntrypointHandler } from '@owlmeans/server-entrypoint'
 import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
-import { jobsOf, readExposedJob } from '../utils/index.js'
+import { makeJobPolicyHelper } from '../utils/index.js'
 
 /**
  * One job.
@@ -10,10 +12,13 @@ import { jobsOf, readExposedJob } from '../utils/index.js'
 export const getJob = (
   protocol: JobEntrypoints['get'],
   opts: JobHandlerOptions
-): ReturnType<ReturnType<typeof handlers<Context>>['params']> =>
-  handlers<Context>().params(protocol, async ({ id }, ctx, req) => {
-    const resource = jobsOf(ctx, opts)
+): BoundEntrypointHandler<EntrypointProtocolDeclaration> => {
+  const policy = makeJobPolicyHelper(opts)
+
+  return handlers<Context>().params(protocol, async ({ id }, ctx, req) => {
+    const resource = policy.jobsOf(ctx)
     const audience = await opts.policy.audience(req, ctx)
-    const record = await readExposedJob(resource, id, audience, opts)
+    const record = await policy.readExposedJob(resource, id, audience)
     return await opts.policy.map(record, audience)
   })
+}

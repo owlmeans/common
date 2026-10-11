@@ -1,11 +1,7 @@
 import type { BasicContext } from '@owlmeans/context'
 import { RES_MARKETING_CONSENT_LOG, RES_MARKETING_CONSENT_STATE } from '@owlmeans/server-marketing-consent'
 import { makeMarketingConsentLogMongo, makeMarketingConsentStateMongo } from './resource.js'
-
-export interface MarketingConsentMongoOptions {
-  dbAlias?: string
-  serviceAlias?: string
-}
+import type { MarketingConsentMongoOptions } from './types.js'
 
 /**
  * Registers the two Mongo resources `@owlmeans/server-marketing-consent`'s `MarketingConsentService`

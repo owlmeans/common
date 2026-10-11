@@ -1,18 +1,17 @@
 import { useEffect, useState, type FC } from 'react'
 import { useStoreList } from '@owlmeans/client'
 import { session, type SessionItem } from '__APP_SLUG__-common'
-import { SESSION_STATE, useContext } from '../context.js'
+import { useContext } from '../context.js'
+import { SESSION_ID_KEY, SESSION_STATE } from '../consts.js'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 
-const SID_KEY = '__APP_SLUG__-sid'
-
 const sessionId = (): string => {
-  let sid = localStorage.getItem(SID_KEY)
+  let sid = localStorage.getItem(SESSION_ID_KEY)
   if (sid == null) {
     sid = crypto.randomUUID()
-    localStorage.setItem(SID_KEY, sid)
+    localStorage.setItem(SESSION_ID_KEY, sid)
   }
   return sid
 }

@@ -1,5 +1,6 @@
 import type { MarketingConsentDefinition } from './types.js'
 
+
 // --- Consent keys ------------------------------------------------------------------------------
 
 export const MC_EMAIL = 'marketing.email'
@@ -23,75 +24,6 @@ export const MC_GROUP_DATA = 'data'
  */
 export const STANDARD_REVISION = '2026-09-25'
 
-/** `'marketing.email'` -> `'consent.marketing.email.label'` — the key's own dots become the i18n
- * path's dots, so the bundle nests exactly as the key reads (`src/i18n/en.json`'s `consent.*`). */
-const labelOf = (key: string): string => `consent.${key}.label`
-const descriptionOf = (key: string): string => `consent.${key}.description`
-
-/** The 6 standard marketing/data consents, in their default order. */
-export const STANDARD_MARKETING_CONSENTS: MarketingConsentDefinition[] = [
-  {
-    key: MC_EMAIL,
-    group: MC_GROUP_COMMUNICATIONS,
-    mode: 'opt-in',
-    enabled: true,
-    revisedAt: STANDARD_REVISION,
-    labelKey: labelOf(MC_EMAIL),
-    descriptionKey: descriptionOf(MC_EMAIL),
-    order: 10,
-  },
-  {
-    key: MC_SMS,
-    group: MC_GROUP_COMMUNICATIONS,
-    mode: 'opt-in',
-    enabled: true,
-    revisedAt: STANDARD_REVISION,
-    labelKey: labelOf(MC_SMS),
-    descriptionKey: descriptionOf(MC_SMS),
-    order: 20,
-  },
-  {
-    key: MC_PHONE,
-    group: MC_GROUP_COMMUNICATIONS,
-    mode: 'opt-in',
-    enabled: true,
-    revisedAt: STANDARD_REVISION,
-    labelKey: labelOf(MC_PHONE),
-    descriptionKey: descriptionOf(MC_PHONE),
-    order: 30,
-  },
-  {
-    key: MC_PUSH,
-    group: MC_GROUP_COMMUNICATIONS,
-    mode: 'opt-in',
-    enabled: true,
-    revisedAt: STANDARD_REVISION,
-    labelKey: labelOf(MC_PUSH),
-    descriptionKey: descriptionOf(MC_PUSH),
-    order: 40,
-  },
-  {
-    key: MC_PROFILING,
-    group: MC_GROUP_DATA,
-    mode: 'opt-in',
-    enabled: true,
-    revisedAt: STANDARD_REVISION,
-    labelKey: labelOf(MC_PROFILING),
-    descriptionKey: descriptionOf(MC_PROFILING),
-    order: 50,
-  },
-  {
-    key: MC_PARTNERS,
-    group: MC_GROUP_DATA,
-    mode: 'opt-in',
-    enabled: true,
-    revisedAt: STANDARD_REVISION,
-    labelKey: labelOf(MC_PARTNERS),
-    descriptionKey: descriptionOf(MC_PARTNERS),
-    honorGpc: true,
-    order: 60,
-  },
-]
 
 // --- Service / i18n / wire identifiers -----------------------------------------------------
 
@@ -107,3 +39,75 @@ export const MARKETING_CONSENT_STATUS = 'marketing-consent:status'
 export const MARKETING_CONSENT_SAVE = 'marketing-consent:save'
 export const MARKETING_CONSENT_TERMS = 'marketing-consent:terms'
 export const MARKETING_CONSENT_SCREEN = 'marketing-consent:screen'
+
+// --- Standard catalogue ------------------------------------------------------------------------
+
+/**
+ * Each statement's i18n keys are `consent.<key>.label` / `consent.<key>.description` — the key's own
+ * dots become the i18n path's dots, so the bundle nests exactly as the key reads
+ * (`src/i18n/en.json`'s `consent.*`).
+ */
+/** The 6 standard marketing/data consents, in their default order. */
+export const STANDARD_MARKETING_CONSENTS: MarketingConsentDefinition[] = [
+  {
+    key: MC_EMAIL,
+    group: MC_GROUP_COMMUNICATIONS,
+    mode: 'opt-in',
+    enabled: true,
+    revisedAt: STANDARD_REVISION,
+    labelKey: `consent.${MC_EMAIL}.label`,
+    descriptionKey: `consent.${MC_EMAIL}.description`,
+    order: 10,
+  },
+  {
+    key: MC_SMS,
+    group: MC_GROUP_COMMUNICATIONS,
+    mode: 'opt-in',
+    enabled: true,
+    revisedAt: STANDARD_REVISION,
+    labelKey: `consent.${MC_SMS}.label`,
+    descriptionKey: `consent.${MC_SMS}.description`,
+    order: 20,
+  },
+  {
+    key: MC_PHONE,
+    group: MC_GROUP_COMMUNICATIONS,
+    mode: 'opt-in',
+    enabled: true,
+    revisedAt: STANDARD_REVISION,
+    labelKey: `consent.${MC_PHONE}.label`,
+    descriptionKey: `consent.${MC_PHONE}.description`,
+    order: 30,
+  },
+  {
+    key: MC_PUSH,
+    group: MC_GROUP_COMMUNICATIONS,
+    mode: 'opt-in',
+    enabled: true,
+    revisedAt: STANDARD_REVISION,
+    labelKey: `consent.${MC_PUSH}.label`,
+    descriptionKey: `consent.${MC_PUSH}.description`,
+    order: 40,
+  },
+  {
+    key: MC_PROFILING,
+    group: MC_GROUP_DATA,
+    mode: 'opt-in',
+    enabled: true,
+    revisedAt: STANDARD_REVISION,
+    labelKey: `consent.${MC_PROFILING}.label`,
+    descriptionKey: `consent.${MC_PROFILING}.description`,
+    order: 50,
+  },
+  {
+    key: MC_PARTNERS,
+    group: MC_GROUP_DATA,
+    mode: 'opt-in',
+    enabled: true,
+    revisedAt: STANDARD_REVISION,
+    labelKey: `consent.${MC_PARTNERS}.label`,
+    descriptionKey: `consent.${MC_PARTNERS}.description`,
+    honorGpc: true,
+    order: 60,
+  },
+]

@@ -1,6 +1,6 @@
 ---
 name: auth
-description: How to use @owlmeans/auth — the core authentication and authorization vocabulary shared by server and client, covering the Auth / AuthPayload / AuthCredentials types, the AuthRole and AuthenticationType enums, the error hierarchy (AuthUnknown, AuthenFailed, AuthForbidden …), the request JSON schemas, the entrypoint aliases, and entitySlugOf for reading the organization entity off a token. Auto-invoked when importing auth types, errors, schemas or constants, or when working with request authentication.
+description: How to use @owlmeans/auth — the core authentication and authorization vocabulary shared by server and client, covering the Auth / AuthPayload / AuthCredentials types, the AuthRole and AuthenticationType enums, the error hierarchy (AuthUnknown, AuthenFailed, AuthForbidden …), the request JSON schemas, the entrypoint aliases, and authHelper.entitySlugOf for reading the organization entity off a token. Auto-invoked when importing auth types, errors, schemas or constants, or when working with request authentication.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth": "^0.1.18-rc.36"` in `dependencies`
+**Install:** `"@owlmeans/auth": "^0.1.18-rc.41"` in `dependencies`
 
 Types, enums, errors and schemas only — no services, no wiring. Every other auth package builds on
 this vocabulary, so a symbol belongs here exactly when both a server and a browser need to agree on
@@ -49,7 +49,8 @@ it.
 | `AUTHEN`, `AUTHEN_INIT`, `AUTHEN_AUTHEN`, `AUTHEN_RELY` | Backend entrypoint aliases |
 | `CAUTHEN`, `CAUTHEN_AUTHEN`, `CAUTHEN_AUTHEN_DEFAULT`, `CAUTHEN_AUTHEN_TYPED`, `CAUTHEN_FLOW_ENTER` | Front-end entrypoint aliases |
 | `DISPATCHER`, `DISPATCHER_AUTHEN`, `DISPATCHER_SURROGATE` | Dispatcher and surrogate-window entrypoint aliases |
-| `MOD_RECAPTCHA`, `CMOD_RECAPTCHA` | reCAPTCHA entrypoint aliases |
+| `MOD_RECAPTCHA`, `CMOD_RECAPTCHA` | reCAPTCHA plugin-record ids: the server's (secret + policy, a Backend record never advertised) and the browser's (site key, a Frontend record) |
+| `RECAPTCHA_GUARD` | `'guard:re-captcha'` — the guard alias of a route a reCAPTCHA-proven guest may call once (`makeReCaptchaGuard` in `@owlmeans/server-auth`) |
 
 ### Errors
 
@@ -58,7 +59,7 @@ it.
 
 | Error | Raise it when |
 |-------|---------------|
-| `AuthUnknown` | The thing being authenticated is not known at all — an unregistered plugin type, a request whose auth state is missing |
+| `AuthUnknown` | The thing being authenticated is not known at all — an unregistered plugin type, a method a gate refuses, a request whose auth state is missing. Declares `httpStatus = 400`: the caller's request, never a 500 |
 | `AuthManagerError` | The auth manager itself failed |
 | `AuthManagerUnsupported` | The manager cannot serve this request shape |
 | `AuthenFailed` | Authentication was attempted and rejected (bad challenge, bad code, bad signature) |
@@ -79,9 +80,9 @@ it.
 | `AuthSchema`, `AuthTokenSchema`, `OptionalAuthTokenSchema` | Resolved auth and bearer-token bodies |
 | `ProfileSchema`, `RelyChallengeSchema`, `PermissionSetSchema`, `AttributeSetSchema`, `CapabiltiesSchema` | Record and permission schemas |
 | `ScopeValueSchema`, `PermissionValueSchema`, `ResourceValueSchema`, `AttributeValueSchema`, `EntitySlugValueSchema`, `GroupValueSchema`, `TypeNameSchema`, `EnumValueSchema`, `IdValueSchema`, `DateSchema`, `AuthRoleSchema` | Reusable scalar schemas |
-| `entitySlugOf(payload)` | The organization entity carried by an auth payload — its `entitySlug`, falling back to an `entityId` the payload may carry instead — see below |
-| `verifyAuth`, `verifyAuthCredentials` | Validate against `AuthSchema` / `AuthCredentialsSchema` |
-| `isAuth`, `isAuthCredentials`, `isAuthToken` | Type guards |
+| `authHelper.entitySlugOf(payload)` | The organization entity carried by an auth payload — its `entitySlug`, falling back to an `entityId` the payload may carry instead — see below |
+| `authHelper.verifyAuth`, `authHelper.verifyAuthCredentials` | Validate against `AuthSchema` / `AuthCredentialsSchema` |
+| `authHelper.isAuth`, `authHelper.isAuthCredentials`, `authHelper.isAuthToken` | Type guards |
 | `buildSupervisorPayload`, `SupervisorCredentialPayload` | The payload the PK supervisor login signs — see the `supervisor-auth` skill |
 
 `AuthTokenSchema` caps `token` at 1024 characters. A route that accepts a token wrapping a full
@@ -95,23 +96,23 @@ query params and request bodies. No `entityId` is declared on any type here — 
 an implementation stores its rows against belongs to whichever package owns the organization
 registry, and is resolved from the slug at the server boundary.
 
-Read the value through `entitySlugOf()` rather than off the field. A token is signed once and then
-read for as long as it lives, across deployments, and the helper absorbs that spread: when
+Read the value through `authHelper.entitySlugOf()` rather than off the field. A token is signed once
+and then read for as long as it lives, across deployments, and the helper absorbs that spread: when
 `entitySlug` is absent it returns an `entityId` the payload carries instead, so a payload that names
 the organization under either field resolves through one code path. That fallback is why the helper
 is the only supported way to get the value out of a payload:
 
 ```typescript
-import { entitySlugOf } from '@owlmeans/auth'
+import { authHelper } from '@owlmeans/auth'
 
-const slug = entitySlugOf(req.auth)   // string | undefined
+const slug = authHelper.entitySlugOf(req.auth)   // string | undefined
 ```
 
 Because of that fallback the result is not guaranteed to be a slug: a payload carrying only
 `entityId` yields that id. Treat it as an opaque organization key, never as a name to compose from
-and never as a database key written directly — `@owlmeans/auth-common` exports `entityKeyOf` /
-`requireEntityKey` for storage keys, and they prefer the resolved id; a user-facing name wants the
-resolved entity's current slug.
+and never as a database key written directly — `@owlmeans/auth-common`'s
+`makeEntityScope(req).entityKeyOf()` / `.requireEntityKey()` give storage keys, and they prefer the
+resolved id; a user-facing name wants the resolved entity's current slug.
 
 ## AuthRole is a string enum
 
@@ -129,11 +130,11 @@ const creds: AuthCredentials = { role: AuthRole.User, /* … */ } as AuthCredent
 Throw from a handler when the request is missing the identity it needs:
 
 ```typescript
-import { AuthUnknown, entitySlugOf } from '@owlmeans/auth'
+import { AuthUnknown, authHelper } from '@owlmeans/auth'
 import { handlers } from '@owlmeans/server-app'
 
 export const list = handlers<Context>().request(projectProtocols.list, async (req, context) => {
-  const slug = entitySlugOf(req.auth)
+  const slug = authHelper.entitySlugOf(req.auth)
   if (slug == null) throw new AuthUnknown('entity')
 
   return await listProjects(context, slug)
@@ -142,12 +143,17 @@ export const list = handlers<Context>().request(projectProtocols.list, async (re
 
 Rules of thumb:
 
-- A gate that decides "not allowed" throws `AuthForbidden`; a handler that finds no identity to act
-  on throws `AuthUnknown`; a failed credential check throws `AuthenFailed`.
+- A gate that decides "not allowed" throws `AuthForbidden` (403); a handler that finds no identity
+  to act on, or a sign-in naming a method nobody serves, throws `AuthUnknown` (400); a failed
+  credential check throws `AuthenFailed`. `@owlmeans/server-api` maps the authorization family to
+  401/403 before reading a class's declared `httpStatus`, so `AuthUnknown`'s 400 never masks them.
 - Keep ownership rules out of this package. Downstream apps compose `@owlmeans/entrypoint` gates or
   handler-level checks around these types.
 - WebSocket wiring uses `Auth`, `AuthToken` and `AuthenticationStage` to move a token-bearing
   connection into an authenticated state.
+- `AuthenticationType.ReCaptcha` proves a solved challenge, never a person: its token is a guest
+  (`GUEST_ID`, `AuthRole.Guest`, `[AUTH_SCOPE]`), travels as `Authorization: RE-CAPTCHA <token>`,
+  is accepted only by a route guarded with `RECAPTCHA_GUARD`, and never becomes a session.
 - A provider login (Google/OIDC, OTP, supervisor) ultimately produces an ordinary `AuthPayload` with
   `userId`, `profileId`, `entitySlug` and `scopes`; `@owlmeans/server-auth-identity` stores the local
   identity behind it and returns that payload.
@@ -157,6 +163,6 @@ Rules of thumb:
 - `@owlmeans/error` — every error class extends `ResilientError`, which is what makes the messages
   translatable and re-throwable across the wire
 - `ajv-formats` — date/time formats for the `verify*` helpers
-- `ajv` — a **peer** dependency (`"*"`), not a direct one: `verifyAuth` / `verifyAuthCredentials`
-  construct `new Ajv({ strict: false })`. Install it alongside this package, or those two helpers
-  fail to resolve.
+- `ajv` — a **peer** dependency (`"*"`), not a direct one: `authHelper.verifyAuth` /
+  `authHelper.verifyAuthCredentials` construct `new Ajv({ strict: false })`. Install it alongside
+  this package, or those two helpers fail to resolve.

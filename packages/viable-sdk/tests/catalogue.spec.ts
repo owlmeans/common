@@ -1,27 +1,17 @@
 import { describe, expect, test } from 'bun:test'
+import { z } from 'zod'
 import { AuthenPayloadError } from '@owlmeans/auth'
 import { ApiStatusError } from '@owlmeans/api'
 import { ResilientError } from '@owlmeans/error'
-import { CommitTimeout, IllegalTransition } from '@owlmeans/planning'
-import type { PlanningFacade, WorkcardDraft } from '@owlmeans/planning'
-import {
-  ConnectHarness, ConnectLlm, ConnectTarget, OriginKind, ProjectArea,
-  ProjectStoryNotFound, VIABLE_STORY_TYPE, ViableStoryStatus, ViableStoryTransition,
-} from '@owlmeans/viable-common'
-import type {
-  ConnectProjectBranding, ConnectProjectBrandingSave, ViableStoryCard,
-} from '@owlmeans/viable-common'
-import { catalogue, visibleTools } from '../src/tools/catalogue.js'
+import { CommitTimeout, IllegalTransition, type PlanningFacade, type WorkcardDraft } from '@owlmeans/planning'
+import { ConnectHarness, ConnectLlm, ConnectTarget, OriginKind, ProjectArea, ProjectStoryNotFound, VIABLE_STORY_TYPE, ViableStoryStatus, ViableStoryTransition, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ViableStoryCard } from '@owlmeans/viable-common'
+import { catalogue, catalogueHelper } from '../src/tools/catalogue.js'
 import { registerCatalogue } from '../src/tools/mcp.js'
-import { renderPipelineStatus } from '../src/tools/status.js'
-import { GENERATED_SUMMARY } from '../src/tools/platform.js'
-import { LANDING_MARK, LANDING_NOTE } from '../src/tools/stories.js'
-import type { McpServerLike } from '../src/tools/mcp.js'
-import { REFUSALS, refusalMessage, refusalPhrase, UNPHRASED_REFUSAL } from '../src/tools/refusal.js'
-import { ToolHostKind } from '../src/tools/types.js'
-import type { ToolDeps as ToolHostDeps, ToolHost } from '../src/tools/types.js'
-import { FORMATTED_AREA, makePlanningSuite } from './context.js'
-import type { PlanningSuite } from './context.js'
+import { statusTextHelper } from '../src/tools/status.js'
+import { GENERATED_SUMMARY, LANDING_MARK, LANDING_NOTE, UNPHRASED_REFUSAL, ToolHostKind } from '../src/tools/consts.js'
+import type { McpServerLike, ToolDeps as ToolHostDeps, ToolHost } from '../src/tools/types.js'
+import { refusalHelper } from '../src/tools/refusal.js'
+import { FORMATTED_AREA, makePlanningSuite, type PlanningSuite } from './context.js'
 
 const host = (patch: Partial<ToolHost> = {}): ToolHost => ({
   kind: ToolHostKind.Stdio,
@@ -32,18 +22,19 @@ const host = (patch: Partial<ToolHost> = {}): ToolHost => ({
   ...patch,
 })
 
-const names = (h: ToolHost): string[] => visibleTools(h).map(tool => tool.name)
+const names = (h: ToolHost): string[] => catalogueHelper.visibleTools(h).map(tool => tool.name)
 
 describe('viable-sdk — what a parent agent is offered', () => {
-  test('the model-task loop appears wherever a session can hold one, in either llm mode', () => {
-    // Not gated on the llm mode: a conversion's model calls are the parent's by default whatever
-    // the account setting says, so a `cloud` session hidden from these tools would leave a run
-    // blocked on a task it has no way to collect.
-    for (const llm of [ConnectLlm.Cloud, ConnectLlm.Local]) {
-      const offered = names(host({ llm }))
-      expect(offered).toContain('next_task')
-      expect(offered).toContain('submit_task_result')
-    }
+  test('the model-task loop appears only where this session performs the model calls', () => {
+    // The delegated stdio session performs every model call the platform makes for it.
+    const delegated = names(host({ llm: ConnectLlm.Local }))
+    expect(delegated).toContain('next_task')
+    expect(delegated).toContain('submit_task_result')
+
+    // A cloud session performs none — a conversion's included — so the loop is hidden there.
+    const billed = names(host({ llm: ConnectLlm.Cloud }))
+    expect(billed).not.toContain('next_task')
+    expect(billed).not.toContain('submit_task_result')
 
     // And nowhere a host forgets between calls: a task is handed out once and answered minutes
     // later, which a URL-configured host cannot do in either mode.
@@ -61,9 +52,140 @@ describe('viable-sdk — what a parent agent is offered', () => {
     }
   })
 
-  test('the file tools appear only where the platform holds the files', () => {
-    expect(names(host({ target: ConnectTarget.Cloud }))).toContain('list_files')
-    expect(names(host({ target: ConnectTarget.Local }))).not.toContain('list_files')
+  test('the file and preview tools appear only where the platform holds the files, on both hosts', () => {
+    const cloudOnly = ['list_files', 'read_file', 'write_file', 'delete_file', 'preview_control']
+    for (const kind of [ToolHostKind.Stdio, ToolHostKind.Http]) {
+      const executor = kind === ToolHostKind.Stdio
+      for (const tool of cloudOnly) {
+        expect([kind, tool, names(host({ kind, hasExecutor: executor, target: ConnectTarget.Cloud })).includes(tool)])
+          .toEqual([kind, tool, true])
+      }
+    }
+    for (const tool of cloudOnly) {
+      expect(names(host({ target: ConnectTarget.Local }))).not.toContain(tool)
+    }
+    // The organization's workloads are a platform record: every host, every target.
+    expect(names(host({ target: ConnectTarget.Local }))).toContain('list_slots')
+    expect(names(host({ kind: ToolHostKind.Http, hasExecutor: false, target: ConnectTarget.Cloud }))).toContain('list_slots')
+  })
+
+  test('list_files switches to the metadata listing by kind, the category only with meta', async () => {
+    const tool = catalogue.find(entry => entry.name === 'list_files')!
+    const calls: unknown[] = []
+    const deps = {
+      host: host({ target: ConnectTarget.Cloud }),
+      api: {
+        files: {
+          list: async (projectId: string) => { calls.push(['list', projectId]); return ['a.ts'] },
+          meta: async (projectId: string, query: unknown) => { calls.push(['meta', projectId, query]); return ['docs/stories/s1.md'] },
+        },
+      },
+      attached: () => 'p1', log: () => undefined,
+    } as unknown as ToolHostDeps
+
+    expect((await tool.run({}, deps)).structured).toEqual({ projectId: 'p1', total: 1, files: ['a.ts'] })
+    const stories = await tool.run({ kind: 'stories', category: 'ux' }, deps)
+    expect(stories.text).toContain('1 stories document(s)')
+    expect(stories.structured).toEqual({ projectId: 'p1', kind: 'stories', total: 1, files: ['docs/stories/s1.md'] })
+    await tool.run({ kind: 'meta', category: 'ux' }, deps)
+    await tool.run({ kind: 'all' }, deps)
+    expect(calls).toEqual([
+      ['list', 'p1'],
+      ['meta', 'p1', { kind: 'stories' }],
+      ['meta', 'p1', { kind: 'meta', category: 'ux' }],
+      ['meta', 'p1', { kind: 'all' }],
+    ])
+  })
+
+  test('read_file answers the content; write_file attaches first and names a failed rebuild', async () => {
+    const read = catalogue.find(entry => entry.name === 'read_file')!
+    const write = catalogue.find(entry => entry.name === 'write_file')!
+    const order: string[] = []
+    const deps = {
+      host: host({ target: ConnectTarget.Cloud }),
+      api: {
+        files: {
+          get: async (_projectId: string, path: string) => ({ path, content: 'export const a = 1\n' }),
+          save: async (projectId: string, path: string, content: string) => {
+            order.push(`save:${projectId}:${path}:${content}`)
+            return { path, buildWarning: 'Rollup failed: missing export' }
+          },
+        },
+      },
+      session: async () => { order.push('session'); return {} as never },
+      currentSession: () => null,
+      attached: () => 'p1',
+      attach: (projectId: string) => { order.push(`attach:${projectId}`) },
+      log: () => undefined,
+    } as unknown as ToolHostDeps
+
+    const file = await read.run({ path: 'src/a.ts' }, deps)
+    expect(file.text).toBe('export const a = 1\n')
+    expect(file.structured).toEqual({ projectId: 'p1', path: 'src/a.ts', length: 19 })
+    expect((await read.run({}, deps)).isError).toBe(true)
+
+    const written = await write.run({ projectId: 'p2', path: 'src/a.ts', content: 'x' }, deps)
+    expect(order).toEqual(['attach:p2', 'session', 'save:p2:src/a.ts:x'])
+    expect(written.text).toContain('Wrote src/a.ts.')
+    expect(written.text).toContain('Rollup failed: missing export')
+    expect((await write.run({ path: 'src/a.ts' }, deps)).isError).toBe(true)
+  })
+
+  test('delete_file deletes nothing without confirm; preview_control maps each action to its control', async () => {
+    const remove = catalogue.find(entry => entry.name === 'delete_file')!
+    const preview = catalogue.find(entry => entry.name === 'preview_control')!
+    const calls: string[] = []
+    const slot = { id: 's1', projectId: 'p1', kind: 'ephemeral', status: 'serving', slug: 'shop', host: 'shop.example.org' }
+    const control = (verb: string) => async (projectId: string) => { calls.push(`${verb}:${projectId}`); return slot }
+    const deps = {
+      host: host({ kind: ToolHostKind.Http, hasExecutor: false, target: ConnectTarget.Cloud }),
+      api: {
+        files: { remove: async (projectId: string, path: string) => { calls.push(`remove:${projectId}:${path}`); return { path } } },
+        sandbox: { run: control('run'), restart: control('restart'), stop: control('stop'), rebuild: control('rebuild') },
+      },
+      attached: () => 'p1', log: () => undefined,
+    } as unknown as ToolHostDeps
+
+    expect((await remove.run({ path: 'src/a.ts' }, deps)).isError).toBe(true)
+    expect(calls).toEqual([])
+    expect((await remove.run({ path: 'src/a.ts', confirm: true }, deps)).text).toBe('Deleted src/a.ts. The preview was rebuilt.')
+
+    for (const action of ['start', 'restart', 'stop', 'rebuild']) {
+      const result = await preview.run({ action }, deps)
+      expect(result.text).toContain('ephemeral · serving · shop.example.org')
+      expect(result.structured).toEqual({ projectId: 'p1', slot })
+    }
+    expect(calls).toEqual(['remove:p1:src/a.ts', 'run:p1', 'restart:p1', 'stop:p1', 'rebuild:p1'])
+  })
+
+  test('list_slots renders every workload with its warnings', async () => {
+    const tool = catalogue.find(entry => entry.name === 'list_slots')!
+    const result = await tool.run({}, {
+      host: host(),
+      api: {
+        slot: {
+          list: async () => [
+            { id: 's1', projectId: 'p1', kind: 'ephemeral', status: 'serving', slug: 'shop', buildWarning: 'Rollup failed' },
+            { id: 's2', projectId: 'p1', kind: 'production', status: 'published', slug: 'shop-prod', host: 'shop.com' },
+          ],
+        },
+      },
+      log: () => undefined,
+    } as unknown as ToolHostDeps)
+
+    expect(result.text).toContain('2 workload(s)')
+    expect(result.text).toContain('production · published · shop.com · project p1 · slot s2')
+    expect(result.text).toContain('warning: Rollup failed')
+    expect(result.structured).toEqual(expect.objectContaining({ total: 2 }))
+  })
+
+  test('a protected file and a missing workload are refused in a sentence', () => {
+    expect(refusalHelper.refusalPhrase(
+      'target-integrity:package.json is part of the project\'s build configuration and cannot be edited'
+    )).toContain('neither write_file nor delete_file may change it')
+    expect(refusalHelper.refusalPhrase('target-integrity:3 files outside the manifest'))
+      .toContain('not a Viable application')
+    expect(refusalHelper.refusalPhrase('viable-slot:not-found:dev:p1')).toContain('project_status')
   })
 
   test('the cloud file tool returns the platform source listing', async () => {
@@ -363,6 +485,48 @@ describe('the story tools speak planning', () => {
     expect(await suite.planning.cards.load(story.id!)).toBeNull()
   })
 
+  test('reset_story and complete_story move the story through its flow, then read its status', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.', {
+      moves: [ViableStoryTransition.Start],
+    })
+    const connector = connectorFor(suite, project.id!)
+
+    const completed = await toolNamed('complete_story').run({ storyId: story.code }, connector.deps)
+    expect(completed.isError).not.toBe(true)
+    expect((await suite.planning.cards.get(story.id!)).status).toBe(ViableStoryStatus.Completed)
+
+    const reset = await toolNamed('reset_story').run({ storyId: story.code }, connector.deps)
+    expect(reset.isError).not.toBe(true)
+    expect((await suite.planning.cards.get(story.id!)).status).toBe(ViableStoryStatus.Planned)
+    expect(connector.order).toEqual([
+      `session:${project.id}`, 'execute:transit:complete', `story-status:${project.id}:${story.id}`,
+      `session:${project.id}`, 'execute:transit:reset', `story-status:${project.id}:${story.id}`,
+    ])
+
+    // Only a story in progress completes: the flow refuses, and no status read hides it.
+    const refused = connectorFor(suite, project.id!)
+    await expect(toolNamed('complete_story').run({ storyId: story.code }, refused.deps))
+      .rejects.toBeInstanceOf(IllegalTransition)
+    expect(refused.order.some(entry => entry.startsWith('story-status:'))).toBe(false)
+  })
+
+  test('reset_story and complete_story answer from story status when the commit is late', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+    for (const name of ['reset_story', 'complete_story']) {
+      const late = connectorFor(suite, project.id!, {
+        execute: async () => { throw new CommitTimeout('transition-1') },
+      })
+      const answered = await toolNamed(name).run({ storyId: story.code }, late.deps)
+
+      expect([name, answered.isError === true]).toEqual([name, false])
+      expect(late.order.at(-1)).toBe(`story-status:${project.id}:${story.id}`)
+    }
+  })
+
   test('list_stories reads the flow order, filters by the area field, and counts the page', async () => {
     const suite = await makePlanningSuite()
     const project = await suite.project()
@@ -638,7 +802,7 @@ describe('the project settings are one record, read and written through the plat
   })
 
   test('a refused field that is not a setting still reads as a sentence', () => {
-    const phrase = refusalPhrase(new AuthenPayloadError('prompt'))
+    const phrase = refusalHelper.refusalPhrase(new AuthenPayloadError('prompt'))
 
     expect(phrase).toContain('(prompt)')
     expect(phrase).not.toContain('authen:payload:')
@@ -857,6 +1021,26 @@ describe('a conversion tool opens its session before the platform reads anything
     expect(order).toEqual(['create', 'attach:p1', 'session:p1', 'start:p1'])
   })
 
+  test('in the delegated mode the create names the unattached session the checks go to', async () => {
+    const { deps, order, created } = depsFor({ attached: null })
+    const opened = deps.session
+    Object.assign(deps, {
+      host: host({ llm: ConnectLlm.Local }),
+      session: async () => {
+        await opened()
+
+        return { session: { id: `s-${deps.attached() ?? 'none'}` } }
+      },
+    })
+
+    await toolNamed('convert_project').run({ name: 'Ledger' }, deps)
+
+    expect(created).toEqual([{
+      sessionId: 's-none', name: 'Ledger', target: ConnectTarget.Local, origin: { kind: OriginKind.Local },
+    }])
+    expect(order).toEqual(['session:none', 'create', 'attach:p1', 'session:p1', 'start:p1'])
+  })
+
   test('with no directory a repository is cloned by the platform instead', async () => {
     const { deps, order, created } = depsFor({ attached: null, dir: undefined })
 
@@ -957,7 +1141,7 @@ describe('a question is carried to a person and its answer routed back', () => {
 
     expect(result.isError).not.toBe(true)
     expect(result.text).toContain('One product or two?')
-    expect(result.structured?.questionId).toBe('q1')
+    expect(result.structured).toMatchObject({ questionId: 'q1' })
   })
 
   test('a run that parked while nobody was attached is still offered', async () => {
@@ -969,7 +1153,7 @@ describe('a question is carried to a person and its answer routed back', () => {
 
     expect(result.text).toContain('parked on a question')
     expect(result.text).toContain('One product or two?')
-    expect(result.structured?.questionId).toBe('q1')
+    expect(result.structured).toMatchObject({ questionId: 'q1' })
   })
 
   test('nothing anywhere says so, and points back to domain status', async () => {
@@ -1064,7 +1248,7 @@ describe('a task handed out can be read again', () => {
 
     expect(result.isError).not.toBe(true)
     expect(result.text).toContain('do the thing')
-    expect(result.structured?.taskId).toBe('t1')
+    expect(result.structured).toMatchObject({ taskId: 't1' })
   })
 
   test('an id nobody was given is refused, and says what to call instead', async () => {
@@ -1263,47 +1447,51 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
     const gateway = ResilientError.ensure('502 Bad Gateway: upstream connect error', true)
 
     expect(gateway.message).toContain('    at ')
-    expect(refusalPhrase(gateway)).toBe('502 Bad Gateway: upstream connect error')
-    expect(refusalMessage(gateway)).not.toContain('    at ')
+    expect(refusalHelper.refusalPhrase(gateway)).toBe('502 Bad Gateway: upstream connect error')
+    expect(refusalHelper.refusalMessage(gateway)).not.toContain('    at ')
   })
 
   test('the detail a refusal carries is kept where it is the actionable part', () => {
-    expect(refusalPhrase(asThrown('viable-agent-common:reserved-name:Shopify'))).toContain('"Shopify"')
-    expect(refusalPhrase(asThrown('viable-agent-common:content-refused:abuse-tooling')))
+    expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:reserved-name:Shopify'))).toContain('"Shopify"')
+    expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:content-refused:abuse-tooling')))
       .toContain('unsolicited bulk messaging')
-    expect(refusalPhrase(asThrown('viable-agent-common:target-integrity:package.json missing')))
+    expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:target-integrity:package.json missing')))
       .toContain('package.json missing')
   })
 
   test('an unsigned connector is told what to do, with the link and the code in the sentence', () => {
-    const phrase = refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device ABCD-EFGH'))
+    const phrase = refusalHelper.refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device ABCD-EFGH'))
 
     expect(phrase).toContain('https://api.example.com/oauth/device')
     expect(phrase).toContain('ABCD-EFGH')
     expect(phrase).toContain('call this tool again')
     expect(phrase).not.toContain('oauth:')
     // Before a device sign-in is pending there is no code yet, and the sentence must still read.
-    expect(refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device')))
+    expect(refusalHelper.refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device')))
       .not.toContain('enter the code')
   })
 
   test('a refused token is explained, and an environment token is never silently replaced', () => {
-    expect(refusalPhrase(asThrown('oauth:token-rejected:VIABLE_API_TOKEN'))).toContain('VIABLE_API_TOKEN')
-    expect(refusalPhrase(asThrown('api:auth:guard:auth-token'))).toContain('call this tool again')
+    expect(refusalHelper.refusalPhrase(asThrown('oauth:token-rejected:VIABLE_API_TOKEN'))).toContain('VIABLE_API_TOKEN')
+    expect(refusalHelper.refusalPhrase(asThrown('api:auth:guard:auth-token'))).toContain('call this tool again')
   })
 
   test('a stored cause is phrased as readily as a thrown one', () => {
     // `slot.lastError` and pipeline errors are strings with no class left on them, and the platform
     // writes them from the same refusal — so one function has to serve both.
-    expect(refusalPhrase('viable-agent-common:conversion:relocate-declined'))
+    expect(refusalHelper.refusalPhrase('viable-agent-common:conversion:relocate-declined'))
       .toContain('__viable_converted/')
-    expect(refusalPhrase('viable-converter:origin-purged')).toContain('cannot be undone')
+    expect(refusalHelper.refusalPhrase('viable-converter:origin-purged')).toContain('cannot be undone')
   })
 
   test('a failed pipeline reports its cause in the same sentence', () => {
-    const rendered = renderPipelineStatus({
+    const rendered = statusTextHelper.renderPipelineStatus({
       runId: 'r1', pipeline: 'vib:project:convert:implementation', status: 'failed',
       completed: [], pending: [], error: 'viable-converter:taxonomy-missing',
+      version: 1, warnings: [], attempts: 1,
+      startedAt: '2026-10-09T00:00:00.000Z',
+      heartbeatAt: '2026-10-09T00:00:00.000Z',
+      updatedAt: '2026-10-09T00:00:00.000Z',
     })
 
     expect(rendered).toContain('ANALYSIS stage records')
@@ -1338,34 +1526,34 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
   })
 
   test('a failure that is not a refusal is passed through exactly as it is', () => {
-    expect(refusalPhrase(new Error('pipeline_status took longer than 45000ms')))
+    expect(refusalHelper.refusalPhrase(new Error('pipeline_status took longer than 45000ms')))
       .toBe('pipeline_status took longer than 45000ms')
-    expect(refusalMessage(new Error('nothing marshalled here'))).toBe('nothing marshalled here')
+    expect(refusalHelper.refusalMessage(new Error('nothing marshalled here'))).toBe('nothing marshalled here')
 
     // A status error can be the build warning a slot recorded, and build diagnostics are
     // full of lines that look like stack frames. A stack only ever arrives inside the
     // marshalling, so nothing outside it is cut.
     const warning = 'the build failed\n    at bundle (rollup.js:1:1)\n  src/x.ts: no such export'
-    expect(refusalPhrase(warning)).toBe(warning)
+    expect(refusalHelper.refusalPhrase(warning)).toBe(warning)
   })
 
   test('a consent refusal is phrased from its marker, its production status, or inside a planning commit', () => {
     const url = 'https://vib-stage.owlmeans.org/account/billing?consent=1'
     const stored = `viable-connect:consent-required:story:${Date.parse('2026-10-09T00:00:00Z')}:${encodeURIComponent(url)}`
 
-    const fromMarker = refusalPhrase(stored)
+    const fromMarker = refusalHelper.refusalPhrase(stored)
     expect(fromMarker).toContain(url)
     expect(fromMarker).toContain('2026-10-08')
     expect(fromMarker).toContain('Do not retry this call automatically')
     expect(fromMarker).not.toContain('consent-required')
 
     // A production body is only an incident id: the status is all that is left of the refusal.
-    const production = refusalPhrase(new ApiStatusError(428, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
+    const production = refusalHelper.refusalPhrase(new ApiStatusError(428, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
     expect(production).toContain('Billing in the OwlMeans web application')
     expect(production).not.toContain('api:client:status')
 
     // The web refusal, when a story start failed on it at commit time.
-    const committed = refusalPhrase(asThrown(
+    const committed = refusalHelper.refusalPhrase(asThrown(
       'planning:commit-failed:t1:payment:consumer-rights:performance-consent-required:1',
       'PlanningErrorCommitFailed',
     ))
@@ -1374,7 +1562,7 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
   })
 
   test('a balance refusal that reached production as a bare 402 still reads as the balance', () => {
-    const phrase = refusalPhrase(new ApiStatusError(402, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
+    const phrase = refusalHelper.refusalPhrase(new ApiStatusError(402, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
 
     expect(phrase).toContain('balance')
     expect(phrase).toContain('top up')
@@ -1384,20 +1572,261 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
   test('no marker in the table shadows a more specific one below it', () => {
     // The first marker the message contains wins, so a family marker placed above one of its own
     // reasons would answer for all of them — `conversion:unsupported:` over `…:not-linked`, say.
-    REFUSALS.forEach((entry, index) => {
-      for (const later of REFUSALS.slice(index + 1)) {
+    refusalHelper.refusals.forEach((entry, index) => {
+      for (const later of refusalHelper.refusals.slice(index + 1)) {
         expect([later.marker, later.marker.includes(entry.marker)]).toEqual([later.marker, false])
       }
     })
   })
 
   test('every phrase reads as a sentence with nothing after the marker', () => {
-    for (const entry of REFUSALS) {
+    for (const entry of refusalHelper.refusals) {
       const phrase = entry.phrase('')
       expect([entry.marker, phrase.length > 40]).toEqual([entry.marker, true])
       expect([entry.marker, phrase.trim().endsWith('.')]).toEqual([entry.marker, true])
       // A phrase that repeated its own marker would put the wire text back in front of the reader.
       expect([entry.marker, phrase.includes(entry.marker)]).toEqual([entry.marker, false])
     }
+  })
+})
+
+describe('viable-sdk — deleting a project and releasing its lock', () => {
+  const lifecycleDeps = (opts: { attached?: string | null, host?: ToolHost } = {}) => {
+    const order: string[] = []
+    let attached = opts.attached === undefined ? 'p1' : opts.attached
+    const deps = {
+      host: opts.host ?? host({ target: ConnectTarget.Cloud }),
+      api: {
+        project: {
+          destroy: async (projectId: string) => {
+            order.push(`destroy:${projectId}`)
+            return { id: projectId, name: 'Shop', alias: 'shop' }
+          },
+          unlock: async (projectId: string) => {
+            order.push(`unlock:${projectId}`)
+            return { locked: false }
+          },
+        },
+      },
+      session: async () => { order.push('session'); return {} as never },
+      currentSession: () => null,
+      attached: () => attached,
+      attach: (projectId: string) => { attached = projectId },
+      detach: () => { order.push('detach'); attached = null },
+      release: async () => { order.push('release') },
+      log: () => undefined,
+    } as unknown as ToolHostDeps
+
+    return { deps, order, attached: () => attached }
+  }
+  const run = async (name: string, args: Record<string, unknown>, deps: ToolHostDeps) =>
+    await catalogue.find(tool => tool.name === name)!.run(args, deps)
+
+  test('delete_project deletes nothing without confirm: true, and never the attached project by default', async () => {
+    const { deps, order } = lifecycleDeps()
+
+    const unconfirmed = await run('delete_project', { projectId: 'p1' }, deps)
+    expect(unconfirmed.isError).toBe(true)
+    expect(unconfirmed.text).toContain('confirm: true')
+
+    const unnamed = await run('delete_project', { confirm: true }, deps)
+    expect(unnamed.isError).toBe(true)
+    expect(unnamed.text).toContain('projectId')
+    expect(order).toEqual([])
+    // The schema says so before any call: the project is required.
+    const input = z.object(catalogue.find(tool => tool.name === 'delete_project')!.input)
+    expect(input.safeParse({ confirm: true }).success).toBe(false)
+    expect(input.safeParse({ projectId: 'p1' }).success).toBe(false)
+  })
+
+  test('delete_project on the attached project closes and detaches the session first, then deletes', async () => {
+    const attachedHere = lifecycleDeps()
+    const deleted = await run('delete_project', { projectId: 'p1', confirm: true }, attachedHere.deps)
+
+    expect(deleted.isError).not.toBe(true)
+    expect(deleted.text).toContain('Deleted Shop (p1)')
+    expect(attachedHere.order).toEqual(['release', 'detach', 'destroy:p1'])
+    expect(attachedHere.attached()).toBeNull()
+
+    // Another project: the attached session is left alone.
+    const elsewhere = lifecycleDeps()
+    await run('delete_project', { projectId: 'p2', confirm: true }, elsewhere.deps)
+    expect(elsewhere.order).toEqual(['destroy:p2'])
+    expect(elsewhere.attached()).toBe('p1')
+
+    // The URL-configured host holds no session: nothing to close.
+    const url = lifecycleDeps({ host: host({ kind: ToolHostKind.Http, target: ConnectTarget.Cloud, hasExecutor: false }) })
+    await run('delete_project', { projectId: 'p1', confirm: true }, url.deps)
+    expect(url.order).toEqual(['destroy:p1'])
+  })
+
+  test('unlock_project_agent releases the lock only with confirm: true, on the attached project by default', async () => {
+    const { deps, order } = lifecycleDeps()
+
+    expect((await run('unlock_project_agent', {}, deps)).isError).toBe(true)
+    expect(order).toEqual([])
+
+    const released = await run('unlock_project_agent', { confirm: true }, deps)
+    expect(released.isError).not.toBe(true)
+    expect(released.text).toContain('released')
+    expect(order).toEqual(['unlock:p1'])
+  })
+
+  test('both are offered on every host, in the projects group', () => {
+    for (const mode of [host(), host({ kind: ToolHostKind.Http, target: ConnectTarget.Cloud, hasExecutor: false })]) {
+      expect(names(mode)).toContain('delete_project')
+      expect(names(mode)).toContain('unlock_project_agent')
+      expect(names(mode)).toContain('reset_story')
+      expect(names(mode)).toContain('complete_story')
+    }
+  })
+})
+
+describe('viable-sdk — tool annotations', () => {
+  test('every tool declares what it does to the world, and the irreversible ones say so', () => {
+    for (const tool of catalogue) {
+      expect([tool.name, typeof tool.annotations.readOnlyHint]).toEqual([tool.name, 'boolean'])
+      expect([tool.name, typeof tool.annotations.destructiveHint]).toEqual([tool.name, 'boolean'])
+      // A read never destroys.
+      if (tool.annotations.readOnlyHint === true) {
+        expect([tool.name, tool.annotations.destructiveHint]).toEqual([tool.name, false])
+      }
+    }
+    const destructive = catalogue.filter(tool => tool.annotations.destructiveHint === true).map(tool => tool.name).sort()
+    expect(destructive).toEqual([
+      'delete_file', 'delete_project', 'delete_story', 'disconnect_github', 'git_discard', 'git_revert',
+      'manage_app_grant', 'manage_app_group', 'manage_app_organization', 'manage_app_user', 'production_control', 'publish_production', 'purge_origin', 'reinitialize_project', 'revoke_access_token',
+      'unlock_project_agent', 'write_file',
+    ])
+    for (const name of [
+      'project_status', 'list_projects', 'story_status', 'conversion_status', 'list_files', 'read_file', 'list_slots',
+      'inference_settings', 'list_access_tokens', 'privacy_choices', 'git_status', 'git_history', 'github_repositories',
+      'production_status', 'production_auth', 'app_users', 'app_permissions', 'app_grants', 'app_organizations',
+      'app_groups', 'project_activity', 'notifications', 'file_changes',
+    ]) {
+      expect(catalogue.find(tool => tool.name === name)!.annotations.readOnlyHint).toBe(true)
+    }
+  })
+
+  test('registerCatalogue hands each tool\'s annotations to the MCP server', () => {
+    const configs = new Map<string, { annotations?: unknown }>()
+    const server: McpServerLike = { registerTool: (name, config) => { configs.set(name, config) } }
+    registerCatalogue(server, {
+      host: host({ target: ConnectTarget.Cloud }), api: {} as never, session: async () => ({}) as never,
+      currentSession: () => null, attached: () => null, attach: () => undefined, log: () => undefined,
+    } as unknown as ToolHostDeps)
+
+    expect(configs.get('delete_project')?.annotations).toEqual(expect.objectContaining({ destructiveHint: true }))
+    expect(configs.get('project_status')?.annotations).toEqual(expect.objectContaining({ readOnlyHint: true }))
+    expect([...configs.values()].every(config => config.annotations != null)).toBe(true)
+  })
+})
+
+describe('viable-sdk — the plan\'s refusals and the integrations\' are phrased for a person', () => {
+  test('a capability the plan lacks and a limit with no room are person refusals, named and dated', () => {
+    const capability = refusalHelper.personRefusalPhrase(
+      new Error('auth:forbidden:entitlement:capability-required:feature:branding--whitelabel'))
+    expect(capability).toContain('hiding the OwlMeans credit')
+    expect(capability).toContain('Billing')
+    expect(capability).not.toContain('capability-required')
+
+    const limit = refusalHelper.personRefusalPhrase(
+      new Error('auth:forbidden:entitlement:limit-exhausted:published-sites:1/1:2026-11-01T00:00:00.000Z'))
+    expect(limit).toContain('published sites limit is used up (1 of 1, renewed on 2026-11-01)')
+    expect(refusalHelper.personRefusalPhrase(new Error('something else'))).toBeNull()
+    // The same refusal stored as text reads the same.
+    expect(refusalHelper.refusalPhrase('entitlement:limit-exhausted:published-sites:1/1')).toContain('published sites')
+  })
+
+  test('the GitHub, domain and IAM refusals are sentences, not markers', () => {
+    for (const [marker, expected] of [
+      ['github:not-connected', 'no GitHub connection'],
+      ['github:not-published', 'not linked to a GitHub repository'],
+      ['oauth:invalid-or-expired-state', 'authorization expired'],
+      ['viable-domain:taken:shop.example.com', 'shop.example.com'],
+      ['viable-api:iam-refused:last-owner', 'last-owner'],
+    ] as const) {
+      const phrase = refusalHelper.refusalPhrase(new Error(marker))
+      expect([marker, phrase.includes(expected)]).toEqual([marker, true])
+    }
+  })
+})
+
+describe('viable-sdk — planning kits', () => {
+  const kit = {
+    id: 'project', kind: 'project', title: 'Project tracking', purpose: 'Tasks and bugs moving to done',
+    container: { key: 'workspace', label: 'Project' },
+    types: [{ key: 'task', label: 'Task', flow: 'task' }, { key: 'bug', label: 'Bug', flow: 'bug' }],
+    flows: [
+      { key: 'task', label: 'Task flow', statuses: [{ key: 'open', label: 'Open', intrinsic: 'planned' }, { key: 'done', label: 'Done', intrinsic: 'closed' }] },
+      { key: 'bug', label: 'Bug flow', statuses: [{ key: 'reported', label: 'Reported', intrinsic: 'planned' }] },
+    ],
+  }
+  const kitDeps = (order: string[], h: ToolHost = host({ target: ConnectTarget.Cloud })) => {
+    let attached: string | null = 'p0'
+    return {
+      host: h,
+      api: {
+        project: {
+          kitDescribe: async (projectId: string) => { order.push(`describe:${projectId}`); return { kits: [kit] } },
+          kitApply: async (projectId: string, body: { kit: string, types?: string[] }) => {
+            order.push(`apply:${projectId}:${body.kit}:${body.types?.join('+') ?? '*'}`)
+            return { applied: body.types ?? ['task', 'bug'], skipped: body.types != null ? ['bug'] : [], warnings: ['renamed nothing'] }
+          },
+        },
+      },
+      session: async () => { order.push(`session:${attached}`); return {} as never },
+      currentSession: () => null,
+      attached: () => attached,
+      attach: (projectId: string) => { attached = projectId },
+      log: () => undefined,
+    } as unknown as ToolHostDeps
+  }
+
+  test('both tools are offered on every host, and named by the platform catalogue', () => {
+    for (const h of [host(), host({ target: ConnectTarget.Cloud }), host({ kind: ToolHostKind.Http, hasExecutor: false })]) {
+      expect(names(h)).toContain('describe_planning_kits')
+      expect(names(h)).toContain('apply_planning_kit')
+    }
+  })
+
+  test('describe_planning_kits lists each kit, its types and flows, without opening a session', async () => {
+    const order: string[] = []
+    const tool = catalogue.find(entry => entry.name === 'describe_planning_kits')!
+    const result = await tool.run({ projectId: 'p1' }, kitDeps(order))
+
+    expect(order).toEqual(['describe:p1'])
+    expect(result.text).toContain('project · Project tracking (project)')
+    expect(result.text).toContain('container: Project (workspace)')
+    expect(result.text).toContain('type bug · Bug — flow Bug flow')
+    expect(result.text).toContain('Open [planned] → Done [closed]')
+    expect(result.text).toContain('apply_planning_kit')
+    expect((result.structured as { kits: unknown[] }).kits).toEqual([kit])
+  })
+
+  test('apply_planning_kit attaches the named project first, then applies the kit with the kept types', async () => {
+    const order: string[] = []
+    const tool = catalogue.find(entry => entry.name === 'apply_planning_kit')!
+    const result = await tool.run({ projectId: 'p1', kit: 'project', types: ['task'] }, kitDeps(order))
+
+    expect(order).toEqual(['session:p1', 'apply:p1:project:task'])
+    expect(result.isError).toBeUndefined()
+    expect(result.text).toContain('written: task')
+    expect(result.text).toContain('left out: bug')
+    expect(result.text).toContain('warning: renamed nothing')
+
+    const every: string[] = []
+    await tool.run({ kit: 'project' }, kitDeps(every))
+    expect(every).toEqual(['session:p0', 'apply:p0:project:*'])
+  })
+
+  test('apply_planning_kit without a kit is refused before the platform is asked', async () => {
+    const order: string[] = []
+    const tool = catalogue.find(entry => entry.name === 'apply_planning_kit')!
+    const result = await tool.run({ projectId: 'p1' }, kitDeps(order))
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('describe_planning_kits')
+    expect(order).toEqual([])
   })
 })

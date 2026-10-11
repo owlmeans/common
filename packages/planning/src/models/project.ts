@@ -1,5 +1,6 @@
 import { IntrinsicStatus, WorkcardKind } from '../consts.js'
-import type { PlanningFacade, Project, ProjectModel } from '../types.js'
+import type { PlanningFacade, Project } from '../types.js'
+import type { ProjectModel } from './types.js'
 import { makeWorkcardModel } from './workcard.js'
 
 /** A workcard model plus the project's own reads: its cards, its sub-projects, its summary. */

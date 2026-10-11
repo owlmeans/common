@@ -6,22 +6,22 @@ import {
   RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
 } from './consts.js'
 import {
-  BillingProfileSchema, ConsumerConsentSchema, ConsumerDeclarationSchema, ConsumerEventSchema, FingerprintSchema,
-  PaygateCustomerSchema, PaymentFulfillmentSchema, PaymentSubscriptionSchema, PaymentUsageCounterSchema,
-  PaymentUsageSchema, PaymentWebhookSchema, PurchaseSchema,
-} from './model.js'
+  BillingProfileSchema, ConsumerConsentSchema, ConsumerDeclarationSchema, PaygateCustomerSchema,
+  PaymentFulfillmentSchema, PaymentSubscriptionSchema, PaymentUsageCounterSchema, PaymentUsageSchema,
+  PaymentWebhookSchema, PurchaseSchema, ConsumerEventSchema, FingerprintSchema,
+} from './schemas.js'
 import type {
   BillingProfileRecord, BillingProfileResource, ConsumerConsentRecord, ConsumerConsentResource,
   ConsumerDeclarationRecord, ConsumerDeclarationResource, ConsumerEventRecord, ConsumerEventResource,
-  FingerprintRecord, FingerprintResource, PaygateCustomerRecord, PaygateCustomerResource,
-  PaymentFulfillmentRecord, PaymentFulfillmentResource, PaymentSubscriptionRecord,
-  PaymentSubscriptionResource, PaymentUsageCounterRecord, PaymentUsageCounterResource, PaymentUsageRecord,
-  PaymentUsageResource, PaymentWebhookRecord, PaymentWebhookResource, PurchaseRecord, PurchaseResource,
+  FingerprintRecord, FingerprintResource, PaygateCustomerRecord, PaygateCustomerResource, PaymentFulfillmentRecord,
+  PaymentFulfillmentResource, PaymentSubscriptionRecord, PaymentSubscriptionResource, PaymentUsageCounterRecord,
+  PaymentUsageCounterResource, PaymentUsageRecord, PaymentUsageResource, PaymentWebhookRecord,
+  PaymentWebhookResource, PurchaseRecord, PurchaseResource,
 } from './types.js'
 
 export const makePaygateCustomerResource: ResourceMaker<PaygateCustomerRecord, PaygateCustomerResource> = (
   dbAlias, serviceAlias,
-) => {
+): PaygateCustomerResource => {
   const resource = makeMongoResource<PaygateCustomerRecord, PaygateCustomerResource>(
     RES_PAYGATE_CUSTOMER, dbAlias, serviceAlias,
   )
@@ -36,7 +36,7 @@ export const makePaygateCustomerResource: ResourceMaker<PaygateCustomerRecord, P
 
 export const makeSubscriptionResource: ResourceMaker<PaymentSubscriptionRecord, PaymentSubscriptionResource> = (
   dbAlias, serviceAlias,
-) => {
+): PaymentSubscriptionResource => {
   const resource = makeMongoResource<PaymentSubscriptionRecord, PaymentSubscriptionResource>(
     RES_PAYMENT_SUBSCRIPTION, dbAlias, serviceAlias,
   )
@@ -54,7 +54,7 @@ export const makeSubscriptionResource: ResourceMaker<PaymentSubscriptionRecord, 
 
 export const makeFulfillmentResource: ResourceMaker<PaymentFulfillmentRecord, PaymentFulfillmentResource> = (
   dbAlias, serviceAlias,
-) => {
+): PaymentFulfillmentResource => {
   const resource = makeMongoResource<PaymentFulfillmentRecord, PaymentFulfillmentResource>(
     RES_PAYMENT_FULFILLMENT, dbAlias, serviceAlias,
   )
@@ -69,7 +69,7 @@ export const makeFulfillmentResource: ResourceMaker<PaymentFulfillmentRecord, Pa
 
 export const makeWebhookResource: ResourceMaker<PaymentWebhookRecord, PaymentWebhookResource> = (
   dbAlias, serviceAlias,
-) => {
+): PaymentWebhookResource => {
   const resource = makeMongoResource<PaymentWebhookRecord, PaymentWebhookResource>(
     RES_PAYMENT_WEBHOOK, dbAlias, serviceAlias,
   )
@@ -80,7 +80,7 @@ export const makeWebhookResource: ResourceMaker<PaymentWebhookRecord, PaymentWeb
 
 export const makeUsageResource: ResourceMaker<PaymentUsageRecord, PaymentUsageResource> = (
   dbAlias, serviceAlias,
-) => {
+): PaymentUsageResource => {
   const resource = makeMongoResource<PaymentUsageRecord, PaymentUsageResource>(
     RES_PAYMENT_USAGE, dbAlias, serviceAlias,
   )
@@ -94,7 +94,7 @@ export const makeUsageResource: ResourceMaker<PaymentUsageRecord, PaymentUsageRe
 
 export const makeUsageCounterResource: ResourceMaker<PaymentUsageCounterRecord, PaymentUsageCounterResource> = (
   dbAlias, serviceAlias,
-) => {
+): PaymentUsageCounterResource => {
   const resource = makeMongoResource<PaymentUsageCounterRecord, PaymentUsageCounterResource>(
     RES_PAYMENT_USAGE_COUNTER, dbAlias, serviceAlias,
   )
@@ -105,7 +105,7 @@ export const makeUsageCounterResource: ResourceMaker<PaymentUsageCounterRecord, 
 
 export const makeFingerprintResource: ResourceMaker<FingerprintRecord, FingerprintResource> = (
   dbAlias, serviceAlias,
-) => {
+): FingerprintResource => {
   const resource = makeMongoResource<FingerprintRecord, FingerprintResource>(
     RES_PAYMENT_FINGERPRINT, dbAlias, serviceAlias,
   )
@@ -118,7 +118,7 @@ export const makeFingerprintResource: ResourceMaker<FingerprintRecord, Fingerpri
 
 export const makeBillingProfileResource: ResourceMaker<BillingProfileRecord, BillingProfileResource> = (
   dbAlias, serviceAlias,
-) => {
+): BillingProfileResource => {
   const resource = makeMongoResource<BillingProfileRecord, BillingProfileResource>(
     RES_BILLING_PROFILE, dbAlias, serviceAlias,
   )
@@ -130,7 +130,9 @@ export const makeBillingProfileResource: ResourceMaker<BillingProfileRecord, Bil
   return resource
 }
 
-export const makePurchaseResource: ResourceMaker<PurchaseRecord, PurchaseResource> = (dbAlias, serviceAlias) => {
+export const makePurchaseResource: ResourceMaker<PurchaseRecord, PurchaseResource> = (
+  dbAlias, serviceAlias,
+): PurchaseResource => {
   const resource = makeMongoResource<PurchaseRecord, PurchaseResource>(RES_PAYMENT_PURCHASE, dbAlias, serviceAlias)
   resource.byPurchaseId = async purchaseId => await resource.load({ purchaseId })
   resource.schema = PurchaseSchema
@@ -150,7 +152,7 @@ export const makePurchaseResource: ResourceMaker<PurchaseRecord, PurchaseResourc
 
 export const makeConsumerConsentResource: ResourceMaker<ConsumerConsentRecord, ConsumerConsentResource> = (
   dbAlias, serviceAlias,
-) => {
+): ConsumerConsentResource => {
   const resource = makeMongoResource<ConsumerConsentRecord, ConsumerConsentResource>(
     RES_CONSUMER_CONSENT, dbAlias, serviceAlias,
   )
@@ -162,7 +164,7 @@ export const makeConsumerConsentResource: ResourceMaker<ConsumerConsentRecord, C
 
 export const makeConsumerDeclarationResource: ResourceMaker<ConsumerDeclarationRecord, ConsumerDeclarationResource> = (
   dbAlias, serviceAlias,
-) => {
+): ConsumerDeclarationResource => {
   const resource = makeMongoResource<ConsumerDeclarationRecord, ConsumerDeclarationResource>(
     RES_CONSUMER_DECLARATION, dbAlias, serviceAlias,
   )
@@ -175,7 +177,7 @@ export const makeConsumerDeclarationResource: ResourceMaker<ConsumerDeclarationR
 
 export const makeConsumerEventResource: ResourceMaker<ConsumerEventRecord, ConsumerEventResource> = (
   dbAlias, serviceAlias,
-) => {
+): ConsumerEventResource => {
   const resource = makeMongoResource<ConsumerEventRecord, ConsumerEventResource>(
     RES_CONSUMER_EVENT, dbAlias, serviceAlias,
   )

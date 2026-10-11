@@ -1,21 +1,14 @@
-import { createService } from '@owlmeans/context'
-import type { ConfigRecord } from '@owlmeans/context'
-import {
-  CONSUMER_RIGHTS_RECORD_ID, DEFAULT_ALIAS, PaymentEntityType, PLAN_RECORD_PREFIX, PRICING_POLICY_RECORD_ID,
-  PRODUCT_RECORD_TYPE,
-} from './consts.js'
-import type { ConsumerRightsPolicy, Localization, PaymentService, PricingPolicy } from './types.js'
+import { createService, type ConfigRecord } from '@owlmeans/context'
+import { CONSUMER_RIGHTS_RECORD_ID, DEFAULT_ALIAS, PaymentEntityType, PLAN_RECORD_PREFIX, PRICING_POLICY_RECORD_ID, PRODUCT_RECORD_TYPE, PLAN_RECORD_TYPE, PRODUCT_RECORD_PREFIX, DEFAULT_PRICING_POLICY } from './consts.js'
+import type { ConsumerRightsPolicy, Localization, PaymentService, PricingPolicy, Product, ProductPlan } from './types.js'
 import type { Config, Context } from './utils/types.js'
-import { PLAN_RECORD_TYPE, PRODUCT_RECORD_PREFIX } from './consts.js'
 import { PaymentIdentificationError, UnknownPlan, UnknownProduct } from './errors.js'
-import type { Product, ProductPlan } from './types.js'
-import { fromConfigRecord } from '@owlmeans/config'
 import type { ResourceRecord } from '@owlmeans/resource'
 import { l10nToId } from './helper.js'
 import { DEFAULT_LNG } from '@owlmeans/i18n'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { AuthCredentials } from '@owlmeans/auth'
-import { DEFAULT_PRICING_POLICY } from './estimate.js'
+import { configHelper } from '@owlmeans/config'
 
 export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentService => {
   const service: PaymentService = createService<PaymentService>(alias, {
@@ -23,9 +16,7 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
       const context = service.assertCtx() as Context
       const configRes = context.getConfigResource()
 
-      const result = fromConfigRecord<ConfigRecord, Product & ResourceRecord>(
-        await configRes.get(`${PRODUCT_RECORD_PREFIX}:${sku}`)
-      )
+      const result = configHelper.fromConfigRecord<ConfigRecord, Product & ResourceRecord>(await configRes.get(`${PRODUCT_RECORD_PREFIX}:${sku}`))
 
       if (result == null) {
         throw new UnknownProduct(sku)
@@ -40,7 +31,7 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
 
       const { items } = await configRes.list({ recordType: PRODUCT_RECORD_TYPE })
 
-      return items.map(i => fromConfigRecord<ConfigRecord, Product & ResourceRecord>(i))
+      return items.map(i => configHelper.fromConfigRecord<ConfigRecord, Product & ResourceRecord>(i))
     },
 
     plans: async (productSku, duration) => {
@@ -52,7 +43,7 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
       })
 
       return result.items.map(
-        item => fromConfigRecord<ConfigRecord, ProductPlan & ResourceRecord>(item)
+        item => configHelper.fromConfigRecord<ConfigRecord, ProductPlan & ResourceRecord>(item)
       )
     },
 
@@ -66,7 +57,7 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
         throw new UnknownPlan(planSku)
       }
 
-      return fromConfigRecord<ConfigRecord, ProductPlan & ResourceRecord>(result)
+      return configHelper.fromConfigRecord<ConfigRecord, ProductPlan & ResourceRecord>(result)
     },
 
     allPlans: async productSku => {
@@ -78,7 +69,7 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
       })
 
       return items.map(
-        item => fromConfigRecord<ConfigRecord, ProductPlan & ResourceRecord>(item)
+        item => configHelper.fromConfigRecord<ConfigRecord, ProductPlan & ResourceRecord>(item)
       )
     },
 
@@ -104,7 +95,7 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
       for (let id of idsToCheck) {
         const l10n = await configRes.load(id)
         if (l10n != null) {
-          return fromConfigRecord<ConfigRecord, Localization & ResourceRecord>(l10n)
+          return configHelper.fromConfigRecord<ConfigRecord, Localization & ResourceRecord>(l10n)
         }
       }
 
@@ -132,7 +123,7 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
 
       return record == null
         ? DEFAULT_PRICING_POLICY
-        : fromConfigRecord<ConfigRecord, PricingPolicy & ResourceRecord>(record)
+        : configHelper.fromConfigRecord<ConfigRecord, PricingPolicy & ResourceRecord>(record)
     },
 
     consumerRightsPolicy: async () => {
@@ -143,7 +134,7 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
 
       return record == null
         ? null
-        : fromConfigRecord<ConfigRecord, ConsumerRightsPolicy & ResourceRecord>(record)
+        : configHelper.fromConfigRecord<ConfigRecord, ConsumerRightsPolicy & ResourceRecord>(record)
     }
   }, service => async () => {
     service.initialized = true

@@ -3,7 +3,7 @@ import { frontend, route, RouteMethod } from '@owlmeans/route'
 import { INTENT_API_PATH, INTENT_LANDING_PATH, intent } from './consts.js'
 import { IntentPickupBodySchema, IntentStashBodySchema } from './schemas.js'
 import type {
-  IntentPickupBody, IntentPickupResult, IntentProtocolOptions, IntentStashBody, IntentStashResult,
+  IntentPickupBody, IntentPickupResult, IntentProtocolOptions, IntentProtocols, IntentStashBody, IntentStashResult,
 } from './types.js'
 
 /**
@@ -20,7 +20,7 @@ import type {
  * The landing screen is `sticky`, like the OAuth consent screens: it is an ordinary in-app screen
  * that a visitor arrives at directly from another origin.
  */
-export const makeIntentProtocols = (opts: IntentProtocolOptions = {}) => {
+export const makeIntentProtocols = (opts: IntentProtocolOptions = {}): IntentProtocols => {
   const base = openProtocol(route(intent.base, opts.path ?? INTENT_API_PATH))
 
   return {
@@ -40,4 +40,3 @@ export const makeIntentProtocols = (opts: IntentProtocolOptions = {}) => {
   }
 }
 
-export type IntentProtocols = ReturnType<typeof makeIntentProtocols>

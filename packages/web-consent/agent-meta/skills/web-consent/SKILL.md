@@ -1,6 +1,6 @@
 ---
 name: web-consent
-description: How to use @owlmeans/web-consent — the React cookie-consent dialog, its re-open button, the generated cookie-policy page and the useConsent hooks, plus the Tailwind @source line every consumer must add. Auto-invoked when mounting a consent dialog, rendering a cookie policy, gating a feature on a consent category, or importing CookieConsent, CookiePolicy or useConsent.
+description: How to use @owlmeans/web-consent — the React cookie-consent UI (the bottom bar by default, the preferences window, the locating spinner), its re-open button, the geo gate's props, the generated cookie-policy page and the useConsent hooks, plus the Tailwind @source line every consumer must add. Auto-invoked when mounting a consent bar or dialog, rendering a cookie policy, gating a feature on a consent category, or importing CookieConsent, CookiePolicy or useConsent.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,13 +8,13 @@ user-invocable: false
 # @owlmeans/web-consent
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-consent": "^0.1.18-rc.34"` in `dependencies`
+**Install:** `"@owlmeans/web-consent": "^0.1.18-rc.44"` in `dependencies`
 
 The browser components of the consent set. The model — categories, storage, migration, the store,
 Consent Mode signalling — is `@owlmeans/consent`, and this package re-exports a **named selection**
-of it (listed under Key Exports) so an application usually has one import. Five public
+of it (listed under Key Exports) so an application usually has one import. Four public
 `@owlmeans/consent` exports are deliberately not in that list — `makeConsentStore`,
-`normalizeLocale`, `CONSENT_SETUP_FLAG`, `CONSENT_SIGNAL_DEFAULTS` and the `ConsentListener` type —
+`CONSENT_SETUP_FLAG`, `CONSENT_SIGNAL_DEFAULTS` and the `ConsentListener` type —
 so a caller that needs one of them imports it from `@owlmeans/consent` directly. **Read the
 `consent` skill for the model; read this one for the components.**
 
@@ -34,20 +34,34 @@ components — see below.
 
 | Export | Description |
 |--------|-------------|
-| `CookieConsent` | The preferences dialog **and** the persistent re-open button |
+| `CookieConsent` | The consent UI — the bar, the preferences window, the locating spinner — **and** the persistent re-open button |
+| `ConsentDisplayMode` / `CONSENT_DEFAULT_MODE` | `'bar'` (the default) or `'window'` — how a first-time visitor is asked |
 | `ConsentMenuWidget` | A plain row a HOST'S OWN menu renders to reopen the dialog, in place of (or beside) `CookieConsent`'s own floating button — see below |
 | `CookiePolicy` | The cookie-policy page, generated from the configuration in force |
 | `ConsentToggle` | One category row — locked and labelled when the category is required |
 | `useConsent(opts?)` | This document's consent state and the actions over it (`UseConsentModel`) — **it also initialises the store on mount**, see below |
 | `useConsentCategory(key)` | Whether one category is granted, for a component gating a single thing |
 | `CookieConsentProps` / `CookiePolicyProps` / `ConsentLink` | The component props |
-| Re-exports from `@owlmeans/consent` | The complete list: `consentStore`, `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `migrateConsent`, `applyConsent`, `pushConsentDefaults`, `consentBootstrapScript`, `consentDefaults`, `consentUpdate`, `gtagConsent`, `DEFAULT_CONSENT_CATEGORIES`, `DEFAULT_CONSENT_MESSAGES`, `defaultConsentTranslate`, `interpolate`, `CONSENT_KEY`, `CONSENT_COOKIE_DAYS`, `CONSENT_SCHEMA_VERSION`, `CONSENT_LOCALES`, `CONSENT_ESSENTIAL` / `CONSENT_ANALYTICS` / `CONSENT_MARKETING`, the plugin seam (`registerConsentPlugin`, `consentPlugins`, `decorateConsentUrl`, `consentDomains`, `adoptConsent`, `startConsentPlugins`, `adoptConsentLanguage`), the linker (`consentLinker`, `encodeConsentLink`, `decodeConsentLink`, `stripConsentLinkParam`, `consentLinkerScript`, `writeConsentLanguage`, `CONSENT_LANGUAGE_KEY`, `CONSENT_EVENT`, `CONSENT_LINK_PARAM`, `CONSENT_LINK_MAX_AGE`, `CONSENT_LINK_SKEW`), and the types `ConsentCategory`, `ConsentOptions`, `ConsentReason`, `ConsentRecord`, `ConsentService`, `ConsentSignal`, `ConsentState`, `ConsentStore`, `ConsentLocale`, `ConsentLinkerOptions`, `ConsentLinkerLanguage`, `ConsentPlugin`, `ConsentLinkPayload` |
+| Re-exports from `@owlmeans/consent` | The complete list: `consentStore`; `consentStorageHelper` (`readConsent`, `writeConsent`, `clearConsent`, `migrateConsent`); `consentModeHelper` (`applyConsent`, `pushConsentDefaults`, `consentBootstrapScript`, `consentDefaults`, `consentUpdate`, `gtagConsent`, `trackingGranted`, `consentGateScript`); `consentI18nHelper` (`defaultConsentTranslate`, `interpolate`, `normalizeLocale`); `DEFAULT_CONSENT_CATEGORIES`, `DEFAULT_CONSENT_MESSAGES`, `CONSENT_KEY`, `CONSENT_COOKIE_DAYS`, `CONSENT_SCHEMA_VERSION`, `CONSENT_LOCALES`, `CONSENT_ESSENTIAL` / `CONSENT_ANALYTICS` / `CONSENT_MARKETING`, the plugin seam (`consentPluginHelper`: `registerConsentPlugin`, `unregisterConsentPlugin`, `consentPlugins`, `decorateConsentUrl`, `consentDomains`, `adoptConsent`, `startConsentPlugins`, `adoptConsentLanguage`, `locateConsent`), the geo gate (`consentGeoHelper`; `CONSENT_REQUIRED_COUNTRIES`, `CONSENT_COUNTRIES_GDPR` / `_ALIGNED` / `_OPT_IN`, `CONSENT_GEO_UNKNOWN`, `CONSENT_TRACE_PATH`, `CONSENT_GEO_TIMEOUT`, `CONSENT_AUTO_MAX_AGE`, `CONSENT_IDLE_STATE`, `CONSENT_STATE_ATTRIBUTE`; the types `ConsentGeoOptions`, `ConsentGeoPlugin`, `ConsentGeoLocation`, `ConsentCloudflareOptions`, `ConsentLocating`, `ConsentGeoHelper`, `ConsentGeoVerdict`, `ConsentAutoState`), the linker (`consentLinkHelper`: `consentLinker`, `encodeConsentLink`, `decodeConsentLink`, `stripConsentLinkParam`, `consentLinkerScript`, `writeConsentLanguage`; `CONSENT_LANGUAGE_KEY`, `CONSENT_EVENT`, `CONSENT_LINK_PARAM`, `CONSENT_LINK_MAX_AGE`, `CONSENT_LINK_SKEW`), and the types `ConsentCategory`, `ConsentOptions`, `ConsentReason`, `ConsentRecord`, `ConsentService`, `ConsentSignal`, `ConsentState`, `ConsentStore`, `ConsentLocale`, `ConsentLinkerOptions`, `ConsentLinkerLanguage`, `ConsentPlugin`, `ConsentLinkPayload` and the five helper interfaces |
 
 ## Mounting the dialog
 
 `CookieConsent` is mounted **once**, at the application root or in the layout. It opens itself when
 no decision is stored, renders nothing but the re-open button once one is, and needs no state from
-the caller:
+the caller. One surface at a time:
+
+- **while a first-time visitor is located** (`geo`): a transparent overlay that blocks the page,
+  and a spinner (`[data-consent-locating="first"]`, `[data-consent-spinner]` after
+  `CONSENT_LOCATING_DELAY`, 300 ms) — never the bar;
+- **the first ask** (`reason: 'initial'`) in `bar` mode, the default: the bar;
+- **every other opening** — the bar's own "Cookie preferences" (`'preferences'`), a footer link or
+  the corner button (`'reopen'`), the sign-in gate (`'login'`) — and the first ask in `window`
+  mode: the preferences window.
+
+`[data-consent-dialog]` (with `role="dialog"`, `aria-modal`) and `[data-consent-accept-all]` sit on
+whichever surface is up, so a test or a host keys on them without knowing the mode;
+`data-consent-mode="bar|window"` and `[data-consent-bar]` tell them apart. "Cookie preferences"
+REPLACES the bar with the window — exactly one of each exists at a time.
 
 ```tsx
 import { CookieConsent } from '@owlmeans/web-consent'
@@ -67,7 +81,12 @@ import { CookieConsent } from '@owlmeans/web-consent'
 - `policyHref` is a plain string, so an app-resolved path, a framework route and a raw href all
   work — the component must not know how its host does routing.
 - `noReopenButton` hides the floating button for an app that offers a footer link instead; that link
-  calls `openConsent('reopen')`.
+  calls `consentStore.open('reopen')`.
+- **`mode`** (`'bar'` | `'window'`, default `CONSENT_DEFAULT_MODE`) picks the first ask's surface.
+- **`geo`** (`ConsentGeoOptions`, plain data — an Astro island can pass it) turns on the geo gate:
+  `geo={{ cloudflare: true }}` on a Cloudflare-proxied host. It is passed through to
+  `consentStore.init` like `linker`; the `consent` skill's "Where consent is asked" is the model. A
+  locator plugin is code and is registered, not passed. Pass the same `geo` to `CookiePolicy`.
 - **The re-open button is a bare icon in the very corner (`bottom-1 left-1`), not a card.** No
   filled background, no border, no shadow, no hover-scale — `bg-transparent`, dimmed
   (`opacity-70`) at rest and picked out on hover/focus — because it sits on every page of a site
@@ -76,7 +95,7 @@ import { CookieConsent } from '@owlmeans/web-consent'
   (`h-11 w-11`). `[data-consent-reopen]` is what any test or CSS override keys on.
 - **`linker` (`ConsentLinkerOptions`)** turns on cross-domain consent (see the `consent` skill's
   plugin-seam section): `<CookieConsent linker={{ domains: ['owlmeans.com', 'owlmeans.pl'] }} />`
-  passes it straight to `useConsent`, which registers `consentLinker` on mount. With it set and
+  passes it straight to `useConsent`, which registers `consentLinkHelper.consentLinker` on mount. With it set and
   more than just the current host to disclose, a domain line renders right after the description
   (`[data-consent-domains]`, added to the dialog's `aria-describedby`) — computed DIRECTLY from
   `linker.domains` plus the current host, not through the plugin registry, so it never depends on
@@ -87,15 +106,46 @@ import { CookieConsent } from '@owlmeans/web-consent'
   analytics and marketing toggles only; the language is strictly necessary storage that no toggle
   governs (the `consent` skill). The built-in bundle (8 languages) describes it in the required row.
 
+## The bar
+
+A tall bar across the bottom of a **dimmed** overlay (`[data-consent-overlay]`,
+`fixed inset-0 bg-black/70`): the page stays in sight and scrolls, but nothing on it can be
+pressed until the visitor answers. The bar (`fixed inset-x-0 bottom-0 max-h-[85vh] border-t
+bg-background`) holds, left to right on a wide screen and stacked on a phone:
+
+- the cookie icon and `barTitle`;
+- `barDescription` — what the essential cookies do, the optional categories in force as a list
+  after a colon (`{{categories}}`, so no language has to decline a label), that they stay off until
+  allowed, and that the choice can be changed or withdrawn at any time; `barDescriptionEssential`
+  when nothing is optional;
+- the cross-domain line (`[data-consent-domains]`) when `linker` names more than this host;
+- the links row (`[data-consent-links]`: `policyHref` then `links`, 44px targets, new tab);
+- three answers: `[data-consent-preferences]` "Cookie preferences" (outlined), then
+  `[data-consent-mandatory]` "Accept only mandatory" and `[data-consent-accept-all]` "Accept All" —
+  the two answers carry the SAME accent class: refusing is exactly as prominent as accepting, and
+  one click away. With no optional category there is nothing to refuse, so "mandatory" is absent.
+
+`barClassName` styles the bar; `className` still styles the window's card.
+
+**Focus.** On open, focus moves to the surface itself (`tabIndex={-1}`) — never to an answer, which
+would be a nudge; Tab and Shift+Tab cycle inside it; on close focus returns where it was. Nothing
+pulls focus back on `focusin` (a script focusing a field is not a keyboard user escaping). The
+spinner overlay takes no focus.
+
 ## The look — flat, from the host's tokens
 
-The dialog is the first thing every new visitor of a generated app sees, so it follows the flat
-rule those apps are held to: **no gradient, shadow, glow, glass or `backdrop-filter`** anywhere in
-it. Everything is a theme token, so light and dark follow the host:
+The bar and the window are the first thing every new visitor of a generated app sees, so they
+follow the flat rule those apps are held to: **no gradient, shadow, glow, glass or
+`backdrop-filter`** anywhere. Everything is a theme token, so light and dark follow the host:
 
 | Part | Classes |
 |---|---|
-| Overlay | `bg-black/70`, flat — no blur |
+| Bar overlay | `bg-black/70`, matching the preferences window — the page is dimmed beneath the opaque bar |
+| Locating overlay | `bg-transparent` — a quick region lookup flashes no backdrop |
+| Bar | `border-t border-border bg-background text-foreground`, no shadow |
+| Bar answers | "Accept only mandatory" and "Accept All" both the accent pill; "Cookie preferences" outlined |
+| Spinner | `text-muted-foreground motion-safe:animate-spin` |
+| Window overlay | `bg-black/70`, flat — no blur |
 | Card | `rounded-3xl border border-border bg-background text-foreground`, no shadow or ring |
 | Icon | `rounded-full bg-muted text-primary` |
 | Category row | `rounded-2xl border border-border`; *Required* is plain uppercase muted text, never a badge |
@@ -115,28 +165,33 @@ carries `aria-labelledby="<id>-label"` (the category label) and `aria-describedb
 `<id>-required` and `<id>-desc`. Drop those and axe reports three unnamed checkboxes (`label`,
 critical). A required category stays `disabled` and keeps its name.
 
-`tests/a11y.spec.ts` runs axe-core (a dev dependency) against the open dialog in both schemes, the
-re-open button, and the policy page with services, and fails on any serious or critical
-violation. It loads the harness with `?styled=1` (plus `&theme=dark`), which compiles the package
+`tests/a11y.spec.ts` runs axe-core (a dev dependency) against the open bar and the open window in
+both schemes, the locating overlay, the re-open button, and the policy page with services and the
+regional rule, and fails on any serious or critical violation. It loads the harness with `?styled=1` (plus `&theme=dark`), which compiles the package
 sources with a generated app's neutral tokens — contrast cannot be judged on the unstyled harness
-the other specs need.
+the other specs need. The harness also takes `?mode=bar|window`, `?categories=essential`,
+`?geo=<CC>|fail|html|hang` (its server answers `/cdn-cgi/trace` from the page's own query, so every
+case is still chosen by URL; `&geoDelay=<ms>`, `&geoTimeout=<ms>`), `?geoPlugin=<CC>|fail` and
+`?gpc=1` — `tests/bar.spec.ts` and `tests/geo.spec.ts` drive them.
 - `silent` skips every `dataLayer` and global write. It is for tests and for an app that runs no
   tags at all.
-- The draft is **re-seeded from storage every time the dialog opens**, not from the last render — a
-  visitor reopening preferences must see the answer they gave.
+- The window's switches are **seeded from storage every time it opens** — it is mounted only while
+  open — never from the last render: a visitor reopening preferences must see the answer they gave.
+  An automatic decision past its age seeds nothing.
 
-**When the dialog was raised by something waiting on it** — `reason === 'login'`, which the sign-in
+**When the window was raised by something waiting on it** — `reason === 'login'`, which the sign-in
 precondition in `@owlmeans/client-iam` raises — it says so and relabels the primary action *Accept
-& continue*. That is what makes the interruption legible instead of looking like the page asking
+& continue*. The sign-in gate always gets the window, never the bar. An automatic decision is said
+to be one when the window opens over it (`[data-consent-auto]`, `autoReason`). That is what makes the interruption legible instead of looking like the page asking
 twice. Word that path as an acknowledgement, never as "you must consent to essential cookies": a
 required category is disclosure, not a question.
 
 ## A menu row for a host that already has one
 
 `ConsentMenuWidget` renders one row — icon, translated label, `onClick` reopening the dialog
-(`openConsent('reopen')` by default, or a caller's own `onSelect`) — for a host whose own
+(`consentStore.open('reopen')` by default, or a caller's own `onSelect`) — for a host whose own
 navigation already carries a settings menu and would rather offer cookie preferences there than as
-a second floating button. It calls `openConsent` directly, never `useConsent()`, for the same
+a second floating button. It calls `consentStore.open` directly, never `useConsent()`, for the same
 init-on-mount reason as everywhere else in this document.
 
 **It carries no presence signalling of its own.** A host that wants `CookieConsent`'s floating
@@ -152,28 +207,29 @@ row. A context-free host (an Astro island with its own menu) owns that judgement
 ## Reading the decision
 
 ```tsx
-import { useConsent, useConsentCategory, isConsented } from '@owlmeans/web-consent'
+import { consentStore, useConsent, useConsentCategory } from '@owlmeans/web-consent'
 
 const consent = useConsent()          // { record, open, reason, granted, save, acceptAll, openDialog, close }
 const analytics = useConsentCategory('analytics')   // one category, for a component gating one thing
-if (isConsented('analytics')) { /* outside React — a click handler, a service */ }
+if (consentStore.granted('analytics')) { /* outside React — a click handler, a service */ }
 ```
 
 Both hooks subscribe through `useSyncExternalStore` over the module-singleton store, because consent
 is a property of the DOCUMENT rather than of a component tree: the dialog, the re-open button, the
 policy page and whatever an app gates on it all read one value, and local copies would disagree the
-moment one of them saved. During server rendering the snapshot is "no record, closed", so the dialog
-never flashes into static HTML before hydration corrects it.
+moment one of them saved. During server rendering the snapshot is `CONSENT_IDLE_STATE` — one frozen
+object, "no record, closed, not locating" — so no surface flashes into static HTML before hydration
+corrects it (`tests/ssr.spec.tsx`). `UseConsentModel.locating` exposes the lookup.
 
 **`useConsent` is not a pure reader — it runs `consentStore.init(opts)` on mount.** Two consequences
 a component that only wanted to read has to plan for:
 
-- **It opens the dialog.** `init` reads storage, and with no stored record it publishes
-  `open: true, reason: 'initial'`. So a `useConsent()` in a card that merely wanted `granted('analytics')`
+- **It opens the consent UI.** `init` reads storage, and with no stored record it publishes
+  `open: true, reason: 'initial'` — or, with `geo`, starts locating. So a `useConsent()` in a card that merely wanted `granted('analytics')`
   gates the page for a first-time visitor. Read a single category with `useConsentCategory(key)` —
-  that hook subscribes and does **not** init — or `isConsented(key)` outside React.
+  that hook subscribes and does **not** init — or `consentStore.granted(key)` outside React.
 - **The first `useConsent` to mount fixes the Consent Mode defaults.** `init` calls
-  `pushConsentDefaults`, which is idempotent through the `CONSENT_SETUP_FLAG` window flag: whoever
+  `consentModeHelper.pushConsentDefaults`, which is idempotent through the `CONSENT_SETUP_FLAG` window flag: whoever
   gets there first declares the `consent/default` signals from *its* categories, and every later
   call returns immediately. A bare `useConsent()` mounting before `CookieConsent` therefore declares
   `DEFAULT_CONSENT_CATEGORIES`' signals and the app's own `categories` never declare theirs — which
@@ -191,17 +247,20 @@ why it is generated rather than written: a hand-written policy drifts the first 
 changes, and nobody notices because nobody reads it until it matters.
 
 ```tsx
-import { googleTagServices } from '@owlmeans/web-gtm'
+import { googleTagHelper } from '@owlmeans/web-gtm'
 
 <CookiePolicy
   operator="Example Sp. z o.o." privacyHref="/legal/privacy" termsHref="/legal/terms"
-  services={googleTag !== '' ? googleTagServices(googleTag) : undefined}
+  services={googleTag !== '' ? googleTagHelper.googleTagServices(googleTag) : undefined}
 />
 ```
 
 Everything OwlMeans cannot assert on the operator's behalf — who the controller is, the lawful
 basis, how to exercise rights — is deferred to those two links. It also renders a *Manage
 preferences* control, so the policy page is a way back into the decision.
+
+**`geo`**, the same object the dialog was given, adds the regional rule
+(`[data-cookie-policy-regional]`, `policyRegional`) after the category list.
 
 **`services`** (`ConsentService[]`, see the `consent` skill) discloses WHO receives data: each
 service is listed inside the item of the category whose `key` it names — name, provider, purpose,
@@ -270,7 +329,7 @@ incremental `tsc -b` — rebuild `@owlmeans/consent` with `tsc -b --force`, or c
 bundle from `build/i18n`. **Once a `translate` prop is given,
 the packaged bundle is not consulted at all**, so a wrapper that forwards a framework resolver alone
 renders the English default for every key the application has not overridden, in every language. The
-resolver must fall through to `defaultConsentTranslate(locale)` for the default — which is exactly
+resolver must fall through to `consentI18nHelper.defaultConsentTranslate(locale)` for the default — which is exactly
 what `@owlmeans/web-panel/consent` does, and why an app inside the panel family mounts
 `PanelCookieConsent` / `PanelCookiePolicy` rather than these components directly.
 
@@ -287,7 +346,7 @@ caller's, already resolved.
 - `consent` — the model: categories, `globalVar`, storage and migration, Consent Mode v2, the
   ordering rule. Read it before changing anything a category means
 - `web-gtm` — the head snippet that carries a stored decision to a Google tag, and
-  `googleTagServices(id)` for this page's `services`
+  `googleTagHelper.googleTagServices(id)` for this page's `services`
 - `astro` — stamping that snippet from a static site's layout
 - `login-methods` / `login-plugins` — the sign-in precondition that raises this dialog with
   `reason: 'login'`

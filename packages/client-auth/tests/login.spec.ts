@@ -1,13 +1,13 @@
 import { describe, test, expect } from 'bun:test'
 import { makeTestContext } from './context.js'
 import { appendLogin, makeLoginService } from '../src/login/service.js'
-import { resolveLoginMethods, primaryLoginMethod, registerMethodSource } from '../src/login/methods.js'
+import { loginMethodsHelper } from '../src/login/methods.js'
 import { resolveCredit } from '../src/login/credit.js'
 import { pluginMethodSource } from '../src/manager/plugins/methods.js'
-import { registerAuthPlugin } from '../src/manager/plugins/registry.js'
+import { authPluginHelper } from '../src/manager/plugins/registry.js'
 import type { AuthenticationPlugin } from '../src/manager/plugins/types.js'
-import { resumeAction, ResumeAction, loginAttemptError } from '../src/login/resume.js'
-import { LoginOutcome } from '../src/login/types.js'
+import { loginResumeHelper } from '../src/login/resume.js'
+import { ResumeAction, LoginOutcome } from '../src/login/consts.js'
 import type {
   LoginEnv, LoginMethod, LoginMethodContext, LoginPlugin, LoginService,
 } from '../src/login/types.js'
@@ -131,7 +131,7 @@ describe('login method resolution', () => {
       ],
     }
 
-    const resolved = resolveLoginMethods(methodCtx(context), undefined, [source])
+    const resolved = loginMethodsHelper.resolveLoginMethods(methodCtx(context), undefined, [source])
 
     expect(resolved.map(item => item.id)).toEqual(['z', 'a', 'b'])
   })
@@ -142,12 +142,12 @@ describe('login method resolution', () => {
       alias: 'test', list: () => [method({ id: 'ordinary' }), method({ id: 'operator', restricted: true })],
     }
 
-    expect(resolveLoginMethods(methodCtx(context), undefined, [source]).map(m => m.id))
+    expect(loginMethodsHelper.resolveLoginMethods(methodCtx(context), undefined, [source]).map(m => m.id))
       .toEqual(['ordinary'])
-    expect(resolveLoginMethods(
+    expect(loginMethodsHelper.resolveLoginMethods(
       methodCtx(context), { overrides: { operator: { enabled: true } } }, [source]
     ).map(m => m.id).sort()).toEqual(['operator', 'ordinary'])
-    expect(resolveLoginMethods(
+    expect(loginMethodsHelper.resolveLoginMethods(
       methodCtx(context), { methods: ['operator'] }, [source]
     ).map(m => m.id)).toEqual(['operator'])
   })
@@ -158,7 +158,7 @@ describe('login method resolution', () => {
       alias: 'test', list: () => [method({ id: 'a' }), method({ id: 'b' }), method({ id: 'c' })],
     }
 
-    expect(resolveLoginMethods(methodCtx(context), { methods: ['c', 'a'] }, [source]).map(m => m.id))
+    expect(loginMethodsHelper.resolveLoginMethods(methodCtx(context), { methods: ['c', 'a'] }, [source]).map(m => m.id))
       .toEqual(['c', 'a'])
   })
 
@@ -167,23 +167,23 @@ describe('login method resolution', () => {
     const broken = { alias: 'broken', list: () => { throw new Error('misconfigured') } }
     const working = { alias: 'working', list: () => [method({ id: 'ok' })] }
 
-    expect(resolveLoginMethods(methodCtx(context), undefined, [broken, working]).map(m => m.id))
+    expect(loginMethodsHelper.resolveLoginMethods(methodCtx(context), undefined, [broken, working]).map(m => m.id))
       .toEqual(['ok'])
   })
 
   test('the primary method is the first emphasised one, else the first', () => {
-    expect(primaryLoginMethod([
+    expect(loginMethodsHelper.primaryLoginMethod([
       method({ id: 'a' }), method({ id: 'b', emphasis: 'primary' }),
     ])?.id).toBe('b')
-    expect(primaryLoginMethod([method({ id: 'a' })])?.id).toBe('a')
-    expect(primaryLoginMethod([])).toBeNull()
+    expect(loginMethodsHelper.primaryLoginMethod([method({ id: 'a' })])?.id).toBe('a')
+    expect(loginMethodsHelper.primaryLoginMethod([])).toBeNull()
   })
 
   test('a globally registered source reaches the resolver', () => {
     const context = makeTestContext()
-    registerMethodSource({ alias: 'global-test', list: () => [method({ id: 'global' })] })
+    loginMethodsHelper.registerMethodSource({ alias: 'global-test', list: () => [method({ id: 'global' })] })
 
-    expect(resolveLoginMethods(methodCtx(context)).map(m => m.id)).toContain('global')
+    expect(loginMethodsHelper.resolveLoginMethods(methodCtx(context)).map(m => m.id)).toContain('global')
   })
 })
 
@@ -265,8 +265,8 @@ describe('the authentication-plugin method source', () => {
 
   test('a plugin that declares no method is not a way to sign in', () => {
     const context = makeTestContext()
-    registerAuthPlugin(plugin({ type: 'step-in-a-flow' }))
-    registerAuthPlugin(plugin({ type: 'offerable', method: {} }))
+    authPluginHelper.registerAuthPlugin(plugin({ type: 'step-in-a-flow' }))
+    authPluginHelper.registerAuthPlugin(plugin({ type: 'offerable', method: {} }))
 
     expect(offered(context)).toContain('offerable')
     expect(offered(context)).not.toContain('step-in-a-flow')
@@ -276,11 +276,11 @@ describe('the authentication-plugin method source', () => {
     const context = makeTestContext()
     // Exactly the state an app is in when it imported the plugin host but not a panel package:
     // the plugin is registered, and mounting its screen throws.
-    registerAuthPlugin(plugin({ type: 'needs-ui', method: {}, requiresRenderer: true }))
+    authPluginHelper.registerAuthPlugin(plugin({ type: 'needs-ui', method: {}, requiresRenderer: true }))
 
     expect(offered(context)).not.toContain('needs-ui')
 
-    registerAuthPlugin(plugin({
+    authPluginHelper.registerAuthPlugin(plugin({
       type: 'needs-ui', method: {}, requiresRenderer: true, Renderer: () => null,
     }))
 
@@ -289,7 +289,7 @@ describe('the authentication-plugin method source', () => {
 
   test('a plugin whose own wiring is absent says so and is left off', () => {
     const context = makeTestContext()
-    registerAuthPlugin(plugin({
+    authPluginHelper.registerAuthPlugin(plugin({
       type: 'needs-wiring', method: { available: ctx => ctx.context.hasService('never-appended') },
     }))
 
@@ -302,31 +302,31 @@ describe('a finished sign-in attempt', () => {
     // The regression: a method that could not build an authorization URL returned `Passed`, the
     // screen rendered nothing, and the button read as broken. `Passed` is a valid answer TO A
     // DISPATCHER, which has a continuation; a screen does not.
-    expect(loginAttemptError(LoginOutcome.Passed)).toBe('login.error.failed')
-    expect(loginAttemptError(LoginOutcome.Failed)).toBe('login.error.failed')
-    expect(loginAttemptError(LoginOutcome.Gesture)).toBe('login.error.blocked')
+    expect(loginResumeHelper.loginAttemptError(LoginOutcome.Passed)).toBe('login.error.failed')
+    expect(loginResumeHelper.loginAttemptError(LoginOutcome.Failed)).toBe('login.error.failed')
+    expect(loginResumeHelper.loginAttemptError(LoginOutcome.Gesture)).toBe('login.error.blocked')
     // A `window.open` the browser actually refused reads the same as "needs a fresh gesture" —
     // both are cured by clicking the browser's own blocked-popup affordance, not by a retry loop.
-    expect(loginAttemptError(LoginOutcome.Blocked)).toBe('login.error.blocked')
+    expect(loginResumeHelper.loginAttemptError(LoginOutcome.Blocked)).toBe('login.error.blocked')
   })
 
   test('says nothing when the attempt actually went somewhere', () => {
-    expect(loginAttemptError(LoginOutcome.Handled)).toBeNull()
-    expect(loginAttemptError(LoginOutcome.Redirected)).toBeNull()
-    expect(loginAttemptError(LoginOutcome.Orphaned)).toBeNull()
-    expect(loginAttemptError(null)).toBeNull()
+    expect(loginResumeHelper.loginAttemptError(LoginOutcome.Handled)).toBeNull()
+    expect(loginResumeHelper.loginAttemptError(LoginOutcome.Redirected)).toBeNull()
+    expect(loginResumeHelper.loginAttemptError(LoginOutcome.Orphaned)).toBeNull()
+    expect(loginResumeHelper.loginAttemptError(null)).toBeNull()
   })
 })
 
 describe('resume outcomes', () => {
   test('map to exactly one action each', () => {
-    expect(resumeAction(LoginOutcome.Handled)).toBe(ResumeAction.Stop)
-    expect(resumeAction(LoginOutcome.Redirected)).toBe(ResumeAction.Stop)
-    expect(resumeAction(LoginOutcome.Orphaned)).toBe(ResumeAction.Render)
-    expect(resumeAction(LoginOutcome.Failed)).toBe(ResumeAction.Render)
-    expect(resumeAction(LoginOutcome.Gesture)).toBe(ResumeAction.Render)
-    expect(resumeAction(LoginOutcome.Blocked)).toBe(ResumeAction.Render)
+    expect(loginResumeHelper.resumeAction(LoginOutcome.Handled)).toBe(ResumeAction.Stop)
+    expect(loginResumeHelper.resumeAction(LoginOutcome.Redirected)).toBe(ResumeAction.Stop)
+    expect(loginResumeHelper.resumeAction(LoginOutcome.Orphaned)).toBe(ResumeAction.Render)
+    expect(loginResumeHelper.resumeAction(LoginOutcome.Failed)).toBe(ResumeAction.Render)
+    expect(loginResumeHelper.resumeAction(LoginOutcome.Gesture)).toBe(ResumeAction.Render)
+    expect(loginResumeHelper.resumeAction(LoginOutcome.Blocked)).toBe(ResumeAction.Render)
     // The ordinary tab: keep the session and carry on. This is the one that must never change.
-    expect(resumeAction(LoginOutcome.Passed)).toBe(ResumeAction.Navigate)
+    expect(loginResumeHelper.resumeAction(LoginOutcome.Passed)).toBe(ResumeAction.Navigate)
   })
 })

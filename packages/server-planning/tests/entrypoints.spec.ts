@@ -16,6 +16,11 @@ describe('@owlmeans/server-planning — entrypoints', () => {
 
     expect(bindings.length).toBe(declared.length)
     expect(new Set(bindings.map(binding => binding.alias))).toEqual(new Set(declared.map(protocol => protocol.alias)))
+
+    const scoped = makePlanningProtocols({ base: { alias: 'test:planning' }, guards: 'test-guard', definitions: true })
+    const all = protocols(scoped as never)
+    expect(servePlanningEntrypoints(scoped).map(binding => binding.alias).sort()).toEqual(all.map(protocol => protocol.alias).sort())
+    expect(all.length).toBe(declared.length + 1)
   })
 
   test('execute takes the actor and createdBy from the request, never from the body', async () => {

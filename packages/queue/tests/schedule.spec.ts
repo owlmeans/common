@@ -1,7 +1,6 @@
 import { describe, test, expect } from 'bun:test'
-import {
-  assertSchedule, assertSchedules, declareQueue, declareSchedule, queueOf, schedulesOf
-} from '../src/config.js'
+import { declareQueue, declareSchedule } from '../src/config.js'
+import { queueConfigOf } from '../src/queue-config.js'
 import { ScheduleMisdeclared, UnknownJobName, UnknownQueue } from '../src/errors.js'
 import type { Config, ScheduleDeclaration } from '../src/types.js'
 
@@ -16,23 +15,23 @@ const nightly: ScheduleDeclaration = {
 }
 
 const misdeclared = (schedule: Partial<ScheduleDeclaration>): () => void =>
-  () => assertSchedule(cfg(), { ...nightly, ...schedule } as ScheduleDeclaration)
+  () => queueConfigOf(cfg()).assertSchedule({ ...nightly, ...schedule } as ScheduleDeclaration)
 
 describe('declaring schedules', () => {
   test('a declaration is recorded and read back by its queue', () => {
     const config = declareSchedule(cfg(), nightly)
 
-    expect(schedulesOf(config, 'maintenance')).toEqual([nightly])
-    expect(schedulesOf(config, 'work')).toEqual([])
-    expect(schedulesOf(config)).toHaveLength(1)
+    expect(queueConfigOf(config).schedulesOf('maintenance')).toEqual([nightly])
+    expect(queueConfigOf(config).schedulesOf('work')).toEqual([])
+    expect(queueConfigOf(config).schedulesOf()).toHaveLength(1)
   })
 
   test('re-declaring an id replaces rather than appends', () => {
     let config = declareSchedule(cfg(), nightly)
     config = declareSchedule(config, { ...nightly, pattern: '0 4 * * *' })
 
-    expect(schedulesOf(config)).toHaveLength(1)
-    expect(schedulesOf(config)[0].pattern).toBe('0 4 * * *')
+    expect(queueConfigOf(config).schedulesOf()).toHaveLength(1)
+    expect(queueConfigOf(config).schedulesOf()[0].pattern).toBe('0 4 * * *')
   })
 
   /**
@@ -44,14 +43,14 @@ describe('declaring schedules', () => {
 
     expect(() => declareSchedule(config, { ...nightly, queue: 'missing' })).toThrow(UnknownQueue)
     expect(() => declareSchedule(config, { ...nightly, name: 'story:code' })).toThrow(UnknownJobName)
-    expect(schedulesOf(config)).toHaveLength(0)
+    expect(queueConfigOf(config).schedulesOf()).toHaveLength(0)
   })
 
   test('re-declaring the queue keeps its schedules', () => {
     const config = declareQueue(declareSchedule(cfg(), nightly), 'maintenance', ['reconcile'])
 
-    expect(queueOf(config, 'maintenance').jobs).toEqual(['reconcile'])
-    expect(schedulesOf(config)).toEqual([nightly])
+    expect(queueConfigOf(config).queueOf('maintenance').jobs).toEqual(['reconcile'])
+    expect(queueConfigOf(config).schedulesOf()).toEqual([nightly])
   })
 })
 
@@ -87,7 +86,7 @@ describe('asserting every schedule', () => {
     const config = declareSchedule(cfg(), nightly)
     config.queue?.schedules?.push({ ...nightly, pattern: '0 5 * * *' })
 
-    expect(() => assertSchedules(config)).toThrow(/duplicate/)
+    expect(() => queueConfigOf(config).assertSchedules()).toThrow(/duplicate/)
   })
 
   /** The configuration is plain data; a schedule written into it directly is checked too. */
@@ -95,6 +94,6 @@ describe('asserting every schedule', () => {
     const config = declareSchedule(cfg(), nightly)
     config.queue?.schedules?.push({ id: 'orphan', queue: 'maintenance', name: 'gone', every: 1_000 })
 
-    expect(() => assertSchedules(config)).toThrow(UnknownJobName)
+    expect(() => queueConfigOf(config).assertSchedules()).toThrow(UnknownJobName)
   })
 })

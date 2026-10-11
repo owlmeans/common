@@ -1,14 +1,12 @@
 import { IntrinsicStatus, TransitionAction, WorkcardKind } from '../consts.js'
 import { PlanningError } from '../errors.js'
-import { isPending } from '../helpers/card.js'
-import { slotOf, specificationTypeOf } from '../helpers/specification.js'
-import {
-  canTransit, initialStatusOf, intrinsicOf, primaryFlowOf, transitionsFrom,
-} from '../helpers/status.js'
+import { cardHelper } from '../helpers/card.js'
+import { specificationHelper } from '../helpers/specification.js'
+import { statusHelper } from '../helpers/status.js'
 import type {
-  ExecuteOptions, ModelExecuteOptions, PlanningFacade, TransitionExecution, TransitionReceipt,
-  Workcard, WorkcardModel,
+  ExecuteOptions, PlanningFacade, TransitionExecution, TransitionReceipt, Workcard,
 } from '../types.js'
+import type { ModelExecuteOptions, WorkcardModel } from './types.js'
 
 /**
  * Run an execution with a model's defaults: `expectSeq` is the record's head (its seq when nothing
@@ -53,25 +51,25 @@ export const makeWorkcardModel = <T extends Workcard = Workcard>(record: T, faca
 
     schema: () => facade.schemas.type(record.type),
 
-    flow: flowId => facade.schemas.flow(flowId ?? primaryFlowOf(model.schema())),
+    flow: flowId => facade.schemas.flow(flowId ?? statusHelper.primaryFlowOf(model.schema())),
 
     statusOf: flowId => {
-      const primary = primaryFlowOf(model.schema())
+      const primary = statusHelper.primaryFlowOf(model.schema())
       if (flowId == null || flowId === primary) {
         return record.status
       }
-      return record.flows[flowId] ?? initialStatusOf(model.flow(flowId))
+      return record.flows[flowId] ?? statusHelper.initialStatusOf(model.flow(flowId))
     },
 
     intrinsicOf: flowId => flowId == null
       ? record.intrinsic
-      : intrinsicOf(model.flow(flowId), model.statusOf(flowId)) ?? IntrinsicStatus.Planned,
+      : statusHelper.intrinsicOf(model.flow(flowId), model.statusOf(flowId)) ?? IntrinsicStatus.Planned,
 
-    can: (transition, flowId) => canTransit(model.flow(flowId), transition, model.statusOf(flowId)),
+    can: (transition, flowId) => statusHelper.canTransit(model.flow(flowId), transition, model.statusOf(flowId)),
 
-    available: flowId => transitionsFrom(model.flow(flowId), model.statusOf(flowId)),
+    available: flowId => statusHelper.transitionsFrom(model.flow(flowId), model.statusOf(flowId)),
 
-    pending: () => isPending(record),
+    pending: () => cardHelper.isPending(record),
 
     transit: (transition, changes, opts) => run({
       action: TransitionAction.Transit, transition, flow: opts?.flow, changes,
@@ -114,11 +112,11 @@ export const makeWorkcardModel = <T extends Workcard = Workcard>(record: T, faca
         }, opts)
       }
 
-      const slot = slotOf(model.schema(), category)
+      const slot = specificationHelper.slotOf(model.schema(), category)
       return executeFor(facade, null, {
         card: Object.fromEntries(Object.entries({
           kind: WorkcardKind.Specification,
-          type: opts?.type ?? specificationTypeOf(facade.schemas, record.type, slot),
+          type: opts?.type ?? specificationHelper.specificationTypeOf(facade.schemas, record.type, slot),
           parent: id,
           title: opts?.title ?? category,
           category,

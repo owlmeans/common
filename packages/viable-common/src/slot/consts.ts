@@ -19,6 +19,8 @@
  * commands are executed by the connector on that machine, and nothing about it is provisioned,
  * routed, reconciled or published.
  */
+import { TargetLayout } from '../integrity/index.js'
+
 export enum WorkloadKind {
   Ephemeral = 'ephemeral',
   Production = 'production',
@@ -37,7 +39,23 @@ export enum SlotCommandType {
   Files = 'files',
   Shell = 'shell',
   Git = 'git',
+  Database = 'database',
 }
+
+/** Inspection of the live dev database; mutations belong in target source migrations. */
+export enum SlotDatabaseCommand {
+  Info = 'databaseInfo',
+  Query = 'databaseQuery',
+}
+
+export const DATABASE_READ_LIMITS = {
+  defaultRows: 100,
+  maxRows: 1000,
+  maxBytes: 131_072,
+  maxQueryChars: 16_000,
+  maxParams: 100,
+  timeoutMs: 10_000,
+} as const
 
 export enum SlotGitCommand {
   Ensure = 'ensure',
@@ -70,6 +88,7 @@ export enum SlotFileCommand {
   ReadPossibleSource = 'readPossibleSource',
   ReadSources = 'readSources',
   WriteFile = 'writeFile',
+  WriteBinaryFile = 'writeBinaryFile',
   WriteSource = 'writeSource',
   DeleteFile = 'deleteFile',
   FindFilesWithEnvVars = 'findFilesWithEnvVars',
@@ -306,6 +325,7 @@ export const COMMAND_TIMEOUTS: Partial<Record<SlotCommandType, number>> = {
   [SlotCommandType.Files]: 60_000,
   [SlotCommandType.Git]: 120_000,
   [SlotCommandType.Shell]: 1_200_000,
+  [SlotCommandType.Database]: 45_000,
 }
 
 export const DEFAULT_COMMAND_TIMEOUT = 60_000
@@ -351,43 +371,15 @@ export const FILE_COMMAND_TIMEOUTS: Partial<Record<SlotFileCommand, number>> = {
   [SlotFileCommand.ReadHead]: 70_000,
 }
 
-/** The per-command caller bound for one command, or nothing where its type's default is right. */
-const perCommandTimeout = (type: SlotCommandType, command: string): number | undefined => {
-  switch (type) {
-    case SlotCommandType.Shell: return SHELL_COMMAND_TIMEOUTS[command]
-    case SlotCommandType.Git: return GIT_COMMAND_TIMEOUTS[command as SlotGitCommand]
-    default: return FILE_COMMAND_TIMEOUTS[command as SlotFileCommand]
-  }
-}
-
 /**
- * Resolve the caller-side bound for one command.
+ * The one marker per layout, chosen because it exists in that layout and in no other.
  *
- * One function rather than three lookups at each call site: an asker that forgets the per-command
- * table inherits twenty minutes for a fifteen-second command, which is the failure this table was
- * added to stop.
+ * `sources/api` cannot appear in a v1 tree and `packages/backend` cannot appear in a v2 one, so a
+ * single `stat` settles it. Deliberately not `sources/` alone: v1 packages each have their own
+ * `src`, and a directory name that differs by one letter is not something to hang a runtime path
+ * resolution on. Ordered — the first marker found wins.
  */
-export const commandTimeout = (
-  type: SlotCommandType, command: string, override?: number
-): number => override
-  ?? perCommandTimeout(type, command)
-  ?? COMMAND_TIMEOUTS[type]
-  ?? DEFAULT_COMMAND_TIMEOUT
-
-/**
- * Resolve the executor-side deadline for one command.
- *
- * Per-command first, per-type second. It was per-type only, which is how a clone inherited the
- * bound of a `git status` — the same shape as the shell table above, and added for the same
- * reason.
- */
-export const commandDeadline = (type: SlotCommandType, command: string): number => {
-  switch (type) {
-    case SlotCommandType.Shell:
-      return COMMAND_DEADLINES[command] ?? DEFAULT_COMMAND_DEADLINE
-    case SlotCommandType.Git:
-      return GIT_COMMAND_DEADLINES[command as SlotGitCommand] ?? DEFAULT_GIT_COMMAND_DEADLINE
-    default:
-      return FILE_COMMAND_DEADLINES[command as SlotFileCommand] ?? DEFAULT_FILE_COMMAND_DEADLINE
-  }
-}
+export const LAYOUT_MARKERS: Array<[TargetLayout, string]> = [
+  [TargetLayout.V2, 'sources/api'],
+  [TargetLayout.V1, 'packages/backend'],
+]

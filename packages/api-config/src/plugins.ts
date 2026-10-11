@@ -1,28 +1,9 @@
-/** A declarative selection of config values that may cross into a browser. */
-export type ConfigSelection = true | ConfigSelectionMap | EveryConfigValue
 
-export interface ConfigSelectionMap {
-  readonly [key: string]: ConfigSelection | undefined
-}
-
-/** Apply a selection to every item in an array or every value in an object map. */
-export interface EveryConfigValue {
-  readonly every: ConfigSelection
-  readonly where?: (value: unknown) => boolean
-}
-
-/** A package-owned contribution to the public runtime-config document. */
-export interface ApiConfigPlugin {
-  /** Fields this package intentionally makes public. */
-  readonly allow: ConfigSelection
-  /** Nested fields to remove after selection, even when an ancestor is allowed. */
-  readonly deny?: ConfigSelection
-}
+import { OMIT } from './consts.local.js'
+import type { SelectionResult } from './types.local.js'
+import type { ApiConfigPlugin, ConfigSelection, EveryConfigValue } from './types.js'
 
 const plugins: ApiConfigPlugin[] = []
-const OMIT = Symbol('api-config:omit')
-
-type SelectionResult = unknown | typeof OMIT
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === 'object' && !Array.isArray(value)

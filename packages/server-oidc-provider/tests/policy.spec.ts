@@ -1,11 +1,11 @@
 import { describe, it, expect, afterEach } from 'bun:test'
-import { createServer } from 'node:http'
-import type { Server } from 'node:http'
+import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createHmac } from 'node:crypto'
 import Provider, { errors, interactionPolicy } from 'oidc-provider'
 import type { Configuration } from 'oidc-provider'
-import { ACCOUNT_REFUSED_REASON, makeInteractionPolicy } from '../src/utils/policy.js'
+import { makeInteractionPolicy } from '../src/utils/policy.js'
+import { ACCOUNT_REFUSED_REASON } from '../src/utils/consts.js'
 
 const KEYS = ['policy-spec-cookie-key']
 const CLIENT_ID = 'policy-spec-client'

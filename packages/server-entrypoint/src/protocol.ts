@@ -1,16 +1,10 @@
-import { materializeEntrypoint } from '@owlmeans/entrypoint'
-import type {
-  CommonEntrypoint, EntrypointProtocolDeclaration,
-} from '@owlmeans/entrypoint'
+import { materializeEntrypoint, type CommonEntrypoint, type EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
 import { isServerRouteModel, route } from '@owlmeans/server-route'
 import type {
   BoundEntrypointHandler, EntrypointOptions, EntrypointRef, RefedEntrypointHandler, ServerEntrypoint,
   ServerProtocolEntrypoint,
 } from './types.js'
-
-type ServerBinding<Protocol extends EntrypointProtocolDeclaration> =
-  | BoundEntrypointHandler<Protocol>
-  | RefedEntrypointHandler
+import type { ServerBinding } from './types.local.js'
 
 /** Attach a server implementation to an entrypoint materialized from a protocol declaration. */
 const bindMaterializedEntrypoint = <R>(

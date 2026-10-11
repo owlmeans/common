@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { handleRegister } from '../src/handlers/register.js'
-import { tokenNameOf } from '../src/handlers/token.js'
+import { makeOAuthMintHelper } from '../src/mint.js'
 import { makeTestContext } from './context.js'
 
 describe('the name an issued token has in the person\'s token list', () => {
+  const { tokenNameOf } = makeOAuthMintHelper(makeTestContext())
+
   test('names the client and where it runs', () => {
     expect(tokenNameOf({ clientName: 'Viable MCP', label: 'my-laptop' })).toBe('Viable MCP · my-laptop')
     expect(tokenNameOf({ clientName: 'Claude Code', label: '127.0.0.1' })).toBe('Claude Code · 127.0.0.1')

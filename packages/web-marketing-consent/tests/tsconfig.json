@@ -4,7 +4,7 @@
     "@owlmeans/dep-config/tsconfig.react.json"
   ],
   "compilerOptions": {
-    "types": ["bun"],
+    "types": ["bun", "vite/client"],
     "rootDir": "../",
     "noEmit": true
   },

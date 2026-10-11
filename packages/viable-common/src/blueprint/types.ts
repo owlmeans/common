@@ -1,7 +1,8 @@
+import type { ProjectTenancy } from '../areas/types.js'
 import type { SubProject } from '../slot/consts.js'
-import type { ViableSkill } from '../skills/consts.js'
-import type { ViablePersona } from '../skills/roles.js'
+import type { ViablePersona, ViableSkill } from '../skills/consts.js'
 import type { TopologyDescriptor } from '../topology/types.js'
+import { BlueprintPatchKind, LandingGatePreference } from './consts.js'
 
 /**
  * A BLUEPRINT is everything that decides what kind of project the pipeline is building — the
@@ -21,7 +22,7 @@ import type { TopologyDescriptor } from '../topology/types.js'
  * OPTIONAL and says what its product should do for the people using it. Optional because a
  * blueprint registered before the layer existed — or a patch serialized into a run row — must keep
  * resolving: every reader asks through a helper that answers the default for an absent layer
- * ({@link landingGatePreferenceOf}).
+ * ({@link landingGatePreferenceOf}, `tenancyOf`).
  */
 export interface Blueprint {
   id: string
@@ -35,49 +36,6 @@ export interface Blueprint {
 }
 
 /**
- * The layers, lowest first. A higher layer's value replaces the same key from a lower one.
- *
- * The ordering is the point: `technology` overrides everything, because a change of language
- * invalidates every template, prompt and package below it. Nothing today has more than one
- * technology — the ladder exists so that adding one is a data change. `experience` is last and
- * optional: it shares no key with the five build layers, so its place decides nothing today.
- */
-export enum BlueprintLayer {
-  Technology = 'technology',
-  Stack = 'stack',
-  Template = 'template',
-  CreateApp = 'create-app',
-  Packages = 'packages',
-  Experience = 'experience',
-}
-
-export const BLUEPRINT_LAYER_ORDER: BlueprintLayer[] = [
-  BlueprintLayer.Technology,
-  BlueprintLayer.Stack,
-  BlueprintLayer.Template,
-  BlueprintLayer.CreateApp,
-  BlueprintLayer.Packages,
-  BlueprintLayer.Experience,
-]
-
-/**
- * How strongly a product of this kind wants a LANDING GATE — the working entry into the key
- * end-user workflow drawn on the guest home, where a guest starts before signing in.
- *
- * A PRIOR handed to the model that decides, never the decision itself: `Encourage` still lets it
- * answer "no gate" for a product with no end-user step a guest could begin, and `Discourage` still
- * lets it choose one when the specification plainly describes such a step.
- */
-export enum LandingGatePreference {
-  /** Most products of this kind have a first-value step a guest can begin — look for it. */
-  Encourage = 'encourage',
-  /** Neutral: decide from the specification alone. */
-  Allow = 'allow',
-  /** Products of this kind rarely have one — choose a gate only when the specification asks. */
-  Discourage = 'discourage',
-}
-
-/**
  * What the product should do for the people using it, independent of the stack it is built on.
  *
  * A layer of its own rather than a field of `packages`, because it changes no dependency, no
@@ -85,25 +43,14 @@ export enum LandingGatePreference {
  */
 export interface ExperienceLayer {
   landingGate: LandingGatePreference
-}
-
-const LANDING_GATE_PREFERENCES = new Set<string>(Object.values(LandingGatePreference))
-
-/**
- * The landing-gate preference of a resolved blueprint.
- *
- * Total: an absent layer, an absent key and a value this deploy does not know (a patch serialized
- * by a newer one) all answer `Allow` — the neutral prior, which leaves the decision to the
- * specification rather than tilting it either way on a value nobody set.
- */
-export const landingGatePreferenceOf = (
-  blueprint?: Pick<Blueprint, 'experience'> | null
-): LandingGatePreference => {
-  const value = blueprint?.experience?.landingGate
-
-  return value != null && LANDING_GATE_PREFERENCES.has(value)
-    ? value
-    : LandingGatePreference.Allow
+  /**
+   * Whether the product splits its audiences into tenant organizations.
+   *
+   * Written by resolution from {@link BlueprintRef.tenancy} — the project's own decision — and by
+   * no blueprint or case table, which cannot know it. Absent is a single-organization application;
+   * always read through `tenancyOf`.
+   */
+  tenancy?: ProjectTenancy
 }
 
 /** Language and toolchain. Overrides everything below it. */
@@ -157,21 +104,19 @@ export interface TemplateLayer {
   patches: BlueprintPatchSpec[]
   /** Overlay subtrees that belong to one role only — the per-package half of a template. */
   perRole?: Partial<Record<SubProject, string>>
+  /**
+   * Case seed directories under the overlay's `.cases/`, copied over the staged tree in order.
+   *
+   * Names, never paths: the host resolves them against the overlay it resolved. A later seed wins
+   * over an earlier one, so a variant lists its base seed first and itself after it.
+   */
+  seeds?: string[]
 }
 
 export interface BlueprintPatchSpec {
   /** Target path, relative to the project root. */
   path: string
   kind: BlueprintPatchKind
-}
-
-export enum BlueprintPatchKind {
-  /** Deep-merge a JSON document — the manifests, the tsconfigs. */
-  JsonMerge = 'json-merge',
-  /** Rewrite the `<head>` of an HTML document from the project's identity. */
-  HtmlHead = 'html-head',
-  /** Write a document composed from the project's identity. */
-  Compose = 'compose',
 }
 
 /** Which scaffolder runs first, and how. */
@@ -243,6 +188,7 @@ export interface BlueprintCapabilities {
   marketingConsent: boolean
 }
 
+// Kept as a type: a mapped type over the blueprint's keys.
 /** A partial override of a blueprint, deep-merged over the resolved value. */
 export type BlueprintPatch = {
   [K in keyof Blueprint]?: Blueprint[K] extends string ? Blueprint[K] : Partial<Blueprint[K]>
@@ -266,5 +212,14 @@ export interface BlueprintRef {
    * which is the only reading that cannot silently take a capability away from a live project.
    */
   case?: string
+  /**
+   * Whether the product splits its audiences into tenant organizations — the project card's
+   * decision, resolved into `experience.tenancy`.
+   *
+   * Flags rather than a key, because the decision is the project's own and no table could hold it;
+   * two booleans are still no artifact. Absent, or both false, applies nothing, so a run row of a
+   * project nobody decided for serializes exactly as it did before tenancy existed.
+   */
+  tenancy?: ProjectTenancy
   overrides?: BlueprintPatch
 }

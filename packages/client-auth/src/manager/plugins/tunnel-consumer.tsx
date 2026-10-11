@@ -5,7 +5,7 @@ import type { AuthenticationPlugin } from './types.js'
 import type { PinForm, TunnelAuthenticationRenderer } from './tunnel/types.js'
 import { useCallback, useEffect } from 'react'
 import type { Connection } from '@owlmeans/socket'
-import { isEventMessage, SocketTimeout } from '@owlmeans/socket'
+import { SocketTimeout, socketMessageHelper } from '@owlmeans/socket'
 import type { AuthenticationControl } from '../components/authentication/types.js'
 import { RELY_ACTION_TIMEOUT, RELY_PIN_PERFIX } from '@owlmeans/auth-common'
 import { createWalletFacade } from './tunnel/wallet.js'
@@ -62,7 +62,7 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
         }
 
         return connection.listen(async message => {
-          if (isEventMessage(message) && message.event === 'close') {
+          if (socketMessageHelper.isEventMessage(message) && message.event === 'close') {
             await control.setError(new SocketTimeout('rely'))
           }
         })

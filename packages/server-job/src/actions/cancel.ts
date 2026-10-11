@@ -1,7 +1,9 @@
+import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
 import { handlers } from '@owlmeans/server-api'
+import type { BoundEntrypointHandler } from '@owlmeans/server-entrypoint'
 import { UnknownJob } from '@owlmeans/queue'
 import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
-import { jobsOf, readExposedJob } from '../utils/index.js'
+import { makeJobPolicyHelper } from '../utils/index.js'
 
 /**
  * Cancel a job and answer with what was cancelled.
@@ -16,14 +18,17 @@ import { jobsOf, readExposedJob } from '../utils/index.js'
 export const cancelJob = (
   protocol: JobEntrypoints['cancel'],
   opts: JobHandlerOptions
-): ReturnType<ReturnType<typeof handlers<Context>>['params']> =>
-  handlers<Context>().params(protocol, async ({ id }, ctx, req) => {
-    const resource = jobsOf(ctx, opts)
+): BoundEntrypointHandler<EntrypointProtocolDeclaration> => {
+  const policy = makeJobPolicyHelper(opts)
+
+  return handlers<Context>().params(protocol, async ({ id }, ctx, req) => {
+    const resource = policy.jobsOf(ctx)
     const audience = await opts.policy.audience(req, ctx)
-    const record = await readExposedJob(resource, id, audience, opts)
+    const record = await policy.readExposedJob(resource, id, audience)
     if (opts.policy.cancel == null || !await opts.policy.cancel(record, audience)) {
       throw new UnknownJob('job')
     }
     const removed = await resource.take(record.id as string)
     return await opts.policy.map(removed, audience)
   })
+}

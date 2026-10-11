@@ -108,3 +108,7 @@ export interface BasicContext<C extends BasicConfig> {
 
   entrypoints: <T extends BasicEntrypoint>() => T[]
 }
+
+export interface InitMethod<S extends Service> {
+  (service: S): () => Promise<void>
+}

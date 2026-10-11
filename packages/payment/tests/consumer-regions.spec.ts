@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import {
-  billingLanguageOf, chargeCurrencyOf, CONSUMER_RIGHTS_TERRITORIES, ConsumerRegion, ConsumerRightsError,
-  ConsumerRightsPolicySchema, COUNTRY_LANGUAGES, DEFAULT_CONSUMER_RIGHTS, EEA_EXTRA, EU_CONSUMER_TERRITORIES,
-  EU_COUNTRIES, inScope, isEeaCountry, isEuCountry, linksOf, makeConsumerRightsPolicy, regionOf,
+  CONSUMER_RIGHTS_TERRITORIES, ConsumerRegion, ConsumerRightsError, ConsumerRightsPolicySchema,
+  COUNTRY_LANGUAGES, DEFAULT_CONSUMER_RIGHTS, EEA_EXTRA, EU_CONSUMER_TERRITORIES, EU_COUNTRIES,
+  makeConsumerRightsPolicy, consumerRegionHelper, consumerRightsPolicyHelper,
 } from '../src/index.js'
 import type { ConsumerRightsPolicy } from '../src/index.js'
 
@@ -39,56 +39,56 @@ describe('territories', () => {
   })
 
   test('membership predicates are case-insensitive and exclude territories', () => {
-    expect(isEuCountry('pl')).toBe(true)
-    expect(isEuCountry('GF')).toBe(false)
-    expect(isEuCountry('NO')).toBe(false)
-    expect(isEeaCountry('NO')).toBe(true)
-    expect(isEeaCountry('CH')).toBe(false)
-    expect(isEuCountry(null)).toBe(false)
+    expect(consumerRegionHelper.isEuCountry('pl')).toBe(true)
+    expect(consumerRegionHelper.isEuCountry('GF')).toBe(false)
+    expect(consumerRegionHelper.isEuCountry('NO')).toBe(false)
+    expect(consumerRegionHelper.isEeaCountry('NO')).toBe(true)
+    expect(consumerRegionHelper.isEeaCountry('CH')).toBe(false)
+    expect(consumerRegionHelper.isEuCountry(null)).toBe(false)
   })
 })
 
 describe('region, scope and currency', () => {
   test('a territory country is in the EU region; outside it is other; unknown is null', () => {
-    expect(regionOf('DE')).toBe(ConsumerRegion.Eu)
-    expect(regionOf('re')).toBe(ConsumerRegion.Eu)
-    expect(regionOf('NO')).toBe(ConsumerRegion.Eu)
-    expect(regionOf('US')).toBe(ConsumerRegion.Other)
-    expect(regionOf('GB')).toBe(ConsumerRegion.Other)
-    expect(regionOf(undefined)).toBeNull()
-    expect(regionOf(' ')).toBeNull()
-    expect(regionOf('US', { countries: ['US'] })).toBe(ConsumerRegion.Eu)
+    expect(consumerRegionHelper.regionOf('DE')).toBe(ConsumerRegion.Eu)
+    expect(consumerRegionHelper.regionOf('re')).toBe(ConsumerRegion.Eu)
+    expect(consumerRegionHelper.regionOf('NO')).toBe(ConsumerRegion.Eu)
+    expect(consumerRegionHelper.regionOf('US')).toBe(ConsumerRegion.Other)
+    expect(consumerRegionHelper.regionOf('GB')).toBe(ConsumerRegion.Other)
+    expect(consumerRegionHelper.regionOf(undefined)).toBeNull()
+    expect(consumerRegionHelper.regionOf(' ')).toBeNull()
+    expect(consumerRegionHelper.regionOf('US', { countries: ['US'] })).toBe(ConsumerRegion.Eu)
   })
 
   test('an unknown country is protected by default and can be ignored', () => {
-    expect(inScope(null, 'FR', policy())).toBe(true)
-    expect(inScope(null, 'US', policy())).toBe(false)
-    expect(inScope(null, null, policy())).toBe(true)
-    expect(inScope(null, null, policy({ unknownCountry: 'ignore' }))).toBe(false)
-    expect(inScope(ConsumerRegion.Other, null, policy())).toBe(false)
-    expect(inScope(null, null, null)).toBe(true)
+    expect(consumerRegionHelper.inScope(null, 'FR', policy())).toBe(true)
+    expect(consumerRegionHelper.inScope(null, 'US', policy())).toBe(false)
+    expect(consumerRegionHelper.inScope(null, null, policy())).toBe(true)
+    expect(consumerRegionHelper.inScope(null, null, policy({ unknownCountry: 'ignore' }))).toBe(false)
+    expect(consumerRegionHelper.inScope(ConsumerRegion.Other, null, policy())).toBe(false)
+    expect(consumerRegionHelper.inScope(null, null, null)).toBe(true)
   })
 
   test('the charge currency follows the region; an unknown region reads as EU', () => {
     const declared = policy({ currencies: { eu: 'eur', other: 'usd' } })
-    expect(chargeCurrencyOf(ConsumerRegion.Eu, declared, 'usd')).toBe('eur')
-    expect(chargeCurrencyOf(ConsumerRegion.Other, declared, 'eur')).toBe('usd')
-    expect(chargeCurrencyOf(null, declared, 'usd')).toBe('eur')
-    expect(chargeCurrencyOf(ConsumerRegion.Other, policy(), 'USD')).toBe('usd')
-    expect(chargeCurrencyOf(ConsumerRegion.Eu, null, 'eur')).toBe('eur')
+    expect(consumerRegionHelper.chargeCurrencyOf(ConsumerRegion.Eu, declared, 'usd')).toBe('eur')
+    expect(consumerRegionHelper.chargeCurrencyOf(ConsumerRegion.Other, declared, 'eur')).toBe('usd')
+    expect(consumerRegionHelper.chargeCurrencyOf(null, declared, 'usd')).toBe('eur')
+    expect(consumerRegionHelper.chargeCurrencyOf(ConsumerRegion.Other, policy(), 'USD')).toBe('usd')
+    expect(consumerRegionHelper.chargeCurrencyOf(ConsumerRegion.Eu, null, 'eur')).toBe('eur')
   })
 
   test('the legal language: policy map, then the unambiguous map, then the fallbacks', () => {
     expect(COUNTRY_LANGUAGES).not.toHaveProperty('BE')
     expect(COUNTRY_LANGUAGES).not.toHaveProperty('LU')
     expect(COUNTRY_LANGUAGES).not.toHaveProperty('CH')
-    expect(billingLanguageOf('AT')).toBe('de')
-    expect(billingLanguageOf('gp')).toBe('fr')
-    expect(billingLanguageOf('BE', policy())).toBe('en')
-    expect(billingLanguageOf('BE', policy(), 'fr')).toBe('fr')
-    expect(billingLanguageOf('LU', policy({ languages: { LU: 'fr' } }))).toBe('fr')
-    expect(billingLanguageOf('PL', policy({ languages: { PL: 'en' } }))).toBe('en')
-    expect(billingLanguageOf(null, policy({ defaultLanguage: 'de', links: { ...links, de: links.de } }))).toBe('de')
+    expect(consumerRegionHelper.billingLanguageOf('AT')).toBe('de')
+    expect(consumerRegionHelper.billingLanguageOf('gp')).toBe('fr')
+    expect(consumerRegionHelper.billingLanguageOf('BE', policy())).toBe('en')
+    expect(consumerRegionHelper.billingLanguageOf('BE', policy(), 'fr')).toBe('fr')
+    expect(consumerRegionHelper.billingLanguageOf('LU', policy({ languages: { LU: 'fr' } }))).toBe('fr')
+    expect(consumerRegionHelper.billingLanguageOf('PL', policy({ languages: { PL: 'en' } }))).toBe('en')
+    expect(consumerRegionHelper.billingLanguageOf(null, policy({ defaultLanguage: 'de', links: { ...links, de: links.de } }))).toBe('de')
   })
 })
 
@@ -132,9 +132,9 @@ describe('the policy declaration', () => {
 
   test('links of a language fall back field by field to the default language', () => {
     const declared = policy()
-    expect(linksOf(declared, 'de')).toEqual({ ...links.en, billingTerms: links.de.billingTerms })
-    expect(linksOf(declared, 'de-AT').billingTerms).toBe(links.de.billingTerms)
-    expect(linksOf(declared, 'fr')).toEqual(links.en)
-    expect(linksOf(declared)).toEqual(links.en)
+    expect(consumerRightsPolicyHelper.linksOf(declared, 'de')).toEqual({ ...links.en, billingTerms: links.de.billingTerms })
+    expect(consumerRightsPolicyHelper.linksOf(declared, 'de-AT').billingTerms).toBe(links.de.billingTerms)
+    expect(consumerRightsPolicyHelper.linksOf(declared, 'fr')).toEqual(links.en)
+    expect(consumerRightsPolicyHelper.linksOf(declared)).toEqual(links.en)
   })
 })

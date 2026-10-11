@@ -1,7 +1,5 @@
 import { errors, interactionPolicy } from 'oidc-provider'
-
-/** The `reason` of the login check this module adds to the provider's default policy. */
-export const ACCOUNT_REFUSED_REASON = 'account_refused'
+import { ACCOUNT_REFUSED_REASON } from './consts.js'
 
 /**
  * The provider's default interaction policy plus one login check: a session whose account the

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  LimitKind, LimitWindow, PlanDuration, PlanStatus, SubscriptionStatus, capabilityViewsOf,
-  entitlementViewOf, limitViewsOf, promoActive, promoViewOf, reviveEntitlementView,
+  LimitKind, LimitWindow, PlanDuration, PlanStatus, SubscriptionStatus, entitlementViewHelper,
+  promoHelper,
 } from '../src/index.js'
 import type { EntitlementPlanView, ProductPlan } from '../src/index.js'
 
@@ -11,27 +11,27 @@ const after = new Date('2026-10-15T00:00:00.000Z')
 
 describe('promos', () => {
   test('no promo is always in force', () => {
-    expect(promoActive(undefined, undefined, after)).toBe(true)
-    expect(promoViewOf(undefined, undefined, after)).toBeUndefined()
+    expect(promoHelper.promoActive(undefined, undefined, after)).toBe(true)
+    expect(promoHelper.promoViewOf(undefined, undefined, after)).toBeUndefined()
   })
 
   test('a promo ends AT until, not after it', () => {
-    expect(promoActive({ until }, null, new Date(until.getTime() - 1))).toBe(true)
-    expect(promoActive({ until }, null, until)).toBe(false)
+    expect(promoHelper.promoActive({ until }, null, new Date(until.getTime() - 1))).toBe(true)
+    expect(promoHelper.promoActive({ until }, null, until)).toBe(false)
   })
 
   test('grandfathering keeps it for a subscription created before until — and only then', () => {
     const promo = { until, grandfather: true }
-    expect(promoActive(promo, before, after)).toBe(true)
-    expect(promoActive(promo, until, after)).toBe(false)
-    expect(promoActive(promo, null, after)).toBe(false)
-    expect(promoActive({ until }, before, after)).toBe(false)
+    expect(promoHelper.promoActive(promo, before, after)).toBe(true)
+    expect(promoHelper.promoActive(promo, until, after)).toBe(false)
+    expect(promoHelper.promoActive(promo, null, after)).toBe(false)
+    expect(promoHelper.promoActive({ until }, before, after)).toBe(false)
   })
 
   test('the view says whether it is kept for the plan', () => {
-    expect(promoViewOf({ until, grandfather: true }, before, after))
+    expect(promoHelper.promoViewOf({ until, grandfather: true }, before, after))
       .toEqual({ until, grandfathered: true, active: true })
-    expect(promoViewOf({ until }, before, after)).toEqual({ until, grandfathered: false, active: false })
+    expect(promoHelper.promoViewOf({ until }, before, after)).toEqual({ until, grandfathered: false, active: false })
   })
 })
 
@@ -51,18 +51,18 @@ const plan: ProductPlan = {
 
 describe('capability views', () => {
   test('one row per granted permission; false and null are not listed', () => {
-    const rows = capabilityViewsOf(plan, null, before)
+    const rows = entitlementViewHelper.capabilityViewsOf(plan, null, before)
     expect(rows.map(row => row.param)).toEqual(['feature:whitelabel', 'feature:custom-domain'])
     expect(rows.every(row => row.granted)).toBe(true)
   })
 
   test('a lapsed promo ungrants but still lists the capability', () => {
-    const domain = capabilityViewsOf(plan, null, after).find(row => row.permission === 'custom-domain')
+    const domain = entitlementViewHelper.capabilityViewsOf(plan, null, after).find(row => row.permission === 'custom-domain')
     expect(domain).toMatchObject({ granted: false, promo: { active: false, grandfathered: false } })
   })
 
   test('a set under the reserved limit scope is not a capability', () => {
-    expect(capabilityViewsOf({ capabilities: [{ scope: 'limit', permissions: { seats: 3 } }] })).toEqual([])
+    expect(entitlementViewHelper.capabilityViewsOf({ capabilities: [{ scope: 'limit', permissions: { seats: 3 } }] })).toEqual([])
   })
 })
 
@@ -70,7 +70,7 @@ describe('limit views', () => {
   const at = new Date('2026-09-15T10:00:00.000Z')
 
   test('used comes from the current window; a missing row is zero', () => {
-    const rows = limitViewsOf(plan, [
+    const rows = entitlementViewHelper.limitViewsOf(plan, [
       { key: 'exports', window: '2026-09-14', used: 5 },
       { key: 'exports', window: '2026-09-15', used: 2 },
       { key: 'seats', window: 'occupancy', used: 1 },
@@ -81,7 +81,7 @@ describe('limit views', () => {
   })
 
   test('only a window limit carries its bounds', () => {
-    const rows = limitViewsOf(plan, [], null, at)
+    const rows = entitlementViewHelper.limitViewsOf(plan, [], null, at)
     expect(rows.find(row => row.key === 'exports')).toMatchObject({
       window: LimitWindow.Day,
       windowStart: new Date('2026-09-15T00:00:00.000Z'),
@@ -91,13 +91,13 @@ describe('limit views', () => {
   })
 
   test('remaining floors at zero when the counter over-counts', () => {
-    const seats = limitViewsOf(plan, [{ key: 'seats', window: 'occupancy', used: 7 }], null, at)
+    const seats = entitlementViewHelper.limitViewsOf(plan, [{ key: 'seats', window: 'occupancy', used: 7 }], null, at)
       .find(row => row.key === 'seats')
     expect(seats).toMatchObject({ limit: 3, used: 7, remaining: 0 })
   })
 
   test('a lapsed promo makes the limit zero', () => {
-    expect(limitViewsOf(plan, [], null, after).find(row => row.key === 'imports'))
+    expect(entitlementViewHelper.limitViewsOf(plan, [], null, after).find(row => row.key === 'imports'))
       .toMatchObject({ limit: 0, remaining: 0, promo: { active: false } })
   })
 })
@@ -113,18 +113,18 @@ describe('the entitlement view', () => {
     const grandfathered: ProductPlan = {
       ...plan, capabilities: [{ scope: 'feature', permissions: { beta: true }, promo: { until, grandfather: true } }],
     }
-    const view = entitlementViewOf(grandfathered, planView, [], after)
+    const view = entitlementViewHelper.entitlementViewOf(grandfathered, planView, [], after)
     expect(view.capabilities[0]).toMatchObject({ granted: true, promo: { grandfathered: true } })
-    expect(entitlementViewOf(grandfathered, { ...planView, subscribedAt: undefined }, [], after)
+    expect(entitlementViewHelper.entitlementViewOf(grandfathered, { ...planView, subscribedAt: undefined }, [], after)
       .capabilities[0].granted).toBe(false)
     expect(view.at).toBe(after)
   })
 
   test('the wire form revives into dates', () => {
-    const view = entitlementViewOf(plan, planView, [], before)
-    const revived = reviveEntitlementView(JSON.parse(JSON.stringify(view)))
+    const view = entitlementViewHelper.entitlementViewOf(plan, planView, [], before)
+    const revived = entitlementViewHelper.reviveEntitlementView(JSON.parse(JSON.stringify(view)))
     expect(revived).toEqual(view)
     expect(revived.limits.find(row => row.key === 'exports')?.resetsAt).toBeInstanceOf(Date)
-    expect(reviveEntitlementView(view)).toEqual(view)
+    expect(entitlementViewHelper.reviveEntitlementView(view)).toEqual(view)
   })
 })
