@@ -1,23 +1,21 @@
 import { assertContext, createService } from '@owlmeans/context'
-import type { BasicContext } from '@owlmeans/context'
-import { extractParams } from '@owlmeans/client-route'
+import { clientRouteHelper } from '@owlmeans/client-route'
 import type { ApiClient } from './types.js'
 import axios, { AxiosHeaders } from 'axios'
 import type { AxiosRequestTransformer } from 'axios'
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
-import { DEFAULT_ALIAS } from './consts.js'
-import { processResponse } from './utils/handler.js'
-import { BasicClientConfig } from '@owlmeans/client-config'
-import qs from 'qs'
+import { DEFAULT_ALIAS, UNAUTHORIZED_ERROR } from './consts.js'
+import { responseUtils } from './utils/response.js'
 import { makeSecurityHelper } from '@owlmeans/config'
-import { RouteMethod } from '@owlmeans/route'
-import { DEF_AUTH_SRV, TOKEN_UPDATE } from '@owlmeans/auth-common'
-import type { AuthService } from '@owlmeans/auth-common'
+import { AUTH_HEADER, DEF_AUTH_SRV, TOKEN_UPDATE, type AuthService } from '@owlmeans/auth-common'
+import type { Config, Context } from './types.local.js'
+import { bodyUtils } from './utils/body.js'
 
-type Config = BasicClientConfig
-
-interface Context<C extends Config = Config> extends BasicContext<C> {
-}
+/** Whether a request carried an authentication header of its own. */
+const presented = (headers?: Record<string, unknown>): boolean =>
+  headers != null && Object.entries(headers).some(
+    ([key, value]) => key.toLowerCase() === AUTH_HEADER && value != null && value !== ''
+  )
 
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const location = `api.service:${alias}`
@@ -28,10 +26,9 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       }
       const context = assertContext<Config, Context>(client.ctx, location)
       const module = context.entrypoint<CommonEntrypoint>(request.alias)
-      await module.resolve()
       const route = module.route.route
-      let path = module.getPath()
-      const params = extractParams(path)
+      let path = module.path()
+      const params = clientRouteHelper.extractParams(path)
       path = params.reduce((path, param) => {
         type Key = keyof typeof request.params
         if (request.params[param as Key] == null) {
@@ -39,36 +36,29 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         }
         return path.replace(`:${param}`, `${request.params[param as Key]}`)
       }, path)
-      if (route.host == null && request.host == null) {
-        throw new SyntaxError(`No host provided in ${module.alias} route`)
-      }
 
       const helper = makeSecurityHelper(context)
 
-      const url = helper.makeUrl(route, path, { host: request.host, base: request.base, forceUnsecure: request.unsecure })
+      // The entrypoint answers where it lives — host, port, base, protocol and whether the hop is
+      // TLS — from its declaration and the service it names. A per-request host still overrides it.
+      const url = helper.makeUrl(
+        module.address(), path,
+        { host: request.host, base: request.base, forceUnsecure: request.unsecure }
+      )
 
-      let transformer: AxiosRequestTransformer | undefined = undefined
-
-      let body = request.body != null && Object.entries((request.headers ?? {})).find(
-        ([key, value]) =>
-          key.toLowerCase() === 'content-type' && value?.includes('application/x-www-form-urlencoded')
-      ) ? qs.stringify(request.body) : request.body
-
-      // @TODO Probably this hack needs to be made a little bit less dirty
-      if (typeof body === 'string' && route.method === RouteMethod.POST) {
-        if (Object.keys(request.headers).every(key => key.toLowerCase() !== 'content-type')) {
-          request.headers['content-type'] = 'application/json'
-          // It fixes the case when final rest api under application/json can't
-          // properly accept canonized jsoned string value (put into quotes)
-          transformer = data => data
-        }
-      }
+      // A scalar JSON body (a string, a number, a boolean) is serialized here, so the server parses
+      // back the value the caller sent; objects and arrays are left to axios.
+      const body = bodyUtils.requestBodyOf(request.body, request.headers, route.method, module.filter?.body)
+      const transformer: AxiosRequestTransformer | undefined = body.verbatim ? data => data : undefined
+      const requestHeaders = body.contentType != null
+        ? { ...request.headers, 'content-type': body.contentType }
+        : request.headers
 
       const response = await axios.request({
         url, method: route.method,
         params: request.query,
-        data: body,
-        headers: request.headers,
+        data: body.data,
+        headers: requestHeaders,
         transformRequest: transformer,
         validateStatus: () => true,
         // Per-request timeout (ms); axios aborts the request and rejects on expiry.
@@ -84,9 +74,27 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         const auth = context.service<AuthService>(DEF_AUTH_SRV)
         const update = headers.get(TOKEN_UPDATE) as string
         await auth.update(update == null || update === '' ? undefined : update)
+      } else if (
+        response.status === UNAUTHORIZED_ERROR
+        && presented(request.headers)
+        && context.hasService(DEF_AUTH_SRV)
+      ) {
+        /**
+         * A session the server has refused is not a session, and keeping it is worse than having
+         * none: the application goes on rendering its signed-in tree over a credential that fails
+         * every call it makes, and nothing on the client ever asks again — `authenticated()` reads
+         * storage and decodes an envelope, it does not consult the server. What that leaves is an
+         * app that looks signed in, works at nothing, and offers "Log out" where the control that
+         * would fix it should be.
+         *
+         * Narrow on purpose. Only a request that actually PRESENTED this context's bearer counts,
+         * so a 401 from an authentication attempt — bad code, wrong password, an expired challenge
+         * — never clears the session of whoever is already signed in.
+         */
+        await context.service<AuthService>(DEF_AUTH_SRV).update(undefined)
       }
 
-      processResponse(response, reply)
+      responseUtils.processResponse(response, reply)
 
       return [reply.error ?? reply.value, reply.outcome] as any
     }

@@ -2,43 +2,72 @@ import { ChatAnthropic } from '@langchain/anthropic'
 import { BadRequestError } from '@anthropic-ai/sdk'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { MessageContent, MessageFieldWithRole } from '@langchain/core/messages'
-import { ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
-import type { CacheTtl } from '@owlmeans/llm-common'
-import type { LlmPlugin } from './types.js'
+import { ModelProvider, PromptBlock, StructuredMode, type CacheTtl } from '@owlmeans/llm-common'
+import type { EffortSupport, LlmPlugin, AnthropicModelSupport } from './types.js'
+import type { ModelConfig } from '../types.js'
 import { CHARS_PER_TOKEN, MAX_CACHE_BREAKPOINTS, MIN_CACHEABLE_TOKENS } from '../consts.js'
-import { readConfig } from '../utils/config.js'
-import { escalateMaxTokens, isBadRequest, makeClientOptions } from './utils.js'
-
-/** Model-name prefix that supports prompt caching through `cache_control` markers. */
-const CACHEABLE_PREFIX = 'claude-'
+import { configUtils } from '../utils/config.js'
+import { pluginUtils } from './utils.js'
+import { CACHEABLE_PREFIX } from './consts.local.js'
+import { ADAPTIVE_MIN_MAX_TOKENS, ANTHROPIC_FAMILY, type ThinkingOff } from './consts.js'
+import type { AnthropicKwargs, ContentBlock, WireOutputConfig, WireThinking } from './types.local.js'
+import { effortUtils } from '../utils/effort.js'
+import { schemaUtils } from '../utils/schema.js'
+import { anthropicSupportHelper } from './anthropic/support.js'
+import { THINKING_OFF_TYPES } from './anthropic/consts.local.js'
 
 /**
- * Model families that REJECT the sampling parameters — Claude 4.7 and later, and the whole
- * 5 family. `temperature`, `top_p` and `top_k` were removed there, and sending any of them
- * is a 400, not a silently ignored field. Matched with `startsWith`, so a dated snapshot
- * (`claude-sonnet-5-20260114`) is covered by its base id.
+ * Make the instance's own view of `thinking` match what the request means, without touching the
+ * request.
  *
- * This is the Anthropic counterpart of the OpenAI plugin's `RESPONSES_API_PREFIXES`: the
- * older models below the line (`claude-sonnet-4-6`, `claude-haiku-4-5`, and earlier) still
- * accept sampling and still want the deterministic `temperature: 0` default.
+ * langchain keeps a `thinking: disabled` default it never sends unless a caller set the field,
+ * but its client-side parameter check reads that default anyway: an Opus 5 or 5.5 call at `xhigh`
+ * or `max` with no `thinking` set throws "thinking.type=disabled is not supported" before any
+ * request leaves — and a thrown local error is not a 400, so it was retried to exhaustion. On a
+ * model whose absent field MEANS adaptive, the unsent default is set to what it means; what goes
+ * on the wire (nothing) is unchanged.
  */
-export const NO_SAMPLING_PREFIXES = [
-  'claude-fable-5',
-  'claude-mythos-5',
-  'claude-mythos-preview',
-  'claude-opus-5',
-  'claude-opus-4-8',
-  'claude-opus-4-7',
-  'claude-sonnet-5',
-]
+const withLocalThinking = (model: ChatAnthropic): ChatAnthropic => {
+  const wire = model as unknown as { thinkingExplicitlySet?: boolean, thinking?: { type?: string } }
+  if (wire.thinkingExplicitlySet !== true && anthropicSupportHelper.anthropicSupportOf(model.modelName ?? model.model)?.thinksByDefault === true) {
+    wire.thinking = { type: 'adaptive' }
+  }
 
-/** Whether this model id rejects `temperature`/`top_p`/`top_k`. */
-export const rejectsSampling = (model: string | undefined): boolean =>
-  model != null && NO_SAMPLING_PREFIXES.some(prefix => model.startsWith(prefix))
+  return model
+}
 
-export const ANTHROPIC_FAMILY = 'anthropic'
+const anthropicEffort = (config: Pick<ModelConfig, 'model' | 'disableThinking'>): EffortSupport | undefined => {
+  const entry = anthropicSupportHelper.anthropicSupportOf(config.model)
+  if (entry == null) {
+    return undefined
+  }
+  // The ceiling binds only when the off switch is actually sent.
+  const ceiling = entry.thinkingOffCeiling
+  const levels = ceiling != null && anthropicSupportHelper.thinkingOffFor(config) != null
+    ? entry.levels.filter(level => effortUtils.effortRank(level) <= effortUtils.effortRank(ceiling))
+    : entry.levels
 
-type ContentBlock = Record<string, unknown>
+  return { levels, default: entry.default }
+}
+
+/**
+ * The `outputConfig` for one attempt, or `undefined` to leave it as `build` wrote it. The model
+ * and thinking switch are read back off the instance, since `refine` has no config — and the
+ * thinking switch decides the effort ceiling.
+ */
+const escalatedOutputConfig = (
+  model: ChatAnthropic, kwargs: AnthropicKwargs, steps: number,
+): AnthropicKwargs['outputConfig'] => {
+  const effort = effortUtils.effortFor(
+    anthropicEffort({
+      model: model.modelName ?? model.model,
+      disableThinking: THINKING_OFF_TYPES.has(kwargs.thinking?.type ?? ''),
+    }),
+    kwargs.outputConfig?.effort,
+    steps,
+  )
+  return effort != null ? { ...kwargs.outputConfig, effort } : undefined
+}
 
 const supportsCache = (model: BaseChatModel): boolean =>
   (model as ChatAnthropic).modelName?.startsWith(CACHEABLE_PREFIX) === true
@@ -49,7 +78,9 @@ const supportsCache = (model: BaseChatModel): boolean =>
  * four breakpoints and reports a cache that was never written.
  */
 const minCacheableChars = (model: BaseChatModel): number =>
-  (readConfig(model).cacheMinTokens ?? MIN_CACHEABLE_TOKENS) * CHARS_PER_TOKEN
+  (configUtils.readConfig(model).cacheMinTokens
+    ?? anthropicSupportHelper.anthropicSupportOf((model as ChatAnthropic).modelName)?.cacheMinTokens
+    ?? MIN_CACHEABLE_TOKENS) * CHARS_PER_TOKEN
 
 /**
  * The marker itself. `ttl` is omitted for the 5-minute default so the emitted bytes stay
@@ -104,23 +135,37 @@ export const anthropicPlugin: LlmPlugin = {
   owns: model => model instanceof ChatAnthropic,
 
   /**
-   * Anthropic has no `response_format: json_schema` mode, so structured output is
-   * always the forced-tool-call hack. `ModelConfig.structuredOutput` is ignored.
+   * Structured output is a tool call — pinned where the model allows it, asked for where it
+   * does not ({@link AnthropicSupportHelper.rejectsForcedTool}). `ModelConfig.structuredOutput` is ignored.
    */
   structuredMode: () => StructuredMode.Tool,
 
   /**
    * Anthropic 400s on the OpenAI spelling: "tool_choice: Input tag 'function' … does not
-   * match any of the expected tags: 'auto','any','tool','none'".
+   * match any of the expected tags: 'auto','any','tool','none'". A model that refuses a pinned
+   * tool gets `auto` — the only choice left that still offers the tool.
    */
-  toolChoice: (toolName: string): unknown => ({ type: 'tool', name: toolName }),
+  toolChoice: (toolName: string, config?: Pick<ModelConfig, 'model'>): unknown =>
+    anthropicSupportHelper.rejectsForcedTool(config?.model) ? { type: 'auto' } : { type: 'tool', name: toolName },
+
+  pinsTool: config => !anthropicSupportHelper.rejectsForcedTool(config.model),
+
+  /**
+   * Grammar-constrained arguments stand in for the pin — but only on a schema inside the subset
+   * strict tool use compiles; anything else is a 400, which no retry fixes, so it goes unstrict.
+   */
+  strictTool: (config, schema) => anthropicSupportHelper.rejectsForcedTool(config.model) && schemaUtils.isStrictSchema(schema),
+
+  suppressesThinking: config => anthropicSupportHelper.suppressesThinking(config),
+
+  effort: config => anthropicEffort(config),
 
   build: ({ config, secret, callbacks }) => {
     const model = config.model ??= 'claude-haiku-4-5'
     // Claude 4.7+ took the sampling knobs away: not "ignored", a 400. A configured
     // `temperature` on such a model is a preset bug, and dropping it here is the only
     // reading that keeps the call alive — there is nothing to translate it into.
-    const sampling = rejectsSampling(model)
+    const sampling = anthropicSupportHelper.rejectsSampling(model)
       ? {}
       : {
         // Neither knob set → pin temperature to 0 for determinism.
@@ -128,40 +173,57 @@ export const anthropicPlugin: LlmPlugin = {
         ...(config.temperature != null ? { temperature: config.temperature } : {}),
         ...(config.topP != null && config.temperature == null ? { topP: config.topP } : {}),
       }
+    // Room for the reasoning these models always do, and for the answer after it.
+    const requested = config.maxTokens ?? 4096
+    const maxTokens = anthropicSupportHelper.rejectsSampling(model)
+      ? Math.min(Math.max(requested, ADAPTIVE_MIN_MAX_TOKENS), configUtils.resolveOutputCap(config))
+      : requested
+    const effort = effortUtils.effortFor(
+      anthropicEffort({ model, disableThinking: config.disableThinking }), config.effort, 0,
+    )
+    const thinkingOff = anthropicSupportHelper.thinkingOffFor({ model, disableThinking: config.disableThinking })
+
     const cfg = {
       model,
       apiKey: secret,
-      maxTokens: config.maxTokens ?? 4096,
+      maxTokens,
       maxRetries: 5,
       metadata: { config },
       callbacks,
       ...sampling,
-      ...makeClientOptions({ headers: config.headers }),
+      ...(thinkingOff != null ? { thinking: { type: thinkingOff } as unknown as WireThinking } : {}),
+      ...(effort != null ? { outputConfig: { effort } as WireOutputConfig } : {}),
+      ...pluginUtils.makeClientOptions({ headers: config.headers }),
     }
     // Anthropic rejects temperature and top_p together.
     if (cfg.temperature != null && cfg.topP != null) {
       delete cfg.topP
     }
 
-    return new ChatAnthropic(cfg)
+    return withLocalThinking(new ChatAnthropic(cfg))
   },
 
-  refine: ({ base, attempt, temperature, maxOutputCap }): BaseChatModel => {
+  refine: ({ base, attempt, rungAttempt, temperature, maxOutputCap }): BaseChatModel => {
     const model = base as ChatAnthropic
     const currentTemperature = temperature ?? model.temperature ?? 0
-    const maxTokens = escalateMaxTokens(model.maxTokens, attempt, maxOutputCap)
+    const maxTokens = pluginUtils.escalateMaxTokens(model.maxTokens, attempt, maxOutputCap)
+    const kwargs = model.lc_kwargs as AnthropicKwargs
+    // Effort is part of the cached prefix, so a climbed retry pays a cache write. A retry is
+    // already the rare path, and the answer it buys is the point of retrying.
+    const outputConfig = escalatedOutputConfig(model, kwargs, rungAttempt ?? attempt)
+    const escalated = outputConfig != null ? { outputConfig } : {}
     // `lc_kwargs` carries whatever `build` put there, so a no-sampling model arrives clean;
     // what has to be suppressed is the escalator's own re-application of a temperature.
-    if (rejectsSampling(model.modelName ?? model.model)) {
-      const cfg = { ...(model.lc_kwargs as Partial<ChatAnthropic>), maxTokens }
+    if (anthropicSupportHelper.rejectsSampling(model.modelName ?? model.model)) {
+      const cfg = { ...kwargs, maxTokens, ...escalated }
       delete cfg.temperature
       delete cfg.topP
 
-      return new ChatAnthropic(cfg as Partial<ChatAnthropic>)
+      return withLocalThinking(new ChatAnthropic(cfg as Partial<ChatAnthropic>))
     }
     const cfg: Partial<ChatAnthropic> = {
-      ...(model.lc_kwargs as Partial<ChatAnthropic>), temperature: currentTemperature, maxTokens,
-    }
+      ...kwargs, temperature: currentTemperature, maxTokens, ...escalated,
+    } as Partial<ChatAnthropic>
     if (cfg.temperature != null && cfg.temperature > 0 && cfg.topP != null) {
       delete cfg.topP
     } else if (cfg.temperature != null && cfg.temperature <= 0 && cfg.topP != null) {
@@ -274,5 +336,19 @@ export const anthropicPlugin: LlmPlugin = {
    * full retries — a single unfixable request became minutes of thrash with the real cause
    * buried under the repeats.
    */
-  isFatal: e => e instanceof BadRequestError || isBadRequest(e) ? e as Error : null,
+  isFatal: e => e instanceof BadRequestError || pluginUtils.isBadRequest(e) ? e as Error : null,
 }
+
+/** @deprecated compat:factory-refactor — use `anthropicSupportHelper.rejectsSampling(…)` */
+export const rejectsSampling = (model: string | undefined): boolean => anthropicSupportHelper.rejectsSampling(model)
+
+/** @deprecated compat:factory-refactor — use `anthropicSupportHelper.anthropicSupportOf(…)` */
+export const anthropicSupportOf = (model: string | undefined): AnthropicModelSupport | undefined =>
+  anthropicSupportHelper.anthropicSupportOf(model)
+
+/** @deprecated compat:factory-refactor — use `anthropicSupportHelper.thinkingOffFor(…)` */
+export const thinkingOffFor = (config: Pick<ModelConfig, 'model' | 'disableThinking'>): ThinkingOff | undefined =>
+  anthropicSupportHelper.thinkingOffFor(config)
+
+/** @deprecated compat:factory-refactor — use `anthropicSupportHelper.rejectsForcedTool(…)` */
+export const rejectsForcedTool = (model: string | undefined): boolean => anthropicSupportHelper.rejectsForcedTool(model)

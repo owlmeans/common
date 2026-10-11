@@ -1,11 +1,14 @@
-import { AuthForbidden, AuthManagerError, AuthManagerUnsupported, AuthUnknown, entitySlugOf } from '@owlmeans/auth'
+import { AuthForbidden, AuthManagerError, AuthManagerUnsupported, AuthorizationError, AuthUnknown, authHelper } from '@owlmeans/auth'
 import { authService, DEFAULT_ALIAS } from '../consts.js'
 import type { Config, Context, OidcClientService } from '../types.js'
-import { cache, managedId } from '../utils/cache.js'
+import { oidcCacheOf } from '../utils/cache.js'
 import type { GateModel, PermissionRequest, PermissionResponse } from './types.js'
 import { ResponseMode } from './consts.js'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import type { OidcProviderDescriptor } from '@owlmeans/oidc'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-oidc-rp')
 
 export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T): GateModel => {
   const model: GateModel = {
@@ -13,16 +16,16 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
       const oidc = ctx.service<OidcClientService>(DEFAULT_ALIAS)
       try {
         return await oidc.getClient({
-          entityId: entitySlugOf(user),
-          clientId: oidc.entityToClientId({ entityId: entitySlugOf(user) })
+          entityId: authHelper.entitySlugOf(user),
+          clientId: oidc.entityToClientId({ entityId: authHelper.entitySlugOf(user) })
         })
       } catch (e) {
         if (e instanceof AuthManagerError) {
-          const [providers] = await ctx.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
+          const providers = await ctx.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
             authService.provider.list
           ).call({
             params: { service: ctx.cfg.alias ?? ctx.cfg.service },
-            query: { entityId: entitySlugOf(user) }
+            query: { entityId: authHelper.entitySlugOf(user) }
           })
           if (providers.length < 1) {
             throw new AuthUnknown()
@@ -36,7 +39,13 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
     },
 
     loadPermissions: async (user, permissions) => {
-      const record = await cache<C, T>(ctx).get(managedId(user.token))
+      const oidcCache = oidcCacheOf(ctx)
+      const record = await oidcCache.resource().load(oidcCache.managedId(user.token))
+      if (record == null) {
+        // The session's record is gone (signed out, expired, evicted): the caller signs in again.
+        // A bare `get` would surface the storage refusal instead and answer "not found".
+        throw new AuthorizationError('record')
+      }
       if (record.payload == null) {
         throw new AuthForbidden('record')
       }
@@ -67,7 +76,8 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
           throw new AuthUnknown('invalid')
         }
 
-        console.warn(await response.text())
+        // Never the response body: it is the token endpoint's answer to this user's request.
+        log.warn('Permission request failed at the token endpoint', { status: response.status })
         return []
       }
 
@@ -83,7 +93,7 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
     },
 
     fixPermissions: (permissions, user) => permissions.map(
-      perm => perm.replaceAll('{entity}', entitySlugOf(user) ?? '-')
+      perm => perm.replaceAll('{entity}', authHelper.entitySlugOf(user) ?? '-')
     ),
 
     prepareRequest: async (client, request) => {

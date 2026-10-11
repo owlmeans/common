@@ -1,6 +1,6 @@
 
 import type { LazyService } from '@owlmeans/context'
-import type { FlowConfig, FlowModel, FlowProvider, FlowState, FlowTransition } from '@owlmeans/flow'
+import type { FlowConfig, FlowModel, FlowProvider, FlowState, FlowTransition, FlowPayload } from '@owlmeans/flow'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { ResourceRecord } from '@owlmeans/resource'
 import type { ResolvedServiceRoute } from '@owlmeans/route'
@@ -43,3 +43,16 @@ export interface FlowClient {
 export interface StateRecord extends ResourceRecord, FlowState {}
 
 export interface StateResource extends ClientResource<StateRecord> {}
+
+export interface SuspendedLandingRecord extends ResourceRecord {
+  /** The entrypoint alias to navigate to once sign-in completes. */
+  entrypoint: string
+  /** The flow's payload at the moment it was suspended — carried along as the destination's query. */
+  query: FlowPayload
+  expiresAt: number
+}
+
+export interface SuspendedLanding {
+  entrypoint: string
+  query: FlowPayload
+}

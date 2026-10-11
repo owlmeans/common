@@ -1,0 +1,13 @@
+{
+  "title": "Acción denegada",
+  "description": "El servidor denegó esta acción según las reglas de permisos actuales. Si esperaba tener acceso, consulte a un administrador.",
+  "technical-details": "Detalles técnicos",
+  "endpoint": "Punto de acceso",
+  "status": "Estado",
+  "incident": "ID del incidente",
+  "area-title": "Acceso denegado",
+  "area-description": "Su cuenta no puede abrir esta sección. Si esperaba tener acceso, consulte a un administrador.",
+  "area": "Sección",
+  "required-permissions": "Permisos necesarios",
+  "logout": "Cerrar sesión"
+}

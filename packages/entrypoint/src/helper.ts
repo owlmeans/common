@@ -1,6 +1,4 @@
-import { route } from '@owlmeans/route'
-import { Filter, CommonEntrypointOptions, AbstractResponse, CommonEntrypoint } from './types.js'
-import { entrypoint } from './entrypoint.js'
+import { Filter, CommonEntrypointOptions, AbstractResponse } from './types.js'
 
 export const filter = (filter: Filter, opts?: CommonEntrypointOptions): CommonEntrypointOptions => ({ filter, ...opts })
 
@@ -25,13 +23,4 @@ export const provideResponse = <T>(originalResponse?: unknown): AbstractResponse
   }
 
   return handler
-}
-
-export const clone = <M extends CommonEntrypoint>(entrypoints: M[], from: string, to: string, service: string) => {
-  const source = entrypoints.find(e => e.alias === from)
-
-  if (source?.route.route != null) {
-    const _route = { ...source.route.route, service, resolved: false, alias: to }
-    entrypoints.push(entrypoint(route(to, _route.path, _route)) as M)
-  }
 }

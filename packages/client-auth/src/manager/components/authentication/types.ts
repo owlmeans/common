@@ -2,7 +2,7 @@ import type {
   AllowanceRequest, AllowanceResponse, AuthCredentials, AuthenticationStage, AuthenticationType,
   AuthToken
 } from '@owlmeans/auth'
-import type { ModuleContextParams } from '@owlmeans/client'
+import type { EntrypointContextParams } from '@owlmeans/client'
 import type { FC } from 'react'
 import type { ClientContext } from '@owlmeans/client'
 import type { FlowService } from '@owlmeans/client-flow'
@@ -10,7 +10,7 @@ import type { ResilientError } from '@owlmeans/error'
 
 export type ClientAuthType = AuthenticationType | string
 
-export interface AuthenticationProps extends ModuleContextParams {
+export interface AuthenticationProps extends EntrypointContextParams {
   type?: ClientAuthType
   callback?: AuthenticationCallback
   source?: string

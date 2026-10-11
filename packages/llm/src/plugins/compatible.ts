@@ -2,11 +2,9 @@ import { ChatOpenAI } from '@langchain/openai'
 import { ModelProvider, StructuredMode } from '@owlmeans/llm-common'
 import type { LlmPlugin } from './types.js'
 import type { ModelConfig } from '../types.js'
-import { makeConfiguration } from './utils.js'
+import { pluginUtils } from './utils.js'
 import { openAiFamily } from './openai.js'
-
-/** Aggregators that encode the serving provider as a `model:provider` suffix. */
-const HUGGINGFACE_MARKER = 'huggingface'
+import { HUGGINGFACE_MARKER } from './consts.local.js'
 
 /**
  * Any OpenAI-compatible endpoint that is not OpenAI itself — OpenRouter, the
@@ -56,7 +54,7 @@ export const compatiblePlugin: LlmPlugin = {
         ...(config.reasoning != null ? { reasoning: config.reasoning } : {}),
         provider: { require_parameters: true },
       },
-      ...makeConfiguration({ baseURL, headers }),
+      ...pluginUtils.makeConfiguration({ baseURL, headers }),
     })
   },
 }

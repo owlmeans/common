@@ -1,5 +1,5 @@
 import { GateParamSource, GateResolutionFailure } from '../consts.js'
-import type { GateRequestLike, GateResourceSelector, GateResourceResolution } from '../types.js'
+import type { GateRequestLike, GateResourceSelector, GateResourceResolution } from './types.js'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === 'object'

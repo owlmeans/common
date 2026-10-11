@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { fromPubKey, makeKeyPairModel, matchAddress } from '@owlmeans/basic-keys'
+import { keyHelper, makeKeyPairModel } from '@owlmeans/basic-keys'
 import { fixtureKey } from './context.js'
 
 describe('@owlmeans/basic-keys — KeyPairModel sign/verify', () => {
@@ -26,13 +26,13 @@ describe('@owlmeans/basic-keys — public-key-only verification (fromPubKey)', (
     const signing = fixtureKey('peer-keys-spec')
     const sig = await signing.sign({ event: 'check' })
 
-    const verifying = fromPubKey(signing.exportPublic())
+    const verifying = keyHelper.fromPubKey(signing.exportPublic())
     expect(await verifying.verify({ event: 'check' }, sig)).toBe(true)
   })
 
   test('matchAddress agrees with exportAddress() on the same keypair', () => {
     const key = fixtureKey('addr-spec')
-    expect(matchAddress(key.exportAddress(), key.exportPublic())).toBe(true)
+    expect(keyHelper.matchAddress(key.exportAddress(), key.exportPublic())).toBe(true)
   })
 
   test('export() round-trips into a new model that produces the same public key', async () => {

@@ -2,8 +2,10 @@ import { describe, expect, test } from 'bun:test'
 import { UnsupportedArgumentError } from '@owlmeans/resource'
 import type { AnySchema } from 'ajv'
 
-import { schemaToTableSpec, toFormatType } from '@owlmeans/postgres-resource'
+import { pgSchemaHelper } from '@owlmeans/postgres-resource'
 import type { TableSpec } from '@owlmeans/postgres-resource'
+
+const { schemaToTableSpec, toFormatType } = pgSchemaHelper
 
 /**
  * Compiling an AJV schema into a table specification is the one step every other part of
