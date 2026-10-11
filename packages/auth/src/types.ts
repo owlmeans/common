@@ -121,6 +121,10 @@ export interface Auth extends AuthPayload {
   token: string
   isUser: boolean
   createdAt: Date
+  /** Opaque session registry key; it is not an organization identifier. */
+  sessionId?: string
+  /** Monotonic authorization revision supplied by the session registry. */
+  authorizationVersion?: number
   /**
     AuthPayload:
       type: string
@@ -185,4 +189,13 @@ export interface AllowanceResponse {
 
 export interface AuthToken {
   token: string
+}
+
+/**
+ * Shape of the value packed into `AuthCredentials.credential` by the supervisor
+ * web plugin: the client `salt` plus the `signature` over `buildSupervisorPayload`.
+ */
+export interface SupervisorCredentialPayload {
+  salt: string
+  signature: string
 }

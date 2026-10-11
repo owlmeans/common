@@ -1,75 +1,102 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
+import { BARE_MANIFEST, BINARY_EXT, DOTFILE_RENAMES, GLOBSTAR } from './consts.local.js'
+import type { BareManifest, CopyTemplateOptions, TemplateReplacements } from './types.js'
+import type { TemplateHelper } from './template/types.js'
 
-/** Dotfiles/dirs are shipped with an underscore prefix so npm does not strip them from the tarball. */
-const DOTFILE_RENAMES: Record<string, string> = {
-  '_gitignore': '.gitignore',
-  '_npmrc': '.npmrc',
-  '_env': '.env',
-  '_github': '.github',
-  // `_agents` carries the canonical harness — AGENTS.md's skills, the shared memory
-  // store and the link-skills bridge; the template seed (sync-agent-meta) writes
-  // `_agents/skills/` into this tree. `_claude` carries only the Claude Code bridge
-  // (SessionStart hook + the gitkept symlink dir). Entries whose source dir is
-  // absent are inert.
-  '_agents': '.agents',
-  '_claude': '.claude',
-}
+export const createTemplateHelper = (): TemplateHelper => {
+  const templateDir = (): string =>
+    resolve(dirname(fileURLToPath(import.meta.url)), '..', 'template')
 
-/** Files whose contents are binary or must not be string-substituted. */
-const BINARY_EXT = new Set(['.ico', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.woff', '.woff2'])
+  const applyReplacements = (content: string, r: TemplateReplacements): string =>
+    content
+      .replaceAll('__APP_SLUG__', r.slug)
+      .replaceAll('__APP_NAME__', r.name)
+      .replaceAll('__APP_LANG__', r.lang)
+      .replaceAll('__APP_DESCRIPTION__', r.description)
 
-export interface TemplateReplacements {
-  /** package/workspace slug, e.g. `my-app` */
-  slug: string
-  /** human-readable name, e.g. `My App` */
-  name: string
-}
-
-/** Absolute path to the bundled `template/` directory (sibling of `build/`). */
-export const templateDir = (): string =>
-  resolve(dirname(fileURLToPath(import.meta.url)), '..', 'template')
-
-const applyReplacements = (content: string, r: TemplateReplacements): string =>
-  content
-    .replaceAll('__APP_SLUG__', r.slug)
-    .replaceAll('__APP_NAME__', r.name)
-
-const isBinary = (file: string): boolean => {
-  const dot = file.lastIndexOf('.')
-  return dot >= 0 && BINARY_EXT.has(file.slice(dot).toLowerCase())
-}
-
-/**
- * Recursively copy `src` → `dest`, substituting `__APP_SLUG__` / `__APP_NAME__`
- * in text files and renaming shipped dotfiles (`_gitignore` → `.gitignore`).
- */
-export const copyTemplate = (src: string, dest: string, r: TemplateReplacements): void => {
-  mkdirSync(dest, { recursive: true })
-  for (const entry of readdirSync(src)) {
-    const from = join(src, entry)
-    const targetName = DOTFILE_RENAMES[entry] ?? entry
-    const to = join(dest, targetName)
-
-    if (statSync(from).isDirectory()) {
-      copyTemplate(from, to, r)
-      continue
-    }
-
-    if (isBinary(from)) {
-      cpSync(from, to)
-      continue
-    }
-
-    const content = applyReplacements(readFileSync(from, 'utf8'), r)
-    writeFileSync(to, content)
+  const isBinary = (file: string): boolean => {
+    const dot = file.lastIndexOf('.')
+    return dot >= 0 && BINARY_EXT.has(file.slice(dot).toLowerCase())
   }
+
+  /**
+   * Bare variants sit beside the files they replace so the normal template still compiles as
+   * one project — which is also why they are filtered out of the copy in BOTH modes.
+   */
+  const isBareVariant = (entry: string): boolean => entry.includes('.bare.')
+
+  const globToRegExp = (pattern: string): RegExp => new RegExp(
+    '^' + pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replaceAll('**/', GLOBSTAR)
+      .replace(/\*/g, '[^/]*')
+      .replaceAll(GLOBSTAR, '(?:.*/)?')
+    + '$'
+  )
+
+  const isRemoved = (rel: string, patterns: string[]): boolean => patterns.some(pattern =>
+    rel === pattern
+    // A directory pattern takes its whole subtree — the walk simply never descends into it.
+    || rel.startsWith(pattern.endsWith('/') ? pattern : pattern + '/')
+    || (pattern.includes('*') && globToRegExp(pattern).test(rel))
+  )
+
+  const readBareManifest = (root: string): BareManifest => {
+    const file = join(root, BARE_MANIFEST)
+    if (!existsSync(file)) {
+      throw new Error(`bare scaffolding requires ${BARE_MANIFEST} in the template (${root})`)
+    }
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as Partial<BareManifest>
+
+    return { remove: parsed.remove ?? [], overrides: parsed.overrides ?? {} }
+  }
+
+  const toPosix = (path: string): string => path.split(sep).join('/')
+
+  const copyTree = (
+    src: string, dest: string, r: TemplateReplacements, root: string, bare: BareManifest | null
+  ): void => {
+    mkdirSync(dest, { recursive: true })
+    for (const entry of readdirSync(src)) {
+      const from = join(src, entry)
+      const rel = toPosix(relative(root, from))
+
+      if (rel === BARE_MANIFEST || isBareVariant(entry)) continue
+      if (bare != null && isRemoved(rel, bare.remove)) continue
+
+      const to = join(dest, DOTFILE_RENAMES[entry] ?? entry)
+
+      if (statSync(from).isDirectory()) {
+        copyTree(from, to, r, root, bare)
+        continue
+      }
+
+      const override = bare?.overrides[rel]
+      const source = override != null ? join(root, override) : from
+
+      if (isBinary(source)) {
+        cpSync(source, to)
+        continue
+      }
+
+      writeFileSync(to, applyReplacements(readFileSync(source, 'utf8'), r))
+    }
+  }
+
+  const copyTemplate = (
+    src: string, dest: string, r: TemplateReplacements, opts: CopyTemplateOptions = {}
+  ): void => {
+    copyTree(src, dest, r, src, opts.bare === true ? readBareManifest(src) : null)
+  }
+
+  const isEmptyDir = (dir: string): boolean => {
+    if (!existsSync(dir)) return true
+    return readdirSync(dir).length === 0
+  }
+
+  return { templateDir, copyTemplate, isEmptyDir }
 }
 
-export const isEmptyDir = (dir: string): boolean => {
-  if (!existsSync(dir)) return true
-  return readdirSync(dir).length === 0
-}
-
-export { renameSync }
+export const templateHelper = createTemplateHelper()

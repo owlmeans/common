@@ -1,0 +1,51 @@
+{
+  "panel": {
+    "title": "Tokens de acceso",
+    "description": "Tokens de larga duración con los que un script o una integración llama a la API en tu nombre.",
+    "create": "Crear token",
+    "empty": "Aún no hay tokens de acceso.",
+    "col": {
+      "display": "Token",
+      "name": "Nombre",
+      "created": "Creado",
+      "last-used": "Último uso",
+      "expires": "Caduca",
+      "status": "Estado"
+    },
+    "never": "Nunca",
+    "never-used": "Sin usar",
+    "status": {
+      "active": "Activo",
+      "expired": "Caducado",
+      "revoked": "Revocado"
+    },
+    "revoke": "Revocar",
+    "revoke-confirm": {
+      "title": "¿Revocar este token?",
+      "description": "Todo lo que aún lo use dejará de funcionar de inmediato. Esta acción no se puede deshacer.",
+      "cancel": "Cancelar",
+      "confirm": "Revocar"
+    },
+    "dialog": {
+      "title": "Crear un token de acceso",
+      "description": "Ponle el nombre del lugar donde lo vas a usar, para distinguir tus tokens más adelante.",
+      "name-label": "Nombre",
+      "name-placeholder": "Despliegue de CI",
+      "expiry-label": "Caduca",
+      "expiry": {
+        "30": "En 30 días",
+        "90": "En 90 días",
+        "365": "En un año",
+        "never": "Nunca"
+      },
+      "create": "Crear",
+      "cancel": "Cancelar",
+      "issued-title": "Tu nuevo token de acceso",
+      "issued-note": "Cópialo ahora: es la única vez que se muestra.",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "done": "Listo"
+    },
+    "error": "Algo ha salido mal"
+  }
+}

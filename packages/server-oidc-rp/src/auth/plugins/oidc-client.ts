@@ -1,20 +1,20 @@
 
 import type { AuthPlugin } from '@owlmeans/server-auth/manager/plugins'
 import type { Config, Context, OidcClientService } from '../../types.js'
-import { assertType } from '@owlmeans/server-auth/manager/plugins'
 import { DEFAULT_ALIAS } from '../../consts.js'
 import { OIDC_CLIENT_AUTH } from '@owlmeans/oidc'
 import type { OidcUserDetails, ProviderProfileDetails } from '@owlmeans/oidc'
 import { base64urlnopad as base64 } from '@scure/base'
-import { randomBytes } from '@noble/hashes/utils'
-import { sha256 } from '@noble/hashes/sha256'
-import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthManagerError, AuthRole, entitySlugOf } from '@owlmeans/auth'
+import { randomBytes } from '@noble/hashes/utils.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthManagerError, AuthRole, authHelper } from '@owlmeans/auth'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 import { decodeJwt } from 'jose'
 import { KEY_OWL } from '@owlmeans/did'
-import { cache, verifierId } from '../../utils/cache.js'
+import { oidcCacheOf } from '../../utils/cache.js'
 import { makeOidcAuthentication } from '../../utils/auth.js'
 import { requestedScope } from '../../utils/scope.js'
+import { authPluginHelper } from '@owlmeans/server-auth/manager/plugins'
 // import { URL } from 'url'
 
 /**
@@ -70,7 +70,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
     type: OIDC_CLIENT_AUTH,
 
     init: async request => {
-      assertType(request.type, plugin)
+      authPluginHelper.assertType(request.type, plugin)
 
       if (context.cfg.oidc.restrictedProviders === false) {
         throw new AuthManagerError('oidc.internal')
@@ -78,7 +78,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       
       // @TODO Actually think about how to make oidc service configurable
       const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
-      let entityId = entitySlugOf(request) ?? oidc.getDefault()
+      let entityId = authHelper.entitySlugOf(request) ?? oidc.getDefault()
 
       if (entityId == null) {
         throw new AuthenPayloadError('client')
@@ -93,12 +93,11 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       }
 
       const verifier = base64.encode(randomBytes(32))
-      const challenge = base64.encode(sha256(verifier))
+      const challenge = base64.encode(sha256(new TextEncoder().encode(verifier)))
 
-      console.log("\n\n We create verifierID (2): ", verifierId(challenge), verifier, " with client: ", entityId, "\n\n")
-
-      await cache<C, T>(context).create({
-        id: verifierId(challenge), 
+      const oidcCache = oidcCacheOf(context)
+      await oidcCache.resource().create({
+        id: oidcCache.verifierId(challenge), 
         verifier, 
         client: entityId
       }, { ttl: AUTHEN_TIMEFRAME / 1000 })
@@ -126,7 +125,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
     },
 
     authenticate: async credential => {
-      console.log('000000000000000')
       const [cfg, tokenSet, exchangeToken] = await authenticate(credential)
 
       if (tokenSet.id_token == null || tokenSet.access_token == null) {
@@ -162,7 +160,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       // managable, so this condition isn't enough to cover described cases.
       let details: OidcUserDetails
       if (cfg.apiClientId != null) {
-        console.log(1)
         const apiClient = await oidc.getClient(cfg.apiClientId)
         const adminTokens = await apiClient.grantWithCredentials()
         if (adminTokens.access_token == null) {
@@ -186,7 +183,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
         // Fix profile if it's not linked properly to OwlMeans Id
         || (details.did != null && details.isOwlMeansId && !profile.profileId?.startsWith(KEY_OWL + ':'))
       ) {
-        console.log(2)
         details.isOwlMeansId ??= cfg.entityId != null && cfg.entityId === context.cfg.defaultEntityId
         if (details.isOwlMeansId && context.cfg.defaultEntityId == null) {
           throw new AuthManagerError('iam.governance')
@@ -197,9 +193,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           // right now. Probably we should. Probably there are some cases when we have to.
           throw new AuthManagerError('iam.entity')
         }
-
-
-        console.log('Supper attention ~%~: ', details.entityId, cfg.entityId, context.cfg.defaultEntityId)
 
         // We relink existing profile only if it's not yet did bound
         // and the orgnaization is owlmeans.net
@@ -216,20 +209,14 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           // only with owlmeans.net idp that is managed by ours. 
           && details.entityId === cfg.entityId
         )) {
-          console.log(3, details)
           profile = await store.linkProfile({
             ...details,
             service: cfg.service,
             clientId: cfg.clientId,
             type: OIDC_CLIENT_AUTH,
-          }, { 
-            username: jwt.preferred_username as string ?? details.username, 
-            // @TODO It's important to keep it this way to make registration disabling working
-            force: false 
-          })
+          }, { username: jwt.preferred_username as string ?? details.username })
         }
       }
-      console.log(4)
 
       credential.scopes = [ALL_SCOPES]
       credential.source = cfg.clientId

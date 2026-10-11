@@ -1,38 +1,11 @@
 import { tool } from '@langchain/core/tools'
 import type { LlmModel } from '@owlmeans/llm'
-import { DEFAULT_MEMORY_NODE_CHARS, truncateAt } from '@owlmeans/agent-common'
-import type { MemoryNode } from '@owlmeans/agent-common'
+import { DEFAULT_MEMORY_NODE_CHARS, truncateAt, type MemoryNode } from '@owlmeans/agent-common'
 import { composeRollingSummary } from '../helpers/rolling.js'
 import type { MemoryGraphStore } from '../stores/types.js'
 import type { AgentPlugin, AgentRun, AgentToolSet } from '../types.js'
-
-export interface MemoryGraphApi {
-  /** Subsystem names and their links, without content. */
-  index: (scope: string) => Promise<Array<Pick<MemoryNode, 'subsystem' | 'links' | 'updatedAt'>>>
-  /** One node, plus the nodes it links to, `follow` hops deep. */
-  read: (scope: string, subsystem: string, follow?: number) => Promise<MemoryNode[]>
-  /** Merge `content` into a node, compacting when it outgrows its budget. */
-  write: (scope: string, subsystem: string, content: string, links?: string[]) => Promise<MemoryNode>
-}
-
-export interface MemoryGraphOptions {
-  store?: MemoryGraphStore
-  /** Which knowledge base a run reads and writes. Defaults to the conversation's scope. */
-  scope?: (run: AgentRun) => string
-  /** The model used to compact an overgrown node. Without one, compaction is truncation. */
-  model?: (run: AgentRun) => LlmModel | undefined
-  maxNodeChars?: number
-  /** Contribute the read/write tools. On by default. */
-  tools?: boolean
-  /** Contribute the index to the prompt. On by default. */
-  injectIndex?: boolean
-  action?: string
-}
-
-export const MEMORY_GRAPH_PLUGIN = 'agent-memory-graph'
-
-/** Hops followed by default when a node is read. One: enough to see a neighbour, not a crawl. */
-export const DEFAULT_FOLLOW = 1
+import { DEFAULT_FOLLOW, MEMORY_GRAPH_PLUGIN } from './consts.js'
+import type { MemoryGraphApi, MemoryGraphOptions } from './types.js'
 
 /**
  * The subsystem memory graph, as a plain API.
@@ -46,7 +19,7 @@ export const DEFAULT_FOLLOW = 1
  * make every write a potential act of forgetting, which is not a decision a single caller has the
  * standing to take.
  */
-export const memoryGraph = (
+export const makeMemoryGraphApi = (
   store: MemoryGraphStore,
   options: Pick<MemoryGraphOptions, 'model' | 'maxNodeChars' | 'action'> & { run?: AgentRun } = {},
 ): MemoryGraphApi => {
@@ -123,7 +96,7 @@ export const memoryGraphPlugin = (options: MemoryGraphOptions = {}): AgentPlugin
 
   const api = (run: AgentRun): MemoryGraphApi | null => store == null
     ? null
-    : memoryGraph(store, { ...options, run })
+    : makeMemoryGraphApi(store, { ...options, run })
 
   return {
     alias: MEMORY_GRAPH_PLUGIN,
@@ -215,3 +188,9 @@ export const memoryGraphPlugin = (options: MemoryGraphOptions = {}): AgentPlugin
     },
   }
 }
+
+/** @deprecated compat:factory-refactor — use `makeMemoryGraphApi(…)` */
+export const memoryGraph = (
+  store: MemoryGraphStore,
+  options: Pick<MemoryGraphOptions, 'model' | 'maxNodeChars' | 'action'> & { run?: AgentRun } = {},
+): MemoryGraphApi => makeMemoryGraphApi(store, options)

@@ -7,14 +7,21 @@ metadata:
 
 # Using `@owlmeans/mailer`
 
-Provider-agnostic email dispatch service. Defines the `MailerService` interface implemented by concrete transports (`@owlmeans/server-mailer-mailgun` for production, `makeConsoleMailerService` for dev/tests).
+**Install:** `"@owlmeans/mailer": "^0.1.18-rc.37"` in `dependencies`
+
+Provider-agnostic email dispatch service. It defines the `MailerService` interface and ships one
+transport of its own — the console/dev one. Real delivery is a separate package:
+`@owlmeans/mailer-smtp` (SMTP, works against any relay) or `@owlmeans/server-mailer-mailgun`
+(Mailgun's HTTP API).
 
 ## Public API surface
 
 | Symbol | Kind | Purpose |
 |--------|------|---------|
-| `MailerService` | interface | `{ send(message): Promise<void> }` |
-| `MailMessage` | interface | `{ to, subject, text?, html? }` |
+| `MailerService` | interface | Extends `InitializedService` (`@owlmeans/context`) with `send(message): Promise<void>` |
+| `MailMessage` | interface | `{ to, subject, text?, html?, from?, replyTo?, headers?, attachments? }` |
+| `MailAttachment` | interface | `{ filename, content: Uint8Array \| string, encoding?, contentType? }` |
+| `mailAttachmentHelper` | helper | `bytesOf(a)` (decodes a string `content` by `encoding`: `base64`, `hex`, `latin1`/`binary`, default UTF-8), `sizeOf(a)`, `describe(list)` → `{ filename, size, contentType? }[]` for logs |
 | `MAILER_SERVICE` | const | Default service alias `'mailer-service'` |
 | `makeConsoleMailerService(alias?)` | fn | Dev transport: logs to console and stores messages in `.captured[]` |
 | `makeDefaultConsoleMailerService()` | fn | Alias of `makeConsoleMailerService(MAILER_SERVICE)` |
@@ -34,18 +41,43 @@ console.log(mailer.captured[0].text) // '123456'
 ```
 
 The console transport:
-- Logs to `console.log` (not `console.error`) — safe to use in tests without noise.
+- Writes each message's envelope through `@owlmeans/log` at `info`, scope `mailer`, event `mail.console`: `from` (when set), `to`, `subject`, attachments — visible at the default level, since printing the mail IS its delivery. The text (a login code, a person's message) is personal content: it is a second record, `debug` `Mail body` (event `mail.console.body`), written only while the `mailer` scope logs at debug — a development level or `cfg.log.debug: 'mailer'`. Silenced by `configureLog({ level: 'warn' })` in a noisy test; a test reads the text from `mailer.captured`, never from the log. Never register it where real mail is sent.
+- Logs attachments as `attachments: [{ filename, size, contentType? }]` — names and sizes only, never their content.
 - Accumulates all sent messages in `mailer.captured: MailMessage[]`.
-- Never throws unless context is not initialized.
+- Never throws: it has no transport to fail, which is what makes it the right double in a test.
+
+## Writing a transport
+
+The package's whole purpose is a contract other packages implement. A transport is a service built
+with `createService` from `@owlmeans/context` under the alias the caller asks for, whose one
+required member is `send`:
+
+```ts
+import { createService } from '@owlmeans/context'
+import type { MailerService, MailMessage } from '@owlmeans/mailer'
+
+export const makeMyMailerService = (alias = 'my-mailer'): MailerService =>
+  createService<MailerService>(alias, {
+    send: async (message: MailMessage): Promise<void> => { /* reach the provider */ },
+  })
+```
+
+`MailerService` extends `InitializedService`, so the context runs the service's lifecycle like any
+other; a transport that has to be torn down declares its own members on top (see the SMTP one's
+`verify()` / `close()`).
 
 ## Production wiring
 
-Use `@owlmeans/server-mailer-mailgun` for production. The `MAILER_SERVICE` alias is the same — swap transports without changing callers:
+Every transport registers under the same `MAILER_SERVICE` alias, so swapping one for another
+changes no caller. Select on config rather than on a build flag, so one image serves every
+environment:
 
 ```ts
-// Dev:
+// Dev / tests:
 context.registerService(makeConsoleMailerService(MAILER_SERVICE))
-// Prod:
+// Production, SMTP relay:
+context.registerService(makeSmtpMailerService(MAILER_SERVICE))
+// Production, Mailgun HTTP API:
 context.registerService(makeMailgunMailerService(MAILER_SERVICE))
 ```
 
@@ -54,3 +86,17 @@ context.registerService(makeMailgunMailerService(MAILER_SERVICE))
 - Register under `MAILER_SERVICE` alias when called from `OtpService` or other platform code.
 - Never import a concrete transport directly in domain services — always inject via the alias.
 - The `MailMessage.html` field is optional; supply either `text` or `html` (or both).
+- `attachments` carry files: raw bytes, or a string in `encoding`. Every transport decodes them
+  through `mailAttachmentHelper.bytesOf`, so a file reaches the provider byte-exact whatever form it
+  was given in; `contentType` is sent as declared (a transport may fall back to
+  `application/octet-stream`). Content never reaches a log — `mailAttachmentHelper.describe` is what
+  a log line may carry. Size limits are the caller's: no transport caps them.
+- `from`, `replyTo` and `headers` are per-message overrides of whatever the transport was
+  configured with. A transport that cannot carry headers ignores the field rather than failing —
+  the contract is the smallest thing every transport can honour, so nothing here is guaranteed to
+  reach the wire.
+
+## Related
+
+- [[mailer-smtp]] — the SMTP transport and its `cfg.smtp` block
+- [[server-mailer-mailgun]] — the Mailgun HTTP transport and its `cfg.mailgun` block

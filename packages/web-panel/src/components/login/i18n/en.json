@@ -1,0 +1,10 @@
+{
+  "login": {
+    "provider": {
+      "title": "Sign in to {{product}}",
+      "top": "This app is hosted by {{operator}} on behalf of {{product}}. You sign in with {{provider}}.",
+      "inline": "Sign-in is provided by {{provider}} on behalf of {{product}}.",
+      "more": "More information"
+    }
+  }
+}

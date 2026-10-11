@@ -11,3 +11,6 @@ export const OTP_TTL_SECONDS = 600
 
 /** OTP code length (numeric digits) */
 export const OTP_CODE_LENGTH = 6
+
+/** A challenge is invalidated on its fifth failed guess. */
+export const OTP_MAX_FAILED_ATTEMPTS = 5

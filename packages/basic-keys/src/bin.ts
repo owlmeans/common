@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 
 import { KeyType } from './consts.js'
 import { makeKeyPairModel } from './model.js'

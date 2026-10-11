@@ -1,10 +1,7 @@
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import type { WithSharedConfig } from '@owlmeans/oidc'
 import { appendOidcGuard, makeOidcClientService, makeOidcWrappingService } from '@owlmeans/server-oidc-rp'
 import { makeIamGate } from './gate.js'
+import type { IamServerConfig, IamServerContext } from './types.local.js'
 
-type IamServerConfig = ServerConfig & WithSharedConfig
-type IamServerContext<C extends IamServerConfig = IamServerConfig> = ServerContext<C>
 
 /**
  * One-call OIDC RP setup for a server context.

@@ -1,15 +1,12 @@
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
-import type { ModuleContextParams, RoutedComponent, ClientContext } from './types.js'
+import type { RoutedComponent } from './types.js'
 import type { RefedEntrypointHandler } from '@owlmeans/client-entrypoint'
-import { HandledRenderer } from './utils/route.js'
+import type { HandledRenderer } from './utils/types.js'
 import { isValidElement } from 'react'
-import type { PropsWithChildren } from 'react'
-import { ModuleContext } from './utils/module.js'
-import type { ClientConfig } from '@owlmeans/client-context'
+import { EntrypointContext } from './utils/entrypoint.js'
 import { assertContext } from '@owlmeans/context'
+import type { Config, Context, RendererType } from './types.local.js'
 
-type Config = ClientConfig
-interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const handler = <T extends {}>(
   Component: HandledRenderer<T>, preprender?: boolean
@@ -17,7 +14,7 @@ export const handler = <T extends {}>(
   R extends AbstractRequest = AbstractRequest,
   P extends AbstractResponse<HandledRenderer<T>> = AbstractResponse<HandledRenderer<T>>
 >(req: R, res: P): any => {
-  const location = `client-handler:${ref.ref?.getAlias() ?? 'unknown'}`
+  const location = `client-handler:${ref.ref?.alias ?? 'unknown'}`
   if (ref.ref == null) {
     throw new SyntaxError('Module reference is not provided')
   }
@@ -40,12 +37,11 @@ export const handler = <T extends {}>(
 
   const Renderer: RoutedComponent = ({ children, ...props }) => {
     const Renderer = Component as unknown as RendererType
-    return <ModuleContext.Provider value={props}>
+    return <EntrypointContext.Provider value={props}>
       <Renderer {...props}>{children}</Renderer>
-    </ModuleContext.Provider>
+    </EntrypointContext.Provider>
   }
 
   return Renderer
 }
 
-type RendererType = HandledRenderer<PropsWithChildren<ModuleContextParams>> & RoutedComponent
