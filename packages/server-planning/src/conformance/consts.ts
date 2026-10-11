@@ -1,4 +1,4 @@
-import { type AnyTypeSchema, type PlanningPlugin, type StatusFlowSchema, type WorkcardTypeSchema, CodeScope, CodeStyle, IntrinsicStatus, SpecificationFormat, WorkcardKind } from '@owlmeans/planning'
+import { type AnyTypeSchema, type PlanningPlugin, type StatusFlowSchema, type WorkcardTypeSchema, AssigneeKind, PlanningResourceKind, CodeScope, CodeStyle, IntrinsicStatus, SpecificationFormat, WorkcardKind } from '@owlmeans/planning'
 
 /**
  * The conformance vocabulary: a lending library. Branches (projects) hold books and periodicals
@@ -8,6 +8,10 @@ export const LIBRARY = Object.freeze({
   branch: 'library:branch',
   room: 'library:reading-room',
   book: 'library:book',
+  section: 'library:section',
+  human: 'library:human',
+  bot: 'library:bot',
+  guest: 'library:guest',
   periodical: 'library:periodical',
   page: 'library:page',
   circulation: 'library:circulation',
@@ -92,7 +96,7 @@ const types: AnyTypeSchema[] = [
     version: 1,
     fields: { type: 'object', additionalProperties: true },
     flows: [LIBRARY.branchLife],
-    cardTypes: [LIBRARY.book, LIBRARY.periodical],
+    cardTypes: [LIBRARY.book, LIBRARY.periodical, LIBRARY.section],
     projectTypes: [LIBRARY.branch],
     scopedCardTypes: true,
     specifications: [
@@ -110,6 +114,17 @@ const types: AnyTypeSchema[] = [
     cardTypes: [LIBRARY.book],
     specifications: [],
   },
+  {
+    type: LIBRARY.section, kind: WorkcardKind.Card, version: 1,
+    fields: { type: 'object', properties: { requester: { type: 'string' }, reviewers: { type: 'array', items: { type: 'string' }, uniqueItems: true } }, additionalProperties: false },
+    flows: [LIBRARY.circulation], specifications: [],
+    parents: { types: [LIBRARY.branch, LIBRARY.section], required: true },
+    children: { types: [LIBRARY.book, LIBRARY.section] },
+    relationships: [
+      { name: 'requested-by', field: 'requester', toKind: PlanningResourceKind.Assignee, to: [LIBRARY.human], inverse: 'requests' },
+      { name: 'reviewed-by', field: 'reviewers', multiple: true, toKind: PlanningResourceKind.Assignee },
+    ],
+  },
   BOOK_TYPE,
   PERIODICAL_TYPE,
   {
@@ -126,5 +141,9 @@ const types: AnyTypeSchema[] = [
 export const planningConformancePlugin: PlanningPlugin = Object.freeze({
   name: 'planning-conformance',
   order: 0,
-  schemas: { types, flows },
+  schemas: { types, flows, assigneeTypes: [
+    { type: LIBRARY.human, version: 1, kind: AssigneeKind.Human, fields: { type: 'object', properties: { department: { type: 'string' } }, additionalProperties: false } },
+    { type: LIBRARY.bot, version: 1, kind: AssigneeKind.NonHuman, fields: { type: 'object', additionalProperties: true } },
+    { type: LIBRARY.guest, version: 1, kind: AssigneeKind.Human, authentication: 'optional' as const, fields: { type: 'object', additionalProperties: true } },
+  ] },
 })

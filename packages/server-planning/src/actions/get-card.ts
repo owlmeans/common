@@ -7,7 +7,7 @@ import type { RequestHandler } from './types.js'
 
 /** @throws {WorkcardNotFound} for an absent card and for another entity's alike */
 export const getCard = (protocol: PlanningProtocols['card']['get'], opts?: PlanningHandlerOptions): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async () => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async () => {
     const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
 
     return await facade.cards.get(`${req.params.id}`)

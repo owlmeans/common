@@ -507,6 +507,7 @@ export const connect = Object.freeze({
    */
   account: Object.freeze({
     base: 'viable:manager-api:connect:account:base',
+    blueprints: 'viable:manager-api:connect:account:blueprints',
     /**
      * The organization's branding defaults — its name and copyright line, copied into every new
      * project — read, saved, and backfilled into the projects whose rows are still blank.

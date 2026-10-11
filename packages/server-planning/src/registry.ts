@@ -49,6 +49,7 @@ export const makePluginRegistry = (
       } else {
         registered[at] = plugin
       }
+      plugin.schemas?.assigneeTypes?.forEach(schemas.registerAssigneeType)
       plugin.schemas?.flows?.forEach(schemas.registerFlow)
       plugin.schemas?.types?.forEach(schemas.registerType)
       version++

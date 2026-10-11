@@ -1,5 +1,6 @@
 import type { BasicContext } from '@owlmeans/context'
 import type {
+  Assignee, Team, Comment, CommentMention, PlanningRecordStore,
   ProjectionStore, Relationship, RelationshipStore, SchemaStore, ScopedSchemaRecord, SpecificationStore,
   Transition, TransitionStore, Workcard,
 } from '@owlmeans/planning'
@@ -13,8 +14,12 @@ import type { QueryResultRow } from 'pg'
 // Kept as a type: a mapped type over the default limits' keys.
 export type PlanningPostgresLimits = { -readonly [K in keyof typeof DEFAULT_PLANNING_POSTGRES_LIMITS]: number }
 
-/** The resource aliases the store resolves its four tables by. */
+/** The resource aliases the store resolves its eight tables by. */
 export interface PlanningPostgresAliases {
+  assignee: string
+  team: string
+  comment: string
+  mention: string
   card: string
   transition: string
   link: string
@@ -36,7 +41,7 @@ export interface PlanningPostgresOptions {
 }
 
 export interface PostgresPlanningStoreOptions extends PlanningPostgresOptions {
-  /** The context the four resources are registered on — read at call time, never at construction. */
+  /** The context the eight resources are registered on — read at call time, never at construction. */
   context: () => BasicContext<any> | undefined
 }
 
@@ -49,12 +54,21 @@ export interface PlanningCardRecord extends Workcard {
 /** A schema row: a record, or the private per-organization revision counter (`kind: 'head'`). */
 export interface PlanningSchemaRow extends Omit<ScopedSchemaRecord, 'kind'> { kind: ScopedSchemaRecord['kind'] | 'head' }
 
+export interface PlanningAssigneeResource extends PostgresResource<Assignee> { }
+export interface PlanningTeamResource extends PostgresResource<Team> { }
+export interface PlanningCommentResource extends PostgresResource<Comment> { }
+export interface PlanningMentionResource extends PostgresResource<CommentMention> { }
+
 export interface PlanningCardResource extends PostgresResource<PlanningCardRecord> { }
 export interface PlanningTransitionResource extends PostgresResource<Transition> { }
 export interface PlanningLinkResource extends PostgresResource<Relationship> { }
 export interface PlanningSchemaResource extends PostgresResource<PlanningSchemaRow> { }
 
 export interface PostgresPlanningStore extends BindablePlanningStore {
+  assignees: PlanningRecordStore<Assignee>
+  teams: PlanningRecordStore<Team>
+  comments: PlanningRecordStore<Comment>
+  mentions: PlanningRecordStore<CommentMention>
   transitions: TransitionStore
   cards: ProjectionStore
   specs: SpecificationStore
@@ -79,8 +93,12 @@ export interface SqlRunner {
   query: <R extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => Promise<R[]>
 }
 
-/** The compiled specs of the four tables, read once the resources have initialized. */
+/** The compiled specs of the eight tables, read once the resources have initialized. */
 export interface PlanningTables {
+  assignee: TableSpec
+  team: TableSpec
+  comment: TableSpec
+  mention: TableSpec
   card: TableSpec
   transition: TableSpec
   link: TableSpec

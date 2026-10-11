@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-auth",
-  "version": "0.1.18-rc.60",
+  "version": "0.1.18-rc.61",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -59,17 +59,17 @@
     "@owlmeans/client-entrypoint": "^0.1.18-rc.49",
     "@owlmeans/client-flow": "^0.1.18-rc.56",
     "@owlmeans/client-resource": "^0.1.18-rc.49",
-    "@owlmeans/client-socket": "^0.1.18-rc.51",
+    "@owlmeans/client-socket": "^0.1.18-rc.52",
     "@owlmeans/config": "^0.1.18-rc.44",
     "@owlmeans/context": "^0.1.18-rc.34",
-    "@owlmeans/did": "^0.1.18-rc.48",
+    "@owlmeans/did": "^0.1.18-rc.49",
     "@owlmeans/entrypoint": "^0.1.18-rc.41",
     "@owlmeans/error": "^0.1.18-rc.38",
     "@owlmeans/flow": "^0.1.18-rc.45",
     "@owlmeans/i18n": "^0.1.18-rc.39",
     "@owlmeans/log": "^0.1.18-rc.3",
     "@owlmeans/resource": "^0.1.18-rc.40",
-    "@owlmeans/socket": "^0.1.18-rc.42",
+    "@owlmeans/socket": "^0.1.18-rc.43",
     "@owlmeans/web-flow": "^0.1.18-rc.55",
     "@scure/base": "^2.4.0"
   },

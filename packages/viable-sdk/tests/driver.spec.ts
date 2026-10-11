@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { ModelTaskMode, ModelTaskResultKind, ModelTier } from '@owlmeans/viable-common'
 import type { ModelTask } from '@owlmeans/viable-common'
 import { makeModelTaskDriver } from '../src/task/driver.js'
-import type { LangchainLikeModel } from '../src/types.js'
+import type { LangchainLikeModel } from '../src/task/types.js'
 
 const answering = (content: string): LangchainLikeModel => ({
   invoke: async () => ({ content }) as never,

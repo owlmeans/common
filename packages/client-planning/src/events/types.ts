@@ -1,4 +1,10 @@
 import type { CommitEvent, PlanningFacade, TransitionReceiptView, Workcard } from '@owlmeans/planning'
+import type { PlanningClientLifecycle, PlanningOperation } from '../lifecycle/types.js'
+
+export interface PlanningMirrorOptions {
+  lifecycle: PlanningClientLifecycle
+  operation: PlanningOperation
+}
 
 /** What one set of mirror stores learns from the server: commit frames, receipts and cards read. */
 export interface PlanningMirror {
@@ -15,7 +21,7 @@ export interface PlanningMirror {
    * A frame from a cross-process bus carries ids only. When `record` is absent the card is re-read
    * through `facade`; without one there is nothing to write but the commit itself.
    */
-  applyCommitEvent: (event: CommitEvent, facade?: PlanningFacade) => Promise<void>
+  applyCommitEvent: (event: CommitEvent, facade?: PlanningFacade, options?: PlanningMirrorOptions) => Promise<void>
   /**
    * Mark a receipt in the mirror the moment the server answers it.
    *
@@ -23,7 +29,7 @@ export interface PlanningMirror {
    * `pending()` — is true before any frame arrives. A receipt that already carries the committed
    * card writes it; a committed delete drops the row.
    */
-  applyReceipt: (receipt: TransitionReceiptView) => Promise<void>
+  applyReceipt: (receipt: TransitionReceiptView, options?: PlanningMirrorOptions) => Promise<void>
   /** Write cards the caller read on its own, under the same newer-fold-wins rule as a commit. */
-  applyCards: (cards: Workcard[]) => Promise<void>
+  applyCards: (cards: Workcard[], options?: PlanningMirrorOptions) => Promise<void>
 }

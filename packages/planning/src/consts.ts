@@ -69,7 +69,31 @@ export enum CodeScope {
 export enum PlanningSchemaKind {
   Type = 'type',
   Flow = 'flow',
+  AssigneeType = 'assignee-type',
 }
+
+export enum AssigneeKind {
+  Human = 'human',
+  NonHuman = 'non-human',
+}
+
+export enum PlanningResourceKind {
+  Workcard = 'workcard',
+  Assignee = 'assignee',
+  Team = 'team',
+  Comment = 'comment',
+  Mention = 'mention',
+}
+
+export enum ProjectMode {
+  Opened = 'opened',
+  Closed = 'closed',
+}
+
+export const PLANNING_TEAM_MEMBER = 'planning:team-member'
+export const PLANNING_PROJECT_TEAM = 'planning:project-team'
+export const PLANNING_REPORTER = 'planning:reporter'
+export const PLANNING_ASSIGNEE = 'planning:assignee'
 
 /**
  * The layer a resolved type or flow comes from. `code` is the in-process registry (plugins),

@@ -1,3 +1,4 @@
+import { resourceConformance } from './resources.js'
 
 import { applyHelper, CardTypeNotAllowed, CommitState, IntrinsicStatus, PlanningError, PlanningSchemaKind, RelationshipRefused, SchemaConflict, SchemaInUse, SchemaInvalid, SchemaOrigin, SchemaSealed, SpecificationFormat, TransitionAction, UnknownWorkcardType, WorkcardConflict, WorkcardKind, WorkcardNotFound, type CommitEvent, type PlanningFacade, type PlanningStore, type StatusFlowSchema, type Transition, type TransitionExecution, type Unsubscribe, type Workcard, type WorkcardQuery, type WorkcardTypeSchema } from '@owlmeans/planning'
 import { creatorHelper } from '../executor/creator.js'
@@ -536,8 +537,8 @@ const cases: ConformanceCase[] = [
 ]
 
 /** Every conformance case, in order. */
-export const planningConformance: readonly ConformanceCase[] = Object.freeze(cases)
+export const planningConformance: readonly ConformanceCase[] = Object.freeze([...cases, ...resourceConformance])
 
 /** The cases a store qualifies for — a case needing `schemas` only where the store holds them. */
 export const conformanceCasesFor = (store: PlanningStore): ConformanceCase[] =>
-  planningConformance.filter(entry => (entry.needs ?? []).every(need => need !== 'schemas' || store.schemas != null))
+  planningConformance.filter(entry => (entry.needs ?? []).every(need => need === 'schemas' ? store.schemas != null : store.assignees != null && store.teams != null && store.comments != null && store.mentions != null))

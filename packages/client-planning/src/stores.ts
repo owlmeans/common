@@ -23,10 +23,12 @@ export const appendPlanningStores = <C extends BasicConfig, T extends BasicConte
   ctx = appendStateResource<C, typeof ctx, Relationship>(ctx, names.links)
   ctx = appendStateResource<C, typeof ctx>(ctx, names.commits)
 
+  for (const name of [names.assignees, names.teams, names.comments, names.mentions]) ctx = appendStateResource(ctx, name as any)
   const result = ctx as T & WithPlanningStores & StateResourceAppend
   if (result.planningStores == null) {
     result.planningStores = () => ({
       cards: result.getStateResource(names.cards),
+      assignees: result.getStateResource(names.assignees), teams: result.getStateResource(names.teams), comments: result.getStateResource(names.comments), mentions: result.getStateResource(names.mentions),
       links: result.getStateResource(names.links),
       commits: result.getStateResource(names.commits),
     })

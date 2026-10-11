@@ -260,7 +260,10 @@ currency behaviour: `tax.automatic` (Stripe Tax on the session), `tax.behavior` 
 `TaxBehavior.Exclusive`/`Inclusive`, absent = leave it `unspecified`), `tax.collectTaxId`,
 `tax.estimate` / `currency.estimate` (serve a tax/local-currency estimate endpoint — the estimate
 requires `tax.automatic`, the currency one requires `currency.adaptive`), `currency.adaptive`
-(Stripe Adaptive Pricing on the session). `PaymentService.pricingPolicy()` reads the declared record
+(Stripe Adaptive Pricing on the session), `currency.adaptiveFeeRate` (the conversion fee Adaptive
+Pricing adds to Stripe's base rate, a fraction in `[0, 1)` — Stripe says 2–4% and picks it per
+currency; it needs `currency.adaptive`; absent, an estimate keeps the FX Quotes' own 2% fee, which
+is NOT what Checkout charges). `PaymentService.pricingPolicy()` reads the declared record
 or `DEFAULT_PRICING_POLICY` — the fixed behaviour every checkout had before this policy existed
 (automatic tax and tax-id collection on, no forced behavior, no Adaptive Pricing, no estimate), so
 an application that declares nothing sees no change.
@@ -272,7 +275,9 @@ it), `region`, `currency`, `behavior`, `tax: TaxEstimate` (`status`
 one of `TaxEstimateStatus` — `taxed`/`reverse-charge`/`none`/`at-checkout`/`location-required` —
 plus `subtotalMinor`/`taxMinor`/`totalMinor`, `scalable`, and `rates: TaxRateEstimate[]` with
 `ratePpm` parsed by `priceEstimateHelper.ratePpmOf` from Stripe's `percentage_decimal`, never
-`Number(x) * 10_000`), and an optional `local` (currency + `exchangeRate`, from Stripe's FX Quotes).
+`Number(x) * 10_000`), and an optional `local` (currency + `exchangeRate`, from Stripe's FX Quotes:
+the quote's `base_rate / (1 + currency.adaptiveFeeRate)` when the fee is declared, else its
+`exchange_rate`; `fxFeeRate` is the fee that rate includes).
 The pure helper `priceEstimateHelper.estimateOf(amountMinor, estimate)` re-derives tax and a total
 for a DIFFERENT amount than the estimate's own reference one — exact only when `scalable` and the
 behavior is `Exclusive`; both `taxMinor`/`totalMinor` come back `null` otherwise, meaning "computed

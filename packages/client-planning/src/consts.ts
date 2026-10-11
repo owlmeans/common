@@ -16,7 +16,13 @@ export const LINKS = 'planning-link-state' as StateAlias<Relationship>
 /** What the client has learned about each transition it wrote or saw, keyed by transition id. */
 export const COMMITS = 'planning-commit-state' as StateAlias<PlanningCommitRecord>
 
+export const ASSIGNEES = 'planning-assignee-state' as StateAlias<import('@owlmeans/planning').Assignee>
+export const TEAMS = 'planning-team-state' as StateAlias<import('@owlmeans/planning').Team>
+export const COMMENTS = 'planning-comment-state' as StateAlias<import('@owlmeans/planning').Comment>
+export const MENTIONS = 'planning-mention-state' as StateAlias<import('@owlmeans/planning').CommentMention>
+
 export const DEFAULT_STORE_ALIASES: Readonly<PlanningStoreAliases> = Object.freeze({
+  assignees: ASSIGNEES, teams: TEAMS, comments: COMMENTS, mentions: MENTIONS,
   cards: CARDS,
   links: LINKS,
   commits: COMMITS,

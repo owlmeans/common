@@ -1,6 +1,6 @@
 import type { Relationship, RelationshipStore, RelationshipWhere } from '@owlmeans/planning'
+import { recordQueryHelper } from '@owlmeans/resource'
 import type { Criteria, ListResult } from '@owlmeans/resource'
-import { sqlHelper } from '../sql.js'
 import type { SqlContext } from '../types.js'
 import { linkSqlOf } from './link-sql.js'
 import type { LinkPortDeps } from './types.js'
@@ -15,13 +15,13 @@ export const linkCriteria = (where: RelationshipWhere): Criteria<Relationship> =
   to: where.to,
   type: where.type,
   project: where.project,
+  fromKind: where.fromKind, toKind: where.toKind,
 }) as Criteria<Relationship>
 
 export const makeLinkPort = (deps: LinkPortDeps): RelationshipStore => ({
   list: async (where, opts) => {
-    await deps.sql()
-    const listed = await deps.resource().list(linkCriteria(where), opts)
-    return { ...listed, items: listed.items.map(item => sqlHelper.cleanRecord(item)) }
+    const listed = await linkSqlOf(await deps.sql()).listLinks(where)
+    return recordQueryHelper.applyQuery(listed.items, undefined, opts)
   },
 
   put: async link => await linkSqlOf(await deps.sql()).putLink(link, deps.ids),

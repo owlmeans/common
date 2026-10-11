@@ -135,7 +135,7 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
   }
 
   const helper: LocalShellHelper = {
-    bun: async (args?: string, options?: { subproject?: SubProject }): Promise<string | null> => {
+    bun: async (args, options): Promise<string | null> => {
       const refused = await refusal()
       if (refused != null) return refused
 
@@ -146,7 +146,10 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
       // winning over the immutable package body named by the lockfile.
       const cmd = `bun ${args ?? 'install --force --backend=copyfile'}`
 
-      return await spawnHelper.runCommand(cmd, { cwd: fileHelper.getRootPath(options?.subproject ?? subproject) })
+      return await spawnHelper.runCommand(cmd, {
+        cwd: fileHelper.getRootPath(options?.subproject ?? subproject),
+        env: options?.env,
+      })
     },
 
     reinstall: async (): Promise<string | null> => {

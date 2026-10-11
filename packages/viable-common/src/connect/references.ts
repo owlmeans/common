@@ -1,3 +1,4 @@
+import type { BlueprintCatalogue } from '../blueprint/catalogue/types.js'
 import { entrypointRef } from '@owlmeans/entrypoint'
 import { connect } from './consts.js'
 import type {
@@ -54,6 +55,7 @@ import type { ConnectLlmBody, ConnectProfileSettingsView, ConnectProjectLlmBody,
  */
 export const connectRef: ConnectReferences = {
   account: {
+    blueprints: entrypointRef<{}, BlueprintCatalogue>(connect.account.blueprints),
     branding: {
       get: entrypointRef<{}, ConnectOrganizationBranding>(connect.account.branding.get),
       save: entrypointRef<{ body: ConnectOrganizationBrandingSave }, ConnectOrganizationBranding>(connect.account.branding.save),

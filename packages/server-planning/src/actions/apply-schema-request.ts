@@ -9,11 +9,12 @@ export const applySchemaRequest = async (
   definitions: PlanningDefinitions, request: SchemaDefineRequest
 ): Promise<SchemaDefineReply> => {
   const layer = request.project != null ? { project: request.project } : {}
-  const declarations = { types: request.types ?? [], flows: request.flows ?? [] }
+  const declarations = { types: request.types ?? [], flows: request.flows ?? [], assigneeTypes: request.assigneeTypes ?? [] }
   const records: ScopedSchemaRecord[] = []
 
   switch (request.mode ?? SchemaWriteMode.Define) {
     case SchemaWriteMode.Put:
+      for (const schema of declarations.assigneeTypes) records.push(await definitions.putAssigneeType(schema))
       for (const flow of declarations.flows) {
         records.push(await definitions.putFlow(flow, layer))
       }

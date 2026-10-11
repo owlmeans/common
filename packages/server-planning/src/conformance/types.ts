@@ -11,7 +11,7 @@ export interface ConformanceSubject {
 }
 
 /** A capability a store may implement; a case that needs one is skipped for a store without it. */
-export type ConformanceCapability = 'schemas'
+export type ConformanceCapability = 'schemas' | 'resources'
 
 export interface ConformanceCase {
   name: string

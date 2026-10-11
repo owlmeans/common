@@ -1,3 +1,4 @@
+import { makePlanningInvariants } from './invariants.js'
 import { createLazyService, type BasicConfig, type BasicContext } from '@owlmeans/context'
 import { makeSchemaRegistry, PlanningError, type PlanningService, type PlanningStore, type Transition, type WithPlanningService } from '@owlmeans/planning'
 import { DEFAULT_ALIAS } from './consts.js'
@@ -29,6 +30,8 @@ export const planningServiceApi = (
       return
     }
     bound.add(store)
+    store.validateProjection = async (before, after, transition) => await makePlanningInvariants(runtime).validate(before, after, transition)
+    store.projectReferences = async (after, transition) => await makePlanningInvariants(runtime).references(after, transition)
     ;(store as BindablePlanningStore).bind?.(async event => { await self().committed(event) })
   }
 

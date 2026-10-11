@@ -1,4 +1,4 @@
-import { IntrinsicStatus, TransitionAction } from '../consts.js'
+import { IntrinsicStatus, PlanningResourceKind, TransitionAction } from '../consts.js'
 import { PlanningError } from '../errors.js'
 import type { Relationship, RelationshipDraft, Transition, Workcard } from '../types.js'
 import type { ApplyHelper } from './apply/types.js'
@@ -116,14 +116,18 @@ export const createApplyHelper = (): ApplyHelper => {
     type: draft.type,
     from: draft.from ?? transition.card,
     to: draft.to,
+    fromKind: draft.fromKind,
+    toKind: draft.toKind,
     project: transition.project,
     fields: draft.fields == null ? undefined : structuredClone(draft.fields),
     createdAt: transition.at,
     transition: transition.id,
   })
 
-  const sameEdge = (left: Pick<Relationship, 'entityId' | 'from' | 'to' | 'type'>, right: Pick<Relationship, 'entityId' | 'from' | 'to' | 'type'>): boolean =>
+  const sameEdge = (left: Pick<Relationship, 'entityId' | 'from' | 'to' | 'type' | 'fromKind' | 'toKind'>, right: Pick<Relationship, 'entityId' | 'from' | 'to' | 'type' | 'fromKind' | 'toKind'>): boolean =>
     left.entityId === right.entityId && left.from === right.from && left.to === right.to && left.type === right.type
+      && (left.fromKind ?? PlanningResourceKind.Workcard) === (right.fromKind ?? PlanningResourceKind.Workcard)
+      && (left.toKind ?? PlanningResourceKind.Workcard) === (right.toKind ?? PlanningResourceKind.Workcard)
 
   const applyRelationship = (links: Relationship[], transition: Transition): Relationship[] => {
     const add = (drafts: RelationshipDraft[]): Relationship[] => drafts.reduce((result, draft) => {
@@ -145,7 +149,8 @@ export const createApplyHelper = (): ApplyHelper => {
       }
       case TransitionAction.Delete:
         return links.filter(existing => existing.entityId !== transition.entityId
-          || (existing.from !== transition.card && existing.to !== transition.card))
+          || !((existing.from === transition.card && (existing.fromKind ?? PlanningResourceKind.Workcard) === PlanningResourceKind.Workcard)
+            || (existing.to === transition.card && (existing.toKind ?? PlanningResourceKind.Workcard) === PlanningResourceKind.Workcard)))
       default:
         return [...links]
     }

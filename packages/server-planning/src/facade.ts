@@ -1,9 +1,11 @@
-import { cardHelper, modelOf, PlanningUnsupported, queryHelper, specificationHelper, WorkcardKind, WorkcardNotFound, type CommitEvent, type CommitSource, type PlanningFacade, type PlanningScope, type Relationship, type Specification, type Transition, type Workcard, type WorkcardModel, type WorkcardQuery } from '@owlmeans/planning'
+import { cardHelper, modelOf, PlanningResourceKind, PlanningUnsupported, queryHelper, specificationHelper, WorkcardKind, WorkcardNotFound, type CommitEvent, type CommitSource, type PlanningFacade, type PlanningScope, type Relationship, type Specification, type Transition, type Workcard, type WorkcardModel, type WorkcardQuery } from '@owlmeans/planning'
+import { recordQueryHelper } from '@owlmeans/resource'
 import type { Criteria } from '@owlmeans/resource'
+import { makeResourceFacade } from './resources.js'
 import { makeDefinitions } from './definitions.js'
 import { executeTransition } from './executor.js'
 import type { PlanningRuntime } from './types.js'
-import { wantsSpecifications } from './store/memory.js'
+import { makePlanningHierarchy } from './hierarchy.js'
 import type { CommitHub } from './store/types.js'
 
 /**
@@ -45,54 +47,23 @@ export const makeStoreFacade = (runtime: PlanningRuntime, scope: PlanningScope):
   const mine = <T extends { entityId: string }>(record: T | null | undefined): T | null =>
     record != null && record.entityId === entityId ? record : null
 
-  const inProjects = (card: Workcard): boolean => projects == null
-    || (card.id != null && projects.includes(card.id))
-    || card.parents.some(parent => projects.includes(parent))
-
-  /** A card this scope may see — a specification through its parent card. */
-  const visible = async (card: Workcard | null): Promise<Workcard | null> => {
-    if (card == null || inProjects(card)) {
-      return card
+  const hierarchy = makePlanningHierarchy(runtime)
+  const visible = async (card: Workcard | null): Promise<Workcard | null> =>
+    card != null && await hierarchy.visible(card, projects) ? card : null
+  const allowedIds = async (): Promise<string[]> => {
+    if (projects == null) return []
+    const result = new Set<string>()
+    for (const project of projects) {
+      const root = mine(await reader().cards.get(project, entityId))
+      if (root == null) continue
+      result.add(project)
+      for (const card of await hierarchy.descendants(project, entityId)) result.add(card.id!)
     }
-    if (cardHelper.isSpecification(card) && card.parent != null) {
-      const parent = mine(await reader().cards.get(card.parent, entityId))
-      return parent != null && inProjects(parent) ? card : null
-    }
-    return null
+    return [...result]
   }
-
-  /**
-   * The cards a narrowed list or count may see specifications THROUGH — what {@link visible} admits
-   * one by: its parent card in the scope's projects. One read per call, and only for criteria that
-   * ask for specifications at all (`wantsSpecifications`, the rule every store routes a list by): the
-   * parent the query names, or else the projects' own cards. A summary counts no specification.
-   */
-  const throughOf = async (where: Criteria<Workcard>, parent?: string): Promise<string[]> => {
-    if (projects == null || projects.length === 0 || !wantsSpecifications(where)) {
-      return []
-    }
-    if (parent != null) {
-      const card = mine(await reader().cards.get(parent, entityId))
-      return card != null && inProjects(card) ? [parent] : []
-    }
-    const listed = await reader().cards.list({ entityId, parents: { $overlaps: projects } } as unknown as Criteria<Workcard>, { size: 0 })
-    // A project's own specifications are matched by their `parents` already.
-    return listed.items.filter(card => card.id != null && !projects.includes(card.id) && inProjects(card)).map(card => card.id!)
-  }
-
-  /** A narrowed list's or count's criteria — `through` as {@link throughOf} resolved it. */
-  const narrowed = async (query?: WorkcardQuery | null): Promise<Criteria<Workcard>> => {
-    const where = queryHelper.criteriaOf(query, scope)
-    return narrow(where, await throughOf(where, query?.parent))
-  }
-
-  const narrow = (where: Criteria<Workcard>, through: readonly string[] = []): Criteria<Workcard> => projects == null
-    ? where
-    : {
-      ...where,
-      $and: [...((where as { $and?: Criteria<Workcard>[] }).$and ?? []), projectCriteriaOf(projects, through)],
-    } as Criteria<Workcard>
-
+  const narrow = async (where: Criteria<Workcard>): Promise<Criteria<Workcard>> => projects == null ? where
+    : { ...where, $and: [...(where.$and ?? []), { id: { $in: await allowedIds() } }] }
+  const narrowed = async (query?: WorkcardQuery | null): Promise<Criteria<Workcard>> => await narrow(queryHelper.criteriaOf(query, scope))
   const projectVisible = (project?: string | null): boolean =>
     projects == null || (project != null && projects.includes(project))
 
@@ -105,10 +76,15 @@ export const makeStoreFacade = (runtime: PlanningRuntime, scope: PlanningScope):
   }
 
   /** The transition is this entity's (and this scope's) — its row, or the remembered commit of a purged one. */
+  const transitionVisible = async (row: Pick<Transition, 'card' | 'project'>): Promise<boolean> => {
+    if (projects == null) return true
+    const card = mine(await reader().cards.get(row.card, entityId))
+    return card != null ? await hierarchy.visible(card, projects) : projectVisible(row.project)
+  }
   const assertTransition = async (transition: string): Promise<void> => {
     const row = await reader().transitions?.get(transition)
     if (row != null) {
-      if (row.entityId !== entityId || !projectVisible(row.project)) {
+      if (row.entityId !== entityId || !await transitionVisible(row)) {
         throw new WorkcardNotFound(`transition:${transition}`)
       }
       return
@@ -120,15 +96,10 @@ export const makeStoreFacade = (runtime: PlanningRuntime, scope: PlanningScope):
   }
 
   /** The project a card resolves its data-defined types in. */
-  const projectFor = async (card: Workcard): Promise<string | undefined> => {
-    if (cardHelper.isProject(card) || card.parent == null) {
-      return cardHelper.projectOf(card)
-    }
-    const parent = mine(await reader().cards.get(card.parent, entityId))
-    return cardHelper.projectOf(card, parent)
-  }
+  const projectFor = async (card: Workcard): Promise<string | undefined> => await hierarchy.project(card)
 
   const facade: PlanningFacade = {
+    ...makeResourceFacade(runtime, () => facade),
     scope: Object.freeze({ ...scope, ...(projects != null ? { projects } : {}) }),
 
     schemas: runtime.service().schemas,
@@ -150,7 +121,7 @@ export const makeStoreFacade = (runtime: PlanningRuntime, scope: PlanningScope):
 
       summary: async (parents, query) => parents.length === 0
         ? {}
-        : await reader().cards.summary(parents, narrow(queryHelper.criteriaOf({ kind: query?.kind, type: query?.type }, scope))),
+        : await reader().cards.summary(parents, await narrow(queryHelper.criteriaOf({ kind: query?.kind, type: query?.type }, scope))),
     },
 
     specifications: {
@@ -201,20 +172,41 @@ export const makeStoreFacade = (runtime: PlanningRuntime, scope: PlanningScope):
         if (links == null) {
           return { items: [], total: 0 }
         }
-        if (projects == null) {
-          return await links.list(queryHelper.linkWhereOf(query, scope), queryHelper.listOptionsOf(query))
+        const where = queryHelper.linkWhereOf(query, scope)
+        // Inverse names are views over the canonical edge, never separately stored links.
+        const stored = await links.list(query?.type != null ? { entityId, id: where.id, project: where.project } : where, { size: 0 })
+        const names = query?.type == null ? undefined : Array.isArray(query.type) ? query.type : [query.type]
+        const presented: Relationship[] = []
+        for (const link of stored.items) {
+          if (names == null || names.includes(link.type)) presented.push(link)
+          if (names == null || (link.fromKind ?? PlanningResourceKind.Workcard) !== PlanningResourceKind.Workcard) continue
+          const source = await reader().cards.get(link.from, entityId)
+          if (source == null) continue
+          const rules = (await runtime.schemasFor(entityId, await hierarchy.project(source))).type(source.type).relationships ?? []
+          for (const rule of rules) if (rule.name === link.type && rule.inverse != null && names.includes(rule.inverse)) {
+            presented.push({ ...link, type: rule.inverse, from: link.to, to: link.from,
+              fromKind: link.toKind ?? PlanningResourceKind.Workcard, toKind: link.fromKind ?? PlanningResourceKind.Workcard })
+          }
         }
-        const listed = await links.list({ ...queryHelper.linkWhereOf(query, scope), project: projects }, queryHelper.listOptionsOf(query))
-        // A store that ignores `project` must still not leak an edge filed under another project.
-        const items = listed.items.filter((link: Relationship) => projectVisible(link.project))
-        return items.length === listed.items.length ? listed : { ...listed, items, total: listed.total - (listed.items.length - items.length) }
+        const items: Relationship[] = []
+        for (const link of presented) {
+          if (projects == null) { items.push(link); continue }
+          const endpoints: string[] = []
+          if ((link.fromKind ?? PlanningResourceKind.Workcard) === PlanningResourceKind.Workcard) endpoints.push(link.from)
+          if ((link.toKind ?? PlanningResourceKind.Workcard) === PlanningResourceKind.Workcard) endpoints.push(link.to)
+          if (endpoints.length === 0) continue
+          let admitted = true
+          for (const id of endpoints) if (await facade.cards.load(id) == null) { admitted = false; break }
+          if (admitted) items.push(link)
+        }
+        return recordQueryHelper.applyQuery(items, where as Criteria<Relationship>, queryHelper.listOptionsOf(query))
       },
     },
 
     transitions: {
       get: async id => {
         const transition = mine(await reader().transitions?.get(id))
-        if (transition == null || !projectVisible(transition.project)) {
+        if (transition == null || !await transitionVisible(transition)) {
           throw new WorkcardNotFound(`transition:${id}`)
         }
         return transition
@@ -225,17 +217,10 @@ export const makeStoreFacade = (runtime: PlanningRuntime, scope: PlanningScope):
         if (transitions == null) {
           return { items: [], total: 0 }
         }
-        if (projects == null) {
-          return await transitions.list(queryHelper.transitionWhereOf(query, scope), queryHelper.listOptionsOf(query))
-        }
-        if (query.project != null && !projects.includes(query.project)) {
-          return { items: [], total: 0 }
-        }
-        const listed = await transitions.list(
-          { ...queryHelper.transitionWhereOf(query, scope), project: query.project ?? projects }, queryHelper.listOptionsOf(query)
-        )
-        const items = listed.items.filter((transition: Transition) => projectVisible(transition.project))
-        return items.length === listed.items.length ? listed : { ...listed, items, total: listed.total - (listed.items.length - items.length) }
+        const listed = await transitions.list(queryHelper.transitionWhereOf(query, scope), { size: 0 })
+        const items: Transition[] = []
+        for (const transition of listed.items) if (await transitionVisible(transition)) items.push(transition)
+        return recordQueryHelper.applyQuery(items, undefined, queryHelper.listOptionsOf(query))
       },
     },
 
@@ -247,7 +232,7 @@ export const makeStoreFacade = (runtime: PlanningRuntime, scope: PlanningScope):
 
       subscribe: (listener, filter) => commitSource().subscribe(projects == null
         ? listener
-        : (event: CommitEvent) => projectVisible(event.project) ? listener(event) : undefined,
+        : async (event: CommitEvent) => await transitionVisible(event) ? await listener(event) : undefined,
       { ...filter, entityId }),
 
       wait: async (transition, opts) => {

@@ -225,7 +225,7 @@ export const createWireHelper = (): WireHelper => {
     ...encodeListOptions(query),
     from: encodeList(query?.from),
     to: encodeList(query?.to),
-    type: encodeList(query?.type),
+    type: encodeList(query?.type), fromKind: query?.fromKind, toKind: query?.toKind,
   })
 
   const decodeRelationshipQuery = (wire?: RelationshipQueryWire | RelationshipQuery | null): RelationshipQuery => {
@@ -235,6 +235,7 @@ export const createWireHelper = (): WireHelper => {
       from: decodeOneOrMany(value.from, 'from'),
       to: decodeOneOrMany(value.to, 'to'),
       type: decodeOneOrMany(value.type, 'type'),
+      fromKind: value.fromKind, toKind: value.toKind,
     }) as RelationshipQuery
   }
 

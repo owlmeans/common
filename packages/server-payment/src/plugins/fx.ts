@@ -25,7 +25,7 @@ export const makeFxHelper = (ctx: ApiContext): FxHelper => {
   ): Promise<StripeFxRate | null> => {
     const from = fromCurrency.toLowerCase()
     const to = toCurrency.toLowerCase()
-    if (from === to) return { fromCurrency: from, toCurrency: to, exchangeRate: 1, referenceRate: 1 }
+    if (from === to) return { fromCurrency: from, toCurrency: to, exchangeRate: 1, baseRate: 1, referenceRate: 1 }
     const response = await stripe.rawRequest(
       'POST', '/v1/fx_quotes',
       { to_currency: to, 'from_currencies[]': from, lock_duration: 'none' },
@@ -37,6 +37,7 @@ export const makeFxHelper = (ctx: ApiContext): FxHelper => {
       fromCurrency: from,
       toCurrency: to,
       exchangeRate: rate.exchange_rate,
+      baseRate: rate.rate_details?.base_rate ?? rate.exchange_rate / (1 - (rate.rate_details?.fx_fee_rate ?? 0)),
       referenceRate: rate.rate_details?.reference_rate ?? rate.rate_details?.base_rate ?? rate.exchange_rate,
       ...(rate.rate_details?.fx_fee_rate != null ? { fxFeeRate: rate.rate_details.fx_fee_rate } : {}),
     }

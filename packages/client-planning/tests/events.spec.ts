@@ -32,7 +32,7 @@ describe('@owlmeans/client-planning — commit folds', () => {
 
     await mirror.applyCommitEvent(frameOf(receipt.transition), suite.planning)
 
-    expect(await stores.cards.get(receipt.transition.card)).toEqual(receipt.card!)
+    expect(await stores.cards.get(receipt.transition.card)).toEqual({ ...receipt.card!, entityId: '' })
     expect((await stores.commits.get(receipt.transition.id!)).state).toBe(CommitState.Committed)
   })
 

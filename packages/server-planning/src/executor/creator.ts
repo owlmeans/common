@@ -12,12 +12,12 @@ export const createCreatorHelper = (): CreatorHelper => {
     if (exec.action !== TransitionAction.Create || exec.card == null || typeof exec.card !== 'object') {
       return exec
     }
-    if (named(exec.card.createdBy)) {
-      return exec
-    }
-    const creator = creatorOf(scope)
-
-    return creator == null ? exec : { ...exec, card: { ...exec.card, createdBy: creator } }
+    const creator = named(exec.card.createdBy) ? exec.card.createdBy : creatorOf(scope)
+    return { ...exec, card: { ...exec.card,
+      ...(creator != null ? { createdBy: creator } : {}),
+      ...(exec.card.reporter == null && scope.assigneeId != null ? { reporter: scope.assigneeId } : {}),
+      ...(exec.card.assignee == null && scope.defaultAssigneeId != null ? { assignee: scope.defaultAssigneeId } : {}),
+    } }
   }
 
   const assertCreatorFixed = (exec: TransitionExecution): void => {

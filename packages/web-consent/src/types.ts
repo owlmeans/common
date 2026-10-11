@@ -4,7 +4,7 @@ import type {
 } from '@owlmeans/consent'
 
 /**
- * How a first-time visitor is asked: `bar` — a tall bar across the bottom of a transparent overlay
+ * How a first-time visitor is asked: `bar` — a tall bar across the bottom of a dimmed overlay
  * that blocks the page but leaves it in sight, with "Cookie preferences", "Accept only mandatory" and
  * "Accept all" — or `window`, the preferences window straight away. Either way every later opening
  * (the bar's own "Cookie preferences", a footer link, the corner button, the sign-in gate) is the
