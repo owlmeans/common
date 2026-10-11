@@ -1,5 +1,4 @@
-import { HOME } from '@owlmeans/web-panel'
-import type { PanelNavConfig, PanelNavLink } from '@owlmeans/web-panel'
+import { HOME, type PanelNavConfig } from '@owlmeans/web-panel'
 import { web } from '__APP_SLUG__-common'
 
 /**
@@ -15,14 +14,10 @@ export const navConfig: PanelNavConfig = {
     { name: 'home', label: 'Home', items: [{ alias: HOME, label: 'Overview' }] },
     {
       name: 'demo', label: 'Demo', items: [
-        { alias: web.session, label: 'Session' },
-        { alias: web.about, label: 'About' },
+        { alias: web.session.alias, label: 'Session' },
+        { alias: web.about.alias, label: 'About' },
       ]
     },
   ],
 }
 
-export const footerLinks: PanelNavLink[] = [
-  { alias: HOME, label: '__APP_NAME__' },
-  { href: 'https://owlmeans.com', label: 'OwlMeans', open: true },
-]

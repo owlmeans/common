@@ -1,48 +1,48 @@
 import { PERMISSION_ACTION_SEPARATOR, RESOURCE_PARAM_SEPARATOR, GateParamErrorCode } from './consts.js'
-import type { ParsedPermissionName } from './types.js'
+import type { ParsedPermissionName, PermissionNameHelper } from './permission/types.js'
 
-/**
- * Read a permission NAME.
- *
- * The name is `<resource>--<action>`, with TWO hyphens. One hyphen is not a separator: `enquiry-view`
- * is a resource called `enquiry-view` carrying no action, and it must keep parsing that way — a name
- * already granted somewhere cannot be re-interpreted without orphaning the grant.
- *
- * A name never carries a gate selector. `@` is the gate's syntax, and a name containing one is
- * exactly the corruption this function exists to make visible, so it is reported through `problem`
- * rather than quietly split.
- */
-export const parsePermissionName = (name: string): ParsedPermissionName => {
-  const problem = name.includes(RESOURCE_PARAM_SEPARATOR)
-    ? {
-      code: GateParamErrorCode.UnreachableKey,
-      detail: `"${name}" carries a gate selector; "${RESOURCE_PARAM_SEPARATOR}" is never part of a`
-        + ' permission name, and nothing ever looks up a name that contains one'
+export const createPermissionNameHelper = (): PermissionNameHelper => {
+  const parsePermissionName = (name: string): ParsedPermissionName => {
+    const problem = name.includes(RESOURCE_PARAM_SEPARATOR)
+      ? {
+        code: GateParamErrorCode.UnreachableKey,
+        detail: `"${name}" carries a gate selector; "${RESOURCE_PARAM_SEPARATOR}" is never part of a`
+          + ' permission name, and nothing ever looks up a name that contains one'
+      }
+      : undefined
+
+    const idx = name.indexOf(PERMISSION_ACTION_SEPARATOR)
+    if (idx < 0) {
+      return { name, resource: name, ...(problem != null ? { problem } : {}) }
     }
-    : undefined
 
-  const idx = name.indexOf(PERMISSION_ACTION_SEPARATOR)
-  if (idx < 0) {
-    return { name, resource: name, ...(problem != null ? { problem } : {}) }
+    const action = name.slice(idx + PERMISSION_ACTION_SEPARATOR.length)
+
+    return {
+      name,
+      resource: name.slice(0, idx),
+      ...(action !== '' ? { action } : {}),
+      ...(problem != null ? { problem } : {})
+    }
   }
 
-  const action = name.slice(idx + PERMISSION_ACTION_SEPARATOR.length)
+  const composePermissionName = (
+    parts: { resource: string, action?: string }
+  ): string => parts.action == null || parts.action === ''
+    ? parts.resource
+    : `${parts.resource}${PERMISSION_ACTION_SEPARATOR}${parts.action}`
 
-  return {
-    name,
-    resource: name.slice(0, idx),
-    ...(action !== '' ? { action } : {}),
-    ...(problem != null ? { problem } : {})
-  }
+  const isPermissionName = (value: string): boolean =>
+    value !== '' && !value.includes(RESOURCE_PARAM_SEPARATOR)
+
+  return { parsePermissionName, composePermissionName, isPermissionName }
 }
 
-/** Compose a permission name. The inverse of `parsePermissionName`. */
-export const composePermissionName = (
-  parts: { resource: string, action?: string }
-): string => parts.action == null || parts.action === ''
-  ? parts.resource
-  : `${parts.resource}${PERMISSION_ACTION_SEPARATOR}${parts.action}`
+export const permissionNameHelper = createPermissionNameHelper()
 
-/** True when the value is a usable permission name — well-formed and carrying no gate selector. */
-export const isPermissionName = (value: string): boolean =>
-  value !== '' && !value.includes(RESOURCE_PARAM_SEPARATOR)
+/** @deprecated compat:factory-refactor — use `permissionNameHelper.parsePermissionName(…)` */
+export const parsePermissionName = (name: string): ParsedPermissionName =>
+  permissionNameHelper.parsePermissionName(name)
+
+/** @deprecated compat:factory-refactor — use `permissionNameHelper.isPermissionName(…)` */
+export const isPermissionName = (value: string): boolean => permissionNameHelper.isPermissionName(value)

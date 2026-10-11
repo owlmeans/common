@@ -1,0 +1,10 @@
+{
+  "login": {
+    "provider": {
+      "title": "Вхід до {{product}}",
+      "top": "Цей застосунок розміщує {{operator}} від імені {{product}}. Для входу використовується {{provider}}.",
+      "inline": "Вхід забезпечує {{provider}} від імені {{product}}.",
+      "more": "Докладніше"
+    }
+  }
+}

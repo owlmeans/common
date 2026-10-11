@@ -5,14 +5,16 @@ import { AuthenPayloadError, AuthUnknown, DISPATCHER } from '@owlmeans/auth'
 import { assertContext } from '@owlmeans/context'
 import type { Config, Context, OidcClientAdapter, OidcClientService } from '../types.js'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import type { CommonEntrypoint } from '@owlmeans/entrypoint'
+import { makeSecurityHelper } from '@owlmeans/config'
 import { authService, DEFAULT_ALIAS } from '../consts.js'
 // import {  PROVIDER_CACHE_TTL } from '../consts.js'
 // import type { Client } from 'openid-client'
 
 import { base64urlnopad as base64 } from '@scure/base'
-import { randomBytes } from '@noble/hashes/utils'
-import { sha256 } from '@noble/hashes/sha2'
-import { cache, verifierId } from '../utils/cache.js'
+import { randomBytes } from '@noble/hashes/utils.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { oidcCacheOf } from '../utils/cache.js'
 import { requestedScope } from '../utils/scope.js'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 
@@ -45,7 +47,7 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
      * @TODO We need to move it to some remote resource.
      * And make oidc service itself use such a resource to get required client.
      */
-    const [providers] = await context.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
+    const providers = await context.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
       authService.provider.list
     ).call({
       params: { service: context.cfg.alias ?? context.cfg.service },
@@ -56,16 +58,11 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
       throw new AuthUnknown()
     }
 
-    console.log("\n\n ************* \n Providers we get from remote:", providers)
-
     const provider = providers.find(p => p.def === true) ?? providers.shift()
     // Loaded providers can't be default otherwise we will get stuck with one of them
     if (provider != null && "def" in provider) {
       delete provider.def
     }
-
-    console.log("\n\nProvider we choose:", provider)
-    console.log("************* \n\n")
 
     if (provider == null) {
       throw new AuthUnknown()
@@ -82,18 +79,27 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
   // }
 
   const verifier = base64.encode(randomBytes(32))
-  const challenge = base64.encode(sha256(verifier))
+  const challenge = base64.encode(sha256(new TextEncoder().encode(verifier)))
 
-  console.log("\n\n We create verifierID: ", verifierId(challenge), verifier, " with client: ", client.getClientId(), "\n\n")
-
-  await cache(context).create({
-    id: verifierId(challenge),
+  const oidcCache = oidcCacheOf(context)
+  await oidcCache.resource().create({
+    id: oidcCache.verifierId(challenge),
     verifier,
     client: client.getClientId(),
     ...(entityIdUsedForResolution ? { entityId } : {}),
+    // Only a request: the exchange honours it when the provider names that organization among the
+    // subject's, and starts the session in the home one otherwise.
+    ...(body.entitySlug != null ? { entitySlug: body.entitySlug } : {}),
   }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
-  const [dispatcherUrl] = await context.entrypoint<ClientEntrypoint<string>>(DISPATCHER).call()
+  // The dispatcher is a FRONTEND route, and this is a server context — the entrypoint registered
+  // here has no `url()` (that helper is attached by `@owlmeans/client-entrypoint` only, for a
+  // browser context that can resolve its own address). Assembled the way `server-oidc-provider`'s
+  // interaction URL is: the entrypoint's path, qualified with the address it answers on — the
+  // frontend service's, not this backend's.
+  const dispatcherEntry = context.entrypoint<CommonEntrypoint>(DISPATCHER)
+  const dispatcherUrl = makeSecurityHelper<Config, Context>(context)
+    .makeUrl(dispatcherEntry.address(), dispatcherEntry.path())
 
   const cfg = client.getConfig()
   const url = client.makeAuthUrl({
@@ -102,8 +108,6 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
     code_challenge_method: 'S256',
     redirect_uri: dispatcherUrl,
   })
-
-  console.log('Url we got', url)
 
   return url
 })

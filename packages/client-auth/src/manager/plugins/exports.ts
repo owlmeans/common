@@ -1,4 +1,7 @@
 export type * from './types.js'
+export * from './registry.js'
+export type * from './registry/types.js'
+export * from './methods.js'
 export * from './tunnel/index.js'
 export * from './basic-ed25519.js'
 export * from './re-captcha.js'

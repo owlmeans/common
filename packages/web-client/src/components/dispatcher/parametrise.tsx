@@ -6,9 +6,7 @@ import { Dispatcher } from "./component.js"
 import { ParametrisedProps } from "./types.js"
 
 export const parametriseDispatcher = (def: Partial<ParametrisedProps>, Com?: RoutedComponent<DispatcherProps> ) => {
-  console.log('Parametrising dispatcher with', def)
   return (props: ParametrisedProps) => {
-    console.log('Rendering parametrised dispatcher with', props)
     const _props = useMemo(() => {
       let payload: FlowPayload | undefined = undefined
       if (def.payload != null) {
@@ -20,7 +18,6 @@ export const parametriseDispatcher = (def: Partial<ParametrisedProps>, Com?: Rou
       }
       return { ...def, ...props, payload }
     }, [props])
-    console.log('Computed dispatcher props', _props)
     Com ??= Dispatcher
     return <Com {..._props} />
   }

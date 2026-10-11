@@ -39,7 +39,7 @@ export const TunnelConsumerUIPlugin: TunnelAuthenticationRenderer = ({ type, sta
   switch (stage) {
     case AuthenticationStage.Authenticate:
       return <Form decorate name={type} validation={PinSchema} onSubmit={submit} i18n={i18n}>
-        <Box width="fit-content" margin="auto">
+        <Box sx={{ width: 'fit-content', margin: 'auto' }}>
           {rely?.token != null && <QRCodeCanvas size={256}
             value={`${prefix}${rely?.token ?? ""}`}
             fgColor={theme.palette.primary.dark}

@@ -1,0 +1,35 @@
+{
+  "consent": {
+    "checking": "Comprobando tu sesión…",
+    "loading": "Cargando la solicitud…",
+    "framed": "Esta pantalla no puede mostrarse dentro de otra página. Ábrela directamente.",
+    "error": "Algo salió mal. Vuelve a intentarlo desde la aplicación que te envió aquí.",
+    "title": "{{client}} quiere acceder a tu cuenta",
+    "known": "Ya has usado esta aplicación antes.",
+    "known-by-host": "Solicitud desde {{host}}.",
+    "unverified": "Esta aplicación se registró por sí misma y no ha sido verificada.",
+    "device-code": "Código: {{code}}",
+    "device-name": "Dispositivo: {{name}}",
+    "redirect-host": "Volverás a {{host}}.",
+    "localhost-warning": "Esta aplicación solo registró direcciones en tu propio equipo. Aprueba esto únicamente si tú mismo iniciaste el inicio de sesión, justo ahora.",
+    "scope": "Acceso solicitado: {{scopes}}",
+    "approve": "Aprobar",
+    "deny": "Rechazar",
+    "error-missing": "Aquí no hay nada que aprobar. Inicia sesión de nuevo desde la aplicación.",
+    "error-not-found": "Esta solicitud es desconocida o ya se ha usado. Inicia sesión de nuevo desde la aplicación.",
+    "error-expired": "Esta solicitud ha caducado. Inicia sesión de nuevo desde la aplicación.",
+    "error-forbidden": "Este tipo de cuenta no puede aprobar el acceso. Inicia sesión con la cuenta que usas en OwlMeans e inténtalo de nuevo.",
+    "switch-account": "Usar otra cuenta"
+  },
+  "device": {
+    "title": "Conectar un dispositivo",
+    "description": "Introduce el código que muestra la aplicación a la que te estás conectando.",
+    "code-label": "Código",
+    "continue": "Continuar"
+  },
+  "done": {
+    "title": "Has iniciado sesión",
+    "message": "Puedes cerrar esta ventana y continuar en la aplicación que te envió aquí.",
+    "device-message": "Puedes cerrar esta ventana. La aplicación lo detectará automáticamente."
+  }
+}
