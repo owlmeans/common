@@ -1,11 +1,11 @@
 import { makeKeyPairModel, plugins, type KeyPair } from '@owlmeans/basic-keys'
 import type { DIDKeyModel } from './types.js'
 import { DIDKeyError } from './errors.js'
-import { assertType, prepareKey } from '@owlmeans/basic-keys/utils'
+import { keyUtils } from '@owlmeans/basic-keys/utils'
 import { base64 } from '@scure/base'
 import { KP_SEP, MAX_DEPTH } from './consts.js'
 
-export const makeDidKeyModel: (input?: KeyPair | string) => DIDKeyModel = input => {
+export const makeDidKeyModel = (input?: KeyPair | string): DIDKeyModel => {
   if (typeof input == 'string') {
     const plugin = plugins[input]
     if (plugin != null && (plugin.fromSeed == null || plugin.derive == null)) {
@@ -18,7 +18,7 @@ export const makeDidKeyModel: (input?: KeyPair | string) => DIDKeyModel = input 
     if (model.keyPair == null) {
       throw new DIDKeyError('no:keypair')
     }
-    assertType(model.keyPair?.type)
+    keyUtils.assertType(model.keyPair?.type)
     if (model.keyPair.privateKey == null) {
       throw new DIDKeyError('no:pk')
     }
@@ -35,7 +35,7 @@ export const makeDidKeyModel: (input?: KeyPair | string) => DIDKeyModel = input 
     }
 
     const newKey = [model.keyPair.type, base64.encode(
-      plugins[model.keyPair.type].derive!(prepareKey(model.keyPair.privateKey), item)
+      plugins[model.keyPair.type].derive!(keyUtils.prepareKey(model.keyPair.privateKey), item)
     )].join(':')
     
     const derived = makeDidKeyModel(newKey)

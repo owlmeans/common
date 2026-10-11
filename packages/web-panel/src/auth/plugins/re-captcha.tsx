@@ -7,7 +7,7 @@ import ReCAPTCHA from 'react-google-recaptcha'
 import { useCallback, useState } from 'react'
 import { PanelContext } from '@owlmeans/client-panel'
 import { Text } from '../../components/text.js'
-import { Progress } from '@/components/ui/progress'
+import { Progress } from '../../@/components/ui/progress.js'
 import type { AppContext, Module } from '@owlmeans/web-client'
 import { useContext } from '@owlmeans/web-client'
 import type { AuthRequest } from '@owlmeans/auth-common'
@@ -53,8 +53,8 @@ const createFinish = (context: AppContext, control: AuthenticationControl) => as
     console.timeLog('empty token')
     return
   }
-  const [url] = await context.module<Module<string, AuthRequest>>(DISPATCHER)
-    .call({ query: authToken })
+  const url = await context.entrypoint<Module<string, AuthRequest>>(DISPATCHER)
+    .url({ query: authToken })
 
   control.setStage?.(control.stage = AuthenticationStage.Authenticated)
 

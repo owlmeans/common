@@ -1,11 +1,13 @@
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback } from 'react'
 import type { FC } from 'react'
 import type { I18nContextProps } from './types.js'
 import { I18nextProvider, useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { setLanguage, useI18nInstance } from './utils/instance.js'
-import { DEFAULT_LNG, DEFAULT_NAMESPACE, initI18nResource, LIB_NAMESPACE } from '@owlmeans/i18n'
+import { i18nInstanceHelper } from './utils/instance.js'
+import { useI18nInstance } from './utils/hook.js'
+import { DEFAULT_LNG, DEFAULT_NAMESPACE, i18nHelper, LIB_NAMESPACE } from '@owlmeans/i18n'
 import { useContext } from '@owlmeans/client'
+import { logger } from '@owlmeans/log'
 
 export const I18nContext: FC<I18nContextProps> = memo(({ config, children }) => {
   const i18n = useI18nInstance(config)
@@ -33,7 +35,7 @@ const useI18nResource = (resourceName: string, ns?: string, prefix?: string): TF
   const key = `${i18n.language}:${resourceName}:${resolvedNs}`
   if (!i18nLoadingCache.has(key)) {
     i18nLoadingCache.add(key)
-    const resources = initI18nResource(i18n.language, resourceName, resolvedNs)
+    const resources = i18nHelper.initI18nResource(i18n.language, resourceName, resolvedNs)
     if (resources != null) {
       resources.forEach(
         resource => i18n.addResourceBundle(i18n.language, resolvedNs, { [resourceName]: resource.data }, true, true)
@@ -45,7 +47,7 @@ const useI18nResource = (resourceName: string, ns?: string, prefix?: string): TF
       const fallbackKey = `${defLng}:${resourceName}:${resolvedNs}`
       if (!i18nLoadingCache.has(fallbackKey)) {
         i18nLoadingCache.add(fallbackKey)
-        const defResources = initI18nResource(defLng, resourceName, resolvedNs)
+        const defResources = i18nHelper.initI18nResource(defLng, resourceName, resolvedNs)
         defResources?.forEach(
           resource => i18n.addResourceBundle(defLng, resolvedNs, { [resourceName]: resource.data }, true, true)
         )
@@ -77,14 +79,22 @@ export const useI18nApp = (appName?: string, prefix?: string): TFunction => {
   return useI18nResource(resolvedName, resolvedName, prefix)
 }
 
-export const useLanguage = (): [string, (lng: string) => void] => {
+/**
+ * `[currentLng, setLng]`. The current language is read from the i18next instance itself, whose
+ * `languageChanged` event re-renders every subscriber, so all callers agree whoever switched it.
+ * The setter loads the language's pack first; a failed switch is logged and leaves the language
+ * unchanged.
+ */
+export const useLanguage = (): [string, (lng: string) => Promise<void>] => {
   const { i18n } = useTranslation()
-  const [lng, setLng] = useState(i18n.language)
 
-  const changeLng = useCallback((next: string) => {
-    setLanguage(next)
-    setLng(next)
+  const changeLng = useCallback(async (next: string) => {
+    try {
+      await i18nInstanceHelper.setLanguage(next)
+    } catch (error) {
+      logger('i18n').error('language switch failed', error)
+    }
   }, [])
 
-  return [lng, changeLng]
+  return [i18n.language, changeLng]
 }

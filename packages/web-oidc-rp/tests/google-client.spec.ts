@@ -1,8 +1,10 @@
 import { describe, test, expect } from 'bun:test'
-import { extractGoogleUrl, buildCallbackCredentials } from '../src/auth/plugins/helpers.js'
+import { googleClientHelper } from '../src/auth/plugins/helpers.js'
 import { AUTH_SCOPE, AuthRole } from '@owlmeans/auth'
 import { makeFixtureKeyPair, signMockEnvelope } from '@owlmeans/test-auth'
 import { EnvelopeKind } from '@owlmeans/basic-envelope'
+
+const { extractGoogleUrl, buildCallbackCredentials } = googleClientHelper
 
 describe('@owlmeans/web-oidc-rp — extractGoogleUrl', () => {
   test('strips source prefix from envelope message', async () => {
