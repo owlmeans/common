@@ -1,6 +1,11 @@
 
+export type * from './retry/types.js'
+export type * from './cache/types.js'
+export type * from './json/types.js'
 export * from './retry.js'
 export * from './json.js'
 export * from './messages.js'
 export * from './spectate.js'
 export * from './cache.js'
+export * from './fallback.js'
+export * from './consts.js'

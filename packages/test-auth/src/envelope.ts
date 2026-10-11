@@ -3,8 +3,7 @@ import type { KeyPairModel } from '@owlmeans/basic-keys'
 import { AuthroizationType } from '@owlmeans/auth'
 import type { Auth } from '@owlmeans/auth'
 import { makeFixtureKeyPair } from './keys.js'
-
-const AUTH_BEARER_PREFIX = AuthroizationType.Ed25519BasicToken.toUpperCase()
+import { AUTH_BEARER_PREFIX } from './consts.local.js'
 
 /**
  * Wrap a payload in a signed `EnvelopeModel` using a fixture keypair (or one

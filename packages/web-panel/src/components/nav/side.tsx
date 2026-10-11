@@ -1,7 +1,7 @@
 import type { FC } from 'react'
-import { defaultNavTranslate, resolveNavLabel, usePanelNav } from '@owlmeans/client-panel'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { usePanelNav, navLabelHelper } from '@owlmeans/client-panel'
+import { cn } from '../../@/lib/utils.js'
+import { Button } from '../../@/components/ui/button.js'
 
 import type { SideNavProps } from './types.js'
 
@@ -13,7 +13,7 @@ import type { SideNavProps } from './types.js'
  * a second screen gains its side menu with no layout change.
  */
 export const SideNav: FC<SideNavProps> = (
-  { config, translate = defaultNavTranslate, variant = 'side', ariaLabel, className, style }
+  { config, translate = navLabelHelper.defaultNavTranslate, variant = 'side', ariaLabel, className, style }
 ) => {
   const model = usePanelNav(config)
 
@@ -22,7 +22,7 @@ export const SideNav: FC<SideNavProps> = (
   }
 
   const items = model.active.items.map(item => {
-    const label = resolveNavLabel(translate, item.label, `modules.${item.alias}`, item.alias)
+    const label = navLabelHelper.resolveNavLabel(translate, item.label, `modules.${item.alias}`, item.alias)
 
     return <Button
       key={item.alias}

@@ -1,21 +1,19 @@
 import { AuthenticationType } from '@owlmeans/auth'
-import type { AuthPlugin } from './types.js'
-import { basicEd25519 } from './basic-ed25519.js'
-import type { AppContext, AppConfig } from '../types.js'
-import { reCaptcha } from './re-captcha.js'
-import { basicRely } from './basic-rely.js'
+import type { AuthPluginFactory } from './types.js'
+import { makeBasicEd25519Plugin } from './basic-ed25519.js'
+import { makeReCaptchaPlugin } from './re-captcha.js'
+import { makeBasicRelyPlugin } from './basic-rely.js'
 
-export const plugins: Record<string, <C extends AppConfig, T extends AppContext<C>>(context: T) => AuthPlugin> = {}
+export const plugins: Record<string, AuthPluginFactory> = {}
 
-plugins[AuthenticationType.BasicEd25519] = basicEd25519 as typeof plugins[keyof typeof plugins]
-plugins[AuthenticationType.ReCaptcha] = reCaptcha as typeof plugins[keyof typeof plugins]
-plugins[AuthenticationType.RelyHandshake] = basicRely as typeof plugins[keyof typeof plugins]
+plugins[AuthenticationType.BasicEd25519] = makeBasicEd25519Plugin as AuthPluginFactory
+plugins[AuthenticationType.ReCaptcha] = makeReCaptchaPlugin as AuthPluginFactory
+plugins[AuthenticationType.RelyHandshake] = makeBasicRelyPlugin as AuthPluginFactory
 
 /** Register an external AuthPlugin factory under a custom type string. */
 export const registerPlugin = (
   type: string,
-  factory: <C extends AppConfig, T extends AppContext<C>>(context: T) => AuthPlugin
+  factory: AuthPluginFactory
 ): void => {
-  plugins[type] = factory as typeof plugins[keyof typeof plugins]
+  plugins[type] = factory
 }
-

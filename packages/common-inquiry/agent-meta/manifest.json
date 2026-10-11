@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/common-inquiry",
+  "version": "0.1.18-rc.1",
+  "generatedAt": "2026-10-09T11:30:42.759Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "common-inquiry",
+      "category": "package-specific",
+      "file": "skills/common-inquiry/SKILL.md",
+      "canonicalPath": ".agents/skills/common-inquiry/SKILL.md"
+    }
+  ]
+}

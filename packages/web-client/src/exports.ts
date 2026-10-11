@@ -1,9 +1,14 @@
 
-export { handler } from '@owlmeans/client'
+export {
+  handler, lazyHandler, lazyComponent, lazyRetryHelper, recoverFromChunkError,
+} from '@owlmeans/client'
+export type {
+  LazyComponent, LazyComponentOptions, LazyErrorRenderer, LazyHandler, LazyRetryHelper, RetryImportOptions
+} from '@owlmeans/client'
 export { config } from '@owlmeans/client-context'
 export { service } from '@owlmeans/config'
 export { AppType, HOME, ROOT, BASE, GUEST } from '@owlmeans/context'
-export { entrypoint, elevate, provideRequest, stab } from '@owlmeans/client-entrypoint'
+export { bind, bindAll, bindScreen, clientRequestHelper, provideRequest, stab } from '@owlmeans/client-entrypoint'
 export { route, frontend } from '@owlmeans/route'
 export type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 export type { ClientEntrypoint as Module } from '@owlmeans/client-entrypoint'

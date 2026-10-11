@@ -1,0 +1,51 @@
+{
+  "panel": {
+    "title": "Zugriffstoken",
+    "description": "Langlebige Token, mit denen ein Skript oder eine Integration die API in Ihrem Namen aufruft.",
+    "create": "Token erstellen",
+    "empty": "Noch keine Zugriffstoken vorhanden.",
+    "col": {
+      "display": "Token",
+      "name": "Name",
+      "created": "Erstellt",
+      "last-used": "Zuletzt verwendet",
+      "expires": "Läuft ab",
+      "status": "Status"
+    },
+    "never": "Nie",
+    "never-used": "Nie verwendet",
+    "status": {
+      "active": "Aktiv",
+      "expired": "Abgelaufen",
+      "revoked": "Widerrufen"
+    },
+    "revoke": "Widerrufen",
+    "revoke-confirm": {
+      "title": "Dieses Token widerrufen?",
+      "description": "Alles, was es noch verwendet, funktioniert sofort nicht mehr. Das lässt sich nicht rückgängig machen.",
+      "cancel": "Abbrechen",
+      "confirm": "Widerrufen"
+    },
+    "dialog": {
+      "title": "Zugriffstoken erstellen",
+      "description": "Benennen Sie es nach dem Einsatzort, damit Sie Ihre Token später auseinanderhalten.",
+      "name-label": "Name",
+      "name-placeholder": "CI-Deployment",
+      "expiry-label": "Läuft ab",
+      "expiry": {
+        "30": "In 30 Tagen",
+        "90": "In 90 Tagen",
+        "365": "In einem Jahr",
+        "never": "Nie"
+      },
+      "create": "Erstellen",
+      "cancel": "Abbrechen",
+      "issued-title": "Ihr neues Zugriffstoken",
+      "issued-note": "Kopieren Sie es jetzt – es wird nur dieses eine Mal angezeigt.",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "done": "Fertig"
+    },
+    "error": "Etwas ist schiefgelaufen"
+  }
+}

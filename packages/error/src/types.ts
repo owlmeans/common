@@ -1,6 +1,13 @@
-import type { ResilientError } from './resilient.js'
+import type { ResilientError } from './errors.js'
 
 export type ValueOrError<T> = T | ResilientError
+
+export interface MarshalErrorOptions {
+  /** Defaults to true for backwards compatibility outside an HTTP boundary. */
+  includeStack?: boolean
+  /** Opaque correlation value appended as the fourth wire field. */
+  incidentId?: string
+}
 
 export interface Converter {
   match: (err: Error) => boolean

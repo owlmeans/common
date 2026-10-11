@@ -1,0 +1,13 @@
+{
+  "title": "Action refusée",
+  "description": "Le serveur a refusé cette action selon les autorisations actuelles. Si vous pensiez avoir accès, contactez un administrateur.",
+  "technical-details": "Détails techniques",
+  "endpoint": "Point de terminaison",
+  "status": "Statut",
+  "incident": "ID de l’incident",
+  "area-title": "Accès refusé",
+  "area-description": "Votre compte ne peut pas ouvrir cette section. Si vous pensiez avoir accès, contactez un administrateur.",
+  "area": "Section",
+  "required-permissions": "Autorisations requises",
+  "logout": "Se déconnecter"
+}

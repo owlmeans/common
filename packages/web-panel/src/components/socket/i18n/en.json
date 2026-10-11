@@ -1,0 +1,9 @@
+{
+  "reload": {
+    "title": "Connection lost",
+    "description": "We couldn't restore the connection after several attempts. Try again, or reload the page to continue.",
+    "action": "Reload page",
+    "retry": "Try again",
+    "retrying": "Reconnecting…"
+  }
+}
