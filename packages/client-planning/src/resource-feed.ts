@@ -30,6 +30,7 @@ export const makePlanningResourceFeed = <C extends BasicConfig, T extends BasicC
           const store = stores[name]
           const { page: _page, size: _size, sort: _sort, ids, nickname, authentication, ...where } = query as Record<string, any>
           const matches = { ...where, ...(ids != null ? { id: { $in: ids } } : {}),
+            ...(name === 'assignees' && where.retired === false ? { retired: { $ne: true } } : {}),
             ...(nickname != null ? { nicknameKey: mentionHelper.nicknameKey(nickname) } : {}),
             ...(authentication != null ? { 'authentication.provider': authentication.provider, 'authentication.externalId': authentication.externalId } : {}),
             ...(opts.scope?.entityId != null ? { entityId: opts.scope.entityId } : {}) }

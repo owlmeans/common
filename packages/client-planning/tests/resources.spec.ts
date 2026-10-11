@@ -4,6 +4,32 @@ import { makePlanningResourceFeed } from '../src/index.js'
 import { ENTITY_ID, makeSuite } from './context.js'
 
 describe('@owlmeans/client-planning — separate resources over real protocol handlers', () => {
+  test('active assignee feeds include unset flags and reconcile removal without dropping retired history', async () => {
+    const suite = await makeSuite({ resources: true })
+    const draft = (nickname: string) => ({ nickname, kind: AssigneeKind.Human, type: 'test:participant', authentication: { provider: 'external', externalId: nickname } })
+    const active = await suite.local.assignees.create(draft('active'))
+    const removed = await suite.local.assignees.create(draft('removed'))
+    const retired = await suite.local.assignees.create(draft('retired'))
+    await suite.local.assignees.retire(retired.id!, { version: 1 })
+    await suite.planning.assignees.get(retired.id!)
+    const stores = suite.client.planningStores!()
+    const ids = [active.id!, removed.id!, retired.id!]
+    const feed = makePlanningResourceFeed(suite.client, { assignees: { ids, retired: false, size: 0 }, refresh: 0 })
+    await feed.ready
+    expect(feed.error).toBeNull()
+    expect((await suite.planning.assignees.list({ ids, retired: false })).items.map(row => row.id).sort()).toEqual([active.id!, removed.id!].sort())
+    expect(await stores.assignees.load(active.id!)).not.toBeNull()
+    expect(await stores.assignees.load(removed.id!)).not.toBeNull()
+    // A remote retirement removes the formerly-active snapshot, but unrelated historical
+    // identities already in the shared mirror remain available for existing references.
+    await suite.local.assignees.retire(removed.id!, { version: 1 })
+    await feed.refresh()
+    expect(await stores.assignees.load(removed.id!)).toBeNull()
+    expect((await stores.assignees.get(retired.id!)).retired).toBe(true)
+    expect(await stores.assignees.load(active.id!)).not.toBeNull()
+    await feed.stop(); await suite.client.planning().close()
+  })
+
   test('assignees, teams, comments and mentions roundtrip and mirror versioned writes', async () => {
     const suite = await makeSuite({ resources: true })
     const p = suite.planning, project = await suite.project(), card = await suite.story(project.id!)

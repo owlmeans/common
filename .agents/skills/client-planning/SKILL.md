@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.30"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.31"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps
@@ -267,6 +267,10 @@ assignee/team/comment/mention API, including versioned writes, team membership a
 attachment. `appendPlanningStores` registers separate stock typed mirrors for all four resources.
 `makePlanningResourceFeed` seeds and polls selected resource queries; use it with the stock stores
 and `useStoreList` / `useStoreModel`. Auxiliary writes update the mirror only after success.
+An active-assignee query (`retired: false`) includes an absent or null retirement flag. Local
+mirror queries and feed reconciliation use `{ retired: { $ne: true } }`, matching the native
+facade rather than strict equality to false. A filtered poll removes only its unchanged matching
+snapshot rows, preserving unrelated retired identities needed by existing references.
 Comments use trusted server authors; mentions are read-only derived cache commands.
 
 Supply `PlanningClientOptions.scopeKey` from authenticated organization entity slug, profile/user

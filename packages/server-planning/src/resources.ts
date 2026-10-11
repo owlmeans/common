@@ -47,6 +47,7 @@ export const makeResourceFacade = (runtime: PlanningRuntime, facade: () => Plann
   const list = async <R extends PlanningRecord>(name: 'assignees' | 'teams' | 'comments' | 'mentions', query?: object) => {
     const { page, size, sort, ids, authentication, nickname, ...where } = (query ?? {}) as Record<string, any>
     return await port<R>(name).list({ ...where, entityId: entityId(),
+      ...(name === 'assignees' && where.retired === false ? { retired: { $ne: true } } : {}),
       ...(ids != null ? { id: { $in: ids } } : {}),
       ...(nickname != null ? { nicknameKey: mentionHelper.nicknameKey(nickname) } : {}),
       ...(authentication != null ? { 'authentication.provider': authentication.provider, 'authentication.externalId': authentication.externalId } : {}),

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-planning
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.30"` in `dependencies` (`ajv` is a peer)
+**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.31"` in `dependencies` (`ajv` is a peer)
 
 The general implementation of `@owlmeans/planning`: the planning service (a plugin host), the
 scoped facade, the executor every write goes through, the in-memory reference store, the commit
@@ -375,6 +375,12 @@ inside the store's organization `unit`; CAS, nickname/authentication uniqueness,
 canonical links and mentions are validated there. Missing ports raise `PlanningUnsupported`. Assignee type changes recheck incoming typed card
 references against the proposed type; a change cannot invalidate a persisted assignment.
 Do not add a second host-specific planning resource CRUD layer.
+
+`assignees.list({ retired: false })` means every identity not explicitly retired, including
+records with an absent or null retirement flag. The facade translates it to `{ retired: { $ne: true } }`
+before the native port reads; `retired: true` selects historical identities and an omitted filter
+retains both. Keep this predicate consistent with client mirrors and run its shared conformance
+case against memory, PostgreSQL and Mongo; a bare equality to false hides newly created identities.
 
 The request scope supplies trusted `assigneeId` for comment authors and optional
 `defaultAssigneeId` for newly created cards. HTTP handlers stamp actor/organization context;

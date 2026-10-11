@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-planning",
-  "version": "0.1.18-rc.30",
+  "version": "0.1.18-rc.31",
   "license": "MIT",
   "description": "The general planning implementation — the planning service and its plugin/middleware registry, the transition executor, the in-memory store, the protocol handlers and the commit feed.",
   "type": "module",

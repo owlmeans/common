@@ -42,6 +42,20 @@ export const resourceConformance: readonly ConformanceCase[] = [
     },
   },
   {
+    name: 'active assignee queries include unset and false retirement flags', needs: ['resources'],
+    run: async ({ facade, store }) => {
+      const org = organization(), p = facade(org)
+      const unset = await human(p, 'unset'), explicit = await human(p, 'explicit'), retired = await human(p, 'retired')
+      await store.assignees!.put({ ...explicit, retired: false, version: 2 })
+      await p.assignees.retire(retired.id!, { version: 1 })
+      sameSet((await p.assignees.list({ retired: false })).items.map(row => row.id), [unset.id, explicit.id], 'active means not retired')
+      sameSet((await p.assignees.list({ retired: true })).items.map(row => row.id), [retired.id], 'only retired records')
+      same((await p.assignees.list()).total, 3, 'unfiltered retains historical identities')
+      same((await p.assignees.list({ retired: false, nickname: 'UNSET', kind: AssigneeKind.Human })).items[0]?.id, unset.id, 'active filter composes with identity queries')
+      same((await facade(organization()).assignees.list({ retired: false })).total, 0, 'active filter preserves organization scope')
+    },
+  },
+  {
     name: 'concurrent nickname claims create one assignee and leave subsequent writes usable', needs: ['resources'],
     run: async ({ facade }) => {
       const p = facade(organization())
