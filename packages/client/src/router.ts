@@ -1,17 +1,20 @@
-import type { FC } from 'react'
+import { type FC, createElement, useEffect, useRef, useState } from 'react'
 import type { RouterModel, RouterProps, RouterProvider } from './types.js'
-import { createElement, useEffect, useRef, useState } from 'react'
-import { buildModuleTree, initializeRouter, visitModuleTree } from './utils/router.js'
+import { clientRouterOf } from './utils/router.js'
 import { createRouteRenderer } from './utils/route.js'
 import { useContext } from './context.js'
-import type { ClientConfig } from '@owlmeans/client-context'
-import type { ClientContext } from './types.js'
 import { assertContext } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { LibraryRouter, RouteObject } from '@owlmeans/router'
+import type { Config, Context } from './types.local.js'
 
-type Config = ClientConfig
-interface Context<C extends Config = Config> extends ClientContext<C> { }
+
+/** A child path that keeps its leading separator reads as absolute, and the router rejects it. */
+const relative = (segment: string): string => {
+  segment = segment.trim()
+  segment = segment.endsWith('/') ? segment.slice(0, -1) : segment
+
+  return segment.startsWith('/') ? segment.substring(1) : segment
+}
 
 export const Router: FC<RouterProps> = ({ provide }) => {
   const progress = useRef(false)
@@ -35,7 +38,7 @@ export const Router: FC<RouterProps> = ({ provide }) => {
       progress.current = true
 
       if (provideFn != null) {
-        initializeRouter(context as any).then(routes => provideFn(routes))
+        clientRouterOf(context as Context).initializeRouter().then(routes => provideFn(routes))
           .then(router => setRouter(router))
       }
     }
@@ -55,21 +58,19 @@ export const makeRouterModel = (): RouterModel => {
     routes: [],
     resolve: async (ctx) => {
       const context = assertContext<Config, Context>(ctx as Context, location)
-      const moduleTree = buildModuleTree(context as Context)
+      const routing = clientRouterOf(context as Context)
+      const entrypointTree = routing.buildEntrypointTree()
 
-      const reactRoutes: RouteObject[] = await visitModuleTree(moduleTree, async (module, children) => {
-        const ctx = assertContext<BasicConfig, BasicContext<BasicConfig>>(
-          (module.ctx ?? context) as BasicContext<BasicConfig>, location
-        )
-        await module.route.resolve(ctx)
-
+      const reactRoutes: RouteObject[] = await routing.visitEntrypointTree(entrypointTree, async (module, children) => {
         const renderer = module.handle != null
           ? { Component: createRouteRenderer({ context, module, hasChildren: children.length > 0 }) }
           : undefined
 
+        // The React tree nests, so each node contributes only its OWN segment — its ancestors are
+        // the branches it hangs under and already carry theirs.
         const route: RouteObject = {
           ...(module.route.route.default ? { index: true } as any : undefined),
-          ...(!module.route.route.default ? { path: module.getPath(true), children } : undefined),
+          ...(!module.route.route.default ? { path: relative(module.segment()), children } : undefined),
           ...renderer
         }
 

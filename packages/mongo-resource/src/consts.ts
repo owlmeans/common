@@ -1,14 +1,18 @@
 
 export const DEFAULT_DB_ALIAS = 'mongo'
 
-export const DEFAULT_PAGE_SIZE = 10
+/**
+ * Page size a `list` call gets when it asks for none. Mongo cannot afford an unbounded read
+ * of a collection by omission, so paging is the default here — `list(where, { size: 0 })`
+ * asks for the whole result set, explicitly and greppably.
+ */
+export const DEFAULT_PAGE_SIZE = 100
 
 /**
  * Collection that records which code-registered migrations have already been applied.
  *
- * One ledger per database, which is the right boundary: `dbName()` already varies the
- * database per Entity/User layer, so a tenant's migrations are tracked with the tenant's
- * data and dropping the database drops the ledger with it.
+ * One ledger per database, which is the right boundary: it sits beside the data its
+ * migrations changed, so dropping the database drops the ledger with it.
  */
 export const DEF_MIGRATIONS_COLLECTION = '_owlmeans_migrations'
 

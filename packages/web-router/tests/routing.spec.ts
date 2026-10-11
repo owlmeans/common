@@ -1,14 +1,14 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, withPage } from '@owlmeans/test-ui'
 import { HARNESS_URL } from './context.js'
+import { browserHelper } from '@owlmeans/test-ui'
 
 const at = (path: string) => new URL(path, HARNESS_URL).toString()
 
-afterAll(async () => { await closeBrowser() })
+afterAll(async () => { await browserHelper.closeBrowser() })
 
 describe('@owlmeans/web-router — OwlMeans browser routing (chromium e2e)', () => {
   test('renders the index route inside the layout at /', async () => {
-    await withPage(async page => {
+    await browserHelper.withPage(async page => {
       await page.goto(HARNESS_URL)
       await page.waitForSelector('#home')
       expect(await page.locator('#layout').isVisible()).toBe(true)
@@ -17,7 +17,7 @@ describe('@owlmeans/web-router — OwlMeans browser routing (chromium e2e)', () 
   })
 
   test('programmatic navigate resolves nested route, params and search', async () => {
-    await withPage(async page => {
+    await browserHelper.withPage(async page => {
       await page.goto(HARNESS_URL)
       await page.waitForSelector('#nav-user')
       await page.click('#nav-user')
@@ -33,7 +33,7 @@ describe('@owlmeans/web-router — OwlMeans browser routing (chromium e2e)', () 
   })
 
   test('nested index route renders at /users', async () => {
-    await withPage(async page => {
+    await browserHelper.withPage(async page => {
       await page.goto(HARNESS_URL)
       await page.waitForSelector('#nav-users')
       await page.click('#nav-users')
@@ -44,7 +44,7 @@ describe('@owlmeans/web-router — OwlMeans browser routing (chromium e2e)', () 
   })
 
   test('static segment outranks the :id dynamic sibling', async () => {
-    await withPage(async page => {
+    await browserHelper.withPage(async page => {
       await page.goto(at('users/settings'))
       await page.waitForSelector('#settings')
       expect(await page.locator('#settings').textContent()).toContain('settings-screen')
@@ -53,7 +53,7 @@ describe('@owlmeans/web-router — OwlMeans browser routing (chromium e2e)', () 
   })
 
   test('deep-links directly to a :param URL (synchronous initial match)', async () => {
-    await withPage(async page => {
+    await browserHelper.withPage(async page => {
       await page.goto(at('users/7?token=xyz'))
       await page.waitForSelector('#user')
       expect(await page.locator('#user').textContent()).toBe('user:7:token:xyz')
@@ -61,7 +61,7 @@ describe('@owlmeans/web-router — OwlMeans browser routing (chromium e2e)', () 
   })
 
   test('renders through a component-less group at the top of the chain', async () => {
-    await withPage(async page => {
+    await browserHelper.withPage(async page => {
       await page.goto(at('group/leaf'))
       await page.waitForSelector('#leaf')
       expect(await page.locator('#leaf').textContent()).toContain('leaf-screen')
@@ -71,7 +71,7 @@ describe('@owlmeans/web-router — OwlMeans browser routing (chromium e2e)', () 
   })
 
   test('outlet falls through a component-less group in the middle of the chain', async () => {
-    await withPage(async page => {
+    await browserHelper.withPage(async page => {
       await page.goto(at('users/nested/deep'))
       await page.waitForSelector('#deep')
       expect(await page.locator('#layout').isVisible()).toBe(true)
@@ -81,7 +81,7 @@ describe('@owlmeans/web-router — OwlMeans browser routing (chromium e2e)', () 
   })
 
   test('browser back/forward restores the matched route', async () => {
-    await withPage(async page => {
+    await browserHelper.withPage(async page => {
       await page.goto(HARNESS_URL)
       await page.waitForSelector('#home')
       await page.click('#nav-user')

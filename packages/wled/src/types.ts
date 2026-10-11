@@ -44,11 +44,12 @@ export interface ProvideParams {
   entity: string
 }
 
-  export interface CustomUrls {
+export interface CustomUrls {
   adminUrl: string
   userUrl: string
 }
 
+// Kept as a type: it intersects its type parameter, which an interface cannot extend.
 export type ProvidedWL<T extends {} = {}> = T & {
   type: string
   exists: boolean | null

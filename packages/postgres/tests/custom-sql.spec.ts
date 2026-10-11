@@ -140,12 +140,13 @@ describe('@owlmeans/postgres — custom SQL with alias placeholders', () => {
     expect(raw?.email_address).toBe('jrr@shire.me')
     expect(raw?.email).toBeUndefined()
 
-    const record = await authors.selectOne<Author>('SELECT * FROM {{}} WHERE "name" = $1', ['Tolkien'])
+    /** The resource is typed once, at the call to `resource()` — never per method. */
+    const record = await authors.selectOne('SELECT * FROM {{}} WHERE "name" = $1', ['Tolkien'])
     expect(record?.email).toBe('jrr@shire.me')
     expect(record?.id).toBe(tolkien.id as string)
 
     /** jsonb comes back parsed, not as a string, on both routes. */
-    const [book] = await books.select<Book>(`SELECT * FROM {{}} WHERE "title" = $1`, ['The Silmarillion'])
+    const [book] = await books.select(`SELECT * FROM {{}} WHERE "title" = $1`, ['The Silmarillion'])
     expect(book.meta).toEqual({ posthumous: true })
   })
 

@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os'
 
 import { discover } from '../src/discover.js'
 import { detectLinked } from '../src/linked.js'
-import { planInstall, AUTO_GENERATED_BANNER } from '../src/plan.js'
+import { planInstall } from '../src/plan.js'
+import { AUTO_GENERATED_BANNER } from '../src/consts.js'
 import { applyInstall } from '../src/apply.js'
 
 // ---------------------------------------------------------------------------
