@@ -1,11 +1,6 @@
 import { existsSync, readdirSync, lstatSync, realpathSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-
-export interface LinkedResult {
-  linked: boolean
-  /** Symlinked package names found in node_modules. */
-  evidence: string[]
-}
+import type { LinkedResult } from './types.js'
 
 /**
  * Detect whether @owlmeans/* packages in node_modules are symlinked

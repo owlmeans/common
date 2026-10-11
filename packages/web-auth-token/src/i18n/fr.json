@@ -1,0 +1,51 @@
+{
+  "panel": {
+    "title": "Jetons d’accès",
+    "description": "Jetons durables permettant à un script ou une intégration d’appeler l’API en votre nom.",
+    "create": "Créer un jeton",
+    "empty": "Aucun jeton d’accès pour le moment.",
+    "col": {
+      "display": "Jeton",
+      "name": "Nom",
+      "created": "Créé",
+      "last-used": "Dernière utilisation",
+      "expires": "Expiration",
+      "status": "Statut"
+    },
+    "never": "Jamais",
+    "never-used": "Jamais utilisé",
+    "status": {
+      "active": "Actif",
+      "expired": "Expiré",
+      "revoked": "Révoqué"
+    },
+    "revoke": "Révoquer",
+    "revoke-confirm": {
+      "title": "Révoquer ce jeton ?",
+      "description": "Tout ce qui l’utilise encore cessera de fonctionner immédiatement. Cette action est irréversible.",
+      "cancel": "Annuler",
+      "confirm": "Révoquer"
+    },
+    "dialog": {
+      "title": "Créer un jeton d’accès",
+      "description": "Nommez-le selon son usage pour pouvoir distinguer vos jetons plus tard.",
+      "name-label": "Nom",
+      "name-placeholder": "Déploiement CI",
+      "expiry-label": "Expiration",
+      "expiry": {
+        "30": "Dans 30 jours",
+        "90": "Dans 90 jours",
+        "365": "Dans un an",
+        "never": "Jamais"
+      },
+      "create": "Créer",
+      "cancel": "Annuler",
+      "issued-title": "Votre nouveau jeton d’accès",
+      "issued-note": "Copiez-le maintenant : il ne sera affiché qu’une seule fois.",
+      "copy": "Copier",
+      "copied": "Copié",
+      "done": "Terminé"
+    },
+    "error": "Une erreur est survenue"
+  }
+}

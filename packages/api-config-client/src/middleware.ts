@@ -3,9 +3,12 @@ import { MiddlewareType, MiddlewareStage, assertContext } from '@owlmeans/contex
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import type { ApiConfig } from '@owlmeans/api-config'
 import { API_CONFIG } from '@owlmeans/api-config'
-import { mergeConfig } from '@owlmeans/config'
+import { configHelper } from '@owlmeans/config'
 import type { CommonConfig } from '@owlmeans/config'
 import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
+import { logger } from '@owlmeans/log'
+
+const log = logger('api-config-client')
 
 export const apiConfigMiddleware: Middleware = {
   type: MiddlewareType.Context,
@@ -21,11 +24,11 @@ export const apiConfigMiddleware: Middleware = {
         module.route.route.port = context.cfg.primaryPort
       }
       try {
-        const [config] = await module.call()
+        const config = await module.call()
         const target: CommonConfig = context.cfg as unknown as CommonConfig
-        mergeConfig(target, config as CommonConfig)
+        configHelper.mergeConfig(target, config as CommonConfig)
       } catch (e) { 
-        console.error(e)
+        log.warn('API config not loaded', e)
       }
     }
   }

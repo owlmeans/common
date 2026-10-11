@@ -1,6 +1,6 @@
 import { FlowStepError, UnknownFlow, UnknownFlowStep, UnknownTransition } from './errors.js'
 import type { FlowModel, FlowProvider, FlowState, ShallowFlow } from './types.js'
-import { serializeState, unserializeState } from './utils/flow.js'
+import { flowUtils } from './utils/flow.js'
 
 export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowProvider): Promise<FlowModel> => {
   let state: FlowState | null = null
@@ -17,7 +17,7 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
         ok: true
       }
     } catch {
-      state = await unserializeState(flow as string, provider)
+      state = await flowUtils.unserializeState(flow as string, provider)
       flow = await provider(state.flow)
     }
   } else {
@@ -140,10 +140,10 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
         delete state!.payload
       }*/
 
-      return serializeState(flow, state!)
+      return flowUtils.serializeState(flow, state!)
     },
 
-    serialize: () => serializeState(flow, state!)
+    serialize: () => flowUtils.serializeState(flow, state!)
   }
 
   return model
