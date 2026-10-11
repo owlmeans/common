@@ -113,6 +113,24 @@ describe('assertPricingPolicy', () => {
     expect(priceEstimateHelper.assertPricingPolicy(policy)).toBe(policy)
   })
 
+  test('accepts the Adaptive Pricing fee alongside adaptive pricing', () => {
+    const policy: PricingPolicy = {
+      tax: { automatic: true, collectTaxId: true, estimate: true },
+      currency: { adaptive: true, adaptiveFeeRate: 0.04, estimate: true },
+    }
+    expect(priceEstimateHelper.assertPricingPolicy(policy)).toBe(policy)
+  })
+
+  test('rejects an Adaptive Pricing fee without adaptive pricing, or outside [0, 1)', () => {
+    const tax = { automatic: true, collectTaxId: true, estimate: false }
+    expect(() => priceEstimateHelper.assertPricingPolicy({ tax, currency: { adaptiveFeeRate: 0.04, estimate: false } })).toThrow()
+    for (const adaptiveFeeRate of [-0.01, 1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => priceEstimateHelper.assertPricingPolicy({
+        tax, currency: { adaptive: true, adaptiveFeeRate, estimate: false },
+      })).toThrow()
+    }
+  })
+
   test('rejects a non-positive or fractional TTL', () => {
     const base: PricingPolicy = { tax: { automatic: true, collectTaxId: true, estimate: false }, currency: { estimate: false } }
     expect(() => priceEstimateHelper.assertPricingPolicy({ ...base, tax: { ...base.tax, estimateTtlSeconds: 0 } })).toThrow()

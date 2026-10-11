@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-socket",
-  "version": "0.1.18-rc.51",
+  "version": "0.1.18-rc.52",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -41,7 +41,7 @@
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/entrypoint": "^0.1.18-rc.41",
     "@owlmeans/log": "^0.1.18-rc.3",
-    "@owlmeans/socket": "^0.1.18-rc.42"
+    "@owlmeans/socket": "^0.1.18-rc.43"
   },
   "publishConfig": {
     "access": "public"

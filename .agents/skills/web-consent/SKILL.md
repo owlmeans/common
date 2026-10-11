@@ -107,8 +107,8 @@ import { CookieConsent } from '@owlmeans/web-consent'
 
 ## The bar
 
-A tall bar across the bottom of a **transparent** overlay (`[data-consent-overlay]`,
-`fixed inset-0 bg-transparent`): the page stays in sight and scrolls, but nothing on it can be
+A tall bar across the bottom of a **dimmed** overlay (`[data-consent-overlay]`,
+`fixed inset-0 bg-black/70`): the page stays in sight and scrolls, but nothing on it can be
 pressed until the visitor answers. The bar (`fixed inset-x-0 bottom-0 max-h-[85vh] border-t
 bg-background`) holds, left to right on a wide screen and stacked on a phone:
 
@@ -139,7 +139,8 @@ follow the flat rule those apps are held to: **no gradient, shadow, glow, glass 
 
 | Part | Classes |
 |---|---|
-| Bar overlay, locating overlay | `bg-transparent` — the page stays in sight |
+| Bar overlay | `bg-black/70`, matching the preferences window — the page is dimmed beneath the opaque bar |
+| Locating overlay | `bg-transparent` — a quick region lookup flashes no backdrop |
 | Bar | `border-t border-border bg-background text-foreground`, no shadow |
 | Bar answers | "Accept only mandatory" and "Accept All" both the accent pill; "Cookie preferences" outlined |
 | Spinner | `text-muted-foreground motion-safe:animate-spin` |

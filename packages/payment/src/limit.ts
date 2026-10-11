@@ -1,4 +1,4 @@
-import { LimitKind, LimitWindow, CAPABILITY_LIMIT_SCOPE, LIFETIME_WINDOW, OCCUPANCY_WINDOW } from './consts.js'
+import { LimitKind, LimitWindow, CAPABILITY_LIMIT_SCOPE, LIFETIME_WINDOW, OCCUPANCY_WINDOW, SUBSCRIPTION_WEEK_MS, SUBSCRIPTION_WEEK_PREFIX } from './consts.js'
 import { entitlementParamHelper } from './entitlement.js'
 import { LimitMisdeclared } from './errors.js'
 import type { EntitlementView, LimitView, LimitParam } from './types.js'
@@ -9,7 +9,7 @@ const pad = (value: number): string => String(value).padStart(2, '0')
 
 export const createPlanLimitHelper = (): PlanLimitHelper => {
   const windowKeyOf = (
-    kind: LimitKind, window?: LimitWindow | null, at: Date = new Date(),
+    kind: LimitKind, window?: LimitWindow | null, at: Date = new Date(), anchor?: Date,
   ): string => {
     switch (kind) {
       case LimitKind.Lifetime:
@@ -19,6 +19,8 @@ export const createPlanLimitHelper = (): PlanLimitHelper => {
       case LimitKind.Window: {
         const month = `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}`
         switch (window) {
+          case LimitWindow.SubscriptionWeek:
+            return `${SUBSCRIPTION_WEEK_PREFIX}${windowBoundsOf(window, at, anchor).start.toISOString()}`
           case LimitWindow.Month:
             return month
           case LimitWindow.Day:
@@ -31,11 +33,19 @@ export const createPlanLimitHelper = (): PlanLimitHelper => {
   }
 
   const windowBoundsOf = (
-    window: LimitWindow, at: Date = new Date(),
+    window: LimitWindow, at: Date = new Date(), anchor?: Date,
   ): { start: Date, resetsAt: Date } => {
     const year = at.getUTCFullYear()
     const month = at.getUTCMonth()
     switch (window) {
+      case LimitWindow.SubscriptionWeek: {
+        const origin = anchor?.getTime()
+        if (origin == null || !Number.isFinite(origin) || !Number.isFinite(at.getTime())) {
+          throw new LimitMisdeclared('subscription-week:anchor')
+        }
+        const start = new Date(origin + Math.floor((at.getTime() - origin) / SUBSCRIPTION_WEEK_MS) * SUBSCRIPTION_WEEK_MS)
+        return { start, resetsAt: new Date(start.getTime() + SUBSCRIPTION_WEEK_MS) }
+      }
       case LimitWindow.Month:
         return { start: new Date(Date.UTC(year, month, 1)), resetsAt: new Date(Date.UTC(year, month + 1, 1)) }
       case LimitWindow.Day: {
@@ -95,12 +105,12 @@ export const createPlanLimitHelper = (): PlanLimitHelper => {
 export const planLimitHelper = createPlanLimitHelper()
 
 /** @deprecated compat:factory-refactor — use `planLimitHelper.windowKeyOf(…)` */
-export const windowKeyOf = (kind: LimitKind, window?: LimitWindow | null, at?: Date): string =>
-  planLimitHelper.windowKeyOf(kind, window, at)
+export const windowKeyOf = (kind: LimitKind, window?: LimitWindow | null, at?: Date, anchor?: Date): string =>
+  planLimitHelper.windowKeyOf(kind, window, at, anchor)
 
 /** @deprecated compat:factory-refactor — use `planLimitHelper.windowBoundsOf(…)` */
-export const windowBoundsOf = (window: LimitWindow, at?: Date): { start: Date, resetsAt: Date } =>
-  planLimitHelper.windowBoundsOf(window, at)
+export const windowBoundsOf = (window: LimitWindow, at?: Date, anchor?: Date): { start: Date, resetsAt: Date } =>
+  planLimitHelper.windowBoundsOf(window, at, anchor)
 
 /** @deprecated compat:factory-refactor — use `planLimitHelper.formatLimitParam(…)` */
 export const formatLimitParam = (key: string, atLeast?: number): string =>

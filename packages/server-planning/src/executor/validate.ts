@@ -1,4 +1,4 @@
-import { BODY_MAX, cardHelper, changesHelper, CODE_MAX, DESCRIPTION_MAX, IllegalTransition, LabelNotAllowed, MAX_LABELS, MAX_PARENTS, ParentNotFound, PlanningError, RelationshipRefused, specificationHelper, SpecificationRevisionConflict, SpecificationSlotUnknown, statusHelper, TITLE_MAX, TransitionAction, validateHelper, WorkcardKind, type PlanningFacade, type RelationshipDraft, type Specification, type TransitionExecution, type WorkcardDraft } from '@owlmeans/planning'
+import { BODY_MAX, cardHelper, changesHelper, CODE_MAX, DESCRIPTION_MAX, IllegalTransition, LabelNotAllowed, MAX_LABELS, MAX_PARENTS, ParentNotFound, PlanningError, RelationshipRefused, specificationHelper, SpecificationRevisionConflict, SpecificationSlotUnknown, statusHelper, TITLE_MAX, TransitionAction, validateHelper, WorkcardKind, PlanningResourceKind, type PlanningFacade, type RelationshipDraft, type Specification, type TransitionExecution, type WorkcardDraft } from '@owlmeans/planning'
 import type { PlanningRuntime } from '../types.js'
 import { creatorHelper } from './creator.js'
 import type { Resolved } from './types.js'
@@ -202,15 +202,20 @@ const assertRelationships = async (
       }
       continue
     }
-    const target = await facade.cards.load(draft.to)
+    const kind = rule.toKind ?? PlanningResourceKind.Workcard
+    if (draft.toKind != null && draft.toKind !== kind) throw new RelationshipRefused(`to-kind:${draft.type}`)
+    if (draft.fromKind != null && draft.fromKind !== PlanningResourceKind.Workcard) throw new RelationshipRefused(`from-kind:${draft.type}`)
+    draft.toKind = kind
+    const target = kind === PlanningResourceKind.Assignee ? await facade.assignees.load(draft.to)
+      : kind === PlanningResourceKind.Team ? await facade.teams.load(draft.to) : await facade.cards.load(draft.to)
     if (target == null) {
       throw new RelationshipRefused(`to:${draft.to}`)
     }
     if (rule.from != null && !rule.from.includes(resolved.type.type)) {
       throw new RelationshipRefused(`from-type:${draft.type}:${resolved.type.type}`)
     }
-    if (rule.to != null && !rule.to.includes(target.type)) {
-      throw new RelationshipRefused(`to-type:${draft.type}:${target.type}`)
+    if (rule.to != null && !rule.to.includes('type' in target ? target.type : '')) {
+      throw new RelationshipRefused(`to-type:${draft.type}:${'type' in target ? target.type : kind}`)
     }
     if (rule.single === true) {
       const count = (counted.get(draft.type) ?? 0) + 1

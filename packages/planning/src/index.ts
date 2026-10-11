@@ -11,3 +11,7 @@ export * from './registry.js'
 export * from './helpers/index.js'
 export * from './models/index.js'
 export * from './i18n.js'
+
+export type * from './resources/types.js'
+export * from './resources/mentions.js'
+export type * from './resources/protocol/types.js'

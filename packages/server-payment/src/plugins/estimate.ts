@@ -152,10 +152,14 @@ export const makeEstimateHelper = (ctx: ApiContext): EstimateHelper => {
     return option != null ? { subtotalMinor: option.unitAmount, currency: chargeCurrency } : reference
   }
 
-  // Currency: Stripe FX Quotes, a PREVIEW endpoint — see `STRIPE_FX_QUOTES_API_VERSION`.
+  // Currency: Stripe FX Quotes, a PREVIEW endpoint — see `STRIPE_FX_QUOTES_API_VERSION`. A buyer's
+  // local currency is priced by Adaptive Pricing at the BASE rate plus its own conversion fee
+  // (`price × (1 + fee)`, 2–4% as Stripe decides), which the quote's fee-inclusive `exchange_rate`
+  // (base × (1 − `fx_fee_rate`), 2%) understates; a policy declaring `adaptiveFeeRate` is estimated
+  // the way Checkout prices it, one without keeps the quote's rate.
   const fetchFxRate = async (
     stripe: Stripe, currency: string, localCurrency: string, apiVersion: string,
-    settlementCurrency: string = currency,
+    settlementCurrency: string = currency, adaptiveFeeRate?: number,
   ): Promise<FxOutcome> => {
     const settlement = settlementCurrency.toLowerCase()
     const sourceRate = settlement === currency
@@ -167,9 +171,11 @@ export const makeEstimateHelper = (ctx: ApiContext): EstimateHelper => {
     }
     const localRate = await fxOf(ctx).stripeFxRate(stripe, localCurrency, settlement, apiVersion)
     if (localRate == null) return null
+    const settlementPerLocal = adaptiveFeeRate != null ? localRate.baseRate / (1 + adaptiveFeeRate) : localRate.exchangeRate
+    const feeRate = adaptiveFeeRate ?? localRate.fxFeeRate
     return {
-      currency: localCurrency, exchangeRate: localRate.exchangeRate / sourceRate.referenceRate,
-      ...(localRate.fxFeeRate != null ? { fxFeeRate: localRate.fxFeeRate } : {}),
+      currency: localCurrency, exchangeRate: settlementPerLocal / sourceRate.referenceRate,
+      ...(feeRate != null ? { fxFeeRate: feeRate } : {}),
     }
   }
 
@@ -278,9 +284,10 @@ export const makeEstimateHelper = (ctx: ApiContext): EstimateHelper => {
         const apiVersion = stripePricing?.fxApiVersion ?? STRIPE_FX_QUOTES_API_VERSION
         const settlementCurrency = stripePricing?.settlementCurrency?.toLowerCase() ?? currency
         // A preview endpoint: unreachable or erroring never fails the estimate, it only drops `local`.
+        const feeRate = pricing.currency.adaptiveFeeRate
         const fx = await cached(
-          cache.fx, cache.inflight, `fx:${currency}:${settlementCurrency}:${localCurrency}:${apiVersion}`, cache.fxTtlMs,
-          () => fetchFxRate(stripe, currency, localCurrency, apiVersion, settlementCurrency),
+          cache.fx, cache.inflight, `fx:${currency}:${settlementCurrency}:${localCurrency}:${apiVersion}:${feeRate ?? ''}`, cache.fxTtlMs,
+          () => fetchFxRate(stripe, currency, localCurrency, apiVersion, settlementCurrency, feeRate),
         ).catch(() => null)
         if (fx != null) {
           result.local = { currency: fx.currency, exchangeRate: fx.exchangeRate, ...(fx.fxFeeRate != null ? { fxFeeRate: fx.fxFeeRate } : {}) }

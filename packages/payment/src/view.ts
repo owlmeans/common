@@ -43,12 +43,12 @@ export const createEntitlementViewHelper = (): EntitlementViewHelper => {
     subscribedAt?: Date | null,
     at: Date = new Date(),
   ): LimitView[] => Object.entries(plan.limits ?? {}).map(([key, declaration]) => {
-    const window = planLimitHelper.windowKeyOf(declaration.kind, declaration.window, at)
+    const window = planLimitHelper.windowKeyOf(declaration.kind, declaration.window, at, subscribedAt ?? at)
     const used = Math.max(0, usage.find(row => row.key === key && row.window === window)?.used ?? 0)
     const limit = promoHelper.promoActive(declaration.promo, subscribedAt, at) ? declaration.limit : 0
     const promo = promoHelper.promoViewOf(declaration.promo, subscribedAt, at)
     const bounds = declaration.kind === LimitKind.Window && declaration.window != null
-      ? planLimitHelper.windowBoundsOf(declaration.window, at) : null
+      ? planLimitHelper.windowBoundsOf(declaration.window, at, subscribedAt ?? at) : null
 
     return {
       key, param: planLimitHelper.formatLimitParam(key), kind: declaration.kind,

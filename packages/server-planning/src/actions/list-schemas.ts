@@ -19,7 +19,7 @@ const text = (value: unknown): string | undefined =>
 export const listSchemas = (
   protocol: PlanningProtocols['schema']['list'], opts?: PlanningHandlerOptions
 ): RequestHandler =>
-  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async (): Promise<ScopedSchemaBundle> => {
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.reply(async (): Promise<ScopedSchemaBundle> => {
     const { facade } = await planningHandlerOf(ctx).handlerScopeOf(req, opts)
     if (facade.definitions == null) {
       return facade.schemas.bundle()

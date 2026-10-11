@@ -1,3 +1,5 @@
+import type { AssigneeSchemaRegistry, AssigneeTypeSchema, PlanningResourceFacade, PlanningRecordStore, Assignee, Team, Comment, CommentMention } from './resources/types.js'
+import type { PlanningResourceKind, ProjectMode } from './consts.js'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { Criteria, ListOptions, ListResult, ResourceRecord } from '@owlmeans/resource'
 import type { AnySchema, ValidateFunction } from 'ajv'
@@ -26,6 +28,12 @@ export interface Workcard extends ResourceRecord {
   description?: string
   /** Primary parent id. Absent on a root project. */
   parent?: string
+  /** Derived from the actual primary parent; never an independent reference. */
+  parentType?: string
+  reporter?: string
+  assignee?: string
+  /** Project visibility metadata, interpreted only by a host policy hook. */
+  mode?: ProjectMode
   /** EVERY parent — many-to-many membership with no junction row. Always contains `parent`. */
   parents: string[]
   /** Status key of the PRIMARY flow. Mirror of `flows[primaryFlow]`. */
@@ -82,6 +90,8 @@ export interface Relationship extends ResourceRecord {
   type: string
   from: string
   to: string
+  fromKind?: PlanningResourceKind
+  toKind?: PlanningResourceKind
   project?: string
   fields?: Record<string, unknown>
   createdAt: string
@@ -94,6 +104,8 @@ export interface RelationshipDraft {
   /** Defaults to the card the transition is about. */
   from?: string
   to: string
+  fromKind?: PlanningResourceKind
+  toKind?: PlanningResourceKind
   fields?: Record<string, unknown>
 }
 
@@ -223,6 +235,11 @@ export interface RelationshipType {
   from?: string[]
   /** Card types allowed at the `to` end. Any when omitted. */
   to?: string[]
+  fromKind?: PlanningResourceKind
+  toKind?: PlanningResourceKind
+  /** A fields property whose references derive this relationship index. */
+  field?: string
+  multiple?: boolean
   inverse?: string
   /** At most one relationship of this type leaves a card. */
   single?: boolean
@@ -241,6 +258,9 @@ export interface WorkcardTypeSchema {
   /** Slots the type's cards carry as children. */
   specifications: SpecificationSlot[]
   relationships?: RelationshipType[]
+  /** Primary/direct hierarchy declarations. Missing means the legacy project-only rule. */
+  parents?: { types?: string[], required?: boolean }
+  children?: { types: string[] }
   /** Allowed labels. Any when omitted. */
   labels?: string[]
   code?: CodePolicy
@@ -269,9 +289,10 @@ export interface PlanningSchemaBundle {
   version: number
   types: AnyTypeSchema[]
   flows: StatusFlowSchema[]
+  assigneeTypes?: AssigneeTypeSchema[]
 }
 
-export interface PlanningSchemaRegistry {
+export interface PlanningSchemaRegistry extends AssigneeSchemaRegistry {
   registerType: (schema: AnyTypeSchema) => void
   registerFlow: (flow: StatusFlowSchema) => void
   types: () => AnyTypeSchema[]
@@ -315,7 +336,7 @@ export interface ScopedSchemaRecord extends ResourceRecord {
   key: string
   version: number
   /** A `WorkcardTypeSchema` of kind `card`, or a `StatusFlowSchema`. */
-  definition: WorkcardTypeSchema | StatusFlowSchema
+  definition: WorkcardTypeSchema | StatusFlowSchema | AssigneeTypeSchema
   /**
    * Retired: offered for nothing new, still resolved for what already uses it. A retired record
    * gives way to a live declaration of the same key in a lower layer.
@@ -367,11 +388,13 @@ export interface SchemaKey {
 export interface ScopedSchemaOrigins {
   types: Record<string, SchemaOrigin>
   flows: Record<string, SchemaOrigin>
+  assigneeTypes?: Record<string, SchemaOrigin>
 }
 
 export interface ScopedSchemaRetired {
   types: string[]
   flows: string[]
+  assigneeTypes?: string[]
 }
 
 /**
@@ -401,6 +424,7 @@ export interface ScopedSchemaRegistry extends PlanningSchemaRegistry {
 export interface SchemaDeclarations {
   types?: WorkcardTypeSchema[]
   flows?: StatusFlowSchema[]
+  assigneeTypes?: AssigneeTypeSchema[]
 }
 
 export interface SchemaWriteOptions {
@@ -426,6 +450,7 @@ export interface PlanningDefinitions {
    */
   putType: (type: WorkcardTypeSchema, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord>
   /** Compare-and-set, as {@link putType}. */
+  putAssigneeType: (schema: AssigneeTypeSchema) => Promise<ScopedSchemaRecord>
   putFlow: (flow: StatusFlowSchema, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord>
   /** Every declaration at its layer's next version — flows first, then types. */
   define: (declarations: SchemaDeclarations, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord[]>
@@ -446,6 +471,9 @@ export interface WorkcardDraft {
   kind: WorkcardKind
   type: string
   parent?: string
+  reporter?: string
+  assignee?: string
+  mode?: ProjectMode
   parents?: string[]
   title: string
   description?: string
@@ -619,6 +647,8 @@ export interface RelationshipWhere {
   from?: string | string[]
   to?: string | string[]
   type?: string | string[]
+  fromKind?: PlanningResourceKind
+  toKind?: PlanningResourceKind
   /** The project an edge is filed under. A store that ignores it is narrowed by the facade. */
   project?: string | string[]
 }
@@ -638,6 +668,8 @@ export interface PlanningStoreCapabilities {
 
 /** Only `cards` is required — which is what keeps a foreign provider possible. */
 export interface PlanningStore {
+  validateProjection?: (before: Workcard | null, after: Workcard | null, transition: Transition) => Promise<void>
+  projectReferences?: (after: Workcard, transition: Transition) => Promise<void>
   alias?: string
   capabilities?: PlanningStoreCapabilities
   /** The id a new card gets. */
@@ -647,8 +679,14 @@ export interface PlanningStore {
   specs?: SpecificationStore
   links?: RelationshipStore
   commits?: CommitSource
-  /** Data-defined types and flows. Without it every type and flow resolves in code. */
+  /** Data-defined card/assignee types and flows. Without it their declarations resolve in code. */
   schemas?: SchemaStore
+  assignees?: PlanningRecordStore<Assignee>
+  teams?: PlanningRecordStore<Team>
+  comments?: PlanningRecordStore<Comment>
+  mentions?: PlanningRecordStore<CommentMention>
+  /** Serialize dependent writes across processes in this organization. */
+  unit?: <R>(entityId: string, run: () => Promise<R>) => Promise<R>
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────────────────────────
@@ -682,6 +720,8 @@ export interface SpecificationQuery extends ListOptions<Specification> {
 }
 
 export interface RelationshipQuery extends ListOptions<Relationship> {
+  fromKind?: PlanningResourceKind
+  toKind?: PlanningResourceKind
   from?: string | string[]
   to?: string | string[]
   type?: string | string[]
@@ -739,6 +779,8 @@ export interface SpecificationQueryWire extends ListWire {
 }
 
 export interface RelationshipQueryWire extends ListWire {
+  fromKind?: PlanningResourceKind
+  toKind?: PlanningResourceKind
   from?: string
   to?: string
   type?: string
@@ -793,6 +835,7 @@ export interface SchemaDefineRequest {
   mode?: SchemaWriteMode
   types?: WorkcardTypeSchema[]
   flows?: StatusFlowSchema[]
+  assigneeTypes?: AssigneeTypeSchema[]
   /** Keys retired at the layer after the declarations are written. */
   retire?: SchemaKey[]
 }
@@ -809,6 +852,9 @@ export interface PlanningScope {
   entityId: string
   profileId?: string
   userId?: string
+  /** Trusted planning actor, resolved by a host auth plugin. */
+  assigneeId?: string
+  defaultAssigneeId?: string
   service?: string
   channel?: string
   actor?: TransitionActor
@@ -820,7 +866,7 @@ export interface PlanningScope {
   projects?: string[]
 }
 
-export interface PlanningFacade {
+export interface PlanningFacade extends PlanningResourceFacade {
   scope: PlanningScope
   schemas: PlanningSchemaRegistry
   cards: {
@@ -897,7 +943,7 @@ export interface PlanningPlugin {
   name: string
   /** Ascending; `DEFAULT_PLUGIN_ORDER` (50) when omitted. */
   order?: number
-  schemas?: { types?: AnyTypeSchema[], flows?: StatusFlowSchema[] }
+  schemas?: { types?: AnyTypeSchema[], flows?: StatusFlowSchema[], assigneeTypes?: AssigneeTypeSchema[] }
   owns?: (type: string) => boolean
   store?: PlanningStore | ((ctx: BasicContext<BasicConfig>) => PlanningStore)
   mintCode?: (draft: WorkcardDraft, taken: (code: string) => Promise<boolean>, ctx: PlanningExecContext) => Promise<string | undefined>

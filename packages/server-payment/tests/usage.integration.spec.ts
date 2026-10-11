@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { LimitExhausted, SubscriptionStatus } from '@owlmeans/payment'
+import { LimitExhausted, LimitKind, LimitWindow, SUBSCRIPTION_WEEK_MS, planLimitHelper, SubscriptionStatus } from '@owlmeans/payment'
 import { createEventHandler } from '../src/plugins/events.js'
 import { BURST_PLAN, gate, makeSuite } from './context.js'
 import type { Booted } from './context.js'
@@ -19,6 +19,40 @@ describe('@owlmeans/server-payment — usage ledger on Mongo', () => {
   let booted: Booted
   beforeAll(async () => { booted = await suite.boot() }, 60_000)
   afterAll(async () => { await suite.teardown() }, 60_000)
+
+  it('uses subscription weeks for admission, views, reconciliation, replay and release', async () => {
+    const { ctx } = booted
+    const access = paymentAccessOf(ctx)
+    const service = access.entitlements()
+    await access.gateway().grantInternalPlan(ctx, 'weekly-1', BURST_PLAN, { force: true })
+    const anchor = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    await access.subscriptions().collection.updateOne({ entityId: 'weekly-1', planSku: BURST_PLAN }, { $set: { createdAt: anchor } })
+    const window = planLimitHelper.windowKeyOf(LimitKind.Window, LimitWindow.SubscriptionWeek, new Date(), anchor)
+    const outcomes = await Promise.allSettled(Array.from({ length: 8 }, (_, index) =>
+      service.consume({ entityId: 'weekly-1', limitKey: 'weekly', eventKey: `weekly:${index}` })))
+    expect(outcomes.filter(row => row.status === 'fulfilled')).toHaveLength(1)
+    const winner = outcomes.find(row => row.status === 'fulfilled')!
+    if (winner.status !== 'fulfilled') throw new Error('No admitted weekly unit')
+    expect(winner.value.window).toBe(window)
+    expect(winner.value.resetsAt).toEqual(new Date(anchor.getTime() + SUBSCRIPTION_WEEK_MS))
+    expect((await service.entitlements('weekly-1')).limits.find(row => row.key === 'weekly')).toMatchObject({ used: 1, remaining: 0, windowStart: anchor })
+    await access.usageCounters().collection.updateOne({ entityId: 'weekly-1', limitKey: 'weekly', window }, { $set: { used: 9 } })
+    await service.reconcileCounters('weekly-1')
+    expect((await service.limitState('weekly-1', 'weekly')).used).toBe(1)
+    const request = { entityId: 'weekly-1', limitKey: 'weekly', eventKey: winner.value.eventKey }
+    expect((await service.consume(request)).replayed).toBe(true)
+    expect((await service.release(request)).remaining).toBe(1)
+    expect((await service.consume(request)).admitted).toBe(false)
+    const oldStart = new Date(anchor.getTime() - SUBSCRIPTION_WEEK_MS)
+    const oldWindow = planLimitHelper.windowKeyOf(LimitKind.Window, LimitWindow.SubscriptionWeek, oldStart, anchor)
+    await access.usageEvents().create({ entityId: 'weekly-1', limitKey: 'weekly', window: oldWindow,
+      delta: 1, eventKey: 'weekly:past', createdAt: oldStart, planSku: BURST_PLAN })
+    await service.reconcileCounters('weekly-1')
+    expect((await service.consume({ ...request, eventKey: 'weekly:past' })).resetsAt).toEqual(anchor)
+    await service.release({ ...request, eventKey: 'weekly:past' })
+    expect((await service.limitState('weekly-1', 'weekly')).used).toBe(0)
+    expect((await service.consume({ ...request, eventKey: 'weekly:new' })).admitted).toBe(true)
+  }, 60_000)
 
   it('admits exactly the limit out of 20 concurrent consumes', async () => {
     const { ctx } = booted

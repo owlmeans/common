@@ -80,6 +80,7 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`auth-otp`](packages/auth-otp) → `context`, `error`
 - [`wled`](packages/wled) → `auth`, `entrypoint`, `route`
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `entrypoint`, `error`, `i18n`, `resource`, `route`
+- [`planning-auth`](packages/planning-auth) → `planning`
 - [`planning`](packages/planning) → `auth`, `basic-ids`, `context`, `entrypoint`, `error`, `i18n`, `queue`, `resource`, `route`
 - [`oidc`](packages/oidc) → `auth`, `auth-common`, `basic-envelope`, `config`, `context`, `entrypoint`, `resource`, `route`
 - [`viable-common`](packages/viable-common) → `agent-common`, `auth`, `auth-common`, `context`, `entrypoint`, `error`, `flow`, `iam`, `llm-common`, `planning`, `resource`, `route`

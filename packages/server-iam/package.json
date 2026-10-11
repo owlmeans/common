@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-iam",
-  "version": "0.1.18-rc.59",
+  "version": "0.1.18-rc.60",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -30,7 +30,7 @@
     "@owlmeans/log": "^0.1.18-rc.3",
     "@owlmeans/oidc": "^0.1.18-rc.57",
     "@owlmeans/server-context": "^0.1.18-rc.44",
-    "@owlmeans/server-oidc-rp": "^0.1.18-rc.57"
+    "@owlmeans/server-oidc-rp": "^0.1.18-rc.58"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

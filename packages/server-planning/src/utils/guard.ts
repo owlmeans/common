@@ -1,4 +1,4 @@
-import { PlanningScopeMismatch, WorkcardNotFound } from '@owlmeans/planning'
+import { planningReplyHelper, PlanningScopeMismatch, WorkcardNotFound } from '@owlmeans/planning'
 import type { Workcard } from '@owlmeans/planning'
 import type { GuardHelper } from './guard/types.js'
 
@@ -31,7 +31,9 @@ export const createGuardHelper = (): GuardHelper => {
     return Number.isFinite(number) ? Math.min(Math.max(number, 0), max) : 0
   }
 
-  return { notFoundOf, assertScope, concealed, clampSeconds }
+  return { notFoundOf, assertScope, concealed, clampSeconds,
+    reply: async run => planningReplyHelper.project(await concealed(run)),
+  }
 }
 
 export const guardHelper = createGuardHelper()

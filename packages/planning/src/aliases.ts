@@ -1,4 +1,4 @@
-import type { PlanningAliases, PlanningAliasHelper, PlanningDefinitionAliases } from './aliases/types.js'
+import type { PlanningAliases, PlanningAliasHelper, PlanningDefinitionAliases, PlanningResourceAliases } from './aliases/types.js'
 
 export const createPlanningAliasHelper = (): PlanningAliasHelper => {
   const planningAliases = (base: string): PlanningAliases => Object.freeze({
@@ -25,7 +25,10 @@ export const createPlanningAliasHelper = (): PlanningAliasHelper => {
     define: `${base}:schema:define`,
   })
 
-  return { planningAliases, planningDefinitionAliases }
+  const planningResourceAliases = (base: string): PlanningResourceAliases => Object.freeze(Object.fromEntries(
+    ['assignees', 'teams', 'comments', 'mentions'].map(name => [name, Object.freeze({ get: `${base}:${name}:get`, list: `${base}:${name}:list`, write: `${base}:${name}:write` })])
+  )) as unknown as PlanningResourceAliases
+  return { planningAliases, planningDefinitionAliases, planningResourceAliases }
 }
 
 export const planningAliasHelper = createPlanningAliasHelper()

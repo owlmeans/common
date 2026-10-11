@@ -140,7 +140,7 @@ describe('a tools task ends with a call or with the last word', () => {
     const { result, problem } = makeTaskEnvelopeModel(toolTask).parseTaskResult('Nothing left to change.')
 
     expect(problem).toBeUndefined()
-    expect(result?.kind).toBe('text')
+    expect(result?.kind).toBe(ModelTaskResultKind.Text)
     expect(result?.text).toContain('Nothing left')
   })
 
@@ -205,7 +205,7 @@ describe('the block telling a parent HOW to run a task', () => {
     // `install_harness` is what writes it, nothing in the flow requires that to have been run, and
     // a block naming the file as a fact sent a literal agent to a subagent type it did not have —
     // on the first task, before it had done anything.
-    for (const harness of ['claude-code', 'codex', 'copilot', 'opencode', 'other'] as const) {
+    for (const harness of Object.values(ConnectHarness)) {
       const text = makeTaskEnvelopeModel(task).renderTaskEnvelope({ harness })
       if (!text.includes('viable-worker')) continue
       expect(text).toContain('install_harness')
@@ -213,7 +213,7 @@ describe('the block telling a parent HOW to run a task', () => {
   })
 
   test('every harness offers a way through when the worker is absent', () => {
-    for (const harness of ['claude-code', 'codex', 'copilot', 'opencode', 'other'] as const) {
+    for (const harness of Object.values(ConnectHarness)) {
       const text = makeTaskEnvelopeModel(task).renderTaskEnvelope({ harness }).toLowerCase()
 
       expect(text.includes('inline') || text.includes('isolated context')).toBe(true)

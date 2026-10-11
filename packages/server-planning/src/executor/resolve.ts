@@ -1,4 +1,5 @@
 import { cardHelper, CardTypeNotAllowed, ParentNotFound, PlanningError, PlanningSchemaKind, PlanningScopeMismatch, SchemaOrigin, specificationHelper, statusHelper, TransitionAction, UnknownStatusFlow, UnknownWorkcardType, WorkcardKind, WorkcardNotFound, type AnyTypeSchema, type PlanningFacade, type PlanningSchemaRegistry, type ProjectTypeSchema, type ScopedSchemaRegistry, type Specification, type TransitionExecution, type Workcard, type WorkcardDraft } from '@owlmeans/planning'
+import { makePlanningHierarchy } from '../hierarchy.js'
 import { memoHelper } from '@owlmeans/context'
 import type { PlanningRuntime } from '../types.js'
 import { TRIMMED } from './consts.local.js'
@@ -33,6 +34,7 @@ const trim = <T extends object>(record: T | undefined): T | undefined => {
 }
 
 export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
+  const hierarchy = makePlanningHierarchy(runtime)
   const normalizeExecution = (input: TransitionExecution): TransitionExecution => {
     const exec = structuredClone(input) as TransitionExecution
     if (exec.card != null && typeof exec.card === 'object') {
@@ -55,10 +57,15 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
     if (kind === WorkcardKind.Specification) {
       return
     }
-    if (!cardHelper.isProject(parent)) {
-      throw new CardTypeNotAllowed(`${parent.type}:${type}`)
+    const registry = view ?? runtime.service().schemas
+    const parentType = registry.type(parent.type) as ProjectTypeSchema
+    const childType = registry.has(type) ? registry.type(type) : undefined
+    if (childType?.parents?.types != null && !childType.parents.types.includes(parent.type)) throw new CardTypeNotAllowed(`${type}:parent:${parent.type}`)
+    if (parentType.children != null) {
+      if (!parentType.children.types.includes(type)) throw new CardTypeNotAllowed(`${parent.type}:${type}`)
+      return
     }
-    const parentType = runtime.service().schemas.type(parent.type) as ProjectTypeSchema
+    if (!cardHelper.isProject(parent)) throw new CardTypeNotAllowed(`${parent.type}:${type}`)
     const allowed = kind === WorkcardKind.Project ? parentType.projectTypes ?? [] : parentType.cardTypes ?? []
     if (allowed.includes(type)) {
       return
@@ -72,7 +79,7 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
   const childViewOf = async (
     entityId: string, parent: Workcard
   ): Promise<PlanningSchemaRegistry | undefined> =>
-    runtime.schemaStore() == null || !cardHelper.isProject(parent) ? undefined : await runtime.schemasFor(entityId, parent.id)
+    runtime.schemaStore() == null ? undefined : await runtime.schemasFor(entityId, await hierarchy.project(parent))
 
   const resolveExecution = async (
     facade: PlanningFacade, exec: TransitionExecution
@@ -88,6 +95,7 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
     let card: Workcard | undefined
     let type: AnyTypeSchema
     let parent: Workcard | undefined
+    let project: string | undefined
 
     if (create) {
       if (exec.card == null || typeof exec.card !== 'object') {
@@ -107,7 +115,7 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
         }
         const project = draft.kind === WorkcardKind.Project || primary == null
           ? undefined
-          : cardHelper.projectOf({ kind: draft.kind, parent: parents[0], parents } as unknown as Workcard, primary)
+          : await hierarchy.project({ kind: draft.kind, entityId, parent: parents[0], parents } as unknown as Workcard)
         schemas = await runtime.schemasFor(entityId, project)
       }
       type = schemas.type(draft.type)
@@ -128,7 +136,7 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
         if (index === 0) {
           parent = found
         }
-        if (index === 0 || cardHelper.isProject(found)) {
+        if (found != null) {
           const view = !layered ? undefined : index === 0 && cardHelper.isProject(found) ? schemas : await childViewOf(entityId, found)
           assertChildAllowed(found, draft.kind, draft.type, view)
         }
@@ -154,7 +162,7 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
       card = found
       if (layered) {
         parent = card.parent != null ? await facade.cards.load(card.parent) ?? undefined : undefined
-        schemas = await runtime.schemasFor(entityId, cardHelper.projectOf(card, parent))
+        schemas = await runtime.schemasFor(entityId, await hierarchy.project(card))
         type = schemas.type(card.type)
       } else {
         type = schemas.type(card.type)
@@ -162,6 +170,9 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
       }
     }
 
+    project = card != null ? await hierarchy.project(card)
+      : (exec.card as WorkcardDraft).kind === WorkcardKind.Project ? undefined
+        : await hierarchy.project({ ...(exec.card as WorkcardDraft), entityId } as Workcard)
     const flowId = exec.flow ?? statusHelper.primaryFlowOf(type)
     if (!type.flows.includes(flowId)) {
       throw new UnknownStatusFlow(`${type.type}:${flowId}`)
@@ -175,6 +186,7 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
 
     return {
       create,
+      project,
       ...(card != null ? { card } : {}),
       type,
       flowId,
@@ -188,13 +200,13 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
 
   const projectFor = (resolved: Resolved, exec: TransitionExecution, cardId: string): string | undefined => {
     if (resolved.card != null) {
-      return cardHelper.isProject(resolved.card) ? resolved.card.id : cardHelper.projectOf(resolved.card, resolved.parent)
+      return cardHelper.isProject(resolved.card) ? resolved.card.id : resolved.project
     }
     const draft = exec.card as WorkcardDraft
     if (draft.kind === WorkcardKind.Project) {
       return cardId
     }
-    return cardHelper.projectOf({ kind: draft.kind, parent: draft.parent, parents: draft.parents ?? [] } as unknown as Workcard, resolved.parent)
+    return resolved.project
   }
 
   return { normalizeExecution, assertChildAllowed, childViewOf, resolveExecution, projectFor }

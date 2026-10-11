@@ -1,6 +1,6 @@
 
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { PlanningError, PlanningUnsupported, WorkcardConflict, type ExecuteOptions, type PlanningExecContext, type PlanningFacade, type PlanningPlugin, type PlanningStore, type Transition, type TransitionExecution, type TransitionReceipt } from '@owlmeans/planning'
+import { applyHelper, PlanningError, PlanningUnsupported, WorkcardConflict, type ExecuteOptions, type PlanningExecContext, type PlanningFacade, type PlanningPlugin, type PlanningStore, type Transition, type TransitionExecution, type TransitionReceipt } from '@owlmeans/planning'
 import { changesUtils } from './executor/changes.js'
 import { codeUtils } from './executor/code.js'
 import { creatorHelper } from './executor/creator.js'
@@ -121,6 +121,9 @@ export const executeTransition = async (
   if (empty) {
     return await currentReceipt(store, resolved, scope.entityId, opts)
   }
+
+  const preview = changesUtils.transitionOf({ exec, resolved, scope, set, cardId, seq: (resolved.card?.seq ?? 0) + 1, at, project: resolve.projectFor(resolved, exec, cardId) })
+  await store.validateProjection?.(resolved.card ?? null, applyHelper.applyTransition(resolved.card, preview), preview)
 
   const seq = await transitions.nextSeq(cardId, resolved.create ? null : exec.expectSeq ?? null)
   if (resolved.create && seq !== 1) {

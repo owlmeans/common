@@ -329,7 +329,7 @@ describe('viable-sdk — the remote API addresses only routes the platform serve
       'setPlatformCredit', 'slot', 'story', 'submitOp',
     ])
     expect(Object.keys(api.config).sort()).toEqual(['get', 'recollect', 'save'])
-    expect(Object.keys(api.account).sort()).toEqual(['branding', 'intent', 'llm', 'notifications', 'privacy', 'tokens'])
+    expect(Object.keys(api.account).sort()).toEqual(['blueprints', 'branding', 'intent', 'llm', 'notifications', 'privacy', 'tokens'])
     expect(Object.keys(api.account.branding).sort()).toEqual(['backfill', 'get', 'save'])
     expect(Object.keys(api.account.llm).sort()).toEqual(['get', 'set'])
     // Listed and revoked — a token is never minted through the connector.

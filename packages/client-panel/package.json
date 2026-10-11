@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-panel",
-  "version": "0.1.18-rc.60",
+  "version": "0.1.18-rc.61",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -45,7 +45,7 @@
   },
   "peerDependencies": {
     "@owlmeans/auth": "^0.1.18-rc.41",
-    "@owlmeans/client-auth": "^0.1.18-rc.60",
+    "@owlmeans/client-auth": "^0.1.18-rc.61",
     "@owlmeans/config": "^0.1.18-rc.44",
     "@owlmeans/i18n": "^0.1.18-rc.39",
     "@owlmeans/router": "^0.1.18-rc.34",
@@ -64,7 +64,7 @@
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
     "@owlmeans/auth": "^0.1.18-rc.41",
-    "@owlmeans/client-auth": "^0.1.18-rc.60",
+    "@owlmeans/client-auth": "^0.1.18-rc.61",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
     "react-hook-form": "^7.89.0",

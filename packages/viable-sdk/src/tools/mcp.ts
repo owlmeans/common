@@ -71,6 +71,7 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
   const { host } = deps
   const cloud = toolHostHelper.cloudTarget(host)
   const families = [
+    'supported stacks and application categories (describe_blueprints)',
     'projects (list_projects, rename_project, delete_project, unlock_project_agent, list_slots)',
     'stories (list_stories, create_story, develop_story)',
     'open-ended changes (modify_project) and planning kits (describe_planning_kits)',
@@ -105,6 +106,8 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     + ' after the first stage rather than before it. A conversion step that would use the plan\'s'
     + ' conversion limit or spend credits answers with what it costs instead of starting: tell the'
     + ' user, and repeat the call with confirm: true only after they agree.',
+    '',
+    'The stock blueprint is owlmeans-fullstack-ts. Cases: web (business web apps, portals and dashboards); scalable (queued services); ai-pipeline (staged AI workflows); ai-agent (tool-using assistants); game (casual, online-turn and online-live games); work-management and work-management-tenanted (project tracking, CRM, service desk, inventory, recruiting, field service and process workflows). The tenanted case supports multiple organization entities. Call describe_blueprints for the deployed registry, category ids and current capabilities before choosing.',
     '',
     'Call describe_platform for what this platform can build and which of it this session can'
     + ' drive, every tool listed by group.',
