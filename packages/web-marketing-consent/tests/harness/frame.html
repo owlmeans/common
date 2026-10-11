@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>@owlmeans/web-marketing-consent framed</title>
+  </head>
+  <body>
+    <iframe id="frame" title="framed marketing consent" width="600" height="700"></iframe>
+    <script>
+      // The marketing-consent screen, framed by a page of the same origin — unlike
+      // @owlmeans/web-oauth's consent screen, this one renders when framed, so this harness only
+      // has to prove that it does.
+      document.getElementById('frame').src = new URLSearchParams(location.search).get('src') || '/'
+    </script>
+  </body>
+</html>

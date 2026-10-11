@@ -1,2 +1,2 @@
 
-export * from './profile.js'
+export * from './schemas.js'

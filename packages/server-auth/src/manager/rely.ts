@@ -1,18 +1,15 @@
 import { assertContext, createService } from '@owlmeans/context'
 import { DEFAULT_RELY } from './consts.js'
 import type { AppContext, RelyService } from './types.js'
-import { AUTH_QUERY, AuthenFailed, AuthenticationType } from '@owlmeans/auth'
-import type { Auth, AuthCredentials, AuthToken } from '@owlmeans/auth'
+import { AUTH_QUERY, AuthenFailed, AuthenticationType, type Auth, type AuthCredentials, type AuthToken } from '@owlmeans/auth'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import { AUTH_CACHE, AUTHEN_TIMEFRAME } from '../consts.js'
 import type { AuthSpent } from '../types.js'
 import type { Resource } from '@owlmeans/resource'
 import { trusted } from './utils/trusted.js'
+import type { Config, Context } from './types.local.js'
 
-type Config = ServerConfig
-type Context = ServerContext<Config>
 
 export const createRelyService = (alias: string = DEFAULT_RELY): RelyService => {
   const _keyPair = async (context: Context) => {

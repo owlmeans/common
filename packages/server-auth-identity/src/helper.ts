@@ -2,18 +2,30 @@ import type { BasicContext } from '@owlmeans/context'
 import { makeIdentityAccountResource, makeIdentityProfileResource, makeIdentityCredentialsResource, makeOrgEntityResource } from './resource.js'
 import { makeIdentityLinkingService } from './service.js'
 import { makeEntityResolverService } from './resolver.js'
+import { makeIdentityEventsService } from './events.js'
+import { AUTH_IDENTITY_EVENTS } from './consts.js'
+import type { IdentityResourcesOptions } from './types.js'
 
+/**
+ * Register the identity store. `opts.service` is this deployment's own app key: the `service` of
+ * the rows its own sign-in (the linking service) writes and answers with.
+ */
 export const appendAuthIdentityResources = (
   context: BasicContext<any>,
-  dbAlias?: string
+  dbAlias?: string,
+  opts: IdentityResourcesOptions = {}
 ): void => {
   context.registerResource(makeIdentityAccountResource(dbAlias))
   context.registerResource(makeIdentityProfileResource(dbAlias))
   context.registerResource(makeIdentityCredentialsResource(dbAlias))
   context.registerResource(makeOrgEntityResource(dbAlias))
-  context.registerService(makeIdentityLinkingService())
+  context.registerService(makeIdentityLinkingService(opts))
   // Registering the resolver is what tells the server boundary that this deployment HAS
   // organizations: without it `request.entity` stays undefined and every consumer falls back to
   // treating the token's slug as the only entity value there is.
   context.registerService(makeEntityResolverService())
+  // Behind `hasService`, so an application that registered its own events service first keeps it.
+  if (!context.hasService(AUTH_IDENTITY_EVENTS)) {
+    context.registerService(makeIdentityEventsService())
+  }
 }

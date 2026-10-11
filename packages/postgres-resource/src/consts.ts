@@ -1,7 +1,14 @@
 
 export const DEFAULT_DB_ALIAS = 'postgres'
 
-export const DEFAULT_PAGE_SIZE = 10
+/**
+ * Rows `list()` returns when the caller names no `size`.
+ *
+ * A relational table is unbounded, so an unpaged read is a production incident waiting for
+ * the row count to grow. Asking for everything stays possible — and greppable — as
+ * `list(where, { size: 0 })`.
+ */
+export const DEFAULT_PAGE_SIZE = 100
 
 /**
  * Table that records which code-registered migrations have already been applied.
@@ -12,6 +19,13 @@ export const DEF_MIGRATIONS_TABLE = '_owlmeans_migrations'
 
 /** JSON Schema keyword carrying the Postgres specific overrides. */
 export const PG_KEYWORD = 'pg'
+
+/**
+ * AJV keyword registration for consumers running in strict mode. The mapper reads the raw
+ * schema object and never validates through AJV, so this is purely to stop strict mode
+ * rejecting a schema that carries `pg` overrides.
+ */
+export const pgKeyword = { keyword: PG_KEYWORD, valid: true }
 
 /** Postgres `NAMEDATALEN - 1`. Identifiers past this are silently truncated by the server. */
 export const PG_MAX_IDENTIFIER = 63

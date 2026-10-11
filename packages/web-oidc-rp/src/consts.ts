@@ -2,6 +2,15 @@
 export const DEFAULT_ALIAS = 'oidc-rp'
 
 /**
+ * The single generic sign-in method offered when the browser knows of no provider by name.
+ *
+ * That is the ordinary case for a generated application: `oidc` is not advertised by the
+ * api-config server, so its browser has no provider list at all, and the server's own default
+ * selection is what decides which issuer the flow reaches.
+ */
+export const OIDC_LOGIN_METHOD = 'oidc'
+
+/**
  * The surrogate-window protocol values.
  *
  * @deprecated Import the `LOGIN_*` names from `@owlmeans/client-auth/login`. These are re-exported

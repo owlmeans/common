@@ -1,18 +1,7 @@
 import { appendContextual } from './helper.js'
-import type { Contextual, InitializedService, LazyService, Service } from './types.js'
-
-enum TypeToMethod {
-  Lazy = 'lazyInit',
-  Initialized = 'init'
-}
-
-export interface InitMethod<S extends Service> {
-  (service: S): () => Promise<void>
-}
-
-interface CreateService<S extends Service> {
-  (alias: string, service: Partial<S>, init?: InitMethod<S>): S
-}
+import type { Contextual, InitializedService, LazyService, Service, InitMethod } from './types.js'
+import { TypeToMethod } from './consts.local.js'
+import type { CreateService } from './types.local.js'
 
 const _createService = <S extends Service>(type: TypeToMethod): CreateService<S> => (alias, service, init) => {
   if (service.registerContext == null) {

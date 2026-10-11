@@ -7,6 +7,14 @@ import { base58 } from '@scure/base'
 import type { RelyOptions } from './types.js'
 import { RELY_CALL_TIMEOUT } from '@owlmeans/auth-common'
 
+const toNumber = (bytes: Uint8Array): string => {
+  let pinInt = 0n
+  for (let i = bytes.length - 1; i >= 0; i--) {
+    pinInt = (pinInt << 8n) | BigInt(bytes[i]);
+  }
+  return pinInt.toString()
+}
+
 export const makeRelyModel = (opts?: RelyOptions): EnvelopeModel<RelyToken> => {
   const envelope = makeEnvelopeModel<RelyToken>(RELY_3RD)
 
@@ -32,12 +40,4 @@ export const makeRelyModel = (opts?: RelyOptions): EnvelopeModel<RelyToken> => {
   }, opts?.liveTime ?? RELY_CALL_TIMEOUT * 1000)
 
   return envelope
-}
-
-const toNumber = (bytes: Uint8Array): string => {
-  let pinInt = 0n
-  for (let i = bytes.length - 1; i >= 0; i--) {
-    pinInt = (pinInt << 8n) | BigInt(bytes[i]);
-  }
-  return pinInt.toString()
 }

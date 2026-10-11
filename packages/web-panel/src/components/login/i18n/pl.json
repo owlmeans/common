@@ -1,0 +1,10 @@
+{
+  "login": {
+    "provider": {
+      "title": "Zaloguj się do {{product}}",
+      "top": "Ta aplikacja jest hostowana przez {{operator}} w imieniu {{product}}. Logujesz się przez {{provider}}.",
+      "inline": "Logowanie zapewnia {{provider}} w imieniu {{product}}.",
+      "more": "Więcej informacji"
+    }
+  }
+}
