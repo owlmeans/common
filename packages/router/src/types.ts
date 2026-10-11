@@ -1,5 +1,6 @@
 import type { LazyService, BasicContext } from "@owlmeans/context"
 import type { ComponentType } from 'react'
+import type { SegmentKind } from './types.local.js'
 export type { ComponentType }
 
 export type LibraryRouter = unknown
@@ -116,4 +117,25 @@ export interface SetSearchParams {
 
 export interface UseSearchParamsHook {
   (init?: URLSearchParams | Record<string, string>): [URLSearchParams, SetSearchParams]
+}
+
+export interface PatternSegment {
+  kind: SegmentKind
+  /** literal value for static, param name for param */
+  value: string
+}
+
+export interface RouteBranch {
+  /** root → node chain; drives outlet depth in the renderer */
+  chain: RouteObject[]
+  segments: PatternSegment[]
+  /** true when the terminal node is an index route */
+  index: boolean
+  score: number
+}
+
+export interface RouteMatch {
+  route: RouteObject
+  params: RouteParams
+  pathname: string
 }

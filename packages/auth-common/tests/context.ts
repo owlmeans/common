@@ -1,4 +1,4 @@
-import { AppType, Layer, makeBasicContext } from '@owlmeans/context'
+import { AppType, makeBasicContext } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { makeMemoryTrustedResource, makeFixtureKeyPair } from '@owlmeans/test-auth'
 import type { TrustedRecord } from '@owlmeans/auth-common'
@@ -38,7 +38,6 @@ export const makeTrustFixture = (
   const ctx = makeBasicContext<BasicConfig>({
     ready: false,
     service: 'auth-common-tests',
-    layer: Layer.Service,
     type: AppType.Backend,
   })
 

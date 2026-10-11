@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.react.json"
+  ],
+  "compilerOptions": {
+    "types": ["bun"],
+    "rootDir": "../",
+    "noEmit": true
+  },
+  "include": ["./**/*", "../src/**/*"]
+}

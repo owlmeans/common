@@ -1,11 +1,11 @@
-import { ed25519 } from '@noble/curves/ed25519'
+import { ed25519 } from '@noble/curves/ed25519.js'
 import type { KeyPlugin } from '@owlmeans/basic-keys/plugins'
 import { KEY_OWL } from '../consts.js'
 import { base58, utf8 } from '@scure/base'
-import { concatBytes, randomBytes } from '@noble/hashes/utils'
-import { hmac } from '@noble/hashes/hmac'
-import { sha512 } from '@noble/hashes/sha512'
-import { keccak_256 } from '@noble/hashes/sha3'
+import { concatBytes, randomBytes } from '@noble/hashes/utils.js'
+import { hmac } from '@noble/hashes/hmac.js'
+import { sha512 } from '@noble/hashes/sha2.js'
+import { keccak_256 } from '@noble/hashes/sha3.js'
 
 export const ed25519owlPluginBuilder = (type: string = KEY_OWL): KeyPlugin => {
   const key: KeyPlugin = {

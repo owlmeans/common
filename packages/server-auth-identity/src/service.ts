@@ -1,28 +1,27 @@
 import { appendContextual } from '@owlmeans/context'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import type { AuthCredentials, AuthPayload, Profile } from '@owlmeans/auth'
-import { ALL_SCOPES, AuthRole } from '@owlmeans/auth'
+import { type AuthCredentials, type AuthPayload, type Profile, ALL_SCOPES } from '@owlmeans/auth'
 import type { ProviderProfileDetails } from '@owlmeans/oidc'
-import { createIdOfLength, IdStyle } from '@owlmeans/basic-ids'
-import type { AccountMeta, IdentityAccountResource, IdentityProfileResource, IdentityCredentialsResource, IdentityLinkingService } from './types.js'
-import type { OrgEntity, OrgEntityResource } from './types.js'
-import type { EntityResolverService } from '@owlmeans/auth-common'
-import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
-import { AUTH_IDENTITY_ACCOUNT, AUTH_IDENTITY_PROFILE, AUTH_IDENTITY_CREDENTIALS, AUTH_IDENTITY_LINKING, AUTH_IDENTITY_ORG_ENTITY, LOGIN_SERVICE_PREFIX, EXTERNAL_KEY_DELIMITER } from './consts.js'
+import type { Criteria } from '@owlmeans/resource'
+import type { AccountMeta, IdentityAccountResource, IdentityProfileResource, IdentityCredentialsResource, IdentityLinkingService, IdentityResourcesOptions, IdentityCredentials, IdentityProfile } from './types.js'
+import { type EntityResolverService, ENTITY_RESOLVER } from '@owlmeans/auth-common'
+import {
+  AUTH_IDENTITY_ACCOUNT, AUTH_IDENTITY_PROFILE, AUTH_IDENTITY_CREDENTIALS, AUTH_IDENTITY_LINKING, DEFAULT_APP_SERVICE,
+} from './consts.js'
+import { identityEvents } from './events.js'
+import { identityOf } from './identity.js'
+import { identityKeyHelper } from './keys.js'
+import { logger } from '@owlmeans/log'
+import type { ServiceContext } from './types.local.js'
 
-type Context = ServerContext<ServerConfig>
+const log = logger('server-auth-identity')
 
-const MAX_SLUG_RETRIES = 5
+/**
+ * The deployment's own sign-in over the identity store: every payload names the row of THIS
+ * deployment's app (`opts.service`) in the account's main organization.
+ */
+export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}): IdentityLinkingService => {
+  const app = opts.service ?? DEFAULT_APP_SERVICE
 
-// Stable external login key: "{type}:{service}:{providerSub}"
-const externalKey = (details: ProviderProfileDetails): string =>
-  [details.type, details.service, details.userId].join(EXTERNAL_KEY_DELIMITER)
-
-// Login-service credential stored on profile and credentials: "service:{type}:{service}"
-const loginService = (details: ProviderProfileDetails): string =>
-  [LOGIN_SERVICE_PREFIX, details.type, details.service].join(EXTERNAL_KEY_DELIMITER)
-
-export const makeIdentityLinkingService = (): IdentityLinkingService => {
   /**
    * The wire value for a stored entity id.
    *
@@ -30,191 +29,140 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
    * carry the slug. An id that no longer resolves yields undefined rather than leaking the raw
    * id onto the wire, where a consumer would mistake it for a slug and compose names from it.
    */
-  const slugOf = async (entityId?: string): Promise<string | undefined> => {
-    if (entityId == null || entityId === '') return undefined
-    const ctx = service.ctx as Context
+  const slugOf = async (entityId: string): Promise<string | undefined> => {
+    const ctx = service.ctx as ServiceContext
     const entity = await ctx.service<EntityResolverService>(ENTITY_RESOLVER).byId(entityId)
 
     return entity?.slug
   }
 
+  const payloadOf = async (type: string, profile: IdentityProfile): Promise<AuthPayload> => ({
+    type,
+    role: profile.role,
+    userId: profile.userId,
+    profileId: profile.profileId,
+    entitySlug: await slugOf(profile.entityId),
+    scopes: profile.scopes,
+  })
+
   const service: IdentityLinkingService = appendContextual<IdentityLinkingService>(AUTH_IDENTITY_LINKING, {
     getLinkedProfile: async (details: ProviderProfileDetails): Promise<AuthPayload | null> => {
-      const ctx = service.ctx as Context
-      const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
+      const ctx = service.ctx as ServiceContext
+      const account = (await identityOf(ctx).credentialOf(details))?.account
+      if (account == null) return null
 
-      const { items: creds } = await credsResource.list({
-        criteria: {
-          type: details.type,
-          userId: externalKey(details),
-          credential: loginService(details),
-        }
+      // A method that is linked but has no row of THIS app yet answers "not linked": the caller's
+      // `linkProfile` then writes the row, on the account the method already belongs to.
+      const profile = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE).load({
+        profileId: identityKeyHelper.profileIdOf(app, account.id), entityId: account.entityId,
       })
-      const cred = creds[0] ?? null
-      if (cred == null) return null
 
-      const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-      const profile = await profileResource.load(cred.profileId, 'profileId')
-      if (profile == null) return null
-
-      return {
-        type: details.type,
-        role: profile.role,
-        userId: profile.userId ?? profile.profileId,
-        profileId: profile.profileId,
-        entitySlug: await slugOf(profile.entityId),
-        scopes: profile.scopes,
-      }
+      return profile != null ? await payloadOf(details.type, profile) : null
     },
 
     linkProfile: async (details: ProviderProfileDetails, meta: AccountMeta): Promise<AuthPayload> => {
-      const ctx = service.ctx as Context
-      const accountResource = ctx.resource<IdentityAccountResource>(AUTH_IDENTITY_ACCOUNT)
-      const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-      const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
-      const entityResource = ctx.resource<OrgEntityResource>(AUTH_IDENTITY_ORG_ENTITY)
-      const resolver = ctx.service<EntityResolverService>(ENTITY_RESOLVER)
-
-      // Every account gets its own organization. The entity record is created FIRST because it
-      // owns the two values that outlive everything else here: the id the account and its profiles
-      // are keyed by, and the frozen `iamKey` that realms and object names are minted from.
-      const entity: OrgEntity = await entityResource.create({
-        slug: await resolver.mintSlug(),
-        formerSlugs: [],
-        // Frozen at birth and never recomputed. It cannot be the slug — the slug moves — and it
-        // cannot be the record id, which does not exist until this create returns.
-        iamKey: createIdOfLength(16, IdStyle.Base58),
-        names: {},
-        createdAt: new Date(),
+      const ctx = service.ctx as ServiceContext
+      const { account, registered } = await identityOf(ctx).ensureAccount({
+        email: meta.username, ...(details.username != null ? { name: details.username } : {}),
+      }, details)
+      // The person is the owner of their personal organization — and, for a deployment's own app,
+      // its user with every scope there.
+      const profile = await identityOf(ctx).ensureProfile({
+        account, service: app, entityId: account.entityId, owner: true, scopes: [ALL_SCOPES],
       })
-      const entityId = entity.id!
 
-      let accountId: string | null = null
-      for (let i = 0; i < MAX_SLUG_RETRIES; i++) {
-        const credential = createIdOfLength(16, IdStyle.Base58)
-        try {
-          const account = await accountResource.create({
-            credential,
-            name: meta.username,
-            entityId,
-          })
-          accountId = account.id
-          break
-        } catch (err: any) {
-          if (err?.code === 11000 || err?.message?.includes('duplicate')) continue
-          throw err
-        }
-      }
-
-      if (accountId == null) {
-        throw new Error('Failed to generate unique account credential after retries')
-      }
-
-      const profileId = [details.type, accountId].join(EXTERNAL_KEY_DELIMITER)
-      const svc = loginService(details)
-
-      let profile
-      try {
-        profile = await profileResource.create({
-          profileId,
-          userId: accountId,
-          credential: svc,
-          role: AuthRole.User,
-          name: meta.username,
-          entityId,
-          scopes: [ALL_SCOPES],
+      // A registration is complete once the owner row exists, so this is where it is announced.
+      // Listeners are awaited and never throw (the service logs them).
+      if (registered != null) {
+        await identityEvents(ctx)?.propagateEntityCreated({
+          entityId: registered.id!,
+          entitySlug: registered.slug,
+          iamKey: registered.iamKey,
+          accountId: account.id,
+          profileId: profile.profileId,
+          username: account.email,
+          type: details.type,
+          service: details.service,
+          profileService: app,
+          createdAt: registered.createdAt,
         })
-      } catch (err: any) {
-        if (err?.code === 11000 || err?.message?.includes('duplicate')) {
-          profile = await profileResource.get(profileId, 'profileId')
-        } else {
-          throw err
-        }
       }
 
-      await credsResource.create({
-        challenge: '',
-        type: details.type,
-        userId: externalKey(details),
-        profileId,
-        credential: svc,
-      })
-
-      return {
-        type: details.type,
-        role: profile.role,
-        userId: profile.userId ?? profile.profileId,
-        profileId: profile.profileId,
-        entitySlug: await slugOf(profile.entityId),
-        scopes: profile.scopes,
-      }
+      return await payloadOf(details.type, profile)
     },
 
     linkCredentials: async (details: ProviderProfileDetails): Promise<AuthPayload> => {
+      const ctx = service.ctx as ServiceContext
+      if (details.profileId != null) {
+        const row = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
+          .load({ profileId: details.profileId })
+        const account = row != null
+          ? await ctx.resource<IdentityAccountResource>(AUTH_IDENTITY_ACCOUNT).load(row.userId)
+          : null
+        if (account == null) {
+          throw new Error('Cannot link credentials: profile not found')
+        }
+        const linked = (await identityOf(ctx).credentialOf(details))?.account
+        if (linked != null && linked.id !== account.id) {
+          log.warn('Credential link refused: the method signs into another account', {
+            method: details.type, service: details.service, accountId: account.id, reason: 'linked-elsewhere',
+          }, { event: 'auth.refused' })
+          throw new Error('Cannot link credentials: the method signs into another account')
+        }
+        // By the account's own address, so the method is attached to exactly this account.
+        await identityOf(ctx).ensureAccount({ email: account.email }, details)
+      }
+
       const result = await service.getLinkedProfile(details)
       if (result == null) {
         throw new Error('Cannot link credentials: profile not found')
       }
 
-      if (details.profileId != null) {
-        const ctx = service.ctx as Context
-        const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
-        await credsResource.create({
-          challenge: '',
-          type: details.type,
-          userId: externalKey(details),
-          profileId: details.profileId,
-          credential: loginService(details),
-        })
-      }
-
       return result
     },
 
-    getOwnerProfiles: async (entityId: string): Promise<Profile[]> => {
-      const ctx = service.ctx as Context
-      const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-      const { items: profiles } = await profileResource.list({ criteria: { entityId } })
+    unlinkCredentials: async (details: ProviderProfileDetails): Promise<void> => {
+      const ctx = service.ctx as ServiceContext
+      const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
+      const cred = await credsResource.load(identityKeyHelper.credentialKeyOf(details))
+      if (cred?.id == null) return
+      await credsResource.delete(cred.id)
+    },
 
-      return await Promise.all(profiles.map(async p => ({
+    getOwnerProfiles: async (entityId: string): Promise<Profile[]> => {
+      const ctx = service.ctx as ServiceContext
+      const { items: profiles } = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
+        .list({ entityId, service: app }, { size: 0 })
+      const entitySlug = await slugOf(entityId)
+
+      return profiles.map(p => ({
         id: p.profileId,
         name: p.name,
-        credential: p.credential,
-        entitySlug: await slugOf(p.entityId),
+        entitySlug,
         scopes: p.scopes,
         groups: p.groups,
         permissions: p.permissions,
         attributes: p.attributes,
-      })))
+      }))
     },
 
     getOwnerCredentials: async (userId: string, entityId?: string, type?: string): Promise<AuthCredentials | undefined> => {
-      const ctx = service.ctx as Context
-      const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-      const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
+      const ctx = service.ctx as ServiceContext
+      const account = await ctx.resource<IdentityAccountResource>(AUTH_IDENTITY_ACCOUNT).load(userId)
+      if (account == null) return undefined
 
-      const profileFilter: Record<string, unknown> = { userId }
-      if (entityId != null) profileFilter.entityId = entityId
-      const { items: profiles } = await profileResource.list(profileFilter as any)
-      if (profiles.length === 0) return undefined
+      const profile = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE).load({
+        profileId: identityKeyHelper.profileIdOf(app, account.id), entityId: entityId ?? account.entityId,
+      })
+      if (profile == null) return undefined
 
-      const credsFilter: Record<string, unknown> = {
-        profileId: { $in: profiles.map(p => p.profileId) }
-      }
+      const credsFilter: Criteria<IdentityCredentials> = { accountId: account.id }
       if (type != null) credsFilter.type = type
-      const { items: creds } = await credsResource.list(credsFilter as any)
-      if (creds.length === 0) return undefined
-
-      const cred = creds[0]
-      const profile = profiles.find(p => p.profileId === cred.profileId) ?? profiles[0]
+      const cred = await ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS).load(credsFilter)
+      if (cred == null) return undefined
 
       return {
-        type: cred.type,
-        role: profile.role,
-        userId: profile.userId ?? profile.profileId,
-        profileId: profile.profileId,
-        entitySlug: await slugOf(profile.entityId),
-        scopes: profile.scopes,
+        ...await payloadOf(cred.type, profile),
         challenge: cred.challenge,
         credential: cred.credential,
         publicKey: cred.publicKey,

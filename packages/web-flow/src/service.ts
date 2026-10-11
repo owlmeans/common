@@ -28,11 +28,10 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
     const param = cfg.queryParam ?? QUERY_PARAM
 
     const module = ctx.entrypoint<ClientEntrypoint<string>>(step.module)
-    const [url] = await module.call<string>({
+    const url = await module.url({
       ...req,
-      params: { ...req?.params, [param]: flow.serialize() },
-      full: true
-    })
+      params: { ...req?.params, [param]: flow.serialize() }
+    }, { absolute: true })
 
     // const params = new URLSearchParams(req?.query ?? {})
     // params.set(param, flow.serialize())

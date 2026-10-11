@@ -1,10 +1,9 @@
-import { AppType, Layer, makeBasicContext } from '@owlmeans/context'
+import { AppType, makeBasicContext } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 
 const baseConfig = (): BasicConfig => ({
   ready: false,
   service: 'test-context',
-  layer: Layer.Service,
   type: AppType.Backend,
 })
 
