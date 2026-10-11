@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/web-inquiry",
+  "version": "0.1.18-rc.1",
+  "generatedAt": "2026-10-09T11:30:42.748Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-inquiry",
+      "category": "package-specific",
+      "file": "skills/web-inquiry/SKILL.md",
+      "canonicalPath": ".agents/skills/web-inquiry/SKILL.md"
+    }
+  ]
+}

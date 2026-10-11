@@ -1,13 +1,13 @@
 import { KeyType } from '../consts.js'
 import type { KeyPlugin } from './types.js'
-import { ed25519 } from '@noble/curves/ed25519'
+import { ed25519 } from '@noble/curves/ed25519.js'
 import { base58 } from '@scure/base'
-import { keccak_256 } from '@noble/hashes/sha3'
+import { keccak_256 } from '@noble/hashes/sha3.js'
 
 export const ed25519Plugin: KeyPlugin = {
   type: KeyType.ED25519,
 
-  random: () => ed25519.utils.randomPrivateKey(),
+  random: () => ed25519.utils.randomSecretKey(),
 
   sign: (data, pk) => ed25519.sign(data, pk),
 

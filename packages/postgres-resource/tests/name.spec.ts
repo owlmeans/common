@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import type { DbConfig, ResourceRecord } from '@owlmeans/resource'
 
-import {
-  advisoryKey, assertSqlIdentifier, pgIdentifier, pgTableName, qualify, quoteIdent, quoteLiteral
-} from '@owlmeans/postgres-resource'
+import { pgNameHelper } from '@owlmeans/postgres-resource'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
+
+const {
+  advisoryKey, assertSqlIdentifier, pgIdentifier, pgTableName, qualify, quoteIdent, quoteLiteral
+} = pgNameHelper
 
 const resource = (alias: string, name?: string): PostgresResource<ResourceRecord> =>
   ({ alias, ...(name != null ? { name } : {}) }) as PostgresResource<ResourceRecord>
@@ -19,9 +21,9 @@ describe('@owlmeans/postgres-resource — identifiers', () => {
   })
 
   /**
-   * Postgres truncates past `NAMEDATALEN - 1` server side and says nothing. Truncating here
-   * instead keeps the hash that made the name unique — the shared `dbName()` overflow path
-   * appends its disambiguator past byte 63, where the server would cut it off.
+   * Postgres truncates past `NAMEDATALEN - 1` server side and says nothing, which would let
+   * two names differing only beyond byte 63 collapse into one identifier. Clamping here
+   * instead keeps the hash suffix that tells them apart inside the limit.
    */
   test('keeps an overlong name unique inside the 63 byte limit', () => {
     const long = 'a'.repeat(200)

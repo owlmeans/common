@@ -1,5 +1,5 @@
 import type { LibraryRouter, RouterPlugin } from '@owlmeans/router'
-import { flattenRoutes, rankRouteBranches } from '@owlmeans/router'
+import { routeMatcherHelper } from '@owlmeans/router'
 import { BROWSER_ROUTER } from '../consts.js'
 import { BrowserRouterProvider } from './provider.js'
 import { Outlet } from './outlet.js'
@@ -18,7 +18,7 @@ export const makeBrowserRouterPlugin = (): RouterPlugin => ({
   match: () => true,
   compile: routes => ({
     routes,
-    branches: rankRouteBranches(flattenRoutes(routes))
+    branches: routeMatcherHelper.rankRouteBranches(routeMatcherHelper.flattenRoutes(routes))
   } satisfies OwlLibraryRouter as LibraryRouter),
   provider: () => BrowserRouterProvider,
   outlet: () => Outlet,

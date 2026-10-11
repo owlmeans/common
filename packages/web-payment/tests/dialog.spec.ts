@@ -1,0 +1,139 @@
+import { afterAll, describe, expect, test } from 'bun:test'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
+import { closeHarness, harnessUrl } from './context.js'
+
+const TIMEOUT = 60_000
+
+afterAll(async () => {
+  await browserHelper.closeBrowser()
+  await closeHarness()
+})
+
+describe('AmountCheckoutDialog', () => {
+  test('renders application details and allows cancel when application reads are unavailable', async () => {
+    const { page, close } = await mountComponent({ url: `${await harnessUrl()}?details=true&disabled=true` })
+    try {
+      await page.locator('[data-amount-details] [data-test-details]').waitFor()
+      expect(await page.getByLabel('Custom amount').isDisabled()).toBe(true)
+      expect(await page.getByRole('button', { name: 'Continue to Stripe' }).isDisabled()).toBe(true)
+      expect(await page.getByRole('button', { name: 'Cancel' }).isDisabled()).toBe(false)
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('puts the limit note in the side column with the details, and above the presets without them', async () => {
+    const withDetails = await mountComponent({ url: `${await harnessUrl()}?limit=true&details=true` })
+    try {
+      await withDetails.page.locator('[data-amount-details] [data-checkout-limit]').waitFor()
+      expect(await withDetails.page.locator('[data-amount-details] > *').first().getAttribute('data-checkout-limit')).not.toBeNull()
+    } finally { await withDetails.close() }
+
+    const alone = await mountComponent({ url: `${await harnessUrl()}?limit=true` })
+    try {
+      await alone.page.locator('[data-checkout-limit]').waitFor()
+      expect(await alone.page.locator('[data-amount-details]').count()).toBe(0)
+    } finally { await alone.close() }
+  }, TIMEOUT)
+
+  test('renders presets and the net, adjustment, and pre-tax amounts', async () => {
+    const { page, close } = await mountComponent({ url: await harnessUrl() })
+    try {
+      const dialog = page.getByRole('dialog')
+      await dialog.waitFor()
+      for (const amount of ['$10.00', '$20.00', '$50.00', '$100.00']) {
+        await expect(dialog.getByRole('button', { name: amount }).count()).resolves.toBe(1)
+      }
+      expect(await dialog.innerText()).toContain('Credit value')
+      expect(await dialog.innerText()).toContain('Processing adjustment')
+      expect(await dialog.innerText()).toContain('$0.21')
+      expect(await dialog.innerText()).toContain('$10.21')
+      expect(await dialog.innerText()).toContain('Stripe calculates any applicable tax')
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('keeps custom cents, reports both bounds without clamping, and submits minor units', async () => {
+    const { page, close } = await mountComponent({ url: await harnessUrl() })
+    try {
+      const input = page.getByLabel('Custom amount')
+      const confirm = page.getByRole('button', { name: 'Continue to Stripe' })
+
+      await input.fill('4.99')
+      expect(await input.getAttribute('aria-invalid')).toBe('true')
+      expect(await confirm.isDisabled()).toBe(true)
+      expect(await page.getByText('The minimum amount is $5.00.').count()).toBe(1)
+
+      await input.fill('500.01')
+      expect(await input.inputValue()).toBe('500.01')
+      expect(await page.getByText('The maximum amount is $500.00.').count()).toBe(1)
+
+      await input.fill('5.01')
+      expect(await input.getAttribute('aria-invalid')).toBe('false')
+      await confirm.click()
+      expect(await page.locator('#confirmed').textContent()).toBe('501')
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('disables changes while pending and closes on cancel otherwise', async () => {
+    const pendingMount = await mountComponent({ url: `${await harnessUrl()}?pending=true` })
+    try {
+      expect(await pendingMount.page.getByLabel('Custom amount').isDisabled()).toBe(true)
+      expect(await pendingMount.page.getByRole('button', { name: 'Opening checkout…' }).isDisabled()).toBe(true)
+      expect(await pendingMount.page.getByRole('button', { name: 'Cancel' }).isDisabled()).toBe(true)
+    } finally { await pendingMount.close() }
+
+    const readyMount = await mountComponent({ url: await harnessUrl() })
+    try {
+      await readyMount.page.getByRole('button', { name: 'Cancel' }).click()
+      expect(await readyMount.page.getByRole('dialog').count()).toBe(0)
+      expect(await readyMount.page.locator('#dialog-state').textContent()).toBe('closed')
+    } finally { await readyMount.close() }
+  }, TIMEOUT)
+
+  test('a Stripe Tax estimate replaces the plain tax note with the country and the rate, converted to the local currency', async () => {
+    const { page, close } = await mountComponent({ url: `${await harnessUrl()}?estimate=pl` })
+    try {
+      const dialog = page.getByRole('dialog')
+      await dialog.waitFor()
+      const text = await dialog.innerText()
+      expect(text).not.toContain('Stripe calculates any applicable tax')
+      expect(text).toContain('Poland')
+      expect(text).toContain('VAT (23%)')
+      // PLN replaces USD outright once a local currency is known — never both figures at once.
+      // Intl.NumberFormat separates an ISO-code currency (no locale symbol for PLN in "en") from
+      // the amount with a NO-BREAK SPACE (U+00A0), not a plain space.
+      expect(text).not.toContain('$2.35')
+      expect(text).not.toContain('$12.56')
+      expect(text).toContain('≈ PLN 9.40')
+      expect(text).toContain('≈ PLN 50.24')
+      expect(text).toContain("Converted at Stripe's current exchange rate")
+      expect(text).toContain('Tax is included in the estimated total below.')
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('shows the reverse-charge sentence and zero added tax for a valid cross-border VAT id', async () => {
+    const { page, close } = await mountComponent({ url: `${await harnessUrl()}?estimate=reverse` })
+    try {
+      const text = await page.getByRole('dialog').innerText()
+      expect(text).toContain('Germany')
+      expect(text).toContain('$10.21')
+      expect(text).toContain('your VAT ID means you account for this tax yourself')
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('falls back to "computed at checkout" wording with no numeric tax row when Stripe cannot resolve a rate', async () => {
+    const { page, close } = await mountComponent({ url: `${await harnessUrl()}?estimate=at-checkout` })
+    try {
+      const text = await page.getByRole('dialog').innerText()
+      expect(text).toContain('The exact tax is calculated at checkout.')
+      expect(text).not.toContain('Estimated total')
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('asks for a country before showing any estimate', async () => {
+    const { page, close } = await mountComponent({ url: `${await harnessUrl()}?estimate=location-required` })
+    try {
+      const text = await page.getByRole('dialog').innerText()
+      expect(text).toContain('Choose your billing country to see an estimate.')
+      expect(text).not.toContain('Estimated total')
+    } finally { await close() }
+  }, TIMEOUT)
+})

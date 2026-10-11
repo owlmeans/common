@@ -1,11 +1,11 @@
 import type { Auth } from '@owlmeans/auth'
-import { entitySlugOf } from '@owlmeans/auth'
 import type { StateResource } from '@owlmeans/client-flow'
 import { EXTRA_FLOW, FLOW_STATE } from '@owlmeans/client-flow'
 import type { AppConfig, AppContext } from '@owlmeans/web-client'
 import Cookies from 'universal-cookie'
 import { OidcAuthState } from './consts.js'
 import type { AuthStateProperties, OidcAuthStateModel, OidcInteraction, WithSharedConfig } from './types.js'
+import { authHelper } from '@owlmeans/auth'
 
 const stateCache: Record<string, AuthStateProperties> = {}
 export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>(
@@ -86,7 +86,7 @@ export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>
         model.state.add(OidcAuthState.Authenticated)
       }
 
-      if (model.entityId === entitySlugOf(user)) {
+      if (model.entityId === authHelper.entitySlugOf(user)) {
         model.state.add(OidcAuthState.SameEntity)
       }
 

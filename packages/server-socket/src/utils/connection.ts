@@ -5,11 +5,13 @@ import {
   SocketUnsupported, createBasicConnection, MessageType, SocketInitializationError, SocketUnauthorized
 } from '@owlmeans/socket'
 import { AbstractRequest } from '@owlmeans/entrypoint'
-import { AuthenticationStage, AUTH_QUERY } from '@owlmeans/auth'
+import { AuthenticationStage, AUTH_QUERY, authHelper } from '@owlmeans/auth'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
-import { isAuth, isAuthCredentials, isAuthToken } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { AuthServiceAppend } from '@owlmeans/server-auth'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-socket')
 
 export const makeConnection = <C extends Config, T extends Context<C> = Context<C>>(
   request: AbstractRequest<WebSocket>, context: T
@@ -17,10 +19,16 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
   if (request.body == null) {
     throw new SocketInitializationError('request')
   }
-  let auth: Auth | AuthCredentials | null | undefined = undefined
+  let auth: Auth | AuthCredentials | null | undefined = request.auth
   const conn = request.body
 
   const model = createBasicConnection()
+  model.requiresAuthentication = true
+  if (request.auth != null) {
+    // The HTTP guard already authenticated this upgrade. In-band authentication remains required
+    // for unguarded socket routes before any call, request, event, or message can be dispatched.
+    model.stage = AuthenticationStage.Authenticated
+  }
 
   model.close = async () => {
     await conn.close()
@@ -37,7 +45,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
   // @TODO This method is fully supported only by authentication services
   model.authenticate = async (stage, payload) => {
     if (AuthenticationStage.Authenticate === stage) {
-      if (isAuthToken(payload)) {
+      if (authHelper.isAuthToken(payload)) {
         const ctx = context as AuthServiceAppend & T
         const _auth = await ctx.auth().authenticate(payload)
         if (_auth == null) {
@@ -48,7 +56,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
 
         return [AuthenticationStage.Authenticated, _auth as any]
       }
-      if (isAuth(payload)) {
+      if (authHelper.isAuth(payload)) {
         auth = payload
 
         return [stage, auth as any]
@@ -71,7 +79,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
         if (authorization != null) {
           const envelope = makeEnvelopeModel<Auth | AuthCredentials>(authorization, EnvelopeKind.Token)
           const _auth = envelope.message()
-          if (isAuth(_auth) || isAuthCredentials(_auth)) {
+          if (authHelper.isAuth(_auth) || authHelper.isAuthCredentials(_auth)) {
             auth = _auth
           }
         }
@@ -97,7 +105,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
     return message
   }
 
-  const messageHandler = async (_message: Buffer | Buffer[]) => {
+  const receiveMessage = async (_message: Buffer | Buffer[]) => {
     _message = Array.isArray(_message) ? _message : [_message]
     const message = _message.map(msg => msg.toString('utf8')).join('')
 
@@ -105,20 +113,28 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
       try {
         const parsed = JSON.parse(message)
         if (parsed.type === 'ping') {
-          console.log("Received soft ping, sending pong.")
           conn.pong()
           conn.send(JSON.stringify({ type: 'pong' }))
+          return
         }
-      } catch (e) {
-        console.error(e)
+      } catch {
+        // The shared parser below returns the typed malformed-frame error.
       }
     }
 
     await model.receive(message)
   }
 
+  // EventEmitter does not consume a returned promise. Keep the registered callback synchronous
+  // and terminate only this socket when parsing, staging, or dispatch rejects.
+  const messageHandler = (_message: Buffer | Buffer[]) => {
+    void receiveMessage(_message).catch(error => {
+      log.debug('WebSocket message rejected', { error })
+      conn.close(1008)
+    })
+  }
+
   conn.on("ping", () => {
-    console.log("Received hard ping, sending pong.")
     conn.pong()
   })
 
@@ -133,7 +149,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
     })
   })
 
-  const closeHandler = async (code: number) => {
+  const handleClose = async (code: number) => {
     const msg: EventMessage<{ code: number }> = {
       type: MessageType.System,
       event: 'close',
@@ -142,9 +158,21 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
     if (model.prepare != null) {
       model.prepare(msg)
     }
-    await Promise.all(model.getListeners().map(async listener => listener(msg)))
+    await Promise.all(model.getListeners().map(async listener => {
+      try {
+        await listener(msg)
+      } catch (error) {
+        log.error('Socket close listener failed', { error })
+      }
+    }))
     conn.off('message', messageHandler)
     conn.off('close', closeHandler)
+  }
+
+  const closeHandler = (code: number) => {
+    void handleClose(code).catch(error => {
+      log.error('WebSocket close handling failed', { error })
+    })
   }
 
   conn.on('message', messageHandler)
