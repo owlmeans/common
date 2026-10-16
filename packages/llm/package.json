@@ -54,7 +54,7 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.131.0",
+    "@anthropic-ai/sdk": "^0.133.0",
     "@owlmeans/basic-ids": "^0.1.18-rc.40",
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/error": "^0.1.18-rc.38",
