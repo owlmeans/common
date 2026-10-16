@@ -458,6 +458,13 @@ export const createRefusalHelper = (): RefusalHelper => {
         + ' project\'s production site. Detach it there first, or use another domain.',
     },
     {
+      // Above `iam-refused:`, which would answer it too: the staff group refuses only some changes.
+      marker: 'iam:group:managed:',
+      phrase: key => `The group${aside(key)} is the platform's own staff group: its members, bundles and existence`
+        + ' are kept by the platform and cannot be changed here. Its permissions can — grant or restrict them'
+        + ' with manage_app_grant (group). Nothing was changed.',
+    },
+    {
       marker: 'iam-refused:',
       phrase: code => `The application's sign-in refused this change on its own terms${aside(code)} — a`
         + ' managed group or permission, the last owner, or an organization with nobody in it. Nothing'

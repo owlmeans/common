@@ -151,6 +151,10 @@ export interface IamGrantArgs {
    * everywhere". Narrowing that to `Blanket` would leave the resource-scoped set standing for every
    * existing caller — a live grant surviving a revoke, which is the failure direction nobody detects.
    *
+   * A `Blanket` or `All` revoke of a DECLARED definition RESTRICTS the subject: it writes the
+   * subject's own `false`, which cuts what it would inherit (class default, group, bundle).
+   * `Inherit` (revoke-only) drops that own value instead, grant or restriction.
+   *
    * Pass `mode` explicitly rather than depending on the default.
    */
   mode?: IamGrantMode
@@ -183,6 +187,19 @@ export interface IamGrant {
   origin?: IamGrantOrigin
   /** The group a `Group`-origin grant reaches the person through. */
   through?: IamGroupRef
+  /**
+   * Present (`true`) only when a listing asked for restrictions (`IamGrantListArgs.restricted`): an
+   * inherited grant — by default class, group or bundle — that the subject's OWN restriction
+   * withholds. It is NOT held and never reaches a claim; a console shows it so the restriction can
+   * be lifted (`IamGrantMode.Inherit`).
+   */
+  restricted?: boolean
+}
+
+/** What a grant listing adds to what is held. */
+export interface IamGrantListArgs {
+  /** Also list the inherited grants the subject's own restriction withholds, as `restricted: true`. */
+  restricted?: boolean
 }
 
 /** Grants every definition a filter selects, plus any named outright. */
@@ -323,7 +340,10 @@ export interface IamGroup {
   entitySlug: string
   key: string
   title?: string
-  /** Kept by the platform (the staff sync's `members`); an operator cannot write it. */
+  /**
+   * Kept by the platform (the staff sync's `members`): its membership, bundles and existence are
+   * not an operator's to write. Its grants and restrictions are.
+   */
   managed?: boolean
   members?: number
   bundles: IamGroupBundle[]
@@ -394,7 +414,7 @@ export interface IamOrganizationFacet {
 export interface IamGroupFacet {
   list: (entityId: string, clientId: string, entitySlug: string) => Promise<IamGroup[]>
   ensure: (entityId: string, clientId: string, entitySlug: string, key: string, args?: IamGroupArgs) => Promise<IamGroup>
-  /** Also drops the key from every member row. */
+  /** Also drops the key from every member row. Refused for a managed group. */
   remove: (entityId: string, clientId: string, entitySlug: string, key: string) => Promise<void>
   members: (entityId: string, clientId: string, entitySlug: string, key: string) => Promise<IamMember[]>
   addMembers: (entityId: string, clientId: string, entitySlug: string, key: string, profileIds: string[]) => Promise<void>
@@ -408,7 +428,13 @@ export interface IamGroupFacet {
     entityId: string, clientId: string, entitySlug: string, key: string, permission: string,
     args?: Omit<IamGrantArgs, 'entitySlug'>
   ) => Promise<void>
-  grants: (entityId: string, clientId: string, entitySlug: string, key: string) => Promise<IamGrant[]>
+  /**
+   * What the group holds: its own grants (`Direct`) and the names its bundles select (`Bundle`),
+   * minus the names it restricts — which `args.restricted` lists too, as `restricted: true`.
+   */
+  grants: (
+    entityId: string, clientId: string, entitySlug: string, key: string, args?: IamGrantListArgs
+  ) => Promise<IamGrant[]>
   setBundles: (
     entityId: string, clientId: string, entitySlug: string, key: string, bundles: IamGroupBundle[]
   ) => Promise<IamGroup>
@@ -583,7 +609,8 @@ export interface IamService extends InitializedService {
 
   /**
    * Revokes a grant. With args.resources only those resource ids are removed;
-   * without it the whole grant is removed.
+   * without it the whole grant is removed. A blanket revoke of a declared definition also
+   * restricts the subject from what it inherits; `IamGrantMode.Inherit` takes that back.
    */
   revokePermission: (
     entityId: string,
@@ -613,8 +640,12 @@ export interface IamService extends InitializedService {
   /**
    * Lists grants for the entity's client, optionally for a single subject — what each holds
    * directly, by its definition's default class and through its groups, `origin` telling which.
+   * Only what is HELD, unless `args.restricted` adds the inherited grants the subject's own
+   * restriction withholds (`restricted: true`).
    */
-  listGrants: (entityId: string, clientId: string, profileId?: string) => Promise<IamGrant[]>
+  listGrants: (
+    entityId: string, clientId: string, profileId?: string, args?: IamGrantListArgs
+  ) => Promise<IamGrant[]>
 
   // --- End-user management (per client: rows of one app) ---
 

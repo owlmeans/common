@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/planning
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/planning": "^0.1.18-rc.26"` in `dependencies` (`ajv` and `ajv-formats` are peers)
+**Install:** `"@owlmeans/planning": "^0.1.18-rc.28"` in `dependencies` (`ajv` and `ajv-formats` are peers)
 
 The contracts of project planning: record shapes, schemas, refusals, the protocol tree, the pure
 fold and the models. No database, no fastify, no React. The executor, the plugin registry, the
@@ -121,9 +121,9 @@ the keys:
 
 | Declaration | Required | Optional |
 |---|---|---|
-| card / specification type | `type` (its key), `kind`, `version`, `fields`, `flows` (at least one), `specifications` | `intrinsic`, `relationships`, `labels`, `code`, `label`, `overridable` |
+| card / specification type | `type` (its key), `kind`, `version`, `fields`, `flows` (at least one), `specifications` | `intrinsic`, `relationships`, `labels`, `code`, `label`, `tone`, `icon`, `overridable` |
 | project type | the same, plus `cardTypes` | `projectTypes`, `scopedCardTypes` |
-| flow | `id` (its key), `version`, `statuses` (at least one), `transitions` | `label`, `overridable` |
+| flow | `id` (its key), `version`, `statuses` (at least one), `transitions` | `label`, `tone`, `icon`, `overridable` |
 | status | `key`, `intrinsic` | `initial`, `terminal`, `label`, `tone` |
 | transition rule | `name`, `from` (status keys or `'*'`), `to` | `label`, `explicit` |
 
@@ -143,6 +143,15 @@ excess-property check catches it — keep the literal typed.
 - A project type lists `cardTypes` (and `projectTypes` for nesting) its children may have;
   `scopedCardTypes: true` also admits card types defined as data (below).
 - `overridable: true` on a code type or flow opens it to a data-defined override.
+- `tone` / `icon` (type, flow) and `tone` (status) — PRESENTATION hints the package stores as free
+  text of at most 64 characters, neither validating nor rendering them. Their standard values and
+  their standard editor and renderer are `@owlmeans/web-panel/picker`: `tone` a palette key
+  (`PICKER_COLOR_KEYS` — red … graphite, 24) or a lowercase `#rrggbb` when the editor allows custom
+  colours, `icon` a kebab-case lucide name of its catalogue (`PICKER_ICON_NAMES`). A person edits a
+  type's or a flow's mark with `IconColorPicker` and shows it with `IconTile` / `ColorDot`; a
+  status's `tone` usually names a meaning the application's own palette maps (`ColorPicker` with
+  `colors`). An unknown value renders the picker's fallback (`slate`, `circle`); server code and
+  seeds read the data React-free from `@owlmeans/web-panel/picker/vocabulary`.
 
 ## Data-defined types and flows
 

@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@owlmeans/log": "^0.1.18-rc.3",
-    "@owlmeans/server-app": "^0.1.18-rc.55",
+    "@owlmeans/server-app": "^0.1.18-rc.56",
     "@owlmeans/static-resource": "^0.1.18-rc.39",
     "__APP_SLUG__-common": "workspace:^"
   },

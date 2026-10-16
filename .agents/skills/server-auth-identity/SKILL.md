@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth-identity
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-identity": "^0.1.18-rc.49"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-identity": "^0.1.18-rc.50"` in `dependencies`
 
 The identity store a deployment owns when it does not delegate identity to an external IAM. It
 answers *who is this person* (account + credentials), *what are they in this app and organization*
@@ -24,7 +24,7 @@ serves the deployment's own app and every app it hosts (a platform's generated t
 | `identityOf(ctx).ensureAccount({ email, name? }, details?)` | The person's account: by the method's credential, then by e-mail, else registered with a personal organization; attaches `details` as a credential |
 | `identityOf(ctx).ensureProfile({ account, service, entityId, owner?, role?, scopes?, permissions?, groups?, managed? })` | Find-or-create the row of (account, app, organization); ensures the primary row first |
 | `identityKeyHelper.credentialKeyOf(details)`, `identityOf(ctx).credentialOf(details)`, `identityKeyHelper.normalizeEmail(email)` | A method's unique credential key; its stored row and account; the stored address form |
-| `orgGroupsOf(ctx)` — `.listOrgGroups(entityId, service)`, `.putOrgGroup(entityId, group)`, `.removeOrgGroup(entityId, service, key)` | An organization's groups of one app — guarded field-level writes, unique per (`service`, `key`) |
+| `orgGroupsOf(ctx)` — `.listOrgGroups(entityId, service)`, `.putOrgGroup(entityId, group)`, `.updateOrgGroup(entityId, service, key, fields)`, `.removeOrgGroup(entityId, service, key)` | An organization's groups of one app — guarded field-level writes, unique per (`service`, `key`); `OrgGroupFields` = `{ title?, managed?, permissions?, bundles? }` |
 | `makeOrgEntityResource`, `makeIdentityAccountResource`, `makeIdentityProfileResource`, `makeIdentityCredentialsResource` | Mongo resource makers (`dbAlias?`) |
 | `makeIdentityLinkingService({ service? })` | The `IdentityLinkingService` for one app |
 | `makeEntityResolverService(alias?)` | The `EntityResolverService`, cached 30 s per resolved value (slim references only) |
@@ -78,6 +78,14 @@ erases the groups or names another writer added since. The resolver's `rename` i
 it read (`formerSlugs` moves only with it), `mintName` on the name still being unset (first minter
 wins, both answer what was stored), `orgGroupsOf(ctx).putOrgGroup` replaces the matching element (`groups.$`) or
 pushes where none matches (`$not: { $elemMatch }`) and retries if a concurrent put won.
+
+**Inside a group the same rule holds: create with `putOrgGroup`, change with `updateOrgGroup`.**
+`updateOrgGroup(entityId, service, key, fields)` `$set`s `groups.$.<field>` (and `updatedAt`) for
+only the fields passed — `title`, `managed`, `permissions`, `bundles`; `service` / `key` are never
+rewritten — on the element `$elemMatch` selects, and answers `true` when that group existed. It never
+creates one. Two writers owning different fields of one group (a platform sync keeping `managed` +
+`bundles`, an operator granting into `permissions`) keep each other's work; a `putOrgGroup` from
+either one's stale read would undo the other's.
 
 ## Usage
 
@@ -203,7 +211,8 @@ across organizations, not inside one.
 
 - **`Resource.take()` deletes** the record it returns — identity reads in gates use `load` / `list`.
 - **Never `update()` an org-entity** (a whole-record replace); use the resolver, the group helpers or
-  a guarded `collection.updateOne`.
+  a guarded `collection.updateOne`. Never `putOrgGroup` an existing group to change one field of it —
+  `updateOrgGroup` that field.
 - **`IdentityLinkingService` is compatible with `AccountLinkingService`** of
   `@owlmeans/server-oidc-rp` but declared independently (acyclic dependencies).
 - **The address is the identity.** Whoever calls `identityOf(ctx).ensureAccount` / `linkProfile` with an address is

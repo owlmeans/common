@@ -36,7 +36,33 @@ export interface StoryDesignScreen {
   specs: { ux: string, ui: string }
   /** Keys into `components`, in render order. */
   components: string[]
+  /**
+   * How the screen arranges its components, decided by the `composition` design step: one page, or
+   * one TAB per heavy form. Absent on a design written before the step, and on a one-component screen.
+   */
+  composition?: StoryScreenComposition
 }
+
+/** One tab of a tabbed screen: an id for the URL, a label a person reads, the components it holds. */
+export interface StoryScreenTab {
+  id: string
+  label: string
+  /** Keys into `StoryDesign.components`, in render order. */
+  components: string[]
+}
+
+export interface StoryScreenComposition {
+  kind: 'page' | 'tabs'
+  /** The tabs, in order; empty for a page. */
+  tabs: StoryScreenTab[]
+  /** Components shown above the tabs on every tab — the ones that only display records. */
+  shared: string[]
+  /** What each component weighs, by its key — the facts the decision was taken from. */
+  weights: Record<string, StoryComponentWeight>
+}
+
+/** `complex` — rows of fields the person adds and removes, or many inputs; `form` — a few fields and a submit; `display` — shows and opens records. */
+export type StoryComponentWeight = 'complex' | 'form' | 'display'
 
 export interface StoryDesignComponent {
   name: string

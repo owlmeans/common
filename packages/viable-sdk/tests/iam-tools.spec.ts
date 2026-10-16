@@ -130,6 +130,9 @@ describe('viable-sdk — an action\'s required fields are checked before any cal
     ['manage_app_grant', { action: 'revoke', permission: 'order--view', group: 'editors' }, /entitySlug/],
     ['manage_app_grant', { action: 'assign', profileId: 'shop:abc' }, /permission/],
     ['manage_app_grant', { action: 'give', permission: 'order--view', profileId: 'shop:abc' }, /assign or revoke/],
+    // Revoke-only modes: `inherit` takes back the subject's own value, `all` every form — neither grants.
+    ['manage_app_grant', { action: 'assign', permission: 'order--view', profileId: 'shop:abc', mode: 'inherit' }, /mode: inherit only takes something back/],
+    ['manage_app_grant', { action: 'assign', permission: 'order--view', group: 'editors', entitySlug: 'acme', mode: 'all' }, /mode: all only takes something back/],
     ['manage_app_organization', { action: 'rename', entitySlug: 'acme' }, /title/],
     ['manage_app_organization', { action: 'rename', title: 'Acme' }, /entitySlug/],
     ['manage_app_organization', { action: 'add-member', entitySlug: 'acme' }, /email/],
@@ -178,6 +181,55 @@ describe('viable-sdk — the sign-in tools call exactly what they were asked', (
 
     const group = await run('manage_app_grant', { action: 'revoke', permission: 'order--view', group: 'editors', entitySlug: 'acme' })
     expect(group.calls).toEqual([['grants.revoke', 'p1', { permission: 'order--view', group: { entitySlug: 'acme', key: 'editors' } }]])
+    // A whole-permission revoke restricts the subject, inherited grants included.
+    expect(group.result.text).toContain('Revoked order--view from group editors of acme')
+    expect(group.result.text).toContain('restricted')
+  })
+
+  test('mode: inherit is a revoke that takes back only the subject\'s own grant or restriction', async () => {
+    const lifted = await run('manage_app_grant', { action: 'revoke', permission: 'order--view', profileId: 'shop:abc', mode: 'inherit' })
+    expect(lifted.calls).toEqual([['grants.revoke', 'p1', { permission: 'order--view', profileId: 'shop:abc', mode: 'inherit' }]])
+    expect(lifted.result.isError).toBeUndefined()
+    expect(lifted.result.text).toContain('Took back user shop:abc\'s own grant or restriction of order--view')
+
+    const records = await run('manage_app_grant', { action: 'revoke', permission: 'order--view', profileId: 'shop:abc', resources: ['o1'] })
+    expect(records.result.text).toBe('Revoked order--view (records o1) from user shop:abc.')
+  })
+
+  test('a listing tells held grants from restricted ones, and prints a group\'s bundle origin', async () => {
+    const { result } = await run('app_grants', { profileId: 'shop:abc' }, {
+      'grants.list': {
+        items: [
+          { clientId: 'shop', permission: 'order--view', profileId: 'shop:abc', mode: 'blanket', origin: 'direct' },
+          {
+            clientId: 'shop', permission: 'order--edit', profileId: 'shop:abc', origin: 'group',
+            through: { entitySlug: 'acme', key: 'editors' }, restricted: true,
+          },
+          { clientId: 'shop', permission: 'order--list', group: { entitySlug: 'acme', key: 'editors' }, origin: 'bundle' },
+        ],
+      },
+    })
+    const lines = result.text.split('\n')
+
+    expect(lines[0]).toBe('Grants (2 held, 1 restricted):')
+    expect(lines.find(line => line.includes('order--edit'))).toContain('· group through group editors of acme · restricted')
+    expect(lines.find(line => line.includes('order--view'))).not.toContain('restricted')
+    expect(lines.find(line => line.includes('order--list'))).toContain('group editors of acme · bundle')
+    expect(lines[lines.length - 1]).toContain('mode: inherit')
+
+    const plain = await run('app_grants', {}, { 'grants.list': { items: [{ clientId: 'shop', permission: 'order--view', profileId: 'shop:abc' }] } })
+    expect(plain.result.text.split('\n')[0]).toBe('Grants (1 held):')
+    expect(plain.result.text).not.toContain('mode: inherit')
+  })
+
+  test('the staff group reads as the platform\'s for members, bundles and existence, its permissions editable', async () => {
+    const { result } = await run('app_groups', { entitySlug: 'acme' }, {
+      'groups.list': { items: [{ entitySlug: 'acme', key: 'members', managed: true, members: 2, bundles: [] }] },
+    })
+
+    expect(result.text).toContain('members, bundles and existence are the platform\'s')
+    expect(result.text).toContain('can be granted and restricted')
+    expect(result.text).not.toContain('read-only')
   })
 
   test('the listings: every application\'s users, one organization\'s members, one group\'s members', async () => {
@@ -208,11 +260,19 @@ describe('viable-sdk — the sign-in tools call exactly what they were asked', (
   })
 
   test('an IAM refusal is answered as the sentence the person can act on', async () => {
-    const { result } = await run('manage_app_group', {
+    // The staff group refuses its members, bundles and existence — and says its permissions are open.
+    const staff = await run('manage_app_group', {
       action: 'update', entitySlug: 'acme', group: 'members', title: 'Staff',
     }, { 'groups.update': new Error('iam-refused:iam:group:managed:members') })
+    expect(staff.result.isError).toBe(true)
+    expect(staff.result.text).toContain('(members) is the platform\'s own staff group')
+    expect(staff.result.text).toContain('members, bundles and existence')
+    expect(staff.result.text).toContain('Its permissions can')
 
-    expect(result.isError).toBe(true)
-    expect(result.text).toContain('refused this change on its own terms')
+    const permission = await run('manage_app_grant', {
+      action: 'revoke', permission: 'project--admin', profileId: 'shop:abc',
+    }, { 'grants.revoke': new Error('iam-refused:iam:permission:managed:project--admin') })
+    expect(permission.result.isError).toBe(true)
+    expect(permission.result.text).toContain('refused this change on its own terms')
   })
 })

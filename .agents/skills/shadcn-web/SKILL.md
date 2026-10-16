@@ -154,7 +154,12 @@ rewritten to relative specifiers before build. Check emitted JavaScript too: no 
 1. Find the component source on the [shadcn GitHub](https://github.com/shadcn-ui/ui) (e.g. `registry/new-york/ui/<name>.tsx`) or via `npx shadcn@latest add <name> --cwd <your-package-dir>` in a throwaway branch.
 2. Copy the `.tsx` source into `src/@/components/ui/<name>.tsx`.
 3. Repoint all imports to relative paths into `src/@/lib` and `src/@/components/ui`.
-4. Add any `@radix-ui/*` packages the file imports as **peerDependencies** in `package.json`.
+4. Add any `@radix-ui/*` packages the file imports as **peerDependencies** in `package.json`
+   (`"*"`) and as devDependencies. Radix primitives that layer over each other (`dialog`,
+   `popover`, `dropdown-menu`, …) share module-level dismissable-layer and focus-scope stacks, so
+   the dev copy must resolve to the SAME generation as its siblings already in the lock (e.g.
+   popover 1.1.23 beside dialog 1.1.23, not 1.3.x): mixed, a popover inside a dialog counts as an
+   outside click and loses focus to it.
 5. Add a comment at the top: `// shadcn <name> — sourced from shadcn@<version> <date>`.
 6. Run `bun install` and `bun run build` to verify.
 7. Document the package's peer dependencies. Consumers never vendor its private primitives;

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/server-planning",
-  "version": "0.1.18-rc.31",
-  "generatedAt": "2026-10-10T22:28:00.509Z",
+  "version": "0.1.18-rc.33",
+  "generatedAt": "2026-10-16T18:05:18.995Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
