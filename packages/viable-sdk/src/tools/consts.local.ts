@@ -1,4 +1,4 @@
-import { ConnectFeedDetail, ModerationCategory, WorkloadKind } from '@owlmeans/viable-common'
+import { ConnectFeedDetail, IamGrantMode, ModerationCategory, WorkloadKind } from '@owlmeans/viable-common'
 import type { ToolAnnotations } from './types.js'
 
 /** What a production body leaves of a confirmation or consent refusal (`@owlmeans/api` `ApiStatusError`). */
@@ -227,6 +227,12 @@ export const APP_USER_ACTIONS = ['invite', 'update', 'remove'] as const
 /** What `manage_app_grant` does: grant a permission to one subject, or take it back. */
 export const APP_GRANT_ACTIONS = ['assign', 'revoke'] as const
 
+/**
+ * The grant modes that only take something back — every form (`all`) or the subject's own value
+ * (`inherit`) — and so are refused on `manage_app_grant { action: assign }` before any call.
+ */
+export const REVOKE_ONLY_GRANT_MODES: readonly string[] = [IamGrantMode.All, IamGrantMode.Inherit]
+
 /** What `manage_app_organization` does to an organization of the generated app and its members. */
 export const APP_ORGANIZATION_ACTIONS = ['rename', 'add-member', 'update-member', 'remove-member'] as const
 
@@ -235,6 +241,10 @@ export const APP_GROUP_ACTIONS = ['create', 'update', 'delete', 'add-members', '
 
 /** How many rows of one IAM listing a tool prints; the structured answer carries them all. */
 export const IAM_ROWS_SHOWN = 50
+
+/** What a grant listing adds under its rows when some are `restricted: true`. */
+export const IAM_RESTRICTED_NOTE = '  restricted = inherited (a default, a group or a bundle) but withheld by the subject\'s own'
+  + ' restriction — not held; manage_app_grant { action: revoke, mode: inherit } lifts it.'
 
 /** What an `external` IAM listing means — the backend keeps it in a console of its own. */
 export const IAM_EXTERNAL = 'This application\'s sign-in is managed in a console of its own (an external'

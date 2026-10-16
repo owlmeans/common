@@ -151,4 +151,11 @@ describe('scoped schemas — closed-form checks', () => {
     expect(() => scopedSchemaHelper.assertTypeSchema({ ...BED, flows: [SEASON.id, SEASON.id] }, code)).toThrow('flow-repeated')
     expect(() => scopedSchemaHelper.assertTypeSchema({ ...BED, flows: ['garden:frost'] }, code)).toThrow('flow:garden:frost')
   })
+
+  test('a type and a flow may carry a tone and an icon as presentation hints; other keys stay refused', () => {
+    expect(() => scopedSchemaHelper.assertTypeSchema({ ...BED, tone: 'green', icon: 'sprout' }, code)).not.toThrow()
+    expect(() => scopedSchemaHelper.assertFlowSchema({ ...SEASON, tone: 'amber', icon: 'sun' })).not.toThrow()
+    expect(() => scopedSchemaHelper.assertTypeSchema({ ...BED, colour: 'green' } as WorkcardTypeSchema, code)).toThrow(SchemaInvalid)
+    expect(() => scopedSchemaHelper.assertFlowSchema({ ...SEASON, tone: 'x'.repeat(65) })).toThrow(SchemaInvalid)
+  })
 })

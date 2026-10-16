@@ -28,7 +28,7 @@ export const getHarnessUrl = async (): Promise<string> => {
     // Pre-bundled at server start rather than discovered while the first request is being
     // served: a dependency found mid-transform re-optimizes and reloads the page underneath
     // the navigation, which the first `goto` of a cold run pays for as a timeout.
-    optimizeDeps: { include: ['sonner'] },
+    optimizeDeps: { include: ['sonner', 'react-colorful', '@radix-ui/react-popover'] },
     server: { port: 0 },
     logLevel: 'warn'
   })

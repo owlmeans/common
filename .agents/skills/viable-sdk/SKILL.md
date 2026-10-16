@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.49"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.52"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -450,17 +450,39 @@ query, a write — a removal included — in its body.
   resources?, mode? }`**, **`manage_app_organization { action: rename | add-member | update-member |
   remove-member, entitySlug }`**, **`manage_app_group { action: create | update | delete | add-members |
   remove-members, entitySlug, group }`**.
+- **Grants restrict as well as grant.** Every subject (person or group) has its OWN blanket value per
+  binding: granted, restricted, or absent (inherits). A whole-permission revoke (`blanket`/`all`, or no
+  mode without `resources`) RESTRICTS a declared permission — the subject also loses what it inherits
+  from a default class, a group or a bundle; `mode: inherit` (revoke-only) takes back only the
+  subject's own value, so it holds what it inherits again; a `resources` revoke removes those ids only.
+  `iamToolHelper.renderRevoke` words the result by that mode. The tool descriptions and the `mode`
+  enum text say the same, and nothing here re-implements the IAM's evaluation.
+- `app_grants` prints what is HELD and what a subject's own restriction withholds (`restricted: true`
+  — listed, never held): the head counts them apart (`Grants (N held, M restricted)`), a restricted row
+  ends `· restricted`, and `IAM_RESTRICTED_NOTE` closes a listing that has any. Origins print as
+  given: `direct`, `default`, `group` (with `through`), `bundle` (a group's own listing: the names its
+  bundles select).
+- The platform's staff group (`IAM_MEMBERS_GROUP`, `managed: true`) keeps its members, bundles and
+  existence: `manage_app_group` writes to them are refused by the IAM; its PERMISSIONS are the owner's,
+  granted and restricted with `manage_app_grant { group }`. `renderGroup` and the `manage_app_group`
+  description say exactly that — never "read-only".
 - **Action-specific fields are checked BEFORE any call** (`iamToolHelper.missing`): an invite needs
   `email`, an update something to change, a grant exactly ONE subject (a person, or a group with its
-  organization's `entitySlug` — never both), a group's update `title` or the WHOLE `bundles` list, the
-  members' moves `profileIds`; **`remove` and `delete` need `confirm: true`**. A refusal is `isError`
-  with nothing called.
+  organization's `entitySlug` — never both), an `assign` no revoke-only mode (`REVOKE_ONLY_GRANT_MODES`:
+  `all`, `inherit`), a group's update `title` or the WHOLE `bundles` list, the members' moves
+  `profileIds`; **`remove` and `delete` need `confirm: true`**. A refusal is `isError` with nothing
+  called. The contract's schema admits every mode on both bodies; the IAM refuses the revoke-only
+  ones on a grant.
 - A listing answered `external: true` prints `IAM_EXTERNAL` (the app's sign-in is managed in a console
-  of its own), never "nobody". `iam-refused:` (a managed group or definition, the last owner) is phrased
-  by `refusalHelper`; every tool runs in `answering`. The writes map to their read for the handover
-  (`STATUS_TOOL_OF`). No staff-synchronization tool.
-- Specs: `tests/iam-tools.spec.ts` (hosts, annotations, every refused shape with no call, the calls
-  made), `remote.spec.ts` (scope placement, the account-base listing).
+  of its own), never "nobody". `refusalHelper` phrases `iam:group:managed:` (the staff group: members,
+  bundles and existence the platform's, its permissions editable — placed ABOVE `iam-refused:`) and
+  `iam-refused:` (a managed definition or member, the last owner, an empty organization); every tool
+  runs in `answering`. The writes map to their read for the handover (`STATUS_TOOL_OF`). No
+  staff-synchronization tool.
+- Specs: `tests/iam-tools.spec.ts` (hosts, annotations, every refused shape with no call — revoke-only
+  modes on assign included —, the calls made, `inherit` and records revokes, held/restricted counts and
+  the `bundle` origin, the staff group's line, the staff-group and generic refusals), `remote.spec.ts`
+  (scope placement, the account-base listing).
 
 ## What the browser streams is read by cursor
 
@@ -649,8 +671,9 @@ call carries them too.
 
 The integrations' refusals each have a sentence in `REFUSALS` as well: `github:not-connected`,
 `github:not-published`, `oauth:invalid-or-expired-state` (the GitHub authorization),
-`viable-domain:taken:` (a custom domain held by another project) and `iam-refused:` (the app's own
-sign-in refusing a console change on its terms).
+`viable-domain:taken:` (a custom domain held by another project), `iam:group:managed:` (the staff
+group's members, bundles or existence) and `iam-refused:` (the app's own sign-in refusing a console
+change on its terms).
 
 The same refusals also arrive where no class survives, and `REFUSALS` phrases them by marker:
 `viable-connect:consent-required:` (a stored run error; the URL and deadline parsed from the

@@ -8,7 +8,7 @@ metadata:
 
 # Using `@owlmeans/iam`
 
-**Install:** `"@owlmeans/iam": "^0.1.18-rc.52"` in `dependencies`
+**Install:** `"@owlmeans/iam": "^0.1.18-rc.53"` in `dependencies`
 
 Provider-agnostic IAM abstraction: the `IamService` interface, the permission and grant shapes, the
 gate-param grammar, `hasPermission`, and the declarations of the provider's runtime IAM API. It
@@ -40,10 +40,11 @@ the browser.
 | `IamPermissionFilter` | type | `{ areas?, managed?, resourceScoped?, entityScoped? }` — narrows `listPermissions`; an `areas` entry of `null` matches untagged definitions |
 | `IamDefaultClass` | enum | `None` / `User` / `Member` / `Owner` — who holds a definition without a grant (see "Permission kinds") |
 | `IamGrantArgs` | type | `{ resources?, mode?, entitySlug? }` — `entitySlug` binds an `entityScoped` grant |
-| `IamGrant` | type | `{ profileId? \| group?, clientId, permission, resources?, mode?, entitySlug?, origin?, through? }` — exactly one subject |
-| `IamGrantOrigin` | enum | `Direct` / `Default` / `Group` — why a listed grant is held; `through` names the group |
+| `IamGrant` | type | `{ profileId? \| group?, clientId, permission, resources?, mode?, entitySlug?, origin?, through?, restricted? }` — exactly one subject; `restricted: true` only in a listing that asked for it (withheld, not held) |
+| `IamGrantListArgs` | type | `{ restricted? }` — `listGrants` / `groups.grants` also list what the subject's own restriction withholds |
+| `IamGrantOrigin` | enum | `Direct` / `Default` / `Group` / `Bundle` — why a listed grant is held; `through` names the group; `Bundle` only in a group's own listing |
 | `IamGroupRef` | type | `{ entitySlug, key }` — a group by its organization's slug and its key |
-| `IamGrantMode` | enum | `Blanket` / `Resources` / `All` — which FORM of a grant an operation addresses |
+| `IamGrantMode` | enum | `Blanket` / `Resources` / `All` / `Inherit` — which FORM of a grant an operation addresses; `All` and `Inherit` are revoke-only |
 | `IamGrantBundle` | type | `{ filter?, permissions?, mode?, resources?, entitySlug? }` — what `grantBundle` hands out |
 | `IamRemovalPolicy` | enum | `Cascade` / `Refuse` — what to do about grants of a definition being deleted |
 | `IamPermissionDeleteArgs`, `IamPermissionRemoval` | type | `{ policy?, managed? }` and `{ permission, clientId, found, revoked }` |
@@ -63,7 +64,7 @@ the browser.
 | `IamSubject`, `IamSignInArgs`, `IamSignInResult` | type | `{ profileId, email?, name?, organizations, permissions }` (claims input); `{ email, name? }`; `{ accountId, profileId }` |
 | `IamOrganizationFacet`, `IamGroupFacet`, `IamSubjectFacet` | type | The three facets of `IamService` |
 | `unsupportedFacet<T>(what)` | fn | A facet whose every method throws `IamUnsupported(what)` — synchronously |
-| `IAM_MEMBERS_GROUP` | const | `'members'` — the managed staff group `syncStaff` keeps |
+| `IAM_MEMBERS_GROUP` | const | `'members'` — the managed staff group `syncStaff` keeps (structure the sync's, permissions the operator's) |
 | `IAM_EMAIL_PROOF` | const | `'proof:email'` — the `profileId` of a credential that proves an address and identifies nobody yet |
 | `hasPermission` | fn | `(auth, permission, { scope?, resourceId?, entitySlug? }?)` — checks `Authorization.permissions`; an unscoped set satisfies a resourceId check, an unbound set any organization |
 | `HasPermissionOptions` | type | `{ scope?, resourceId?, entitySlug? }` |
@@ -82,7 +83,7 @@ the browser.
 | `IamPermissionError` | class | A refusal about a DEFINITION: `permission:held:<name>`, `permission:managed:<name>` |
 | `IamUserError` | class | An end-user operation was refused |
 | `IamOrganizationError` | class | An organization or membership refusal — unknown organization, last owner, membership cap |
-| `IamGroupError` | class | A group refusal — unknown key, a managed group written by an operator, another app's group |
+| `IamGroupError` | class | A group refusal — unknown key, an operator writing a managed group's structure, another app's group |
 | `IamUnsupported` | class | Operation not supported by the active backend (e.g. `resource-scoped-grant`, `user-management`) |
 
 ## Permission model (kinds and grant forms)
@@ -105,9 +106,12 @@ through `composePermissionName` / `parsePermissionName` rather than splitting st
 `resourceScoped: true` says a permission *may* be bound to resource ids, not that it must be. The
 same name is grantable in both forms and they are stored separately, which is what `IamGrantMode`
 addresses: `Blanket` is the set carrying no `resources` (and `hasPermission` reads it as covering
-every id), `Resources` is an explicit id list, and `All` is revoke-only. The defaults are asymmetric
-on purpose — `grantPermission` defaults to `Blanket`, `revokePermission` to `All`, because a bare
-revoke has always meant "remove it everywhere". Pass `mode` explicitly rather than relying on either.
+every id), `Resources` is an explicit id list, `All` (revoke-only) is every form, and `Inherit`
+(revoke-only) is the subject's own blanket value — see "Restrictions". A grant in `All` or `Inherit`
+is refused (`IamGrantError('mode:all-is-revoke-only')`, `'mode:inherit-is-revoke-only'`). The
+defaults are asymmetric on purpose — `grantPermission` defaults to `Blanket`, `revokePermission` to
+`All`, because a bare revoke has always meant "remove it everywhere". Pass `mode` explicitly rather
+than relying on either.
 
 `area` is a presentational grouping tag (`IAM_AREAS`, or any string a deployment defines) and decides
 nothing at request time. `managed: true` marks a definition the platform owns: an operator cannot
@@ -147,11 +151,36 @@ grant listings are built — never written onto a row:
 - `None` — nobody.
 
 A class default is a BLANKET set, so `Owner` on a resource-scoped definition is its all-records form.
-An explicit `false` on a row suppresses only the class default of that binding (an unbound `false`
-suppresses `User`; a `false` on the row of an organization suppresses `Member`/`Owner` there).
-Grants are additive — there is no deny rule over a group's grant. A listing marks each grant's
-`origin`: `Direct`, `Default`, or `Group` with `through` naming the group. A backend that cannot
-evaluate classes (Keycloak) refuses any `defaultClass` other than `None` with `IamUnsupported`.
+A listing marks each grant's `origin`: `Direct`, `Default`, or `Group` with `through` naming the
+group. A backend that cannot evaluate classes (Keycloak) refuses any `defaultClass` other than
+`None` with `IamUnsupported`.
+
+### Restrictions
+
+Every subject — a person or a group — has ONE blanket value of its own per binding: `true` grants,
+`false` RESTRICTS, absent inherits. A subject holds a name when its own value is `true`, or when it is
+not `false` and something it inherits grants it.
+
+| Subject | Inherits from | Its own value lives on |
+|---|---|---|
+| person | class defaults, its groups' grants and its groups' bundles | the primary row (unbound definition); the row of the binding's organization (bound — for a group-derived name, the row that names the group) |
+| group | its bundles | the group's own blanket set |
+
+- A restriction withholds every INHERITED form of the name in that binding — a class default, a
+  group's blanket grant, a group's per-record grant, a bundle's selection. The subject's OWN grants,
+  per-record ones included, are never cut. A group's restriction cuts only its own bundles, for all
+  its members; another group granting the name still grants it.
+- A `Blanket` or `All` revoke of a DECLARED definition writes the restriction (an undeclared name gets
+  none). `Inherit` drops the subject's own value — grant or restriction — writes nothing in its
+  place, leaves resource-scoped sets alone and ignores `resources`; a bound definition needs
+  `entitySlug` for it as for `Blanket`. A later `Blanket` grant overwrites a restriction with `true`.
+- Tokens carry only what is held: a relying party never sees a restriction, only fewer permissions.
+- Listings (`listGrants`, `groups.grants`) answer what is held; `IamGrantListArgs.restricted` adds
+  the inherited grants the subject's own restriction withholds as `restricted: true` (same `origin` /
+  `through` as the held form), so a console can show them and lift them with `Inherit`. A user's
+  `grantCount` counts held grants only.
+- A backend without inheritance (Keycloak) has nothing to restrict: every revoke, `Inherit`
+  included, removes the role, and a listing ignores `restricted`.
 
 ## `IamService` interface
 
@@ -201,7 +230,8 @@ interface IamService extends InitializedService {
   listPermissions: (entityId: string, clientId: string, filter?: IamPermissionFilter) => Promise<IamPermissionDefinition[]>
 
   // args.resources selects the resource-scoped form, args.entitySlug the binding of an entityScoped
-  // definition; see "Permission model (kinds and grant forms)"
+  // definition; see "Permission model (kinds and grant forms)". A blanket/all revoke of a declared
+  // definition RESTRICTS; mode Inherit takes the own value back — see "Restrictions"
   grantPermission: (entityId: string, clientId: string, profileId: string, permission: string, args?: IamGrantArgs) => Promise<IamGrant>
   revokePermission: (entityId: string, clientId: string, profileId: string, permission: string, args?: IamGrantArgs) => Promise<void>
 
@@ -210,8 +240,9 @@ interface IamService extends InitializedService {
   // grantPermission, which costs N·M writes and N·M lost-update windows on the same records.
   grantBundle: (entityId: string, clientId: string, profileIds: string[], bundle: IamGrantBundle) => Promise<IamGrant[]>
 
-  // Direct, default-class and group grants, each with its `origin`.
-  listGrants: (entityId: string, clientId: string, profileId?: string) => Promise<IamGrant[]>
+  // Direct, default-class and group grants, each with its `origin` — what is HELD; args.restricted
+  // adds what the subject's own restrictions withhold (`restricted: true`).
+  listGrants: (entityId: string, clientId: string, profileId?: string, args?: IamGrantListArgs) => Promise<IamGrant[]>
 
   // --- Users of one client — see "Users are per client" ---
 
@@ -272,10 +303,14 @@ promise would hand it the wrong type — an awaited call rejects either way.
   removed (`IamOrganizationError`).
 - **`groups`** — a group is (organization, client, key), kept inside the organization record; one
   client never reads or writes another's. `list`, `ensure`, `remove`, `members`, `addMembers`,
-  `removeMembers`, `grant` / `revoke` (bound to the group's organization), `grants`, and
-  `setBundles` — a bundle (`{ filter?, permissions? }`) grants every definition it selects to the
-  group's members at claim time. `IAM_MEMBERS_GROUP` is the managed group `syncStaff` keeps in the
-  owning organization; it is read-only to an operator (`IamGroupError`).
+  `removeMembers`, `grant` / `revoke` (bound to the group's organization; a revoke restricts, as for
+  a person), `grants(…, key, args?)` (its own grants as `Direct`, the names its bundles select as
+  `Bundle`, minus what it restricts; `args.restricted` adds the cut bundle names), and `setBundles` —
+  a bundle (`{ filter?, permissions? }`) grants every definition it selects to the group's members at
+  claim time. `IAM_MEMBERS_GROUP` is the managed group `syncStaff` keeps in the owning organization:
+  its existence, key, membership and bundles are the sync's (`ensure`, `remove`, `addMembers`,
+  `removeMembers`, `setBundles` → `IamGroupError('managed:members')`), while its grants and
+  restrictions are the operator's (`grant` / `revoke`) and survive every sync.
 - **`subjects`** — the provider's half, keyed by the ACCOUNT, which never leaves the provider.
   `signIn(clientId, { email })` finds or creates the account and its rows for the client;
   `resolve(clientId, accountId)` builds the `IamSubject` the claims come from (`null` = not admitted:
@@ -298,7 +333,7 @@ a relying party calls it through `iamRuntime` (`@owlmeans/server-iam`) over plai
 | `POST …/members/:profileId/remove` | `members.remove` | owner, or the member itself |
 | `GET …/permissions` | `permissions.list` | member |
 | `GET …/grants` `?profileId` | `grants.list` | owner |
-| `POST …/grants`, `POST …/grants/revoke` `{ profileId, permission, resources?, mode? }` | `grants.assign` / `grants.revoke` | owner |
+| `POST …/grants`, `POST …/grants/revoke` `{ profileId, permission, resources?, mode? }` | `grants.assign` / `grants.revoke` (a revoke restricts; `mode: inherit` takes the own value back) | owner |
 
 - **Every route, the base included, is pinned to `service`** — a route's service is never inherited
   from its parent — and every leaf hangs under ONE base carrying `IAM_RUNTIME_GUARD`. The serving

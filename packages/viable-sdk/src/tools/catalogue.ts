@@ -2893,7 +2893,9 @@ export const catalogue: ToolDefinition[] = [
     description:
       'The grants of a project\'s generated application — every one, one user\'s (profileId; with'
       + ' entitySlug, only those bound to that organization) or one group\'s (group with its entitySlug) —'
-      + ' each with where it comes from: direct, a default, or through a group.',
+      + ' each with where it comes from: direct, a default, through a group, or a group\'s bundle. Also lists'
+      + ' what a subject\'s own restriction withholds from what it would inherit, marked restricted: true —'
+      + ' those are NOT held.',
     input: {
       projectId: z.string().optional(),
       scope: APP_SCOPE_INPUT,
@@ -2925,8 +2927,11 @@ export const catalogue: ToolDefinition[] = [
     description:
       'Grant one of the generated application\'s permissions to exactly ONE subject — a user (profileId;'
       + ' entitySlug binds the grant to that organization when the permission is organization-bound) or a'
-      + ' group (group key with its entitySlug) — or revoke it. A per-record permission takes resources'
-      + ' (record ids) or covers every record; mode names which form when both exist.',
+      + ' group (group key with its entitySlug) — or revoke it. Revoking a whole permission RESTRICTS the'
+      + ' subject: it also loses what it inherits (a default, a group, a bundle) until a revoke with mode:'
+      + ' inherit takes back only its own grant or restriction, so it holds what it inherits again. A'
+      + ' per-record permission takes resources (record ids) or covers every record; mode names which form'
+      + ' when both exist.',
     input: {
       projectId: z.string().optional(),
       scope: APP_SCOPE_INPUT,
@@ -2937,7 +2942,8 @@ export const catalogue: ToolDefinition[] = [
       entitySlug: z.string().min(1).max(63).optional(),
       resources: z.array(z.string().min(1).max(128)).max(256).optional().describe('Record ids of a per-record permission.'),
       mode: z.enum(Object.values(IamGrantMode) as [string, ...string[]]).optional()
-        .describe('blanket (every record) or resources (only those listed).'),
+        .describe('blanket (every record) or resources (only those listed); revoke only: inherit (take back'
+          + ' the subject\'s own grant or restriction) or all (every form, a revoke\'s default).'),
     },
     availability: toolHostHelper.anyHost,
     annotations: DESTRUCTIVE,
@@ -2952,8 +2958,7 @@ export const catalogue: ToolDefinition[] = [
       }
       await deps.api.iam.grants.revoke(project, body)
 
-      return ok(`Revoked ${body.permission}${body.resources != null ? ` (records ${body.resources.join(', ')})` : ''}.`,
-        { projectId: project, revoked: body as unknown as Record<string, unknown> })
+      return ok(iamToolHelper.renderRevoke(body), { projectId: project, revoked: body as unknown as Record<string, unknown> })
     }),
   },
 
@@ -3082,7 +3087,8 @@ export const catalogue: ToolDefinition[] = [
       'Change a group of an organization of a project\'s generated application: create it (find-or-create'
       + ' by key), update its title or what it grants (bundles — the WHOLE list, it replaces the group\'s),'
       + ' delete it (the user agreed: confirm: true), or add and remove members by profileIds. The platform\'s'
-      + ' own staff group is read-only.',
+      + ' own staff group keeps its members, bundles and existence — those changes are refused; its permissions'
+      + ' are granted and restricted with manage_app_grant (group).',
     input: {
       projectId: z.string().optional(),
       scope: APP_SCOPE_INPUT,

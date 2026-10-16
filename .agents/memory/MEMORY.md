@@ -13,7 +13,7 @@ Before non-trivial work, open every node whose scope matches the task's files or
 - [[payments]] `packages/{payment,server-payment,client-payment,web-payment}/**` — ranked plans + free plan; capabilities vs limits; admission-first ledger; gross-up; consumer rights
 - [[oidc]] `packages/*oidc*/**` — exact pins; isolation; pairwise `sub`/sector rules; RP session record; v9/v6 gotchas
 - [[auth]] `packages/*auth*/**, packages/web-client/src/login/**` — one account per e-mail; rows per (account, app, org); gate needs own app; acting-org session
-- [[shadcn]] `**/components.json, packages/web-*/**` — four durable decisions for the shadcn package family (incl. the consumer `@source`); no-i18n-provider crash; `default: true` child
+- [[shadcn]] `**/components.json, packages/web-*/**` — four durable decisions (incl. `@source`); picker subpath; strings/colour rules; Radix popover gotchas
 - [[agent-meta]] `packages/*/agent-meta/**` — sync sharp edges; general-scope skills; strict lint
 - [[llm]] `packages/llm/**, packages/llm-common/**` — provider plugins (no ifs); registration order; helpers-vs-utils rule; langchain peer deps; state-nesting fix
 - [[agent]] `packages/agent/**, packages/agent-common/**` — agent runtime over LangGraph's functional API; AgentPlugin seam; storage PORTS not resources; first ExecutionPlugin impl; server-side FlowProvider

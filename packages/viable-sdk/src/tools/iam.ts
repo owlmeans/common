@@ -1,6 +1,7 @@
-import type { IamAssignGrant, IamGrantMode, IamGroupBundle, IamListResponse } from '@owlmeans/viable-common'
+import { IamGrantMode, type IamAssignGrant, type IamGroupBundle, type IamListResponse } from '@owlmeans/viable-common'
 import {
-  APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, IAM_EXTERNAL, IAM_ROWS_SHOWN,
+  APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, IAM_EXTERNAL, IAM_RESTRICTED_NOTE,
+  IAM_ROWS_SHOWN, REVOKE_ONLY_GRANT_MODES,
 } from './consts.local.js'
 import type { IamToolHelper } from './iam/types.js'
 
@@ -61,6 +62,11 @@ export const createIamToolHelper = (): IamToolHelper => {
       return `Say what to do with action: ${actions(APP_GRANT_ACTIONS)}.`
     }
     if (text(args, 'permission') === '') return 'Not done. Name the permission (app_permissions lists them).'
+    const mode = text(args, 'mode')
+    if (args.action === 'assign' && REVOKE_ONLY_GRANT_MODES.includes(mode)) {
+      return `Not done. mode: ${mode} only takes something back — use it with action: revoke. A grant takes`
+        + ' mode blanket or resources, or none.'
+    }
 
     return subjectMissing(args, false)
   }
@@ -178,11 +184,33 @@ export const createIamToolHelper = (): IamToolHelper => {
     ...(grant.mode != null ? [`· ${grant.mode}`] : []),
     ...(grant.entitySlug != null ? [`· in ${grant.entitySlug}`] : []),
     ...(grant.origin != null ? [`· ${grant.origin}${grant.through != null ? ` through ${subjectOf({ group: grant.through })}` : ''}`] : []),
+    ...(grant.restricted === true ? ['· restricted'] : []),
   ].join(' ')
 
-  const renderGrants: IamToolHelper['renderGrants'] = response =>
-    `Grants${response.external === true ? '' : ` (${response.items.length})`}:\n`
-    + rows(response, renderGrant, '  none.')
+  const renderGrants: IamToolHelper['renderGrants'] = response => {
+    const restricted = response.items.filter(grant => grant.restricted === true).length
+    const held = response.items.length - restricted
+    const counts = response.external === true ? ''
+      : ` (${held} held${restricted > 0 ? `, ${restricted} restricted` : ''})`
+
+    return `Grants${counts}:\n` + rows(response, renderGrant, '  none.')
+      + (restricted > 0 ? `\n${IAM_RESTRICTED_NOTE}` : '')
+  }
+
+  const renderRevoke: IamToolHelper['renderRevoke'] = body => {
+    const subject = subjectOf(body)
+    const mode = body.mode ?? (body.resources != null ? IamGrantMode.Resources : IamGrantMode.All)
+    switch (mode) {
+      case IamGrantMode.Inherit:
+        return `Took back ${subject}'s own grant or restriction of ${body.permission}: it holds what it inherits again.`
+      case IamGrantMode.Resources:
+        return `Revoked ${body.permission}${body.resources != null ? ` (records ${body.resources.join(', ')})` : ''}`
+          + ` from ${subject}.`
+      default:
+        return `Revoked ${body.permission} from ${subject}. A declared permission is now restricted for them,`
+          + ' inherited grants included — a revoke with mode: inherit lifts that.'
+    }
+  }
 
   const renderOrganization: IamToolHelper['renderOrganization'] = organization =>
     `${organization.entitySlug}${organization.title != null ? ` "${organization.title}"` : ''}`
@@ -212,7 +240,10 @@ export const createIamToolHelper = (): IamToolHelper => {
   const renderGroup: IamToolHelper['renderGroup'] = group => [
     `${group.key}${group.title != null ? ` "${group.title}"` : ''}`,
     ...(group.members != null ? [`· ${group.members} member(s)`] : []),
-    ...(group.managed === true ? ['· the platform\'s own (staff) — read-only'] : []),
+    ...(group.managed === true
+      ? ['· the platform\'s staff group: its members, bundles and existence are the platform\'s; its permissions'
+        + ' can be granted and restricted (manage_app_grant with group)']
+      : []),
     `· grants ${group.bundles.length > 0 ? group.bundles.map(bundleOf).join('; ') : 'nothing'}`,
   ].join(' ')
 
@@ -222,7 +253,7 @@ export const createIamToolHelper = (): IamToolHelper => {
 
   return {
     missing, grantBody, renderUsers, renderUser, renderPermissions, renderDefinition, renderGrants, renderGrant,
-    renderOrganizations, renderOrganization, renderMembers, renderMember, renderGroups, renderGroup,
+    renderRevoke, renderOrganizations, renderOrganization, renderMembers, renderMember, renderGroups, renderGroup,
   }
 }
 

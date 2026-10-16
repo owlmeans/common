@@ -73,6 +73,34 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           adopted: { type: 'boolean' },
           specs,
           components: { type: 'array', items: { type: 'string' } },
+          composition: {
+            type: 'object',
+            nullable: true,
+            properties: {
+              kind: { type: 'string', enum: ['page', 'tabs'] },
+              tabs: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    label: { type: 'string' },
+                    components: { type: 'array', items: { type: 'string' } },
+                  },
+                  required: ['id', 'label', 'components'],
+                  additionalProperties: false,
+                },
+              },
+              shared: { type: 'array', items: { type: 'string' } },
+              weights: {
+                type: 'object',
+                additionalProperties: { type: 'string', enum: ['complex', 'form', 'display'] },
+                required: [],
+              },
+            },
+            required: ['kind', 'tabs', 'shared', 'weights'],
+            additionalProperties: false,
+          },
         },
         required: [
           'name', 'definition', 'path', 'alias', 'url', 'parent', 'adopted', 'specs', 'components',

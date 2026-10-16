@@ -8,7 +8,7 @@ import { makeFlowModel } from '@owlmeans/flow'
 import { AppType } from '@owlmeans/context'
 import { RouteMethod } from '@owlmeans/route'
 import {
-  INTENT_PAYLOAD_REF, INTENT_PROMPT_MAX, INTENT_TTL_SECONDS, IntentExpired, IntentFlowStep,
+  INTENT_IMPORT_PATH, INTENT_PAYLOAD_REF, INTENT_PROMPT_MAX, INTENT_TTL_SECONDS, IntentExpired, IntentFlowStep,
   IntentPickupBodySchema, IntentStashBodySchema, IntentThrottled, intent, intentFlow, makeIntentProtocols,
 } from '../src/intent/index.js'
 
@@ -24,13 +24,14 @@ const createIdOfLength = (length: number): string =>
 describe('@owlmeans/viable-common — intent-first hand-off', () => {
   const tree = makeIntentProtocols()
 
-  test('declares one guest base, two guest routes and a landing screen — no guard, no gate, no service', () => {
+  test('declares one guest base, two guest routes and two landing screens — no guard, no gate, no service', () => {
     expect(tree.base.alias).toBe(intent.base)
     expect(tree.stash.alias).toBe(intent.stash)
     expect(tree.pickup.alias).toBe(intent.pickup)
     expect(tree.landing.alias).toBe(intent.landing)
-    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(4)
-    for (const declaration of [tree.base, tree.stash, tree.pickup, tree.landing]) {
+    expect(tree.importLanding.alias).toBe(intent.importLanding)
+    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(5)
+    for (const declaration of [tree.base, tree.stash, tree.pickup, tree.landing, tree.importLanding]) {
       expect(declaration.guards ?? []).toEqual([])
       expect(declaration.gate).toBeUndefined()
       expect(declaration.route.route.service).toBeUndefined()
@@ -40,6 +41,9 @@ describe('@owlmeans/viable-common — intent-first hand-off', () => {
     expect(tree.pickup.route.route.path).toBe('/pickup')
     expect(tree.landing.route.route.path).toBe('/start')
     expect(tree.landing.route.route.type).toBe(AppType.Frontend)
+    expect(tree.importLanding.route.route.path).toBe(INTENT_IMPORT_PATH)
+    expect(tree.importLanding.route.route.type).toBe(AppType.Frontend)
+    expect(tree.importLanding.route.route.parent).toBeUndefined()
     expect(aliasOf(tree.stash)).toBe(intent.stash)
   })
 

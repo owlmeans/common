@@ -276,6 +276,8 @@ export const StatusFlowSchemaSchema = cast<StatusFlowSchema>({
     statuses: { type: 'array', minItems: 1, items: StatusDefinitionSchema },
     transitions: { type: 'array', items: StatusTransitionRuleSchema },
     label: { type: 'string', maxLength: TITLE_MAX, nullable: true },
+    tone: { type: 'string', maxLength: LABEL_MAX, nullable: true },
+    icon: { type: 'string', maxLength: LABEL_MAX, nullable: true },
     overridable: { type: 'boolean', nullable: true },
   },
   required: ['id', 'version', 'statuses', 'transitions'],
@@ -345,6 +347,8 @@ const typeProperties = {
   labels: { type: 'array', items: Label, nullable: true },
   code: { ...CodePolicySchema, nullable: true },
   label: { type: 'string', maxLength: TITLE_MAX, nullable: true },
+  tone: { type: 'string', maxLength: LABEL_MAX, nullable: true },
+  icon: { type: 'string', maxLength: LABEL_MAX, nullable: true },
   overridable: { type: 'boolean', nullable: true },
 }
 

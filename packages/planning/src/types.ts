@@ -195,6 +195,10 @@ export interface StatusFlowSchema {
   statuses: StatusDefinition[]
   transitions: StatusTransitionRule[]
   label?: string
+  /** A presentation hint: the colour family an application marks this flow with. Free text. */
+  tone?: string
+  /** A presentation hint: the icon name an application marks this flow with. Free text. */
+  icon?: string
   /**
    * A code-registered flow is sealed against a data-defined override unless it says so. Meaningless
    * on a data-defined flow: a project may override any organization-wide record.
@@ -265,6 +269,10 @@ export interface WorkcardTypeSchema {
   labels?: string[]
   code?: CodePolicy
   label?: string
+  /** A presentation hint: the colour family an application marks this type's cards with. Free text. */
+  tone?: string
+  /** A presentation hint: the icon name an application marks this type's cards with. Free text. */
+  icon?: string
   /**
    * A code-registered card type is sealed against a data-defined override unless it says so.
    * Meaningless on a data-defined type: a project may override any organization-wide record.
