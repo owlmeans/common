@@ -100,6 +100,7 @@ The native server validates every write again.
 The validator interprets schemas with `@cfworker/json-schema`, with no `eval`, `new Function` or
 network reference loading. Do not call `makeSchemaRegistry(...).validator()` or
 `.assigneeValidator()` in a browser with strict `script-src`: those remain native AJV compilers.
+The Draft 7 JSON import carries `with { type: 'json' }` so Node ESM consumers can load the validator.
 Static AJV standalone compilation is suitable only when the schema cannot change after building;
 organization and project definitions require the runtime interpreter.
 

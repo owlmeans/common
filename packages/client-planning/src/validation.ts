@@ -3,7 +3,7 @@ import type { OutputUnit, Schema } from '@cfworker/json-schema'
 import type { AnySchema, Format } from 'ajv'
 import formatsPlugin from 'ajv-formats'
 import type { FormatName } from 'ajv-formats'
-import draft7 from 'ajv/dist/refs/json-schema-draft-07.json'
+import draft7 from 'ajv/dist/refs/json-schema-draft-07.json' with { type: 'json' }
 import { SchemaInvalid } from '@owlmeans/planning'
 import type { PlanningFieldError, PlanningFieldValidation, PlanningFieldValidator } from './validation/types.js'
 import {
