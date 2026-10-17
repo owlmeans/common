@@ -28,7 +28,9 @@ must do it explicitly, or `request.entity` stays empty and handlers compare a sl
 
 ## Environments (mandatory)
 
-Parallel checkouts exist: primary `~/projects/owlmeans/common` and one per slot under
+The primary environment is **main**; **stage** means `vslots/stage` (host alias `staging`).
+
+Parallel checkouts exist: main `~/projects/owlmeans/common` and one per slot under
 `~/projects/owlmeans/vslots/<slot>/common`, each with its own deployed environment (releases, master
 secret, hosts, database, cache prefix). Build, test, deploy and inspect only the one your checkout
 path identifies; never touch another slot's files, releases or data, and never pass `--all` to a
