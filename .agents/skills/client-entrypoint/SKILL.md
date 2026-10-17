@@ -6,7 +6,7 @@ user-invocable: false
 
 # @owlmeans/client-entrypoint
 
-**Install:** `bun add @owlmeans/client-entrypoint@^0.1.18-rc.50`
+**Install:** `bun add @owlmeans/client-entrypoint@^0.1.18-rc.51`
 
 Bind a declaration from `@owlmeans/entrypoint`; never construct or replace a contextual
 entrypoint by alias.

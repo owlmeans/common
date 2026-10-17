@@ -10,5 +10,6 @@ export const SESSION_ID_KEY = '__APP_SLUG__-sid'
 // rendered by the shell itself (`NavLayout`'s `Footer`) and is never a footer link: an app link
 // list is places IN the app, and the credit is not one of those.
 export const footerLinks: PanelNavLink[] = [
+  { href: '/THIRD-PARTY-NOTICES.txt', label: 'Third-party notices' },
   { alias: HOME, label: '__APP_NAME__' },
 ]

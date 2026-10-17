@@ -19,6 +19,10 @@ Four invariants govern every shadcn-based OwlMeans package:
 
 1. **No shadcn registries.** Primitives (Button, Input, Card, …) are **hand-copied** into `src/@/components/ui/` and committed. The `registries` field in `components.json` is always empty/absent.
 
+The full upstream MIT grant and copyright accompany copied primitives in the package's
+`THIRD-PARTY-NOTICES.txt`; tarball whitelists include it and bundle builds collect it through
+`@owlmeans/dep-config/notices` (`third-party-notices`). A provenance comment alone is insufficient.
+
 2. **Package-local relative imports.** Components import their private shadcn primitives and utilities with relative specifiers. The emitted `build/` tree must contain no absolute `@/…` import: that alias belongs to the consumer and makes a clean installation depend on files it does not own.
 
 3. **Private copy, public facade.** Each package keeps its own copy under `src/@/`, emits it under `build/@/`, and does not expose it through `exports`. Consumers import the package's public `cn` function rather than any private helper.

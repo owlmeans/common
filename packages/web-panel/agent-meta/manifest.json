@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/web-panel",
-  "version": "0.1.18-rc.77",
-  "generatedAt": "2026-10-16T22:27:59.072Z",
+  "version": "0.1.18-rc.78",
+  "generatedAt": "2026-10-17T00:00:32.723Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

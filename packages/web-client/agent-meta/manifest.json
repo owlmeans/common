@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/web-client",
-  "version": "0.1.18-rc.66",
-  "generatedAt": "2026-10-16T22:27:59.064Z",
+  "version": "0.1.18-rc.67",
+  "generatedAt": "2026-10-17T00:00:32.708Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

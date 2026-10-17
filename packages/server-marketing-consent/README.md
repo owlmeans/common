@@ -13,7 +13,7 @@ status logic without a server lives in `@owlmeans/marketing-consent`; the screen
 ## Installation
 
 ```bash
-bun add @owlmeans/server-marketing-consent@^0.1.18-rc.18
+bun add @owlmeans/server-marketing-consent@^0.1.18-rc.19
 ```
 
 ## Concepts
@@ -187,7 +187,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.54
+npx @owlmeans/agent-skills@^0.1.18-rc.56
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

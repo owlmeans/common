@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/planning-auth",
-  "version": "0.1.0-rc.4",
-  "generatedAt": "2026-10-16T18:05:19.006Z",
+  "version": "0.1.0-rc.5",
+  "generatedAt": "2026-10-17T00:00:32.708Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

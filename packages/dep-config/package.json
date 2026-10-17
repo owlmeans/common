@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/dep-config",
-  "version": "0.1.18-rc.6",
-  "description": "Shared TypeScript configuration for @owlmeans packages",
+  "version": "0.1.18-rc.7",
+  "description": "Shared TypeScript configuration and build-time license notices for @owlmeans packages",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -9,12 +9,19 @@
     "./tsconfig.react.json": "./tsconfig.react.json",
     "./tsconfig.server.json": "./tsconfig.server.json",
     "./tsconfig.node.json": "./tsconfig.node.json",
-    "./tsconfig.bun.json": "./tsconfig.bun.json"
+    "./tsconfig.bun.json": "./tsconfig.bun.json",
+    "./notices": {
+      "types": "./notices.d.ts",
+      "default": "./notices.js"
+    }
   },
   "devDependencies": {
     "typescript": "^7.0.2"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "scripts": {
+    "test": "bun test ./tests"
   }
 }

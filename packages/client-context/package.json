@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-context",
-  "version": "0.1.18-rc.51",
+  "version": "0.1.18-rc.52",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -28,7 +28,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api": "^0.1.18-rc.50",
+    "@owlmeans/api": "^0.1.18-rc.51",
     "@owlmeans/client-config": "^0.1.18-rc.45",
     "@owlmeans/config": "^0.1.18-rc.44",
     "@owlmeans/context": "^0.1.18-rc.34",
