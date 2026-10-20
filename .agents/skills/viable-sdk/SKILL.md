@@ -761,7 +761,10 @@ read the instruction. The task id appears at the top and in the follow-up call b
 only thing that routes an answer back: a parent that paraphrases the rest but copies the id still
 works. A retry says which attempt it is and why the previous answer was refused. Harnesses differ
 only in the isolation mechanism, never in what is asked; `Other` gets the request stated rather than
-mechanised.
+mechanised. Record-interaction tasks preserve their complete system instructions and JSON answer
+schema, including host/parent bindings and `selectionComponents`, through every harness. They need
+no navigation-specific MCP arguments: guided story tools and direct free flight share the platform's
+record-placement and wiring capabilities.
 
 For Codex, the parent gives a fresh `viable-worker` only the task's system prompt, then its
 conversation, then the requested result shape: the outer handoff instruction and

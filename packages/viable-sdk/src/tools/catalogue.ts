@@ -1456,7 +1456,8 @@ export const catalogue: ToolDefinition[] = [
     title: 'Implement a user story',
     description:
       'Ask the platform to design and build one story: its screens, its data, its endpoints, its'
-      + ' navigation. This is the main event and takes many minutes. Returns the story status.',
+      + ' navigation. Stories may extend an existing collection/detail host; editing, deletion and'
+      + ' owned children are contextual controls. This takes many minutes. Returns the story status.',
     input: { storyId: z.string(), projectId: z.string().optional() },
     availability: toolHostHelper.anyHost,
     annotations: WRITE,

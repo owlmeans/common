@@ -57,6 +57,8 @@ export interface IntentProtocolOptions {
   landing?: string
   /** Path of the import landing screen; defaults to `/start/import`. */
   importLanding?: string
+  /** Path of the Pro landing screen; defaults to `/start/pro`. */
+  proLanding?: string
 }
 
 /** The intent-first hand-off tree {@link makeIntentProtocols} declares. */
@@ -68,4 +70,6 @@ export interface IntentProtocols {
   landing: EntrypointProtocol<OpenRequest, OpenValue>
   /** The import landing screen — `sticky` too; reached by a plain link, no stash. */
   importLanding: EntrypointProtocol<OpenRequest, OpenValue>
+  /** The Pro landing screen — `sticky` too; reached by a plain link, no stash. */
+  proLanding: EntrypointProtocol<OpenRequest, OpenValue>
 }

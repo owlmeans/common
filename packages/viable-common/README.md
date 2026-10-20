@@ -27,7 +27,7 @@ bun add @owlmeans/viable-common@^0.0.48-rc.4
 | `@owlmeans/viable-common/connect` | The connector protocol: sessions, operations, model tasks, questions, domain statuses, capabilities, the error family, and `connectProtocols()` — the one declaration both the platform and the SDK bind |
 | `@owlmeans/viable-common/convert` | Converting an application that already exists: the stages and their transitions, the origin and stack taxonomy, the census classifiers, and the `docs/conversion/` layout |
 | `@owlmeans/viable-common/integrity` | The target-shape manifest — what a slot is allowed to install, build and run — per target layout |
-| `@owlmeans/viable-common/intent` | The intent-first hand-off from the public site: `makeIntentProtocols`, `intentFlow`, the stash/pickup schemas, `IntentDraft`, `IntentExpired` / `IntentThrottled` |
+| `@owlmeans/viable-common/intent` | The intent-first hand-off from the public site: `makeIntentProtocols` (the guest stash/pickup routes and the `/start`, `/start/import`, `/start/pro` landings), `intentFlow`, the stash/pickup schemas, `IntentDraft`, `IntentExpired` / `IntentThrottled` |
 | `@owlmeans/viable-common/iam-console` | The owner console's IAM contract shared by the browser and the connector: route params, closed bodies, answers, every `Iam*Schema`, `IAM_REFUSED` |
 | `@owlmeans/viable-common/legal` | `OWLMEANS_LEGAL_DATES`, active `LegalDocumentDates`, `PendingLegalDocumentDates`, `LegalDocumentDateMetadata` and `LegalDocumentKey` — shared active ISO dates and explicit pending metadata; no runtime dependencies |
 

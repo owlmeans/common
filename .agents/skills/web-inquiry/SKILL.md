@@ -42,6 +42,11 @@ the opens of an unclaimed widget). The last client to act sets the runtime's lan
 | `onOpen(event)` | called once per open, after the analytics event |
 | `timeoutMs` | how long `load` waits; default `INQUIRY_LOAD_TIMEOUT` (10 000) |
 
+A trigger can also prepare the message: `bind(element, config, { source, message: () => ({ subject,
+body }) })` hands the provider to the runtime unread, so it is read at the click and a trigger that
+keeps its text current (an estimate being adjusted) needs no re-binding (`InquiryOpenOptions.message`,
+`common-inquiry`).
+
 The client passes the email source to the widget; neither creating a client, binding triggers nor
 `load()` invokes it. Supply `email` in `open`, `bind` or `button` options to override the client's
 default. A floating button's handle carries the same default into its `open` unless overridden.

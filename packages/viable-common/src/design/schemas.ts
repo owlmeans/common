@@ -1,4 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
+import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
 import { ProjectArea } from '../areas/consts.js'
 import { StoryActor, StoryAgentKind } from './consts.js'
@@ -32,6 +33,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
   title: 'StoryDesign',
   description: 'Everything a user story will be, decided before any of it is written',
   properties: {
+    interaction: { ...RecordInteractionPlanSchema, nullable: true },
     version: { type: 'integer', minimum: 1 },
     code: { type: 'string' },
     narrative: { type: 'string' },

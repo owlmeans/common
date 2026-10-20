@@ -1,4 +1,5 @@
 import type { ProjectArea } from '../areas/consts.js'
+import type { RecordInteractionPlan } from '../interaction/types.js'
 
 import type { AccessList } from '../dev/types.js'
 import type { UXTransition } from '../ux/types.js'
@@ -157,6 +158,8 @@ export interface StoryDesignProvenance {
  * what makes a design reviewable, amendable and reusable at all.
  */
 export interface StoryDesign {
+  /** Shared by scaffold, guided development and free flight. Absent on legacy designs. */
+  interaction?: RecordInteractionPlan
   version: number
   code: string
   narrative: string

@@ -90,6 +90,7 @@ export interface StoryComponentRef {
 
 /** Frontmatter for docs/stories/<code>.md */
 export interface StoryMeta extends Record<string, unknown> {
+  interaction?: import('../interaction/types.js').RecordInteractionPlan
   code: string
   status: string
   primary: boolean
@@ -123,6 +124,7 @@ export interface StoryMeta extends Record<string, unknown> {
 
 /** Frontmatter for co-located <screen>.spec.md */
 export interface ScreenMeta extends Record<string, unknown> {
+  interactions?: import('../interaction/types.js').RecordInteractionPlan[]
   name: string
   stories: string[]
   area?: string
@@ -142,6 +144,7 @@ export interface ComponentMeta extends Record<string, unknown> {
  * collected during one develop run.
  */
 export interface StoryWriteInput {
+  interaction?: import('../interaction/types.js').RecordInteractionPlan
   code: string
   narrative: string
   status: string
@@ -177,6 +180,7 @@ export interface StoryWriteInput {
  * two failure modes this record exists to make impossible.
  */
 export interface RegistryAllocation extends Record<string, unknown> {
+  interaction?: import('../interaction/types.js').RecordInteractionPlan
   kind: RegistryKind
   name: string
   /** Repo-relative source path; empty for alias-only kinds */

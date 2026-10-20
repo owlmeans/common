@@ -14,6 +14,8 @@ export enum ViableSkill {
   ScopeDiscipline = 'scope-discipline',
   /** One key user, one shortest path to value — for every analysis-stage helper. */
   MainFlowFocus = 'main-flow-focus',
+  /** CRUDL actions and dependent records belong to their domain host. */
+  RecordInteractions = 'record-interactions',
   /** Overrides the TypeScript rules for a file that is not TypeScript. */
   NonTypescriptOutput = 'non-typescript-output',
 

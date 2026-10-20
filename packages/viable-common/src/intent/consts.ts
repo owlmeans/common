@@ -23,6 +23,7 @@ export const intent = Object.freeze({
   pickup: 'viable:manager-api:intent:pickup',
   landing: 'viable:manager-web:intent:landing',
   importLanding: 'viable:manager-web:intent:import',
+  proLanding: 'viable:manager-web:intent:pro',
 } as const)
 
 /** Where the guest API lives, and the screen the visitor's browser is sent to. */
@@ -36,6 +37,14 @@ export const INTENT_LANDING_PATH = '/start'
  * the home screen once they are signed in.
  */
 export const INTENT_IMPORT_PATH = '/start/import'
+
+/**
+ * The third way in: the public site's Pro plan "Start now" is a plain link to this screen. Like the
+ * import landing it carries nothing but the wish — here, to subscribe to Pro — so there is no guest
+ * call and no reference; the platform opens its billing screen with the Pro subscription's start
+ * dialog, through sign-in first when the visitor has no session.
+ */
+export const INTENT_PRO_PATH = '/start/pro'
 
 /** `kind` of the browser record an import wish waits in ({@link IntentImportDraft}). */
 export const INTENT_IMPORT_KIND = 'import'
