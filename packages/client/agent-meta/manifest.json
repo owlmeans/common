@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/client",
-  "version": "0.1.18-rc.56",
-  "generatedAt": "2026-10-17T00:00:32.707Z",
+  "version": "0.1.18-rc.57",
+  "generatedAt": "2026-10-20T23:19:58.623Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,69 @@
       "name": "client",
       "category": "package-specific",
       "file": "skills/client/SKILL.md",
-      "canonicalPath": ".agents/skills/client/SKILL.md"
+      "canonicalPath": ".agents/skills/client/SKILL.md",
+      "parts": [
+        {
+          "name": "code-splitting",
+          "file": "skills/client/parts/code-splitting.md",
+          "description": "lazyComponent and lazyHandler code-splitting at module scope, preload, fallbacks and error renderers, and chunk-failure recovery with lazyRetryHelper.",
+          "purposes": [
+            "screen",
+            "layout"
+          ],
+          "mentions": [
+            "lazyComponent",
+            "lazyHandler",
+            "lazyRetryHelper",
+            "retryImport",
+            "isChunkLoadError",
+            "recoverFromChunkError",
+            "reloadOnce",
+            "LazyErrorRenderer",
+            "CHUNK_RELOAD_KEY",
+            "vite:preloadError"
+          ]
+        },
+        {
+          "name": "modals",
+          "file": "skills/client/parts/modals.md",
+          "description": "The modal service stack — the surface an app mounts once, ModalBodyProps bodies, request with response, cancel and error, and why the stack stays one deep.",
+          "purposes": [
+            "dialog"
+          ],
+          "mentions": [
+            "context.modal",
+            "ModalBodyProps",
+            "useSetupModalNavigator",
+            "appendModalService",
+            "createModalService",
+            "ModalService",
+            "ModalStackLayer",
+            "useToggle"
+          ]
+        },
+        {
+          "name": "navigation",
+          "file": "skills/client/parts/navigation.md",
+          "description": "Navigating by entrypoint alias with useNavigate and the Navigator, screen params through useEntrypoint, and how Router mounts frontend entrypoints and checks their guards.",
+          "purposes": [
+            "navigation",
+            "screen"
+          ],
+          "mentions": [
+            "useNavigate",
+            "Navigator",
+            "NavRequest",
+            "nav.go",
+            "nav.press",
+            "useEntrypoint",
+            "RoutedComponent",
+            "EntrypointContextParams",
+            "getGuards",
+            "frontend-guard"
+          ]
+        }
+      ]
     }
   ]
 }

@@ -1,3 +1,12 @@
+---
+name: code-structure-reference
+description: Classifying a declaration, file roles, deciding a module's shape, converting a module step by step, choosing the binding target, interface conversions, and pitfalls.
+metadata:
+  purposes:
+  mentions:
+---
+<!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
+
 # owlmeans-code-structure — reference
 
 ## Contents

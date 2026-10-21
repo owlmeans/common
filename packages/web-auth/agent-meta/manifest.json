@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/web-auth",
-  "version": "0.1.18-rc.68",
-  "generatedAt": "2026-10-17T00:00:32.706Z",
+  "version": "0.1.18-rc.69",
+  "generatedAt": "2026-10-20T23:19:58.620Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

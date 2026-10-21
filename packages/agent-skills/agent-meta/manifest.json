@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/agent-skills",
-  "version": "0.1.18-rc.56",
-  "generatedAt": "2026-10-17T00:00:32.700Z",
+  "version": "0.1.18-rc.57",
+  "generatedAt": "2026-10-20T23:19:58.611Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -52,7 +52,25 @@
       "name": "shadcn-web",
       "category": "general",
       "file": "skills/shadcn-web/SKILL.md",
-      "canonicalPath": ".agents/skills/shadcn-web/SKILL.md"
+      "canonicalPath": ".agents/skills/shadcn-web/SKILL.md",
+      "parts": [
+        {
+          "name": "shadcn-reference",
+          "file": "skills/shadcn-web/parts/shadcn-reference.md",
+          "description": "Full examples — components.json, tsconfig, globals.css theme tokens, the cn() helper, peerDependencies, the MUI to shadcn mapping, Tailwind v4 rules, a primitive header, the test context and harness, Radix peer deps.",
+          "purposes": [
+            "theme",
+            "config"
+          ],
+          "mentions": [
+            "components.json",
+            "globals.css",
+            "tailwind-merge",
+            "class-variance-authority",
+            "@radix-ui"
+          ]
+        }
+      ]
     },
     {
       "kind": "skill",
@@ -80,7 +98,16 @@
       "name": "owlmeans-code-structure",
       "category": "general",
       "file": "skills/owlmeans-code-structure/SKILL.md",
-      "canonicalPath": ".agents/skills/owlmeans-code-structure/SKILL.md"
+      "canonicalPath": ".agents/skills/owlmeans-code-structure/SKILL.md",
+      "parts": [
+        {
+          "name": "code-structure-reference",
+          "file": "skills/owlmeans-code-structure/parts/code-structure-reference.md",
+          "description": "Classifying a declaration, file roles, deciding a module's shape, converting a module step by step, choosing the binding target, interface conversions, and pitfalls.",
+          "purposes": [],
+          "mentions": []
+        }
+      ]
     },
     {
       "kind": "skill",

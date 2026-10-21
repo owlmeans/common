@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/planning
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/planning": "^0.1.18-rc.28"` in `dependencies` (`ajv` and `ajv-formats` are peers)
+**Install:** `"@owlmeans/planning": "^0.1.18-rc.29"` in `dependencies` (`ajv` and `ajv-formats` are peers)
 
 The contracts of project planning: record shapes, schemas, refusals, the protocol tree, the pure
 fold and the models. No database, no fastify, no React. The executor, the plugin registry, the
@@ -113,192 +113,6 @@ forms generated code keeps writing are `server-planning` → Creating and readin
   advanced flow — closed only when every flow is closed. A status a flow does not declare reads as
   planned.
 
-## Declaring a type
-
-A `WorkcardTypeSchema` / `ProjectTypeSchema` is plain data registered through a plugin's `schemas`
-or `makeSchemaRegistry({ types, flows })`. **Every declaration schema is closed** — these are ALL
-the keys:
-
-| Declaration | Required | Optional |
-|---|---|---|
-| card / specification type | `type` (its key), `kind`, `version`, `fields`, `flows` (at least one), `specifications` | `intrinsic`, `relationships`, `labels`, `code`, `label`, `tone`, `icon`, `overridable` |
-| project type | the same, plus `cardTypes` | `projectTypes`, `scopedCardTypes` |
-| flow | `id` (its key), `version`, `statuses` (at least one), `transitions` | `label`, `tone`, `icon`, `overridable` |
-| status | `key`, `intrinsic` | `initial`, `terminal`, `label`, `tone` |
-| transition rule | `name`, `from` (status keys or `'*'`), `to` | `label`, `explicit` |
-
-The display name is `label` everywhere; a type or a flow has no `name`, `key` or `description`
-(`key` belongs to a status, `name` to a rule). As data, `definitions` refuses an extra key with
-`SchemaInvalid`; in code the registry does not validate a declaration, so only TypeScript's
-excess-property check catches it — keep the literal typed.
-
-- `fields` — the AJV schema of `fields`; the registry compiles and caches it (`validator(type)`).
-- `specifications` — the slots this type's cards carry as children. A slot may name its
-  specification `type`; otherwise `specificationHelper.specificationTypeOf` takes the only registered specification
-  type, then the one sharing the parent type's prefix (`viable:project` → `viable:spec`).
-- `code` — `CodePolicy { prefix?, style: random|sequential|slug, length?, uppercase?, uniqueWithin:
-  parent|entity, mutable? }`. A code is fixed once minted unless `mutable`.
-- `relationships` — the edge types a card may start (`single` = at most one per card).
-- `labels` — the allowed labels (any when omitted).
-- A project type lists `cardTypes` (and `projectTypes` for nesting) its children may have;
-  `scopedCardTypes: true` also admits card types defined as data (below).
-- `overridable: true` on a code type or flow opens it to a data-defined override.
-- `tone` / `icon` (type, flow) and `tone` (status) — PRESENTATION hints the package stores as free
-  text of at most 64 characters, neither validating nor rendering them. Their standard values and
-  their standard editor and renderer are `@owlmeans/web-panel/picker`: `tone` a palette key
-  (`PICKER_COLOR_KEYS` — red … graphite, 24) or a lowercase `#rrggbb` when the editor allows custom
-  colours, `icon` a kebab-case lucide name of its catalogue (`PICKER_ICON_NAMES`). A person edits a
-  type's or a flow's mark with `IconColorPicker` and shows it with `IconTile` / `ColorDot`; a
-  status's `tone` usually names a meaning the application's own palette maps (`ColorPicker` with
-  `colors`). An unknown value renders the picker's fallback (`slate`, `circle`); server code and
-  seeds read the data React-free from `@owlmeans/web-panel/picker/vocabulary`.
-
-## Data-defined types and flows
-
-Card types, assignee types and status flows may also be DATA — `ScopedSchemaRecord`s a store keeps
-behind the optional `PlanningStore.schemas` port. Card types and flows layer **code → entity → project**;
-assignee types layer **code → entity** and refuse a project-local declaration:
-
-- `code` is the plugin registry (the default), `entity` an organization-wide record
-  (`project` absent), `project` a record of one project card. A project record overrides an
-  organization one of the same key.
-- **Card types, assignee types and flows are data.** A code key is sealed unless its declaration says
-  `overridable: true`; project and specification types are always code's (`scopedSchemaHelper.assertOverridable` →
-  `SchemaSealed`).
-- A record's `version` is its compare-and-set token and is written into the declaration's own
-  `version`: a write lands only at its layer's next version, 1 for a new key (`SchemaConflict`).
-- The closed-form checks are shared by every store: `scopedSchemaHelper.assertFlowSchema` (the declaration's schema,
-  unique status keys, every `to` declared, `from` `'*'` or declared statuses) and
-  `scopedSchemaHelper.assertTypeSchema` (the `card` kind, a compiling `fields` schema, unique flows that resolve) —
-  `SchemaInvalid`.
-- **Retired** means offered for nothing new, still resolved for what uses it: a retired record
-  gives way to a live declaration below it, and a key retired in every layer resolves retired —
-  present in the bundle's `types`/`flows`, listed in `retired`. A flow cannot be retired while a
-  live type of an affected layer still runs it (`scopedSchemaHelper.flowInUse` → `SchemaInUse`).
-- `scopedSchemaHelper.resolveScopedBundle(code, records, scope)` is the ONE resolution (pure);
-  `scopedRegistryOf` is its read-only registry (`originOf`, `isRetired`; `register*`/`load` refuse). A
-  `ScopedSchemaBundle` extends the plain bundle with `scope`, `revision`, `origins`, `retired`, so a
-  reader of the plain bundle is unaffected.
-- `SchemaStore`: `list(where)`, `put(record)` (the CAS), `purge({ entityId, project })`,
-  `revision(entityId)` (monotonic per organization), optional `watch(listener)`.
-- `PlanningFacade.definitions` (present only where the store has the port): `bundle(project?)`,
-  `registry(project?)`, `records`, `putType`/`putFlow`/`putAssigneeType` (CAS on the declaration's version),
-  `define` (each at its layer's next version, flows first), `seed` (only the keys the layer lacks),
-  `retire(kind, key, { project? })`. The declaration still carries its own `version` (any number
-  ≥ 1 for `define`/`seed`, which assign the layer's next one; the exact next one for `put*`), and
-  a project layer is `{ project: <project card id> }` in the second argument (a `define` call:
-  `server-planning` → Creating and reading a card).
-
-## The fold
-
-`applyHelper.applyTransition(card | undefined, transition)` is pure and total:
-
-- an already-applied seq (`seq <= card.seq`) returns the same card — re-folding is safe;
-- anything but `card.seq + 1` (or seq 1 for a create with no card) throws
-  `PlanningError('fold:out-of-order')`;
-- `create` builds the whole record from `changes` + `id`/`kind`/`type`/`entityId`/`createdAt`/`seq`;
-- `update`/`transit` write `changes` — **`fields` and `flows` merge shallowly, every other key
-  replaces** — and clear `unset` (`key`, `fields.key`, `flows.id`); identity and required keys are
-  never written or cleared;
-- `link`/`unlink` move only `seq`/`head`/`updatedAt`; `delete` answers `null`;
-- every result carries `seq = transition.seq`, `head = max(head, seq)`, `updatedAt = transition.at`;
-- the log is replayed AS WRITTEN: a stored row admission would refuse (an update naming
-  `createdBy`) still folds. Guards live at admission (`changesHelper.assertMutable`, the executor), never in the
-  fold, so a stored log never stops projecting.
-
-`applyHelper.applyRelationship(links, transition)` folds the edges: a create's `links`, `link`, `unlink`, and a
-`delete` dropping every edge touching the card. An existing edge is kept, so re-folding adds nothing.
-
-`changesHelper.computeChanges(card, exec, type, registry, at, { slot? })` is what the executor records:
-
-- create — the whole initial record: normalized `parents`, every flow at its initial status (the
-  draft's `status` for the primary), mirrored `status`/`intrinsic`, `closedAt` when it starts
-  closed; a specification gets its format, `bodyChars` and revision 1 when the slot is revisioned.
-  The code must already be on the draft (the executor mints first);
-- update — only differing values; `null` or `exec.unset` clears a field that has one; a moved
-  `parent` replaces the old one in `parents`; changed content of a revisioned document sets
-  `revision + 1`. An update that changes nothing is `changesHelper.isEmptyChange` and must append nothing;
-- transit — `flows[flow] = rule.to`, `status` on the primary flow, `intrinsic` when it moves,
-  `closedAt` set on entering closed and cleared on leaving; throws `IllegalTransition`;
-- link/unlink/delete — nothing.
-
-`changesHelper.assertMutable(exec, type)` refuses (`planning:immutable:<field>`) identity keys (`createdAt`
-among them), `createdBy` in `changes` or `unset` on any action (a create included),
-`revision` / `bodyChars`, `status`/`intrinsic`/`flows`/`closedAt` outside a create (they move only
-through `transit`), `category`, a fixed `code`, and clearing a required field.
-
-## Querying
-
-`queryHelper.criteriaOf(query, scope)` is the ONE translation from `WorkcardQuery` to `Criteria<Workcard>`:
-bare values and arrays pass through (`kind`, `type`, `status`, `intrinsic`, `code`, `category`),
-`parent` is direct children, `within` → `parents: { $contains }`, `labels` → `$overlaps`, `ids` →
-`id: { $in }`, `flow` → `flows.<id>`, `fields` → `fields.<key>` equality, `q` → `$or` of title /
-description `$ilike` (wildcards escaped) and code `$startsWith`, `updatedSince` → `updatedAt: {
-$gte }`. `entityId` always comes from the scope; `undefined` is omitted. Paging and sort are
-`queryHelper.listOptionsOf` (`size: 0` = no limit). `queryHelper.summaryOf(cards, parents)` counts DIRECT children by
-intrinsic state and gives no key to a parent with none. A scope naming `projects` is narrowed by
-the SERVER facade on top of this translation (`server-planning` → The access resolver);
-`TransitionWhere.project` and `RelationshipWhere.project` take one id or a list.
-
-**A query crosses HTTP in its wire form.** The OwlMeans transport cannot carry arrays or nested
-objects in a query string (the client writes `key[]=`, the server reads that key literally), so
-the list, summary, transitions, specifications and links protocols take `*QueryWire` shapes: lists
-comma-joined (a JSON array when an entry holds a comma), objects as JSON, sort as `field,-field`.
-A client calls `wireHelper.encodeWorkcardQuery(query)` before `call({ query })`; a handler calls
-`wireHelper.decodeWorkcardQuery(req.query)` — tolerant of arrays and of the rich form — and then
-`queryHelper.criteriaOf`. A value that does not decode throws `PlanningError('malformed:query:<key>')`.
-
-## The protocol tree and mounting
-
-`makePlanningProtocols({ base: { alias, path?, parent?, service? }, guards, gate?, socketBase?, definitions? })`:
-
-| Leaf | Route | Request → reply |
-|---|---|---|
-| `schema.list` | GET `/schemas` | → `PlanningSchemaBundle` |
-| `card.list` | GET `/cards` | query `WorkcardQueryWire` → `ListResult<Workcard>` |
-| `card.summary` | GET `/cards/summary` | query `SummaryQueryWire` → `SummaryView` |
-| `card.get` | GET `/cards/:id` | → `Workcard` |
-| `card.transitions` | GET `/cards/:id/transitions` | query `TransitionQueryWire` |
-| `card.specifications` | GET `/cards/:id/specifications` | query `SpecificationQueryWire` |
-| `spec.get` / `spec.revisions` | GET `/specifications/:id` / `…/revisions` | query `RevisionsQuery` |
-| `link.list` | GET `/links` | query `RelationshipQueryWire` |
-| `transition.get` | GET `/transitions/:transition` | → `Transition` |
-| `execute` | POST `/execute` | body `ExecuteRequest` → `TransitionReceiptView` |
-| `commit.get` | GET `/commits/:transition` | query `CommitQuery { wait? }` → `CommitStatus` |
-| `commit.events` | SOCKET `/commits` | query `CommitFeedQuery` → `CommitEvent` frames |
-| `schema.define` (with `definitions: true`) | POST `/schemas` | body `SchemaDefineRequest { project?, mode?, types?, flows?, retire? }` → `SchemaDefineReply { records, bundle }` |
-
-- Aliases derive from the base alias (`planningAliasHelper.planningAliases(base)` → `<base>:card:list`, …); two mounts
-  are two base aliases. `definitions: true` adds `schema.define` (its alias from
-  `planningAliasHelper.planningDefinitionAliases(base)`, kept apart so a tree without it names no undeclared alias)
-  and gives `schema.list` a `SchemaListQuery { project? }` answered with that layer's scoped bundle.
-  Without it the tree declares exactly the other leaves.
-- The guards and the gate sit on the base alone; every HTTP leaf inherits them. `path` defaults to
-  `/planning`.
-- Static `/cards/summary` is declared before parametric `/cards/:id`.
-- The commit socket hangs under `socketBase` when given and then inherits THAT base's guards —
-  pass an update/socket base that authenticates; otherwise it hangs under the planning base.
-- `actor` in an execute body is ignored on the wire: the server fills it from the request.
-- Responses carry no runtime schema (typed only), so a serializer never strips `fields`.
-
-## Mounting in a target
-
-A generated target serves this tree as it is — no hand-written card, transition, schema or document
-routes; domain rules are `before` plugins. This section is the hub; each package skill has its half.
-
-- **common** declares the one tree the api and the web share: `makePlanningProtocols({ base: {
-  alias: 'api:planning' }, guards: DEFAULT_GUARD, definitions: true, resources: true })`, in its own module beside
-  the `PLANNING` plugin (`sources/common/src/planning.ts`).
-- **api** — `server-planning` → Mounting in a target (stock handlers, no commit socket, the
-  resolver answering `writes`). **web** — `client-planning` → Mounting in a target. **store** —
-  `planning-postgres`.
-- **Kit literals**: card types and flows are LITERAL objects in `PLANNING.schemas.flows` / `.types`,
-  above the `// owlmeans: add planning flows|types above this line` sentinels — a spread or an
-  imported constant hides them from the library's registration checks. Card types and flows carry
-  `overridable: true` with open `fields` (`additionalProperties: true`); the container project type
-  (always sealed) carries `scopedCardTypes: true`, so the app's people override and extend them as
-  data through `schema.define`.
-
 ## Models
 
 `makeWorkcardModel(record, facade)` (and `makeProjectModel`, `makeSpecificationModel`, `modelOf`
@@ -316,116 +130,11 @@ by kind) is the same object on a server and in a browser. `schema`, `flow`, `sta
   `purge` (a delete of the project — the store removes everything under it).
 - `SpecificationModel` adds `body`, `revise`, `history` (from the log).
 
-## Errors
-
-Every refusal is a registered `ResilientError` whose message is `planning:<marker>:<detail>` —
-the marker survives a hop where the class is unknown, so match on it there:
-
-| Class | Marker | HTTP |
-|---|---|---|
-| `PlanningError` | `planning:` (`fold:out-of-order`, `immutable:<field>`, `malformed:<what>`) | 500 |
-| `WorkcardNotFound` | `workcard-not-found:` — also the answer for another entity's card | 404 |
-| `UnknownWorkcardType` / `UnknownStatusFlow` | `unknown-type:` / `unknown-flow:` | 422 |
-| `ParentNotFound` / `CardTypeNotAllowed` | `parent-not-found:` / `card-type-not-allowed:` | 422 |
-| `PlanningRefused` | `refused:` — a plugin middleware said no | 422 |
-| `IllegalTransition` | `illegal-transition:<flow>:<transition>:<from>` | 409 |
-| `FieldsInvalid` / `LabelNotAllowed` | `fields-invalid:` / `label-not-allowed:` | 422 |
-| `SpecificationSlotUnknown` / `SpecificationRevisionConflict` | `specification-slot-unknown:` / `specification-revision-conflict:` | 422 / 409 |
-| `RelationshipRefused` / `CodeTaken` | `relationship-refused:` / `code-taken:` | 422 / 409 |
-| `WorkcardConflict` | `workcard-conflict:` — stale `expectSeq` | 409 |
-| `SchemaConflict` / `SchemaInUse` | `schema-conflict:` (lost version CAS) / `schema-in-use:` (retiring a flow a live type runs) | 409 |
-| `SchemaSealed` / `SchemaInvalid` | `schema-sealed:` / `schema-invalid:` | 422 |
-| `PlanningForbidden` | `forbidden:<grant>:<target>` — the request's access lacks a grant; `forbidden:writes:<id>` — the card or project is outside its `writes` | 403 |
-| `CommitTimeout` / `CommitFailed` | `commit-timeout:` (still pending, nothing undone) / `commit-failed:` | 500 |
-| `PlanningScopeMismatch` / `PlanningUnsupported` | `scope-mismatch:` / `unsupported:` | 404 / 500 |
-
-Type names are `PlanningError<Suffix>` (`PlanningErrorWorkcardNotFound`).
-
-**The HTTP column is each class's `static httpStatus`** (the `error` skill's principle; 500 = none
-declared): an addressed card that is absent or another entity's is 404, a write the request's
-access does not grant is 403, a card whose state or head (or a schema record whose version)
-refuses the write is 409, a body naming what the registry, the parent or a schema refuses is 422.
-Faults declare nothing, and so does `PlanningError` itself — its three causes share one class, and
-a base's static would reach every subclass. A new refusal declares on its own leaf class, and
-`tests/error-status.spec.ts` refuses an exported refusal whose status was not decided. A plugin's
-plain `throw` inside `before` becomes `PlanningRefused` and answers 422, so a plugin FAULT must
-throw a `ResilientError` that declares nothing.
-
-## i18n
-
-Importing the package registers, in eight languages (en, pl, ru, be, uk, es, de, fr), `lib:planning.*` labels (`kind.*`,
-`intrinsic.*`, `action.*`, `commit.*`, `format.*`) and one text per refusal type under the shared
-`errors` resource (`errors.<TypeName>`), where a panel's error lookup finds it.
-
-## Schema rules
-
-A record schema may become a Mongo `$jsonSchema`, so every exported schema keeps two rules: **no
-`integer`** (`number` only) and **every optional property `nullable: true`** (an enum then admits
-`null` too). No `oneOf`/`anyOf` inside a record schema. Build type arrays per schema, never share
-one object between schemas — ajv may extend a `type` array while compiling. The walk that pins this
-is part of the package's own tests.
-
 ## Depends On
 
 - `@owlmeans/resource` — `Criteria`, `ListOptions`, `ListResult`, `createListSchema`
 - `@owlmeans/entrypoint`, `@owlmeans/route` — the protocol tree
 - `@owlmeans/error`, `@owlmeans/i18n`, `@owlmeans/auth` (`IdValueSchema`), `@owlmeans/basic-ids`, `@owlmeans/context`
-
-## Assignees, comments, teams and hierarchy
-
-Cards retain the transition log; auxiliary records use separate versioned resources. `Assignee`,
-`Team`, `Comment` and `CommentMention` have organization scope and `version` compare-and-set.
-`PlanningResourceKind` qualifies relationship endpoints so ids from different resources cannot
-collide. Omitted endpoint kinds mean `workcard` for stored legacy edges.
-
-Assignees have stable ids, normalized organization-unique nicknames (`mentionHelper.nicknameKey`),
-`kind: human | non-human`, `type`, flexible `fields`, optional `authentication: { provider,
-externalId }` and retirement. Human types require authentication by default; declare
-`authentication: 'optional'` to allow a human without it. Non-human types default to optional.
-Authentication is provider-neutral; `@owlmeans/planning-auth` adds the optional OwlMeans adapter.
-Code plugins declare `schemas.assigneeTypes`; data definitions use `putAssigneeType` or
-`define({ assigneeTypes })`. Assignee schemas are organization-wide, never project-local.
-
-`reporter` and `assignee` are optional top-level single assignee ids. Additional schema fields use
-`relationships: [{ name, field, toKind: PlanningResourceKind.Assignee, multiple?, to?, inverse? }]`.
-`to` restricts target assignee types. The field is authoritative; the store maintains its canonical
-edge and the facade exposes named inverse views. Do not mirror base fields in `fields`, invent
-join collections or manually write these derived edges. Retired assignees retain existing links
-and comments but cannot receive new assignments or team memberships.
-
-Comments belong to a card and a trusted author assignee. Encode stable mentions with
-`mentionHelper.encode(id, nickname)`, producing `[@nickname](assignee:<encoded-id>)`; renaming a
-nickname never retargets a mention. `CommentMention` is a separate derived cache with the source
-comment `revision`; reads repair interrupted cache updates. Never accept author ids from an
-untrusted request or parse ordinary prose as identity.
-
-Teams are organization resources, reusable across projects. `teams.addMember/removeMember` and
-`teams.attach/detach` use the existing relationship store, with canonical team-member and
-project-team edges. `teams.members(team)` and `teams.projects(team)` read membership and
-attachment; `teams.assignees(project)` reads effective assignees. Read project teams through
-`relationships.list({ from: project, type: PLANNING_PROJECT_TEAM, toKind: PlanningResourceKind.Team })`;
-project assignees are the deduplicated union of attached teams. Team `externalId` may name an
-external permission group; links do not mutate authentication group membership.
-
-Hierarchy uses existing `parent` and direct `parents`, with optional derived `parentType`.
-Declare compatible `parents: { types?, required? }` and `children: { types }` on card schemas.
-Required primary parents cannot be cleared; safe reparenting is supported. Cycles, cross-organization
-links, incompatible descendants and deleting an ordinary card with children are refused. The
-nearest primary project selects schemas; all project ancestors participate in access checks.
-Project `mode` is `opened` (default) or `closed`, separate from flow status; host policy may use it
-for access decisions.
-
-Declare `resources: true` on `makePlanningProtocols` to add assignee/team/comment/mention
-`get`, `list`, `write` branches and use `planningResourceAliases`. Enable `definitions: true`
-for assignee type schema writes. Use stock facade methods, handlers, stores and feeds on both
-sides; resource commands and versions are validated by the shared wire contract.
-
-Protocol responses use `PlanningReply<T>`: storage organization metadata (`entityId`) is absent
-from records, schema scopes, receipts and commit frames. `planningReplyHelper.project` handles
-only known record/envelope positions; custom fields, transition changes and schema definitions
-remain opaque. Native facades retain their trusted storage scope. Remote facades hydrate the
-shared record shape with empty advisory metadata; never derive organization identity from it.
-
 
 ## Related
 
@@ -433,3 +142,15 @@ shared record shape with empty advisory metadata; never derive organization iden
 - [[client-planning]] — the remote facade, the state mirror, waiting for a commit
 - [[resource]] — the criteria language `queryHelper.criteriaOf` targets
 - [[planning-postgres]] — a durable store implementing every port, the schema port included
+
+## Parts
+
+Load a part on top of this core when its job is in play.
+
+| Part | Load it when |
+|---|---|
+| [types](parts/types.md) | Declaring a type or a status flow, data-defined types and flows (`scopedSchemaHelper`), or a new record schema |
+| [fold](parts/fold.md) | Folding transitions (`applyHelper`, `changesHelper`) or translating a `WorkcardQuery` (`queryHelper`, `wireHelper`) |
+| [mounting](parts/mounting.md) | Declaring or mounting the protocol tree (`makePlanningProtocols`), or serving it in a generated target |
+| [errors](parts/errors.md) | Throwing, matching or phrasing a planning refusal (marker, HTTP status, i18n text) |
+| [collaboration](parts/collaboration.md) | Assignees, reporters, comments and mentions, teams, card hierarchy, the `resources` branches or `PlanningReply` |

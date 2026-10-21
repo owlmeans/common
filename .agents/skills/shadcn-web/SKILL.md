@@ -10,7 +10,7 @@ metadata:
 
 Shadcn-based web packages are the **current Web layer**. `@owlmeans/web-panel` is the reference one, and `@owlmeans/mui-panel` is the legacy MUI family it supersedes. Both sit at the same architecture layer (Web) and wrap the same headless `@owlmeans/client-panel` logic; the shadcn family swaps MUI + Emotion for shadcn UI + Tailwind CSS v4, and a new package follows `web-panel`'s shape.
 
-See `reference.md` in this skill folder for full code examples (components.json, tsconfig, globals.css @theme tokens, peerDeps, cn(), MUI→shadcn mapping table).
+See the `shadcn-reference` part ([parts/shadcn-reference.md](parts/shadcn-reference.md)) for full code examples (components.json, tsconfig, globals.css @theme tokens, peerDeps, cn(), MUI→shadcn mapping table).
 
 ## Package-boundary rule
 
@@ -265,3 +265,9 @@ import '../../src/@/globals.css'
 - `[[shadcn-versions]]` — bumping tailwind/shadcn external deps across packages
 - `[[tsconfig]]` — OwlMeans TypeScript config conventions
 - `[[bun]]` — build, install, workspace filter scripts
+
+## Parts
+
+| Part | Load it when |
+|---|---|
+| [shadcn-reference](parts/shadcn-reference.md) | setting up a shadcn package (components.json, tsconfig, tokens, peer deps, test harness) or mapping MUI components |

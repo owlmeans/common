@@ -1,6 +1,20 @@
 /** The capabilities a story contributes to a domain record. */
 export type RecordCapability = 'create' | 'read' | 'update' | 'delete' | 'list' | 'action'
 
+export type RecordComponentRole = 'collection' | 'detail' | 'editor' | 'owned-section' | 'support'
+
+/** One component's work on one entity; shared components may have several bindings. */
+export interface RecordComponentResponsibility {
+  component: string
+  entity: string
+  roles: RecordComponentRole[]
+  capabilities: RecordCapability[]
+  /** What this component does, rather than the whole story it contributes to. */
+  scope: string
+  /** The component containing an editor/owned section, not a second screen mount. */
+  parentComponent?: string
+}
+
 /** Placement is independent of story count and of whether an editor has a route. */
 export interface RecordInteractionPlan {
   entity: string
@@ -21,6 +35,8 @@ export interface RecordInteractionPlan {
   hostComponent?: string
   /** Existing list/board/picker components whose record-open actions enter the shared detail. */
   selectionComponents?: string[]
+  /** Allocated component paths and their distinct work, shared by generation and repair. */
+  componentResponsibilities?: RecordComponentResponsibility[]
   /** Identifier taken from the selected record; never the latest or first record. */
   recordKey?: string
   /** Parent identifier supplied by the open parent detail. */

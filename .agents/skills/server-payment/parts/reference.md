@@ -1,4 +1,12 @@
-# server-payment — consumer-rights reference
+---
+name: reference
+description: The consumer-rights contracts — declaring the policy, the records, the ConsumerRightsService methods and usage meter, withdrawal and cancellation step by step, mails and handler options.
+metadata:
+  purposes: payment, consent, server-api
+  mentions: declareConsumerRights, ConsumerRightsService, CONSUMER_RIGHTS_SERVICE, consumerRightsOf, recordConsent, assertConsent, recordStartRequest, withdrawalCandidates, PerformanceConsentRequired, SubscriptionStartRequired, UsageMeter, withdrawalRefundHelper
+---
+
+# @owlmeans/server-payment — Consumer-rights reference
 
 The contracts behind `SKILL.md` § Consumer rights. Types live in `src/types.ts`, schemas in
 `src/schemas.ts`, the service in `src/consumer/service.ts`.

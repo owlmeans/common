@@ -1,4 +1,4 @@
-import type { SkillDefinition } from '@owlmeans/llm-common'
+import type { PromptBlock, PromptRegion, SkillDefinition } from '@owlmeans/llm-common'
 
 /** The one way a prompt is rendered and glued — byte-identical between calls, so caches hit. */
 export interface PromptRenderHelper {
@@ -22,4 +22,6 @@ export interface PromptRenderHelper {
    * `prompt_cache_key`), never for security.
    */
   prefixHash: (text: string) => string
+  /** The region a block travels in (`PROMPT_REGIONS`); a block no region lists goes to the tail. */
+  regionOf: (block: PromptBlock) => PromptRegion
 }

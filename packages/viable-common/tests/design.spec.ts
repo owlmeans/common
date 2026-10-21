@@ -112,6 +112,17 @@ describe('viable-common - the design schema', () => {
     expect(validate(design())).toBe(true)
   })
 
+  test('persists scoped components and required read operations while accepting legacy API plans', () => {
+    const value = withScreens()
+    value.interaction = { entity: 'Booking', capabilities: ['list', 'read'], placement: 'destination', presentation: 'inline',
+      componentResponsibilities: [{ component: value.components[0].path, entity: 'Booking', roles: ['collection'], capabilities: ['list', 'read'], scope: 'List and select bookings.' }] }
+    value.api = [{ path: 'sources/api/src/app/booking/index.ts', entity: 'Booking', type: 'sources/common/src/models/booking.ts', model: '', endpoints: [], operations: ['list', 'get'] }]
+    expect(validate(value)).toBe(true)
+    expect(validate({ ...value, api: [{ ...value.api[0], operations: ['publish'] }] })).toBe(false)
+    delete value.api[0].operations
+    expect(validate(value)).toBe(true)
+  })
+
   test('refuses a field the shape does not declare', () => {
     const rogue = { ...design(), somethingNew: 1 }
 

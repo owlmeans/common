@@ -22,16 +22,25 @@ export interface ScriptedModel {
   turns: () => number
   /** The message lists it was asked with, in order. */
   asked: () => unknown[][]
+  /** The call options of each ask, in order. */
+  options: () => Array<Record<string, unknown>>
 }
 
-export const scriptedModel = (script: ScriptedTurn[]): ScriptedModel => {
+/**
+ * `extra` puts identity on the double — a `modelName`, the `metadata.config` a service-built model
+ * carries — so a provider plugin can recognise and size it.
+ */
+export const scriptedModel = (script: ScriptedTurn[], extra: Record<string, unknown> = {}): ScriptedModel => {
   let at = 0
   const asked: unknown[][] = []
+  const options: Array<Record<string, unknown>> = []
 
   const model = {
+    ...extra,
     bindTools: () => model,
-    stream: async (messages: unknown[]) => {
+    stream: async (messages: unknown[], callOptions: Record<string, unknown> = {}) => {
       asked.push(messages)
+      options.push(callOptions)
       const turn = script[Math.min(at, script.length - 1)]
       at += 1
 
@@ -46,5 +55,5 @@ export const scriptedModel = (script: ScriptedTurn[]): ScriptedModel => {
     },
   }
 
-  return { model: model as unknown as BaseChatModel, turns: () => at, asked: () => asked }
+  return { model: model as unknown as BaseChatModel, turns: () => at, asked: () => asked, options: () => options }
 }

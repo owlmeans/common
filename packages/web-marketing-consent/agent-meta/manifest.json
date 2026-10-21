@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/web-marketing-consent",
-  "version": "0.1.18-rc.21",
-  "generatedAt": "2026-10-17T00:00:32.713Z",
+  "version": "0.1.18-rc.22",
+  "generatedAt": "2026-10-20T23:19:58.633Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,133 @@
       "name": "web-marketing-consent",
       "category": "package-specific",
       "file": "skills/web-marketing-consent/SKILL.md",
-      "canonicalPath": ".agents/skills/web-marketing-consent/SKILL.md"
+      "canonicalPath": ".agents/skills/web-marketing-consent/SKILL.md",
+      "parts": [
+        {
+          "name": "contract",
+          "file": "skills/web-marketing-consent/parts/contract.md",
+          "description": "The data-marketing-consent-* DOM contract that test helpers read, and the Tailwind @source line every consuming app adds.",
+          "purposes": [
+            "config",
+            "test"
+          ],
+          "mentions": [
+            "data-marketing-consent",
+            "answerMarketingConsent",
+            "makePageHelper",
+            "@source",
+            "web-marketing-consent/src"
+          ]
+        },
+        {
+          "name": "cookies",
+          "file": "skills/web-marketing-consent/parts/cookies.md",
+          "description": "Why nothing here reads or writes cookie consent — two separate surfaces and the legal reason they stay apart.",
+          "purposes": [
+            "consent",
+            "config"
+          ],
+          "mentions": [
+            "consentStore",
+            "CookieConsent",
+            "@owlmeans/consent",
+            "@owlmeans/web-consent"
+          ]
+        },
+        {
+          "name": "i18n",
+          "file": "skills/web-marketing-consent/parts/i18n.md",
+          "description": "One marketing-consent i18n resource shared with the domain package, and how an application adds its own consents' words.",
+          "purposes": [
+            "consent",
+            "config"
+          ],
+          "mentions": [
+            "MARKETING_CONSENT_I18N",
+            "addI18nLib",
+            "useI18nResource",
+            "addResourceBundle"
+          ]
+        },
+        {
+          "name": "login-step",
+          "file": "skills/web-marketing-consent/parts/login-step.md",
+          "description": "The login step's fail-open pending check, the per-sign-in skip marker, the termsRecorder landing hook, and why the step's buttons call continueLogin.",
+          "purposes": [
+            "auth",
+            "consent"
+          ],
+          "mentions": [
+            "marketingConsentStep",
+            "termsRecorder",
+            "marketingConsentSkipOf",
+            "LoginStep",
+            "LoginLandingHook",
+            "landAfterLogin",
+            "continueLogin",
+            "useContinueLogin",
+            "MARKETING_CONSENT_LOGIN_STEP"
+          ]
+        },
+        {
+          "name": "step-frame",
+          "file": "skills/web-marketing-consent/parts/step-frame.md",
+          "description": "MarketingConsentBody, the plain MarketingConsentScreen frame and the MarketingConsentPreferences card — the five states, the list, inline links, and the source-dependent loading of useMarketingConsent.",
+          "purposes": [
+            "consent",
+            "screen"
+          ],
+          "mentions": [
+            "MarketingConsentBody",
+            "MarketingConsentScreen",
+            "MarketingConsentPreferences",
+            "useMarketingConsent",
+            "MarketingConsentTermsModel",
+            "ConsentFields",
+            "ConsentRow",
+            "bulkSelection",
+            "optionalOnly",
+            "pristine"
+          ]
+        },
+        {
+          "name": "terms-mode",
+          "file": "skills/web-marketing-consent/parts/terms-mode.md",
+          "description": "Terms mode (terms set to step) — moving the Terms confirmation off the sign-in screen onto this step, the one strict place, and the shared acceptance body.",
+          "purposes": [
+            "auth",
+            "consent"
+          ],
+          "mentions": [
+            "confirmsTerms",
+            "termsDeferred",
+            "loginTermsHelper",
+            "termsAcceptanceOf",
+            "resolveTerms",
+            "recordTerms",
+            "localizedHrefs",
+            "hrefMap",
+            "MarketingConsentConfig"
+          ]
+        },
+        {
+          "name": "testing",
+          "file": "skills/web-marketing-consent/parts/testing.md",
+          "description": "The package's Vite and Playwright harness, the status stubs, the signed-in bearer race, and what each spec covers.",
+          "purposes": [
+            "test"
+          ],
+          "mentions": [
+            "makeBearer",
+            "statusView",
+            "withDefinition",
+            "allItemsCurrent",
+            "window.__mc",
+            "STANDARD_MARKETING_CONSENTS",
+            "package-boundary.spec"
+          ]
+        }
+      ]
     }
   ]
 }

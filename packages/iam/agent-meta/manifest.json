@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/iam",
-  "version": "0.1.18-rc.54",
-  "generatedAt": "2026-10-17T00:00:32.704Z",
+  "version": "0.1.18-rc.55",
+  "generatedAt": "2026-10-20T23:19:58.617Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,95 @@
       "name": "iam",
       "category": "package-specific",
       "file": "skills/iam/SKILL.md",
-      "canonicalPath": ".agents/skills/iam/SKILL.md"
+      "canonicalPath": ".agents/skills/iam/SKILL.md",
+      "parts": [
+        {
+          "name": "clients",
+          "file": "skills/iam/parts/clients.md",
+          "description": "Provisioning OIDC clients — globally unique client ids, the realm field, issuer and redirect-URI rules — and selecting the IAM backend.",
+          "purposes": [
+            "auth",
+            "config"
+          ],
+          "mentions": [
+            "claimClient",
+            "deleteClient",
+            "getIssuerUrl",
+            "redirectUris",
+            "IamClientError",
+            "IAM_MODE_INTEGRATED",
+            "IAM_MODE_KEYCLOAK",
+            "iamMode",
+            "IamClient"
+          ]
+        },
+        {
+          "name": "permissions",
+          "file": "skills/iam/parts/permissions.md",
+          "description": "Permission names and grant forms, IamGrantMode, the four permission kinds, default classes and restrictions.",
+          "purposes": [
+            "auth"
+          ],
+          "mentions": [
+            "hasPermission",
+            "grantPermission",
+            "revokePermission",
+            "ensurePermission",
+            "IamGrantMode",
+            "IamDefaultClass",
+            "composePermissionName",
+            "parsePermissionName",
+            "entityScoped",
+            "resourceScoped",
+            "defaultClass"
+          ]
+        },
+        {
+          "name": "service",
+          "file": "skills/iam/parts/service.md",
+          "description": "The full IamService interface with its per-method contracts, and the per-client user operations.",
+          "purposes": [
+            "auth",
+            "server-api"
+          ],
+          "mentions": [
+            "IamService",
+            "getEntityAdminConfig",
+            "ensureClient",
+            "getClient",
+            "grantBundle",
+            "listGrants",
+            "listUsers",
+            "inviteUser",
+            "updateUser",
+            "removeUser",
+            "syncStaff",
+            "normalizePermissions",
+            "deletePermission"
+          ]
+        },
+        {
+          "name": "tenancy",
+          "file": "skills/iam/parts/tenancy.md",
+          "description": "The organizations, groups and subjects facets of IamService, and the runtime IAM API a tenanted client's server calls.",
+          "purposes": [
+            "auth",
+            "server-api"
+          ],
+          "mentions": [
+            "IamOrganizationFacet",
+            "IamGroupFacet",
+            "IamSubjectFacet",
+            "unsupportedFacet",
+            "IAM_MEMBERS_GROUP",
+            "makeIamRuntimeProtocols",
+            "IAM_RUNTIME_GUARD",
+            "IAM_RUNTIME_ROUTES",
+            "IAM_RUNTIME_PATH",
+            "iamRuntime"
+          ]
+        }
+      ]
     }
   ]
 }

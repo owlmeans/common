@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/astro",
-  "version": "0.1.18-rc.37",
-  "generatedAt": "2026-10-08T21:27:54.294Z",
+  "version": "0.1.18-rc.38",
+  "generatedAt": "2026-10-20T23:19:58.615Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

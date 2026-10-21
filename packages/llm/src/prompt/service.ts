@@ -1,12 +1,11 @@
 import { createService, type BasicConfig, type BasicContext } from '@owlmeans/context'
-import { PROMPT_BLOCK_ORDER, PromptBlock, type SkillDefinition } from '@owlmeans/llm-common'
-import {
-  DEFAULT_CACHE_TTL, MAX_CACHE_BREAKPOINTS, MAX_SYSTEM_BREAKPOINTS, PROMPT_SERVICE,
-} from '../consts.js'
+import { PROMPT_BLOCK_ORDER, PromptBlock, PromptRegion, type SkillDefinition } from '@owlmeans/llm-common'
+import { PROMPT_SERVICE } from '../consts.js'
 import type { LlmSystemBlock } from '../plugins/types.js'
+import { markUtils } from '../utils/marks.js'
 import { BUILT_IN_PROMPT_PLUGINS } from './plugins.js'
 import { promptRenderHelper } from './render.js'
-import { CHUNK_SEPARATOR } from './consts.js'
+import { PROJECT_CONTEXT_HEADER } from './consts.js'
 import type { LlmPromptPlugin, PromptContext, PromptResult, PromptService, PromptServiceOptions, WithPromptService, PromptServiceApi } from './types.js'
 import { DEFAULT_PLUGIN_ORDER } from './consts.local.js'
 
@@ -136,31 +135,33 @@ export const promptServiceApi = (
         await plugin.inspect?.(ctx)
       }
 
-      const blocks: LlmSystemBlock[] = []
+      let blocks: LlmSystemBlock[] = []
       for (const block of PROMPT_BLOCK_ORDER) {
         const text = promptRenderHelper.joinChunks(sections.get(block) ?? [])
         if (text !== '') {
-          blocks.push({ block, text })
+          blocks.push({ block, text, region: promptRenderHelper.regionOf(block) })
         }
       }
-      if (blocks.length === 0) {
-        return { system: null, breakpoints: 0, blocks }
+      // Nothing for the system region: the project facts stay in the system message, which is
+      // where a caller's own system text has always been — a caller that adopted no persona sends
+      // exactly what it built.
+      if (!blocks.some(block => block.region === PromptRegion.System)) {
+        blocks = blocks.map(block => block.region === PromptRegion.Project ? { ...block, region: PromptRegion.System } : block)
+      }
+      const textOf = (region: PromptRegion, lead: string[] = []): string | null => {
+        const texts = blocks.filter(block => block.region === region).map(block => block.text)
+        return texts.length > 0 ? promptRenderHelper.joinChunks([...lead, ...texts]) : null
       }
 
-      const cacheSystem = input.cacheSystem ?? options.cacheSystem ?? true
-      const ttl = input.cacheTtl ?? options.cacheTtl ?? DEFAULT_CACHE_TTL
-      const budget = Math.min(params.cacheMax ?? MAX_CACHE_BREAKPOINTS, MAX_SYSTEM_BREAKPOINTS)
-      const render = cacheSystem && budget > 0
-        ? params.provider?.patchSystem?.(blocks, { model: params.model, cacheMax: budget, ttl })
-        : null
-
       return {
-        system: {
-          role: 'system',
-          content: render?.content ?? blocks.map(block => block.text).join(CHUNK_SEPARATOR),
-        },
-        breakpoints: render?.breakpoints ?? 0,
+        system: textOf(PromptRegion.System),
+        project: textOf(PromptRegion.Project, [PROJECT_CONTEXT_HEADER]),
+        tail: textOf(PromptRegion.Tail),
         blocks,
+        cache: {
+          enabled: input.cacheSystem ?? options.cacheSystem ?? true,
+          ttl: markUtils.resolveTtl(options.cacheTtl, input.cacheTtl),
+        },
       }
     },
   }

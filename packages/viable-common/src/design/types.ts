@@ -124,7 +124,11 @@ export interface StoryDesignApi {
   type: string
   model: string
   endpoints: StoryDesignEndpoint[]
+  /** Required operations; a read dependency does not acquire an unrelated management workflow. */
+  operations?: StoryRecordOperation[]
 }
+
+export type StoryRecordOperation = 'list' | 'get' | 'create' | 'update' | 'remove'
 
 export interface StoryDesignStore {
   path: string

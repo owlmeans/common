@@ -12,6 +12,11 @@ describe('record interaction contract', () => {
     expect(validate({ ...plan, hostKind: 'editor-menu' })).toBe(false)
     expect(validate({ ...plan, hostComponent: 'task/details.tsx', selectionComponents: ['task/list.tsx'] })).toBe(true)
     expect(validate({ ...plan, selectionComponents: [42] })).toBe(false)
+    const responsibility = { component: 'task/details.tsx', entity: 'Task', roles: ['detail', 'editor'], capabilities: ['update'], scope: 'Edit the selected task.' }
+    expect(validate({ ...plan, componentResponsibilities: [responsibility] }), JSON.stringify(validate.errors)).toBe(true)
+    expect(validate({ ...plan, componentResponsibilities: null })).toBe(true)
+    expect(validate({ ...plan, componentResponsibilities: [{ ...responsibility, roles: ['sidebar-action'] }] })).toBe(false)
+    expect(validate({ ...plan, componentResponsibilities: [{ ...responsibility, scope: '' }] })).toBe(false)
   })
   test('a record detail may host actions without becoming a menu destination', () => {
     const plan = { entity: 'Task', capabilities: ['update'] as const, placement: 'contextual' as const,

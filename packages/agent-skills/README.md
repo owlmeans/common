@@ -8,7 +8,7 @@ and places them into your project's skill store.
 After installing `@owlmeans/*` packages, run once:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.56
+npx @owlmeans/agent-skills@^0.1.18-rc.57
 ```
 
 The installer scans `node_modules/@owlmeans/*/agent-meta/`, shows you what guidance
@@ -46,6 +46,8 @@ Files managed by the installer carry an `AUTO-GENERATED` banner. On re-run:
 - **Managed files** (banner present) — always updated to the latest embedded version.
 - **Locally-edited files** (no banner) — **skipped** and reported as conflicts by default.
   Pass `--force` to overwrite, or confirm individually in interactive mode.
+- **Parts** (`.agents/skills/<name>/parts/<part>.md`) follow the same rules as their skill. A
+  managed part the skill no longer lists is removed (`prune`); a hand-written one is kept.
 
 ## Extras (shadcn)
 
@@ -68,10 +70,15 @@ Each `@owlmeans/*` package ships its embedded guidance under:
 
 ```
 agent-meta/
-  manifest.json          # package, version, entries list (schemaVersion 2)
+  manifest.json          # package, version, entries list (schemaVersion 3)
   skills/<name>/
-    SKILL.md             # agent skill
+    SKILL.md             # agent skill — the core
+    parts/<part>.md      # optional purpose parts, listed in the entry's `parts`
 ```
+
+A schemaVersion 3 entry may list `parts: [{ name, file, description, purposes, mentions }]`; a
+part is installed only when its file is exactly `skills/<name>/parts/<part>.md`. Older readers
+ignore `parts` and install the core alone.
 
 Packages published before schema v2 also carry `instructions/<name>.instructions.md`,
 the GitHub Copilot twin of the same knowledge. Those entries are ignored on install.
@@ -87,7 +94,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.56
+npx @owlmeans/agent-skills@^0.1.18-rc.57
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

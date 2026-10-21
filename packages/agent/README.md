@@ -14,7 +14,7 @@ import { makeAgentModel } from '@owlmeans/agent'
 const agent = makeAgentModel({
   exec,                      // an @owlmeans/llm Execution — its prompt policy is the persona
   tools,                     // { [name]: StructuredToolInterface }
-  context: [projectBrief],   // volatile context; lands in PromptBlock.Context
+  context: [projectBrief],   // run context; lands in PromptBlock.Context, the project message
 })
 
 const result = await agent.invoke('rename the dashboard header')
@@ -45,9 +45,11 @@ with no agent at all, so a pipeline helper writes to the same store an agent rea
 
 ## Things worth knowing before you change it
 
-**Contributed context goes to `PromptBlock.Context` and nowhere else.** That is the only block a
-provider will not put a cache breakpoint on. Volatile material anywhere above it invalidates the
-prefix that every call sharing a persona pays for.
+**Contributed context goes to `PromptBlock.Context` and nowhere else.** It travels in the project
+message after the system, so the system region — role, skills, packages — stays byte-identical for
+every run of a persona. Run material anywhere in the system invalidates the prefix every call
+sharing that persona pays for. Each round caches the opening (`loopCache` of the model's provider
+plugin) and lets the growing conversation be read back from the round before.
 
 **`toolHelper.safeInvokeTool` must never throw.** A rejected LangGraph task aborts the whole superstep: every
 sibling tool call in the same parallel batch dies with it, discarding work they had already
@@ -84,7 +86,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.56
+npx @owlmeans/agent-skills@^0.1.18-rc.57
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

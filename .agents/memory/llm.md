@@ -26,11 +26,13 @@ model factory service and the generic execution service. Related: [[versioning]]
 ## Invariants
 
 - Provider differences are `LlmPlugin` members — `build` / `owns` / `family` / `refine` /
-  `structuredMode` / `toolChoice` / `responseFormat` / `patchCache` / `isFatal`. No `instanceof`
+  `structuredMode` / `toolChoice` / `responseFormat` / `patchPrompt` / `loopCache` / `cacheDialect` / `isFatal`. No `instanceof`
   or `provider ===` branch may return to `model.ts` or `service.ts`.
 - Plugin **registration order is load-bearing**: `pluginFor` returns the first `owns` match, so
   `compatible` is registered before `openai` — both build a `ChatOpenAI`, and assuming tool-calling
   for an unlabelled model is safe everywhere while assuming native JSON-schema support is not.
+- A raw or `bindTools`-bound model (tool loops) resolves its plugin with `llmPluginRegistry.resolveFor`
+  (the configured provider first): `pluginFor` alone sends every `ChatOpenAI` to `compatible`.
 - A `fallback` chain may cross providers: every provider-shaped decision (`refine`, structured
   mode, `tool_choice`, prompt rendering) comes from the ACTIVE rung's plugin, and `prepare`
   re-runs on a family change. Keyed on the primary's plugin, another provider's rung 400s on

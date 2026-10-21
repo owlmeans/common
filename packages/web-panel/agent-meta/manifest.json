@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/web-panel",
-  "version": "0.1.18-rc.78",
-  "generatedAt": "2026-10-17T00:00:32.723Z",
+  "version": "0.1.18-rc.79",
+  "generatedAt": "2026-10-20T23:19:58.646Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,152 @@
       "name": "web-panel",
       "category": "package-specific",
       "file": "skills/web-panel/SKILL.md",
-      "canonicalPath": ".agents/skills/web-panel/SKILL.md"
+      "canonicalPath": ".agents/skills/web-panel/SKILL.md",
+      "parts": [
+        {
+          "name": "consent",
+          "file": "skills/web-panel/parts/consent.md",
+          "description": "The ./consent subpath — PanelCookieConsent and PanelCookiePolicy bound to the app's i18n, cfg.cookieConsent, a geo plugin, and the host-menu presence service.",
+          "purposes": [
+            "consent"
+          ],
+          "mentions": [
+            "PanelCookieConsent",
+            "PanelCookiePolicy",
+            "PanelConsentMenuWidget",
+            "useConsentMenuPresence",
+            "appendConsentWidgetService",
+            "appendConsentGeoPlugin",
+            "cookieConsent",
+            "@owlmeans/web-panel/consent"
+          ]
+        },
+        {
+          "name": "forms",
+          "file": "skills/web-panel/parts/forms.md",
+          "description": "The web form family (Form, TextInput, Button, SubmitButton, ButtonSelector) and the Toaster surface for sonner toasts.",
+          "purposes": [
+            "form",
+            "feedback"
+          ],
+          "mentions": [
+            "TextInput",
+            "SubmitButton",
+            "ButtonSelector",
+            "useFormRef",
+            "WebFormProps",
+            "Toaster",
+            "sonner",
+            "appendPermissionDeniedToast"
+          ]
+        },
+        {
+          "name": "navigation",
+          "file": "skills/web-panel/parts/navigation.md",
+          "description": "The application shell — NavLayout, TopNav/SideNav/MobileNav/Footer, the two-layer nav config, the narrow-viewport menu, the skip link, the footer credit and the header's surface rules.",
+          "purposes": [
+            "navigation",
+            "layout",
+            "screen"
+          ],
+          "mentions": [
+            "NavLayout",
+            "TopNav",
+            "SideNav",
+            "MobileNav",
+            "Footer",
+            "ShellCredit",
+            "useShellCredit",
+            "PanelNavConfig",
+            "PanelNavLink",
+            "NavTranslate",
+            "defaultNavTranslate",
+            "mobileMenu",
+            "skipLinkLabel",
+            "headerClassName",
+            "containerClassName"
+          ]
+        },
+        {
+          "name": "picker",
+          "file": "skills/web-panel/parts/picker.md",
+          "description": "The ./picker subpath — the standard icon and colour picker parts, their values, surfaces and strings, rendering a stored mark, DOM hooks and consumer setup.",
+          "purposes": [
+            "picker",
+            "form"
+          ],
+          "mentions": [
+            "IconColorPicker",
+            "ColorPicker",
+            "IconPicker",
+            "ColorSwatches",
+            "IconGrid",
+            "IconTile",
+            "ColorDot",
+            "usePickerTranslate",
+            "pickerColorHelper",
+            "pickerIconHelper",
+            "PICKER_COLORS",
+            "PICKER_COLOR_KEYS",
+            "PICKER_ICON_NAMES",
+            "@owlmeans/web-panel/picker"
+          ]
+        },
+        {
+          "name": "reload",
+          "file": "skills/web-panel/parts/reload.md",
+          "description": "The global connection-lost prompt — SocketReloadDialog, the cfg.socket.reloadDialog opt-in, and its Try again and Reload page actions.",
+          "purposes": [
+            "feedback",
+            "config"
+          ],
+          "mentions": [
+            "SocketReloadDialog",
+            "reloadDialog",
+            "useSocketStatus",
+            "useSocketRetry",
+            "appendSocketStatus"
+          ]
+        },
+        {
+          "name": "sign-in",
+          "file": "skills/web-panel/parts/sign-in.md",
+          "description": "The sign-in screen's terms confirmation, privacy notice and provider disclosure — LoginTerms, LoginPrivacyNotice, LoginProviderNote and their DOM hooks.",
+          "purposes": [
+            "auth"
+          ],
+          "mentions": [
+            "LoginTerms",
+            "LoginPrivacyNotice",
+            "LoginProviderNote",
+            "LoginScreen",
+            "LocalizedLoginScreen",
+            "appendLoginScreen",
+            "data-login-terms",
+            "data-login-provider"
+          ]
+        },
+        {
+          "name": "theme",
+          "file": "skills/web-panel/parts/theme.md",
+          "description": "The light/dark switch — ThemeToggle, useColorScheme, the two-class html contract and the CSS a theme must read, and the head bootstrap script from ./scheme.",
+          "purposes": [
+            "theme"
+          ],
+          "mentions": [
+            "ThemeToggle",
+            "useColorScheme",
+            "colorSchemeHelper",
+            "colorSchemeBootstrapScript",
+            "applyColorScheme",
+            "COLOR_SCHEME_KEY",
+            "COLOR_SCHEME_EVENT",
+            "ColorSchemeChoice",
+            "themeToggle",
+            "@owlmeans/web-panel/scheme"
+          ]
+        }
+      ]
     }
   ]
 }

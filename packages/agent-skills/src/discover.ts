@@ -1,9 +1,9 @@
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { OWLMEANS_SCOPE } from './consts.local.js'
+import { OWLMEANS_SCOPE, PART_NAME, PARTS_DIR } from './consts.local.js'
 import type { ScopePackage } from './types.local.js'
-import type { DiscoveredEntry, DiscoverOptions, Manifest } from './types.js'
+import type { DiscoveredEntry, DiscoveredPart, DiscoverOptions, Manifest, ManifestEntry } from './types.js'
 
 /** Parse a manifest.json, return null if invalid/unparseable. */
 const parseManifest = (manifestPath: string): Manifest | null => {
@@ -15,6 +15,46 @@ const parseManifest = (manifestPath: string): Manifest | null => {
   } catch {
     return null
   }
+}
+
+/** A manifest list field as strings; anything else in it is dropped. */
+const stringsOf = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+
+/**
+ * The installable parts of one skill entry (manifest schemaVersion 3).
+ *
+ * A part is taken only when its name is a plain part name and its file is exactly
+ * `skills/<skill>/parts/<name>.md`: the manifest decides where a file is WRITTEN in the
+ * consumer's project, so a name or path that could climb out of the skill's own `parts/`
+ * directory is refused rather than trusted. A part whose file is missing is skipped like a
+ * missing skill. A manifest before v3 never carries parts.
+ */
+const partsOf = (
+  agentMetaDir: string,
+  manifest: Manifest,
+  entry: ManifestEntry,
+): DiscoveredPart[] | undefined => {
+  if (manifest.schemaVersion < 3 || !Array.isArray(entry.parts)) return undefined
+  const parts: DiscoveredPart[] = []
+  const seen = new Set<string>()
+  for (const part of entry.parts) {
+    const name = (part as { name?: unknown } | null)?.name
+    if (typeof name !== 'string' || !PART_NAME.test(name) || seen.has(name)) continue
+    if (part.file !== `skills/${entry.name}/${PARTS_DIR}/${name}.md`) continue
+    const sourcePath = join(agentMetaDir, ...part.file.split('/'))
+    if (!existsSync(sourcePath)) continue
+    seen.add(name)
+    parts.push({
+      name,
+      file: part.file,
+      description: typeof part.description === 'string' ? part.description : '',
+      purposes: stringsOf(part.purposes),
+      mentions: stringsOf(part.mentions),
+      sourcePath,
+    })
+  }
+  return parts.length > 0 ? parts : undefined
 }
 
 /**
@@ -96,6 +136,7 @@ const scanScopeDir = (scopeDir: string): ScopePackage[] => {
     for (const e of manifest.entries) {
       const sourcePath = join(agentMetaDir, e.file)
       if (!existsSync(sourcePath)) continue
+      const parts = partsOf(agentMetaDir, manifest, e)
       entries.push({
         kind: e.kind,
         name: e.name,
@@ -105,6 +146,7 @@ const scanScopeDir = (scopeDir: string): ScopePackage[] => {
         packageName: manifest.package,
         version: manifest.version,
         isExtra: false,
+        ...(parts != null ? { parts } : {}),
       })
     }
     if (entries.length > 0) packages.push({ realDir, entries })
@@ -155,6 +197,7 @@ const scanSelfExtras = (packageName: string, version: string): DiscoveredEntry[]
   for (const e of manifest.entries) {
     const sourcePath = join(agentMetaDir, e.file)
     if (!existsSync(sourcePath)) continue
+    const parts = partsOf(agentMetaDir, manifest, e)
     entries.push({
       kind: e.kind,
       name: e.name,
@@ -164,6 +207,7 @@ const scanSelfExtras = (packageName: string, version: string): DiscoveredEntry[]
       packageName,
       version,
       isExtra: true,
+      ...(parts != null ? { parts } : {}),
     })
   }
   return entries

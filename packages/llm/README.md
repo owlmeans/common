@@ -20,7 +20,7 @@ abstraction that resolves models from an inheritable policy.
 ## Installation
 
 ```bash
-bun add @owlmeans/llm@^0.1.18-rc.51 @owlmeans/llm-common@^0.1.18-rc.39
+bun add @owlmeans/llm@^0.1.18-rc.52 @owlmeans/llm-common@^0.1.18-rc.40
 bun add @langchain/core @langchain/openai @langchain/anthropic   # peer dependencies
 ```
 
@@ -127,15 +127,17 @@ client family must be registered first.
 | `request(input, schema, options)` | `AIMessage` | A message whose `content` is the validated JSON. |
 
 Shared options: `action` (run name + spectator label), `ref` (out-of-band result +
-spectator entry), `filter` (reject a result and force a retry), `useCache` / `cacheMax`
-(prompt caching where the provider supports it), `temperature` (`invoke` only).
+spectator entry), `filter` (reject a result and force a retry), `stable` (how many lead
+messages repeat across calls — one cache breakpoint closes them), `cacheMax` (the request's
+breakpoint budget), `focus` (the package documentation this call uses), `skills` (per-call
+skills, sent in the uncached tail), `temperature` (`invoke` only).
 
 ### Resilience built into every call
 
 | Problem | What the package does |
 |---------|-----------------------|
 | Provider accepts the request and never streams | Independent idle deadline rejects stream creation or reads and aborts the SDK; late values and cleanup cannot delay the retry — `ModelConfig.streamTimeout` |
-| Duplicate final SSE chunk corrupts tool-call arguments | Stream breaks at the first non-empty `finish_reason` |
+| Duplicate final SSE chunk corrupts tool-call arguments | After the first non-empty `finish_reason` only usage-only chunks are delivered (a bounded drain, so Chat Completions' trailing usage is still billed) |
 | Reasoning eats the whole output budget | Retry doubles `maxTokens` toward `maxTokensCap` **and** shrinks an absolute reasoning cap |
 | A weak cheap model keeps failing | Walks the `ModelConfig.fallback` chain, `FALLBACK_AFTER_ATTEMPTS` attempts per rung; a rung may be another provider, called in its own dialect |
 | The same model keeps giving the same weak answer | Climbs `ModelConfig.effort` one level per attempt of the rung, up to the model's ceiling; a `TemperatureFactory` request climbs it too |
@@ -148,7 +150,7 @@ spectator entry), `filter` (reject a result and force a retry), `useCache` / `ca
 ### Helpers (usable alongside a model)
 
 `retryHelper` (`withRetry`, `registerFatalError`, `isFatalError`) · `jsonHelper` (`parseJsonContent`,
-`coerceToSchema`) · `cacheHelper` (`readCacheUsage`, `hasCacheActivity`) · `spectate` ·
+`coerceToSchema`) · `cacheHelper` (`readCacheUsage`, `hasCacheActivity`, `withCacheTiers`) · `spectate` ·
 `normalizeInput` · `resolveFallbacks`. Also exported from `@owlmeans/llm/helpers`.
 
 Everything under `src/utils/` is library-private and deliberately not exported.
@@ -186,7 +188,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.56
+npx @owlmeans/agent-skills@^0.1.18-rc.57
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

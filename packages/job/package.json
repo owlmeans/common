@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/job",
-  "version": "0.1.18-rc.21",
+  "version": "0.1.18-rc.22",
   "license": "MIT",
   "description": "Browser-safe application job projections, schemas and entrypoint contracts.",
   "type": "module",
@@ -22,10 +22,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth-common": "^0.1.18-rc.51",
-    "@owlmeans/entrypoint": "^0.1.18-rc.41",
-    "@owlmeans/resource": "^0.1.18-rc.40",
-    "@owlmeans/route": "^0.1.18-rc.35"
+    "@owlmeans/auth-common": "^0.1.18-rc.52",
+    "@owlmeans/entrypoint": "^0.1.18-rc.42",
+    "@owlmeans/resource": "^0.1.18-rc.41",
+    "@owlmeans/route": "^0.1.18-rc.36"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

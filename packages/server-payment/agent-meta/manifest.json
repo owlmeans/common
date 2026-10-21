@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/server-payment",
-  "version": "0.1.18-rc.36",
-  "generatedAt": "2026-10-17T00:00:32.714Z",
+  "version": "0.1.18-rc.37",
+  "generatedAt": "2026-10-20T23:19:58.634Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,33 @@
       "name": "server-payment",
       "category": "package-specific",
       "file": "skills/server-payment/SKILL.md",
-      "canonicalPath": ".agents/skills/server-payment/SKILL.md"
+      "canonicalPath": ".agents/skills/server-payment/SKILL.md",
+      "parts": [
+        {
+          "name": "reference",
+          "file": "skills/server-payment/parts/reference.md",
+          "description": "The consumer-rights contracts — declaring the policy, the records, the ConsumerRightsService methods and usage meter, withdrawal and cancellation step by step, mails and handler options.",
+          "purposes": [
+            "payment",
+            "consent",
+            "server-api"
+          ],
+          "mentions": [
+            "declareConsumerRights",
+            "ConsumerRightsService",
+            "CONSUMER_RIGHTS_SERVICE",
+            "consumerRightsOf",
+            "recordConsent",
+            "assertConsent",
+            "recordStartRequest",
+            "withdrawalCandidates",
+            "PerformanceConsentRequired",
+            "SubscriptionStartRequired",
+            "UsageMeter",
+            "withdrawalRefundHelper"
+          ]
+        }
+      ]
     }
   ]
 }

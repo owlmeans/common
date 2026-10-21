@@ -1,5 +1,5 @@
 
-import { agentLoopActions, codeActions, documentActions, structuredActions } from './consts.local.js'
+import { agentLoopActions, codeActions, contractActions, documentActions, structuredActions } from './consts.local.js'
 import { AgentCodeLanguage, AgentMarkdownKind, AgentMessageCategory, AgentMessageRole, AgentStructuredKind } from './consts.js'
 import type { RecordValue } from './types.local.js'
 import type { AgentMessageClassificationInput, AgentMessagePresentation } from './types.js'
@@ -178,6 +178,7 @@ export const createAgentPresentationHelper = (): AgentPresentationHelper => {
     if (isUnifiedDiff(text) || action === 'update-code') {
       return { category: AgentMessageCategory.Diff, language: agentDiffLanguageOf(text), role }
     }
+    if (contractActions.has(action)) return { category: AgentMessageCategory.Code, language: AgentCodeLanguage.TypeScript, role }
     if (codeActions.has(action) || fencedLanguageOf(text) != null || agentCodeLanguageOf(text) !== AgentCodeLanguage.Other) {
       return { category: AgentMessageCategory.Code, language: agentCodeLanguageOf(text), role }
     }

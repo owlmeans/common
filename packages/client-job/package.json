@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-job",
-  "version": "0.1.18-rc.41",
+  "version": "0.1.18-rc.42",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -30,16 +30,16 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.18-rc.56",
-    "@owlmeans/client-auth": "^0.1.18-rc.64",
-    "@owlmeans/client-context": "^0.1.18-rc.52",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.51",
-    "@owlmeans/context": "^0.1.18-rc.34",
-    "@owlmeans/job": "^0.1.18-rc.21",
-    "@owlmeans/log": "^0.1.18-rc.3",
-    "@owlmeans/resource": "^0.1.18-rc.40",
-    "@owlmeans/socket": "^0.1.18-rc.44",
-    "@owlmeans/state": "^0.1.18-rc.39"
+    "@owlmeans/client": "^0.1.18-rc.57",
+    "@owlmeans/client-auth": "^0.1.18-rc.65",
+    "@owlmeans/client-context": "^0.1.18-rc.53",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.52",
+    "@owlmeans/context": "^0.1.18-rc.35",
+    "@owlmeans/job": "^0.1.18-rc.22",
+    "@owlmeans/log": "^0.1.18-rc.4",
+    "@owlmeans/resource": "^0.1.18-rc.41",
+    "@owlmeans/socket": "^0.1.18-rc.45",
+    "@owlmeans/state": "^0.1.18-rc.40"
   },
   "publishConfig": {
     "access": "public"

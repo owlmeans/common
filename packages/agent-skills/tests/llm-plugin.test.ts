@@ -2,8 +2,8 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PromptBlock } from '@owlmeans/llm-common'
-import type { LlmFileProvider } from '@owlmeans/llm-common'
+import { PackagePurpose, PromptBlock } from '@owlmeans/llm-common'
+import type { LlmFileProvider, PromptFocus } from '@owlmeans/llm-common'
 import { anthropicPlugin, makePromptService } from '@owlmeans/llm'
 import type { ModelConfig, PromptService } from '@owlmeans/llm'
 import { loadPackageSkills, manifestHelper, owlmeansPackagesPlugin } from '@owlmeans/agent-skills/llm'
@@ -255,5 +255,174 @@ describe('@owlmeans/agent-skills — a local checkout in place of GitHub', () =>
     expect(result.blocks.find(block => block.block === PromptBlock.Packages)?.text)
       .toContain('CHECKOUT BODY')
     expect(asked).toEqual([])
+  })
+})
+
+/**
+ * Chunked package skills — a v3 manifest's core plus purpose parts, chosen by a focus or by the
+ * messages. All fixtures live in one synthetic checkout read in place of GitHub, so nothing here
+ * touches the network or an installed package.
+ */
+describe('@owlmeans/agent-skills — chunked skills (manifest v3)', () => {
+  interface FixturePart { purposes: string[]; mentions: string[]; body?: string }
+
+  /** One package in a checkout: a core plus parts, under the given manifest schema. */
+  const writePackage = (
+    root: string,
+    name: string,
+    parts: Record<string, FixturePart> = {},
+    opts: { schemaVersion?: number; core?: string } = {},
+  ): void => {
+    const meta = join(root, 'packages', name, 'agent-meta')
+    mkdirSync(join(meta, 'skills', name, 'parts'), { recursive: true })
+    writeFileSync(join(meta, 'skills', name, 'SKILL.md'),
+      `---\nname: ${name}\n---\n<!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->\n${opts.core ?? `# CORE ${name}`}\n`)
+    for (const [part, spec] of Object.entries(parts)) {
+      writeFileSync(join(meta, 'skills', name, 'parts', `${part}.md`),
+        `---\nname: ${part}\nmetadata:\n  purposes: SHOULD-NOT-BE-READ\n---\n${spec.body ?? `# PART ${name}/${part}`}\n`)
+    }
+    writeFileSync(join(meta, 'manifest.json'), JSON.stringify({
+      schemaVersion: opts.schemaVersion ?? 3,
+      package: `@owlmeans/${name}`,
+      version: '0.0.3-fixture',
+      generatedAt: '',
+      canonicalRepo: '',
+      entries: [{
+        kind: 'skill', name, category: 'package-specific',
+        file: `skills/${name}/SKILL.md`, canonicalPath: `.agents/skills/${name}/SKILL.md`,
+        parts: Object.entries(parts).map(([part, spec]) => ({
+          name: part, file: `skills/${name}/parts/${part}.md`, description: part,
+          purposes: spec.purposes, mentions: spec.mentions,
+        })),
+      }],
+    }))
+  }
+
+  const root = mkdtempSync(join(tmpdir(), 'agent-skills-parts-'))
+  writePackage(root, 'zz-split', {
+    theme: { purposes: ['theme'], mentions: ['ThemeToggle'] },
+    picker: { purposes: ['picker', 'form'], mentions: ['IconPicker', '@owlmeans/zz-split/picker'] },
+    navigation: { purposes: ['navigation', 'layout'], mentions: ['NavLayout'] },
+  })
+  writePackage(root, 'zz-old', { navigation: { purposes: ['navigation'], mentions: ['NavLayout'] } }, { schemaVersion: 2 })
+  for (const name of ['zz-late-a', 'zz-late-b', 'zz-late-c', 'zz-late-d']) writePackage(root, name)
+  writePackage(root, 'zz-late-big', {}, { core: `# CORE zz-late-big\n${'b'.repeat(2_000)}` })
+  writePackage(root, 'aa-named')
+
+  const plugin = (options: Parameters<typeof owlmeansPackagesPlugin>[0] = {}): PromptService =>
+    withPlugin({ localRoot: root, dir: root, ...options })
+
+  const run = async (svc: PromptService, text: string, focus?: PromptFocus) => {
+    const result = await svc.compose(
+      focus != null ? { focus } : {},
+      [{ role: 'user', content: text }],
+      { model, provider: anthropicPlugin },
+    )
+    return {
+      packages: result.blocks.find(block => block.block === PromptBlock.Packages)?.text ?? '',
+      tail: result.blocks.find(block => block.block === PromptBlock.Tail)?.text ?? '',
+    }
+  }
+
+  test('focus: the core, then the parts whose purposes meet the focus, in name order', async () => {
+    const { packages } = await run(plugin(), 'irrelevant', { packages: ['@owlmeans/zz-split'], purposes: [PackagePurpose.Form, PackagePurpose.Navigation] })
+    expect(packages).toContain('# CORE zz-split')
+    expect(packages).toContain('# PART zz-split/navigation')
+    expect(packages).toContain('# PART zz-split/picker')
+    expect(packages).not.toContain('# PART zz-split/theme')
+    expect(packages.indexOf('# CORE zz-split')).toBeLessThan(packages.indexOf('# PART zz-split/navigation'))
+    expect(packages.indexOf('# PART zz-split/navigation')).toBeLessThan(packages.indexOf('# PART zz-split/picker'))
+    expect(packages).toContain('## @owlmeans/zz-split — zz-split / picker')
+  })
+
+  test('focus: a part named as <package>#<part> loads without a matching purpose', async () => {
+    const { packages } = await run(plugin(), 'x', { packages: ['@owlmeans/zz-split'], parts: ['@owlmeans/zz-split#theme'] })
+    expect(packages).toContain('# PART zz-split/theme')
+    expect(packages).not.toContain('# PART zz-split/picker')
+  })
+
+  test('focus: purposes and mentions come from the manifest, never the part file', async () => {
+    const { packages } = await run(plugin(), 'x', { packages: ['@owlmeans/zz-split'], purposes: [PackagePurpose.Theme] })
+    expect(packages).toContain('# PART zz-split/theme')
+    expect(packages).not.toContain('SHOULD-NOT-BE-READ')
+  })
+
+  test('focus: the packages block is byte-stable whatever the messages say', async () => {
+    const focus: PromptFocus = { packages: ['@owlmeans/zz-split'], purposes: [PackagePurpose.Picker], late: false }
+    const one = await run(plugin(), 'use NavLayout and @owlmeans/aa-named', focus)
+    const two = await run(plugin(), 'something else entirely, ThemeToggle', focus)
+    expect(one.packages).not.toBe('')
+    expect(two.packages).toBe(one.packages)
+    expect(one.packages).not.toContain('# CORE aa-named')
+    expect(one.packages).not.toContain('# PART zz-split/navigation')
+  })
+
+  test('focus: an empty package list loads nothing', async () => {
+    const { packages, tail } = await run(plugin(), "import { x } from '@owlmeans/zz-split'", { packages: [], late: false })
+    expect(packages).toBe('')
+    expect(tail).toBe('')
+  })
+
+  test('late: an imported package the focus lacks goes to the Tail, cores only', async () => {
+    const code = "import { a } from '@owlmeans/zz-late-a'\nimport { NavLayout } from '@owlmeans/zz-split/picker'\nsee @owlmeans/aa-named"
+    const { packages, tail } = await run(plugin(), code, { packages: ['@owlmeans/zz-old'] })
+    expect(packages).toContain('# CORE zz-old')
+    expect(tail).toContain('# CORE zz-late-a')
+    expect(tail).toContain('# CORE zz-split')
+    expect(tail).not.toContain('# PART')
+    expect(tail).not.toContain('# CORE aa-named')
+    expect(packages).not.toContain('zz-late-a')
+  })
+
+  test('late: capped at 3 packages, and a package over the char budget is skipped', async () => {
+    const code = ['zz-late-d', 'zz-late-c', 'zz-late-b', 'zz-late-a', 'zz-late-big']
+      .map(name => `import x from "@owlmeans/${name}"`).join('\n')
+    // Name order: a, b, big, c, d — the first three fit the default 24k budget.
+    const capped = await run(plugin(), code, { packages: [] })
+    expect(['a', 'b', 'big'].every(n => capped.tail.includes(`# CORE zz-late-${n}`))).toBe(true)
+    expect(capped.tail).not.toContain('# CORE zz-late-c')
+    expect(capped.tail).not.toContain('# CORE zz-late-d')
+
+    const tight = await run(plugin({ lateMaxChars: 1_000, lateMaxPackages: 10 }), code, { packages: [] })
+    expect(tight.tail).not.toContain('# CORE zz-late-big')
+    expect(['a', 'b', 'c', 'd'].every(n => tight.tail.includes(`# CORE zz-late-${n}`))).toBe(true)
+  })
+
+  test('late: false keeps the prompt to the focus', async () => {
+    const { tail } = await run(plugin(), "import a from '@owlmeans/zz-late-a'", { packages: [], late: false })
+    expect(tail).toBe('')
+  })
+
+  test('a v2 manifest gives the core only, even when it lists parts', async () => {
+    const { packages } = await run(plugin(), 'NavLayout', { packages: ['@owlmeans/zz-old'], purposes: [PackagePurpose.Navigation] })
+    expect(packages).toContain('# CORE zz-old')
+    expect(packages).not.toContain('# PART')
+    const found = await loadPackageSkills('@owlmeans/zz-old', { localRoot: root, dir: root }, ['package-specific'])
+    expect(found?.parts).toEqual([])
+  })
+
+  test('detect: the core plus the parts whose mentions appear in the messages', async () => {
+    const { packages } = await run(plugin(), 'Wrap the page in NavLayout from @owlmeans/zz-split.')
+    expect(packages).toContain('# CORE zz-split')
+    expect(packages).toContain('# PART zz-split/navigation')
+    expect(packages).not.toContain('# PART zz-split/picker')
+    expect(packages).not.toContain('# PART zz-split/theme')
+    // A mention is a whole token: `ThemeToggleButton` is not `ThemeToggle`.
+    const partial = await run(plugin(), 'ThemeToggleButton in @owlmeans/zz-split')
+    expect(partial.packages).not.toContain('# PART zz-split/theme')
+  })
+
+  test('detect: an import specifier mention selects its part', async () => {
+    const { packages } = await run(plugin(), "import { IconPicker as P } from '@owlmeans/zz-split/picker'")
+    expect(packages).toContain('# PART zz-split/picker')
+  })
+
+  test('detect: imported packages rank before merely named ones under the cap', async () => {
+    const text = "Compare with @owlmeans/aa-named.\nimport { x } from '@owlmeans/zz-split'"
+    const { packages } = await run(plugin({ maxPackages: 1 }), text)
+    expect(packages).toContain('# CORE zz-split')
+    expect(packages).not.toContain('# CORE aa-named')
+    const both = await run(plugin({ maxPackages: 2 }), text)
+    expect(both.packages.indexOf('# CORE aa-named')).toBeLessThan(both.packages.indexOf('# CORE zz-split'))
   })
 })

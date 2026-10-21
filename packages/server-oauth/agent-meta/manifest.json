@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/server-oauth",
-  "version": "0.1.18-rc.24",
-  "generatedAt": "2026-10-17T00:00:32.694Z",
+  "version": "0.1.18-rc.25",
+  "generatedAt": "2026-10-20T23:19:58.601Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
