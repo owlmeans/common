@@ -1,3 +1,11 @@
+---
+name: shadcn-reference
+description: Full examples — components.json, tsconfig, globals.css theme tokens, the cn() helper, peerDependencies, the MUI to shadcn mapping, Tailwind v4 rules, a primitive header, the test context and harness, Radix peer deps.
+metadata:
+  purposes: theme, config
+  mentions: components.json, globals.css, tailwind-merge, class-variance-authority, @radix-ui
+---
+
 # shadcn-web — Reference
 
 ## Full `components.json` example

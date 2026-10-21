@@ -17,11 +17,13 @@ export interface AgentToolSet { [key: string]: StructuredToolInterface }
  * What the caller gets told about each model call.
  *
  * Shaped to match `spectate(spectator, callType)` from `@owlmeans/llm` exactly, so an application
- * that already has a spectator passes the curried function straight in.
+ * that already has a spectator passes the curried function straight in. `retries` carries the
+ * loop's turn number, and `model` the id of the model that answered.
  */
 export interface AgentSpectateHook {
   (
     input: ModelInputItem[], message: AIMessage, action: string, retries: number, startedAt?: number,
+    model?: string,
   ): Promise<unknown>
 }
 
@@ -31,7 +33,10 @@ export interface AgentOptions {
   /** Overrides the model resolved from the execution. */
   agentModel?: BaseChatModel
   tools: AgentToolSet
-  /** Static volatile context. Lands in `PromptBlock.Context`, never in the cached prefix. */
+  /**
+   * Static context. Lands in `PromptBlock.Context` — the project message, behind the cached
+   * system region — never in the system message other runs share.
+   */
   context?: string[]
   conversation?: ConversationRef
   /** LangGraph entrypoint name; shows up in traces. */
@@ -44,7 +49,10 @@ export interface AgentOptions {
    * by default: the agent holds an execution, not the service that knows its policy.
    */
   utility?: () => BaseChatModel | undefined
-  /** Provider plugin used for cache placement. Resolved from the model when omitted. */
+  /**
+   * Provider plugin used for cache placement. Resolved from the model when omitted
+   * (`llmPluginRegistry.resolveFor`, so a model the service built gets its own provider's).
+   */
   provider?: LlmPlugin
   maxTurns?: number
   /**
@@ -69,7 +77,7 @@ export interface AgentOptions {
 export interface AgentInvokeArgs {
   /** LangChain `runName` for the model calls of this run. */
   action?: string
-  /** Extra volatile context for this call only. */
+  /** Extra context for this run only — it joins the project message. */
   context?: string[]
 }
 

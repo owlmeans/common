@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { tool } from '@langchain/core/tools'
+import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import * as z from 'zod'
-import { ExecutionLevel, PromptBlock } from '@owlmeans/llm-common'
-import { makePromptService } from '@owlmeans/llm'
-import type { Execution, PromptService } from '@owlmeans/llm'
+import { ExecutionLevel, ModelProvider, PromptBlock } from '@owlmeans/llm-common'
+import { anthropicPlugin, makePromptService, openAiPlugin } from '@owlmeans/llm'
+import type { Execution, ModelConfig, PromptService } from '@owlmeans/llm'
 import { AgentRunStatus } from '@owlmeans/agent-common'
 import { makeAgentModel } from '../src/index.js'
 import type { AgentPlugin, AgentToolSet } from '../src/index.js'
@@ -115,9 +116,9 @@ describe('agent — plugins', () => {
     expect((finished[0] as { status: string }).status).toBe(AgentRunStatus.Ok)
   })
 
-  test('contributed context lands in the volatile block, never in the cached prefix', async () => {
-    // The Context block is the only one a provider will not put a cache breakpoint on. Volatile
-    // material anywhere above it invalidates the prefix every call that shares the persona pays for.
+  test('contributed context lands in the project message, never in the cached system', async () => {
+    // The system region is what every run of the persona shares. Run-specific material anywhere in
+    // it invalidates the prefix every call that shares the persona pays for.
     const prompts = promptService()
     const composed = await prompts.compose(
       { role: 'You are a test agent.', context: ['REMEMBERED CONTEXT'] },
@@ -233,8 +234,85 @@ describe('agent — finalization', () => {
 
     await agent.invoke('go')
 
-    const system = String(scripted.asked()[0][0].content)
-    expect(system).toContain('the agent version')
-    expect(system).not.toContain('the service version')
+    // The project message, right after the system, carries what the plugins contributed.
+    const project = String((scripted.asked()[0][1] as { content: unknown }).content)
+    expect(project).toContain('the agent version')
+    expect(project).not.toContain('the service version')
+  })
+})
+
+describe('agent — the prompt on the wire', () => {
+  const content = (message: unknown): unknown => (message as { content: unknown }).content
+  const marks = (message: unknown, key: string): number => Array.isArray(content(message))
+    ? (content(message) as Array<Record<string, unknown>>).filter(block => block[key] != null).length
+    : 0
+  const long = 'x'.repeat(400)
+  const anthropicExec = (prompts: () => PromptService): Execution => ({
+    ...execution(prompts), prompt: { role: `You are a test agent. ${long}`, skills: [] },
+  } as unknown as Execution)
+
+  // The system was stringified once — a JSON dump of content blocks sent as the persona.
+  test('the system goes out as text blocks, the project message second, the tail on a copy of the opening', async () => {
+    const scripted = scriptedModel([
+      { toolCalls: [{ name: 'echo', args: { value: 'hi' } }] },
+      { content: 'done' },
+    ], { modelName: 'claude-haiku-4-5', metadata: { config: { model: 'claude-haiku-4-5', cacheMinTokens: 1 } } })
+    const prompts = promptService()
+    prompts.register({ alias: 'percall', body: 'per-call skill' })
+    const agent = makeAgentModel({
+      exec: anthropicExec(() => prompts), agentModel: scripted.model, tools: { echo }, provider: anthropicPlugin,
+      context: ['RUN FACTS'],
+    })
+
+    const result = await agent.invoke('use the tool')
+
+    const [first, second] = scripted.asked()
+    expect(content(first![0])).toEqual([
+      { type: 'text', text: `You are a test agent. ${long}`, cache_control: { type: 'ephemeral' } },
+    ])
+    expect(JSON.stringify(content(first![1]))).toContain('RUN FACTS')
+    expect(marks(first![1], 'cache_control')).toBe(1)
+    // Three explicit markers at most, never on the final message; the automatic one moves forward.
+    for (const round of [first!, second!]) {
+      const explicit = round.reduce<number>((sum, message) => sum + marks(message, 'cache_control'), 0)
+      expect(explicit).toBeLessThanOrEqual(3)
+      expect(marks(round[round.length - 1], 'cache_control')).toBe(0)
+    }
+    expect(scripted.options()[1]!.cache_control).toEqual({ type: 'ephemeral' })
+    expect(second!.length).toBe(first!.length + 2)
+    // The transcript keeps the opening as the caller sent it.
+    expect(result.messages[0]!.content).toBe('use the tool')
+  })
+
+  test('the tail rides a copy of the opening, after the payload', async () => {
+    const scripted = scriptedModel([{ content: 'ok' }])
+    const prompts = makePromptService({}, `agent-spec-prompts-${++seq}`)
+    prompts.use({ alias: 'late', compose: ctx => ctx.add(PromptBlock.Tail, 'LATE PACKAGE') })
+    const agent = makeAgentModel({ exec: execution(() => prompts), agentModel: scripted.model, tools: {} })
+
+    const result = await agent.invoke('go')
+
+    const asked = scripted.asked()[0]!
+    expect(content(asked[asked.length - 1])).toBe('go\n\nLATE PACKAGE')
+    expect(result.messages[0]!.content).toBe('go')
+  })
+
+  // By instance alone every ChatOpenAI is the compatible plugin's, which caches nothing; the agent
+  // resolves the provider the service built the model with.
+  test('a service-built ChatOpenAI is cached through the OpenAI plugin', async () => {
+    const scripted = scriptedModel([{ content: 'ok' }])
+    const chat = openAiPlugin.build({
+      alias: 'spec', secret: 'sk-test', callbacks: [],
+      config: { alias: 'spec', provider: ModelProvider.OpenAI, model: 'gpt-6-sol', cacheMinTokens: 1 } as ModelConfig,
+    })
+    ;(chat as unknown as { bindTools: () => BaseChatModel }).bindTools = () => scripted.model
+    const agent = makeAgentModel({
+      exec: anthropicExec(promptService), agentModel: chat, tools: {}, context: ['RUN FACTS'],
+    })
+
+    await agent.invoke('go')
+
+    expect(JSON.stringify(scripted.asked()[0])).toContain('prompt_cache_breakpoint')
+    expect(scripted.options()[0]!.promptCacheOptions).toEqual({ mode: 'explicit' })
   })
 })

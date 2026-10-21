@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/client-payment",
-  "version": "0.1.18-rc.63",
-  "generatedAt": "2026-10-17T00:00:32.705Z",
+  "version": "0.1.18-rc.64",
+  "generatedAt": "2026-10-20T23:19:58.617Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

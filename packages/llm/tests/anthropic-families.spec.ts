@@ -5,7 +5,7 @@ import { AIMessageChunk } from '@langchain/core/messages'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { JSONSchemaType } from 'ajv'
 import { ModelEffort, ModelProvider } from '@owlmeans/llm-common'
-import { anthropicPlugin, makeLlmModel, ThinkingOff, type LlmPlugin, type LlmSpectator, type ModelConfig, anthropicSupportHelper, llmPluginRegistry } from '@owlmeans/llm'
+import { anthropicPlugin, CacheBoundary, makeLlmModel, ThinkingOff, type LlmPlugin, type LlmSpectator, type ModelConfig, anthropicSupportHelper, llmPluginRegistry } from '@owlmeans/llm'
 import { toolCallInstruction } from '../src/utils.js'
 import { schemaUtils } from '../src/utils/schema.js'
 
@@ -210,22 +210,26 @@ describe('@owlmeans/llm — the strict schema subset', () => {
 describe('@owlmeans/llm — anthropic cache minimum per family', () => {
   // About 600 tokens: above the 5 family's 512-token minimum, below Sonnet 5's 1024.
   const prefix = 'x'.repeat(600 * 4)
-  const msgs = () => [
-    { role: 'user' as const, content: prefix },
-    { role: 'user' as const, content: 'the per-call payload' },
-  ]
+  const placed = (config: Partial<ModelConfig>): number => {
+    const model = build(config)
+    const messages = [
+      { role: 'user' as const, content: prefix },
+      { role: 'user' as const, content: 'the per-call payload' },
+    ]
+    return anthropicPlugin.patchPrompt!({
+      model, config: { ...config }, messages, system: [], budget: 4,
+      boundaries: [{ kind: CacheBoundary.Stable, message: 0, ttl: '5m', prefixChars: prefix.length }],
+    }).placed
+  }
 
   test('a Sonnet 5.5 prefix of ~600 tokens is marked, a Sonnet 5 one is not', () => {
-    expect(anthropicPlugin.patchCache?.(msgs(), { model: build({ model: 'claude-sonnet-5-5' }), useCache: true, cacheMax: 4 }))
-      .toBe(true)
-    expect(anthropicPlugin.patchCache?.(msgs(), { model: build({ model: 'claude-sonnet-5' }), useCache: true, cacheMax: 4 }))
-      .toBe(false)
+    expect(placed({ model: 'claude-sonnet-5-5' })).toBe(1)
+    expect(placed({ model: 'claude-sonnet-5' })).toBe(0)
     expect(anthropicSupportHelper.anthropicSupportOf('claude-sonnet-5-5')?.cacheMinTokens).toBe(512)
   })
 
   test('a preset\'s own cacheMinTokens still wins', () => {
-    const model = build({ model: 'claude-sonnet-5-5', cacheMinTokens: 4096 })
-    expect(anthropicPlugin.patchCache?.(msgs(), { model, useCache: true, cacheMax: 4 })).toBe(false)
+    expect(placed({ model: 'claude-sonnet-5-5', cacheMinTokens: 4096 })).toBe(0)
   })
 })
 
@@ -261,8 +265,9 @@ describe('@owlmeans/llm — structured output on a model that refuses a pinned t
       family: provider,
       owns: candidate => candidate === fake,
       refine: ({ base }) => base,
-      patchCache: undefined,
-      patchSystem: undefined,
+      patchPrompt: undefined,
+      loopCache: undefined,
+      cacheDialect: undefined,
       isFatal: undefined,
     }
     llmPluginRegistry.register(plugin)

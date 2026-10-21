@@ -1,9 +1,11 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/core/callbacks/base'
-import type { MessageContent, MessageFieldWithRole } from '@langchain/core/messages'
-import type { CacheTtl, ModelEffort, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
+import type { MessageFieldWithRole } from '@langchain/core/messages'
+import type {
+  CacheTtl, CacheTtlPolicy, ModelEffort, PromptBlock, PromptRegion, StructuredMode,
+} from '@owlmeans/llm-common'
 import type { ModelConfig } from '../types.js'
-import { ThinkingOff } from './consts.js'
+import type { CacheBoundary, ThinkingOff } from './consts.js'
 
 /** The effort levels one model accepts, least work first, and the one it uses when unset. */
 export interface EffortSupport {
@@ -40,36 +42,66 @@ export interface LlmRefineParams {
   maxOutputCap: number
 }
 
-export interface LlmCacheParams {
-  /** The ORIGINAL (unrefined) model — refined instances do not always keep the name. */
-  model: BaseChatModel
-  useCache: boolean
-  /** How many leading messages form the stable prefix worth caching. */
-  cacheMax: number
-  /** Breakpoints the composed system prompt already spent on this request. */
-  reserved?: number
-  ttl?: CacheTtl
-}
-
-/** One rendered section of the composed system prompt, in emission order. */
+/** One rendered section of the composed prompt, in emission order. */
 export interface LlmSystemBlock {
   block: PromptBlock
   text: string
+  /** Where the block travels — set by the prompt service on every block it composes. */
+  region?: PromptRegion
 }
 
-export interface LlmSystemCacheParams {
-  /** The ORIGINAL (unrefined) model. */
-  model: BaseChatModel
-  /** Breakpoint budget the system prompt may spend. */
-  cacheMax: number
+/**
+ * One place in a prepared request where a cache breakpoint MAY go — every stability boundary of
+ * the prompt layout, whether or not it ends up marked. A plugin places the ones whose prefix
+ * reaches its model's minimum, earliest first, until the budget is spent.
+ */
+export interface PromptBoundary {
+  kind: CacheBoundary
+  /** Index of the message the boundary closes. */
+  message: number
+  /** For a boundary inside the system message: the index (in `PromptPlan.system`) of its last block. */
+  segment?: number
   ttl: CacheTtl
+  /** Characters of the prompt up to and including this boundary. */
+  prefixChars: number
 }
 
-/** Provider-native rendering of the composed system prompt. */
-export interface LlmSystemRender {
-  content: MessageContent
-  /** Breakpoints consumed — subtracted from the message-level budget. */
-  breakpoints: number
+/**
+ * A prepared request, before any provider dialect: plain-string system and project messages, the
+ * caller's conversation and the final message with its tail, plus where each breakpoint could go.
+ */
+export interface PromptPlan {
+  /** The ORIGINAL (unrefined) model of the rung being prepared. */
+  model: BaseChatModel
+  /** That rung's config. */
+  config: Partial<ModelConfig>
+  messages: MessageFieldWithRole[]
+  /** The composed blocks the system message (`messages[0]`) was joined from; empty when none was composed. */
+  system: LlmSystemBlock[]
+  /** Candidate breakpoints in prefix order — TTLs never rise along it. */
+  boundaries: PromptBoundary[]
+  /** How many breakpoints this request may carry. */
+  budget: number
+}
+
+/** A plugin's rendering of a {@link PromptPlan}, or of a loop round. */
+export interface PromptPatch {
+  /** The messages to send — new objects wherever a marker went; the plan's own are never edited. */
+  messages: MessageFieldWithRole[]
+  /** Call options the dialect needs on the request (an explicit cache mode, an automatic marker). */
+  options?: Record<string, unknown>
+  /** Breakpoints placed. */
+  placed: number
+}
+
+/** What a tool loop knows about the opening of its conversation. */
+export interface LlmLoopCacheHints {
+  /** The composed blocks of the system message, to split it at its stable boundaries. */
+  system?: LlmSystemBlock[]
+  /** Index of the project message, when the loop sends one. */
+  project?: number
+  /** The composed cache lifetimes; `'5m'` wherever unset. */
+  ttl?: CacheTtlPolicy
 }
 
 /**
@@ -154,23 +186,27 @@ export interface LlmPlugin {
   responseFormat?: (toolName: string, schema: unknown) => Record<string, unknown>
 
   /**
-   * Mark the stable message prefix as cacheable, in-place. ONE breakpoint at the end of
-   * that prefix — not one per message: the budget is four per request and the system
-   * prompt has first claim on it. Returns `true` when a marker was actually placed.
-   * Omit for providers with no explicit prompt-cache markers.
+   * Render a prepared request in this provider's cache dialect: place breakpoints on the plan's
+   * boundaries (skipping those below the model's minimum, within the budget) and name whatever
+   * call options the dialect needs. Never edits the plan's message objects. Omit for a provider
+   * whose prompt cache needs nothing beyond the order of the bytes.
    */
-  patchCache?: (msgs: MessageFieldWithRole[], params: LlmCacheParams) => boolean
+  patchPrompt?: (plan: PromptPlan) => PromptPatch
 
   /**
-   * Render the composed system blocks into provider-native content, placing cache
-   * breakpoints at the stability boundaries between blocks (see `PromptBlock`).
-   *
-   * Return `null` — or omit the method entirely — for providers whose prompt cache is
-   * automatic and prefix-based (OpenAI and friends): the service then joins the blocks
-   * into a plain string, which is all those providers need, since the block ORDER is
-   * what makes their prefix stable.
+   * Cache one round of a tool loop: strip any marker the messages carry (on copies), mark the
+   * stable opening — the system message at its boundaries and the project message — and let the
+   * growing conversation be read back round after round. Called with the UNBOUND model.
    */
-  patchSystem?: (blocks: LlmSystemBlock[], params: LlmSystemCacheParams) => LlmSystemRender | null
+  loopCache?: (
+    messages: MessageFieldWithRole[], model: BaseChatModel, hints?: LlmLoopCacheHints,
+  ) => PromptPatch
+
+  /**
+   * The cache dialect a config is prepared in (`CacheDialect`). Two rungs of one family in
+   * different dialects are prepared separately. Omitted: the family alone decides.
+   */
+  cacheDialect?: (config: Partial<ModelConfig>) => string
 
   /**
    * Classify a thrown error as fatal for the retry loop. Return the error to throw

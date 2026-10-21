@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/redis-queue",
-  "version": "0.1.18-rc.41",
-  "generatedAt": "2026-10-17T00:00:32.715Z",
+  "version": "0.1.18-rc.43",
+  "generatedAt": "2026-10-20T23:19:58.635Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

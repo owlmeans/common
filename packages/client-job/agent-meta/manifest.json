@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/client-job",
-  "version": "0.1.18-rc.41",
-  "generatedAt": "2026-10-17T00:00:32.716Z",
+  "version": "0.1.18-rc.42",
+  "generatedAt": "2026-10-20T23:19:58.636Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

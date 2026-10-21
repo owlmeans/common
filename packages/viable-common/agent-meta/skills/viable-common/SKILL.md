@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.4"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.6"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -27,6 +27,22 @@ persona prompt policies, the blueprint case table and its resolution, the BA mod
 type: the `ViableSkill` / `ViablePersona` enums and the `Blueprint` types and vocabulary that
 execution state and card fields name.
 
+
+## Record interaction contracts
+
+`RecordInteractionPlan` and `RecordInteractionPlanSchema` describe domain destinations and contextual
+CRUDL capabilities: entity/owner, host screen/component, primary selection components, presentation
+and record/parent bindings. `selectionComponents` carries actual list/board/picker source paths whose
+record-open controls enter the same detail as its contextual actions; it is optional for legacy reads.
+Optional `componentResponsibilities` assigns entity, roles, capabilities, scope and nested parent to
+each allocated component. Roles are collection/detail/editor/owned-section/support; one component may
+bind several entities. `StoryDesignApi.operations` optionally limits an endpoint group to the
+current story's required list/get/create/update/remove operations. These additions preserve old plans.
+Optional `interaction` fields on scaffold, design and target metadata preserve legacy reads; the
+scaffold model answer requires one for each story. `recordInteractionHelper` separates host menu
+eligibility from editor route parameters. These are runtime-free contracts; generation prompts and
+wiring implementations belong to viable-agent. Pipeline and shape-version constants remain 1.
+
 ## Key Exports
 
 | Subpath | What it declares |
@@ -36,7 +52,7 @@ execution state and card fields name.
 | `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave` / `ConnectProjectBrandingFields` / `ConnectBrandingCredit` / `ConnectBrandingCreditBody`, the configuration contract (`ConnectScopeQuery`, `ConnectConfigScope`, `ConnectProjectConfig`, `ConnectConfigVariable`, `ConnectFrontendVariable`, `ConnectConfigValue`, `ConnectConfigSaveBody`, `CONNECT_CONFIG_*`), the organization's defaults (`ConnectOrganizationBranding(Save)`, `ConnectBrandingBackfill`), the planning-kit views (`PlanningKitView`, `ConnectKitDescribe`, `ConnectKitApplyBody`, `ConnectKitApplyResult` and their `*Schema`s), `ModelTier` + `modelTierHelper` (`tierOfRole`/`clampTier`), `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the convert bodies (`ConnectConvertCreateBody`, `ConnectConvertStartBody`, `ConnectConvertProceedBody` + `ConnectConvertProceedUpdate`), `ConnectAgentLock`, `ConnectPaidGate` + `ConnectGateRef` + `ConnectEntrypointOptions`, the call collection (`CONNECT_CALL_HEADER`, `CONNECT_CALL_ACCEPT_MS`, `CONNECT_CALL_COLLECT_WAIT_SEC`, `CONNECT_CALL_LOST_MS`, `ConnectCallState`, `ConnectCallPending`, `ConnectCallResult`, `ConnectCallCollectParams` / `ConnectCallCollectQuery` and their `*Schema`s), the `Connect*` error family with `ConnectConfirmation` / `ConnectConfirmationAction`, `connectProtocols(opts)` and every `*Schema` behind them |
 | `./convert` | `ConversionStage`/`Status`/`Decision` and the `conversionStageHelper` transitions (`stageAfter`/`decisionFor`/`canEnter`), `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`censusHelper` — `fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `targetLayoutHelper` (`detectTargetLayout`, `isLegacyLayout`, `targetPackageName`), `targetIntegrityHelper.verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES` |
-| `./intent` | `intent` (the five aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants (`INTENT_IMPORT_PATH`, `INTENT_IMPORT_KIND` included), `IntentDraft` / `IntentImportDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
+| `./intent` | `intent` (the six aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants (`INTENT_IMPORT_PATH`, `INTENT_PRO_PATH`, `INTENT_IMPORT_KIND` included), `IntentDraft` / `IntentImportDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
 | `./iam-console` | The owner console's IAM contract both doors share (the browser's `back.iam`, the connector's `connect.iam`): the route params (`IamProjectParams`, `IamProjectUserParams`, `IamOrganizationParams`, `IamMemberParams`, `IamGroupParams`), `IamScoped`, the bodies (`IamDefinitionUpdate`, `IamStaffSync`, `IamAssignGrant` / `IamRevokeGrant`, `IamGrantsQuery`, `IamProjectUserInvite` / `Update`, `IamOrganizationEdit`, `IamProjectMemberInvite` / `Update`, `IamGroupCreate` / `Edit`, `IamGroupMembersChange`), the answers (`IamListResponse` + `external`, `IamUsersResponse`, `IamPermissionsResponse` + `IamTenancy`, …, `IamStaffSyncResponse`), every `Iam*Schema` (with `IamScopedSchema`, `IamGroupRefSchema`), `IAM_REFUSED`, and the `@owlmeans/iam` vocabulary re-exported (`IamDefaultClass`, `IamGrantMode`, `IamGrantOrigin`, `IamRemovalPolicy`, `IAM_AREAS`, `IAM_MEMBERS_GROUP`, the record types). The refusal's CLASS (`IamRefused`, 409) is the platform's |
 | `./legal` | `OWLMEANS_LEGAL_DATES`, `LegalDocumentDates`, `PendingLegalDocumentDates`, `LegalDocumentDateMetadata`, `LegalDocumentKey` — active dates and pending metadata for public legal sources and acceptance |
 
@@ -412,11 +428,12 @@ platform through this subpath: the site, the API services (stash and pickup may 
 different ones) and the manager web agree on every address, schema and step. Platform side:
 `/intent-first`.
 
-- **Two guest routes and two screens, no guard, no gate, no service.** `stash` POST
+- **Two guest routes and three screens, no guard, no gate, no service.** `stash` POST
   `/public/intent` (`{ prompt 1..INTENT_PROMPT_MAX (8192), consent: const true }` →
   `{ ref, expiresAt }`), `pickup` POST `/public/intent/pickup` (`{ ref }`, exactly
   `INTENT_REF_LENGTH` (24) Base58 → `{ prompt }`), `landing` (`frontend()` at `/start`, `sticky`) and
-  `importLanding` (`frontend()` at `INTENT_IMPORT_PATH` = `/start/import`, `sticky`).
+  `importLanding` (`frontend()` at `INTENT_IMPORT_PATH` = `/start/import`, `sticky`) and `proLanding`
+  (`frontend()` at `INTENT_PRO_PATH` = `/start/pro`, `sticky`).
   Mount the tree OUTSIDE any guarded parent (a route inherits every ancestor's guard) and fill
   `service` yourself (the site binds `landing` with `{ routeOptions: { overrides: { service } } }`,
   which also makes its `url()` absolute).
@@ -435,6 +452,9 @@ different ones) and the manager web agree on every address, schema and step. Pla
   `new URL(INTENT_IMPORT_PATH, <platform web>)`); nothing crosses but the consent linker's `owlcc`.
   `intentFlow` is not walked for it: its `land` step is `/start`, and the import landing needs only
   the way on after sign-in, which is `HOME` for both.
+- **The third intent — subscribe to Pro — is a plain link too.** The site's pricing Pro button
+  links to `new URL(INTENT_PRO_PATH, <platform web>)`; nothing crosses but `owlcc`, nothing is
+  stored in the browser: the platform's landing parks its own billing deep link through sign-in.
 - **The browser draft is IndexedDB, per origin — ONE record slot for both intents.** `IntentDraft`
   (`id`, `ref`, `prompt`, `expiresAt`) is kept between pickup and decision (`INTENT_DRAFT_TTL_MS`,
   24 h); `IntentImportDraft` (`id`, `kind: INTENT_IMPORT_KIND`, `expiresAt`) holds the import wish

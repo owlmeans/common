@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/planning-postgres",
-  "version": "0.1.18-rc.18",
-  "generatedAt": "2026-10-17T00:00:32.693Z",
+  "version": "0.1.18-rc.19",
+  "generatedAt": "2026-10-20T23:19:58.600Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,80 @@
       "name": "planning-postgres",
       "category": "package-specific",
       "file": "skills/planning-postgres/SKILL.md",
-      "canonicalPath": ".agents/skills/planning-postgres/SKILL.md"
+      "canonicalPath": ".agents/skills/planning-postgres/SKILL.md",
+      "parts": [
+        {
+          "name": "consistency",
+          "file": "skills/planning-postgres/parts/consistency.md",
+          "description": "The fold transaction, healing and recovery, the LISTEN/NOTIFY commit bus, project purge, and the transactional consistency of the auxiliary resources.",
+          "purposes": [
+            "data",
+            "planning",
+            "ops"
+          ],
+          "mentions": [
+            "pg_advisory_xact_lock",
+            "LOST_ALLOCATION",
+            "planningChannel",
+            "DEFAULT_PLANNING_POSTGRES_LIMITS",
+            "recover(",
+            "makePlanningAssigneePostgres",
+            "makePlanningTeamPostgres",
+            "makePlanningCommentPostgres",
+            "makePlanningMentionPostgres"
+          ]
+        },
+        {
+          "name": "example",
+          "file": "skills/planning-postgres/parts/example.md",
+          "description": "A lending library's planning plugin, protocol tree and bindings, and how backend code reaches the service.",
+          "purposes": [
+            "planning",
+            "server-api",
+            "config"
+          ],
+          "mentions": [
+            "appendPostgresPlanning",
+            "servePlanningEntrypoints",
+            "makePlanningProtocols",
+            "PlanningPlugin",
+            "PlanningPostgresError"
+          ]
+        },
+        {
+          "name": "tables",
+          "file": "skills/planning-postgres/parts/tables.md",
+          "description": "The eight tables with their columns and indexes, the data-defined schema table, and how planning queries compile to SQL.",
+          "purposes": [
+            "data",
+            "query",
+            "migration"
+          ],
+          "mentions": [
+            "PlanningCardTableSchema",
+            "PlanningTransitionTableSchema",
+            "planning-card",
+            "planning-transition",
+            "planning-schema",
+            "headAt",
+            "pgCriteriaHelper",
+            "countBy"
+          ]
+        },
+        {
+          "name": "testing",
+          "file": "skills/planning-postgres/parts/testing.md",
+          "description": "The package's specs, the POSTGRES_URL gate, throwaway schemas and fault injection by trigger.",
+          "purposes": [
+            "test"
+          ],
+          "mentions": [
+            "POSTGRES_URL",
+            "gateHelper",
+            "makeSuite"
+          ]
+        }
+      ]
     }
   ]
 }

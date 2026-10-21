@@ -1,5 +1,5 @@
 import type { SkillDefinition } from '@owlmeans/llm-common'
-import type { Manifest, ManifestEntry } from '../../types.js'
+import type { Manifest, ManifestEntry, ManifestPart } from '../../types.js'
 
 /** Reading an embedded `agent-meta/` manifest and its skill files into prompt skills. */
 export interface ManifestHelper {
@@ -31,4 +31,18 @@ export interface ManifestHelper {
    * knowledge always renders after whatever the host declared itself.
    */
   toSkill: (packageName: string, entry: ManifestEntry, body: string) => SkillDefinition
+  /**
+   * The parts of one entry worth loading, in part-name order (code units).
+   *
+   * Only a schemaVersion 3 manifest carries parts — anything older gives the core alone. A part
+   * whose name is not a plain part name, or whose file is not exactly
+   * `skills/<entry>/parts/<name>.md`, is dropped: the file path is joined onto a directory or a
+   * URL, so a manifest must not be able to point it anywhere else.
+   */
+  partEntries: (manifest: Manifest, entry: ManifestEntry) => ManifestPart[]
+  /**
+   * Turn one embedded part into a definition bound to the `Packages` block, titled after its
+   * package and skill so the rendered heading stays `## <package> — …` like a core's.
+   */
+  toPartSkill: (packageName: string, entry: ManifestEntry, part: ManifestPart, body: string) => SkillDefinition
 }

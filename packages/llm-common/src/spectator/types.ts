@@ -9,6 +9,12 @@ export interface SpectatorArgument {
   tries?: number
   messages: SpectatorEntryMessage[]
   startedAt?: number
+  /**
+   * The model that ANSWERED — the active rung's own model id, which differs from the role's
+   * primary once a fallback took over. Absent when the caller could not tell; a sink then falls
+   * back to its own resolution.
+   */
+  model?: string
 }
 
 /** A stored spectator record — the argument plus the resolved call context. */

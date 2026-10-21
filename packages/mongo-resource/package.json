@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/mongo-resource",
-  "version": "0.1.18-rc.45",
+  "version": "0.1.18-rc.46",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -26,14 +26,14 @@
     "mongodb": "*"
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.34",
-    "@owlmeans/log": "^0.1.18-rc.3",
-    "@owlmeans/resource": "^0.1.18-rc.40",
-    "@owlmeans/server-context": "^0.1.18-rc.44"
+    "@owlmeans/context": "^0.1.18-rc.35",
+    "@owlmeans/log": "^0.1.18-rc.4",
+    "@owlmeans/resource": "^0.1.18-rc.41",
+    "@owlmeans/server-context": "^0.1.18-rc.45"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-integration": "^0.1.18-rc.35",
+    "@owlmeans/test-integration": "^0.1.18-rc.36",
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.4",
     "mongodb": "^7.7.0",

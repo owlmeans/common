@@ -2,7 +2,7 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { MessageFieldWithRole } from '@langchain/core/messages'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  CacheTtl, CumulativeResults, FileProviderRef, LlmPurpose, PromptBlock, PromptPolicy,
+  CacheTtl, CacheTtlPolicy, CumulativeResults, FileProviderRef, LlmPurpose, PromptBlock, PromptPolicy,
   SkillDefinition,
 } from '@owlmeans/llm-common'
 import type { LlmPlugin, LlmSystemBlock } from '../plugins/types.js'
@@ -15,13 +15,13 @@ export interface PromptInput extends PromptPolicy {
   /** Skills supplied verbatim, without registering them first. */
   inline?: SkillDefinition[]
   /**
-   * Raw text for the volatile `Context` block — a caller's own system message, carried
-   * through unchanged. Never part of the cached prefix.
+   * Raw text for the `Context` block of the project message — a caller's own system message,
+   * carried through unchanged, or facts a plugin contributes about the project.
    */
   context?: string[]
   /**
-   * Skill aliases requested for THIS call only. Rendered into `Context`, not `Skills`:
-   * a set that changes per call must not sit inside the region other calls cache.
+   * Skill aliases requested for THIS call only. Rendered into the `Tail`, after the call's own
+   * payload: a set that changes per call must not sit inside a region other calls cache.
    */
   callSkills?: string[]
 }
@@ -29,12 +29,10 @@ export interface PromptInput extends PromptPolicy {
 export interface PromptComposeParams {
   /** The ORIGINAL (unrefined) model the composed prompt will be sent to. */
   model: BaseChatModel
-  /** Provider plugin governing the call — supplies the cache-marker strategy. */
+  /** Provider plugin governing the call. It marks the composed regions later, never during composition. */
   provider?: LlmPlugin
   purpose?: LlmPurpose
   action?: string
-  /** Total breakpoint budget for the request. */
-  cacheMax?: number
   /** File access a plugin may use to resolve knowledge from disk. */
   files?: FileProviderRef
   /**
@@ -43,8 +41,8 @@ export interface PromptComposeParams {
    * lazily and allowed to yield `undefined`: no cheap tier is configured on most
    * deployments, and a plugin that cannot get one must degrade rather than fail.
    *
-   * Whatever it returns must not change what lands in a CACHED block — a model's answer
-   * is not reproducible byte-for-byte, so it belongs in `Packages` or `Context`.
+   * Whatever it returns must not change what lands in `Role` or `Skills` — a model's answer
+   * is not reproducible byte-for-byte, so it belongs in `Packages`, `Context` or the `Tail`.
    */
   utility?: () => BaseChatModel | undefined
   /**
@@ -87,7 +85,7 @@ export interface PromptContext extends PromptComposeParams {
  */
 export interface LlmPromptPlugin {
   alias: string
-  /** Lower runs first. The built-ins occupy 0 (role), 10 (skills), 80 (results) and 90 (context). */
+  /** Lower runs first. The built-ins occupy 0 (role), 10 (skills), 80 (results) and 90 (context and tail). */
   order?: number
   /** Contribute static content, before anything has looked at the messages. */
   compose?: (ctx: PromptContext) => void | Promise<void>
@@ -95,13 +93,33 @@ export interface LlmPromptPlugin {
   inspect?: (ctx: PromptContext) => void | Promise<void>
 }
 
+/** A cache lifetime for every breakpoint, resolved and clamped so none rises along the prefix. */
+export interface ResolvedCacheTtl extends Required<CacheTtlPolicy> {}
+
+/** Whether, and for how long, the composed regions are cached. */
+export interface PromptCache {
+  /** `PromptPolicy.cacheSystem` resolved — `false` leaves the system and project message unmarked. */
+  enabled: boolean
+  ttl: ResolvedCacheTtl
+}
+
+/**
+ * A composed prompt, as plain text per region — the provider plugin marks it later, once the
+ * whole request is known. A region with nothing in it is `null`.
+ */
 export interface PromptResult {
-  /** The composed system message, or `null` when nothing was contributed. */
-  system: MessageFieldWithRole | null
-  /** Breakpoints the system prompt consumed; subtract from the message budget. */
-  breakpoints: number
-  /** The rendered blocks in emission order — exposed for tests and diagnostics. */
+  /**
+   * The system message: role, skills and packages. When none of those was contributed, the
+   * project facts (results, context) stay here instead, as a caller's own system text always did.
+   */
+  system: string | null
+  /** The project message — the user turn after the system: the operator header, results, context. */
+  project: string | null
+  /** Appended to the final message, after the call's own payload: per-call skills, late packages, types. */
+  tail: string | null
+  /** Every rendered block in emission order, each with the region it went to. */
   blocks: LlmSystemBlock[]
+  cache: PromptCache
 }
 
 export interface PromptServiceOptions {
@@ -111,8 +129,8 @@ export interface PromptServiceOptions {
   plugins?: LlmPromptPlugin[]
   /** Default for `PromptPolicy.cacheSystem`. Defaults to `true`. */
   cacheSystem?: boolean
-  /** Default for `PromptPolicy.cacheTtl`. */
-  cacheTtl?: CacheTtl
+  /** Default for `PromptPolicy.cacheTtl`, under it key by key. `'5m'` wherever neither names one. */
+  cacheTtl?: CacheTtl | CacheTtlPolicy
 }
 
 /**

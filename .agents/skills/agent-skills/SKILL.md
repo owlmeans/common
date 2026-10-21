@@ -1,37 +1,34 @@
 ---
 name: agent-skills
-description: How to use @owlmeans/agent-skills — the CLI that installs embedded package guidance into a project, and the ./llm prompt plugins that load @owlmeans package skills and the project's own installed skills into a system prompt. Auto-invoked when importing owlmeansPackagesPlugin, projectSkillsPlugin, projectSkillsAgentPlugin, parseSkillFile, or running the installer.
+description: How to use @owlmeans/agent-skills — the CLI that installs embedded package guidance (core skills and their purpose parts) into a project, and the ./llm prompt plugin owlmeansPackagesPlugin that loads @owlmeans package skills into a system prompt, chosen by a call's focus or by the packages its messages name. Auto-invoked when importing owlmeansPackagesPlugin, loadPackageSkills or manifestHelper, writing a chunked package skill, or running the installer.
 user-invocable: false
 ---
 
 # @owlmeans/agent-skills
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.56"` — in `devDependencies` for the CLI, in
-`dependencies` for the `./llm` plugins (plus the `@owlmeans/llm*`, `@owlmeans/agent` and
-`@langchain/core` **optional peers**)
+**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.57"` — in `devDependencies` for the CLI, in
+`dependencies` for the `./llm` plugin (plus the `@owlmeans/llm` and `@owlmeans/llm-common`
+**optional peers**)
 
 Two halves that never meet at runtime:
 
 - the package root — the **installer CLI**, which lifts embedded `agent-meta/` guidance out of
   installed `@owlmeans/*` packages into `.agents/skills/`. It has **no runtime dependencies**
   and must keep it that way.
-- `./llm` — **prompt plugins** that put guidance into a system prompt. Everything they import
-  is an optional peer, which is why they are a separate subpath and are never re-exported from
+- `./llm` — the **prompt plugin** that puts package guidance into a system prompt. Everything it
+  imports is an optional peer, which is why it is a separate subpath and is never re-exported from
   the package index.
 
 ## Key exports (`@owlmeans/agent-skills/llm`)
 
 | Export | Description |
 |---|---|
-| `owlmeansPackagesPlugin(options?)` | Order 50. Detects `@owlmeans/*` mentions in the messages, loads those packages' published skills into `PromptBlock.Packages`. |
-| `projectSkillsPlugin(options?)` | Order 55. Indexes the project's own installed skills into `PromptBlock.Skills`, and activated bodies into `PromptBlock.Packages`. |
-| `projectSkillsAgentPlugin(options?)` | An `AgentPlugin` exposing the `read_skill(name)` tool, so a running agent pulls a body when it turns out to need one. |
-| `loadProjectSkills(provider, options?)` | Every valid skill in a project, sorted by name. |
-| `parseSkillFile(path, content)` · `parseSkillFrontmatter(content)` | The spec parser/validator. Returns `null` for anything that is not a valid skill. |
-| `matchRules(rules, signals)` · `pickByModel(index, signals, model, max)` | The two activation mechanisms, usable standalone. |
-| `projectSkillsCache(provider)` · `invalidateProjectSkills(key?)` | The per-project read cache and its invalidation. |
-| `loadPackageSkills`, `manifestHelper.{stripMeta, parseManifest, skillEntries, toSkill, unscoped}` | Embedded-manifest primitives. |
+| `owlmeansPackagesPlugin(options?)` | Order 50. Loads the published skills of the packages a call focuses on, or of the `@owlmeans/*` packages its messages name, into `PromptBlock.Packages` — see "Chunked package skills". |
+| `loadPackageSkills(name, options, categories)` | One package's skills from the first source that has them (below); `null` on a miss. |
+| `manifestHelper.{stripMeta, parseManifest, skillEntries, toSkill, unscoped}` | Embedded-manifest primitives. |
+| `PACKAGE_SKILLS_PLUGIN` · `OWLMEANS_SCOPE` | The plugin alias (`owlmeans-packages`) and the default scope (`@owlmeans`). |
+| `PackageSkills`, `PackageSkillsOptions`, `SkillSource` | The loaded package, the plugin options, and where a package's skills came from. |
 
 ## Key exports (package root — the installer as a library)
 
@@ -57,29 +54,57 @@ A skill is a **directory** whose `SKILL.md` opens with YAML frontmatter
 | `license` · `compatibility` · `metadata` · `allowed-tools` | optional |
 
 **Progressive disclosure is the point.** `name` + `description` are cheap and always loaded;
-the body loads only on activation. Everything below is that principle expressed as a cache
-layout.
+the body loads only on activation. A chunked package skill takes it one level further: its core
+loads whenever the package is chosen, and each part loads only for a call that needs its purpose.
 
-Parsing rules this package holds to:
+Rules this package holds to:
 
-- The frontmatter parser is **hand-rolled** — flat `key: value`, one nesting level, folded
-  continuation lines. No YAML dependency: the CLI half ships with none.
-- An invalid file is **skipped silently, never thrown**. A skills directory holds drafts and
-  notes, and none of them may take down a model call.
+- It parses **no skill frontmatter**. The generator that embeds `agent-meta/` reads the canonical
+  frontmatter and writes what the installer and the plugin need into the manifest — names,
+  categories, and each part's purposes and mentions. Both halves read only the manifest.
+- A broken manifest, a missing file or a failed fetch is a **miss, never a throw**. A skill lookup
+  may never take down a model call.
 - A `name` that differs from its directory is invalid — the name is how everything else
   addresses the skill, so the mismatch makes it unreachable.
 - Bodies are stripped of frontmatter and of any `AUTO-GENERATED` banner (`manifestHelper.stripMeta`).
 
+## Chunked package skills
+
+A large package skill is a core plus purpose parts. Authoring rules (part frontmatter, the purpose
+vocabulary, size limits): `skill-authoring`.
+
+```
+skills/<name>/SKILL.md            # the core — loaded whenever the package is chosen
+skills/<name>/parts/<part>.md     # one purpose each
+```
+
+- **Manifest v3.** A skill entry lists its parts: `parts: [{ name, file:
+  'skills/<name>/parts/<part>.md', description, purposes[], mentions[] }]`. The installer writes
+  them beside the core and prunes bannered parts no longer listed. A pre-v3 installer or plugin
+  accepts a v3 manifest and loads the core only; a v2 manifest gives the core only.
+- **Purposes and mentions come from the manifest**, never from a part's frontmatter. Purposes are
+  the closed `PackagePurpose` vocabulary (`PACKAGE_PURPOSES`, `@owlmeans/llm-common`).
+- **Focus mode** — the call's prompt policy carries a `PromptFocus` (`@owlmeans/llm-common`). Each
+  focus package, sorted, renders its core, then the parts whose purposes meet the focus purposes or
+  that the focus names (`@owlmeans/web-panel#picker`), in name order. The messages never change
+  this block, so it stays byte-stable for a persona and story.
+- **Late packages** — in focus mode, a package the call's messages IMPORT but the focus lacks goes
+  to the per-call Tail, cores only, capped at 3 packages and 24 000 chars. `late: false` on the
+  focus keeps the prompt to the focus.
+- **Detect mode** — no focus (free flight, a converter, any other consumer): packages are detected
+  in the messages, imported ones ranked before merely named ones, and each loads its core plus the
+  parts whose mentions appear in the messages.
+
 ## `owlmeansPackagesPlugin` — what a named package contributes
 
-A package that was named gets everything it documents: within a package there is no relevance
-ranking, by design. Two ceilings bound the block anyway, and both matter when a prompt looks
-larger than expected:
+A chosen package gets its core whole, plus the parts its focus or the messages call for (above);
+within a core or a part there is no relevance ranking, by design. Two ceilings bound the block
+anyway, and both matter when a prompt looks larger than expected:
 
 - `categories` (default `['package-specific', 'multi-package']`) — manifest categories to load.
   `general` entries say how an agent should behave rather than what a package does, so they are
   the host's own catalogue's job and are excluded unless asked for.
-- `maxPackages` (default `5`) — mentioned packages loaded into one prompt. A message that
+- `maxPackages` (default `5`) — mentioned packages loaded into one prompt in detect mode. A message that
   name-drops a dozen packages is rarely asking about all of them, and each one costs context.
 
 Resolution per package: the host's `LlmFileProvider` → an installed copy under `node_modules` →
@@ -101,93 +126,9 @@ cached too.
 | `localRoot` | — | A checkout of `repo` read from disk in place of that fallback (development hosts). |
 | `fetch` · `timeout` | `true` · `5000` | Whether the network fallback runs at all, and its deadline. |
 
-## `projectSkillsPlugin` — the two halves, two blocks
-
-```typescript
-// `files` is the host's own LlmFileProvider, as the value or a thunk for one.
-ctx.prompts().use(projectSkillsPlugin({
-  files: () => fileProvider,                   // fallback; the compose context's wins
-  rules: [
-    { skills: ['deploy'], when: { paths: ['charts/**', '*.yaml'] } },
-    { skills: ['auth-protocol'], when: { purposeType: ['coder'], mention: ['token', 'guard'] } },
-  ],
-}))
-```
-
-| Half | Block | Lifetime | Content |
-|---|---|---|---|
-| index | `Skills` | per project | `- <name> — <description>` per skill, sorted, capped |
-| body | `Packages` | per request | `promptRenderHelper.renderSkill()` of each activated skill |
-
-The index MUST stay byte-stable for a project: it sits behind a cache breakpoint that every
-call about that project shares. That is why entries sort by `promptRenderHelper.compareAlias` (code units, never
-`localeCompare`), descriptions are clipped to a fixed `descriptionChars`, and the heading and
-lead line are constants.
-
-| Option | Default | Meaning |
-|---|---|---|
-| `files` | — | Fallback provider; the compose context's own wins. |
-| `dir` | `.agents/skills` | Where the skills live, relative to the project root. |
-| `rules` · `activate` | `[]` · — | The deterministic rules, and the host's own decision on top. |
-| `exclude` | `[]` | Names neither indexed nor activated. |
-| `maxActivated` | `3` | Bodies loaded into one prompt. |
-| `maxIndexEntries` · `descriptionChars` | `40` · `160` | Index size, and the clip that keeps each line stable. |
-| `maxBodyChars` | `24000` | Length one activated body is clipped to. |
-| `relevanceModel` | `false` | Spend one cheap-model call on the pick. |
-| `listTtlMs` | `30000` | How long a directory listing is trusted. |
-
-**Reads go through `LlmFileProvider` only — never `node:fs`.** The project an agent works on
-is routinely a sandbox, a container or a remote workspace; a plugin that reaches for the local
-filesystem describes the wrong project instead of failing.
-
-### Activation — what turns an index line into a body
-
-In precedence order, capped at `maxActivated` (3), then sorted for byte-stability:
-
-1. **Named by the call** — a name in `PromptInput.skills` / `callSkills` that matches an
-   installed skill. A caller that named it has stated the intent the rest is inferring.
-2. **Deterministic rules** — `{ skills, when: { purposeType?, action?, mention?, paths? } }`.
-   Every predicate present must hold. An empty `when` never fires: a skill that activates on
-   every request is the static `Skills` block written in the wrong place.
-3. **`activate(signals)`** — the host's own decision.
-4. **`relevanceModel: true`** — ONE cheap `ctx.utility()` call, answering with names taken
-   from the index. **Off by default.** Memoised per (project key + a hash of the signals) so a
-   retry re-sends identical bytes.
-
-Only 1-3 run by default, and only they may ever influence a cached block.
-
-### Dedupe and exclusion
-
-- Every body emitter claims `skill:<name>` (`ctx.claim`) first. `owlmeansPackagesPlugin` runs
-  at 50 and claims first **by design** — a request that names `@owlmeans/auth` is a more
-  specific signal than a rule, so the package's copy wins the tie and the project's is skipped.
-- A name that resolves in the host registry (`ctx.resolve([name])`) is dropped from the index
-  entirely: `skillsPlugin` already renders it, and indexing it too advertises one thing under
-  two descriptions.
-
-### Caching
-
-`projectSkillsCache` is module-level and keyed by `LlmFileProvider.key`, falling back to a
-`WeakMap` on the provider INSTANCE when it declares none — two keyless providers may be two
-different projects, and serving one's files to the other is worse than any miss. Listings
-expire on `listTtlMs` (30s, because skills are edited by hand mid-run); parsed bodies are kept
-per path. After writing a skill file into a project an agent is still working in, call
-`invalidateProjectSkills(key)`.
-
-## `projectSkillsAgentPlugin` — disclosure inside the loop
-
-```typescript
-makeAgentModel({ exec, tools, plugins: [projectSkillsAgentPlugin({ files: () => fileProvider })] })
-```
-
-Composition happens once, before the first token, when nobody yet knows which of twelve turns
-will touch the deployment guidance. `read_skill(name)` is how a running agent pulls a body at
-the moment it needs one. Without a `files` provider the plugin contributes no tool at all. The
-tool never throws — a rejected tool call aborts the whole LangGraph superstep.
-
 ## Installer CLI
 
-`npx @owlmeans/agent-skills@^0.1.18-rc.56` walks the **whole** project tree, reads every nested
+`npx @owlmeans/agent-skills@^0.1.18-rc.57` walks the **whole** project tree, reads every nested
 `<dir>/node_modules/@owlmeans` scope it finds, and copies each `agent-meta/` skill into
 `.agents/skills/<name>/SKILL.md`. A workspace keeps its dependencies beside the workspace member
 that declares them, so the root scope is routinely empty and a root-only scan would find nothing.
@@ -248,13 +189,12 @@ directly and needs no build; it drives real files under a temp directory.
 
 ## Depends On
 
-- Runtime: nothing (CLI). `./llm`: optional peers `@owlmeans/llm`, `@owlmeans/llm-common`,
-  `@owlmeans/agent`, `@langchain/core`
+- Runtime: nothing (CLI). `./llm`: optional peers `@owlmeans/llm`, `@owlmeans/llm-common`
 
 ## Related
 
 - [[llm-prompt-caching]] — block order, breakpoints, `claim` and `utility`
 - [[llm-common]] — `SkillDefinition`, `PromptBlock`, `LlmFileProvider`
-- [[agent]] — the `AgentPlugin` seam and `AgentToolSet` conventions
-- [[skill-authoring]] — writing the SKILL.md files this reads
+- [[agent]] — agent runs compose their prompts through the same prompt plugins
+- [[skill-authoring]] — writing the SKILL.md files and parts this reads
 - [[nested-agent-context]] — why embedded `agent-meta/` copies are ignored in a linked checkout

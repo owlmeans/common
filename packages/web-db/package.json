@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-db",
-  "version": "0.1.18-rc.52",
+  "version": "0.1.18-rc.53",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,9 +21,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-context": "^0.1.18-rc.52",
-    "@owlmeans/client-resource": "^0.1.18-rc.51",
-    "@owlmeans/context": "^0.1.18-rc.34",
+    "@owlmeans/client-context": "^0.1.18-rc.53",
+    "@owlmeans/client-resource": "^0.1.18-rc.52",
+    "@owlmeans/context": "^0.1.18-rc.35",
     "idb-keyval": "^6.3.0"
   },
   "devDependencies": {

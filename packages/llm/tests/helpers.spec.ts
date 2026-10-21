@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import { AIMessage, HumanMessage } from '@langchain/core/messages'
-import { LlmRetryExceededError, normalizeInput, spectate, jsonHelper, retryHelper } from '@owlmeans/llm'
-import { recordingSpectator } from './context.js'
+import { configureLog, logConfig } from '@owlmeans/log'
+import { AIMessage, AIMessageChunk, HumanMessage, SystemMessage } from '@langchain/core/messages'
+import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
+import {
+  anthropicPlugin, cacheHelper, LlmRetryExceededError, llmPluginRegistry, makeLlmModel, makePromptService,
+  normalizeInput, spectate, jsonHelper, retryHelper,
+} from '@owlmeans/llm'
+import { recordingSpectator, SpecificationSchema } from './context.js'
 
 describe('helpers/messages — input normalization', () => {
   test('lifts a bare string into a user message', () => {
@@ -19,6 +24,59 @@ describe('helpers/messages — input normalization', () => {
     const normalized = normalizeInput(input)
     normalized.push({ role: 'user', content: 'extra' })
     expect(input).toHaveLength(1)
+  })
+
+  // A caller carries its conversation across calls; the model prepares copies — same class, own
+  // content array — so nothing it appends or marks ever reaches the caller's objects.
+  test('copies every message, keeping its class, so the caller\'s objects are never edited', () => {
+    const human = new HumanMessage({ content: [{ type: 'text', text: 'look' }] })
+    const plain = { role: 'user' as const, content: 'hi' }
+    const [copy, other] = normalizeInput([human, plain])
+
+    expect(copy).not.toBe(human)
+    expect(copy).toBeInstanceOf(HumanMessage)
+    expect(other).not.toBe(plain)
+    ;(copy!.content as unknown[]).push({ type: 'text', text: 'appended' })
+    other!.content = 'changed'
+    expect(human.content).toEqual([{ type: 'text', text: 'look' }])
+    expect(plain.content).toBe('hi')
+  })
+})
+
+describe('the model never edits what the caller sent', () => {
+  let seq = 0
+  /** A claude stand-in resolved through a copy of the real Anthropic plugin — no client rebuild. */
+  const claude = (reply: AIMessageChunk, sent: unknown[][]): BaseChatModel => {
+    const provider = `spec-helpers-${seq++}`
+    const fake = {
+      getName: () => 'fake', lc_kwargs: { model: 'claude-haiku-4-5' }, modelName: 'claude-haiku-4-5',
+      metadata: { config: { alias: 'spec', provider, model: 'claude-haiku-4-5', cacheMinTokens: 1 } },
+      stream: async (messages: unknown[]) => {
+        sent.push(messages)
+        return (async function* () { yield reply })()
+      },
+    } as unknown as BaseChatModel
+    llmPluginRegistry.register({
+      ...anthropicPlugin, type: provider, family: provider, owns: candidate => candidate === fake, refine: ({ base }) => base,
+    })
+    return fake
+  }
+
+  test('a stable lead, a tail and the directives are placed on copies', async () => {
+    const svc = makePromptService({ skills: [{ alias: 'a', body: 'A' }, { alias: 'percall', body: 'P' }] }, `spec-helpers-prompt-${seq++}`)
+    const caller = [new SystemMessage('caller system'), new HumanMessage('stable lead'), new HumanMessage('the task')]
+    const sent: unknown[][] = []
+    const llm = makeLlmModel({
+      model: claude(new AIMessageChunk({ content: 'ok' }), sent), purpose: { type: 't' },
+      prompt: { role: 'R', skills: ['a'] }, prompts: () => svc,
+    }, recordingSpectator())
+
+    expect(await llm.ask(caller, { action: 'a', stable: 1, skills: ['percall'] })).toBe('ok')
+    const [, , lead, task] = sent[0] as HumanMessage[]
+    expect(lead!.content).toEqual([{ type: 'text', text: 'stable lead', cache_control: { type: 'ephemeral' } }])
+    expect(lead).toBeInstanceOf(HumanMessage)
+    expect(task!.content).toBe('the task\n\n## percall\n\nP')
+    expect(caller.map(msg => msg.content)).toEqual(['caller system', 'stable lead', 'the task'])
   })
 })
 
@@ -185,5 +243,69 @@ describe('helpers/spectate', () => {
     // is what stored `[object Object]` for every tool call until this was fixed.
     expect(typeof last.content).toBe('string')
     expect(JSON.parse(last.content)).toEqual([{ id: '1', name: 'extract', args: { a: 1 } }])
+  })
+
+  // The model that ANSWERED is billed — a fallback's, not the role's primary.
+  test('names the answering model only when it is known', async () => {
+    const spectator = recordingSpectator()
+    await spectate(spectator, 'ask')(['q'], new AIMessage('a'), 'named', 0, 1, 'claude-sonnet-5-5')
+    await spectate(spectator, 'ask')(['q'], new AIMessage('a'), 'unnamed', 0, 1)
+
+    expect(spectator.entries[0]!.model).toBe('claude-sonnet-5-5')
+    // The sink's own resolution stays when the caller could not tell.
+    expect(spectator.entries[1]!.model).toBe('test-model')
+  })
+
+  // A response that arrived is billed even when nothing usable came of it.
+  test('invoke logs a received response before it fails the attempt as a null result', async () => {
+    const spectator = recordingSpectator()
+    const fake = {
+      getName: () => 'fake', lc_kwargs: { model: 'fake-model' },
+      metadata: { config: { alias: 'spec', model: 'fake-model' } },
+      bindTools: () => ({
+        stream: async () => (async function* () { yield new AIMessageChunk({ content: 'no json here' }) })(),
+      }),
+    } as unknown as BaseChatModel
+    const llm = makeLlmModel({ model: fake, purpose: { type: 't' }, retries: 1 }, spectator)
+
+    const { level } = logConfig()
+    configureLog({ level: 'silent' })
+    try {
+      await expect(llm.invoke('describe it', SpecificationSchema as never, { action: 'b6' })).rejects.toBeInstanceOf(LlmRetryExceededError)
+    } finally {
+      configureLog({ level })
+    }
+    expect(spectator.entries).toHaveLength(1)
+    expect(spectator.entries[0]!.model).toBe('fake-model')
+  })
+})
+
+describe('helpers/cache — the 1-hour write', () => {
+  // langchain's chunk concatenation keeps only the token-detail keys it knows; Anthropic's
+  // response metadata keeps the split, and is where it is read from.
+  test('carries a non-zero 1h write from the provider usage onto the token details', () => {
+    const message = new AIMessage({
+      content: 'ok',
+      usage_metadata: {
+        input_tokens: 100, output_tokens: 5, total_tokens: 105, input_token_details: { cache_creation: 80, cache_read: 0 },
+      },
+      response_metadata: { usage: { cache_creation: { ephemeral_5m_input_tokens: 30, ephemeral_1h_input_tokens: 50 } } },
+    })
+    cacheHelper.withCacheTiers(message)
+
+    expect((message.usage_metadata!.input_token_details as Record<string, number>).cache_creation_1h).toBe(50)
+    expect(cacheHelper.readCacheUsage(message)).toEqual({ read: 0, creation: 80, creationLong: 50, input: 100, output: 5 })
+  })
+
+  test('adds nothing when no 1h write was reported', () => {
+    const message = new AIMessage({
+      content: 'ok',
+      usage_metadata: { input_tokens: 10, output_tokens: 1, total_tokens: 11, input_token_details: { cache_creation: 8 } },
+      response_metadata: { usage: { cache_creation: { ephemeral_5m_input_tokens: 8, ephemeral_1h_input_tokens: 0 } } },
+    })
+    cacheHelper.withCacheTiers(message)
+
+    expect('cache_creation_1h' in message.usage_metadata!.input_token_details!).toBe(false)
+    expect('creationLong' in cacheHelper.readCacheUsage(message)).toBe(false)
   })
 })

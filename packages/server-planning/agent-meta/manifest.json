@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/server-planning",
-  "version": "0.1.18-rc.34",
-  "generatedAt": "2026-10-17T00:00:32.694Z",
+  "version": "0.1.18-rc.35",
+  "generatedAt": "2026-10-20T23:19:58.603Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,108 @@
       "name": "server-planning",
       "category": "package-specific",
       "file": "skills/server-planning/SKILL.md",
-      "canonicalPath": ".agents/skills/server-planning/SKILL.md"
+      "canonicalPath": ".agents/skills/server-planning/SKILL.md",
+      "parts": [
+        {
+          "name": "auxiliary",
+          "file": "skills/server-planning/parts/auxiliary.md",
+          "description": "Assignees, teams, comments and mentions on native store ports, the reply projection, hierarchy admission and project purge.",
+          "purposes": [
+            "planning",
+            "data"
+          ],
+          "mentions": [
+            "facade.assignees",
+            "facade.teams",
+            "facade.comments",
+            "facade.mentions",
+            "manageAssignees",
+            "manageTeams",
+            "defaultAssigneeId",
+            "makePlanningAuth",
+            "guardHelper.reply"
+          ]
+        },
+        {
+          "name": "executor",
+          "file": "skills/server-planning/parts/executor.md",
+          "description": "The transition executor step by step (refusal order, actor and createdBy stamping) and the plugin seam (registration, order, store routing, before/after hooks).",
+          "purposes": [
+            "planning",
+            "server-api"
+          ],
+          "mentions": [
+            "executeTransition",
+            "creatorHelper",
+            "makePluginRegistry",
+            "ensurePlanningService",
+            "PlanningRefused",
+            "mintCode",
+            "WorkcardConflict"
+          ]
+        },
+        {
+          "name": "schemas",
+          "file": "skills/server-planning/parts/schemas.md",
+          "description": "Data-defined card types and flows — the resolved layer per organization and project, the facade's definitions, retiring a flow.",
+          "purposes": [
+            "data",
+            "planning",
+            "config"
+          ],
+          "mentions": [
+            "makeDefinitions",
+            "makeSchemaViews",
+            "schemasFor",
+            "scopedSchemaHelper",
+            "definitions",
+            "SchemaInUse"
+          ]
+        },
+        {
+          "name": "serving",
+          "file": "skills/server-planning/parts/serving.md",
+          "description": "The commit feed, request scope and security, the access resolver (projects, writes, grants), and mounting the handlers in a target.",
+          "purposes": [
+            "server-api",
+            "auth",
+            "planning"
+          ],
+          "mentions": [
+            "servePlanningEntrypoints",
+            "planningHandlerOf",
+            "PlanningAccessResolver",
+            "makeRequestScope",
+            "makePlanningAccessModel",
+            "guardHelper",
+            "executionHelper",
+            "PlanningForbidden"
+          ]
+        },
+        {
+          "name": "stores",
+          "file": "skills/server-planning/parts/stores.md",
+          "description": "The in-memory store, writing a durable or foreign store (ports, foldHelper.foldPending, the commit hub, the conformance suite), and testing against the memory store.",
+          "purposes": [
+            "data",
+            "planning",
+            "test"
+          ],
+          "mentions": [
+            "makeMemoryPlanningStore",
+            "PlanningStore",
+            "foldHelper",
+            "makeCommitHub",
+            "makeCompositeStore",
+            "planningConformance",
+            "conformanceCasesFor",
+            "planningConformancePlugin",
+            "makeProjectionProcessor",
+            "@owlmeans/server-planning/store",
+            "@owlmeans/server-planning/conformance"
+          ]
+        }
+      ]
     }
   ]
 }

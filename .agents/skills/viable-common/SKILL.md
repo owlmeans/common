@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.4"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.6"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -33,6 +33,10 @@ execution state and card fields name.
 CRUDL capabilities: entity/owner, host screen/component, primary selection components, presentation
 and record/parent bindings. `selectionComponents` carries actual list/board/picker source paths whose
 record-open controls enter the same detail as its contextual actions; it is optional for legacy reads.
+Optional `componentResponsibilities` assigns entity, roles, capabilities, scope and nested parent to
+each allocated component. Roles are collection/detail/editor/owned-section/support; one component may
+bind several entities. `StoryDesignApi.operations` optionally limits an endpoint group to the
+current story's required list/get/create/update/remove operations. These additions preserve old plans.
 Optional `interaction` fields on scaffold, design and target metadata preserve legacy reads; the
 scaffold model answer requires one for each story. `recordInteractionHelper` separates host menu
 eligibility from editor route parameters. These are runtime-free contracts; generation prompts and

@@ -181,6 +181,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           entity: { type: 'string' },
           type: { type: 'string' },
           model: { type: 'string' },
+          operations: { type: 'array', items: { type: 'string', enum: ['list', 'get', 'create', 'update', 'remove'] }, nullable: true },
           endpoints: {
             type: 'array',
             items: {

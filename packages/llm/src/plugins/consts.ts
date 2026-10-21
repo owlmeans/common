@@ -170,3 +170,36 @@ export const OPENAI_HIDDEN_PROPERTY_NAMES: ReadonlySet<string> = new Set([
   'maxProperties', 'allOf', 'not', 'if', 'then', 'else', 'contains', 'propertyNames',
   'patternProperties', 'dependentRequired', 'unevaluatedProperties',
 ])
+
+/**
+ * OpenAI families that take explicit prompt-cache breakpoints (`prompt_cache_breakpoint` on an
+ * input block, `prompt_cache_options.mode: 'explicit'` on the request) — GPT-5.6 and later.
+ * Used only for a model that goes through the Responses API (`RESPONSES_API_PREFIXES`); earlier
+ * families keep automatic caching. `ModelConfig.cacheMode` overrides the list per preset.
+ */
+export const OPENAI_EXPLICIT_CACHE_PREFIXES = ['gpt-6', 'gpt-5.6']
+
+/**
+ * How a provider is told what to cache. A `fallback` rung in another dialect is prepared again,
+ * even within one plugin family: the markers and call options differ.
+ */
+export enum CacheDialect {
+  /** Anthropic `cache_control` markers, up to four per request. */
+  Anthropic = 'anthropic',
+  /** OpenAI explicit mode: `prompt_cache_breakpoint` markers only — nothing else is written. */
+  Explicit = 'explicit',
+  /** OpenAI automatic caching by prefix: nothing to mark, only the order of the bytes. */
+  Implicit = 'implicit',
+}
+
+/** The stability boundaries of the prompt layout, earliest first — one breakpoint each at most. */
+export enum CacheBoundary {
+  /** BP1 — end of role + skills: stable for a persona. */
+  Skills = 'skills',
+  /** BP2 — end of the packages block: stable for a persona working on one story. */
+  Packages = 'packages',
+  /** BP3 — end of the project message: stable for one step of the work. */
+  Project = 'project',
+  /** BP4 — end of the caller's stable lead messages: stable for one batch of calls. */
+  Stable = 'stable',
+}
