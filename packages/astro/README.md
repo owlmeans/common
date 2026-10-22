@@ -11,7 +11,7 @@ composes the same pieces from `@owlmeans/consent` and `@owlmeans/web-gtm` direct
 ## Installation
 
 ```bash
-bun add @owlmeans/astro@^0.1.18-rc.38
+bun add @owlmeans/astro@^0.1.18-rc.39
 ```
 
 ## Concepts

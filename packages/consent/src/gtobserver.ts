@@ -6,7 +6,7 @@ import { AUTO_SKEW } from './consts.local.js'
 import { consentLinkHelper } from './linker.js'
 import type { ConsentCategory, ConsentOptions, ConsentRecord } from './types.js'
 import type { ConsentWindow } from './types.local.js'
-import type { ConsentModeHelper } from './gtm/types.js'
+import type { ConsentModeHelper } from './gtobserver/types.js'
 
 export const createConsentModeHelper = (): ConsentModeHelper => {
   const global = (): ConsentWindow | null =>

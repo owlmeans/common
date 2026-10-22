@@ -14,7 +14,7 @@ The `web-consent` skill covers the components, the `consent` skill the model beh
 ## Installation
 
 ```bash
-bun add @owlmeans/web-consent@^0.1.18-rc.48
+bun add @owlmeans/web-consent@^0.1.18-rc.49
 ```
 
 Peer dependencies the app provides: `react`, `tailwindcss`, `tailwind-merge`, `clsx`, `lucide-react`.

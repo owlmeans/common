@@ -13,7 +13,7 @@ log lines and analytics events.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-log@^0.1.18-rc.4
+bun add @owlmeans/web-log@^0.1.18-rc.5
 ```
 
 ## Concepts

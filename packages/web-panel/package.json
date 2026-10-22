@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-panel",
-  "version": "0.1.18-rc.79",
+  "version": "0.1.18-rc.80",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -90,7 +90,7 @@
     "@owlmeans/route": "^0.1.18-rc.36",
     "@owlmeans/state": "^0.1.18-rc.40",
     "@owlmeans/web-client": "^0.1.18-rc.68",
-    "@owlmeans/web-consent": "^0.1.18-rc.48",
+    "@owlmeans/web-consent": "^0.1.18-rc.49",
     "@owlmeans/web-db": "^0.1.18-rc.53",
     "@owlmeans/web-flow": "^0.1.18-rc.59",
     "@owlmeans/web-router": "^0.1.18-rc.55",
