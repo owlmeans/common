@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-log",
-  "version": "0.1.18-rc.4",
+  "version": "0.1.18-rc.5",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,7 +22,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/consent": "^0.1.18-rc.12",
+    "@owlmeans/consent": "^0.1.18-rc.13",
     "@owlmeans/log": "^0.1.18-rc.4"
   },
   "devDependencies": {

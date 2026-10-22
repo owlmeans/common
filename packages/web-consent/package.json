@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-consent",
-  "version": "0.1.18-rc.48",
+  "version": "0.1.18-rc.49",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,7 +22,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/consent": "^0.1.18-rc.12"
+    "@owlmeans/consent": "^0.1.18-rc.13"
   },
   "peerDependencies": {
     "clsx": "*",

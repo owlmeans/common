@@ -14,7 +14,7 @@ implements.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-gtm@^0.1.18-rc.38
+bun add @owlmeans/web-gtm@^0.1.18-rc.39
 ```
 
 ## Concepts
