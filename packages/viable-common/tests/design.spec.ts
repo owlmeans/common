@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import { ProjectArea } from '../src/areas/consts.js'
-import { SpecCategory } from '../src/ba/consts.js'
+import { RequirementKind, RequirementSource, SpecCategory } from '../src/ba/consts.js'
 import { DesignStaleness, STORY_DESIGN_VERSION, StoryDesignSchema, storyDesignHelper } from '../src/design/index.js'
 import type { StoryDesign } from '../src/design/index.js'
 
@@ -90,6 +90,21 @@ describe('viable-common - design staleness', () => {
     expect(storyDesignHelper.designStaleness(fresh(), { ...now, registryHash: 'x' })).toBe(DesignStaleness.Tree)
   })
 
+  test('a changed set of stated requirements re-designs, ranked right after the narrative', () => {
+    // Absent on both sides is the design every story had before requirements existed.
+    expect(storyDesignHelper.designStaleness(fresh(), { ...now, requirementsHash: '' })).toBe(DesignStaleness.Fresh)
+    expect(storyDesignHelper.designStaleness(fresh(), { ...now, requirementsHash: 'q' })).toBe(DesignStaleness.Narrative)
+
+    const hashed = fresh()
+    hashed.provenance.requirementsHash = 'q'
+    expect(storyDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q' })).toBe(DesignStaleness.Fresh)
+    expect(storyDesignHelper.designStaleness(hashed, now)).toBe(DesignStaleness.Narrative)
+    expect(storyDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q2', projectHash: 'x', registryHash: 'x' }))
+      .toBe(DesignStaleness.Narrative)
+    expect(storyDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q', projectHash: 'x' }))
+      .toBe(DesignStaleness.Project)
+  })
+
   test('the hash is stable and distinguishes its inputs', () => {
     expect(storyDesignHelper.designHash('a', 'b')).toBe(storyDesignHelper.designHash('a', 'b'))
     expect(storyDesignHelper.designHash('a', 'b')).not.toBe(storyDesignHelper.designHash('a', 'c'))
@@ -110,6 +125,27 @@ describe('viable-common - the design schema', () => {
 
   test('accepts the empty design every stage starts from', () => {
     expect(validate(design())).toBe(true)
+  })
+
+  test('the empty design carries no requirements unless it is given some', () => {
+    const empty = design()
+
+    expect('requirements' in empty).toBe(false)
+    expect('requirementsHash' in empty.provenance).toBe(false)
+  })
+
+  test('accepts stated requirements and their hash, and refuses an unknown part', () => {
+    const value = withScreens()
+    value.requirements = [{
+      id: 'R1', quote: 'bookings must be exportable', statement: 'An admin exports bookings.',
+      kind: RequirementKind.Story, parts: { ux: 'An export button on the list.' }, source: RequirementSource.Prompt,
+    }]
+    value.provenance.requirementsHash = 'abcd0123'
+    expect(validate(value)).toBe(true)
+
+    const rogue = withScreens()
+    rogue.requirements = [{ ...value.requirements[0]!, parts: { qa: 'x' } as never }]
+    expect(validate(rogue)).toBe(false)
   })
 
   test('persists scoped components and required read operations while accepting legacy API plans', () => {

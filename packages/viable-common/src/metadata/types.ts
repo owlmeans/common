@@ -1,5 +1,5 @@
 
-import type { SpecCategory } from '../ba/consts.js'
+import type { RequirementPart, SpecCategory } from '../ba/consts.js'
 import { MetadataKind, MetadataListKind, RegistryKind } from './consts.js'
 
 export interface MetadataFile<T extends Record<string, unknown> = Record<string, unknown>> {
@@ -110,6 +110,12 @@ export interface StoryMeta extends Record<string, unknown> {
    * other story's file keeps the shape it always had.
    */
   landing?: boolean
+  /**
+   * The ids of the stated requirements this story honours, per part (`docs/requirements.md` holds
+   * their text). Written only when the story has some, so every other story's file keeps the shape
+   * it always had.
+   */
+  requirements?: Partial<Record<RequirementPart, string[]>>
   entity: string
   entities: string[]
   screens: StoryScreenRef[]
@@ -155,6 +161,8 @@ export interface StoryWriteInput {
   section?: string
   /** Likewise the reserved screen name. */
   screen?: string
+  /** The story's stated requirement ids per part — see {@link StoryMeta.requirements}. */
+  requirements?: Partial<Record<RequirementPart, string[]>>
   userStory: import('../ba/types.js').UserStory
   /** Each entry maps a StoryScreen to its source path in the target project */
   screenPaths: Record<string, string>
