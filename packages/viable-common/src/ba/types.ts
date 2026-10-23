@@ -1,8 +1,9 @@
 import { SpecCategory } from "./consts"
-import type { ConnectingStoryKind, StoryKind } from "./consts.js"
+import type { ConnectingStoryKind, RequirementKind, RequirementPart, RequirementSource, StoryKind } from "./consts.js"
 import type { ProjectArea } from "../areas/consts.js"
 import type { StoryDraft } from "../areas/types.js"
 import type { StoryActor } from "../design/consts.js"
+import type { SubProject } from "../slot/consts.js"
 
 export interface EntityList {
   entities: string[]
@@ -33,15 +34,68 @@ export interface ConnectingStoryList {
 
 /**
  * One entry of the single ordered story list init persists — the flow interleaved with the
- * stories that connect it.
+ * stories that connect it and the stories the requester asked for that the flow does not cover.
  *
  * `kind` is persisted on the story card (`fields.kind`). `after` is present on a connective entry
- * only and becomes the card's `follows` relationship: the 1-based position, counted among the
- * `flow` entries of the same list, of the flow story it follows — already clamped, so it always
- * names a flow story that list contains.
+ * and on an anchored requested entry, and becomes the card's `follows` relationship: the 1-based
+ * position, counted among the `flow` entries of the same list, of the flow story it follows —
+ * already clamped, so it always names a flow story that list contains. A requested entry with no
+ * anchor sits at the end of the list and carries none.
  */
 export interface MergedStoryDraft extends StoryDraft {
   kind: StoryKind
+  after?: number
+}
+
+/** An npm package a stated requirement names, and the target package it is installed into. */
+export interface RequirementPackage {
+  name: string
+  side: SubProject
+}
+
+/**
+ * One requirement the requester stated, quoted in their own words.
+ *
+ * The project card's `requirements` document holds every one of them with the story codes it
+ * applies to; a story card's document holds its slice. What each level of the work must do for it
+ * is split into {@link RequirementPart parts}, so a stage reads only the parts it is responsible for.
+ */
+export interface StatedRequirement {
+  /** `R1`, `R2`, … quoted from the prompt; `S1`, `S2`, … quoted from a person's story. */
+  id: string
+  /** The requester's words, verified verbatim upstream. */
+  quote: string
+  /** One testable sentence in the requester's terms. */
+  statement: string
+  kind: RequirementKind
+  /** What each level must do for it — present for the levels it touches only. */
+  parts: Partial<Record<RequirementPart, string>>
+  packages?: RequirementPackage[]
+  /** `platform` / `unsupported`: what the platform does instead. */
+  note?: string
+  /** The story CODES it applies to — on the project document only. */
+  stories?: string[]
+  source: RequirementSource
+}
+
+/** The stored `requirements` specification of a project or a story card. */
+export interface RequirementsDocument {
+  version: number
+  items: StatedRequirement[]
+  /** When the requirements were assigned to story codes (ISO). */
+  assignedAt?: string
+  /** Requirement ids no story covers. */
+  uncovered?: string[]
+}
+
+/**
+ * A story drawn for requirements no main-flow step covers.
+ *
+ * `covers` names the requirement ids it exists for. `after` is an ANCHOR like a connecting story's:
+ * the 1-based number of the flow story it follows; absent puts it at the end of the list.
+ */
+export interface RequestedStoryDraft extends StoryDraft {
+  covers: string[]
   after?: number
 }
 

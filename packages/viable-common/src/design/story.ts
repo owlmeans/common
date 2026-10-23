@@ -69,12 +69,16 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
 
   const designStaleness = (
     design: StoryDesign,
-    now: { narrativeHash: string, projectHash: string, registryHash: string },
+    now: { narrativeHash: string, projectHash: string, registryHash: string, requirementsHash?: string },
   ): DesignStaleness => {
     if (design.version !== STORY_DESIGN_VERSION) {
       return DesignStaleness.Version
     }
     if (design.provenance.narrativeHash !== now.narrativeHash) {
+      return DesignStaleness.Narrative
+    }
+    // Requirements are part of what the story IS: a changed set re-designs like a changed narrative.
+    if ((design.provenance.requirementsHash ?? '') !== (now.requirementsHash ?? '')) {
       return DesignStaleness.Narrative
     }
     if (design.provenance.projectHash !== now.projectHash) {

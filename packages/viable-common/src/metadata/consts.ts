@@ -38,6 +38,16 @@ export const PROJECT_META_NAME = 'project'
 export const PROJECT_META_FILE = `${DOCS_DIR}/${PROJECT_META_NAME}.md`
 
 /**
+ * The stated requirements — `docs/requirements.md`.
+ *
+ * What the requester asked for in their own words, with the stories that honour each requirement.
+ * A doc rather than a memory node: it is the product's contract with the person who asked for it.
+ * A story file's frontmatter carries only the ids; the text lives here, once.
+ */
+export const REQUIREMENTS_NAME = 'requirements'
+export const REQUIREMENTS_FILE = `${DOCS_DIR}/${REQUIREMENTS_NAME}.md`
+
+/**
  * The name registry — `.agents/memory/registry.md`.
  *
  * Project-level, not per-story: a resource alias is a physical table name and an entity directory

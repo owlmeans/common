@@ -1,4 +1,5 @@
 import type { ProjectArea } from '../areas/consts.js'
+import type { StatedRequirement } from '../ba/types.js'
 import type { RecordInteractionPlan } from '../interaction/types.js'
 
 import type { AccessList } from '../dev/types.js'
@@ -152,6 +153,11 @@ export interface StoryDesignProvenance {
    * now, so a tree that moved is a flipped branch rather than a crash.
    */
   paths: Array<{ path: string, hash: string }>
+  /**
+   * The digest of the story's stated requirements the design was written against
+   * (`requirementsHelper.digest`). Absent on a design written without any — read as `''`.
+   */
+  requirementsHash?: string
 }
 
 /**
@@ -200,6 +206,12 @@ export interface StoryDesign {
    * existed carries none, and "none" is both the safe reading and the true one.
    */
   runtime?: StoryDesignRuntime
+  /**
+   * The stated requirements this story must honour — its slice of the project's, plus the ones
+   * quoted from a person's own story. Optional: a story without any carries none, and a design
+   * written before requirements existed reads as "none".
+   */
+  requirements?: StatedRequirement[]
   provenance: StoryDesignProvenance
 }
 

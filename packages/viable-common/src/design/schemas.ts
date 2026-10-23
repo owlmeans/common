@@ -2,6 +2,7 @@ import type { JSONSchemaType } from 'ajv'
 import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
 import { ProjectArea } from '../areas/consts.js'
+import { StatedRequirementSchema } from '../ba/schemas.js'
 import { StoryActor, StoryAgentKind } from './consts.js'
 import type { StoryDesign, RuntimeDecision } from './types.js'
 
@@ -286,6 +287,8 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
       required: ['actor', 'worker', 'kv', 'jobs', 'agents'],
       additionalProperties: false,
     },
+    // Optional: a story without stated requirements carries none.
+    requirements: { type: 'array', items: StatedRequirementSchema, nullable: true },
     provenance: {
       type: 'object',
       properties: {
@@ -293,6 +296,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
         narrativeHash: { type: 'string' },
         projectHash: { type: 'string' },
         registryHash: { type: 'string' },
+        requirementsHash: { type: 'string', nullable: true },
         paths: {
           type: 'array',
           items: {
