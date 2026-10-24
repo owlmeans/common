@@ -18,7 +18,7 @@ import { compactionHelper } from '../helpers/compaction.js'
  *
  * What it contributes is rendered as clearly delimited, explicitly untrusted material. These are
  * model words derived from user input, stored and replayed into a later prompt: they belong in the
- * volatile context block, described as a record of what happened, never as instructions.
+ * context block of the project message, described as a record of what happened, never as instructions.
  */
 export const summarizePlugin = (options: SummarizeOptions = {}): AgentPlugin => {
   const {

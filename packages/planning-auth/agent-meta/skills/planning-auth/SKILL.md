@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/planning-auth
 
-**Install:** `"@owlmeans/planning-auth": "^0.1.0-rc.2"`. Planning itself remains provider-neutral.
+**Install:** `"@owlmeans/planning-auth": "^0.1.0-rc.6"`. Planning itself remains provider-neutral.
 Register `makePlanningAuthPlugin()` for human/non-human assignee schemas; the default plugin is
 schema-only and safe for clients. Server hosts may set `attributeCreates: true`, `owns` and a
 `defaultAssignee` to fill missing top-level reporter/responsible fields from trusted creation context.

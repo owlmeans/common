@@ -15,7 +15,7 @@ export const createRungUtils = (): RungUtils => {
       const config = configUtils.readConfig(current)
       rungs.push({
         index: rungs.length, model: current, config,
-        plugin: llmPluginRegistry.pluginOf(config.provider) ?? llmPluginRegistry.pluginFor(current),
+        plugin: llmPluginRegistry.resolveFor(current),
       })
     }
 

@@ -23,6 +23,7 @@ import {
 } from '../../src/consent/index.js'
 import { LoginOutcome, ensureLoginService } from '@owlmeans/client-auth/login'
 import type { LoginMethod } from '@owlmeans/client-auth/login'
+import { PickerScreen, TranslatedPickerScreen } from './picker.js'
 
 // A real app: a context, a layout entrypoint rendering NavLayout, and screens under it.
 // The nav model resolves the active screen from the router, so nothing here may be faked.
@@ -40,6 +41,7 @@ const alias = {
   socket: `${SERVICE}:web:socket`,
   lazy: `${SERVICE}:web:lazy`,
   lazyEntry: `${SERVICE}:web:lazy-entry`,
+  picker: `${SERVICE}:web:picker`,
 }
 
 /** A harness id for the ONE tracked connection this screen simulates — a real `ws()`/`useWs()`
@@ -173,7 +175,12 @@ const FooterBlock: FC = () => <div id="footer-block" className="flex flex-wrap j
   </nav>
 </div>
 
-const Layout: FC<PropsWithChildren> = ({ children }) => <>
+// `/picker` is a page of its own — no shell around it, so its screenshots show the picker alone.
+const pickerPage = window.location.pathname.startsWith('/picker')
+// `/picker?bare=1` is mounted with no `PanelApp` and no i18n instance at all — the parts must render.
+const pickerBare = pickerPage && new URLSearchParams(window.location.search).get('bare') === '1'
+
+const Layout: FC<PropsWithChildren> = ({ children }) => pickerPage ? <>{children}</> : <>
   <NavLayout
     nav={navConfig}
     title="Harness"
@@ -402,6 +409,7 @@ const protocols = {
   socket: openProtocol(route(alias.socket, '/socket', frontend({ parent: BASE }))),
   lazy: openProtocol(route(alias.lazy, '/lazy', frontend({ parent: BASE }))),
   lazyEntry: openProtocol(route(alias.lazyEntry, '/lazy-entry', frontend({ parent: BASE }))),
+  picker: openProtocol(route(alias.picker, '/picker', frontend({ parent: BASE }))),
 }
 
 const entrypoints = [
@@ -422,13 +430,16 @@ const entrypoints = [
   bindScreen(protocols.socket, handler(SocketStatusScreen)),
   bindScreen(protocols.lazy, lazyScreen),
   bindScreen(protocols.lazyEntry, handler(LazyEntry)),
+  bindScreen(protocols.picker, handler(TranslatedPickerScreen)),
 ]
 
 context.registerEntrypoints(entrypoints)
 
 // The consent dialog is a sibling of the Router, as in an application — and only on the consent
 // branches, since its first-visit overlay covers the page every other test clicks through.
-createRoot(document.getElementById('root')!).render(<PanelApp context={context as never}>
+createRoot(document.getElementById('root')!).render(pickerBare
+  ? <div className="min-h-screen bg-background text-foreground"><PickerScreen /></div>
+  : <PanelApp context={context as never}>
   {consentMode != null && <PanelCookieConsent
     policyHref="/cookies"
     {...(withDomains ? { linker: { domains: ['harness-partner.test'] } } : {})}

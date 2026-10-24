@@ -1,11 +1,12 @@
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
-import type { AIMessageChunk, BaseMessage, BaseMessageLike, ToolCall } from '@langchain/core/messages'
+import type { AIMessageChunk, BaseMessage, BaseMessageLike, MessageFieldWithRole, ToolCall } from '@langchain/core/messages'
 import { addMessages, entrypoint, task } from '@langchain/langgraph'
 import { createIdOfLength } from '@owlmeans/basic-ids'
 import { makeFlowModel } from '@owlmeans/flow'
 import type { FlowModel } from '@owlmeans/flow'
-import { llmPluginRegistry } from '@owlmeans/llm'
-import type { HelperExecution, ModelInputItem } from '@owlmeans/llm'
+import { PromptRegion } from '@owlmeans/llm-common'
+import { cacheHelper, llmPluginRegistry } from '@owlmeans/llm'
+import type { HelperExecution, LlmLoopCacheHints, ModelInputItem } from '@owlmeans/llm'
 import { logger } from '@owlmeans/log'
 import {
   AgentRunStatus, AgentRunTransition, agentRunFlow, conversationFor,
@@ -18,6 +19,30 @@ import type {
 import { toolHelper } from './helpers/tools.js'
 
 const log = logger('agent')
+
+/**
+ * A copy of the opening with the per-call tail after its payload — a string stays a string. The
+ * opening itself stays in the transcript untouched; only the wire carries the tail.
+ */
+const withTail = (opening: BaseMessage, tail: string): BaseMessage[] => {
+  if (opening.getType() !== 'human') {
+    return [opening, new HumanMessage({ content: tail })]
+  }
+  const content = typeof opening.content === 'string'
+    ? `${opening.content}\n\n${tail}`
+    : [...opening.content, { type: 'text', text: tail }]
+
+  return [new HumanMessage({
+    content, id: opening.id, name: opening.name, additional_kwargs: opening.additional_kwargs,
+  } as ConstructorParameters<typeof HumanMessage>[0])]
+}
+
+/** The provider's id of the model a run talks to, for billing — the config's, else the client's own. */
+const modelIdOf = (model: unknown): string | undefined => {
+  const typed = model as { metadata?: { config?: { model?: string } }, model?: unknown, modelName?: unknown }
+  const id = typed.metadata?.config?.model ?? typed.model ?? typed.modelName
+  return typeof id === 'string' ? id : undefined
+}
 
 /**
  * An OwlMeans agent over the LangGraph functional API.
@@ -49,7 +74,8 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
 
   const conversation = options.conversation ?? conversationFor(exec.purpose)
   const prompts = options.prompts ?? exec.prompts
-  const provider = options.provider ?? llmPluginRegistry.pluginFor(agentModel)
+  const provider = options.provider ?? llmPluginRegistry.resolveFor(agentModel)
+  const modelId = modelIdOf(agentModel)
   const purpose = exec.purpose
 
   const registry: AgentPlugin[] = []
@@ -136,20 +162,38 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
           },
         )
         : null
-      const system = composed?.system?.content
-        ?? (context.length > 0 ? context.join('\n\n') : '')
-      const systemMessage = new SystemMessage(
-        typeof system === 'string' ? system : JSON.stringify(system),
-      )
+      // The opening of every round: the system (a persona, stable across runs), the project
+      // message (this run's facts), and the caller's opening carrying the per-call tail. The system
+      // goes out as real text — its cache blocks are the provider plugin's, never a stringified array.
+      const system = composed != null ? composed.system ?? '' : context.join('\n\n')
+      const head: BaseMessage[] = [
+        ...(system !== '' ? [new SystemMessage(system)] : []),
+        ...(composed?.project != null ? [new HumanMessage(composed.project)] : []),
+      ]
+      const hints: LlmLoopCacheHints = {
+        system: composed?.blocks.filter(block => block.region === PromptRegion.System),
+        ...(composed?.project != null ? { project: head.length - 1 } : {}),
+        ...(composed != null ? { ttl: composed.cache.ttl } : {}),
+      }
+      const cached = composed?.cache.enabled !== false
 
       const tooled = agentModel.bindTools?.(Object.values(toolSet)) ?? agentModel
 
-      const ask = task('call-llm', async (messages: BaseMessageLike[]) => {
+      const ask = task('call-llm', async ({ messages, turn }: { messages: BaseMessageLike[], turn: number }) => {
         const startedAt = Date.now()
 
+        const [first, ...rest] = messages as BaseMessage[]
+        const opening = composed?.tail != null && first != null ? withTail(first, composed.tail) : [first]
+        const wire = [...head, ...opening, ...rest].filter(message => message != null)
+        // Each round strips and re-marks copies: the system and project message once, and the
+        // growing conversation read back from the round before.
+        const patch = cached
+          ? provider?.loopCache?.(wire as unknown as MessageFieldWithRole[], agentModel, hints)
+          : undefined
+
         const stream = await tooled.stream(
-          [systemMessage, ...messages],
-          { runName: action, metadata: { purpose } },
+          (patch?.messages ?? wire) as BaseMessageLike[],
+          { ...patch?.options, runName: action, metadata: { purpose } } as Parameters<typeof tooled.stream>[1],
         )
 
         let final: AIMessageChunk | undefined
@@ -157,8 +201,8 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
           final = final != null ? final.concat(chunk) : chunk
         }
 
-        const result = new AIMessage(final!)
-        await spectate?.(messages as ModelInputItem[], result, action, 0, startedAt)
+        const result = new AIMessage(cacheHelper.withCacheTiers(final!))
+        await spectate?.(messages as ModelInputItem[], result, action, turn, startedAt, modelId)
 
         return result
       })
@@ -171,7 +215,7 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
       )
 
       const agent = entrypoint(entrypointName, async (messages: BaseMessageLike[]) => {
-        let response = await ask(messages)
+        let response = await ask({ messages, turn: 0 })
         let turn = 0
 
         while (true) {
@@ -214,7 +258,7 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
           }))
 
           messages = addMessages(messages, results)
-          response = await ask(messages)
+          response = await ask({ messages, turn })
         }
 
         return messages

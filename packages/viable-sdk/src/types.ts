@@ -320,9 +320,10 @@ export interface ConnectorApi {
   /**
    * The generated app's sign-in — the owner console's own calls, per project and per app: `scope`
    * picks the preview's client (absent) or production's. Platform records, so a local target's app is
-   * managed here too. An IAM refusal the owner can act on (a managed group or definition, the last
-   * owner) is `IamRefused` (`iam-refused:<marker>`); a backend that keeps a listing in a console of
-   * its own answers it empty with `external: true`. Organizations travel by slug, groups by key.
+   * managed here too. An IAM refusal the owner can act on (the staff group's members, bundles or
+   * existence, a managed definition, the last owner) is `IamRefused` (`iam-refused:<marker>`); a
+   * backend that keeps a listing in a console of its own answers it empty with `external: true`.
+   * Organizations travel by slug, groups by key.
    */
   iam: {
     /** Every end user of every app the organization owns — read-only; a person is managed per project. */
@@ -332,10 +333,14 @@ export interface ConnectorApi {
     /** A definition's default class or organization binding; an omitted setting is kept. */
     setDefault: (projectId: string, body: IamDefinitionUpdate) => Promise<IamPermissionDefinition>
     grants: {
-      /** Every grant, one person's (`profileId`) or one group's (`group` with its `entitySlug`). */
+      /**
+       * Every grant, one person's (`profileId`) or one group's (`group` with its `entitySlug`) — what
+       * is held, plus the inherited grants a subject's own restriction withholds (`restricted: true`).
+       */
       list: (projectId: string, query?: IamGrantsQuery) => Promise<IamGrantsResponse>
       /** Grant to exactly one subject — a person or a group. */
       assign: (projectId: string, body: IamAssignGrant) => Promise<IamGrant>
+      /** A whole-permission revoke restricts the subject; `mode: inherit` takes its own value back. */
       revoke: (projectId: string, body: IamRevokeGrant) => Promise<void>
     }
     users: {

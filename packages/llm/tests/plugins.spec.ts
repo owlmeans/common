@@ -1,13 +1,17 @@
 import { describe, expect, test } from 'bun:test'
 import { ChatAnthropic } from '@langchain/anthropic'
-import { ChatOpenAI } from '@langchain/openai'
+import { ChatOpenAI, convertMessagesToResponsesInput } from '@langchain/openai'
 import { BadRequestError } from '@anthropic-ai/sdk'
 import { ContextOverflowError } from '@langchain/core/errors'
+import { AIMessage, AIMessageChunk, coerceMessageLikeToMessage, HumanMessage, SystemMessage, ToolMessage, type MessageFieldWithRole } from '@langchain/core/messages'
 import { ModelEffort, ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
-import { anthropicPlugin, compatiblePlugin, makeLlmService, openAiPlugin, REASONING_MIN_MAX_TOKENS, resolveFallbacks, usesResponsesApi, type LlmPlugin, type ModelConfig, DEFAULT_MAX_OUTPUT_CAP, llmPluginRegistry } from '@owlmeans/llm'
+import { configureLog, logConfig } from '@owlmeans/log'
+import { anthropicPlugin, compatiblePlugin, LlmModelError, makeLlmModel, makeLlmService, makePromptService, openAiPlugin, openAiFamily, REASONING_MIN_MAX_TOKENS, resolveFallbacks, usesResponsesApi, type LlmPlugin, type ModelConfig, type PromptBoundary, type PromptPlan, DEFAULT_MAX_OUTPUT_CAP, llmPluginRegistry, CacheBoundary, CacheDialect } from '@owlmeans/llm'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { offlineConfigs, Role } from './context.js'
 import { configUtils } from '../src/utils/config.js'
+import { markUtils } from '../src/utils/marks.js'
+import { messageUtils } from '../src/utils/messages.js'
 import { rungUtils } from '../src/utils/rungs.js'
 import { ADAPTIVE_MIN_MAX_TOKENS } from '../src/plugins/consts.js'
 import { promptUtils } from '../src/utils/prompt.js'
@@ -35,6 +39,19 @@ describe('@owlmeans/llm — plugin resolution', () => {
     // Both openai and compatible own a ChatOpenAI; compatible (tool-calling) wins.
     expect(llmPluginRegistry.pluginFor(openai)?.type).toBe(ModelProvider.Compatible)
     expect(llmPluginRegistry.resolvePlugin(undefined, openai).type).toBe(ModelProvider.Compatible)
+  })
+
+  // By instance alone every ChatOpenAI is compatible's; a model the service built names its own
+  // provider, and only that reading reaches the OpenAI plugin's cache hooks.
+  test('resolveFor reads the configured provider first, then the instance', () => {
+    const openai = build(openAiPlugin, { provider: ModelProvider.OpenAI, model: 'gpt-6-sol' })
+    expect(llmPluginRegistry.pluginFor(openai)?.type).toBe(ModelProvider.Compatible)
+    expect(llmPluginRegistry.resolveFor(openai)?.type).toBe(ModelProvider.OpenAI)
+    expect(llmPluginRegistry.resolveFor(build(openAiPlugin, { model: 'gpt-6-sol' }))?.type).toBe(ModelProvider.Compatible)
+    // An Anthropic tool binding is a RunnableBinding: it carries no config, and no plugin claims it.
+    const anthropic = build(anthropicPlugin, { provider: ModelProvider.Anthropic, model: 'claude-haiku-4-5' })
+    expect(llmPluginRegistry.resolveFor(anthropic)?.type).toBe(ModelProvider.Anthropic)
+    expect(llmPluginRegistry.resolveFor(anthropic.bindTools!([]) as unknown as BaseChatModel)).toBeUndefined()
   })
 
   test('an unknown provider with no model instance is an error, not a silent default', () => {
@@ -387,251 +404,353 @@ describe('@owlmeans/llm — fallback chains', () => {
   })
 })
 
-describe('@owlmeans/llm — message prompt caching', () => {
+const textBlocks = (content: unknown): Array<Record<string, unknown>> => content as Array<Record<string, unknown>>
+
+/** The marker each block of a message carries — `cache_control` or `prompt_cache_breakpoint` — or null. */
+const marksOf = (content: unknown, key = 'cache_control'): unknown[] =>
+  Array.isArray(content) ? textBlocks(content).map(block => block[key] ?? null) : [null]
+
+/** Boundaries the way `prepare` lays them out: the system's, the project message, the stable lead. */
+const layout = (
+  system: Array<{ block: PromptBlock, text: string }>,
+  messages: MessageFieldWithRole[],
+  { project, stable, ttl = markUtils.resolveTtl() }: { project?: number, stable?: number, ttl?: ReturnType<typeof markUtils.resolveTtl> } = {},
+): PromptBoundary[] => [
+  ...markUtils.systemBoundaries(system, ttl),
+  ...(project != null ? [{
+    kind: CacheBoundary.Project, message: project, ttl: ttl.project, prefixChars: messageUtils.charsThrough(messages, project),
+  }] : []),
+  ...(stable != null ? [{
+    kind: CacheBoundary.Stable, message: stable, ttl: ttl.stable, prefixChars: messageUtils.charsThrough(messages, stable),
+  }] : []),
+]
+
+const planOf = (
+  model: BaseChatModel, messages: MessageFieldWithRole[], system: Array<{ block: PromptBlock, text: string }>,
+  boundaries: PromptBoundary[], budget = 4,
+): PromptPlan => ({ model, config: configUtils.readConfig(model), messages, system, boundaries, budget })
+
+const SYSTEM = [
+  { block: PromptBlock.Role, text: 'role text' },
+  { block: PromptBlock.Skills, text: 'skill text' },
+  { block: PromptBlock.Packages, text: 'package text' },
+]
+const systemText = 'role text\n\nskill text\n\npackage text'
+
+/** system, project message, a stable lead message, the final per-call payload. */
+const conversation = (): MessageFieldWithRole[] => [
+  { role: 'system', content: systemText },
+  { role: 'user', content: 'project facts' },
+  { role: 'user', content: 'stable lead' },
+  { role: 'user', content: 'the per-call payload' },
+]
+
+describe('@owlmeans/llm — prompt cache: anthropic patchPrompt', () => {
   /** `cacheMinTokens: 1` puts the minimum at 4 characters so fixtures stay readable. */
   const cheap = () => build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001', cacheMinTokens: 1 })
 
-  // The budget is four breakpoints for the WHOLE request, and the composed system prompt
-  // has first claim on it — so the messages get one marker at the end of their stable
-  // prefix, not one marker each.
-  test('anthropic places a single breakpoint at the end of the stable prefix', () => {
-    const msgs = [
-      { role: 'system' as const, content: 'aaaa' },
-      { role: 'user' as const, content: 'bbbb' },
-      { role: 'user' as const, content: 'cccc' },
-    ]
-    expect(anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 2 })).toBe(true)
-    expect(msgs[0]!.content).toBe('aaaa')
-    expect(msgs[1]!.content).toEqual([{ type: 'text', text: 'bbbb', cache_control: { type: 'ephemeral' } }])
-    expect(msgs[2]!.content).toBe('cccc')
+  // The four regions of the layout each close on their own breakpoint: role + skills (a persona),
+  // packages (a persona on one story), the project message (a step), the stable lead (a batch).
+  test('marks role + skills, packages, the project message and the stable lead — once each', () => {
+    const messages = conversation()
+    const patch = anthropicPlugin.patchPrompt!(planOf(cheap(), messages, SYSTEM, layout(SYSTEM, messages, { project: 1, stable: 2 })))
+
+    expect(patch.placed).toBe(4)
+    expect(textBlocks(patch.messages[0]!.content).map(block => block.text)).toEqual(['role text\n\nskill text', 'package text'])
+    expect(marksOf(patch.messages[0]!.content)).toEqual([{ type: 'ephemeral' }, { type: 'ephemeral' }])
+    expect(marksOf(patch.messages[1]!.content)).toEqual([{ type: 'ephemeral' }])
+    expect(marksOf(patch.messages[2]!.content)).toEqual([{ type: 'ephemeral' }])
+    expect(patch.messages[3]!.content).toBe('the per-call payload')
+    // The plan's own messages are untouched: every marked message is a new object.
+    expect(messages.map(msg => msg.content)).toEqual([systemText, 'project facts', 'stable lead', 'the per-call payload'])
   })
 
-  // The last message is the per-call payload (and `ensureJsonMention` / `applyNoThink`
-  // append to it) — caching it would write a fresh entry every call and read none.
-  test('the final message is never part of the cached prefix', () => {
-    const msgs = [
-      { role: 'system' as const, content: 'aaaa' },
-      { role: 'user' as const, content: 'bbbb' },
-    ]
-    expect(anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 9 })).toBe(true)
-    expect(msgs[0]!.content).toEqual([{ type: 'text', text: 'aaaa', cache_control: { type: 'ephemeral' } }])
-    expect(msgs[1]!.content).toBe('bbbb')
+  // An explicit `"ttl": "5m"` is different BYTES from no ttl at all, and a prefix cached one way
+  // would not match the other; and a longer-lived entry may never follow a shorter-lived one.
+  test('a 1h lifetime is spelled out, 5m is omitted, and lifetimes never rise along the prefix', () => {
+    expect(markUtils.resolveTtl({ skills: '5m', packages: '1h', project: '1h' }))
+      .toEqual({ skills: '5m', packages: '5m', project: '5m', stable: '5m' })
+    const ttl = markUtils.resolveTtl('5m', { skills: '1h' })
+    expect(ttl).toEqual({ skills: '1h', packages: '5m', project: '5m', stable: '5m' })
 
-    const single = [{ role: 'user' as const, content: 'aaaa' }]
-    expect(anthropicPlugin.patchCache?.(single, { model: cheap(), useCache: true, cacheMax: 4 })).toBe(false)
-    expect(single[0]!.content).toBe('aaaa')
+    const messages = conversation()
+    const patch = anthropicPlugin.patchPrompt!(planOf(cheap(), messages, SYSTEM, layout(SYSTEM, messages, { project: 1, ttl })))
+    expect(marksOf(patch.messages[0]!.content)).toEqual([{ type: 'ephemeral', ttl: '1h' }, { type: 'ephemeral' }])
   })
 
-  test('a marker is appended to block content rather than replacing it, and is idempotent', () => {
-    const msgs = [
-      { role: 'system' as const, content: [{ type: 'text', text: 'aa' }, { type: 'text', text: 'bb' }] },
-      { role: 'user' as const, content: 'cccc' },
-    ]
-    expect(anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 1 })).toBe(true)
-    expect(msgs[0]!.content).toEqual([
-      { type: 'text', text: 'aa' },
-      { type: 'text', text: 'bb', cache_control: { type: 'ephemeral' } },
-    ])
-
-    const before = JSON.stringify(msgs[0]!.content)
-    expect(anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 1 })).toBe(true)
-    expect(JSON.stringify(msgs[0]!.content)).toBe(before)
-  })
-
-  // A prefix under the provider's own minimum is silently never cached, so a marker there
-  // buys nothing and costs one of the four breakpoints.
-  test('a prefix below the cacheable minimum is left unmarked', () => {
+  // The minimum applies to the CUMULATIVE prefix: a short persona is skipped, while the packages
+  // boundary behind it reaches the minimum and is marked.
+  test('a boundary below the cumulative minimum is skipped, a later one that reaches it is placed', () => {
     const model = build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001' })
-    const msgs = [
-      { role: 'system' as const, content: 'short' },
-      { role: 'user' as const, content: 'also short' },
+    const system = [{ block: PromptBlock.Role, text: 'role' }, { block: PromptBlock.Packages, text: 'p'.repeat(5000) }]
+    const messages: MessageFieldWithRole[] = [
+      { role: 'system', content: `role\n\n${'p'.repeat(5000)}` }, { role: 'user', content: 'payload' },
     ]
-    expect(anthropicPlugin.patchCache?.(msgs, { model, useCache: true, cacheMax: 4 })).toBe(false)
-    expect(msgs[0]!.content).toBe('short')
+    const patch = anthropicPlugin.patchPrompt!(planOf(model, messages, system, layout(system, messages)))
+
+    // One breakpoint, so one segment: the whole system up to the end of the packages.
+    expect(patch.placed).toBe(1)
+    expect(marksOf(patch.messages[0]!.content)).toEqual([{ type: 'ephemeral' }])
+    expect(textBlocks(patch.messages[0]!.content)[0]!.text).toBe(messages[0]!.content)
   })
 
-  test('the message budget yields to whatever the system prompt already spent', () => {
-    const msgs = [
-      { role: 'system' as const, content: 'aaaa' },
-      { role: 'user' as const, content: 'bbbb' },
-    ]
-    expect(anthropicPlugin.patchCache?.(
-      msgs, { model: cheap(), useCache: true, cacheMax: 4, reserved: 4 }
-    )).toBe(false)
-    expect(msgs[0]!.content).toBe('aaaa')
+  test('the budget is spent earliest boundary first', () => {
+    const messages = conversation()
+    const patch = anthropicPlugin.patchPrompt!(planOf(cheap(), messages, SYSTEM, layout(SYSTEM, messages, { project: 1, stable: 2 }), 2))
+
+    expect(patch.placed).toBe(2)
+    expect(marksOf(patch.messages[0]!.content)).toEqual([{ type: 'ephemeral' }, { type: 'ephemeral' }])
+    expect(patch.messages[1]!.content).toBe('project facts')
   })
 
-  test('caching is a no-op when not requested, and for providers without it', () => {
-    const msgs = [{ role: 'user' as const, content: 'aaaa' }, { role: 'user' as const, content: 'bbbb' }]
-    expect(anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: false, cacheMax: 4 })).toBe(false)
-    expect(msgs[0]!.content).toBe('aaaa')
-    expect(openAiPlugin.patchCache).toBeUndefined()
-    expect(openAiPlugin.patchSystem).toBeUndefined()
+  // The last message is the per-call payload and its tail — caching it would write a fresh entry
+  // every call and read none. A message that cannot carry a marker costs no breakpoint either.
+  test('never marks the final message, and an unmarkable one costs no budget', () => {
+    const messages: MessageFieldWithRole[] = [
+      { role: 'user', content: 'aaaa' },
+      new AIMessage({ content: '', tool_calls: [{ id: 'c1', name: 'run', args: {} }] }) as unknown as MessageFieldWithRole,
+      { role: 'user', content: 'bbbb' },
+    ]
+    const at = (message: number) => ({ kind: CacheBoundary.Stable, message, ttl: '5m' as const, prefixChars: 99 })
+    const patch = anthropicPlugin.patchPrompt!(planOf(cheap(), messages, [], [at(1), at(2)], 1))
+
+    expect(patch.placed).toBe(0)
+    expect(patch.messages).toEqual(messages)
+  })
+
+  test('a non-claude model is sent as plain strings', () => {
+    const messages = conversation()
+    const model = build(anthropicPlugin, { model: 'some-other-model' })
+    const patch = anthropicPlugin.patchPrompt!(planOf(model, messages, SYSTEM, layout(SYSTEM, messages, { project: 1 })))
+
+    expect(patch.placed).toBe(0)
+    expect(patch.messages[0]!.content).toBe(systemText)
+  })
+
+  test('a system with no persona and no packages — the project facts — is marked whole', () => {
+    const system = [{ block: PromptBlock.Context, text: 'legacy system message' }]
+    const messages: MessageFieldWithRole[] = [{ role: 'system', content: 'legacy system message' }, { role: 'user', content: 'x' }]
+    const patch = anthropicPlugin.patchPrompt!(planOf(cheap(), messages, system, layout(system, messages)))
+
+    expect(patch.placed).toBe(1)
+    expect(textBlocks(patch.messages[0]!.content)).toEqual([
+      { type: 'text', text: 'legacy system message', cache_control: { type: 'ephemeral' } },
+    ])
   })
 })
 
-describe('@owlmeans/llm — system prompt caching', () => {
-  const model = () => build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001', cacheMinTokens: 1 })
-  const blocks = (...pairs: Array<[PromptBlock, string]>) =>
-    pairs.map(([block, text]) => ({ block, text }))
+describe('@owlmeans/llm — prompt cache: openai explicit mode', () => {
+  const sol = (config: Partial<ModelConfig> = {}) =>
+    build(openAiPlugin, { provider: ModelProvider.OpenAI, model: 'gpt-6-sol', cacheMinTokens: 1, ...config })
+  const breakpoint = { mode: 'explicit' }
 
-  const marks = (content: unknown): boolean[] =>
-    (content as Array<Record<string, unknown>>).map(part => part.cache_control != null)
-
-  // Role + skills is the region every call of this role shares; packages vary with the
-  // request. Two boundaries, so a changing package block can never invalidate the skills.
-  test('breakpoints land on the stability boundaries, not on every block', () => {
-    const render = anthropicPlugin.patchSystem?.(
-      blocks(
-        [PromptBlock.Role, 'role text'],
-        [PromptBlock.Skills, 'skill text'],
-        [PromptBlock.Packages, 'package text'],
-      ),
-      { model: model(), cacheMax: 3, ttl: '5m' },
-    )
-    expect(render?.breakpoints).toBe(2)
-    expect(marks(render?.content)).toEqual([false, true, true])
+  test('explicit only through the Responses API, for the families that take breakpoints, unless the preset says', () => {
+    expect(openAiPlugin.cacheDialect!({ model: 'gpt-6-sol' })).toBe(CacheDialect.Explicit)
+    expect(openAiPlugin.cacheDialect!({ model: 'gpt-5.6-terra' })).toBe(CacheDialect.Explicit)
+    expect(openAiPlugin.cacheDialect!({ model: 'gpt-5.4-mini' })).toBe(CacheDialect.Implicit)
+    expect(openAiPlugin.cacheDialect!({ model: 'gpt-4.1-mini' })).toBe(CacheDialect.Implicit)
+    expect(openAiPlugin.cacheDialect!({ model: 'gpt-5.4-mini', cacheMode: 'explicit' })).toBe(CacheDialect.Explicit)
+    expect(openAiPlugin.cacheDialect!({ model: 'gpt-6-sol', cacheMode: 'implicit' })).toBe(CacheDialect.Implicit)
+    expect(openAiPlugin.cacheDialect!({ model: 'gpt-4.1-mini', cacheMode: 'explicit' })).toBe(CacheDialect.Implicit)
+    expect(anthropicPlugin.cacheDialect!({})).toBe(CacheDialect.Anthropic)
   })
 
-  // "Fully cached by default" also has to hold for a caller that has not migrated and
-  // still hands over a single system message of its own.
-  test('a lone context block is still cached', () => {
-    const render = anthropicPlugin.patchSystem?.(
-      blocks([PromptBlock.Context, 'legacy system message']),
-      { model: model(), cacheMax: 3, ttl: '5m' },
-    )
-    expect(render?.breakpoints).toBe(1)
-    expect(marks(render?.content)).toEqual([true])
+  test('system segments and user turns carry the breakpoint, and the request asks for explicit mode', () => {
+    const messages = conversation()
+    const patch = openAiPlugin.patchPrompt!(planOf(sol(), messages, SYSTEM, layout(SYSTEM, messages, { project: 1, stable: 2 })))
+
+    expect(patch.placed).toBe(4)
+    expect(marksOf(patch.messages[0]!.content, 'prompt_cache_breakpoint')).toEqual([breakpoint, breakpoint])
+    expect(textBlocks(patch.messages[1]!.content)).toEqual([{ type: 'text', text: 'project facts', prompt_cache_breakpoint: breakpoint }])
+    expect(marksOf(patch.messages[2]!.content, 'prompt_cache_breakpoint')).toEqual([breakpoint])
+    expect(patch.messages[3]!.content).toBe('the per-call payload')
+    expect(patch.options).toEqual({ promptCacheOptions: { mode: 'explicit' } })
   })
 
-  test('marking stops at the budget, earliest boundary first', () => {
-    const render = anthropicPlugin.patchSystem?.(
-      blocks(
-        [PromptBlock.Skills, 'skill text'],
-        [PromptBlock.Packages, 'package text'],
-        [PromptBlock.Context, 'context text'],
-      ),
-      { model: model(), cacheMax: 1, ttl: '5m' },
-    )
-    expect(render?.breakpoints).toBe(1)
-    expect(marks(render?.content)).toEqual([true, false, false])
+  // The Responses converter drops a breakpoint on an assistant part: the boundary goes back to the
+  // nearest message that keeps one — and a tool output keeps it only as `input_text`.
+  test('a boundary on an assistant turn moves back; a tool output is rewritten as input_text on the copy', () => {
+    const tool = new ToolMessage({ tool_call_id: 'c1', content: 'tool output' })
+    const messages: MessageFieldWithRole[] = [
+      { role: 'system', content: systemText },
+      new AIMessage({ content: '', tool_calls: [{ id: 'c1', name: 'run', args: {} }] }) as unknown as MessageFieldWithRole,
+      tool as unknown as MessageFieldWithRole,
+      new AIMessage('an answer') as unknown as MessageFieldWithRole,
+      { role: 'user', content: 'next' },
+    ]
+    const patch = openAiPlugin.patchPrompt!(planOf(sol(), messages, SYSTEM, layout(SYSTEM, messages, { stable: 3 })))
+
+    expect(patch.placed).toBe(3)
+    expect((patch.messages[2] as unknown as ToolMessage).content)
+      .toEqual([{ type: 'input_text', text: 'tool output', prompt_cache_breakpoint: breakpoint }] as never)
+    expect(patch.messages[2]).toBeInstanceOf(ToolMessage)
+    expect(tool.content).toBe('tool output')
+    expect(patch.messages[3]).toBe(messages[3])
+
+    // What langchain's own converter sends: the marker survives on the developer turn and the tool output.
+    const wire = convertMessagesToResponsesInput({
+      messages: patch.messages.map(msg => coerceMessageLikeToMessage(msg as never)), zdrEnabled: false, model: 'gpt-6-sol',
+    })
+    expect(JSON.stringify(wire.filter(item => (item as { role?: string }).role === 'developer'))).toContain('prompt_cache_breakpoint')
+    expect(JSON.stringify(wire.find(item => (item as { type?: string }).type === 'function_call_output'))).toContain('prompt_cache_breakpoint')
   })
 
-  // An explicit `"ttl": "5m"` is different BYTES from no ttl at all, and a prefix cached
-  // one way would not match the other.
-  test('the default ttl is omitted from the marker, and 1h is spelled out', () => {
-    const short = anthropicPlugin.patchSystem?.(
-      blocks([PromptBlock.Skills, 'skill text']), { model: model(), cacheMax: 3, ttl: '5m' }
-    )
-    expect((short?.content as Array<Record<string, unknown>>)[0]!.cache_control)
-      .toEqual({ type: 'ephemeral' })
+  // Explicit mode with no breakpoint caches nothing at all, so it is asked for only with one placed.
+  test('nothing placed, no explicit option — and an implicit model is left alone', () => {
+    const messages = conversation()
+    const short = openAiPlugin.patchPrompt!(planOf(sol({ cacheMinTokens: 10_000 }), messages, SYSTEM, layout(SYSTEM, messages, { project: 1 })))
+    expect(short.placed).toBe(0)
+    expect(short.options).toBeUndefined()
 
-    const long = anthropicPlugin.patchSystem?.(
-      blocks([PromptBlock.Skills, 'skill text']), { model: model(), cacheMax: 3, ttl: '1h' }
-    )
-    expect((long?.content as Array<Record<string, unknown>>)[0]!.cache_control)
-      .toEqual({ type: 'ephemeral', ttl: '1h' })
+    const implicit = build(openAiPlugin, { provider: ModelProvider.OpenAI, model: 'gpt-5.4-mini', cacheMinTokens: 1 })
+    const patch = openAiPlugin.patchPrompt!(planOf(implicit, messages, SYSTEM, layout(SYSTEM, messages, { project: 1 })))
+    expect(patch.placed).toBe(0)
+    expect(patch.messages[0]!.content).toBe(systemText)
   })
 
-  // A trailing context block changes every call. Marking it would pay a cache WRITE per
-  // call and never read one back — a breakpoint spent to buy nothing.
-  test('a trailing context block is never marked when stable blocks precede it', () => {
-    const render = anthropicPlugin.patchSystem?.(
-      blocks(
-        [PromptBlock.Role, 'role text'],
-        [PromptBlock.Skills, 'skill text'],
-        [PromptBlock.Context, 'per-call text'],
-      ),
-      { model: model(), cacheMax: 2, ttl: '5m' },
-    )
-    expect(render?.breakpoints).toBe(1)
-    expect(marks(render?.content)).toEqual([false, true, false])
-  })
-
-  test('the packages boundary is still marked with context trailing behind it', () => {
-    const render = anthropicPlugin.patchSystem?.(
-      blocks(
-        [PromptBlock.Role, 'role text'],
-        [PromptBlock.Skills, 'skill text'],
-        [PromptBlock.Packages, 'package text'],
-        [PromptBlock.Context, 'per-call text'],
-      ),
-      { model: model(), cacheMax: 2, ttl: '5m' },
-    )
-    expect(render?.breakpoints).toBe(2)
-    expect(marks(render?.content)).toEqual([false, true, true, false])
-  })
-
-  test('a non-claude model still renders the blocks, just without markers', () => {
-    const render = anthropicPlugin.patchSystem?.(
-      blocks([PromptBlock.Role, 'role text']),
-      { model: build(anthropicPlugin, { model: 'some-other-model' }), cacheMax: 3, ttl: '5m' },
-    )
-    expect(render?.breakpoints).toBe(0)
-    expect(render?.content).toEqual([{ type: 'text', text: 'role text' }])
+  test('the compatible plugin and the shared family carry no cache hooks', () => {
+    for (const hook of ['patchPrompt', 'loopCache', 'cacheDialect'] as const) {
+      expect(compatiblePlugin[hook]).toBeUndefined()
+      expect((openAiFamily as Partial<LlmPlugin>)[hook]).toBeUndefined()
+    }
   })
 })
 
-describe('@owlmeans/llm — the four-breakpoint request budget', () => {
-  const cheap = () => build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001', cacheMinTokens: 1 })
-
-  const markers = (msgs: Array<{ content: unknown }>): number =>
-    msgs.reduce((sum, msg) => sum + (Array.isArray(msg.content)
-      ? (msg.content as Array<Record<string, unknown>>).filter(b => b.cache_control != null).length
-      : 0), 0)
-
-  // The live failure: a caller that carries its message array across calls hands back
-  // messages this pipeline already marked. They accumulate until Anthropic rejects the
-  // request with `400 A maximum of 4 blocks with cache_control may be provided. Found 5.`
-  test('markers left over from a previous call are cleared before new ones are placed', () => {
-    const msgs = [
-      { role: 'system' as const, content: 'aaaa' },
-      { role: 'user' as const, content: 'bbbb' },
-      { role: 'user' as const, content: 'cccc' },
-    ]
-    // Call one marks the stable prefix.
-    anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 2 })
-    expect(markers(msgs)).toBe(1)
-
-    // Call two: the caller appends a turn and re-sends the SAME objects.
-    msgs.push({ role: 'user' as const, content: 'dddd' })
-    promptUtils.stripCacheMarkers(msgs)
-    expect(markers(msgs)).toBe(0)
-
-    anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 3 })
-    expect(markers(msgs)).toBe(1)
-  })
-
-  test('the system prompt plus the message prefix never exceed the provider limit', () => {
-    // Worst case: every stability boundary distinct, so the system claims its full share.
-    const system = anthropicPlugin.patchSystem?.(
-      [
-        { block: PromptBlock.Role, text: 'role text' },
-        { block: PromptBlock.Skills, text: 'skill text' },
-        { block: PromptBlock.Packages, text: 'package text' },
-        { block: PromptBlock.Context, text: 'context text' },
-      ],
-      { model: cheap(), cacheMax: 3, ttl: '5m' },
-    )
-    const reserved = system?.breakpoints ?? 0
-    expect(reserved).toBeLessThanOrEqual(3)
-
-    const msgs = [
-      { role: 'system' as const, content: system?.content as never },
-      { role: 'user' as const, content: 'bbbb' },
-      { role: 'user' as const, content: 'cccc' },
-    ]
-    anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 4, reserved })
-    expect(markers(msgs)).toBeLessThanOrEqual(4)
-  })
-
-  test('stripping leaves the rest of a content block untouched', () => {
+describe('@owlmeans/llm — prompt cache: stripping markers', () => {
+  // A caller may hand in messages it marked, or that a loop sent before. The provider counts
+  // markers per REQUEST, so every request starts clean — of both dialects' markers.
+  test('both marker kinds are stripped, also under extras, leaving the rest of the block', () => {
     const msgs = [{
       role: 'user' as const,
-      content: [{ type: 'text', text: 'keep me', cache_control: { type: 'ephemeral' } }] as never,
+      content: [
+        { type: 'text', text: 'a', cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: 'b', prompt_cache_breakpoint: { mode: 'explicit' } },
+        { type: 'text', text: 'c', extras: { prompt_cache_breakpoint: { mode: 'explicit' }, keep: 1 } },
+        { type: 'text', text: 'd', extras: { prompt_cache_breakpoint: { mode: 'explicit' } } },
+      ] as never,
     }]
     promptUtils.stripCacheMarkers(msgs)
-    expect(msgs[0]!.content).toEqual([{ type: 'text', text: 'keep me' }] as never)
+    expect(msgs[0]!.content).toEqual([
+      { type: 'text', text: 'a' }, { type: 'text', text: 'b' }, { type: 'text', text: 'c', extras: { keep: 1 } },
+      { type: 'text', text: 'd' },
+    ] as never)
+  })
+
+  test('a message with no marker keeps its very content array', () => {
+    const content = [{ type: 'text', text: 'keep me' }]
+    const msgs = [{ role: 'user' as const, content: content as never }]
+    promptUtils.stripCacheMarkers(msgs)
+    expect(msgs[0]!.content).toBe(content as never)
+  })
+})
+
+describe('@owlmeans/llm — prompt cache: tool loops', () => {
+  const loop = (): MessageFieldWithRole[] => [
+    new SystemMessage(systemText) as unknown as MessageFieldWithRole,
+    new HumanMessage('project facts') as unknown as MessageFieldWithRole,
+    new HumanMessage({ content: [{ type: 'text', text: 'the task', cache_control: { type: 'ephemeral' } }] }) as unknown as MessageFieldWithRole,
+    new AIMessage({ content: '', tool_calls: [{ id: 'c1', name: 'run', args: {} }] }) as unknown as MessageFieldWithRole,
+    new ToolMessage({ tool_call_id: 'c1', content: 'first output' }) as unknown as MessageFieldWithRole,
+    new AIMessage({ content: '', tool_calls: [{ id: 'c2', name: 'run', args: {} }] }) as unknown as MessageFieldWithRole,
+    new ToolMessage({ tool_call_id: 'c2', content: 'second output' }) as unknown as MessageFieldWithRole,
+  ]
+  const count = (msgs: MessageFieldWithRole[], key: string): number =>
+    msgs.reduce((sum, msg) => sum + marksOf(msg.content, key).filter(mark => mark != null).length, 0)
+
+  // Three explicit markers on the stable opening; the automatic top-level one marks the last block
+  // of each round and moves forward with the conversation — four in all, never on the last message.
+  test('anthropic: at most three explicit markers on the opening, plus the automatic one', () => {
+    const model = build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001', cacheMinTokens: 1 })
+    const messages = loop()
+    const patch = anthropicPlugin.loopCache!(messages, model, { system: SYSTEM, project: 1 })
+
+    expect(count(patch.messages, 'cache_control')).toBe(3)
+    expect(marksOf(patch.messages[0]!.content)).toEqual([{ type: 'ephemeral' }, { type: 'ephemeral' }])
+    expect(marksOf(patch.messages[1]!.content)).toEqual([{ type: 'ephemeral' }])
+    expect(patch.messages[6]!.content).toBe('second output')
+    expect(patch.options).toEqual({ cache_control: { type: 'ephemeral' } })
+    // Stripped and marked on copies: the loop's own messages keep what they had.
+    expect(marksOf(messages[2]!.content)).toEqual([{ type: 'ephemeral' }])
+    expect(marksOf(patch.messages[2]!.content)).toEqual([null])
+    expect(messages[0]!.content).toBe(systemText)
+
+    // langchain sends the automatic marker as the request's top-level `cache_control`.
+    expect((model as ChatAnthropic).invocationParams(patch.options as never).cache_control).toEqual({ type: 'ephemeral' })
+  })
+
+  test('openai: the system, the previous round\'s last input and this round\'s, at most four', () => {
+    const model = build(openAiPlugin, { provider: ModelProvider.OpenAI, model: 'gpt-6-sol', cacheMinTokens: 1 })
+    const patch = openAiPlugin.loopCache!(loop(), model, { system: SYSTEM, project: 1 })
+
+    expect(count(patch.messages, 'prompt_cache_breakpoint')).toBe(4)
+    expect(marksOf(patch.messages[0]!.content, 'prompt_cache_breakpoint')).toEqual([{ mode: 'explicit' }, { mode: 'explicit' }])
+    expect(patch.messages[1]!.content).toBe('project facts')
+    expect(marksOf(patch.messages[4]!.content, 'prompt_cache_breakpoint')).toEqual([{ mode: 'explicit' }])
+    expect(marksOf(patch.messages[6]!.content, 'prompt_cache_breakpoint')).toEqual([{ mode: 'explicit' }])
+    expect(patch.options).toEqual({ promptCacheOptions: { mode: 'explicit' } })
+
+    const implicit = build(openAiPlugin, { provider: ModelProvider.OpenAI, model: 'gpt-5.4-mini', cacheMinTokens: 1 })
+    expect(openAiPlugin.loopCache!(loop(), implicit, { system: SYSTEM, project: 1 }).placed).toBe(0)
+  })
+
+  // An output is marked in the round it is last, then sent unmarked: it must render the same way
+  // in both, or the prefix a later round reads differs from the one written.
+  test('openai: every tool output goes as input_text, marked or not', () => {
+    const model = build(openAiPlugin, { provider: ModelProvider.OpenAI, model: 'gpt-6-sol', cacheMinTokens: 1 })
+    const longer = [
+      ...loop(),
+      new AIMessage({ content: '', tool_calls: [{ id: 'c3', name: 'run', args: {} }] }) as unknown as MessageFieldWithRole,
+      new ToolMessage({ tool_call_id: 'c3', content: 'third output' }) as unknown as MessageFieldWithRole,
+    ]
+    const patch = openAiPlugin.loopCache!(longer, model, { system: SYSTEM, project: 1 })
+
+    expect(patch.messages[4]!.content).toEqual([{ type: 'input_text', text: 'first output' }] as never)
+    expect(marksOf(patch.messages[6]!.content, 'prompt_cache_breakpoint')).toEqual([{ mode: 'explicit' }])
+    expect(marksOf(patch.messages[8]!.content, 'prompt_cache_breakpoint')).toEqual([{ mode: 'explicit' }])
+  })
+})
+
+describe('@owlmeans/llm — prompt cache: a fallback in another dialect is prepared again', () => {
+  // Both rungs are one plugin family, so only the cache dialect tells the explicit gpt-6 rung's
+  // rendering from the implicit fallback's — markers and an explicit option there, plain text here.
+  test('an explicit gpt-6 rung and its implicit fallback each get their own rendering', async () => {
+    const provider = 'spec-dialect'
+    const sent: Array<{ model: string, system: unknown, options: Record<string, unknown> }> = []
+    const fake = (model: string, fail: boolean): BaseChatModel => ({
+      getName: () => model, lc_kwargs: { model },
+      metadata: { config: { alias: 'spec', provider, model, cacheMinTokens: 1 } },
+      stream: async (messages: Array<{ content: unknown }>, options: Record<string, unknown>) => {
+        sent.push({ model, system: messages[0]!.content, options })
+        if (fail) throw new LlmModelError('boom')
+        return (async function* () { yield new AIMessageChunk({ content: 'ok' }) })()
+      },
+    }) as unknown as BaseChatModel
+    const primary = fake('gpt-6-sol', true)
+    ;(primary as unknown as { __fallbackModel: BaseChatModel }).__fallbackModel = fake('gpt-5.4-mini', false)
+    llmPluginRegistry.register({
+      ...openAiPlugin, type: provider, owns: candidate => candidate === primary, refine: ({ base }) => base,
+    })
+    const svc = makePromptService({ skills: [{ alias: 'a', body: 'A' }] }, 'spec-dialect-prompts')
+    const llm = makeLlmModel({
+      model: primary, purpose: { type: 't' }, prompt: { role: 'R', skills: ['a'] }, prompts: () => svc,
+    }, { log: async () => undefined } as never)
+
+    const { level } = logConfig()
+    configureLog({ level: 'silent' })
+    try {
+      expect(await llm.ask('do it', { action: 'dialect' })).toBe('ok')
+    } finally {
+      configureLog({ level })
+    }
+
+    const explicit = sent.filter(call => call.model === 'gpt-6-sol')
+    const implicit = sent.filter(call => call.model === 'gpt-5.4-mini')
+    expect(explicit).toHaveLength(3)
+    expect(explicit[0]!.options.promptCacheOptions).toEqual({ mode: 'explicit' })
+    expect(JSON.stringify(explicit[0]!.system)).toContain('prompt_cache_breakpoint')
+    expect(implicit).toHaveLength(1)
+    expect(implicit[0]!.options.promptCacheOptions).toBeUndefined()
+    expect(implicit[0]!.system).toBe('R\n\n## a\n\nA')
   })
 })
 

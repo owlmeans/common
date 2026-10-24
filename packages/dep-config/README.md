@@ -120,3 +120,48 @@ Used by: client packages, web packages, native packages, and any package that im
 - **declaration / declarationMap / sourceMap**: true — full type and source map output
 - **noUnusedLocals / noUnusedParameters**: true — clean code enforcement
 - **skipLibCheck**: true — skip checking external `.d.ts` files
+
+## Third-party notices
+
+`@owlmeans/dep-config/notices` exports `createThirdPartyNoticesPlugin` for Rollup, Vite and Astro client builds:
+
+```js
+import { createThirdPartyNoticesPlugin } from '@owlmeans/dep-config/notices'
+
+// In the build configuration's plugins array:
+createThirdPartyNoticesPlugin({
+  root: import.meta.dirname,
+  additionalPackages: ['tailwindcss'],
+})
+```
+
+The plugin emits `THIRD-PARTY-NOTICES.txt` from bundled modules and the installed packages' license,
+NOTICE and embedded third-party documents. It also retains package-local copied-source notices.
+`additionalPackages` covers emitted CSS, fonts and virtual polyfills; `additionalFiles` adds source
+notices outside the package. `references` links notices for independently loaded runtime bundles.
+`fileName` selects a different output asset name when multiple executables share one output directory.
+
+Missing required texts fail the build before bundle writing. Complete MIT grants in README files are
+accepted; exact-version offline recoveries and their sources live beside the helper. Build-time tools
+are included only when their own code or assets reach the output. Link browser notices from the
+product, preserve them in final image copies, and keep copied-source notices in package tarballs and
+scaffolds. License documents keep their original language.
+
+Run `bun run test` in this package to verify the collector. Use the `third-party-notices` skill for
+asset inputs, missing upstream texts and distribution checks.
+
+<!-- owlmeans:agent-guidance:start -->
+## Agent guidance
+
+This package ships embedded agent skills under `agent-meta/`. After installing your
+`@owlmeans/*` packages, run the OwlMeans agent-skills installer to place them into
+your project's skill store (`.agents/skills/`):
+
+```sh
+npx @owlmeans/agent-skills@^0.1.18-rc.57
+```
+
+The embedded files are version-matched to this package release. Do not edit them
+directly — they are regenerated on each publish. To contribute guidance edits,
+open a PR against the source monorepo.
+<!-- owlmeans:agent-guidance:end -->

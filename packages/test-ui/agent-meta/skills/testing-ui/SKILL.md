@@ -6,7 +6,7 @@ description: Category-D component-level acceptance tests for OwlMeans Common UI 
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
 
-**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.51"` in `devDependencies`
+**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.55"` in `devDependencies`
 
 `@owlmeans/test-ui` depends on `playwright`, so the browser library arrives with it; add
 `playwright` to `devDependencies` as well when a spec imports a launcher itself. The Vite harness
@@ -264,6 +264,14 @@ See `[[shadcn-web]]` for the full `@` alias contract and `tests/context.ts` patt
   suite that drives a login or a consent gate. Bun's 5s default is for in-process work, and
   `bunfig.toml`'s `[test] timeout` is not a way to change it.
 - **Always `close()` the page and `browserHelper.closeBrowser()` in `afterAll`.** A leaked context blocks the bun process from exiting.
+- **A phone context needs the page's viewport meta.** `newContext({ isMobile: true, hasTouch: true,
+  viewport: { width: 375, … } })` lays a page without `<meta name="viewport" content="width=device-width,
+  initial-scale=1">` out at 980px and zooms it, so no `max-md:` rule and no `matchMedia('(min-width:
+  768px)')` branch ever sees 375. The harness `index.html` carries the meta; `isMobile` + `hasTouch`
+  also make `(pointer: coarse)` match.
+- **Focus comes back a tick after a Radix surface closes.** Its focus scope restores focus in a
+  timeout after unmount — wait for it (`page.waitForFunction(() => document.activeElement …)`), never
+  assert it right after `waitFor({ state: 'detached' })`.
 - **Chromium only by default.** Add `firefox` or `webkit` per package only when the feature has documented cross-browser concerns — call `chromium.launch` / `firefox.launch` explicitly in that case.
 
 ## `mountComponent` waits for `domcontentloaded`, not `load`

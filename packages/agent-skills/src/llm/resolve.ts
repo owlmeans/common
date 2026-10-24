@@ -2,13 +2,52 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve as resolvePath } from 'node:path'
 import { resolveFileProvider, type LlmFileProvider, type SkillDefinition } from '@owlmeans/llm-common'
 import { manifestHelper } from './manifest.js'
-import type { PackageSkills, PackageSkillsOptions } from './types.js'
+import type { Manifest } from '../types.js'
+import type { PackagePart, PackageSkills, PackageSkillsOptions, SkillSource } from './types.js'
 import { AGENT_META, DEFAULT_REF, DEFAULT_REPO, DEFAULT_TIMEOUT, MANIFEST, PACKAGE_DIR } from './consts.local.js'
 
 
 /** Path of an embedded file relative to a project root, in the host's own terms. */
 const projectPath = (packageName: string, ...parts: string[]): string =>
   ['node_modules', packageName, AGENT_META, ...parts].join('/')
+
+/**
+ * Every core and every part a manifest lists, read through one source's reader.
+ *
+ * Shared by all sources so they cannot disagree about what a package contributes. A file that
+ * reads empty is a miss for that file alone. Parts come only from a schemaVersion 3 manifest
+ * (`manifestHelper.partEntries`), so an older package gives its cores and nothing else.
+ */
+const collect = async (
+  packageName: string,
+  manifest: Manifest,
+  categories: readonly string[],
+  source: SkillSource,
+  read: (file: string) => Promise<string>,
+): Promise<PackageSkills | null> => {
+  const entries = manifestHelper.skillEntries(manifest, categories)
+  const cores = await Promise.all(entries.map(async entry => manifestHelper.stripMeta(await read(entry.file))))
+  const skills: SkillDefinition[] = entries.flatMap((entry, i) =>
+    cores[i] !== '' ? [manifestHelper.toSkill(packageName, entry, cores[i]!)] : [])
+
+  const wanted = entries.flatMap(entry => manifestHelper.partEntries(manifest, entry).map(part => ({ entry, part })))
+  const bodies = await Promise.all(wanted.map(async ({ part }) => manifestHelper.stripMeta(await read(part.file))))
+  const parts: PackagePart[] = wanted
+    .flatMap(({ entry, part }, i) => bodies[i] !== ''
+      ? [{
+        entry: entry.name,
+        name: part.name,
+        purposes: part.purposes,
+        mentions: part.mentions,
+        skill: manifestHelper.toPartSkill(packageName, entry, part, bodies[i]!),
+      }]
+      : [])
+    .sort((a, b) => a.name !== b.name ? (a.name < b.name ? -1 : 1) : a.entry < b.entry ? -1 : a.entry > b.entry ? 1 : 0)
+
+  return skills.length > 0 || parts.length > 0
+    ? { packageName, version: manifest.version, source, skills, parts }
+    : null
+}
 
 /**
  * Source 1 — the host's own file access.
@@ -34,17 +73,7 @@ const fromFiles = async (
     return null
   }
 
-  const skills: SkillDefinition[] = []
-  for (const entry of manifestHelper.skillEntries(manifest, categories)) {
-    const body = manifestHelper.stripMeta(await read(projectPath(packageName, entry.file)))
-    if (body !== '') {
-      skills.push(manifestHelper.toSkill(packageName, entry, body))
-    }
-  }
-
-  return skills.length > 0
-    ? { packageName, version: manifest.version, source: 'files', skills }
-    : null
+  return collect(packageName, manifest, categories, 'files', file => read(projectPath(packageName, file)))
 }
 
 /**
@@ -68,13 +97,13 @@ const findLocalDir = (packageName: string, from: string): string | null => {
   }
 }
 
-/** One `agent-meta/` directory on this filesystem, read synchronously; a miss is `null`. */
-const fromDir = (
+/** One `agent-meta/` directory on this filesystem; a miss is `null`. */
+const fromDir = async (
   packageName: string,
   dir: string,
   categories: readonly string[],
   source: 'local' | 'checkout',
-): PackageSkills | null => {
+): Promise<PackageSkills | null> => {
   const read = (path: string): string => {
     try {
       return readFileSync(path, 'utf8')
@@ -88,24 +117,14 @@ const fromDir = (
     return null
   }
 
-  const skills: SkillDefinition[] = []
-  for (const entry of manifestHelper.skillEntries(manifest, categories)) {
-    const body = manifestHelper.stripMeta(read(join(dir, ...entry.file.split('/'))))
-    if (body !== '') {
-      skills.push(manifestHelper.toSkill(packageName, entry, body))
-    }
-  }
-
-  return skills.length > 0
-    ? { packageName, version: manifest.version, source, skills }
-    : null
+  return collect(packageName, manifest, categories, source, async file => read(join(dir, ...file.split('/'))))
 }
 
-const fromLocal = (
+const fromLocal = async (
   packageName: string,
   from: string,
   categories: readonly string[],
-): PackageSkills | null => {
+): Promise<PackageSkills | null> => {
   const dir = findLocalDir(packageName, from)
 
   return dir == null ? null : fromDir(packageName, dir, categories, 'local')
@@ -119,11 +138,11 @@ const fromLocal = (
  * a development host that mounts one: the only way it can see a package or a skill that is not
  * pushed yet. A file missing here is a miss, exactly as a failed fetch is.
  */
-const fromCheckout = (
+const fromCheckout = async (
   packageName: string,
   root: string,
   categories: readonly string[],
-): PackageSkills | null => {
+): Promise<PackageSkills | null> => {
   const name = manifestHelper.unscoped(packageName)
   if (!PACKAGE_DIR.test(name) || name.includes('..')) {
     return null
@@ -169,16 +188,7 @@ const fromRemote = async (
     return null
   }
 
-  const entries = manifestHelper.skillEntries(manifest, categories)
-  const bodies = await Promise.all(entries.map(async entry => manifestHelper.stripMeta(await get(entry.file))))
-  const skills = entries
-    .map((entry, i) => ({ entry, body: bodies[i]! }))
-    .filter(({ body }) => body !== '')
-    .map(({ entry, body }) => manifestHelper.toSkill(packageName, entry, body))
-
-  return skills.length > 0
-    ? { packageName, version: manifest.version, source: 'remote', skills }
-    : null
+  return collect(packageName, manifest, categories, 'remote', get)
 }
 
 /** Try each source in order of trustworthiness and cost. */
@@ -195,7 +205,7 @@ export const loadPackageSkills = async (
     }
   }
 
-  const local = fromLocal(packageName, options.dir ?? process.cwd(), categories)
+  const local = await fromLocal(packageName, options.dir ?? process.cwd(), categories)
   if (local != null) {
     return local
   }

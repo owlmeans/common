@@ -343,6 +343,38 @@ export enum PurposeEvidenceSource {
   Manifest = 'manifest',
 }
 
+/**
+ * Where one flow of the origin's census ends up in the restored story list.
+ *
+ * Every census flow is placed EXACTLY once — the census's `covered` is only a hint: inside one
+ * story (the common case — duplicates, fragments of one task and one record's
+ * create/browse/edit/archive/restore all share a story), as work a main-flow story already does, or
+ * as account lifecycle the platform provides to every target ({@link PlatformFlow}).
+ */
+export enum OriginFlowDisposition {
+  Story = 'story',
+  Main = 'main',
+  Platform = 'platform',
+}
+
+/**
+ * The account-lifecycle flows every Viable target gets from the platform, and the ONLY flows a
+ * conversion may leave without a story of their own.
+ *
+ * A CLOSED set on purpose. The ordinary analysis declines anything about user management, roles,
+ * permissions or authentication, which is right for a new product and wrong for a conversion: an
+ * origin's administrative user management is behaviour the rebuild owes, and a broad "the platform
+ * does auth" rule silently drops it. Inviting a colleague, changing a member's role or blocking an
+ * account is never one of these.
+ */
+export enum PlatformFlow {
+  SignUp = 'sign-up',
+  SignIn = 'sign-in',
+  SignOut = 'sign-out',
+  VerifyEmail = 'verify-email',
+  RecoverAccount = 'recover-account',
+}
+
 /** The input slices a cost estimate projects a stage's token spend from. */
 export enum EstimateSlice {
   Manifests = 'manifests',
@@ -592,7 +624,7 @@ export const CHARS_PER_TOKEN = 4
 export const SOURCE_SAMPLE_RATIO = 0.35
 /** What the estimator adds for the retries a model pass normally makes. */
 export const RETRY_FACTOR = 1.15
-export const ESTIMATE_VERSION = 2
+export const ESTIMATE_VERSION = 1
 
 /**
  * The per-story price band shown before the implementation stage starts.

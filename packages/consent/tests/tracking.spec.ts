@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test'
 import { CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_EVENT, CONSENT_KEY, CONSENT_MARKETING } from '../src/consts.js'
-import { consentModeHelper } from '../src/gtm.js'
+import { consentModeHelper } from '../src/gtobserver.js'
 import type { ConsentCategory, ConsentRecord } from '../src/types.js'
 
 describe('trackingGranted', () => {

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.6"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -26,16 +26,32 @@ persona prompt policies, the blueprint case table and its resolution, the BA mod
 type: the `ViableSkill` / `ViablePersona` enums and the `Blueprint` types and vocabulary that
 execution state and card fields name.
 
+
+## Record interaction contracts
+
+`RecordInteractionPlan` and `RecordInteractionPlanSchema` describe domain destinations and contextual
+CRUDL capabilities: entity/owner, host screen/component, primary selection components, presentation
+and record/parent bindings. `selectionComponents` carries actual list/board/picker source paths whose
+record-open controls enter the same detail as its contextual actions; it is optional for legacy reads.
+Optional `componentResponsibilities` assigns entity, roles, capabilities, scope and nested parent to
+each allocated component. Roles are collection/detail/editor/owned-section/support; one component may
+bind several entities. `StoryDesignApi.operations` optionally limits an endpoint group to the
+current story's required list/get/create/update/remove operations. These additions preserve old plans.
+Optional `interaction` fields on scaffold, design and target metadata preserve legacy reads; the
+scaffold model answer requires one for each story. `recordInteractionHelper` separates host menu
+eligibility from editor route parameters. These are runtime-free contracts; generation prompts and
+wiring implementations belong to viable-agent. Pipeline and shape-version constants remain 1.
+
 ## Key Exports
 
 | Subpath | What it declares |
 |---|---|
-| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyHelper` (`tenancyOf`, `tenantedArea`), `TENANCY_QUOTE_MAX`); `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind` / `WorkKind`, `CASE_QUOTE_MAX`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor`, `LAYOUT_TOPOLOGIES`, `topologyHelper` (`resolveTopology`, `packageForRole`) — meaning in `/blueprints`); the BA shapes (`connectingStoryHelper.mergeConnectingStories`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `moderationVerdictHelper.decideModeration`; the `docs/` metadata paths; `PreviewEventType` (error kinds plus `Analytics` — an analytics event a target's web posted through the preview reporter's channel; the target-side plugins live in `@owlmeans/viable-log`) and the `OwlMeansAnalyticsPayload` shape; the agent-output taxonomy (`agentPresentationHelper` — `classifyAgentMessage`, `isAgentMessageHidden`; `/agent-presentation`) and the spectator entry types |
+| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyHelper` (`tenancyOf`, `tenantedArea`), `TENANCY_QUOTE_MAX`); `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind` / `WorkKind`, `CASE_QUOTE_MAX`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor`, `LAYOUT_TOPOLOGIES`, `topologyHelper` (`resolveTopology`, `packageForRole`) — meaning in `/blueprints`); the BA shapes (`connectingStoryHelper.mergeConnectingStories`; the stated requirements — `StatedRequirement`, `RequirementsDocument`, `RequirementPart` / `RequirementKind` / `RequirementSource`, `requirementsHelper`, `RequirementsDocumentSchema` / `StatedRequirementSchema`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `moderationVerdictHelper.decideModeration`; the `docs/` metadata paths; `PreviewEventType` (error kinds plus `Analytics` — an analytics event a target's web posted through the preview reporter's channel; the target-side plugins live in `@owlmeans/viable-log`) and the `OwlMeansAnalyticsPayload` shape; the agent-output taxonomy (`agentPresentationHelper` — `classifyAgentMessage`, `isAgentMessageHidden`; `/agent-presentation`) and the spectator entry types |
 | `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` / `SlotDatabaseCommand` sets; `SlotDatabaseInfo`, `SlotDatabaseQueryArgs` / `SlotDatabaseQueryResult`, `DATABASE_READ_LIMITS`; the per-command deadlines and timeouts (`slotCommandHelper` — `commandDeadline`, `commandTimeout`), `SubProject`, `LAYOUTS` / `ROLE_DIRS` / `slotLayoutHelper.subprojectDirOf`, `WorkloadKind`, the target ports and process markers, `slotOriginHelper` (`slotOrigin` / `targetRedirectUrisForOrigin`) |
 | `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave` / `ConnectProjectBrandingFields` / `ConnectBrandingCredit` / `ConnectBrandingCreditBody`, the configuration contract (`ConnectScopeQuery`, `ConnectConfigScope`, `ConnectProjectConfig`, `ConnectConfigVariable`, `ConnectFrontendVariable`, `ConnectConfigValue`, `ConnectConfigSaveBody`, `CONNECT_CONFIG_*`), the organization's defaults (`ConnectOrganizationBranding(Save)`, `ConnectBrandingBackfill`), the planning-kit views (`PlanningKitView`, `ConnectKitDescribe`, `ConnectKitApplyBody`, `ConnectKitApplyResult` and their `*Schema`s), `ModelTier` + `modelTierHelper` (`tierOfRole`/`clampTier`), `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the convert bodies (`ConnectConvertCreateBody`, `ConnectConvertStartBody`, `ConnectConvertProceedBody` + `ConnectConvertProceedUpdate`), `ConnectAgentLock`, `ConnectPaidGate` + `ConnectGateRef` + `ConnectEntrypointOptions`, the call collection (`CONNECT_CALL_HEADER`, `CONNECT_CALL_ACCEPT_MS`, `CONNECT_CALL_COLLECT_WAIT_SEC`, `CONNECT_CALL_LOST_MS`, `ConnectCallState`, `ConnectCallPending`, `ConnectCallResult`, `ConnectCallCollectParams` / `ConnectCallCollectQuery` and their `*Schema`s), the `Connect*` error family with `ConnectConfirmation` / `ConnectConfirmationAction`, `connectProtocols(opts)` and every `*Schema` behind them |
-| `./convert` | `ConversionStage`/`Status`/`Decision` and the `conversionStageHelper` transitions (`stageAfter`/`decisionFor`/`canEnter`), `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`censusHelper` — `fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
+| `./convert` | `ConversionStage`/`Status`/`Decision` and the `conversionStageHelper` transitions (`stageAfter`/`decisionFor`/`canEnter`), `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`censusHelper` — `fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, the flow census and its consolidation (`OriginFlowEntry` — a census flow without proofs, `OriginFlowConsolidation(Schema)`, the settled `OriginStoryPlan`, `OriginFlowDisposition`, the CLOSED `PlatformFlow`), and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `targetLayoutHelper` (`detectTargetLayout`, `isLegacyLayout`, `targetPackageName`), `targetIntegrityHelper.verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES` |
-| `./intent` | `intent` (the four aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants, `IntentDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
+| `./intent` | `intent` (the six aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants (`INTENT_IMPORT_PATH`, `INTENT_PRO_PATH`, `INTENT_IMPORT_KIND` included), `IntentDraft` / `IntentImportDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
 | `./iam-console` | The owner console's IAM contract both doors share (the browser's `back.iam`, the connector's `connect.iam`): the route params (`IamProjectParams`, `IamProjectUserParams`, `IamOrganizationParams`, `IamMemberParams`, `IamGroupParams`), `IamScoped`, the bodies (`IamDefinitionUpdate`, `IamStaffSync`, `IamAssignGrant` / `IamRevokeGrant`, `IamGrantsQuery`, `IamProjectUserInvite` / `Update`, `IamOrganizationEdit`, `IamProjectMemberInvite` / `Update`, `IamGroupCreate` / `Edit`, `IamGroupMembersChange`), the answers (`IamListResponse` + `external`, `IamUsersResponse`, `IamPermissionsResponse` + `IamTenancy`, …, `IamStaffSyncResponse`), every `Iam*Schema` (with `IamScopedSchema`, `IamGroupRefSchema`), `IAM_REFUSED`, and the `@owlmeans/iam` vocabulary re-exported (`IamDefaultClass`, `IamGrantMode`, `IamGrantOrigin`, `IamRemovalPolicy`, `IAM_AREAS`, `IAM_MEMBERS_GROUP`, the record types). The refusal's CLASS (`IamRefused`, 409) is the platform's |
 | `./legal` | `OWLMEANS_LEGAL_DATES`, `LegalDocumentDates`, `PendingLegalDocumentDates`, `LegalDocumentDateMetadata`, `LegalDocumentKey` — active dates and pending metadata for public legal sources and acceptance |
 
@@ -127,10 +143,12 @@ the wire and in target files — a parent agent's vocabulary, which never change
 | the landing-gate decision | project `fields.landing` — `{ story: code \| null, at }` |
 | the tenancy decision | project `fields.tenancy` — `ViableTenancyDecision` `{ operators, users, quotes?, by: 'model' \| 'owner', at }` |
 | story narrative (`story`) / `code` / `status` | `title` / `code` / `status` (same strings) |
+| the text a person typed for a story, verbatim | `description` (the viable plugin keeps it; `title` is the formatted reading) |
 | story `projectId` | `parent` |
 | story position in the flow | `order` — a double; a connective story sits between two flow steps (`3.5`) |
 | story `area`, `primary`, `actor`, `warning`, `kind`, `landing` | `fields.*` |
 | a story's design / the scaffold plan | specification `design` under the STORY card / `scaffold` under the PROJECT card |
+| the stated requirements | specification `requirements` — every one with its story codes under the PROJECT card, a story's slice under the STORY card |
 
 `area` and `primary` are required in `ViableStoryFieldsSchema`; a create without an area still
 validates, because validation runs after the planning middlewares and the viable plugin fills the
@@ -190,7 +208,9 @@ and confine paths and decode bounded strict base64; text writes are not a binary
 | project | `specification` | markdown | required |
 | project | `vision`, `design-system` | markdown | |
 | project | `scaffold` | json | revisioned, keeps `VIABLE_DESIGN_REVISIONS_KEPT` (3), body is a `ScaffoldPlan` |
+| project | `requirements` | json | revisioned, keeps 3, body is a `RequirementsDocument` at `REQUIREMENTS_VERSION` |
 | story | `design` | json | revisioned, keeps 3, body is a `StoryDesign` at `STORY_DESIGN_VERSION` |
+| story | `requirements` | json | as on the project; the story's slice plus its own `S…` items |
 
 The co-located `*.spec.md` / `*.ux.md` / `*.ui.md` files of a target are FILES, never slots — that
 prose lives in the `design` payload — so no type declares a `ux` or `ui` slot.
@@ -201,8 +221,9 @@ with no code (`ProjectStoryMissconfigured('no-code')`). A project's code is its 
 the platform's name ladder; the slug policy only guards uniqueness.
 
 `follows`, `shares-widget` and `shares-screen` run story → story. Only `follows` is WRITTEN: a
-connective story follows the flow story it was anchored after, created in the same transition from
-`MergedStoryDraft.after` (the clamped 1-based position, filled by `connectingStoryHelper.mergeConnectingStories` alone).
+connective or an anchored requested story follows the flow story it was anchored after, created in
+the same transition from `MergedStoryDraft.after` (the clamped 1-based position, filled by
+`connectingStoryHelper.mergeConnectingStories` and `requirementsHelper.mergeRequested` alone).
 The `shares-*` types are declared only — the `scaffold` specification is their single authority.
 
 ### The write channel
@@ -210,12 +231,38 @@ The `shares-*` types are declared only — the `scaffold` specification is their
 `ViableChannel` (`web`, `connect`, `agent`, `pipeline`) is what a planning write carries on
 `PlanningScope.channel` and records on `actor.channel`. It is never read from the wire: the API
 services derive `connect` from an access-token request and `web` from everything else; the agent's
-own writes are `agent` or `pipeline`. Three rules ask `viableCardHelper.isUserChannel`:
+own writes are `agent` or `pipeline`. Four rules ask `viableCardHelper.isUserChannel`:
 
 - the balance refusal — `ConnectOutOfCredits` for `connect`, `AgentOutOfTokens` otherwise;
 - re-formatting a narrative through the analyst — `web`/`connect` only;
+- extracting a story's own requirements — a committed story create or title update by `web`/`connect`;
 - the develop trigger — only a committed `start` written by `web`/`connect`, never the `start` a
   conversion or free flight writes for itself.
+
+### Stated requirements
+
+The requester's prompt is split into explicit requirements, each quoted verbatim: `R1`, `R2`, … from
+the prompt (`RequirementSource.Prompt`), `S1`, … from a story a person typed (`Story`). A
+`StatedRequirement` carries a `kind` (`story` — a kind of user does something; `rule` — how something
+must work, be stored, look or behave; `platform` — the platform provides it; `unsupported` — a stack
+the platform replaces, `note` says what it does instead), a testable `statement`, and up to four
+`parts` (`RequirementPart`: `tech`, `ba`, `ux`, `ui` — what each level must do), `packages`
+(`{ name, side: SubProject }`) and, on the project document only, `stories` — the story codes it applies to.
+Caps: `REQUIREMENTS_CAP` (40) per prompt, `REQUESTED_STORY_CAP` (12), `STORY_SPLIT_CAP` (3).
+
+- A story no main-flow step covers is `StoryKind.Requested` — never primary, never a landing
+  candidate; `requirementsHelper.mergeRequested` places `RequestedStoryDraft`s after the last entry of
+  their anchor flow story (unanchored at the end, deduplicated by text, capped).
+- `requirementsHelper` is pure and byte-stable (code-unit order, no clock): `compareIds` (`R` before
+  `S`, numeric), `partsOf`, `card` (the model-facing markdown, `''` when empty, every `@owlmeans/`
+  scope stripped so a package-detection plugin never fires on it), `specificationSections` (sections
+  5–9 of the specification, titles `REQUIREMENTS_SECTION_*`, lines marked `**R<n>**`),
+  `idsInSpecification` / `retained` (a confirmed specification keeps only the items whose marker a
+  person left in it), `sliceFor`, `frontmatterOf` (`StoryMeta.requirements`, ids per part),
+  `requirementsFile` (the target's `REQUIREMENTS_FILE`, `docs/requirements.md`) and `digest`.
+- A design carries its story's `requirements` and records `provenance.requirementsHash` (the
+  `digest`); `designStaleness` answers `Narrative` when the hash moved (absent reads as `''`), checked
+  right after the narrative itself. `emptyStoryDesign` adds neither key.
 
 ### Card helpers and the design port
 
@@ -368,6 +415,14 @@ and `connectRef` (typed references) name the same set, the two bases aside:
   an organization travels by `entitySlug`, a group by key, never a record id; a grant names exactly one
   subject (`OneSubject`); its nullable enums carry `null`. `IamRefused` stays the platform's class; the
   marker it writes (`IAM_REFUSED`) is declared here.
+- **Grant modes and origins follow `@owlmeans/iam`, never a hand-written list**: `ModeProp` is
+  `Object.values(IamGrantMode)`, so the revoke-only `all` and `inherit` are admitted on BOTH bodies —
+  the IAM refuses them on a grant, the schema does not duplicate that rule. The bodies' docs state the
+  semantics: a whole-permission revoke of a declared definition RESTRICTS the subject (it also loses
+  what it inherits — default class, group, bundle); `mode: inherit` takes back only the subject's own
+  value (grant or restriction), resources untouched. `IamGrantsResponse` lists what is held — origin
+  `direct`, `default`, `group` (`through`) or `bundle` (a group's own listing) — plus the inherited
+  grants a subject's own restriction withholds, `restricted: true`, never held.
 - **The browser's sockets are cursor feeds here** (`connect/feed/types.ts`): `ConnectFeedRecord`
   (`kind: ConnectFeedKind`, `at`, `run?`, `projectId?`, `storyId?`, `slotId?`, `action?`, `agent?`,
   bounded `text?`, small `data?`) — a projection, never the record behind it; `ConnectFeedEntry` adds its
@@ -403,10 +458,12 @@ platform through this subpath: the site, the API services (stash and pickup may 
 different ones) and the manager web agree on every address, schema and step. Platform side:
 `/intent-first`.
 
-- **Two guest routes and one screen, no guard, no gate, no service.** `stash` POST
+- **Two guest routes and three screens, no guard, no gate, no service.** `stash` POST
   `/public/intent` (`{ prompt 1..INTENT_PROMPT_MAX (8192), consent: const true }` →
   `{ ref, expiresAt }`), `pickup` POST `/public/intent/pickup` (`{ ref }`, exactly
-  `INTENT_REF_LENGTH` (24) Base58 → `{ prompt }`), `landing` (`frontend()` at `/start`, `sticky`).
+  `INTENT_REF_LENGTH` (24) Base58 → `{ prompt }`), `landing` (`frontend()` at `/start`, `sticky`) and
+  `importLanding` (`frontend()` at `INTENT_IMPORT_PATH` = `/start/import`, `sticky`) and `proLanding`
+  (`frontend()` at `INTENT_PRO_PATH` = `/start/pro`, `sticky`).
   Mount the tree OUTSIDE any guarded parent (a route inherits every ancestor's guard) and fill
   `service` yourself (the site binds `landing` with `{ routeOptions: { overrides: { service } } }`,
   which also makes its `url()` absolute).
@@ -420,9 +477,20 @@ different ones) and the manager web agree on every address, schema and step. Pla
   parses it on every page load) and never `?intent=` (the login surrogate window owns it).
 - **CORS is not declared here**: the routes ride the global `origin: '*'` (no credentials);
   `makeIntentProtocols` carries a `TODO(cors)` naming the origins to keep if that is restricted.
-- **The browser draft is IndexedDB, per origin.** `IntentDraft` (`id`, `ref`, `prompt`,
-  `expiresAt`) is kept by the platform's browser between pickup and decision
-  (`INTENT_DRAFT_TTL_MS`, 24 h, checked on read).
+- **The second intent — import an existing project — is a plain link, no stash.** The visitor
+  brings no text, so the site links straight to `importLanding` (its absolute URL is
+  `new URL(INTENT_IMPORT_PATH, <platform web>)`); nothing crosses but the consent linker's `owlcc`.
+  `intentFlow` is not walked for it: its `land` step is `/start`, and the import landing needs only
+  the way on after sign-in, which is `HOME` for both.
+- **The third intent — subscribe to Pro — is a plain link too.** The site's pricing Pro button
+  links to `new URL(INTENT_PRO_PATH, <platform web>)`; nothing crosses but `owlcc`, nothing is
+  stored in the browser: the platform's landing parks its own billing deep link through sign-in.
+- **The browser draft is IndexedDB, per origin — ONE record slot for both intents.** `IntentDraft`
+  (`id`, `ref`, `prompt`, `expiresAt`) is kept between pickup and decision (`INTENT_DRAFT_TTL_MS`,
+  24 h); `IntentImportDraft` (`id`, `kind: INTENT_IMPORT_KIND`, `expiresAt`) holds the import wish
+  for `INTENT_SUSPEND_TTL_MS` (30 min — the sign-in it rides through). The newest intent replaces the
+  other; a record is an import iff its `kind` says so (a prompt draft carries none). Expiry is
+  checked on read.
 
 ## Slot metadata keys: optional means omitted
 
@@ -509,6 +577,10 @@ which an origin may keep sources in), `SOURCE_LIST_EXCLUSIONS` (the metadata dir
 one allowed difference is stated: the platform's two keep what a volume it owns must not lose, the
 SDK's keeps what a DEVELOPER owns (`.viable`, the two `.env` files).
 
+`PlatformFlow` is CLOSED — account lifecycle only (sign-up, sign-in, sign-out, verify-email,
+recover-account). It is the one way a census flow may leave a conversion's story list, so a member
+that names user management (inviting, roles, blocking) would let an origin's admin area be dropped.
+
 `docs/conversion/` is addressed only through the path builders (`CONVERSION_*_FILE`,
 `conversionDocHelper.conversionStoryDoc`, `.conversionSeedDoc`) — the purge reads them back, and a path spelled at a
 call site is a file the purge leaves behind.
@@ -582,15 +654,16 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 
 | File | Pins |
 |---|---|
-| `planning.spec.ts` | the two flows and transition tables, type declarations, slots, code policies, reserved types outside `cardTypes`, field schemas (null optionals, refused strays and closed-set values, no `converterLlmMode`), landing fields and sentence, the tenancy decision, the work kind and bounded case quote, card helpers, the `follows` anchor, refusal type names after a marshal |
+| `planning.spec.ts` | the two flows and transition tables, type declarations, slots (the `requirements` slot on both cards), code policies, reserved types outside `cardTypes`, field schemas (null optionals, refused strays and closed-set values, no `converterLlmMode`), landing fields and sentence, the tenancy decision, the work kind and bounded case quote, card helpers, the `follows` anchor, refusal type names after a marshal |
 | `tenancy.spec.ts` | `NO_TENANCY` frozen, `tenancyHelper.tenancyOf` defaults and the literal-`true` rule, `.tenantedArea` |
 | `access-schema.spec.ts` | the model-facing access schema: model keys only, byte-identical |
 | `scaffold.spec.ts` | old- and new-shape plans passing the schema and slot, `null` optionals, no `minItems`, closed anchors/slots, the landing helpers |
 | `blueprint.spec.ts` · `branding.spec.ts` | `landingGatePreferenceOf` defaults · the build env and metadata vocabulary |
 | `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid kinds on the delegated session, the two preference writes and the credit switch alone, the account inference/token/privacy/intent routes and their closed bodies, the configuration routes and their closed bodies, the git and GitHub routes under the base with no paid gate and no completion route and their closed bodies, the production routes under the base each with its own paid kind, no secret or run verb, and their closed bodies, the IAM routes' count and addresses, the scope query, the account branding routes, no socket or story route, the create body's `sessionId`, branding body, the kit routes and their closed shapes, the collect route under the base and its timing constants, the pending/params/query/result shapes, the three feed routes (owned base / account base, GET, no paid gate, no socket) and the feed query shapes · conversion routes, the create body's `sessionId`, the start's body and both verbs' `confirm`, an unknown executor kind accepted |
-| `iam-console.spec.ts` | the owner-console schemas (one subject, closed bodies, `null` in nullable enums), the 22 `connect.iam` routes under the base with no paid gate, the customer-wide listing under the account base, POST writes with `scope` in the body and reads with it in the query, the connector's IAM params |
+| `iam-console.spec.ts` | the owner-console schemas (one subject, closed bodies, `null` in nullable enums, `mode: inherit` on a revoke and — deliberately — on a grant body, the `inherit`/`bundle` values), the 22 `connect.iam` routes under the base with no paid gate, the customer-wide listing under the account base, POST writes with `scope` in the body and reads with it in the query, the connector's IAM params |
 | `convert.spec.ts` | the three structural walks over the barrel, nullable enums under Ajv, census classifiers, stage transitions |
-| `design.spec.ts` | the design aggregate, staleness ranking, schema refusals, `storyDesignHelper.userStoryOfDesign` |
+| `design.spec.ts` | the design aggregate, staleness ranking (the requirements hash included), schema refusals, `storyDesignHelper.userStoryOfDesign` |
+| `requirements.spec.ts` | id order, the card's exact shape and scope stripping, sections 5–9 and retained markers, slices and frontmatter, `docs/requirements.md`, digest stability, requested-story placement / dedupe / cap, the document schema |
 | `error-status.spec.ts` · `connect-errors.spec.ts` | declared statuses through a marshal · packed refusal fields fresh and after a round trip, the confirmation's `decode` |
 | `intent.spec.ts` | the four declarations without guards, schema cases incl. crafted refs, the flow walk and `flowLandingOf(context).suspendFlow` payload, error statuses |
 | `presentation.spec.ts` | the agent-output classifier (`/agent-presentation`) |

@@ -29,9 +29,13 @@ export interface StoryDesignHelper {
    * changed narrative re-designs, a changed project warns and continues, a moved tree re-runs only
    * the stages that read the tree. Collapsing them into a boolean would make every one of those the
    * most expensive of the four.
+   *
+   * A changed set of stated requirements (`requirementsHash`, absent read as `''` on both sides)
+   * answers `Narrative` too — checked right after the narrative itself.
    */
   designStaleness: (
-    design: StoryDesign, now: { narrativeHash: string, projectHash: string, registryHash: string },
+    design: StoryDesign,
+    now: { narrativeHash: string, projectHash: string, registryHash: string, requirementsHash?: string },
   ) => DesignStaleness
   /**
    * A stable, dependency-free hash of arbitrary text.

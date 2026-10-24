@@ -1,6 +1,7 @@
 import { LlmModelError } from '../errors.js'
 import { MODEL_STREAM_TIMEOUT_MS } from '../consts.js'
-import type { StreamUtils } from './stream/types.js'
+import { STREAM_DRAIN_MS, STREAM_DRAIN_READS } from './stream/consts.js'
+import type { StreamDrain, StreamUtils } from './stream/types.js'
 
 export const createStreamUtils = (): StreamUtils => {
   const getChunkFinishReason = (chunk: unknown): string | undefined => {
@@ -11,9 +12,22 @@ export const createStreamUtils = (): StreamUtils => {
     return c.response_metadata?.finish_reason ?? c.raw?.response_metadata?.finish_reason
   }
 
+  const isUsageOnly = (chunk: unknown): boolean => {
+    const message = ((chunk as { raw?: unknown }).raw ?? chunk) as {
+      usage_metadata?: unknown, content?: unknown, tool_call_chunks?: unknown[], tool_calls?: unknown[]
+    }
+    const content = message.content
+    const empty = content == null || content === '' || (Array.isArray(content) && content.length === 0)
+    const reason = getChunkFinishReason(chunk)
+
+    return message.usage_metadata != null && empty && (reason == null || reason === '')
+      && (message.tool_call_chunks?.length ?? 0) === 0 && (message.tool_calls?.length ?? 0) === 0
+  }
+
   async function* streamWithDeadline<T>(
     start: (signal: AbortSignal) => Promise<AsyncIterable<T>>,
     timeoutMs: number = MODEL_STREAM_TIMEOUT_MS,
+    drain: StreamDrain = { reads: STREAM_DRAIN_READS, windowMs: STREAM_DRAIN_MS },
   ): AsyncGenerator<T> {
     const controller = new AbortController()
     let rejectIdle: (error: LlmModelError) => void = () => {}
@@ -45,6 +59,7 @@ export const createStreamUtils = (): StreamUtils => {
         return iterator
       })
       const current = await Promise.race([starting, idle])
+      let finished = false
       for (;;) {
         const next = await Promise.race([Promise.resolve().then(() => current.next()), idle])
         if (next.done) { closed = true; break }
@@ -52,7 +67,30 @@ export const createStreamUtils = (): StreamUtils => {
         arm() // reset the idle timer on each received token
         yield chunk
         const reason = getChunkFinishReason(chunk)
-        if (reason != null && reason !== '') break
+        if (reason != null && reason !== '') { finished = true; break }
+      }
+      if (finished) {
+        // The drain answers to its own fixed window, never to the idle deadline it replaces.
+        disarm()
+        // A read that fails, or the window running out, resolves to `null`: the drain just ends.
+        let endWindow = () => {}
+        const window = new Promise<null>(resolve => {
+          const timer = setTimeout(() => resolve(null), Math.min(drain.windowMs, timeoutMs))
+          endWindow = () => { clearTimeout(timer); resolve(null) }
+        })
+        try {
+          for (let read = 0; read < drain.reads; read++) {
+            const next: IteratorResult<T> | null = await Promise.race([
+              Promise.resolve().then(() => current.next()).then(item => item, () => null),
+              window,
+            ])
+            if (next == null) break
+            if (next.done === true) { closed = true; break }
+            if (isUsageOnly(next.value)) yield next.value
+          }
+        } finally {
+          endWindow()
+        }
       }
     } catch (e) {
       if (controller.signal.aborted) {
@@ -66,7 +104,7 @@ export const createStreamUtils = (): StreamUtils => {
     }
   }
 
-  return { getChunkFinishReason, streamWithDeadline }
+  return { getChunkFinishReason, streamWithDeadline, isUsageOnly }
 }
 
 export const streamUtils = createStreamUtils()

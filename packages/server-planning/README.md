@@ -10,7 +10,7 @@ the `@owlmeans/server-planning/store` subpath.
 ## Installation
 
 ```sh
-bun add @owlmeans/server-planning@^0.1.18-rc.31 @owlmeans/planning@^0.1.18-rc.26 ajv
+bun add @owlmeans/server-planning@^0.1.18-rc.35 @owlmeans/planning@^0.1.18-rc.29 ajv
 ```
 
 ## Concepts
@@ -214,7 +214,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.53
+npx @owlmeans/agent-skills@^0.1.18-rc.57
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

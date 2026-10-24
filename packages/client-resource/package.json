@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-resource",
-  "version": "0.1.18-rc.49",
+  "version": "0.1.18-rc.52",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,9 +22,9 @@
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",
-    "@owlmeans/client-context": "^0.1.18-rc.50",
-    "@owlmeans/context": "^0.1.18-rc.34",
-    "@owlmeans/resource": "^0.1.18-rc.40",
+    "@owlmeans/client-context": "^0.1.18-rc.53",
+    "@owlmeans/context": "^0.1.18-rc.35",
+    "@owlmeans/resource": "^0.1.18-rc.41",
     "@scure/base": "^2.4.0"
   },
   "devDependencies": {
