@@ -3,11 +3,12 @@ import { ProjectArea } from '../areas/consts.js'
 import { CONNECT_INQUIRY_MAX_TEXT } from '../connect/consts.js'
 import { ModelRole } from '../execution/consts.js'
 import {
-  ArchitectureCase, ConversionStage, OriginKind, OriginState, PurposeEvidenceSource, StackFamily, StackId,
-  TaxonomyKind, WorkspaceKind
+  ArchitectureCase, ConversionStage, OriginKind, OriginState, PlatformFlow, PurposeEvidenceSource,
+  StackFamily, StackId, TaxonomyKind, WorkspaceKind
 } from './consts.js'
 import type {
-  AreaAlignment, DesignInference, OriginFlow, OriginFlowList, PurposeInference, StoryProof
+  AreaAlignment, DesignInference, OriginFlow, OriginFlowConsolidation, OriginFlowList,
+  PurposeInference, StoryProof
 } from './analysis/types.js'
 import type { SeedDetection } from './census/types.js'
 import type { ArchitectureVerdict, StackConfirmation } from './detection/types.js'
@@ -335,6 +336,68 @@ export const OriginFlowListSchema: JSONSchemaType<OriginFlowList> = {
     flows: { type: 'array', items: OriginFlowSchema },
   },
   required: ['flows'],
+  additionalProperties: false,
+}
+
+/**
+ * The consolidation of the origin's whole flow census into stories.
+ *
+ * `platform` takes the CLOSED {@link PlatformFlow} vocabulary rather than free text, which is what
+ * keeps an origin's administrative user management out of it: only account lifecycle the platform
+ * gives every target may be left without a story.
+ */
+export const OriginFlowConsolidationSchema: JSONSchemaType<OriginFlowConsolidation> = {
+  type: 'object',
+  title: 'OriginFlowConsolidation',
+  description: 'Every flow of the original placed exactly once: in a story, as work a main-flow story already does, or as account lifecycle the platform provides',
+  properties: {
+    groups: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          members: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The ids of the flows this one story covers'
+          },
+          area: { type: 'string', enum: Object.values(ProjectArea) },
+          actor: { type: 'string', description: 'Who performs it' },
+          kind: {
+            type: 'string',
+            enum: ['ui', 'job', 'cli'],
+            description: 'Whether it runs on screen, as background work, or from a command line'
+          },
+          story: {
+            type: 'string',
+            description: 'As a [role], I want to [do something] so that [I get the following results]'
+          },
+        },
+        required: ['members', 'area', 'actor', 'kind', 'story'],
+        additionalProperties: false,
+      },
+      description: 'The stories, each covering one or more flows'
+    },
+    main: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'The ids of the flows whose work a main-flow story already does end to end'
+    },
+    platform: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          provides: { type: 'string', enum: Object.values(PlatformFlow) },
+        },
+        required: ['id', 'provides'],
+        additionalProperties: false,
+      },
+      description: 'The ids of the account-lifecycle flows the platform provides, and which one'
+    },
+  },
+  required: ['groups', 'main', 'platform'],
   additionalProperties: false,
 }
 

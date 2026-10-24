@@ -147,6 +147,30 @@ describe('viable-common - the conversion contracts', () => {
     expect(validate(answer('cobol'))).toBe(false)
   })
 
+  test('the consolidation answer takes a closed platform vocabulary and nothing it does not declare', () => {
+    // `platform` is the one place a flow may leave the story list, so its vocabulary is CLOSED:
+    // account lifecycle only. An origin's administrative user management named there would be
+    // behaviour the rebuild owes and silently drops.
+    const ajv = addFormats(new Ajv({ strict: false }))
+    const validate = ajv.compile(convert.OriginFlowConsolidationSchema as never)
+    const answer = (provides: unknown, extra: Record<string, unknown> = {}) => ({
+      groups: [{
+        members: ['create-card', 'edit-card'], area: 'user', actor: 'a member', kind: 'ui',
+        story: 'As a member, I want to keep my cards current so that the board says what is true.',
+        ...extra,
+      }],
+      main: ['move-card'],
+      platform: [{ id: 'sign-in', provides }],
+    })
+
+    expect(validate(answer(convert.PlatformFlow.SignIn))).toBe(true)
+    expect(validate(answer('manage-users'))).toBe(false)
+    expect(validate(answer(convert.PlatformFlow.RecoverAccount, { ordinal: 3 }))).toBe(false)
+    expect(Object.values(convert.PlatformFlow).sort())
+      .toEqual(['recover-account', 'sign-in', 'sign-out', 'sign-up', 'verify-email'])
+    expect(Object.values(convert.OriginFlowDisposition).sort()).toEqual(['main', 'platform', 'story'])
+  })
+
   test('no schema declares `items` as a tuple', () => {
     // Ajv accepts the draft-04 tuple form and `JSONSchemaType` demands it for a tuple TYPE, so
     // nothing here fails until the schema reaches a provider: a structured-output endpoint takes

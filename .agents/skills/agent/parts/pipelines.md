@@ -87,6 +87,19 @@ the application's `skipWhen` reads a durable marker the step itself wrote. The f
 crash; the second covers a crash BETWEEN the side effect and the row write, which the first cannot
 see. A step that does N undoable things in a loop marks a cursor with `ctx.mark`.
 
+**An inherited step never consults `skipWhen` and never runs.** On a resume every step the row
+calls complete is INHERITED: it is reported skipped, its `run` is not called, and neither is its
+`skipWhen`. Whatever it kept in memory — a deps cache, a value a later step reads — is absent in a
+resumed process. So a step's output that a later step needs lives in a durable artifact, and every
+consumer reads the cache, then the artifact, then derives again; a consumer that trusts the cache
+iterates nothing after a restart and reports success.
+
+**A step that returns is committed complete — early or not.** The runner commits whatever `run`
+returns, and only then stops the run on an expired budget (`Aborted`). A loop that returns early
+on `ctx.expired()` with units left is therefore DONE on the resume, and the units are never done.
+Either finish the work or throw; a cursor (`ctx.mark`) makes a crashed loop resumable, not an early
+return.
+
 **A pipeline state is scalars and KEYS.** Ids, revisions, markers, lists of codes — never an
 artifact. The state is serialized into the row at every step boundary, so a field carrying a
 document writes one copy of it per step. Over `maxStateChars` the step FAILS: refused, never
