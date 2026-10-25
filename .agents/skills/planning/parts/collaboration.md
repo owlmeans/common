@@ -47,7 +47,9 @@ external permission group; links do not mutate authentication group membership.
 Hierarchy uses existing `parent` and direct `parents`, with optional derived `parentType`.
 Declare compatible `parents: { types?, required? }` and `children: { types }` on card schemas.
 Required primary parents cannot be cleared; safe reparenting is supported. Cycles, cross-organization
-links, incompatible descendants and deleting an ordinary card with children are refused. The
+links, incompatible descendants and deleting an ordinary card with child cards
+(`hierarchy:parent-in-use`) are refused. A card's own documents — the specifications whose primary
+parent is it, and theirs in turn — never block its delete: they go with it. The
 nearest primary project selects schemas; all project ancestors participate in access checks.
 Project `mode` is `opened` (default) or `closed`, separate from flow status; host policy may use it
 for access decisions.

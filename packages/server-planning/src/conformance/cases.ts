@@ -366,6 +366,43 @@ const cases: ConformanceCase[] = [
   },
 
   {
+    name: 'deletes a card with its own documents and refuses one with a child card',
+    run: async ({ facade, store }) => {
+      const entityId = organization()
+      const planning = facade(entityId)
+      const fixtures = conformanceFixturesOf(planning)
+      const branch = await fixtures.createBranch()
+      const book = await fixtures.createBook(branch.id!, 'Documented')
+      const neighbour = await fixtures.createBook(branch.id!, 'Neighbour')
+      const summary = (await (await planning.model(book)).write('summary', '{"lines":["first"]}', { wait: true })).card!
+      await (await planning.model(book.id!)).write('summary', '{"lines":["second"]}', { wait: true })
+      await execute(planning, { card: neighbour.id!, action: TransitionAction.Link, link: { type: 'shelved-near', to: book.id! } })
+
+      const deleted = await planning.execute({ card: book.id!, action: TransitionAction.Delete }, { wait: true })
+
+      same((await planning.commits.status(deleted.transition.id!)).state, CommitState.Committed, 'the delete commits')
+      same(await planning.cards.load(book.id!), null, 'the card is gone')
+      same(await planning.cards.load(summary.id!), null, 'its document is gone')
+      same(await store.specs!.current(book.id!, 'summary', entityId), null, 'no current document')
+      same((await planning.cards.list({ kind: WorkcardKind.Specification })).total, 0, 'no listed document')
+      same((await store.transitions!.list({ entityId, card: summary.id! }, { size: 0 })).total, 0, 'the document\'s log goes with it')
+      check((await store.transitions!.list({ entityId, card: book.id! }, { size: 0 })).items.some(row => row.action === TransitionAction.Delete), 'the card keeps its own delete')
+      same((await planning.relationships.list({ from: neighbour.id })).total, 0, 'edges into the card dropped')
+      check(await planning.cards.load(neighbour.id!) != null, 'a sibling survives')
+
+      const shelf = (await planning.execute({
+        card: { kind: WorkcardKind.Card, type: LIBRARY.section, parent: branch.id!, title: 'Shelf' }, action: TransitionAction.Create,
+      }, { wait: true })).card!
+      const shelved = await fixtures.createBook(shelf.id!, 'Shelved')
+      await (await planning.model(shelved)).write('summary', '{"lines":["kept"]}', { wait: true })
+      const refusal = await rejects(planning.execute({ card: shelf.id!, action: TransitionAction.Delete }), PlanningError, 'a card with a child card')
+      check(refusal.message.includes('hierarchy:parent-in-use'), `the refusal names the hierarchy: ${refusal.message}`)
+      same((await planning.cards.get(shelved.id!)).parent, shelf.id, 'the child card stays')
+      same((await planning.specifications.current(shelved.id!, 'summary'))?.body, '{"lines":["kept"]}', 'with its document')
+    },
+  },
+
+  {
     name: 'settles a transition that cannot fold in order and folds past it',
     run: async ({ facade, store }) => {
       const org = organization()

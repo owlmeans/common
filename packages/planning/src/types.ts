@@ -621,6 +621,11 @@ export interface ProjectionStore {
   count: (where: Criteria<Workcard>) => Promise<number>
   summary: (parents: string[], where?: Criteria<Workcard>) => Promise<SummaryView>
   put: (card: Workcard) => Promise<void>
+  /**
+   * Remove a record — the fold of its `delete` — with its comments and mentions, and its own
+   * documents (the specifications whose primary parent is it, and theirs in turn) with their edges,
+   * comments, mentions and log. The record's own log stays: its delete row is the tombstone.
+   */
   drop: (id: string, entityId: string) => Promise<void>
   /** Fold what is pending for the card — now or through a durable server projection. */
   project: (card: string, hint?: { transition?: string }) => Promise<void>

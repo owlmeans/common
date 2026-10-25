@@ -42,7 +42,9 @@ export const makePlanningInvariants = (runtime: PlanningRuntime): PlanningInvari
       if (after == null) {
         if (before != null) {
           await hierarchy.validate(before, true)
-          const doomed = new Set([before.id!, ...(before.kind === WorkcardKind.Project ? (await hierarchy.descendants(before.id!, before.entityId)).map(card => card.id!) : [])])
+          // What the delete's fold removes: a project's whole subtree, any other card's own documents.
+          const removed = before.kind === WorkcardKind.Project ? await hierarchy.descendants(before.id!, before.entityId) : await hierarchy.documents(before.id!, before.entityId)
+          const doomed = new Set([before.id!, ...removed.map(card => card.id!)])
           const incoming = await runtime.reader().links?.list({ entityId: before.entityId, to: [...doomed], toKind: PlanningResourceKind.Workcard }, { size: 0 })
           for (const edge of incoming?.items ?? []) {
             if (doomed.has(edge.from) || (edge.fromKind ?? PlanningResourceKind.Workcard) !== PlanningResourceKind.Workcard) continue

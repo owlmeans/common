@@ -48,6 +48,23 @@ export const makePlanningHierarchy = (runtime: PlanningRuntime): PlanningHierarc
     }
     return [...found.values()]
   }
+  /** The specifications among `below` whose primary parent is `id` or one already owned. */
+  const ownedOf = (id: string, below: Workcard[]): Workcard[] => {
+    const owners = new Set([id])
+    const owned: Workcard[] = []
+    let grown = true
+    while (grown) {
+      grown = false
+      for (const card of below) {
+        if (card.kind === WorkcardKind.Specification && card.parent != null && owners.has(card.parent) && !owners.has(card.id!)) {
+          owners.add(card.id!)
+          owned.push(card)
+          grown = true
+        }
+      }
+    }
+    return owned
+  }
   const assertPair = (parent: Workcard, card: Workcard, schemas: PlanningSchemaRegistry): void => {
     if (card.kind === WorkcardKind.Specification) return
     const childType = schemas.type(card.type)
@@ -67,12 +84,15 @@ export const makePlanningHierarchy = (runtime: PlanningRuntime): PlanningHierarc
     ancestors,
     project,
     descendants,
+    documents: async (id, entityId) => ownedOf(id, await descendants(id, entityId)),
     projects: async card => [...new Set([...(card.kind === WorkcardKind.Project ? [card.id!] : []), ...(await ancestors(card)).filter(parent => parent.kind === WorkcardKind.Project).map(parent => parent.id!)])],
     visible: async (card, projects) => projects == null || (await hierarchy.projects(card)).some(id => projects.includes(id)),
     validate: async (card, deleting = false) => {
       if (deleting) {
         if (card.kind === WorkcardKind.Project) return
-        if ((await descendants(card.id!, card.entityId)).length > 0) throw new PlanningError(`hierarchy:parent-in-use:${card.id}`)
+        // The card's own documents go with it; anything else under it keeps it alive.
+        const below = await descendants(card.id!, card.entityId)
+        if (below.length > ownedOf(card.id!, below).length) throw new PlanningError(`hierarchy:parent-in-use:${card.id}`)
         return
       }
       const schemas = await runtime.schemasFor(card.entityId, await project(card))
