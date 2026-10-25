@@ -3,7 +3,7 @@ name: pipelines
 description: Resumable pipelines over a checkpointed StateGraph — steps and edges, the PipelinePlugin seam, and the rules for run rows, step guards, state size, failures and retries.
 metadata:
   purposes: agent, job, state
-  mentions: makePipeline, PipelineSpec, PipelinePlugin, asStep, skipWhen, nonIdempotent, makeCheckpointSaver, PipelineRunStore, CheckpointStore, maxStateChars, ctx.mark, @owlmeans/agent/pipeline
+  mentions: makePipeline, PipelineSpec, PipelinePlugin, asStep, skipWhen, nonIdempotent, makeCheckpointSaver, PipelineRunStore, CheckpointStore, maxStateChars, ctx.mark, ctx.stop, PipelineStopReason, @owlmeans/agent/pipeline
 ---
 
 # @owlmeans/agent — Pipelines
@@ -25,7 +25,7 @@ const spec: PipelineSpec = {
 }
 
 const pipeline = makePipeline<State, Deps>(spec, { steps, runs, checkpointer, fatal })
-await pipeline.invoke(seed, { runId, deps, scope: projectId })
+await pipeline.invoke(seed, { runId, deps, scope: projectId, stop: person.signal })
 await pipeline.resume(runId, { deps, from: 'data' })
 ```
 
@@ -73,6 +73,7 @@ progress events recorded from the runner before the seam existed; it must stay g
 
 `asStep` passes the composing step to the child as `PipelineInvokeArgs.parent` (read-only:
 pipeline, run id, step, and the parent step's `results`); the child's plugins see it on `enter`.
+It also hands the child the parent's `signal`, `stop` and what is left of the budget.
 
 ## Rules
 
@@ -95,10 +96,40 @@ consumer reads the cache, then the artifact, then derives again; a consumer that
 iterates nothing after a restart and reports success.
 
 **A step that returns is committed complete — early or not.** The runner commits whatever `run`
-returns, and only then stops the run on an expired budget (`Aborted`). A loop that returns early
-on `ctx.expired()` with units left is therefore DONE on the resume, and the units are never done.
-Either finish the work or throw; a cursor (`ctx.mark`) makes a crashed loop resumable, not an early
-return.
+returns, and only then stops the run on an expired budget or a stop (`Aborted`). A loop that returns
+early on `ctx.expired()` or `ctx.stop` with units left is therefore DONE on the resume, and the units
+are never done. Either finish the work or throw; a cursor (`ctx.mark`) makes a crashed loop
+resumable, not an early return.
+
+**Three ways to end a run short, and only one is a person's stop.** `PipelineResult.stopped` names
+which one ended it (`budget` | `signal` | `stop`, and `inquiry` for a `Waiting` run):
+
+| | What it is | Checked | Row |
+|---|---|---|---|
+| `budgetMs` | cooperative deadline | after each step commits (`ctx.expired()`) | `Aborted`, `stopped: budget` |
+| `signal` | HARD kill, also handed to LangGraph | LangGraph rejects at once | `Failed` (or `Aborted`, `stopped: signal`, when a commit sees it first) |
+| `stop` | the person's cooperative stop, never linked to LangGraph | at every node's entry, and after each step commits | `Aborted`, `stopped: stop` |
+
+`signal` is never a person's stop: LangGraph returns at once while the running step carries on
+detached and unattended, writing files after the caller moved on and saving its row after the rows
+were cleared. `stop` lets the running steps finish and commit; at a node's entry it is RECORDED, not
+thrown — every remaining node returns empty and the run ends `Aborted` once the graph drains — and
+after a commit it is thrown, like the budget. A later `resume` (or `invoke` of the same run id)
+continues from the next step. Steps see it as `ctx.stop` — present only when the caller passed one —
+and hand it to the work they start (a nested agent loop, a composed child); a step never returns
+early on it.
+
+**A stop thrown after a commit lets LangGraph cancel the steps running beside it.** A parallel
+sibling still in its `run` is abandoned by the graph: its body carries on detached, its result is
+discarded, and its own commit can still land on the row after the terminal write (the status stays
+`Aborted`). A caller that rolls a stopped run back has to tolerate that late write.
+
+**A composed child that ends `Aborted` stops the parent.** `asStep` throws the runner's stop with the
+child's reason, so the composing step is NOT committed and the parent ends `Aborted` with the same
+`stopped`; a resume re-enters the composing step and the child continues from its own row.
+`mapping.output` sees only a `Done` child (or a `Failed` one `tolerate` accepts). Broke when violated:
+a child out of budget had its partial state mapped, the composing step was committed complete, and
+the child's remaining steps never ran.
 
 **A pipeline state is scalars and KEYS.** Ids, revisions, markers, lists of codes — never an
 artifact. The state is serialized into the row at every step boundary, so a field carrying a

@@ -596,6 +596,24 @@ export const connect = Object.freeze({
     /** Release the project's agent lock by force — what the web's "unlock" button does. */
     unlock: 'viable:manager-api:connect:project:unlock',
     /**
+     * Stop what the agent runs — the web's Stop: a story run stops at its next step and is rolled
+     * back to its start, an open-ended change stops once the model's current answer arrives and
+     * ends with a short summary; with the `batch` scope the batch is cancelled first.
+     */
+    stop: 'viable:manager-api:connect:project:stop',
+    /** Send the running open-ended change a message; it is read before the agent's next model call. */
+    steer: 'viable:manager-api:connect:project:steer',
+    /**
+     * A story BATCH — the web's Run all: several planned stories implemented one after another, in
+     * the order the platform chooses. Started, read (the project's latest batch, or none) and
+     * cancelled — no further story starts — and the story it started is stopped and rolled back.
+     */
+    batch: Object.freeze({
+      start: 'viable:manager-api:connect:project:batch:start',
+      get: 'viable:manager-api:connect:project:batch:get',
+      cancel: 'viable:manager-api:connect:project:batch:cancel',
+    }),
+    /**
      * What the project's agent is doing, read by cursor (`?after=&limit=&wait=&detail=`): run starts
      * and stops, pipeline steps, card, workload and conversion changes, git proposals, tool outcomes
      * and — with `detail=thinking` — the model's own words, coalesced. The browser's project socket,

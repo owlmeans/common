@@ -85,7 +85,9 @@ forms generated code keeps writing are `server-planning` → Creating and readin
   `revision`, `version`, `bodyChars`. The SLOT — category, format, `multiple`, `revisioned`,
   `keepRevisions`, a JSON body `schema` — is declared on the PARENT's type. One record per
   `(parent, category)` unless the slot is `multiple`; a revisioned slot increments `revision` on the
-  same record, and earlier bodies come back from the transition log.
+  same record, and earlier bodies come back from the transition log. A document belongs to its
+  primary parent: the parent's `delete` removes it (and the documents under it) with their edges,
+  comments, mentions and log, and never waits for it to be deleted first.
 - **`createdBy` is written once, from a create's draft, and never moves.** Named in `changes` or
   `unset` it is refused on every action (`planning:immutable:createdBy`), so an ownership check
   (`card.createdBy === profileId`) can trust it. Responsibility uses the optional top-level

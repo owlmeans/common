@@ -5,9 +5,13 @@ import * as z from 'zod'
 import { ExecutionLevel, ModelProvider, PromptBlock } from '@owlmeans/llm-common'
 import { anthropicPlugin, makePromptService, openAiPlugin } from '@owlmeans/llm'
 import type { Execution, ModelConfig, PromptService } from '@owlmeans/llm'
+import { HumanMessage, ToolMessage } from '@langchain/core/messages'
 import { AgentRunStatus } from '@owlmeans/agent-common'
-import { makeAgentModel } from '../src/index.js'
-import type { AgentPlugin, AgentToolSet } from '../src/index.js'
+import {
+  AGENT_INBOX_PREFIX, AGENT_STOP_INSTRUCTION, AGENT_STOP_SUMMARY_TIMEOUT_MS, AGENT_STOPPED_NOTE,
+  AGENT_STOPPED_TOOL_RESULT, makeAgentModel,
+} from '../src/index.js'
+import type { AgentInbox, AgentPlugin, AgentToolSet } from '../src/index.js'
 import { scriptedModel } from './_tools/model.js'
 
 let seq = 0
@@ -314,5 +318,176 @@ describe('agent — the prompt on the wire', () => {
 
     expect(JSON.stringify(scripted.asked()[0])).toContain('prompt_cache_breakpoint')
     expect(scripted.options()[0]!.promptCacheOptions).toEqual({ mode: 'explicit' })
+  })
+})
+
+describe('agent — stop and inbox', () => {
+  const counting = (): { echo: AgentToolSet[string], runs: string[] } => {
+    const runs: string[] = []
+    return {
+      runs,
+      echo: tool(
+        async ({ value }: { value: string }) => { runs.push(value); return `echoed:${value}` },
+        { name: 'echo', description: 'Echoes its argument.', schema: z.object({ value: z.string() }) },
+      ) as unknown as AgentToolSet[string],
+    }
+  }
+  const contentOf = (message: unknown): string => String((message as { content: unknown }).content)
+  const last = <T>(list: readonly T[]): T => list[list.length - 1]
+
+  test('a stop during a tool round runs nothing more and ends on ONE summary that may choose no tool', async () => {
+    const stop = new AbortController()
+    const { echo, runs } = counting()
+    const halt = tool(
+      async () => { stop.abort(); return 'halted' },
+      { name: 'halt', description: 'Presses stop.', schema: z.object({}) },
+    ) as unknown as AgentToolSet[string]
+    const scripted = scriptedModel([
+      { toolCalls: [{ name: 'halt', args: {} }] },
+      // A provider that ignored the tool choice: the call is still never run.
+      { content: 'Changed A; B is left undone.', toolCalls: [{ name: 'echo', args: { value: 'never' } }] },
+      { content: 'a third call must not happen' },
+    ])
+    const finished: Array<{ note?: string }> = []
+    const agent = makeAgentModel({
+      exec: execution(), agentModel: scripted.model, tools: { echo, halt },
+      plugins: [{ alias: 'c', onFinish: async (_run, _result, outcome) => { finished.push(outcome) } }],
+    })
+
+    const result = await agent.invoke('work', { stop: stop.signal })
+
+    expect(result.stopped).toBe(true)
+    expect(scripted.turns()).toBe(2)
+    expect(runs).toEqual([])
+    expect(scripted.options()[0]!.tool_choice).toBeUndefined()
+    expect(scripted.options()[1]!.tool_choice).toBe('none')
+    expect(scripted.options()[1]!.timeout).toBe(AGENT_STOP_SUMMARY_TIMEOUT_MS)
+    // The tools stay declared: a transcript carrying tool blocks needs them.
+    expect(scripted.bound()[1]).toEqual(['echo', 'halt'])
+    // The stop is never handed to a model call.
+    expect(scripted.options().every(option => option.signal == null)).toBe(true)
+    const summary = scripted.asked()[1]!
+    expect(contentOf(last(summary))).toBe(AGENT_STOP_INSTRUCTION)
+    expect(summary[summary.length - 2]).toBeInstanceOf(ToolMessage)
+    expect(contentOf(summary[summary.length - 2])).toBe('halted')
+    expect(result.message.content).toBe('Changed A; B is left undone.')
+    expect(result.message.tool_calls ?? []).toEqual([])
+    expect(finished[0]?.note).toBe(AGENT_STOPPED_NOTE)
+  })
+
+  test('the tool calls of an answer that arrives after the stop are answered, never run', async () => {
+    const stop = new AbortController()
+    const { echo, runs } = counting()
+    const scripted = scriptedModel([
+      {
+        before: () => { stop.abort() },
+        toolCalls: [{ name: 'echo', args: { value: 'a' } }, { name: 'echo', args: { value: 'b' } }],
+      },
+      { content: 'Nothing was changed.' },
+    ])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: { echo } })
+
+    const result = await agent.invoke('work', { stop: stop.signal })
+
+    expect(runs).toEqual([])
+    expect(result.stopped).toBe(true)
+    expect(scripted.turns()).toBe(2)
+    const answered = scripted.asked()[1]!.filter(message => message instanceof ToolMessage) as ToolMessage[]
+    expect(answered.map(message => [message.content, message.status])).toEqual([
+      [AGENT_STOPPED_TOOL_RESULT, 'error'], [AGENT_STOPPED_TOOL_RESULT, 'error'],
+    ])
+    expect(result.message.content).toBe('Nothing was changed.')
+  })
+
+  test('a stop that meets an answer without tool calls ends there, with no summary and no inbox close', async () => {
+    const stop = new AbortController()
+    let closes = 0
+    const scripted = scriptedModel([{ before: () => { stop.abort() }, content: 'all done' }])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: {} })
+
+    const result = await agent.invoke('work', {
+      stop: stop.signal, inbox: { drain: async () => [], drainOrClose: async () => { closes++; return ['more'] } },
+    })
+
+    expect(result.stopped).toBe(true)
+    expect(scripted.turns()).toBe(1)
+    expect(closes).toBe(0)
+    expect(result.message.content).toBe('all done')
+  })
+
+  test('a failing summary call costs the summary, never the run', async () => {
+    const stop = new AbortController()
+    const scripted = scriptedModel([
+      { before: () => { stop.abort() }, toolCalls: [{ name: 'echo', args: { value: 'a' } }] },
+      { error: 'provider down' },
+    ])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: { echo } })
+
+    const result = await agent.invoke('work', { stop: stop.signal })
+
+    expect(result.stopped).toBe(true)
+    expect(result.message.content).toBe('')
+  })
+
+  test('messages drained between rounds reach the next call as ONE turn, after the tool results', async () => {
+    const queue = ['also check B', 'and C']
+    let drains = 0
+    const inbox: AgentInbox = {
+      drain: async () => { drains++; return queue.splice(0) },
+      drainOrClose: async () => [],
+    }
+    const scripted = scriptedModel([
+      { toolCalls: [{ name: 'echo', args: { value: 'hi' } }] },
+      { content: 'done' },
+    ])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: { echo } })
+
+    const result = await agent.invoke('work', { inbox })
+
+    // Before every model call after the first — never before the first.
+    expect(drains).toBe(1)
+    expect(JSON.stringify(scripted.asked()[0])).not.toContain(AGENT_INBOX_PREFIX)
+    const second = scripted.asked()[1]!
+    expect(last(second)).toBeInstanceOf(HumanMessage)
+    expect(contentOf(last(second))).toBe(`${AGENT_INBOX_PREFIX}\n\nalso check B\n\nand C`)
+    expect(second[second.length - 2]).toBeInstanceOf(ToolMessage)
+    expect(result.messages.some(message => contentOf(message).includes('also check B'))).toBe(true)
+    expect(result.stopped).toBeUndefined()
+  })
+
+  test('a message waiting where the run would end keeps the loop going', async () => {
+    const late = [['and one more thing'], []]
+    let closes = 0
+    const inbox: AgentInbox = {
+      drain: async () => [],
+      drainOrClose: async () => { closes++; return late.shift() ?? [] },
+    }
+    const scripted = scriptedModel([{ content: 'first answer' }, { content: 'second answer' }])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: {} })
+
+    const result = await agent.invoke('work', { inbox })
+
+    expect(scripted.turns()).toBe(2)
+    expect(closes).toBe(2)
+    expect(contentOf(last(scripted.asked()[1]!))).toBe(`${AGENT_INBOX_PREFIX}\n\nand one more thing`)
+    expect(scripted.asked()[1]!.map(contentOf)).toContain('first answer')
+    expect(result.message.content).toBe('second answer')
+  })
+
+  test('a failing inbox is treated as empty and never fails the run', async () => {
+    const inbox: AgentInbox = {
+      drain: async () => { throw new Error('inbox down') },
+      drainOrClose: async () => { throw new Error('inbox down') },
+    }
+    const scripted = scriptedModel([
+      { toolCalls: [{ name: 'echo', args: { value: 'hi' } }] },
+      { content: 'done' },
+    ])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: { echo } })
+
+    const result = await agent.invoke('work', { inbox })
+
+    expect(result.message.content).toBe('done')
+    expect(scripted.turns()).toBe(2)
   })
 })

@@ -1,4 +1,6 @@
 import type { BlueprintCatalogue } from '../blueprint/catalogue/types.js'
+import { AgentSteerArgsSchema, AgentStopArgsSchema, StoryBatchStartArgsSchema } from '../batch/schemas.js'
+import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView } from '../batch/types.js'
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { route, RouteMethod } from '@owlmeans/route'
 import { connect, ConnectPaidGate } from './consts.js'
@@ -71,7 +73,8 @@ import type {
 
 /**
  * Declare the connector's HTTP surface — exactly the routes a connector calls: the session (long
- * poll, no socket), the operation relay, projects (their lifecycle and agent lock included), story
+ * poll, no socket), the operation relay, projects (their lifecycle and agent lock included, the
+ * agent's stop and steering, and story batches — several stories implemented one after another), story
  * status, generated files (read, written, deleted, metadata listed), the preview workload's controls,
  * the organization's workloads, the project's git repository and GitHub connection, its production
  * workload (published, restarted, stopped, its custom domain and standalone sign-in), its generated
@@ -308,6 +311,51 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       }),
       contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectAgentLock>())
     ),
+    // The web's Stop and the console's steering — the ownership gate alone: a stop spends nothing,
+    // and a steering message joins a run that was paid for when it started.
+    stop: protocol(
+      route(connect.project.stop, '/project/:id/stop', {
+        parent: base, method: RouteMethod.POST
+      }),
+      contract.request({
+        params: typed<{ id: string }>(ConnectProjectIdSchema),
+        body: typed<AgentStopArgs>(AgentStopArgsSchema),
+      }, typed<ConnectAgentLock>())
+    ),
+    steer: protocol(
+      route(connect.project.steer, '/project/:id/steer', {
+        parent: base, method: RouteMethod.POST
+      }),
+      contract.request({
+        params: typed<{ id: string }>(ConnectProjectIdSchema),
+        body: typed<AgentSteerArgs>(AgentSteerArgsSchema),
+      }, typed<AgentSteerResult>())
+    ),
+    // The web's Run all, never under a story path. No payment gate on the route: each story's start
+    // is admitted by the story gate inside, exactly as a person's Start is.
+    batch: {
+      start: protocol(
+        route(connect.project.batch.start, '/project/:id/batch', {
+          parent: base, method: RouteMethod.POST
+        }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+          body: typed<StoryBatchStartArgs>(StoryBatchStartArgsSchema),
+        }, typed<StoryBatchView>())
+      ),
+      get: protocol(
+        route(connect.project.batch.get, '/project/:id/batch', {
+          parent: base, method: RouteMethod.GET
+        }),
+        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<StoryBatchView | null>())
+      ),
+      cancel: protocol(
+        route(connect.project.batch.cancel, '/project/:id/batch/cancel', {
+          parent: base, method: RouteMethod.POST
+        }),
+        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<StoryBatchView>())
+      ),
+    },
     // The project's agent activity by cursor — the browser's project socket, polled; the ownership gate alone.
     activity: protocol(
       route(connect.project.activity, '/project/:id/activity', {

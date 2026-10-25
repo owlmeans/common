@@ -11,12 +11,16 @@ import { logger } from '@owlmeans/log'
 import {
   AgentRunStatus, AgentRunTransition, agentRunFlow, conversationFor,
 } from '@owlmeans/agent-common'
-import { DEFAULT_ACTION, DEFAULT_ENTRYPOINT, DEFAULT_MAX_TURNS, DEFAULT_PLUGIN_ORDER } from './consts.js'
+import {
+  AGENT_INBOX_PREFIX, AGENT_STOP_INSTRUCTION, AGENT_STOP_SUMMARY_TIMEOUT_MS, AGENT_STOPPED_NOTE,
+  AGENT_STOPPED_TOOL_RESULT, DEFAULT_ACTION, DEFAULT_ENTRYPOINT, DEFAULT_MAX_TURNS, DEFAULT_PLUGIN_ORDER,
+} from './consts.js'
 import { AgentLoopExhaustedError, AgentMissconfiguredError } from './errors.js'
 import type {
-  AgentModel, AgentOptions, AgentPlugin, AgentResult, AgentRun, AgentRunOutcome, AgentToolSet,
+  AgentInbox, AgentModel, AgentOptions, AgentPlugin, AgentResult, AgentRun, AgentRunOutcome, AgentToolSet,
 } from './types.js'
 import { toolHelper } from './helpers/tools.js'
+import { compactionHelper } from './helpers/compaction.js'
 
 const log = logger('agent')
 
@@ -36,6 +40,23 @@ const withTail = (opening: BaseMessage, tail: string): BaseMessage[] => {
     content, id: opening.id, name: opening.name, additional_kwargs: opening.additional_kwargs,
   } as ConstructorParameters<typeof HumanMessage>[0])]
 }
+
+/** The person's waiting messages as the ONE turn that carries them. */
+const inboxTurn = (messages: readonly string[]): HumanMessage =>
+  new HumanMessage({ content: `${AGENT_INBOX_PREFIX}\n\n${messages.join('\n\n')}` })
+
+/** The answer to a tool call the loop did not run, because the person stopped it. */
+const unrunResult = (toolCall: ToolCall): ToolMessage => new ToolMessage({
+  tool_call_id: toolCall.id!, name: toolCall.name, content: AGENT_STOPPED_TOOL_RESULT, status: 'error',
+})
+
+/** The text of an answer without its tool calls — what is kept of a summary that asked for tools anyway. */
+const textOnly = (message: AIMessage): AIMessage => new AIMessage({
+  content: compactionHelper.messageText(message),
+  ...(message.id != null ? { id: message.id } : {}),
+  response_metadata: message.response_metadata,
+  ...(message.usage_metadata != null ? { usage_metadata: message.usage_metadata } : {}),
+})
 
 /** The provider's id of the model a run talks to, for billing — the config's, else the client's own. */
 const modelIdOf = (model: unknown): string | undefined => {
@@ -178,8 +199,30 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
       const cached = composed?.cache.enabled !== false
 
       const tooled = agentModel.bindTools?.(Object.values(toolSet)) ?? agentModel
+      // `tool_choice` is sent only where tools are declared: both providers refuse it without them.
+      const choosable = agentModel.bindTools != null && Object.keys(toolSet).length > 0
 
-      const ask = task('call-llm', async ({ messages, turn }: { messages: BaseMessageLike[], turn: number }) => {
+      const stop = args.stop
+      const halted = (): boolean => stop?.aborted === true
+      // A record, not a `let`: it is written inside the entrypoint closure and read after it.
+      const loop = { stopped: false }
+
+      /** What waits in the inbox. A failing inbox costs the messages, never the run. */
+      const read = async (how: keyof AgentInbox): Promise<string[]> => {
+        if (args.inbox == null) {
+          return []
+        }
+        try {
+          return (await args.inbox[how]()).filter(text => typeof text === 'string' && text.trim() !== '')
+        } catch (e) {
+          log.warn('Agent inbox failed', { how, error: e })
+          return []
+        }
+      }
+
+      const ask = task('call-llm', async (
+        { messages, turn, summary = false }: { messages: BaseMessageLike[], turn: number, summary?: boolean },
+      ) => {
         const startedAt = Date.now()
 
         const [first, ...rest] = messages as BaseMessage[]
@@ -191,20 +234,41 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
           ? provider?.loopCache?.(wire as unknown as MessageFieldWithRole[], agentModel, hints)
           : undefined
 
-        const stream = await tooled.stream(
-          (patch?.messages ?? wire) as BaseMessageLike[],
-          { ...patch?.options, runName: action, metadata: { purpose } } as Parameters<typeof tooled.stream>[1],
-        )
+        // Never a stop signal: an abort inside this task fails the whole run, an aborted call is
+        // never billed, and a client watching the stream would be left showing an open run.
+        const callOptions = {
+          ...patch?.options,
+          runName: action,
+          metadata: { purpose },
+          // The summary of a stopped run keeps its tools bound — a transcript carrying tool blocks
+          // needs them declared — but may choose none, and has a deadline of its own.
+          ...(summary
+            ? { ...(choosable ? { tool_choice: 'none' } : {}), timeout: AGENT_STOP_SUMMARY_TIMEOUT_MS }
+            : {}),
+        } as Parameters<typeof tooled.stream>[1]
 
         let final: AIMessageChunk | undefined
-        for await (const chunk of stream) {
-          final = final != null ? final.concat(chunk) : chunk
+        try {
+          const stream = await tooled.stream((patch?.messages ?? wire) as BaseMessageLike[], callOptions)
+          for await (const chunk of stream) {
+            final = final != null ? final.concat(chunk) : chunk
+          }
+        } catch (e) {
+          if (!summary || options.fatal?.(e) === true) {
+            throw e
+          }
+          // Narration about work already done: a failed summary costs the summary, never the run.
+          log.warn('Agent stop summary failed', { action, error: e })
+
+          return new AIMessage({ content: '' })
         }
 
         const result = new AIMessage(cacheHelper.withCacheTiers(final!))
         await spectate?.(messages as ModelInputItem[], result, action, turn, startedAt, modelId)
 
-        return result
+        // Nothing runs after a summary, so a tool call in it — a provider that dropped `tool_choice` —
+        // would only leave the transcript with a call nobody answered.
+        return summary && (result.tool_calls?.length ?? 0) > 0 ? textOnly(result) : result
       })
 
       // A rejected task aborts the whole superstep, killing every sibling call in the same batch —
@@ -228,8 +292,27 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
             log.warn('Agent plugin failed on turn', e)
           }
 
-          if (response.tool_calls == null || response.tool_calls.length === 0) {
+          if (loop.stopped) {
+            // The summary has answered. Nothing runs after it.
             break
+          }
+
+          const calls = response.tool_calls ?? []
+          if (calls.length === 0) {
+            if (halted()) {
+              // The stop met the answer that ends the run anyway: that answer is the last word.
+              loop.stopped = true
+              break
+            }
+            // Where the run would end, the person may still be talking: what waits goes on the
+            // transcript and the loop goes on; nothing waiting closes the inbox.
+            const late = await read('drainOrClose')
+            if (late.length === 0) {
+              break
+            }
+            messages = addMessages(messages, [inboxTurn(late)])
+            response = await ask({ messages, turn })
+            continue
           }
 
           if (++turn > maxTurns) {
@@ -237,7 +320,10 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
           }
           flow.updatePayload({ runId: run.id, turn })
 
-          const results = await Promise.all(response.tool_calls.map(async toolCall => {
+          // Checked as the answer arrives — the model call itself is never aborted. A stopped run
+          // answers every call of the answer instead of running it; tools already running finish.
+          const skipped = halted()
+          const results = skipped ? calls.map(unrunResult) : await Promise.all(calls.map(async toolCall => {
             let output: unknown = null
             let error: string | null = null
             try {
@@ -257,7 +343,22 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
             })
           }))
 
+          // Tool results first, then any turn of the person's: the order both providers accept.
           messages = addMessages(messages, results)
+
+          if (skipped || halted()) {
+            // ONE summary call ends a stopped run. It drains nothing: the stop supersedes whatever
+            // is still waiting.
+            loop.stopped = true
+            messages = addMessages(messages, [new HumanMessage({ content: AGENT_STOP_INSTRUCTION })])
+            response = await ask({ messages, turn, summary: true })
+            continue
+          }
+
+          const waiting = await read('drain')
+          if (waiting.length > 0) {
+            messages = addMessages(messages, [inboxTurn(waiting)])
+          }
           response = await ask({ messages, turn })
         }
 
@@ -308,10 +409,15 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
 
         flow.transit(AgentRunTransition.Finalize, true)
 
-        result = { message, messages: transcript, run: { id: run.id, conversation, finish } }
+        result = {
+          message,
+          messages: transcript,
+          run: { id: run.id, conversation, finish },
+          ...(loop.stopped ? { stopped: true } : {}),
+        }
 
         if (autoFinish) {
-          await finish({ status: AgentRunStatus.Ok })
+          await finish({ status: AgentRunStatus.Ok, ...(loop.stopped ? { note: AGENT_STOPPED_NOTE } : {}) })
         }
 
         return result

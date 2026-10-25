@@ -74,11 +74,33 @@ export interface AgentOptions {
   plugins?: AgentPlugin[]
 }
 
+/**
+ * Where a person's messages wait while an agent works. The loop reads it; whoever holds it fills it.
+ */
+export interface AgentInbox {
+  /** Whatever is waiting, emptied out — `[]` when nothing is. Called before every model call after the first. */
+  drain: () => Promise<string[]>
+  /**
+   * ONE atomic call where the loop would end on an answer without tool calls: the waiting messages
+   * come back and the inbox stays open — the loop goes on with them — or, none waiting, the inbox
+   * is CLOSED and `[]` comes back, so nothing sent from then on is taken for this run.
+   */
+  drainOrClose: () => Promise<string[]>
+}
+
 export interface AgentInvokeArgs {
   /** LangChain `runName` for the model calls of this run. */
   action?: string
   /** Extra context for this run only — it joins the project message. */
   context?: string[]
+  /**
+   * The person's stop, honoured at loop boundaries only — never handed to a model call or to the
+   * graph. Once aborted, the tool calls of the answer that arrives are answered "not run" instead
+   * of running, tools already running finish, and ONE summary call ends the run `stopped`.
+   */
+  stop?: AbortSignal
+  /** The person's messages for a running loop: drained between rounds, closed where it would end. */
+  inbox?: AgentInbox
 }
 
 export interface AgentRunOutcome {
@@ -111,6 +133,11 @@ export interface AgentResult {
   /** The whole transcript of the run, the opening human message included. */
   messages: BaseMessage[]
   run: AgentRunHandle
+  /**
+   * `true` when the loop ended on the person's stop; `message` is then its summary (or the answer
+   * the stop met). Absent on a run that ended on its own.
+   */
+  stopped?: boolean
 }
 
 /**

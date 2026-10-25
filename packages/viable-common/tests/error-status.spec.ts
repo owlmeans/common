@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { ResilientError } from '@owlmeans/error'
 import * as connect from '../src/connect/errors.js'
 import * as planning from '../src/planning/errors.js'
+import * as batch from '../src/batch/errors.js'
 
 /**
  * The status an HTTP boundary (`@owlmeans/server-api` `errorStatus`) reads off a class: a static
@@ -32,9 +33,12 @@ const DECLARED: Record<string, number | undefined> = {
   ProjectStoryError: undefined,
   ProjectError: undefined,
   ProjectAgentError: undefined,
+  AgentNotRunning: 409,
+  StoryBatchActive: 409,
+  StoryBatchEmpty: 400,
 }
 
-const classes = Object.entries({ ...connect, ...planning }).filter(([, value]) =>
+const classes = Object.entries({ ...connect, ...planning, ...batch }).filter(([, value]) =>
   typeof value === 'function' && value.prototype instanceof ResilientError
 ) as [string, new (message?: string) => ResilientError][]
 
@@ -43,7 +47,7 @@ describe('viable-common refusals — declared HTTP statuses', () => {
     expect(classes.map(([name]) => name).sort()).toEqual(Object.keys(DECLARED).sort())
   })
 
-  test('balance 402, an absent target 404, a conflicting state 409, a lost outcome 410, refused content 422, a consent or a confirmation only a person gives 428; faults nothing', () => {
+  test('a request selecting nothing 400, balance 402, an absent target 404, a conflicting state 409, a lost outcome 410, refused content 422, a consent or a confirmation only a person gives 428; faults nothing', () => {
     for (const [name, Class] of classes) {
       expect([name, statusOf(new Class('x'))]).toEqual([name, DECLARED[name]])
     }
