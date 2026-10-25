@@ -9,7 +9,7 @@ the executor with `@owlmeans/server-planning` and reads remotely with `@owlmeans
 ## Installation
 
 ```sh
-bun add @owlmeans/planning@^0.1.18-rc.29 ajv ajv-formats
+bun add @owlmeans/planning@^0.1.18-rc.30 ajv ajv-formats
 ```
 
 ## Concepts

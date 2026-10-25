@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.6"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.7"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -46,10 +46,10 @@ wiring implementations belong to viable-agent. Pipeline and shape-version consta
 
 | Subpath | What it declares |
 |---|---|
-| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyHelper` (`tenancyOf`, `tenantedArea`), `TENANCY_QUOTE_MAX`); `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind` / `WorkKind`, `CASE_QUOTE_MAX`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor`, `LAYOUT_TOPOLOGIES`, `topologyHelper` (`resolveTopology`, `packageForRole`) — meaning in `/blueprints`); the BA shapes (`connectingStoryHelper.mergeConnectingStories`; the stated requirements — `StatedRequirement`, `RequirementsDocument`, `RequirementPart` / `RequirementKind` / `RequirementSource`, `requirementsHelper`, `RequirementsDocumentSchema` / `StatedRequirementSchema`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `moderationVerdictHelper.decideModeration`; the `docs/` metadata paths; `PreviewEventType` (error kinds plus `Analytics` — an analytics event a target's web posted through the preview reporter's channel; the target-side plugins live in `@owlmeans/viable-log`) and the `OwlMeansAnalyticsPayload` shape; the agent-output taxonomy (`agentPresentationHelper` — `classifyAgentMessage`, `isAgentMessageHidden`; `/agent-presentation`) and the spectator entry types |
+| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision` (+ `origin?`), `OriginTenancyFacts`, `NO_TENANCY`, `tenancyHelper` (`tenancyOf`, `tenantedArea`), `TENANCY_QUOTE_MAX`, `ORIGIN_TENANCY_WORD_MAX` / `ORIGIN_TENANCY_LIST_MAX`); `ModelRole` and the viable `ExecutionState` (+ `originTenancy?`); the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind` / `WorkKind`, `CASE_QUOTE_MAX`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor`, `LAYOUT_TOPOLOGIES`, `topologyHelper` (`resolveTopology`, `packageForRole`) — meaning in `/blueprints`); the BA shapes (`connectingStoryHelper.mergeConnectingStories`; the stated requirements — `StatedRequirement`, `RequirementsDocument`, `RequirementPart` / `RequirementKind` / `RequirementSource`, `requirementsHelper`, `RequirementsDocumentSchema` / `StatedRequirementSchema`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `moderationVerdictHelper.decideModeration`; the `docs/` metadata paths; `PreviewEventType` (error kinds plus `Analytics` — an analytics event a target's web posted through the preview reporter's channel; the target-side plugins live in `@owlmeans/viable-log`) and the `OwlMeansAnalyticsPayload` shape; the agent-output taxonomy (`agentPresentationHelper` — `classifyAgentMessage`, `isAgentMessageHidden`; `/agent-presentation`) and the spectator entry types |
 | `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` / `SlotDatabaseCommand` sets; `SlotDatabaseInfo`, `SlotDatabaseQueryArgs` / `SlotDatabaseQueryResult`, `DATABASE_READ_LIMITS`; the per-command deadlines and timeouts (`slotCommandHelper` — `commandDeadline`, `commandTimeout`), `SubProject`, `LAYOUTS` / `ROLE_DIRS` / `slotLayoutHelper.subprojectDirOf`, `WorkloadKind`, the target ports and process markers, `slotOriginHelper` (`slotOrigin` / `targetRedirectUrisForOrigin`) |
 | `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave` / `ConnectProjectBrandingFields` / `ConnectBrandingCredit` / `ConnectBrandingCreditBody`, the configuration contract (`ConnectScopeQuery`, `ConnectConfigScope`, `ConnectProjectConfig`, `ConnectConfigVariable`, `ConnectFrontendVariable`, `ConnectConfigValue`, `ConnectConfigSaveBody`, `CONNECT_CONFIG_*`), the organization's defaults (`ConnectOrganizationBranding(Save)`, `ConnectBrandingBackfill`), the planning-kit views (`PlanningKitView`, `ConnectKitDescribe`, `ConnectKitApplyBody`, `ConnectKitApplyResult` and their `*Schema`s), `ModelTier` + `modelTierHelper` (`tierOfRole`/`clampTier`), `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the convert bodies (`ConnectConvertCreateBody`, `ConnectConvertStartBody`, `ConnectConvertProceedBody` + `ConnectConvertProceedUpdate`), `ConnectAgentLock`, `ConnectPaidGate` + `ConnectGateRef` + `ConnectEntrypointOptions`, the call collection (`CONNECT_CALL_HEADER`, `CONNECT_CALL_ACCEPT_MS`, `CONNECT_CALL_COLLECT_WAIT_SEC`, `CONNECT_CALL_LOST_MS`, `ConnectCallState`, `ConnectCallPending`, `ConnectCallResult`, `ConnectCallCollectParams` / `ConnectCallCollectQuery` and their `*Schema`s), the `Connect*` error family with `ConnectConfirmation` / `ConnectConfirmationAction`, `connectProtocols(opts)` and every `*Schema` behind them |
-| `./convert` | `ConversionStage`/`Status`/`Decision` and the `conversionStageHelper` transitions (`stageAfter`/`decisionFor`/`canEnter`), `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`censusHelper` — `fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, the flow census and its consolidation (`OriginFlowEntry` — a census flow without proofs, `OriginFlowConsolidation(Schema)`, the settled `OriginStoryPlan`, `OriginFlowDisposition`, the CLOSED `PlatformFlow`), and the model-answer schemas the conversion asks with |
+| `./convert` | `ConversionStage`/`Status`/`Decision` and the `conversionStageHelper` transitions (`stageAfter`/`decisionFor`/`canEnter`), `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`censusHelper` — `fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, the flow census and its consolidation (`OriginFlowEntry` — a census flow without proofs, `OriginFlowConsolidation(Schema)`, the settled `OriginStoryPlan`, `OriginFlowDisposition`, the CLOSED `PlatformFlow` — its two organization flows only through `TENANT_PLATFORM_FLOWS`), the origin's tenancy (`OriginTenancy`, `OriginTenant`, `OriginTenancyPart`, `OriginTenancyRecord`, the model-facing `OriginTenancyAnswer(Schema)`, `CONVERSION_TENANCY_FILE`), the whole-file summaries (`FileSummary` and its parts, the model-facing `FileSummaryAnswer` / `FileSummaryBatch(Schema)`, `CONVERSION_SUMMARY_DIR`, `CONVERSION_SUMMARY_ROOT`, `SummaryDocMeta`), the origin's own types (`OriginTypeSpec` and its `OriginTypeAttribute` / `OriginTypeRelation`, `OriginDefinition`, the definitions facts `OriginDefinitionFacts` — type, flow, container, card — with `OriginFieldSchema`, `OriginTypesRecord`, `OriginTypesDocMeta`, `originTypesHelper` (`recordOf`, `definitionsOf`, `entityOf`), `CONVERSION_TYPES_FILE`, `ORIGIN_DEFINITIONS_SECTION`), the estimator's `RolePlanEntry` (`perStory`, `perWindow`), and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `targetLayoutHelper` (`detectTargetLayout`, `isLegacyLayout`, `targetPackageName`), `targetIntegrityHelper.verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES` |
 | `./intent` | `intent` (the six aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants (`INTENT_IMPORT_PATH`, `INTENT_PRO_PATH`, `INTENT_IMPORT_KIND` included), `IntentDraft` / `IntentImportDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
 | `./iam-console` | The owner console's IAM contract both doors share (the browser's `back.iam`, the connector's `connect.iam`): the route params (`IamProjectParams`, `IamProjectUserParams`, `IamOrganizationParams`, `IamMemberParams`, `IamGroupParams`), `IamScoped`, the bodies (`IamDefinitionUpdate`, `IamStaffSync`, `IamAssignGrant` / `IamRevokeGrant`, `IamGrantsQuery`, `IamProjectUserInvite` / `Update`, `IamOrganizationEdit`, `IamProjectMemberInvite` / `Update`, `IamGroupCreate` / `Edit`, `IamGroupMembersChange`), the answers (`IamListResponse` + `external`, `IamUsersResponse`, `IamPermissionsResponse` + `IamTenancy`, …, `IamStaffSyncResponse`), every `Iam*Schema` (with `IamScopedSchema`, `IamGroupRefSchema`), `IAM_REFUSED`, and the `@owlmeans/iam` vocabulary re-exported (`IamDefaultClass`, `IamGrantMode`, `IamGrantOrigin`, `IamRemovalPolicy`, `IAM_AREAS`, `IAM_MEMBERS_GROUP`, the record types). The refusal's CLASS (`IamRefused`, 409) is the platform's |
@@ -141,7 +141,7 @@ the wire and in target files — a parent agent's vocabulary, which never change
 | project `specification` / `vision` / `designSystem` | specification bodies, categories `specification` / `vision` / `design-system` |
 | project `formerAliases`, `language`, `blueprint`, `blueprintCase`, `gameKind`, `workKind`, `caseQuote`, `target`, `origin`, `connectLlmMode` | `fields.*` |
 | the landing-gate decision | project `fields.landing` — `{ story: code \| null, at }` |
-| the tenancy decision | project `fields.tenancy` — `ViableTenancyDecision` `{ operators, users, quotes?, by: 'model' \| 'owner', at }` |
+| the tenancy decision | project `fields.tenancy` — `ViableTenancyDecision` `{ operators, users, quotes?, by: 'model' \| 'owner', at, origin? }`; `origin` (`OriginTenancyFacts { label, keys, people }`, words ≤ 64, lists ≤ 8) only on a conversion whose origin kept tenants |
 | story narrative (`story`) / `code` / `status` | `title` / `code` / `status` (same strings) |
 | the text a person typed for a story, verbatim | `description` (the viable plugin keeps it; `title` is the formatted reading) |
 | story `projectId` | `parent` |
@@ -296,6 +296,13 @@ Three rules hold for both; `tests/convert.spec.ts` walks the PACKAGE barrel for 
   Both kinds of caller send `null`: a provider's structured output for an unset optional, and a
   wire body where `null` MEANS something (`llmMode` — "inherit the profile's setting").
 - **`items` is never an array.** A draft-04 tuple is refused by providers and collection validators.
+
+**A model-answer property is never NAMED like a schema keyword** (`required`, `default`, `format`,
+`minimum`, …): a provider strips such a property from what the model is shown, so it can never be
+answered. `@owlmeans/viable`'s `tests/utils/model-schema.test.ts` walks every schema this package
+exports. Name the field for its meaning and keep the stored type separate: the stored
+`FileSummaryField` says `required` / `default`, its model twin `FileSummaryAnswerField` says
+`mandatory` / `defaultValue`, and the converter maps one onto the other.
 
 **A schema that validates a STORED document only grows optional.** `ScaffoldPlanSchema` is both a
 model-answer schema and the `scaffold` slot's validator, so an older plan must still pass when
@@ -497,7 +504,8 @@ different ones) and the manager web agree on every address, schema and step. Pla
 `SlotMetadata` is what the platform signs and pushes into a slot; the publisher refuses the WHOLE
 configuration with a 401 when the body carries a key its schema does not know. A key added after
 slots exist is therefore OPTIONAL in the type and OMITTED from a push while unset:
-`brandingGoogleTag` (in `metadataConfigs`), `cspSources` (in `SlotListMetadata`). The build
+`brandingGoogleTag` (in `metadataConfigs`), `cspSources` (in `SlotListMetadata`), `iamTenancy`
+(the tenancy flags that are on, `users,operators` — the target backend's `IAM_TENANCY`). The build
 ENVIRONMENT differs: `brandingEnv` always emits every `BRANDING_ENV_KEYS` entry,
 `BRANDING_GOOGLE_TAG` as `''` when unset (the build reads `''` as "none"). `BRANDING_PRODUCT` is
 always `''`: `projectName` is the project's ALIAS (a slug), never a product name; the human-readable
@@ -505,8 +513,8 @@ one is the target's own `APP_TITLE` (from the card's `title`), which the build f
 (`tests/branding.spec.ts`).
 
 `metadataConfigs` / `metadataLists` / `metadataSecrets` enumerate what an owner STORES (one
-`project-config` / `project-secret` row per key). `cspSources` is not an owner setting, so it is
-on the type only; the Google tag's CSP hosts never travel in it — the publisher derives them from
+`project-config` / `project-secret` row per key). `cspSources` and `iamTenancy` are not owner
+settings, so they are on the type only (`iamTenancy` is computed from the project card at every push); the Google tag's CSP hosts never travel in it — the publisher derives them from
 `brandingGoogleTag`. Push rules: `/slot-config`.
 
 ## Blueprint types, cases, skill and persona names
@@ -582,8 +590,34 @@ recover-account). It is the one way a census flow may leave a conversion's story
 that names user management (inviting, roles, blocking) would let an origin's admin area be dropped.
 
 `docs/conversion/` is addressed only through the path builders (`CONVERSION_*_FILE`,
-`conversionDocHelper.conversionStoryDoc`, `.conversionSeedDoc`) — the purge reads them back, and a path spelled at a
+`conversionDocHelper.conversionStoryDoc`, `.conversionSeedDoc`, `.conversionSummaryDoc`) — the purge reads them back, and a path spelled at a
 call site is a file the purge leaves behind.
+
+**`FileSummary` is one origin file read WHOLE**: `path` (origin-relative), `hash` (sha256 of the
+content — the per-file resume guard), `chars`, `lines`, `role`, `summary`, `exports`,
+`declarations`, `routes[{method, path, handler, guards, line}]`,
+`schemas[{name, line, fields[{name, type, required, enum?, default?, ref?}]}]`,
+`ui[{component, line, routeParams, inputs}]`, `imports` (an origin path where the import resolves,
+the specifier otherwise), `tenancySignals[{signal, line}]`, and `failed` when no model summary could
+be written. Every `line` is 1-based in the whole file. They are stored one document per top-level
+package under `CONVERSION_SUMMARY_DIR`; the `CONVERSION_SUMMARY_ROOT` document's `packages` names
+the whole set (`SummaryDocMeta`: `package`, `packages`, `planned`, `skipped`, `entries`). Behaviour
+— windows, packing, the guards, the purge — is the converter's (`/converter`).
+
+**`OriginTypeSpec` is one persisted type of the origin**, assembled by the converter with no model
+from the summaries' schemas: `name` (PascalCase), `entity` (kebab key), `label`, `attributes[{name,
+type, required, default?, closed?, list?, ref?}]` (`type` a scalar — `string`, `number`, `boolean`,
+`date`, `object` — or another origin type's name; `ref` the type whose id it holds), `relations[{to,
+key, cardinality}]`, `definition?` (`OriginDefinition`: card-type, flow, status, transition, field —
+what a work-management target keeps as planning definitions) and `proofs`. `OriginDefinitionFacts`
+is what a converted target's definition editors must offer — field kinds with their
+`OriginFieldSchema`, icon/tone, the `app` properties, status categories with their
+`IntrinsicStatus`, initial and moves, the container (`projectFlows`) and the record of work (base
+fields, `linked`, `numbered`). Both live in `docs/conversion/types.md`: the frontmatter carries the
+types WITHOUT proofs, `definitions`, and the proofs in its `origin` list (each with its `type` —
+what a purge drops); `originTypesHelper.recordOf(data)` is the ONE reading of it, checked field by
+field (a malformed type dropped alone, malformed definitions read as none), for the converter's
+store and the story checks alike. The mapping itself is `@owlmeans/viable`'s (`planningOriginHelper`).
 
 ## The inquiry vocabulary is a deliberate COPY; the ceiling is not
 
@@ -661,7 +695,7 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 | `blueprint.spec.ts` · `branding.spec.ts` | `landingGatePreferenceOf` defaults · the build env and metadata vocabulary |
 | `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid kinds on the delegated session, the two preference writes and the credit switch alone, the account inference/token/privacy/intent routes and their closed bodies, the configuration routes and their closed bodies, the git and GitHub routes under the base with no paid gate and no completion route and their closed bodies, the production routes under the base each with its own paid kind, no secret or run verb, and their closed bodies, the IAM routes' count and addresses, the scope query, the account branding routes, no socket or story route, the create body's `sessionId`, branding body, the kit routes and their closed shapes, the collect route under the base and its timing constants, the pending/params/query/result shapes, the three feed routes (owned base / account base, GET, no paid gate, no socket) and the feed query shapes · conversion routes, the create body's `sessionId`, the start's body and both verbs' `confirm`, an unknown executor kind accepted |
 | `iam-console.spec.ts` | the owner-console schemas (one subject, closed bodies, `null` in nullable enums, `mode: inherit` on a revoke and — deliberately — on a grant body, the `inherit`/`bundle` values), the 22 `connect.iam` routes under the base with no paid gate, the customer-wide listing under the account base, POST writes with `scope` in the body and reads with it in the query, the connector's IAM params |
-| `convert.spec.ts` | the three structural walks over the barrel, nullable enums under Ajv, census classifiers, stage transitions |
+| `convert.spec.ts` | the three structural walks over the barrel, nullable enums under Ajv, census classifiers, stage transitions, every document path (summaries included) under `CONVERSION_DIR` |
 | `design.spec.ts` | the design aggregate, staleness ranking (the requirements hash included), schema refusals, `storyDesignHelper.userStoryOfDesign` |
 | `requirements.spec.ts` | id order, the card's exact shape and scope stripping, sections 5–9 and retained markers, slices and frontmatter, `docs/requirements.md`, digest stability, requested-story placement / dedupe / cap, the document schema |
 | `error-status.spec.ts` · `connect-errors.spec.ts` | declared statuses through a marshal · packed refusal fields fresh and after a round trip, the confirmation's `decode` |

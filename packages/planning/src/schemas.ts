@@ -12,7 +12,7 @@ import {
 } from './consts.js'
 import type {
   AnyTypeSchema, CodePolicy, CommitEvent, CommitFeedQuery, CommitQuery, CommitStatus, ExecuteRequest,
-  PlanningSchemaBundle, ProjectTypeSchema, Relationship, RelationshipDraft, RelationshipQueryWire,
+  PlanningAppDeclarations, PlanningSchemaBundle, ProjectTypeSchema, Relationship, RelationshipDraft, RelationshipQueryWire,
   RelationshipType, RevisionsQuery, SchemaDefineRequest, SchemaKey, SchemaListQuery, ScopedSchemaBundle,
   ScopedSchemaRecord, Specification, SpecificationQueryWire, SpecificationRevision,
   SpecificationRevisionList, SpecificationSlot, StatusDefinition, StatusFlowSchema,
@@ -279,6 +279,8 @@ export const StatusFlowSchemaSchema = cast<StatusFlowSchema>({
     tone: { type: 'string', maxLength: LABEL_MAX, nullable: true },
     icon: { type: 'string', maxLength: LABEL_MAX, nullable: true },
     overridable: { type: 'boolean', nullable: true },
+    /** The application's own properties — their own schema is applied by `assertFlowSchema`. */
+    app: OptionalOpenObject,
   },
   required: ['id', 'version', 'statuses', 'transitions'],
   additionalProperties: false,
@@ -350,6 +352,8 @@ const typeProperties = {
   tone: { type: 'string', maxLength: LABEL_MAX, nullable: true },
   icon: { type: 'string', maxLength: LABEL_MAX, nullable: true },
   overridable: { type: 'boolean', nullable: true },
+  /** The application's own properties — their own schema is applied by `assertTypeSchema`. */
+  app: OptionalOpenObject,
 }
 
 const typeRequired = ['type', 'kind', 'version', 'fields', 'flows', 'specifications']
@@ -421,6 +425,17 @@ export const CommentMentionSchema = cast<CommentMention>({
   required: [...planningRecordRequired, 'comment', 'card', 'assignee', 'revision'], additionalProperties: false,
 })
 
+/**
+ * The application's declarations as a bundle carries them. Each kind is an object schema whose
+ * closed form (`type`, `properties`, `required` only) `appSchemaHelper.assertDeclarations` checks.
+ */
+export const PlanningAppDeclarationsSchema = cast<PlanningAppDeclarations>({
+  type: 'object',
+  properties: { type: OptionalOpenObject, flow: OptionalOpenObject, card: OptionalOpenObject },
+  required: [],
+  additionalProperties: false,
+})
+
 export const PlanningSchemaBundleSchema = cast<PlanningSchemaBundle>({
   type: 'object',
   properties: {
@@ -428,6 +443,7 @@ export const PlanningSchemaBundleSchema = cast<PlanningSchemaBundle>({
     types: { type: 'array', items: AnyTypeSchemaSchema },
     flows: { type: 'array', items: StatusFlowSchemaSchema },
     assigneeTypes: { type: 'array', items: AssigneeTypeSchemaSchema, nullable: true },
+    app: { ...PlanningAppDeclarationsSchema, nullable: true },
   },
   required: ['version', 'types', 'flows'],
   additionalProperties: false,
@@ -477,6 +493,7 @@ export const ScopedSchemaBundleSchema = cast<ScopedSchemaBundle>({
     types: { type: 'array', items: AnyTypeSchemaSchema },
     flows: { type: 'array', items: StatusFlowSchemaSchema },
     assigneeTypes: { type: 'array', items: AssigneeTypeSchemaSchema, nullable: true },
+    app: { ...PlanningAppDeclarationsSchema, nullable: true },
     scope: {
       type: 'object',
       properties: { entityId: Id, project: OptionalId },

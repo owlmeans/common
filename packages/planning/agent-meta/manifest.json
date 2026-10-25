@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/planning",
-  "version": "0.1.18-rc.29",
-  "generatedAt": "2026-10-20T23:19:58.625Z",
+  "version": "0.1.18-rc.30",
+  "generatedAt": "2026-10-24T21:07:16.900Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -109,7 +109,7 @@
         {
           "name": "types",
           "file": "skills/planning/parts/types.md",
-          "description": "Declaring card, project and specification types and status flows as closed data, the data-defined layers (code, entity, project) and retirement, and the rules every record schema keeps.",
+          "description": "Declaring card, project and specification types and status flows as closed data, the application's own definition properties and base card fields (`app`), the data-defined layers (code, entity, project) and retirement, and the rules every record schema keeps.",
           "purposes": [
             "data"
           ],
@@ -129,7 +129,12 @@
             "putFlow",
             "putAssigneeType",
             "scopedCardTypes",
-            "overridable"
+            "overridable",
+            "appSchemaHelper",
+            "PlanningAppDeclarations",
+            "PlanningAppSchema",
+            "registerApp",
+            "fieldsSchema"
           ]
         }
       ]

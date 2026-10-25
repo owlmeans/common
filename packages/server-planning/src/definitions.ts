@@ -84,7 +84,8 @@ const layerKey = (kind: PlanningSchemaKind, key: string): string => `${kind}:${k
  * The data-defined schema surface of one scoped facade. Every write checks, before anything is
  * stored: the project (a project card this scope can see), the seal of the code registry, the
  * declaration's closed-form checks (a type's flows must resolve in its layer, counting the flows
- * written beside it) — and then writes through the port's compare-and-set.
+ * written beside it; a type's and a flow's `app` bag against the application's declarations) — and
+ * then writes through the port's compare-and-set.
  */
 export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade): PlanningDefinitions => {
   const scope = facade.scope
@@ -119,6 +120,7 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
   /** Seal and closed-form checks for everything in the plan — nothing is written when one fails. */
   const validate = async (plan: Planned[], project?: string): Promise<void> => {
     const code = runtime.service().schemas
+    const app = code.app()
     const layer = await runtime.scopedSchemas(entityId, project)
     const pending = new Map(plan.filter(entry => entry.kind === PlanningSchemaKind.Flow)
       .map(entry => [entry.key, entry.definition as StatusFlowSchema]))
@@ -130,9 +132,9 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
         if (project != null) throw new PlanningUnsupported('assignee-schema:project-layer')
         scopedSchemaHelper.assertAssigneeTypeSchema(entry.definition as AssigneeTypeSchema)
       } else if (entry.kind === PlanningSchemaKind.Flow) {
-        scopedSchemaHelper.assertFlowSchema(entry.definition as StatusFlowSchema)
+        scopedSchemaHelper.assertFlowSchema(entry.definition as StatusFlowSchema, app)
       } else {
-        scopedSchemaHelper.assertTypeSchema(entry.definition as WorkcardTypeSchema, flows)
+        scopedSchemaHelper.assertTypeSchema(entry.definition as WorkcardTypeSchema, flows, app)
       }
     }
   }

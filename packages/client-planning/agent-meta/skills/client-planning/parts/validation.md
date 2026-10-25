@@ -11,8 +11,10 @@ metadata:
 
 ## Browser field validation under CSP
 
-Bind `makePlanningFieldValidator(type.fields)` to the exact definition returned by the resolved
-organization or project bundle. Its `validateFields(fields)` returns `{ valid, errors }`; errors
+Bind `makePlanningFieldValidator(registry.fieldsSchema(type))` to the registry of the resolved
+organization or project bundle — the type's own `fields` plus the application's base card fields
+(`planning` → types part); with no base fields it IS `type.fields`. Passing `type.fields` alone
+skips the base fields the server still enforces. Its `validateFields(fields)` returns `{ valid, errors }`; errors
 carry decoded `path`, `keyword`, `schemaPath` and a bounded value-free `message`. Construct one JSON
 fields object, validate it and send that same object. No coercion, defaults or property removal
 occurs, and the schema is left unchanged. Preserve nested money objects and calendar date strings.

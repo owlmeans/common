@@ -7,6 +7,7 @@ import type { AgentProject, Entity, UserStory } from '../ba/types.js'
 import type { UXTransition } from '../ux/types.js'
 import type { SeniorityMode } from '../consts.js'
 import type { ViableProjectCard, ViableStoryCard } from '../planning/types.js'
+import type { OriginTenancyFacts } from '../areas/types.js'
 
 /**
  * Model-selection contracts are owned by `@owlmeans/llm-common` — the JSON-safe config
@@ -49,6 +50,14 @@ export interface ExecutionState extends LlmExecutionState {
    * Absent means the platform default — every project created before blueprints existed.
    */
   blueprint?: BlueprintRef
+  /**
+   * What a CONVERTED project's origin called its tenant: the label, the key fields it keyed every
+   * record by, its records of people. Facts, never a map — derived by the platform from the project
+   * card's `fields.tenancy.origin` wherever it builds a root execution, so a fresh, resumed,
+   * free-flight or story-format run carries the same words with no file read. Absent for every
+   * project that was not converted from a tenanted origin, and while no tenancy flag is on.
+   */
+  originTenancy?: OriginTenancyFacts
 }
 
 /**

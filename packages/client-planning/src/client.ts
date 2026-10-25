@@ -2,9 +2,9 @@ import { bindAll } from '@owlmeans/client-entrypoint'
 import { createLazyService, MiddlewareStage, MiddlewareType } from '@owlmeans/context'
 import type { EntrypointTree } from '@owlmeans/entrypoint'
 import {
-  DEFAULT_PLUGIN_ORDER, makeSchemaRegistry, PLANNING_SERVICE, PlanningUnsupported,
+  appSchemaHelper, DEFAULT_PLUGIN_ORDER, makeSchemaRegistry, PLANNING_SERVICE, PlanningUnsupported,
 } from '@owlmeans/planning'
-import type { PlanningFacade, PlanningPlugin, PlanningSchemaRegistry } from '@owlmeans/planning'
+import type { PlanningAppDeclarations, PlanningFacade, PlanningPlugin, PlanningSchemaRegistry } from '@owlmeans/planning'
 import { makeRemoteCommitSource } from './commits.js'
 import { makeRemoteDefinitions } from './definitions.js'
 import { makeRemoteFacade } from './facade.js'
@@ -21,7 +21,7 @@ import type {
  * What only a server can do is refused rather than faked: a client runs no middleware and folds
  * nothing, so `store()`, `committed()` and a plugin carrying hooks or a store answer
  * `PlanningUnsupported`. A plugin carrying only schemas is accepted — it layers over the server's
- * bundle.
+ * bundle (its `schemas.app` merged over the served declarations, in plugin order).
  */
 export const makePlanningClientService = <C extends Config, T extends Context<C>>(
   context: T, options: PlanningClientOptions
@@ -43,11 +43,16 @@ export const makePlanningClientService = <C extends Config, T extends Context<C>
     socket: options.socket, poll: options.poll, timeout: options.timeout, stores, lifecycle,
   })
 
-  const layerPlugins = (): void => plugins.forEach(plugin => {
-    plugin.schemas?.assigneeTypes?.forEach(registry.registerAssigneeType)
-    plugin.schemas?.flows?.forEach(registry.registerFlow)
-    plugin.schemas?.types?.forEach(registry.registerType)
-  })
+  // The application's declarations the server served — what every client plugin's `app` merges over.
+  let served: PlanningAppDeclarations | undefined
+  const layerPlugins = (): void => {
+    registry.registerApp(appSchemaHelper.merge([served, ...plugins.map(plugin => plugin.schemas?.app)]))
+    plugins.forEach(plugin => {
+      plugin.schemas?.assigneeTypes?.forEach(registry.registerAssigneeType)
+      plugin.schemas?.flows?.forEach(registry.registerFlow)
+      plugin.schemas?.types?.forEach(registry.registerType)
+    })
+  }
 
   let loadedKey = scopeKey()
   let loaded = false
@@ -64,6 +69,7 @@ export const makePlanningClientService = <C extends Config, T extends Context<C>
         const bundle = await operation.wait(context.entrypoint(options.protocols.schema.list).call({ timeout: options.timeout, signal: operation.signal }))
         operation.check()
         registry.load(bundle)
+        served = registry.app()
         layerPlugins()
         loaded = true
 
@@ -97,7 +103,7 @@ export const makePlanningClientService = <C extends Config, T extends Context<C>
     const stopping = [...feeds]
     feeds.clear()
     loaded = false; loading = null; definitions?.invalidate()
-    registry.load({ version: 1, types: [], flows: [] }); layerPlugins()
+    registry.load({ version: 1, types: [], flows: [] }); served = undefined; layerPlugins()
     await Promise.all(stopping.map(async feed => await feed.stop()))
   })
 
@@ -115,6 +121,9 @@ export const makePlanningClientService = <C extends Config, T extends Context<C>
     use: plugin => {
       if (plugin.before != null || plugin.after != null || plugin.store != null || plugin.mintCode != null) {
         throw new PlanningUnsupported(`client:plugin:${plugin.name}`)
+      }
+      if (plugin.schemas?.app != null) {
+        appSchemaHelper.assertDeclarations(plugin.schemas.app)
       }
       const existing = plugins.findIndex(candidate => candidate.name === plugin.name)
       if (existing >= 0) {

@@ -294,6 +294,22 @@ describe('viable-common - the viable field schemas', () => {
     expect(project({ tenancy: null })).toBe(true)
   })
 
+  test('a converted project records its origin tenant compactly, bounded and closed', () => {
+    const origin = { label: 'team', keys: ['teamId'], people: ['TeamMember', 'Invitation'] }
+    expect(project({ tenancy: { operators: false, users: true, by: 'model', at, origin } })).toBe(true)
+    expect(project({ tenancy: { operators: false, users: true, by: 'model', at, origin: null } })).toBe(true)
+    expect(project({ tenancy: { operators: false, users: true, by: 'model', at, origin: { label: 'team', keys: [] } } })).toBe(false)
+    expect(project({
+      tenancy: { operators: false, users: true, by: 'model', at, origin: { ...origin, routes: ['/t/:teamId'] } },
+    })).toBe(false)
+    expect(project({
+      tenancy: { operators: false, users: true, by: 'model', at, origin: { ...origin, keys: Array(9).fill('teamId') } },
+    })).toBe(false)
+    expect(project({
+      tenancy: { operators: false, users: true, by: 'model', at, origin: { ...origin, label: 'x'.repeat(65) } },
+    })).toBe(false)
+  })
+
   test('a project refuses a partial tenancy decision, an unknown decider and a stray key', () => {
     expect(project({ tenancy: { users: true, by: 'model', at } })).toBe(false)
     expect(project({ tenancy: { operators: true, users: false, at } })).toBe(false)

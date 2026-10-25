@@ -373,7 +373,24 @@ export enum PlatformFlow {
   SignOut = 'sign-out',
   VerifyEmail = 'verify-email',
   RecoverAccount = 'recover-account',
+  /** Choosing the organization one acts in — the header's organization switch. Tenanted origins only. */
+  OrganizationSwitch = 'organization-switch',
+  /** Creating a new organization of one's own — inside the same switch. Tenanted origins only. */
+  OrganizationCreate = 'organization-create',
 }
+
+/**
+ * The platform flows that exist only where the origin splits its people into tenants.
+ *
+ * Every Viable target with a tenancy flag on carries the organization switch in its header, and
+ * creating an organization lives in that switch — so an origin's team switcher and its "new team"
+ * form are the platform's. Nothing else about a tenant is: inviting people, listing and removing
+ * them, giving roles and renaming the organization stay STORIES built on the seed's people panel,
+ * and a conversion of an origin without tenants never places a flow here.
+ */
+export const TENANT_PLATFORM_FLOWS: readonly PlatformFlow[] = Object.freeze([
+  PlatformFlow.OrganizationSwitch, PlatformFlow.OrganizationCreate,
+])
 
 /** The input slices a cost estimate projects a stage's token spend from. */
 export enum EstimateSlice {
@@ -468,9 +485,25 @@ export const CONVERSION_ASSUMPTIONS_FILE = `${CONVERSION_DIR}/assumptions.md`
 export const CONVERSION_INQUIRIES_FILE = `${CONVERSION_DIR}/inquiries.md`
 export const CONVERSION_DUMPS_FILE = `${CONVERSION_DIR}/dumps.md`
 export const CONVERSION_ORIGIN_CARD_FILE = `${CONVERSION_DIR}/origin.md`
+/** How the origin splits its people into tenants, and what that maps onto (`OriginTenancyRecord`). */
+export const CONVERSION_TENANCY_FILE = `${CONVERSION_DIR}/tenancy.md`
+/**
+ * The origin's own persisted types, assembled from the summaries, and the facts its planning
+ * definitions state for the target's definition editors (`OriginTypesRecord`, `originTypesHelper`).
+ */
+export const CONVERSION_TYPES_FILE = `${CONVERSION_DIR}/types.md`
 
 /** One document per extracted story, named by the platform's story code. */
 export const CONVERSION_STORY_DIR = `${CONVERSION_DIR}/stories`
+/**
+ * One document per top-level package of the origin, holding a whole-file summary of every
+ * readable file in it (`conversionDocHelper.conversionSummaryDoc`). The origin's root package is
+ * {@link CONVERSION_SUMMARY_ROOT}, and that document also names every other one, so a reader finds
+ * the whole set without listing a directory.
+ */
+export const CONVERSION_SUMMARY_DIR = `${CONVERSION_DIR}/summaries`
+/** The summaries document of the origin's root package — the index of the set. */
+export const CONVERSION_SUMMARY_ROOT = 'root'
 /** One document per carried seed file, describing what it is and how to load it. */
 export const CONVERSION_SEED_DIR = `${CONVERSION_DIR}/seed`
 /** The carried seed data itself, beside its description. */
@@ -508,6 +541,8 @@ export const CONVERSION_DOCS: readonly string[] = [
   CONVERSION_INQUIRIES_FILE,
   CONVERSION_DUMPS_FILE,
   CONVERSION_ORIGIN_CARD_FILE,
+  CONVERSION_TENANCY_FILE,
+  CONVERSION_TYPES_FILE,
 ]
 
 /** The memory nodes a conversion owns in the target's harness. */
@@ -603,7 +638,11 @@ export const BULK_DUMP_MIN_BYTES = 1_000_000
 /** Distinct extensions reported in the inventory document. */
 export const TOP_EXTENSIONS = 30
 
-/** Files one taxonomy layer samples, and the characters those samples may total. */
+/**
+ * What one taxonomy layer's prompt may carry: `TAXONOMY_SAMPLE_CHARS` in all — every candidate's
+ * whole-file summary first — and at most `TAXONOMY_SAMPLE_FILES` files shown RAW, the ones no usable
+ * summary was recorded for.
+ */
 export const TAXONOMY_SAMPLE_FILES = 60
 export const TAXONOMY_SAMPLE_CHARS = 120_000
 

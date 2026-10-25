@@ -58,7 +58,10 @@ metadata:
   `ConformanceFailure`) — and `conformanceCasesFor(store)`, which drops the data-defined cases for a
   store without the port. Boot a service with `planningConformancePlugin` and `conformanceClock()`
   and hand each case `{ service, store, facade }`; every case works in its own organization, so one
-  boot serves them all.
+  boot serves them all. A case that needs extra declarations `use`s a plugin on `service` and
+  replaces it by name with an empty one when it ends (`CONFORMANCE_APP_PLUGIN`: a stored layer
+  keeps a definition's `app` bag inside `definition` and a card's base fields inside `fields`) —
+  the cases run in order on one service, never concurrently.
 - `makeCommitHub({ status, remember?, ladder? })` is the `CommitSource`: feed `publish` from the bus,
   answer `status` from transition rows. `wait` subscribes first, polls once, then climbs the ladder.
 - `foldHelper.revisionsFromLog(transitions, limit?)` answers `specs.revisions`.

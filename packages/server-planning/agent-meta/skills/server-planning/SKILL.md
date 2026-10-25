@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-planning
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.35"` in `dependencies` (`ajv` is a peer)
+**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.36"` in `dependencies` (`ajv` is a peer)
 
 The general implementation of `@owlmeans/planning`: the planning service (a plugin host), the
 scoped facade, the executor every write goes through, the in-memory reference store, the commit
@@ -22,7 +22,7 @@ reuses the `./store` subpath (`foldHelper.foldPending`, `makeCommitHub`) without
 | `appendPlanningService(ctx, opts?, alias?)` | Registers the lazy host service and `ctx.planning()` |
 | `ensurePlanningService(ctx, alias?)` | Idempotent — what a plugin package calls before `use` |
 | `makePlanningService(opts?, alias?)`, `planningServiceApi(opts, self)` | The service, and its body for a specialised service |
-| `PlanningServiceOptions` | `{ store?, plugins?, schemas?, hooks?, ids?, now? }` |
+| `PlanningServiceOptions` | `{ store?, plugins?, schemas?, hooks?, ids?, now? }` — `schemas.app` is the first source the plugins' `schemas.app` merge over |
 | `makePluginRegistry`, `makeStoreFacade`, `executeTransition` | The pieces the service is made of |
 | `creatorHelper` — `.creatorOf(scope)`, `.withCreator(exec, scope)`, `.assertCreatorFixed(exec)` | The subject a create is stamped with as `createdBy`, the defaulting the executor applies, and its refusal of any later move |
 | `servePlanningEntrypoints(protocols, opts?)` | One binding per protocol of a `makePlanningProtocols` tree (`schema.define` too when declared) |
@@ -119,6 +119,7 @@ await planning.definitions!.define({
 | `execute({ …, wait: true })` | in process the key is ignored: the receipt returns before the commit, with no `card` — hidden while an inline-folding store (`planning-postgres`) lands at once, exposed the first time another process holds the card's fold | `execute({ … }, { wait: true })` — only the wire body (`ExecuteRequest`) carries `wait` inside |
 | `ctx.planning().for(…)` in a target | `ctx.planning is not a function` | `ctx.service<PlanningHostService>(PLANNING_SERVICE).for(…)` |
 | `{ id, name: 'Repair', … }` on a flow, `{ key, name, … }` on a type | `define` refuses with `SchemaInvalid` (closed schemas); a code plugin's registry does not validate, so the key is silently dropped | a flow's key is `id`, a type's is `type`, the display name is `label` on both |
+| `{ …, description: '…' }` on a type or a flow | `SchemaInvalid` (closed schemas) | `app: { description }`, with `schemas.app.type` / `.flow` declaring `description` (`planning` → types part) |
 | `action: 'create'` | a type error — `TransitionAction` is an enum | `action: TransitionAction.Create` |
 
 Every wrong form is a compile error against the typed facade (`PlanningFacade`,

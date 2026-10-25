@@ -1,6 +1,6 @@
 import type { JSONSchemaType } from 'ajv'
 import { CODE_MAX, IntrinsicPolicy, IntrinsicStatus, SpecificationFormat, WorkcardKind, AnyTypeSchema, ProjectTypeSchema, RelationshipType, SpecificationSlot, StatusFlowSchema, WorkcardTypeSchema } from '@owlmeans/planning'
-import { ProjectArea, TENANCY_QUOTE_MAX } from '../areas/consts.js'
+import { ORIGIN_TENANCY_LIST_MAX, ORIGIN_TENANCY_WORD_MAX, ProjectArea, TENANCY_QUOTE_MAX } from '../areas/consts.js'
 import { CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
 import { REQUIREMENTS_VERSION, StoryKind } from '../ba/consts.js'
 import { RequirementsDocumentSchema } from '../ba/schemas.js'
@@ -66,6 +66,27 @@ export const ViableProjectFieldsSchema = {
         },
         by: { type: 'string', enum: ['model', 'owner'] },
         at: { type: 'string', minLength: 1, maxLength: 32 },
+        // A converted project's origin tenant, compacted (`OriginTenancyFacts`). Bounded like
+        // every list a card carries: the card rides on every planning read.
+        origin: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            label: { type: 'string', minLength: 1, maxLength: ORIGIN_TENANCY_WORD_MAX },
+            keys: {
+              type: 'array',
+              items: { type: 'string', minLength: 1, maxLength: ORIGIN_TENANCY_WORD_MAX },
+              maxItems: ORIGIN_TENANCY_LIST_MAX,
+            },
+            people: {
+              type: 'array',
+              items: { type: 'string', minLength: 1, maxLength: ORIGIN_TENANCY_WORD_MAX },
+              maxItems: ORIGIN_TENANCY_LIST_MAX,
+            },
+          },
+          required: ['label', 'keys', 'people'],
+          additionalProperties: false,
+        },
       },
       required: ['operators', 'users', 'by', 'at'],
       additionalProperties: false,

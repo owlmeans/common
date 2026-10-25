@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/planning
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/planning": "^0.1.18-rc.29"` in `dependencies` (`ajv` and `ajv-formats` are peers)
+**Install:** `"@owlmeans/planning": "^0.1.18-rc.30"` in `dependencies` (`ajv` and `ajv-formats` are peers)
 
 The contracts of project planning: record shapes, schemas, refusals, the protocol tree, the pure
 fold and the models. No database, no fastify, no React. The executor, the plugin registry, the
@@ -45,6 +45,7 @@ forms generated code keeps writing are `server-planning` → Creating and readin
 |---|---|
 | `Workcard`, `Card`, `Project`, `Specification`, `Relationship`, `Transition` | The records |
 | `StatusFlowSchema`, `WorkcardTypeSchema`, `ProjectTypeSchema`, `SpecificationSlot`, `CodePolicy`, `RelationshipType`, `PlanningSchemaBundle` | Type declarations — data, not code |
+| `PlanningAppDeclarations`, `PlanningAppSchema`, `PlanningAppBagKind` | The application's own type/flow properties (`app` bags) and base card fields, declared in code |
 | `TransitionExecution`, `WorkcardDraft`, `TransitionReceipt`, `CommitEvent`, `CommitSource` | The write path and its commit feed |
 | `TransitionStore`, `ProjectionStore`, `SpecificationStore`, `RelationshipStore`, `SchemaStore`, `PlanningStore` | Ports a store implements (only `cards` is required) |
 | `PlanningPlugin`, `PlanningScope`, `PlanningFacade`, `PlanningService`, `PlanningDefinitions` | The plugin seam and the facade, typed here so a plugin and a client can name them |
@@ -60,7 +61,8 @@ forms generated code keeps writing are `server-planning` → Creating and readin
 | `codeHelper` — `mintCode`, `codeScopeOf`, `slugOf` | Codes |
 | `specificationHelper` — `slotOf`, `currentSpecification`, `nextRevision`, `specificationTypeOf`, `bodyCharsOf` | Specifications |
 | `makeAjv`, `validateHelper` — `validateFields`, `validateCard`, `validateSpecificationBody`, `invalidFieldKeys`, `ajvErrorText` | Validation |
-| `makeSchemaRegistry(bundle?)` | Types, flows, cached field validators; `bundle()` / `load()` |
+| `makeSchemaRegistry(bundle?)` | Types, flows, the app declarations (`registerApp`, `app`), `fieldsSchema(type)` and its cached validator; `bundle()` / `load()` |
+| `appSchemaHelper` — `merge`, `assertDeclarations`, `bagSchemaOf`, `assertBag`, `fieldsSchemaOf` | The application's declarations: merge order, closed forms, a definition's `app` bag, a type's effective fields schema |
 | `scopedSchemaHelper` — `resolveScopedBundle`, `scopedRegistryOf`, `assertTypeSchema`, `assertFlowSchema`, `assertOverridable`, `flowInUse`, `schemaRecordKey`, `schemaKeyOf` | Data-defined layers: resolution, the read-only view, the closed-form checks |
 | `makePlanningProtocols(opts)` | The protocol tree |
 | `makeWorkcardModel`, `makeProjectModel`, `makeSpecificationModel`, `modelOf`, `executeFor` | Models |
@@ -70,7 +72,8 @@ forms generated code keeps writing are `server-planning` → Creating and readin
 
 - **Base fields at the top level, provider fields under `fields`.** `title`, `description`, `code`,
   `status`, `labels`, `order`, `parent` are generic and indexable; everything a type adds lives in
-  `fields` and is validated by the type's `fields` JSON schema. Generic code reads only the top.
+  `fields` and is validated by the type's `fields` JSON schema — beside the application's base card
+  fields (`schemas.app.card`, the `types` part). Generic code reads only the top.
   A `fields` key never holds `.` or `$` at any depth (`validateHelper.invalidFieldKeys`).
 - **`entityId` is the organization's stable record id** — never the wire `entitySlug`, never a body
   value. Every read is scoped by it; where a request's comes from is `server-planning` → Scope and
@@ -149,7 +152,7 @@ Load a part on top of this core when its job is in play.
 
 | Part | Load it when |
 |---|---|
-| [types](parts/types.md) | Declaring a type or a status flow, data-defined types and flows (`scopedSchemaHelper`), or a new record schema |
+| [types](parts/types.md) | Declaring a type or a status flow, the application's own properties and base card fields (`app`, `appSchemaHelper`), data-defined types and flows (`scopedSchemaHelper`), or a new record schema |
 | [fold](parts/fold.md) | Folding transitions (`applyHelper`, `changesHelper`) or translating a `WorkcardQuery` (`queryHelper`, `wireHelper`) |
 | [mounting](parts/mounting.md) | Declaring or mounting the protocol tree (`makePlanningProtocols`), or serving it in a generated target |
 | [errors](parts/errors.md) | Throwing, matching or phrasing a planning refusal (marker, HTTP status, i18n text) |

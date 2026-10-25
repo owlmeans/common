@@ -1,10 +1,10 @@
 import { resourceConformance } from './resources.js'
 
-import { applyHelper, CardTypeNotAllowed, CommitState, IntrinsicStatus, PlanningError, PlanningSchemaKind, RelationshipRefused, SchemaConflict, SchemaInUse, SchemaInvalid, SchemaOrigin, SchemaSealed, SpecificationFormat, TransitionAction, UnknownWorkcardType, WorkcardConflict, WorkcardKind, WorkcardNotFound, type CommitEvent, type PlanningFacade, type PlanningStore, type StatusFlowSchema, type Transition, type TransitionExecution, type Unsubscribe, type Workcard, type WorkcardQuery, type WorkcardTypeSchema } from '@owlmeans/planning'
+import { applyHelper, CardTypeNotAllowed, CommitState, FieldsInvalid, IntrinsicStatus, PlanningError, PlanningSchemaKind, RelationshipRefused, SchemaConflict, SchemaInUse, SchemaInvalid, SchemaOrigin, SchemaSealed, SpecificationFormat, TransitionAction, UnknownWorkcardType, WorkcardConflict, WorkcardKind, WorkcardNotFound, type CommitEvent, type PlanningFacade, type PlanningStore, type StatusFlowSchema, type Transition, type TransitionExecution, type Unsubscribe, type Workcard, type WorkcardQuery, type WorkcardTypeSchema } from '@owlmeans/planning'
 import { creatorHelper } from '../executor/creator.js'
 import { assertHelper } from './assert.js'
 import { conformanceFixturesOf } from './fixtures.js'
-import { BOOK_TYPE, LIBRARY, PERIODICAL_TYPE } from './consts.js'
+import { BOOK_TYPE, CONFORMANCE_APP_PLUGIN, LIBRARY, PERIODICAL_TYPE } from './consts.js'
 import type { ConformanceCase } from './types.js'
 import { idHelper } from '@owlmeans/basic-ids'
 
@@ -505,6 +505,56 @@ const cases: ConformanceCase[] = [
 
       same((await definitions.retire(PlanningSchemaKind.Flow, repair.id)).retired, true, 'the flow retires once no live type runs it')
       same((await definitions.bundle()).retired, { types: [folio.type], flows: [repair.id] }, 'both listed retired')
+    },
+  },
+
+  {
+    name: 'stores the application\'s own type and flow properties and validates its base card fields',
+    needs: ['schemas'],
+    run: async ({ service, facade }) => {
+      service.use(CONFORMANCE_APP_PLUGIN)
+      try {
+        const planning = facade(organization())
+        const definitions = planning.definitions!
+        const leaflets: StatusFlowSchema = {
+          id: 'library:leaflet-life', version: 1, app: { description: 'Leaflets come and go' },
+          statuses: [{ key: 'racked', intrinsic: IntrinsicStatus.Planned, initial: true }, { key: 'gone', intrinsic: IntrinsicStatus.Closed }],
+          transitions: [{ name: 'take', from: ['racked'], to: 'gone' }],
+        }
+        const leaflet: WorkcardTypeSchema = {
+          type: 'library:leaflet', kind: WorkcardKind.Card, version: 1, app: { description: 'A folded sheet' },
+          fields: { type: 'object', properties: { pages: { type: 'number' } }, additionalProperties: false },
+          flows: [leaflets.id], specifications: [],
+        }
+        await definitions.define({ flows: [leaflets], types: [leaflet] })
+
+        const stored = await definitions.records({ project: null })
+        same(stored.map(record => [record.key, (record.definition as { app?: unknown }).app]).sort(),
+          [[leaflet.type, leaflet.app], [leaflets.id, leaflets.app]], 'the records keep the app bags')
+        const bundle = await definitions.bundle()
+        same([bundle.types.find(type => type.type === leaflet.type)?.app, bundle.flows.find(flow => flow.id === leaflets.id)?.app],
+          [leaflet.app, leaflets.app], 'the resolved layer keeps them')
+        same(Object.keys(bundle.app?.card?.properties ?? {}), ['shelfmark'], 'the bundle carries the declarations')
+
+        await rejects(definitions.putType({ ...leaflet, version: 2, app: { colour: 'red' } }), SchemaInvalid, 'an undeclared app property')
+        await rejects(definitions.putFlow({ ...leaflets, version: 2, app: undefined }), SchemaInvalid, 'a required app property missing')
+        same((await definitions.registry()).type(leaflet.type).version, 1, 'a refused write stores nothing')
+
+        const branch = await conformanceFixturesOf(planning).createBranch()
+        const card = await execute(planning, {
+          card: { kind: WorkcardKind.Card, type: leaflet.type, parent: branch.id!, title: 'Opening hours', fields: { pages: 2, shelfmark: 'L-1' } },
+          action: TransitionAction.Create,
+        })
+        same(card?.fields, { pages: 2, shelfmark: 'L-1' }, 'a base field beside closed type fields')
+        await rejects(planning.execute({
+          card: { kind: WorkcardKind.Card, type: leaflet.type, parent: branch.id!, title: 'Refused', fields: { shelfmark: 'nope' } },
+          action: TransitionAction.Create,
+        }), FieldsInvalid, 'a base field off its schema')
+        await rejects(planning.execute({ card: card!.id!, action: TransitionAction.Update, changes: { fields: { shelfmark: 'x' } } }),
+          FieldsInvalid, 'an update off the base schema')
+      } finally {
+        service.use({ name: CONFORMANCE_APP_PLUGIN.name })
+      }
     },
   },
 

@@ -20,6 +20,13 @@ export interface RolePlanEntry {
   /** Expected output tokens per call. */
   output: number
   perStory?: boolean
+  /**
+   * One call per WINDOW of the origin's readable files rather than `calls` in all — the whole-file
+   * summaries, where every call is shown one window of one file (or several one-window files
+   * packed). The window count is projected from the census sizes, capped by what the step may
+   * read, and `factor` scales one window into one call's input.
+   */
+  perWindow?: boolean
 }
 
 /**
