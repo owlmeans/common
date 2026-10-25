@@ -17,8 +17,10 @@ The agent runtime. Contracts live in `@owlmeans/agent-common`.
 
 | Export | Description |
 |---|---|
-| `makeAgentModel(options)` | An agent over the LangGraph functional API: `invoke`, `use`, `conversation`. |
-| `makePipeline(spec, options)` | A resumable state machine over a checkpointed LangGraph `StateGraph`: `invoke`, `resume`, `snapshot`, `asStep`. `options.plugins` seats `PipelinePlugin`s. |
+| `makeAgentModel(options)` | An agent over the LangGraph functional API: `invoke(input, { action, context, stop, inbox })`, `use`, `conversation`. |
+| `AgentInbox` · `AGENT_INBOX_PREFIX` | The person's messages for a running loop (`drain`, `drainOrClose`) and the prefix of the turn that carries them. |
+| `AGENT_STOP_INSTRUCTION` · `AGENT_STOPPED_TOOL_RESULT` · `AGENT_STOP_SUMMARY_TIMEOUT_MS` · `AGENT_STOPPED_NOTE` | A stopped loop's summary turn, the answer to a tool call it did not run, the summary's deadline, the `autoFinish` note. |
+| `makePipeline(spec, options)` | A resumable state machine over a checkpointed LangGraph `StateGraph`: `invoke`, `resume`, `snapshot`, `asStep`. `options.plugins` seats `PipelinePlugin`s; `stop` on `invoke`/`resume` is the cooperative stop (`PipelineResult.stopped`, `PipelineStopReason`). |
 | `cumulativeResultsPlugin(options)` · `CUMULATIVE_RESULTS_PLUGIN` · `DEFAULT_RESULT_SUMMARY_SCHEMA` | CUMULATIVE PIPELINE RESULTS — tells every step what its predecessors produced; see the `cumulative-results` part. |
 | `PipelinePlugin` and its events, `StepResults`, `PipelineParentRef` | The pipeline plugin seam (types, from `./pipeline`). |
 | `makeCheckpointSaver(store)` | A `BaseCheckpointSaver` over the `CheckpointStore` port. |
@@ -81,6 +83,37 @@ into the usage.
 (`DEFAULT_MAX_TURNS` is 64, `AgentOptions.maxTurns` overrides it), and it is reached only when the
 model keeps calling tools without ever answering — so catch that error by name rather than treating
 every failed run alike: it says the loop ran out of room, not that a tool or the model failed.
+
+**`stop` ends the loop at a boundary and never aborts a model call.** `invoke(input, { stop })` is read
+when an answer arrives and again after the tool results come back; it is never handed to
+`agent.stream` or to the model's `stream`, because an abort inside the `call-llm` task fails the whole
+run, an aborted call is never billed, and a client watching the stream is left showing an open run.
+Once it is aborted, every tool call of the arriving answer is answered with an error `ToolMessage`
+(`AGENT_STOPPED_TOOL_RESULT`) instead of running, and tools already running finish. Then ONE summary
+call ends the loop: the `AGENT_STOP_INSTRUCTION` human turn appended, the tools still bound — a
+transcript carrying tool blocks needs them declared — with `tool_choice: 'none'` (sent only when
+tools are declared: both providers refuse it without them), its own `AGENT_STOP_SUMMARY_TIMEOUT_MS`
+and no stop, streamed and spectated like any round. A failed summary leaves an empty message and
+never fails the run; a tool call in it is dropped, never run. The result carries `stopped: true`
+(and `autoFinish` finalizes with `AGENT_STOPPED_NOTE`); a stop that meets an answer without tool
+calls ends there, with no summary. A tool that runs a pipeline passes the same signal as the
+pipeline's `stop`, so it ends at its next step boundary rather than being abandoned.
+
+**`tool_choice: 'none'` does not reach every provider.** `@langchain/anthropic` 1.5 maps it to
+`{ type: 'none' }`, Chat Completions in `@langchain/openai` 1.6 sends `'none'`, and the delegated
+model passes `'none'` on. The Responses API path of `@langchain/openai` 1.6.2 keeps only an OBJECT
+`tool_choice` and drops every string, so on `gpt-5*` / `gpt-6*` / `codex-*` (`useResponsesApi`) the
+instruction is the only guard — which is why a summary's tool calls are dropped rather than run.
+
+**`inbox` carries the person's messages into a running loop.** `drain()` runs before every model call
+after the first — not before the summary, since a stop supersedes whatever waits — and what it
+returns becomes ONE `HumanMessage` (`AGENT_INBOX_PREFIX`, then the messages) placed after the tool
+results: Anthropic's `mergeMessages` merges only consecutive tool results and its API combines
+consecutive user turns, so tool results first, then the person's text, is the order both providers
+accept. Where the loop would end on an answer without tool calls it calls `drainOrClose()`, ONE
+atomic call: messages waiting are appended and the loop goes on, none waiting closes the inbox. A
+failing inbox call is logged and treated as empty. The human turns are in the transcript `onTurn`
+sees, and neither they nor the summary count toward `maxTurns`.
 
 **`toolHelper.safeInvokeTool` must never throw.** The loop wraps it in a LangGraph `task`, and a rejected task
 aborts the whole superstep: every sibling tool call in the same parallel batch dies with AbortError
