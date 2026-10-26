@@ -59,3 +59,6 @@ routes; domain rules are `before` plugins. This section is the hub; each package
   `overridable: true` with open `fields` (`additionalProperties: true`); the container project type
   (always sealed) carries `scopedCardTypes: true`, so the app's people override and extend them as
   data through `schema.define`.
+- What the app itself keeps about every type, flow or card (a type's `description`, an origin's
+  attribute planning has no key for) is `PLANNING.schemas.app` — never an extra key on a type or a
+  flow (the `types` part, Application-declared properties).

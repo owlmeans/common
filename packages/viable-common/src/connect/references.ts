@@ -1,4 +1,5 @@
 import type { BlueprintCatalogue } from '../blueprint/catalogue/types.js'
+import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView } from '../batch/types.js'
 import { entrypointRef } from '@owlmeans/entrypoint'
 import { connect } from './consts.js'
 import type {
@@ -103,6 +104,15 @@ export const connectRef: ConnectReferences = {
     rename: entrypointRef<{ params: { id: string }, body: ConnectRenameBody }, ConnectProjectStatus>(connect.project.rename),
     destroy: entrypointRef<{ params: { id: string } }, ConnectProjectSummary>(connect.project.destroy),
     unlock: entrypointRef<{ params: { id: string } }, ConnectAgentLock>(connect.project.unlock),
+    stop: entrypointRef<{ params: { id: string }, body: AgentStopArgs }, ConnectAgentLock>(connect.project.stop),
+    steer: entrypointRef<{ params: { id: string }, body: AgentSteerArgs }, AgentSteerResult>(connect.project.steer),
+    batch: {
+      start: entrypointRef<{
+        params: { id: string }, body: StoryBatchStartArgs
+      }, StoryBatchView>(connect.project.batch.start),
+      get: entrypointRef<{ params: { id: string } }, StoryBatchView | null>(connect.project.batch.get),
+      cancel: entrypointRef<{ params: { id: string } }, StoryBatchView>(connect.project.batch.cancel),
+    },
     activity: entrypointRef<{
       params: { id: string }, query?: ConnectActivityQuery
     }, ConnectFeedPage>(connect.project.activity),

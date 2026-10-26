@@ -39,8 +39,10 @@ nested receipts. Keep business fields and schema definitions unchanged when proj
 Admission and native projection recheck hierarchy, schema fields and endpoint types. Recursive
 visibility follows every project ancestor and filters before paging. Definition record reads
 use the same recursive visibility as cards. Reparenting validates all
-descendants under the prospective schema layer. Ordinary parent deletion refuses existing
-children; project purge removes its descendants, comments, mentions, scoped schemas and links,
+descendants under the prospective schema layer. Ordinary deletion refuses a card with child cards
+(`hierarchy:parent-in-use`, from `makePlanningHierarchy().validate(card, true)`); the card's own
+documents (`hierarchy.documents`) never refuse it — the delete's fold drops them with it, and the
+incoming field-reference check counts them among what goes. Project purge removes its descendants, comments, mentions, scoped schemas and links,
 while retaining organization assignees and reusable teams. Field-backed edges are reconciled in
 the persistence unit; named inverse edges are derived read views, never duplicate persisted rows.
 

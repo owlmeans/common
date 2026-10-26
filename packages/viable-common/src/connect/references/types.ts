@@ -1,4 +1,5 @@
 import type { BlueprintCatalogue } from '../../blueprint/catalogue/types.js'
+import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView } from '../../batch/types.js'
 import type {
   ConnectAccessTokenList, ConnectAccessTokenParams, ConnectAccessTokenRevoked, ConnectBrandingBackfill, ConnectIntentPickup,
   ConnectIntentPickupBody, ConnectOrganizationBranding, ConnectOrganizationBrandingSave, ConnectPrivacyChoices,
@@ -96,6 +97,13 @@ export interface ConnectReferences {
     rename: ConnectReference<{ params: { id: string }, body: ConnectRenameBody }, ConnectProjectStatus>
     destroy: ConnectReference<{ params: { id: string } }, ConnectProjectSummary>
     unlock: ConnectReference<{ params: { id: string } }, ConnectAgentLock>
+    stop: ConnectReference<{ params: { id: string }, body: AgentStopArgs }, ConnectAgentLock>
+    steer: ConnectReference<{ params: { id: string }, body: AgentSteerArgs }, AgentSteerResult>
+    batch: {
+      start: ConnectReference<{ params: { id: string }, body: StoryBatchStartArgs }, StoryBatchView>
+      get: ConnectReference<{ params: { id: string } }, StoryBatchView | null>
+      cancel: ConnectReference<{ params: { id: string } }, StoryBatchView>
+    }
     activity: ConnectReference<{ params: { id: string }, query?: ConnectActivityQuery }, ConnectFeedPage>
     llm: {
       get: ConnectReference<{ params: { id: string } }, ConnectProjectSettings>

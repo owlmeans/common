@@ -295,3 +295,131 @@ describe('agent — pipeline execution', () => {
     expect((await runs.load('run-1'))?.state).toBe('{"value":1}')
   })
 })
+
+describe('agent — cooperative stop', () => {
+  test('a stop ends the run at the next step boundary: the running step commits, no new one starts', async () => {
+    const runs = createMemoryPipelineRunStore()
+    const stop = new AbortController()
+    const log: string[] = []
+    const pipeline = makePipeline<State, Deps>(
+      spec([{ step: 'a' }, { step: 'b', after: ['a'] }, { step: 'c', after: ['b'] }]),
+      {
+        steps: [
+          step('a'),
+          step('b', async (_state, ctx) => { stop.abort(); ctx.deps.log.push('b'); return { value: 2 } }),
+          step('c'),
+        ],
+        runs,
+      },
+    )
+
+    const result = await pipeline.invoke({}, { ...args(log), stop: stop.signal })
+
+    expect(result.status).toBe(PipelineRunStatus.Aborted)
+    expect(result.stopped).toBe('stop')
+    expect(result.completed).toEqual(['a', 'b'])
+    expect(result.pending).toEqual(['c'])
+    expect(result.state.value).toBe(2)
+    expect(log).toEqual(['a', 'b'])
+    const row = await runs.load('run-1')
+    expect(row?.status).toBe(PipelineRunStatus.Aborted)
+    expect(row?.note).toBe('stopped: stop')
+  })
+
+  test('a step sees the stop as ctx.stop; a run given none has no such key', async () => {
+    const stop = new AbortController()
+    const seen: Array<AbortSignal | undefined | 'absent'> = []
+    const pipeline = makePipeline<State, Deps>(spec([{ step: 'a' }]), {
+      steps: [step('a', async (_state, ctx) => { seen.push('stop' in ctx ? ctx.stop : 'absent') })],
+    })
+
+    await pipeline.invoke({}, { ...args(), stop: stop.signal })
+    await pipeline.invoke({}, args())
+
+    expect(seen).toEqual([stop.signal, 'absent'])
+  })
+
+  test('a stop before a parallel branch starts runs neither side of it', async () => {
+    const stop = new AbortController()
+    const log: string[] = []
+    const pipeline = makePipeline<State, Deps>(
+      spec([
+        { step: 'a' },
+        { step: 'left', after: ['a'] },
+        { step: 'right', after: ['a'] },
+        { step: 'join', after: ['left', 'right'] },
+      ]),
+      {
+        steps: [
+          step('a', async (_state, ctx) => { ctx.deps.log.push('a'); stop.abort() }),
+          step('left'),
+          step('right'),
+          step('join'),
+        ],
+        runs: createMemoryPipelineRunStore(),
+      },
+    )
+
+    const result = await pipeline.invoke({}, { ...args(log), stop: stop.signal })
+
+    expect(result.status).toBe(PipelineRunStatus.Aborted)
+    expect(result.stopped).toBe('stop')
+    expect(log).toEqual(['a'])
+    expect(result.completed).toEqual(['a'])
+    expect([...result.pending].sort()).toEqual(['join', 'left', 'right'])
+  })
+
+  test('a boundary passed without the post-commit check still starts nothing after a stop', async () => {
+    // An optional step that fails commits its warning and returns; the stop is met at the entry of
+    // the next step, and the run ends `Aborted` once the graph drains.
+    const runs = createMemoryPipelineRunStore()
+    const stop = new AbortController()
+    const log: string[] = []
+    const pipeline = makePipeline<State, Deps>(
+      spec([{ step: 'a', optional: true }, { step: 'b', after: ['a'] }]),
+      {
+        steps: [
+          step('a', async () => { stop.abort(); throw new Error('could not draw') }),
+          step('b'),
+        ],
+        runs,
+      },
+    )
+
+    const result = await pipeline.invoke({}, { ...args(log), stop: stop.signal })
+
+    expect(result.status).toBe(PipelineRunStatus.Aborted)
+    expect(result.stopped).toBe('stop')
+    expect(result.warnings).toEqual(['a: could not draw'])
+    expect(log).toEqual([])
+    expect((await runs.load('run-1'))?.note).toBe('stopped: stop')
+  })
+
+  test('a stop already aborted starts nothing at all', async () => {
+    const stop = new AbortController()
+    stop.abort()
+    const log: string[] = []
+    const pipeline = makePipeline<State, Deps>(spec([{ step: 'a' }, { step: 'b', after: ['a'] }]), {
+      steps: [step('a'), step('b')],
+      runs: createMemoryPipelineRunStore(),
+    })
+
+    const result = await pipeline.invoke({}, { ...args(log), stop: stop.signal })
+
+    expect(result.status).toBe(PipelineRunStatus.Aborted)
+    expect(result.stopped).toBe('stop')
+    expect(result.completed).toEqual([])
+    expect(log).toEqual([])
+  })
+
+  test('an expired budget names its reason on the result', async () => {
+    const pipeline = makePipeline<State, Deps>(spec([{ step: 'a' }, { step: 'b', after: ['a'] }]), {
+      steps: [step('a', async () => { await new Promise(resolve => setTimeout(resolve, 20)) }), step('b')],
+      runs: createMemoryPipelineRunStore(),
+    })
+
+    const result = await pipeline.invoke({}, { ...args(), budgetMs: 5 })
+
+    expect(result.stopped).toBe('budget')
+  })
+})

@@ -27,7 +27,8 @@ Nothing is appended before step 11 — every refusal leaves the log untouched.
    (`UnknownWorkcardType('retired:…')`). Without the port `Resolved.schemas` IS the code registry.
 5. **`before` chain** — in plugin order; re-resolved once when it changed the card, type or parent.
 6. **Validate** — shape (`planning:malformed:*`), the flow rule (`IllegalTransition`), immutables
-   (`planning:immutable:*`, `createdBy` among them — `creatorHelper.assertCreatorFixed`), merged `fields` (`FieldsInvalid`), labels (`LabelNotAllowed`), a moved
+   (`planning:immutable:*`, `createdBy` among them — `creatorHelper.assertCreatorFixed`), merged `fields` against the
+   type's `fieldsSchema` — its own `fields` plus the app's base card fields (`FieldsInvalid`; the fold re-checks it), labels (`LabelNotAllowed`), a moved
    parent, the slot (`SpecificationSlotUnknown`, `SpecificationRevisionConflict`, JSON body schema
    → `FieldsInvalid`), relationships (`RelationshipRefused`: undeclared type, `from` not the card,
    missing target, type constraints, `single`, unlinking an absent edge).
@@ -60,7 +61,7 @@ resolves. The conformance suite checks a store folds a stored row naming it as t
 
 | Concern | Rule |
 |---|---|
-| Registration | `use(plugin)` replaces by `name`; schemas are contributed at `use` time (later type/flow id wins) |
+| Registration | `use(plugin)` replaces by `name`; schemas are contributed at `use` time (later type/flow id wins); `schemas.app` is re-merged from the service's own and every registered plugin's in plugin order on each `use` (`appSchemaHelper.merge`) — a malformed one refuses the plugin (`SchemaInvalid`) and changes nothing |
 | Order | `order ?? 50` ascending, registration order among equals |
 | Store routing | `store(type)` = the first plugin whose `owns(type)` is true AND that supplies a `store`; else the default store. A store factory is resolved once |
 | Reads | By id: the default store, then each owned store. A list naming one owned type (or several owned by one store) goes there; any other list — a cross-type query — is the default store's alone |

@@ -1,5 +1,5 @@
 import { ResilientError } from '@owlmeans/error'
-import { ConnectConfirmationRequired, ConnectConsentRequired, ConnectOutOfCredits, type ConnectConfirmation } from '@owlmeans/viable-common'
+import { AGENT_NOT_RUNNING_MARKER, ConnectConfirmationRequired, ConnectConsentRequired, ConnectOutOfCredits, STORY_BATCH_ACTIVE_MARKER, STORY_BATCH_EMPTY_MARKER, type ConnectConfirmation } from '@owlmeans/viable-common'
 import { settingsHelper } from './settings.js'
 import { CAPABILITY_LABELS, LIMIT_EXHAUSTED_FIELDS, MARKER_SHAPE, MODERATION, PROTECTED_FILE_DETAIL, STACK_FRAME } from './consts.local.js'
 import { UNKNOWN_REFUSAL, UNPHRASED_REFUSAL } from './consts.js'
@@ -507,6 +507,24 @@ export const createRefusalHelper = (): RefusalHelper => {
       marker: 'viable-agent-common:locked:',
       phrase: task => `The platform holds this project's lock${aside(task)}.`
         + ' Read project_status and ask again once it settles.',
+    },
+    // ── The agent's controls and the story batch ─────────────────────────────────────────────────
+    {
+      marker: `${AGENT_NOT_RUNNING_MARKER}:`,
+      phrase: what => `Nothing is running on this project right now that this reaches${aside(what)}, so there is`
+        + ' nothing to stop or to send a message to. project_status shows what the agent is doing; steer_agent'
+        + ' reaches only an open-ended change while it works — modify_project starts one.',
+    },
+    {
+      marker: `${STORY_BATCH_ACTIVE_MARKER}:`,
+      phrase: batch => `A story batch is already running on this project${aside(batch)} — one runs at a time.`
+        + ' story_batch_status shows it; cancel_story_batch stops it, once the user agreed, before another starts.',
+    },
+    {
+      marker: STORY_BATCH_EMPTY_MARKER,
+      phrase: () => 'Nothing was started: the selection holds no planned story of this project, and a batch'
+        + ' implements planned stories only. list_stories shows where each stands; reset_story puts one back to'
+        + ' planned.',
     },
     {
       marker: 'git-busy:',

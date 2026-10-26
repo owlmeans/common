@@ -1,7 +1,7 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { ResilientError } from '@owlmeans/error'
 import { logger } from '@owlmeans/log'
-import { DEFAULT_PLUGIN_ORDER, PlanningRefused, type PlanningPlugin, type PlanningSchemaRegistry, type PlanningStore } from '@owlmeans/planning'
+import { appSchemaHelper, DEFAULT_PLUGIN_ORDER, PlanningRefused, type PlanningPlugin, type PlanningSchemaRegistry, type PlanningStore } from '@owlmeans/planning'
 import type { PluginRegistry } from './types.js'
 
 const log = logger('planning')
@@ -13,20 +13,25 @@ const messageOf = (error: unknown): string => error instanceof Error ? error.mes
  *
  * Ordering is `order ?? DEFAULT_PLUGIN_ORDER` ascending, lower first; a plugin registered under a
  * name already present replaces it in place. A store factory is resolved once per plugin object and
- * handed to `onStore` (the service binds its `committed` there).
+ * handed to `onStore` (the service binds its `committed` there). The application's declarations the
+ * registry started with (the service's `schemas.app`) are the first source every `use` merges the
+ * plugins' `schemas.app` over, in plugin order.
  */
 export const makePluginRegistry = (
   schemas: PlanningSchemaRegistry, onStore?: (store: PlanningStore) => void
 ): PluginRegistry => {
   const registered: PlanningPlugin[] = []
   const stores = new WeakMap<PlanningPlugin, PlanningStore>()
+  const base = schemas.app()
   let version = 0
 
-  const ordered = (): PlanningPlugin[] => registered
+  const sorted = (plugins: PlanningPlugin[]): PlanningPlugin[] => plugins
     .map((plugin, index) => ({ plugin, index }))
     .sort((left, right) => (left.plugin.order ?? DEFAULT_PLUGIN_ORDER) - (right.plugin.order ?? DEFAULT_PLUGIN_ORDER)
       || left.index - right.index)
     .map(entry => entry.plugin)
+
+  const ordered = (): PlanningPlugin[] => sorted(registered)
 
   const storeOf = (plugin: PlanningPlugin, ctx?: BasicContext<BasicConfig>): PlanningStore | undefined => {
     if (plugin.store == null) {
@@ -44,11 +49,11 @@ export const makePluginRegistry = (
   const registry: PluginRegistry = {
     use: plugin => {
       const at = registered.findIndex(entry => entry.name === plugin.name)
-      if (at < 0) {
-        registered.push(plugin)
-      } else {
-        registered[at] = plugin
-      }
+      const next = at < 0 ? [...registered, plugin] : registered.map((entry, index) => index === at ? plugin : entry)
+      // Merged before anything changes: a malformed declaration leaves the registry as it was.
+      const app = appSchemaHelper.merge([base, ...sorted(next).map(entry => entry.schemas?.app)])
+      registered.splice(0, registered.length, ...next)
+      schemas.registerApp(app)
       plugin.schemas?.assigneeTypes?.forEach(schemas.registerAssigneeType)
       plugin.schemas?.flows?.forEach(schemas.registerFlow)
       plugin.schemas?.types?.forEach(schemas.registerType)

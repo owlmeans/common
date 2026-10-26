@@ -88,6 +88,8 @@ schema writes. Native ports join the current transaction runner. Domain validati
 field-authoritative links, comment content and derived mention maintenance commit together.
 Schema versions and resource versions are compared in SQL, not only before writing.
 
-Deleting a card removes its comments and mention cache. Project purge includes descendants and
+Deleting a card removes its comments and mention cache, and its own documents (the specifications
+whose primary parent is it, transitively) with their comments, mentions, links and log — in the
+fold's transaction, before the card row; the card's own log stays. Project purge includes descendants and
 project-scoped schema rows, and preserves organization assignees and teams. The shared resource
 conformance suite executes against real PostgreSQL, including concurrent CAS and hierarchy checks.

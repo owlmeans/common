@@ -25,6 +25,9 @@ metadata:
   commit to stay pending.
 - A project `delete` purges the project, everything whose `parents` reach it, their specifications,
   links and log; the commit hub remembers the settled event so the waiter still gets its answer.
+- Any other `delete` folds as `cards.drop`: the card, its comments and mentions, and its own
+  documents (specifications whose primary parent is it, transitively) with their links, comments,
+  mentions and log. The card's own log stays — its delete row is the tombstone.
 - **It is wrong for more than one process or a restart** — the log, the cards and the commit feed
   are this process's heap. Use it for tests, tools and single-process demos.
 
@@ -51,6 +54,10 @@ metadata:
   failed at the cursor, or a gap in the seqs, is the store's to step over before calling it
   (`planning-postgres` does it in a prelude).
 - `foldHelper.failPending` is what a dead projection job must do, or waiters hang to their timeout.
+- `cards.drop(id, entityId)` is the fold of a non-project `delete` and takes the record's own
+  documents with it (the `ProjectionStore.drop` contract): the executor admits a delete whose only
+  descendants are those documents, so a store that leaves them behind orphans them. The
+  conformance case `deletes a card with its own documents and refuses one with a child card` pins it.
 - The data-defined schema port (`schemas`) is optional; `makeCompositeStore` passes the default
   store's through. A store that has it must purge a project's layer with the project.
 - **Run the conformance suite.** `@owlmeans/server-planning/conformance` exports
@@ -58,7 +65,10 @@ metadata:
   `ConformanceFailure`) — and `conformanceCasesFor(store)`, which drops the data-defined cases for a
   store without the port. Boot a service with `planningConformancePlugin` and `conformanceClock()`
   and hand each case `{ service, store, facade }`; every case works in its own organization, so one
-  boot serves them all.
+  boot serves them all. A case that needs extra declarations `use`s a plugin on `service` and
+  replaces it by name with an empty one when it ends (`CONFORMANCE_APP_PLUGIN`: a stored layer
+  keeps a definition's `app` bag inside `definition` and a card's base fields inside `fields`) —
+  the cases run in order on one service, never concurrently.
 - `makeCommitHub({ status, remember?, ladder? })` is the `CommitSource`: feed `publish` from the bus,
   answer `status` from transition rows. `wait` subscribes first, polls once, then climbs the ladder.
 - `foldHelper.revisionsFromLog(transitions, limit?)` answers `specs.revisions`.

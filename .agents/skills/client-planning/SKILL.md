@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.37"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.38"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps
@@ -64,14 +64,18 @@ appendPlanningStores(context)        // a browser mirror; a Node client usually 
   from the credential. The execution's own `actor` is never sent.
 - A client runs no middleware and folds nothing: `store()`, `committed()` and a plugin carrying
   `before`/`after`/`store`/`mintCode` answer `PlanningUnsupported`. `use()` accepts a schemas-only
-  plugin, layered over the server's bundle.
+  plugin, layered over the server's bundle; its `schemas.app` merges over the served declarations
+  (`bundle.app`) in plugin order, and a malformed one is refused (`SchemaInvalid`) before anything
+  changes.
 - `timeout` (ms) bounds every call that is not a long poll; a long poll's deadline is its own hold
   plus `LONG_POLL_GRACE`.
 
 ### The schema bundle
 
 `model()` needs the flows and types (`can()`, `available()`, `statusOf()` read the registry with no
-round trip). The bundle is fetched in the background once the context is **Ready** and a failure
+round trip). The bundle also carries the application's declarations (`registry.app()`), so
+`registry.fieldsSchema(type)` / `validator(type)` include its base card fields and a definition's
+`app` bag reads back as written. The bundle is fetched in the background once the context is **Ready** and a failure
 there is swallowed — a browser that is not signed in yet cannot read it, and a context must never
 fail or wait over it. `model()` and `service.loadSchemas()` load it on first use regardless, and a
 failed load is retried by the next caller. `schemas: false` skips the background load.

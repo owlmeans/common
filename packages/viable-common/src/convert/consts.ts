@@ -343,6 +343,55 @@ export enum PurposeEvidenceSource {
   Manifest = 'manifest',
 }
 
+/**
+ * Where one flow of the origin's census ends up in the restored story list.
+ *
+ * Every census flow is placed EXACTLY once — the census's `covered` is only a hint: inside one
+ * story (the common case — duplicates, fragments of one task and one record's
+ * create/browse/edit/archive/restore all share a story), as work a main-flow story already does, or
+ * as account lifecycle the platform provides to every target ({@link PlatformFlow}).
+ */
+export enum OriginFlowDisposition {
+  Story = 'story',
+  Main = 'main',
+  Platform = 'platform',
+}
+
+/**
+ * The account-lifecycle flows every Viable target gets from the platform, and the ONLY flows a
+ * conversion may leave without a story of their own.
+ *
+ * A CLOSED set on purpose. The ordinary analysis declines anything about user management, roles,
+ * permissions or authentication, which is right for a new product and wrong for a conversion: an
+ * origin's administrative user management is behaviour the rebuild owes, and a broad "the platform
+ * does auth" rule silently drops it. Inviting a colleague, changing a member's role or blocking an
+ * account is never one of these.
+ */
+export enum PlatformFlow {
+  SignUp = 'sign-up',
+  SignIn = 'sign-in',
+  SignOut = 'sign-out',
+  VerifyEmail = 'verify-email',
+  RecoverAccount = 'recover-account',
+  /** Choosing the organization one acts in — the header's organization switch. Tenanted origins only. */
+  OrganizationSwitch = 'organization-switch',
+  /** Creating a new organization of one's own — inside the same switch. Tenanted origins only. */
+  OrganizationCreate = 'organization-create',
+}
+
+/**
+ * The platform flows that exist only where the origin splits its people into tenants.
+ *
+ * Every Viable target with a tenancy flag on carries the organization switch in its header, and
+ * creating an organization lives in that switch — so an origin's team switcher and its "new team"
+ * form are the platform's. Nothing else about a tenant is: inviting people, listing and removing
+ * them, giving roles and renaming the organization stay STORIES built on the seed's people panel,
+ * and a conversion of an origin without tenants never places a flow here.
+ */
+export const TENANT_PLATFORM_FLOWS: readonly PlatformFlow[] = Object.freeze([
+  PlatformFlow.OrganizationSwitch, PlatformFlow.OrganizationCreate,
+])
+
 /** The input slices a cost estimate projects a stage's token spend from. */
 export enum EstimateSlice {
   Manifests = 'manifests',
@@ -436,9 +485,25 @@ export const CONVERSION_ASSUMPTIONS_FILE = `${CONVERSION_DIR}/assumptions.md`
 export const CONVERSION_INQUIRIES_FILE = `${CONVERSION_DIR}/inquiries.md`
 export const CONVERSION_DUMPS_FILE = `${CONVERSION_DIR}/dumps.md`
 export const CONVERSION_ORIGIN_CARD_FILE = `${CONVERSION_DIR}/origin.md`
+/** How the origin splits its people into tenants, and what that maps onto (`OriginTenancyRecord`). */
+export const CONVERSION_TENANCY_FILE = `${CONVERSION_DIR}/tenancy.md`
+/**
+ * The origin's own persisted types, assembled from the summaries, and the facts its planning
+ * definitions state for the target's definition editors (`OriginTypesRecord`, `originTypesHelper`).
+ */
+export const CONVERSION_TYPES_FILE = `${CONVERSION_DIR}/types.md`
 
 /** One document per extracted story, named by the platform's story code. */
 export const CONVERSION_STORY_DIR = `${CONVERSION_DIR}/stories`
+/**
+ * One document per top-level package of the origin, holding a whole-file summary of every
+ * readable file in it (`conversionDocHelper.conversionSummaryDoc`). The origin's root package is
+ * {@link CONVERSION_SUMMARY_ROOT}, and that document also names every other one, so a reader finds
+ * the whole set without listing a directory.
+ */
+export const CONVERSION_SUMMARY_DIR = `${CONVERSION_DIR}/summaries`
+/** The summaries document of the origin's root package — the index of the set. */
+export const CONVERSION_SUMMARY_ROOT = 'root'
 /** One document per carried seed file, describing what it is and how to load it. */
 export const CONVERSION_SEED_DIR = `${CONVERSION_DIR}/seed`
 /** The carried seed data itself, beside its description. */
@@ -476,6 +541,8 @@ export const CONVERSION_DOCS: readonly string[] = [
   CONVERSION_INQUIRIES_FILE,
   CONVERSION_DUMPS_FILE,
   CONVERSION_ORIGIN_CARD_FILE,
+  CONVERSION_TENANCY_FILE,
+  CONVERSION_TYPES_FILE,
 ]
 
 /** The memory nodes a conversion owns in the target's harness. */
@@ -571,7 +638,11 @@ export const BULK_DUMP_MIN_BYTES = 1_000_000
 /** Distinct extensions reported in the inventory document. */
 export const TOP_EXTENSIONS = 30
 
-/** Files one taxonomy layer samples, and the characters those samples may total. */
+/**
+ * What one taxonomy layer's prompt may carry: `TAXONOMY_SAMPLE_CHARS` in all — every candidate's
+ * whole-file summary first — and at most `TAXONOMY_SAMPLE_FILES` files shown RAW, the ones no usable
+ * summary was recorded for.
+ */
 export const TAXONOMY_SAMPLE_FILES = 60
 export const TAXONOMY_SAMPLE_CHARS = 120_000
 
@@ -599,9 +670,14 @@ export const ESTIMATE_VERSION = 1
  *
  * A BAND and not a number: a story's cost is set by how much code it turns out to need, which is
  * exactly what nothing knows before it is written. Shown with a disclaimer saying so.
+ *
+ * USD worth of credits per complexity point. The original $2–$5 mirrored a regular story's
+ * observed worth; it is scaled by what a conversion story costs against that baseline, measured
+ * on the main, dev-0 and staging ledgers after the 2026-10-21 prompt-cache change: median 57,825
+ * credits per conversion story over 159,259 per regular story before it (×0.3631).
  */
-export const STORY_BAND_MIN_USD = 2
-export const STORY_BAND_MAX_USD = 5
+export const STORY_BAND_MIN_USD = 0.73
+export const STORY_BAND_MAX_USD = 1.82
 
 /** Below this, a purpose inference is reported as a guess and the user is asked to confirm it. */
 export const PURPOSE_CONFIDENCE_FLOOR = 0.4

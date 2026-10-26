@@ -38,8 +38,11 @@ metadata:
 `planning-schema` holds one record per `(organization, project layer, kind, key)`; a write is one
 transaction that bumps the organization's `head` row, writes under the compare-and-set on `version`
 (an INSERT for version 1, an UPDATE guarded on `version - 1` after) and NOTIFYs. `revision()` is a
-primary read of the head row, so the service's cached layers are never served stale. The rules —
-what may be defined, sealing, retiring — are `planning`'s and `server-planning`'s.
+primary read of the head row, so the service's cached layers are never served stale. The whole
+declaration is the `definition` jsonb, so an application's `app` bag (`planning` → types part) is
+stored and read back with it — no column, no migration — as a card's base fields are with its
+`fields`. The rules — what may be defined, sealing, retiring, which `app` bag is admitted — are
+`planning`'s and `server-planning`'s.
 
 ## Querying
 
