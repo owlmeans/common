@@ -21,6 +21,27 @@ export enum OriginDefinition {
 }
 
 /**
+ * How an origin type's records exist IN THE ORIGIN — read off what the whole-file summaries show,
+ * never off a name alone. A converted catalogue follows it: only a `record` is ever a table of the
+ * target, because a response DTO, a stats or usage answer, a form's values or a validation issue
+ * catalogued as a record became a table and endpoints nothing serves (`STORED TYPE NEVER SERVED`).
+ */
+export enum OriginTypeRepresentation {
+  /**
+   * Stored on its own: a database document, model, table or collection declares it, a create input
+   * or a create route writes it, its records carry an id, or another record holds one's id.
+   */
+  Record = 'record',
+  /** Kept inside another type and addressed by nothing — an embedded document, a list or map item. */
+  Value = 'value',
+  /**
+   * Answered or computed, never stored — a response DTO, stats or usage, a form's values, a
+   * validation issue, an operation's result.
+   */
+  View = 'view',
+}
+
+/**
  * The planning field schema an origin's custom-field kind becomes — what a data-defined workcard
  * type's `fields` JSON schema declares for it: `string` (`{ type: 'string' }`), `number`, `enum`
  * (`{ type: 'string', enum }` — a select), `date` (`{ type: 'string', format: 'date' }`), `boolean`

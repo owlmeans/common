@@ -48,7 +48,7 @@ header. Both render the same items; only one is visible at a time.
 
 | Component | Props |
 |---|---|
-| `NavLayout` | `nav: PanelNavConfig`, `translate?`, `title?: ReactNode`, `home?: string` (brand target — defaults to the first section's first item), `actions?: ReactNode`, `mobileMenu?: boolean`, `skipLinkLabel?: string \| false`, `themeToggle?: boolean \| { labels? }`, `footer?: PanelNavLink[] \| ReactNode`, `headerClassName?`, `contentClassName?`, `containerClassName?`, `className?`, `style?` |
+| `NavLayout` | `nav: PanelNavConfig`, `navTestId?: string`, `translate?`, `title?: ReactNode`, `home?: string` (brand target — defaults to the first section's first item), `actions?: ReactNode`, `mobileMenu?: boolean`, `skipLinkLabel?: string \| false`, `themeToggle?: boolean \| { labels? }`, `footer?: PanelNavLink[] \| ReactNode`, `headerClassName?`, `contentClassName?`, `containerClassName?`, `className?`, `style?` |
 | `TopNav` | `config: PanelNavConfig`, `translate?`, `ariaLabel?`, `className?`, `style?` |
 | `SideNav` | the same, plus `variant?: 'side' \| 'bar'` |
 | `MobileNav` | the same as `TopNav`; `ariaLabel` names the landmark inside the sheet, `className`/`style` land on the trigger button |
@@ -188,3 +188,15 @@ Rules that make the shell behave:
 - **Vendor `navigation-menu` and `sheet`.** `SideNav` builds on the package-local `Button`; `TopNav`
   uses the package-local shadcn `navigation-menu` primitive and `MobileNav` the package-local
   `sheet` (over `@radix-ui/react-dialog`, a peer) — see *Consumer setup — package boundary and Tailwind* in [SKILL.md](../SKILL.md).
+
+## Stable selectors and detail screens
+
+`PanelNavSection.testId` and `PanelNavItem.testId` optionally name their rendered destinations;
+`NavLayout.navTestId` names the desktop navigation landmark. With `mobileMenu`, only the current
+viewport's section menu is mounted, keeping the same destination selector unique when the sheet
+opens. Side/bar item selectors are emitted only by the visible variant. Hosts keep their selectors
+in navigation data rather than querying translated text or styling classes.
+
+When an unlisted detail screen has no listed ancestor, the headless model selects the section of
+the longest listed pathname prefix. This covers sibling route declarations such as `/items` and
+`/items/:id` without changing their route hierarchy.

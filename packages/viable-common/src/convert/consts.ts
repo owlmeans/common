@@ -670,9 +670,14 @@ export const ESTIMATE_VERSION = 1
  *
  * A BAND and not a number: a story's cost is set by how much code it turns out to need, which is
  * exactly what nothing knows before it is written. Shown with a disclaimer saying so.
+ *
+ * USD worth of credits per complexity point. The original $2–$5 mirrored a regular story's
+ * observed worth; it is scaled by what a conversion story costs against that baseline, measured
+ * on the main, dev-0 and staging ledgers after the 2026-10-21 prompt-cache change: median 57,825
+ * credits per conversion story over 159,259 per regular story before it (×0.3631).
  */
-export const STORY_BAND_MIN_USD = 2
-export const STORY_BAND_MAX_USD = 5
+export const STORY_BAND_MIN_USD = 0.73
+export const STORY_BAND_MAX_USD = 1.82
 
 /** Below this, a purpose inference is reported as a guess and the user is asked to confirm it. */
 export const PURPOSE_CONFIDENCE_FLOOR = 0.4

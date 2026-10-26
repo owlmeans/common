@@ -1,6 +1,6 @@
 import { IntrinsicStatus } from '@owlmeans/planning'
 import type { OriginProof } from './types.js'
-import { OriginDefinition, OriginFieldSchema } from './origin-types/consts.js'
+import { OriginDefinition, OriginFieldSchema, OriginTypeRepresentation } from './origin-types/consts.js'
 import type {
   OriginCardFacts, OriginContainerFacts, OriginDefinitionFacts, OriginFlowDefinitionFacts, OriginTypeAttribute, OriginTypeDefinitionFacts,
   OriginTypeRelation, OriginTypesHelper, OriginTypesRecord, OriginTypeSpec,
@@ -22,6 +22,7 @@ export const createOriginTypesHelper = (): OriginTypesHelper => {
   const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean'
 
   const DEFINITIONS = new Set<unknown>(Object.values(OriginDefinition))
+  const REPRESENTATIONS = new Set<unknown>(Object.values(OriginTypeRepresentation))
   const SCHEMAS = new Set<unknown>(Object.values(OriginFieldSchema))
   const INTRINSIC = new Set<unknown>(Object.values(IntrinsicStatus))
 
@@ -74,6 +75,7 @@ export const createOriginTypesHelper = (): OriginTypesHelper => {
       attributes: value.attributes.map(attributeOf).filter((entry): entry is OriginTypeAttribute => entry != null),
       relations: value.relations.map(relationOf).filter((entry): entry is OriginTypeRelation => entry != null),
       ...DEFINITIONS.has(value.definition) ? { definition: value.definition as OriginDefinition } : {},
+      ...REPRESENTATIONS.has(value.representation) ? { representation: value.representation as OriginTypeRepresentation } : {},
       // A proof rides the frontmatter's `origin` list — the key a purge drops — or the type itself.
       proofs: [
         ...(Array.isArray(value.proofs) ? value.proofs.map(proofOf).filter((entry): entry is OriginProof => entry != null) : []),

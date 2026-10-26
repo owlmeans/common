@@ -1,6 +1,6 @@
 import type { IntrinsicStatus } from '@owlmeans/planning'
 import type { OriginProof } from '../types.js'
-import type { OriginDefinition, OriginFieldSchema } from './consts.js'
+import type { OriginDefinition, OriginFieldSchema, OriginTypeRepresentation } from './consts.js'
 
 /**
  * One persisted type of the ORIGIN, as its own code declares it.
@@ -26,6 +26,13 @@ export interface OriginTypeSpec {
   relations: OriginTypeRelation[]
   /** The planning definition its records are, when they are one (a work-management origin). */
   definition?: OriginDefinition
+  /**
+   * How its records exist in the origin — stored on their own, kept inside another type, or only
+   * answered — by the evidence the summaries show. The catalogue never seeds a `value` or a `view`
+   * as a record. Absent in a document assembled before the classification, where the catalogue
+   * reads it from the relations alone.
+   */
+  representation?: OriginTypeRepresentation
   /** Every declaration it was assembled from. */
   proofs: OriginProof[]
 }

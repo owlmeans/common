@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { IntrinsicStatus } from '@owlmeans/planning'
 import {
-  CONVERSION_DIR, CONVERSION_DOCS, CONVERSION_TYPES_FILE, OriginDefinition, OriginFieldSchema, originTypesHelper,
+  CONVERSION_DIR, CONVERSION_DOCS, CONVERSION_TYPES_FILE, OriginDefinition, OriginFieldSchema, OriginTypeRepresentation,
+  originTypesHelper,
 } from '../src/convert/index.js'
 
 const CARD_TYPE = {
@@ -78,6 +79,22 @@ describe('viable-common - the origin types document', () => {
     expect(facts?.container).toBeNull()
     expect(facts?.card).toBeNull()
     expect(originTypesHelper.recordOf({ types: [{ ...CARD_TYPE, definition: 'board' }] })?.types[0]?.definition).toBeUndefined()
+  })
+
+  test('keeps how a type exists in the origin — record, value or view — and drops an unknown one', () => {
+    const record = originTypesHelper.recordOf({
+      types: [
+        { ...CARD_TYPE, representation: 'record' },
+        { name: 'ProjectStats', attributes: [], relations: [], representation: 'view' },
+        { name: 'Placement', attributes: [], relations: [], representation: 'value' },
+        { name: 'FlowUsage', attributes: [], relations: [], representation: 'table' },
+      ],
+    })
+
+    expect(record?.types.map(type => type.representation)).toEqual([
+      OriginTypeRepresentation.Record, OriginTypeRepresentation.View, OriginTypeRepresentation.Value, undefined,
+    ])
+    expect('representation' in record!.types[3]!).toBe(false)
   })
 
   test('files a name under its kebab-case key', () => {
