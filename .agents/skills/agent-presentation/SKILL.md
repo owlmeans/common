@@ -5,7 +5,7 @@ description: Shared, runtime-free taxonomy for presenting OwlMeans Viable agent 
 
 # Agent output presentation
 
-**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.48-rc.7"` in `dependencies`
 
 `@owlmeans/viable-common`'s `agent/presentation.ts` owns the browser-safe vocabulary for agent
 output. Keep the server and every client on `agentPresentationHelper.classifyAgentMessage()`; consumers may refine a
@@ -19,6 +19,9 @@ taxonomy.
   a semantic kind; Markdown carries a document kind; every presentation carries a specialist role.
 - Classify from the combined source: agent, helper, action, explicit output type, text and parsed
   value. Helper/agent attribution selects the specialist family; content shape alone is not enough.
+- A code action (`codeActions`: `code`, `update-code`, `update-code-full`, `update-contract`) is code
+  whatever its text reads like. `update-contract` — edit blocks over a TypeScript contract file — is
+  TypeScript by its action (`contractActions`): its `<edit>` tags would read as JSX to the heuristics.
 - A transport may send `presentation` on thinking start and stop events. It is optional for rolling
   compatibility; the final server hint is based on complete output and the browser refines it while
   it streams. Keep legacy `outputType` intact.

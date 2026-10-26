@@ -3,11 +3,28 @@ import type { FileProviderRef, SkillDefinition } from '@owlmeans/llm-common'
 /** Where a package's skills came from — surfaced in logs, useful when a lookup surprises you. */
 export type SkillSource = 'files' | 'local' | 'checkout' | 'remote'
 
+/** One part of a package skill, rendered-ready, with what selects it (read from the manifest). */
+export interface PackagePart {
+  /** The skill entry the part belongs to. */
+  entry: string
+  /** The part name — unique within the package, addressed as `<package>#<name>`. */
+  name: string
+  purposes: string[]
+  mentions: string[]
+  skill: SkillDefinition
+}
+
 export interface PackageSkills {
   packageName: string
   version: string
   source: SkillSource
+  /** The cores, one per skill entry, in entry-name order. */
   skills: SkillDefinition[]
+  /**
+   * Every part of those entries, in part-name order — from a schemaVersion 3 manifest only. The
+   * plugin chooses among them; loading them all here lets one cached lookup serve any choice.
+   */
+  parts: PackagePart[]
 }
 
 export interface PackageSkillsOptions {
@@ -75,4 +92,14 @@ export interface PackageSkillsOptions {
    * the host's own skill catalogue rather than in a package lookup.
    */
   categories?: Array<'package-specific' | 'multi-package' | 'general'>
+
+  /**
+   * In focus mode, how many packages that a call IMPORTS but its focus lacks are loaded into the
+   * per-call Tail (cores only). Defaults to 3. The Tail is never cached, so every package here is
+   * paid at full price on every call.
+   */
+  lateMaxPackages?: number
+
+  /** In focus mode, the ceiling on the late packages' rendered chars. Defaults to 24 000. */
+  lateMaxChars?: number
 }

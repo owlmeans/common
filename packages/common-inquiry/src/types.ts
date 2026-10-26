@@ -69,11 +69,29 @@ export interface InquiryEmailOptions {
   email?: InquiryEmailPreset
 }
 
+/** A subject and message the dialog's form opens with — the inquirer can still edit both. */
+export interface InquiryMessage {
+  subject?: string
+  body?: string
+}
+
+/**
+ * A preset message, or a provider read once when the dialog opens (so a trigger whose context
+ * changes — an estimate the visitor is still adjusting — hands over what it shows at the click).
+ * A missing result, or a provider that throws, leaves the form as it is.
+ */
+export type InquiryMessagePreset = InquiryMessage | (() => InquiryMessage | null | undefined)
+
 export interface InquiryOpenOptions extends InquiryEmailOptions {
   /** The alias of the tab to select; an unknown alias selects the default tab. */
   tab?: string
   /** Which trigger opened the dialog (`fab`, `menu`, `pricing-card` …), reported in analytics. */
   source?: string
+  /**
+   * Applied on this open: each field it names replaces the draft's subject or body. Omit it to keep
+   * whatever the inquirer typed before. A runtime that predates it ignores it.
+   */
+  message?: InquiryMessagePreset
 }
 
 export interface InquiryButtonOptions extends InquiryEmailOptions {

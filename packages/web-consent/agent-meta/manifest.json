@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/web-consent",
-  "version": "0.1.18-rc.44",
-  "generatedAt": "2026-10-10T17:07:11.326Z",
+  "version": "0.1.18-rc.49",
+  "generatedAt": "2026-10-22T17:25:04.161Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,95 @@
       "name": "web-consent",
       "category": "package-specific",
       "file": "skills/web-consent/SKILL.md",
-      "canonicalPath": ".agents/skills/web-consent/SKILL.md"
+      "canonicalPath": ".agents/skills/web-consent/SKILL.md",
+      "parts": [
+        {
+          "name": "dialog",
+          "file": "skills/web-consent/parts/dialog.md",
+          "description": "Mounting CookieConsent once — its surfaces (locating spinner, bar, preferences window), its props, the re-open button, the linker line, the bar, focus, and the login-raised window.",
+          "purposes": [
+            "consent",
+            "dialog",
+            "layout"
+          ],
+          "mentions": [
+            "CookieConsent",
+            "CookieConsentProps",
+            "ConsentDisplayMode",
+            "CONSENT_DEFAULT_MODE",
+            "noReopenButton",
+            "policyHref",
+            "ConsentGeoOptions",
+            "ConsentLinkerOptions",
+            "barClassName",
+            "data-consent-dialog",
+            "data-consent-bar",
+            "data-consent-reopen"
+          ]
+        },
+        {
+          "name": "look",
+          "file": "skills/web-consent/parts/look.md",
+          "description": "The flat look from the host's tokens — the class table, focus outlines, switches named by reference, and the axe and harness checks that pin them.",
+          "purposes": [
+            "consent",
+            "theme"
+          ],
+          "mentions": [
+            "barClassName",
+            "ConsentToggle",
+            "data-consent-overlay",
+            "a11y.spec",
+            "outline-ring"
+          ]
+        },
+        {
+          "name": "menu",
+          "file": "skills/web-consent/parts/menu.md",
+          "description": "ConsentMenuWidget, a plain row a host's own menu renders to reopen the dialog, and where its presence signal must come from.",
+          "purposes": [
+            "consent",
+            "navigation"
+          ],
+          "mentions": [
+            "ConsentMenuWidget",
+            "useConsentMenuPresence",
+            "consentStore.open"
+          ]
+        },
+        {
+          "name": "policy-page",
+          "file": "skills/web-consent/parts/policy-page.md",
+          "description": "The generated CookiePolicy page — what it states, the regional rule, the services disclosure, the linker domain list and its heading structure.",
+          "purposes": [
+            "consent",
+            "screen"
+          ],
+          "mentions": [
+            "CookiePolicy",
+            "CookiePolicyProps",
+            "ConsentService",
+            "googleTagServices",
+            "data-cookie-policy"
+          ]
+        },
+        {
+          "name": "setup",
+          "file": "skills/web-consent/parts/setup.md",
+          "description": "The Tailwind @source line pointing at src, and the packaged i18n bundle with the translate fall-through.",
+          "purposes": [
+            "consent",
+            "config"
+          ],
+          "mentions": [
+            "defaultConsentTranslate",
+            "consentI18nHelper",
+            "CONSENT_LOCALES",
+            "web-consent/src",
+            "@source"
+          ]
+        }
+      ]
     }
   ]
 }

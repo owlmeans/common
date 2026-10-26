@@ -1,5 +1,6 @@
 import type { ProjectArea } from '../areas/consts.js'
 import type { WidgetKind } from './consts.js'
+import type { RecordInteractionPlan } from '../interaction/types.js'
 
 /**
  * The placeholder content of one drawn widget.
@@ -27,6 +28,8 @@ export interface SketchContent {
 
 /** What the scaffold draws for one user story. */
 export interface ScaffoldStoryPlan {
+  /** Capabilities and their host, planned before previews or navigation are drawn. */
+  interaction?: RecordInteractionPlan
   /** The story's code — always one of the codes the planner was given. */
   code: string
   /** The top-menu section, inside the story's own area, this story belongs to. */

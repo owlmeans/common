@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/agent",
-  "version": "0.1.18-rc.51",
-  "generatedAt": "2026-10-10T17:07:11.327Z",
+  "version": "0.1.18-rc.54",
+  "generatedAt": "2026-10-25T09:50:29.836Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,64 @@
       "name": "agent",
       "category": "package-specific",
       "file": "skills/agent/SKILL.md",
-      "canonicalPath": ".agents/skills/agent/SKILL.md"
+      "canonicalPath": ".agents/skills/agent/SKILL.md",
+      "parts": [
+        {
+          "name": "cumulative-results",
+          "file": "skills/agent/parts/cumulative-results.md",
+          "description": "Cumulative pipeline results — deterministic extractors, the ledger and its rebuild, how a step's view is cut, refresh, model summaries, composed runs and seeds.",
+          "purposes": [
+            "agent",
+            "job"
+          ],
+          "mentions": [
+            "cumulativeResultsPlugin",
+            "CUMULATIVE_RESULTS_PLUGIN",
+            "CumulativeResultStore",
+            "CumulativeResultFact",
+            "DEFAULT_RESULT_SUMMARY_SCHEMA",
+            "ctx.results",
+            "withResults"
+          ]
+        },
+        {
+          "name": "pipelines",
+          "file": "skills/agent/parts/pipelines.md",
+          "description": "Resumable pipelines over a checkpointed StateGraph — steps and edges, the PipelinePlugin seam, and the rules for run rows, step guards, state size, failures and retries.",
+          "purposes": [
+            "agent",
+            "job",
+            "state"
+          ],
+          "mentions": [
+            "makePipeline",
+            "PipelineSpec",
+            "PipelinePlugin",
+            "asStep",
+            "skipWhen",
+            "nonIdempotent",
+            "makeCheckpointSaver",
+            "PipelineRunStore",
+            "CheckpointStore",
+            "maxStateChars",
+            "ctx.mark",
+            "ctx.stop",
+            "PipelineStopReason",
+            "@owlmeans/agent/pipeline"
+          ]
+        },
+        {
+          "name": "testing",
+          "file": "skills/agent/parts/testing.md",
+          "description": "Unit tests of agents and pipelines with a scripted model double and files kept in deps.",
+          "purposes": [
+            "test"
+          ],
+          "mentions": [
+            "FakeStreamingChatModel"
+          ]
+        }
+      ]
     }
   ]
 }

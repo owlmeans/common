@@ -26,6 +26,16 @@ export interface PipelineRunContext<S extends PipelineState, C> {
   /** Aborted when the caller's signal aborts, and when the run's budget runs out. */
   signal: AbortSignal
   /**
+   * The caller's cooperative stop (`stop` on `invoke`/`resume`) — present only when one was passed.
+   *
+   * The runner honours it at every step boundary on its own: no step starts once it is aborted, and
+   * a step that completes after it ends the run `Aborted` (`stopped: 'stop'`). A step hands it to the
+   * work it starts — a nested agent loop ends at its next loop boundary, a composed child (`asStep`
+   * forwards it) at its next step boundary — and NEVER returns early on it: a step that returns is
+   * committed complete. Nothing aborts it on a budget, and LangGraph never sees it.
+   */
+  readonly stop?: AbortSignal
+  /**
    * Persist a patch NOW, before the step returns.
    *
    * The unit of replay is a step, so a step that does N undoable things in a loop has to be able to
@@ -229,6 +239,12 @@ export interface PipelineOptions<S extends PipelineState, C> {
   plugins?: PipelinePlugin<S, C>[]
 }
 
+/**
+ * Why a run ended short of its last step: its budget ran out, the caller's hard `signal` aborted,
+ * the caller's cooperative `stop` aborted, or a step parked on a question.
+ */
+export type PipelineStopReason = 'budget' | 'signal' | 'stop' | 'inquiry'
+
 export interface PipelineResult<S extends PipelineState> {
   runId: string
   status: PipelineRunStatus
@@ -241,6 +257,11 @@ export interface PipelineResult<S extends PipelineState> {
   note?: string
   /** What a `Waiting` run stopped on. Present only with that status. */
   inquiry?: PipelineRunInquiry
+  /**
+   * Why the run stopped: present with `Aborted` (`budget`, `signal`, `stop`) and `Waiting`
+   * (`inquiry`), absent otherwise. A caller tells a person's stop from an exhausted budget by it.
+   */
+  stopped?: PipelineStopReason
 }
 
 export interface PipelineInvokeArgs<C> {
@@ -252,7 +273,17 @@ export interface PipelineInvokeArgs<C> {
   /** Recorded so a resume can re-take the same lock. */
   lockTask?: string
   budgetMs?: number
+  /**
+   * A HARD kill. It is handed to LangGraph, which rejects at once while the running step carries on
+   * detached, and the row ends `Failed`. A person's stop is `stop`, never this.
+   */
   signal?: AbortSignal
+  /**
+   * A cooperative stop, never linked to LangGraph: the run ends `Aborted` (`stopped: 'stop'`) at its
+   * next step boundary — the running steps finish and commit, no new step starts — and a later
+   * `resume` continues from the next step. Exposed to steps as `ctx.stop`.
+   */
+  stop?: AbortSignal
   onProgress?: (progress: PipelineProgress) => void
   /**
    * Discard an unfinished run under this id and start over.
@@ -285,7 +316,10 @@ export interface PipelineResumeArgs<C> {
    */
   answers?: Record<string, InquiryAnswer>
   budgetMs?: number
+  /** A HARD kill, exactly as on `invoke`. */
   signal?: AbortSignal
+  /** A cooperative stop at the next step boundary, exactly as on `invoke`. */
+  stop?: AbortSignal
   onProgress?: (progress: PipelineProgress) => void
 }
 
@@ -294,6 +328,11 @@ export interface PipelineResumeArgs<C> {
  *
  * The child keeps its own run row (`<parentRunId>/<step>`), so a parent resumed at the composing
  * step resumes the child at the child's own failed step rather than re-running all of it.
+ *
+ * `output` is called only for a child that ended `Done` (or a tolerated `Failed`). A child that ended
+ * `Aborted` — its budget, the hard signal or the cooperative stop — stops the PARENT with the child's
+ * reason, and the composing step is not committed: a resume re-enters it, and the child continues
+ * from its own row.
  */
 export interface PipelineStepMapping<S extends PipelineState, PS extends PipelineState> {
   input: (parent: Readonly<PS>) => Partial<S>

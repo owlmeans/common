@@ -10,13 +10,17 @@ metadata:
 
 Shadcn-based web packages are the **current Web layer**. `@owlmeans/web-panel` is the reference one, and `@owlmeans/mui-panel` is the legacy MUI family it supersedes. Both sit at the same architecture layer (Web) and wrap the same headless `@owlmeans/client-panel` logic; the shadcn family swaps MUI + Emotion for shadcn UI + Tailwind CSS v4, and a new package follows `web-panel`'s shape.
 
-See `reference.md` in this skill folder for full code examples (components.json, tsconfig, globals.css @theme tokens, peerDeps, cn(), MUI→shadcn mapping table).
+See the `shadcn-reference` part ([parts/shadcn-reference.md](parts/shadcn-reference.md)) for full code examples (components.json, tsconfig, globals.css @theme tokens, peerDeps, cn(), MUI→shadcn mapping table).
 
 ## Package-boundary rule
 
 Four invariants govern every shadcn-based OwlMeans package:
 
 1. **No shadcn registries.** Primitives (Button, Input, Card, …) are **hand-copied** into `src/@/components/ui/` and committed. The `registries` field in `components.json` is always empty/absent.
+
+The full upstream MIT grant and copyright accompany copied primitives in the package's
+`THIRD-PARTY-NOTICES.txt`; tarball whitelists include it and bundle builds collect it through
+`@owlmeans/dep-config/notices` (`third-party-notices`). A provenance comment alone is insufficient.
 
 2. **Package-local relative imports.** Components import their private shadcn primitives and utilities with relative specifiers. The emitted `build/` tree must contain no absolute `@/…` import: that alias belongs to the consumer and makes a clean installation depend on files it does not own.
 
@@ -154,7 +158,12 @@ rewritten to relative specifiers before build. Check emitted JavaScript too: no 
 1. Find the component source on the [shadcn GitHub](https://github.com/shadcn-ui/ui) (e.g. `registry/new-york/ui/<name>.tsx`) or via `npx shadcn@latest add <name> --cwd <your-package-dir>` in a throwaway branch.
 2. Copy the `.tsx` source into `src/@/components/ui/<name>.tsx`.
 3. Repoint all imports to relative paths into `src/@/lib` and `src/@/components/ui`.
-4. Add any `@radix-ui/*` packages the file imports as **peerDependencies** in `package.json`.
+4. Add any `@radix-ui/*` packages the file imports as **peerDependencies** in `package.json`
+   (`"*"`) and as devDependencies. Radix primitives that layer over each other (`dialog`,
+   `popover`, `dropdown-menu`, …) share module-level dismissable-layer and focus-scope stacks, so
+   the dev copy must resolve to the SAME generation as its siblings already in the lock (e.g.
+   popover 1.1.23 beside dialog 1.1.23, not 1.3.x): mixed, a popover inside a dialog counts as an
+   outside click and loses focus to it.
 5. Add a comment at the top: `// shadcn <name> — sourced from shadcn@<version> <date>`.
 6. Run `bun install` and `bun run build` to verify.
 7. Document the package's peer dependencies. Consumers never vendor its private primitives;
@@ -256,3 +265,9 @@ import '../../src/@/globals.css'
 - `[[shadcn-versions]]` — bumping tailwind/shadcn external deps across packages
 - `[[tsconfig]]` — OwlMeans TypeScript config conventions
 - `[[bun]]` — build, install, workspace filter scripts
+
+## Parts
+
+| Part | Load it when |
+|---|---|
+| [shadcn-reference](parts/shadcn-reference.md) | setting up a shadcn package (components.json, tsconfig, tokens, peer deps, test harness) or mapping MUI components |

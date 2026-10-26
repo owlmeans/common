@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/config",
-  "version": "0.1.18-rc.44",
-  "generatedAt": "2026-10-05T21:03:06.417Z",
+  "version": "0.1.18-rc.45",
+  "generatedAt": "2026-10-20T23:19:58.648Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

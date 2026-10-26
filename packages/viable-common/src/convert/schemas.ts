@@ -3,11 +3,12 @@ import { ProjectArea } from '../areas/consts.js'
 import { CONNECT_INQUIRY_MAX_TEXT } from '../connect/consts.js'
 import { ModelRole } from '../execution/consts.js'
 import {
-  ArchitectureCase, ConversionStage, OriginKind, OriginState, PurposeEvidenceSource, StackFamily, StackId,
-  TaxonomyKind, WorkspaceKind
+  ArchitectureCase, ConversionStage, OriginKind, OriginState, PlatformFlow, PurposeEvidenceSource,
+  StackFamily, StackId, TaxonomyKind, WorkspaceKind
 } from './consts.js'
 import type {
-  AreaAlignment, DesignInference, OriginFlow, OriginFlowList, PurposeInference, StoryProof
+  AreaAlignment, DesignInference, OriginFlow, OriginFlowConsolidation, OriginFlowList,
+  PurposeInference, StoryProof
 } from './analysis/types.js'
 import type { SeedDetection } from './census/types.js'
 import type { ArchitectureVerdict, StackConfirmation } from './detection/types.js'
@@ -15,7 +16,11 @@ import type { ConversionEstimate, StoryEstimateBand } from './estimate/types.js'
 import type {
   ConversionAnswer, ConversionInventorySummary, ConversionStackRef, ConversionStructure
 } from './record/types.js'
+import type {
+  FileSummaryAnswer, FileSummaryAnswerField, FileSummaryBatch
+} from './summary/types.js'
 import type { TaxonomyEntry, TaxonomyEntryList, TaxonomyRoleList } from './taxonomy/types.js'
+import type { OriginTenancyAnswer } from './tenancy/types.js'
 import type { OriginProof, ProjectOrigin } from './types.js'
 
 /**
@@ -338,6 +343,68 @@ export const OriginFlowListSchema: JSONSchemaType<OriginFlowList> = {
   additionalProperties: false,
 }
 
+/**
+ * The consolidation of the origin's whole flow census into stories.
+ *
+ * `platform` takes the CLOSED {@link PlatformFlow} vocabulary rather than free text, which is what
+ * keeps an origin's administrative user management out of it: only account lifecycle the platform
+ * gives every target may be left without a story.
+ */
+export const OriginFlowConsolidationSchema: JSONSchemaType<OriginFlowConsolidation> = {
+  type: 'object',
+  title: 'OriginFlowConsolidation',
+  description: 'Every flow of the original placed exactly once: in a story, as work a main-flow story already does, or as account lifecycle the platform provides',
+  properties: {
+    groups: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          members: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The ids of the flows this one story covers'
+          },
+          area: { type: 'string', enum: Object.values(ProjectArea) },
+          actor: { type: 'string', description: 'Who performs it' },
+          kind: {
+            type: 'string',
+            enum: ['ui', 'job', 'cli'],
+            description: 'Whether it runs on screen, as background work, or from a command line'
+          },
+          story: {
+            type: 'string',
+            description: 'As a [role], I want to [do something] so that [I get the following results]'
+          },
+        },
+        required: ['members', 'area', 'actor', 'kind', 'story'],
+        additionalProperties: false,
+      },
+      description: 'The stories, each covering one or more flows'
+    },
+    main: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'The ids of the flows whose work a main-flow story already does end to end'
+    },
+    platform: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          provides: { type: 'string', enum: Object.values(PlatformFlow) },
+        },
+        required: ['id', 'provides'],
+        additionalProperties: false,
+      },
+      description: 'The ids of the account-lifecycle flows the platform provides, and which one'
+    },
+  },
+  required: ['groups', 'main', 'platform'],
+  additionalProperties: false,
+}
+
 export const StoryProofSchema: JSONSchemaType<StoryProof> = {
   type: 'object',
   title: 'StoryProof',
@@ -466,6 +533,158 @@ export const DesignInferenceSchema: JSONSchemaType<DesignInference> = {
     font: { type: 'string', nullable: true, description: 'The primary font family' },
   },
   required: ['concept', 'palette'],
+  additionalProperties: false,
+}
+
+/**
+ * A 1-based line number in the WHOLE file — the window a call is shown is numbered from where it
+ * sits in the file, so a line read in the fifth window is not reported as line 3.
+ */
+const lineSchema = {
+  type: 'integer', description: 'The line it is declared on, as numbered in the file',
+} as const
+
+/**
+ * One field of a schema the file declares, in the MODEL's words.
+ *
+ * `mandatory` and `defaultValue`, never `required` and `default`: a provider strips a property
+ * named like a schema keyword from what the model is shown, so such a field could never be
+ * answered. The summarizer maps both onto `FileSummaryField`.
+ */
+const FileSummaryAnswerFieldSchema: JSONSchemaType<FileSummaryAnswerField> = {
+  type: 'object',
+  title: 'FileSummaryAnswerField',
+  description: 'One field of a data schema',
+  properties: {
+    name: { type: 'string' },
+    type: { type: 'string', description: 'Its type as the code states it - string, number, Date, a schema name' },
+    mandatory: { type: 'boolean', description: 'Whether a record must carry it' },
+    enum: {
+      type: 'array',
+      nullable: true,
+      items: { type: 'string' },
+      description: 'The closed list of values it takes, when the code fixes one',
+    },
+    defaultValue: { type: 'string', nullable: true, description: 'Its default, as written in the code' },
+    ref: {
+      type: 'string',
+      nullable: true,
+      description: 'The schema, table or entity it references, when it is a reference',
+    },
+  },
+  required: ['name', 'type', 'mandatory'],
+  additionalProperties: false,
+}
+
+const FileSummaryAnswerSchema: JSONSchemaType<FileSummaryAnswer> = {
+  type: 'object',
+  title: 'FileSummaryAnswer',
+  description: 'What one file of the original project declares and does',
+  properties: {
+    path: { type: 'string', description: 'The file, exactly as it is named above' },
+    role: {
+      type: 'string',
+      description: 'What the file is in its application, in a few words - page, route handler, zod schemas, service, config',
+    },
+    summary: {
+      type: 'string',
+      description: 'What the file does, covering EVERYTHING read of it so far, in at most six sentences',
+    },
+    exports: { type: 'array', items: { type: 'string' }, description: 'Names it exports' },
+    declarations: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'Named types, classes, functions and constants a reader of the file needs',
+    },
+    routes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          method: { type: 'string', description: 'GET, POST, PUT, PATCH, DELETE, or the verb the code uses' },
+          path: { type: 'string', description: 'The route path with its parameters, as declared' },
+          handler: { type: 'string', description: 'The function or controller that serves it' },
+          guards: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The middlewares, decorators or checks in front of it',
+          },
+          line: lineSchema,
+        },
+        required: ['method', 'path', 'handler', 'guards', 'line'],
+        additionalProperties: false,
+      },
+      description: 'Every HTTP route declared in the lines shown',
+    },
+    schemas: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          line: lineSchema,
+          fields: { type: 'array', items: FileSummaryAnswerFieldSchema },
+        },
+        required: ['name', 'line', 'fields'],
+        additionalProperties: false,
+      },
+      description: 'Every data schema, model, table or record type declared in the lines shown, with all its fields',
+    },
+    ui: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          component: { type: 'string', description: 'The page or component name' },
+          line: lineSchema,
+          routeParams: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The route parameters it reads',
+          },
+          inputs: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The inputs a person fills or picks on it',
+          },
+        },
+        required: ['component', 'line', 'routeParams', 'inputs'],
+        additionalProperties: false,
+      },
+      description: 'Every page or component rendered in the lines shown',
+    },
+    tenancySignals: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          signal: {
+            type: 'string',
+            description: 'How it scopes by a tenant - a team, organization or workspace id filter, a membership check, a tenant switch',
+          },
+          line: lineSchema,
+        },
+        required: ['signal', 'line'],
+        additionalProperties: false,
+      },
+      description: 'Where the lines shown scope data or access by a tenant',
+    },
+  },
+  required: [
+    'path', 'role', 'summary', 'exports', 'declarations', 'routes', 'schemas', 'ui', 'tenancySignals',
+  ],
+  additionalProperties: false,
+}
+
+/** One summary call's answer — one entry per file it was shown. */
+export const FileSummaryBatchSchema: JSONSchemaType<FileSummaryBatch> = {
+  type: 'object',
+  title: 'FileSummaryBatch',
+  description: 'What each file shown declares and does',
+  properties: {
+    files: { type: 'array', items: FileSummaryAnswerSchema },
+  },
+  required: ['files'],
   additionalProperties: false,
 }
 
@@ -664,3 +883,94 @@ export const ProjectOriginSchema = {
   additionalProperties: false,
 } as unknown as JSONSchemaType<ProjectOrigin>
 
+
+/** One tenant-management part of the origin, with its own proofs — see `OriginTenancyPart`. */
+const originTenancyPartSchema = (description: string) => ({
+  type: 'object',
+  nullable: true,
+  description,
+  properties: {
+    entity: { type: 'string', description: 'The model, field or component, as the code names it' },
+    fields: {
+      type: 'array', items: { type: 'string' },
+      description: 'What it carries - the roles of a membership, the fields of the settings, the remembered id',
+    },
+    note: { type: 'string', description: 'One sentence about what it does in the original' },
+    proofs: { type: 'array', items: OriginProofSchema, description: 'Files above that show it' },
+  },
+  required: ['entity', 'fields', 'note', 'proofs'],
+  additionalProperties: false,
+})
+
+/**
+ * How the origin splits its people into tenants — ONE model call over the whole-file summaries.
+ *
+ * Model-facing: every optional part is a REQUIRED key that may be `null` (a structured answer
+ * writes an unset optional as `null`), no property is named after a JSON-schema keyword, a proof's
+ * line pair is a list with `minItems`/`maxItems`, and no `enum` sits beside a `nullable`. Cast like
+ * every schema whose nullable keys are required — the typed form admits `nullable` only on an
+ * optional key.
+ */
+export const OriginTenancyAnswerSchema = {
+  type: 'object',
+  title: 'OriginTenancyAnswer',
+  description: 'Whether the original application splits its people into tenants, and how',
+  properties: {
+    tenanted: {
+      type: 'boolean',
+      description: 'true only when the original keeps its records per tenant - a team, workspace, account or organization',
+    },
+    tenant: {
+      type: 'object',
+      nullable: true,
+      description: 'The tenant itself. null when the original keeps no tenants',
+      properties: {
+        entity: { type: 'string', description: 'The model the original keeps its tenants in, as the code names it' },
+        label: { type: 'string', description: 'The word its people see for a tenant, lower case - team, workspace' },
+        keyFields: {
+          type: 'array', items: { type: 'string' },
+          description: 'The fields records are keyed to their tenant by, exactly as the code names them',
+        },
+        routePrefixes: {
+          type: 'array', items: { type: 'string' },
+          description: 'Route prefixes carrying the tenant, with their parameter, as declared',
+        },
+        proofs: { type: 'array', items: OriginProofSchema, description: 'Files above that show it' },
+      },
+      required: ['entity', 'label', 'keyFields', 'routePrefixes', 'proofs'],
+      additionalProperties: false,
+    },
+    membership: originTenancyPartSchema('Who belongs to a tenant and in which role. null when the original has no such record'),
+    invitation: originTenancyPartSchema('How a person is asked into a tenant. null when the original has no invitations'),
+    switcher: originTenancyPartSchema('How a person chooses the tenant they act in - a route parameter, a remembered id, a switcher. null when there is none'),
+    settings: originTenancyPartSchema('What a tenant configures for itself - a key, a name, defaults. null when nothing'),
+    scopedEntities: {
+      type: 'array', items: { type: 'string' },
+      description: 'The persisted models the original keeps per tenant, by their names in the code',
+    },
+    users: {
+      type: 'boolean',
+      description: 'true only when the signed-in END USERS of the original work inside tenants',
+    },
+    usersQuote: {
+      type: 'string',
+      nullable: true,
+      description: 'For users = true: the README sentence or the source line above that says so, copied word for word. null otherwise',
+    },
+    operators: {
+      type: 'boolean',
+      description: 'true only when the STAFF of a back office of the original work inside tenants',
+    },
+    operatorsQuote: {
+      type: 'string',
+      nullable: true,
+      description: 'For operators = true: the README sentence or the source line above that says so, copied word for word. null otherwise',
+    },
+    rationale: { type: 'string', description: 'One sentence naming what decided the answer' },
+  },
+  required: [
+    'tenanted', 'tenant', 'membership', 'invitation', 'switcher', 'settings', 'scopedEntities',
+    'users', 'usersQuote', 'operators', 'operatorsQuote', 'rationale',
+  ],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<OriginTenancyAnswer>

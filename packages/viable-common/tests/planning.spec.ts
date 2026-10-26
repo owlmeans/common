@@ -4,7 +4,8 @@ import addFormats from 'ajv-formats'
 import { ResilientError } from '@owlmeans/error'
 import { CodeScope, CodeStyle, IntrinsicStatus, makeSchemaRegistry, SpecificationFormat, TITLE_MAX, WorkcardKind, type Specification, statusHelper } from '@owlmeans/planning'
 import { ProjectArea } from '../src/areas/consts.js'
-import { ConnectingStoryKind, SpecCategory, StoryKind } from '../src/ba/consts.js'
+import { ConnectingStoryKind, REQUIREMENTS_VERSION, SpecCategory, StoryKind } from '../src/ba/consts.js'
+import { RequirementsDocumentSchema } from '../src/ba/schemas.js'
 import { connectingStoryHelper } from '../src/ba/connecting.js'
 import { STORY_DESIGN_VERSION, StoryActor } from '../src/design/consts.js'
 import { storyDesignHelper } from '../src/design/story.js'
@@ -175,21 +176,26 @@ describe('viable-common - the viable types', () => {
     }
   })
 
-  test('slots the brief and the plan under a project, the design under a story, and no co-located spec', () => {
+  test('slots the brief, the plan and the requirements under a project, the design and the requirements under a story, and no co-located spec', () => {
     const project = VIABLE_PROJECT_TYPE_SCHEMA.specifications
     const story = VIABLE_STORY_TYPE_SCHEMA.specifications
+    const requirements = expect.objectContaining({
+      category: ViableSpecCategory.Requirements, format: SpecificationFormat.Json, revisioned: true,
+      keepRevisions: 3, version: REQUIREMENTS_VERSION, schema: RequirementsDocumentSchema,
+    })
 
     expect(project.map(slot => slot.category)).toEqual([
       ViableSpecCategory.Specification, ViableSpecCategory.Vision, ViableSpecCategory.DesignSystem,
-      ViableSpecCategory.Scaffold,
+      ViableSpecCategory.Scaffold, ViableSpecCategory.Requirements,
     ])
     expect(project.find(slot => slot.category === ViableSpecCategory.Specification)?.required).toBe(true)
     expect(project.find(slot => slot.category === ViableSpecCategory.Scaffold))
       .toEqual(expect.objectContaining({ format: SpecificationFormat.Json, revisioned: true, keepRevisions: 3 }))
+    expect(project.find(slot => slot.category === ViableSpecCategory.Requirements)).toEqual(requirements)
     expect(story).toEqual([expect.objectContaining({
       category: ViableSpecCategory.Design, format: SpecificationFormat.Json, revisioned: true,
       keepRevisions: 3, version: STORY_DESIGN_VERSION,
-    })])
+    }), requirements])
 
     const categories = VIABLE_TYPE_SCHEMAS.flatMap(type => type.specifications.map(slot => slot.category))
     for (const coLocated of Object.values(SpecCategory)) expect(categories).not.toContain(coLocated)
@@ -227,6 +233,7 @@ describe('viable-common - the viable field schemas', () => {
       area: ProjectArea.Admin, primary: true, actor: StoryActor.Agent, warning: '', kind: StoryKind.Connective,
     })).toBe(true)
     expect(story({ area: ProjectArea.User, primary: false, kind: null, actor: null })).toBe(true)
+    expect(story({ area: ProjectArea.User, primary: false, kind: StoryKind.Requested })).toBe(true)
   })
 
   test('a story refuses an undeclared field, a missing area, and a value outside a closed set', () => {
@@ -285,6 +292,22 @@ describe('viable-common - the viable field schemas', () => {
       },
     })).toBe(true)
     expect(project({ tenancy: null })).toBe(true)
+  })
+
+  test('a converted project records its origin tenant compactly, bounded and closed', () => {
+    const origin = { label: 'team', keys: ['teamId'], people: ['TeamMember', 'Invitation'] }
+    expect(project({ tenancy: { operators: false, users: true, by: 'model', at, origin } })).toBe(true)
+    expect(project({ tenancy: { operators: false, users: true, by: 'model', at, origin: null } })).toBe(true)
+    expect(project({ tenancy: { operators: false, users: true, by: 'model', at, origin: { label: 'team', keys: [] } } })).toBe(false)
+    expect(project({
+      tenancy: { operators: false, users: true, by: 'model', at, origin: { ...origin, routes: ['/t/:teamId'] } },
+    })).toBe(false)
+    expect(project({
+      tenancy: { operators: false, users: true, by: 'model', at, origin: { ...origin, keys: Array(9).fill('teamId') } },
+    })).toBe(false)
+    expect(project({
+      tenancy: { operators: false, users: true, by: 'model', at, origin: { ...origin, label: 'x'.repeat(65) } },
+    })).toBe(false)
   })
 
   test('a project refuses a partial tenancy decision, an unknown decider and a stray key', () => {

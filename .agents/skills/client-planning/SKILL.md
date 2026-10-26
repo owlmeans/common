@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.31"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.38"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps
@@ -64,14 +64,18 @@ appendPlanningStores(context)        // a browser mirror; a Node client usually 
   from the credential. The execution's own `actor` is never sent.
 - A client runs no middleware and folds nothing: `store()`, `committed()` and a plugin carrying
   `before`/`after`/`store`/`mintCode` answer `PlanningUnsupported`. `use()` accepts a schemas-only
-  plugin, layered over the server's bundle.
+  plugin, layered over the server's bundle; its `schemas.app` merges over the served declarations
+  (`bundle.app`) in plugin order, and a malformed one is refused (`SchemaInvalid`) before anything
+  changes.
 - `timeout` (ms) bounds every call that is not a long poll; a long poll's deadline is its own hold
   plus `LONG_POLL_GRACE`.
 
 ### The schema bundle
 
 `model()` needs the flows and types (`can()`, `available()`, `statusOf()` read the registry with no
-round trip). The bundle is fetched in the background once the context is **Ready** and a failure
+round trip). The bundle also carries the application's declarations (`registry.app()`), so
+`registry.fieldsSchema(type)` / `validator(type)` include its base card fields and a definition's
+`app` bag reads back as written. The bundle is fetched in the background once the context is **Ready** and a failure
 there is swallowed — a browser that is not signed in yet cannot read it, and a context must never
 fail or wait over it. `model()` and `service.loadSchemas()` load it on first use regardless, and a
 failed load is retried by the next caller. `schemas: false` skips the background load.
@@ -87,41 +91,9 @@ whole cache — an organization-wide write reaches every project's layer — and
 `model(card)` of a card resolves its type in its project's layer (a project's own id, a card's
 nearest primary project ancestor); a specification's type is always code's. A tree without `definitions` has none of this.
 
-## Browser field validation under CSP
-
-Bind `makePlanningFieldValidator(type.fields)` to the exact definition returned by the resolved
-organization or project bundle. Its `validateFields(fields)` returns `{ valid, errors }`; errors
-carry decoded `path`, `keyword`, `schemaPath` and a bounded value-free `message`. Construct one JSON
-fields object, validate it and send that same object. No coercion, defaults or property removal
-occurs, and the schema is left unchanged. Preserve nested money objects and calendar date strings.
-The native server validates every write again.
-
-The validator interprets schemas with `@cfworker/json-schema`, with no `eval`, `new Function` or
-network reference loading. Do not call `makeSchemaRegistry(...).validator()` or
-`.assigneeValidator()` in a browser with strict `script-src`: those remain native AJV compilers.
-Static AJV standalone compilation is suitable only when the schema cannot change after building;
-organization and project definitions require the runtime interpreter.
-
-The supported contract is Draft 7's object/array/scalar, required, enum/const, ranges, string
-length/pattern, dependencies, boolean, composition and conditional keywords; `$defs`, local/nested
-`$id` references and AJV's `nullable` are also supported. `$ref` sibling constraints are enforced as
-by native planning AJV. String formats use the same `ajv-formats` full-mode predicates, including
-real calendar dates and timezone-aware times. `nullable` adds null to the declared type while
-leaving enum and const constraints intact. All references must resolve inside the supplied field
-schema; productive recursive schemas are supported, same-instance reference cycles are refused.
-Plain JSON values and field names without dot or dollar characters are required.
-
-Preparation throws `SchemaInvalid` for malformed schemas, unresolved references, unsupported
-drafts/keywords/formats, numeric formats, `formatMinimum`/`formatMaximum` extensions and
-`multipleOf`. The latter is refused because the interpreter's epsilon and native AJV's quotient
-semantics disagree for fractional and very large numbers. Standard annotation keywords and `x-`
-annotations do not add validation. Never discard a refused constraint, invent a substitute schema,
-enable `unsafe-eval` or proceed with a ready form after preparation fails. Show the error and retain
-disabled save controls. Validation reports at most 64 errors, with paths bounded to 512 characters.
-
 ## Mounting in a target
 
-The web half of the target mount (`planning` → Mounting in a target).
+The web half of the target mount (`planning` → Mounting in a target, in that skill's `mounting` part).
 
 - `appendPlanningClient(context, { protocols, bind: false, schemas: false })` — the target binds
   its whole api tree itself, and a signed-out visitor may read nothing, so the bundle loads on
@@ -154,55 +126,6 @@ drill.available().map(rule => rule.name)
 - `transitions.list(query)` needs `card` — the tree reads the log through one card, so a
   project-wide read answers `PlanningUnsupported` on a client.
 - `size: 0` is "no limit"; a paged server answers 100 rows when no size is asked for.
-
-## The mirror — one id space
-
-`appendPlanningStores` registers ONE card store for every kind. Projects, cards and specifications
-share an id space on the server, so they share one store here: a store per kind lets a card list
-that reloads drop the projects beside it.
-
-That is also why a list reaches the store through **`syncHelper.syncCards(store, items, where)`,
-never `replace()`**: every card given is written, every card matching `where` that the list does not
-name is dropped, and everything outside `where` is left alone. An unchanged card is not rewritten, so a
-periodic re-seed wakes no subscriber. `opts.keep` protects ids a commit wrote while the list was in
-flight.
-
-The fold rules, shared by `syncHelper.syncCards`, the mirror's `applyCards` and `applyCommitEvent`, and
-`commits.wait`:
-
-- an OLDER `seq` never overwrites a newer record — frames and list answers race;
-- a committed `delete` removes the row and every link touching it; a project's delete also drops
-  the rows whose `parents` hold it (the server purged them in the same fold);
-- a frame for an id the store never saw still writes a row;
-- a `failed` commit leaves the card alone and records the reason in the commit store;
-- a frame without `record` (a cross-process bus carries ids only) is re-read through the facade —
-  without one, only the commit row is written;
-- a committed `link`/`unlink` re-lists the card's outgoing links; links written together with a
-  `create` arrive with the next link seed.
-
-## The feed
-
-```typescript
-const feed = makePlanningFeed(context, {
-  query: { parent: shedId, type: 'shed:tool' },
-  filter: { project: shedId },
-  refresh: 15_000,
-  onChange: state => setState(state),
-})
-await feed.ready          // never rejects — read feed.error
-// …
-await feed.stop()         // stops folding; the shared socket stays open
-```
-
-1. Subscribes to commits FIRST (the socket, when an opener exists).
-2. Seeds: `cards.list` (unpaged unless the query pages) → `syncHelper.syncCards` over `where`
-   (`queryHelper.criteriaOf(query)` by default). A PAGED seed only writes — a page cannot say what
-   does not exist.
-3. Folds every frame with `planningMirrorOf(stores).applyCommitEvent`, and re-seeds every `refresh`
-   ms — the authoritative backstop to a socket that can drop frames.
-
-`connected` reports whether a socket was open when the feed subscribed; `seeded` tells "nothing
-there" from "not loaded yet". A React hook wraps the feed in an effect and stops it on unmount.
 
 ## Waiting for a commit
 
@@ -239,14 +162,6 @@ service; releasing a subscription never closes it — `context.planning().close(
 
 A Node client passes no opener and relies on the long poll.
 
-## Optimistic writes and `head > seq`
-
-`seq` is the last transition folded into a card, `head` the highest allocated. The mirror's
-`applyReceipt` (run by `execute` whenever stores are registered) raises the stored card's `head` to
-the new transition's `seq`, so `model.pending()` is true before any frame arrives; the commit's fold
-brings `seq` up to it. The mirror only ever grows `head`, so a list fetched before the append does not
-clear the marker. A model's `expectSeq` default and its `WorkcardConflict` are `planning` → Models.
-
 ## Gotchas
 
 - Mount a feed once per screen; read the store everywhere else.
@@ -260,58 +175,6 @@ clear the marker. A model's `expectSeq` default and its `WorkcardConflict` are `
 - `@owlmeans/client-entrypoint` — `bindAll`, the typed `call()`
 - `@owlmeans/state` — the mirror; `@owlmeans/socket` — `Connection`
 
-## Auxiliary mirrors and authenticated scope lifecycle
-
-With `resources: true` in the shared protocol tree, every remote facade exposes the complete
-assignee/team/comment/mention API, including versioned writes, team membership and project
-attachment. `appendPlanningStores` registers separate stock typed mirrors for all four resources.
-`makePlanningResourceFeed` seeds and polls selected resource queries; use it with the stock stores
-and `useStoreList` / `useStoreModel`. Auxiliary writes update the mirror only after success.
-An active-assignee query (`retired: false`) includes an absent or null retirement flag. Local
-mirror queries and feed reconciliation use `{ retired: { $ne: true } }`, matching the native
-facade rather than strict equality to false. A filtered poll removes only its unchanged matching
-snapshot rows, preserving unrelated retired identities needed by existing references.
-Comments use trusted server authors; mentions are read-only derived cache commands.
-
-Supply `PlanningClientOptions.scopeKey` from authenticated organization entity slug, profile/user
-id, session id and authorization revision; return undefined when signed out. Before switching
-organization or signing out, **await** `service.close()` before adopting the credential. It cancels
-requests and commit waits, invalidates receipts (including already-settled receipts), stops every
-registered feed, removes socket subscriptions, closes the carrier and rejects late socket openers.
-A stale operation answers `client:scope-changed`; cancellation never rolls back an accepted server
-write. A new subscription opens a fresh carrier after close.
-
-Close drains admitted **local** mirror writes before clearing every stock store and schema cache.
-New calls during an explicit close are refused, including hosts without `scopeKey`. Concurrent
-closes share the boundary. If clearing fails, close rejects and fresh work stays blocked; retain
-the old credential and retry close explicitly. An observed identity change also cancels old work
-and queues clearing before the new identity's mirror writes. Reload schemas and create fresh feeds
-after credential adoption. Feed query scope alone is insufficient for this lifecycle.
-
-The service's `lifecycle` coordinates stock facades, receipts, feeds and schema writes. A custom
-mirror integration captures an operation with `lifecycle.run`, performs remote reads through
-`operation.wait` with `operation.signal`, then uses `lifecycle.mutate(operation, write)` for local
-writes; never hold or nest that queue over a request, socket opener or another queued mutation.
-`planningMirrorOf(stores)` accepts `{ lifecycle, operation }` as its optional last argument and
-fetches missing frame records/links before entering the queue. Direct mirror/sync helpers without
-that option are local primitives: their caller owns isolation and cleanup.
-
-Planning protocols return `PlanningReply<T>` without storage organization identifiers. Stock
-facades hydrate records, receipts, schema scopes and socket frames with `entityId: ''` only to
-preserve the shared facade shape. That value is an advisory placeholder, never an organization
-identity or a credential. Use `scopeKey` and the authenticated organization entity slug for
-identity changes and access isolation; native server records keep their verified stable scope.
-
-Resource feed reconciliation snapshots mirror versions before requesting a list. Only unchanged
-snapshot rows absent from that response are removed, so a new local write or a newer version
-survives an older in-flight poll. Stopped feeds cannot publish. Track custom feeds through
-`registerFeed` when their lifecycle must end with the planning service. Card feeds use the same
-identity fence and stop registration; component cleanup awaits `stop()` when it must observe a
-completed boundary. Stop cancels unresolved seeds and drains admitted local changes without waiting
-for the network; neither late callbacks nor authoritative deletion passes may publish afterward.
-A schema write from an old generation cannot invalidate a newer generation's cached registry.
-
-
 ## Related
 
 - `planning` — records, flows, the fold, the models
@@ -319,9 +182,12 @@ A schema write from an old generation cannot invalidate a newer generation's cac
 - `client-job` — the same seed-then-fold shape for safe application-job views
 - `state` — `syncHelper.syncCards` is built on its criteria engine and `purge`
 
-## External docs
+## Parts
 
-- https://ajv.js.org/security.html#content-security-policy — runtime AJV requires unsafe-eval; standalone build compilation preserves strict CSP for static schemas.
-- https://www.npmjs.com/package/@cfworker/json-schema/v/4.1.1 — the interpreter supports dynamic schemas without code generation; select an explicit vocabulary and check its known limitations (4.1.1).
-- https://github.com/ajv-validator/ajv-formats#full-and-fast-validation-modes — full-mode predicates validate formats completely and are reusable through the plugin's `get` API (3.0.1).
-- https://ajv.js.org/json-schema.html#nullable-openapi — nullable expands the declared type without adding null to enum or const.
+Load a part on top of this core when its job is in play.
+
+| Part | Load it when |
+|---|---|
+| [validation](parts/validation.md) | Validating planning `fields` in a browser form under a strict CSP (`makePlanningFieldValidator`) |
+| [mirror](parts/mirror.md) | Reading lists from the state mirror (`syncHelper`, `planningMirrorOf`), mounting `makePlanningFeed`, or relying on `head > seq` |
+| [aux-mirrors](parts/aux-mirrors.md) | Assignee, team, comment or mention mirrors and feeds, or switching organization / signing out (`scopeKey`, `close()`) |

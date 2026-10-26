@@ -1,13 +1,15 @@
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { frontend, route, RouteMethod } from '@owlmeans/route'
-import { INTENT_API_PATH, INTENT_LANDING_PATH, intent } from './consts.js'
+import { INTENT_API_PATH, INTENT_IMPORT_PATH, INTENT_LANDING_PATH, INTENT_PRO_PATH, intent } from './consts.js'
 import { IntentPickupBodySchema, IntentStashBodySchema } from './schemas.js'
 import type {
   IntentPickupBody, IntentPickupResult, IntentProtocolOptions, IntentProtocols, IntentStashBody, IntentStashResult,
 } from './types.js'
 
 /**
- * Declare the intent-first hand-off: two GUEST API routes and the landing screen's address.
+ * Declare the intent-first hand-off: two GUEST API routes and the three landing screens' addresses —
+ * `/start` for a stashed prompt, `/start/import` for the wish to import an existing project,
+ * `/start/pro` for the wish to subscribe to Pro.
  *
  * No guard and no gate anywhere on the API — the caller is a visitor who has no account yet — and
  * no `service` on any route: each consumer fills it in (the public site names the platform's
@@ -17,7 +19,7 @@ import type {
  * If viable ever restricts allowed origins globally, this entrypoint must keep answering the public
  * site's origins — owlmeans.com, owlmeans.pl and, in dev/stage, `http://localhost:4321`.
  *
- * The landing screen is `sticky`, like the OAuth consent screens: it is an ordinary in-app screen
+ * The landing screens are `sticky`, like the OAuth consent screens: it is an ordinary in-app screen
  * that a visitor arrives at directly from another origin.
  */
 export const makeIntentProtocols = (opts: IntentProtocolOptions = {}): IntentProtocols => {
@@ -37,6 +39,14 @@ export const makeIntentProtocols = (opts: IntentProtocolOptions = {}): IntentPro
     ),
 
     landing: openProtocol(route(intent.landing, opts.landing ?? INTENT_LANDING_PATH, frontend()), { sticky: true }),
+
+    importLanding: openProtocol(
+      route(intent.importLanding, opts.importLanding ?? INTENT_IMPORT_PATH, frontend()), { sticky: true },
+    ),
+
+    proLanding: openProtocol(
+      route(intent.proLanding, opts.proLanding ?? INTENT_PRO_PATH, frontend()), { sticky: true },
+    ),
   }
 }
 

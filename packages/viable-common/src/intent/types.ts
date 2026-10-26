@@ -1,5 +1,6 @@
 import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 import type { ResourceRecord } from '@owlmeans/resource'
+import type { INTENT_IMPORT_KIND } from './consts.js'
 
 /** What the public site sends: the prompt and the person's confirmation of its processing. */
 export interface IntentStashBody {
@@ -36,6 +37,17 @@ export interface IntentDraft extends ResourceRecord {
 }
 
 /**
+ * The wish to import an existing project, waiting in the visitor's browser between the import
+ * landing and the home screen. It shares {@link IntentDraft}'s record slot, so the visitor's NEWEST
+ * intent is the one acted on; `kind` tells the two apart (a prompt draft carries none).
+ */
+export interface IntentImportDraft extends ResourceRecord {
+  id: string
+  kind: typeof INTENT_IMPORT_KIND
+  expiresAt: number
+}
+
+/**
  * Options of {@link makeIntentProtocols}.
  */
 export interface IntentProtocolOptions {
@@ -43,6 +55,10 @@ export interface IntentProtocolOptions {
   path?: string
   /** Path of the landing screen; defaults to `/start`. */
   landing?: string
+  /** Path of the import landing screen; defaults to `/start/import`. */
+  importLanding?: string
+  /** Path of the Pro landing screen; defaults to `/start/pro`. */
+  proLanding?: string
 }
 
 /** The intent-first hand-off tree {@link makeIntentProtocols} declares. */
@@ -52,4 +68,8 @@ export interface IntentProtocols {
   pickup: EntrypointProtocol<{ body: IntentPickupBody }, IntentPickupResult>
   /** The landing screen — `sticky`, an in-app screen a visitor reaches from another origin. */
   landing: EntrypointProtocol<OpenRequest, OpenValue>
+  /** The import landing screen — `sticky` too; reached by a plain link, no stash. */
+  importLanding: EntrypointProtocol<OpenRequest, OpenValue>
+  /** The Pro landing screen — `sticky` too; reached by a plain link, no stash. */
+  proLanding: EntrypointProtocol<OpenRequest, OpenValue>
 }

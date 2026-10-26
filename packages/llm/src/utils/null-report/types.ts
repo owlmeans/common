@@ -16,7 +16,10 @@ export interface NullReportParams {
   msgs: MessageFieldWithRole[]
   raw: AIMessageChunk | null
   schema?: { toolName: string; innerSchema: unknown }
+  /** Whether the prepared request carried at least one cache breakpoint. */
   useCache: boolean
+  /** The caller's `stable` lead-message count, when it declared one. */
+  stable?: number
 }
 
 /** The request shape read back off a refined instance's `lc_kwargs`. */

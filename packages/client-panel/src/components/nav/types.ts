@@ -7,6 +7,8 @@ import type { ComponentType } from 'react'
  * resolves it, and a path that changes shape stays correct everywhere it is rendered.
  */
 export interface PanelNavItem {
+  /** Optional stable selector supplied by the host. */
+  testId?: string
   alias: string
   /** Literal label. Absent, the label is resolved through `translate` and falls back to a humanized alias. */
   label?: string
@@ -19,6 +21,8 @@ export interface PanelNavItem {
  * while the section is active.
  */
 export interface PanelNavSection {
+  /** Optional stable selector supplied by the host. */
+  testId?: string
   /** Stable key. Also the default translation key (`nav.<name>`). */
   name: string
   label?: string

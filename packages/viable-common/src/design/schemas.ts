@@ -1,6 +1,8 @@
 import type { JSONSchemaType } from 'ajv'
+import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
 import { ProjectArea } from '../areas/consts.js'
+import { StatedRequirementSchema } from '../ba/schemas.js'
 import { StoryActor, StoryAgentKind } from './consts.js'
 import type { StoryDesign, RuntimeDecision } from './types.js'
 
@@ -32,6 +34,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
   title: 'StoryDesign',
   description: 'Everything a user story will be, decided before any of it is written',
   properties: {
+    interaction: { ...RecordInteractionPlanSchema, nullable: true },
     version: { type: 'integer', minimum: 1 },
     code: { type: 'string' },
     narrative: { type: 'string' },
@@ -73,6 +76,34 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           adopted: { type: 'boolean' },
           specs,
           components: { type: 'array', items: { type: 'string' } },
+          composition: {
+            type: 'object',
+            nullable: true,
+            properties: {
+              kind: { type: 'string', enum: ['page', 'tabs'] },
+              tabs: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    label: { type: 'string' },
+                    components: { type: 'array', items: { type: 'string' } },
+                  },
+                  required: ['id', 'label', 'components'],
+                  additionalProperties: false,
+                },
+              },
+              shared: { type: 'array', items: { type: 'string' } },
+              weights: {
+                type: 'object',
+                additionalProperties: { type: 'string', enum: ['complex', 'form', 'display'] },
+                required: [],
+              },
+            },
+            required: ['kind', 'tabs', 'shared', 'weights'],
+            additionalProperties: false,
+          },
         },
         required: [
           'name', 'definition', 'path', 'alias', 'url', 'parent', 'adopted', 'specs', 'components',
@@ -151,6 +182,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           entity: { type: 'string' },
           type: { type: 'string' },
           model: { type: 'string' },
+          operations: { type: 'array', items: { type: 'string', enum: ['list', 'get', 'create', 'update', 'remove'] }, nullable: true },
           endpoints: {
             type: 'array',
             items: {
@@ -255,6 +287,8 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
       required: ['actor', 'worker', 'kv', 'jobs', 'agents'],
       additionalProperties: false,
     },
+    // Optional: a story without stated requirements carries none.
+    requirements: { type: 'array', items: StatedRequirementSchema, nullable: true },
     provenance: {
       type: 'object',
       properties: {
@@ -262,6 +296,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
         narrativeHash: { type: 'string' },
         projectHash: { type: 'string' },
         registryHash: { type: 'string' },
+        requirementsHash: { type: 'string', nullable: true },
         paths: {
           type: 'array',
           items: {

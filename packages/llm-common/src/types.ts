@@ -1,4 +1,4 @@
-import type { ExecutionEffort, ExecutionLevel, ModelEffort, PromptBlock } from './consts.js'
+import type { ExecutionEffort, ExecutionLevel, ModelEffort, PackagePurpose, PromptBlock } from './consts.js'
 import type { InquiryConfig } from './inquiry/types.js'
 import type { CumulativeResults } from './results/types.js'
 
@@ -75,6 +75,48 @@ export interface ModelPolicy {
 export type CacheTtl = '5m' | '1h'
 
 /**
+ * A cache lifetime per breakpoint of the prompt layout, earliest first. An omitted key keeps the
+ * level below it (the service default, then `'5m'`). Whatever is asked, the lifetimes never RISE
+ * along the prefix — a provider refuses a longer-lived entry after a shorter-lived one — so a
+ * `'1h'` behind a `'5m'` is clamped to `'5m'`.
+ */
+export interface CacheTtlPolicy {
+  /** The role + skills breakpoint — stable for a persona. */
+  skills?: CacheTtl
+  /** The packages breakpoint — stable for a persona working on one story. */
+  packages?: CacheTtl
+  /** The project message's breakpoint — stable for one step of the work. */
+  project?: CacheTtl
+  /** The breakpoint after the caller's `stable` lead messages — stable for one batch of calls. */
+  stable?: CacheTtl
+}
+
+/**
+ * Which package documentation a persona works with, chosen ONCE per persona and story rather than
+ * detected from each message — so the packages block stays byte-identical for every call of that
+ * work. Present, it switches the package plugin from detection to selection; absent, packages are
+ * detected from the messages as before.
+ *
+ * Arrays merge down the execution chain as a first-seen union; the plugin sorts what it renders.
+ */
+export interface PromptFocus {
+  /** The `@owlmeans/*` packages whose documentation belongs in the cached packages block. */
+  packages?: string[]
+  /** Which parts of those packages to load, by what they are for. */
+  purposes?: PackagePurpose[]
+  /** Parts named outright, as `<package>#<part>` (`@owlmeans/web-panel#picker`). */
+  parts?: string[]
+  /** Domain types whose definitions belong in the project message. */
+  types?: string[]
+  /**
+   * Whether a package a call's messages IMPORT but the focus lacks is still loaded, into the
+   * uncached tail (cores only, capped). Defaults to `true`; `false` keeps the prompt to the focus.
+   * The deepest level that sets it wins.
+   */
+  late?: boolean
+}
+
+/**
  * One named, reusable chunk of system-prompt knowledge — a capability the model is told
  * it has. Registered once (by the package that owns the knowledge or by the final app)
  * and referenced by `alias` from any execution level.
@@ -112,10 +154,15 @@ export interface PromptPolicy {
   role?: string
   /** Skill aliases enabled at this level. */
   skills?: string[]
-  /** Mark the composed system prompt cacheable. Defaults to `true`. */
+  /** Mark the composed prompt cacheable (system and project message). Defaults to `true`. */
   cacheSystem?: boolean
-  /** Cache lifetime for the system prefix. Defaults to `'5m'`. */
-  cacheTtl?: CacheTtl
+  /**
+   * Cache lifetimes: one for every breakpoint, or one per breakpoint. Defaults to `'5m'`
+   * everywhere; `'1h'` is opt-in and never rises along the prefix (see {@link CacheTtlPolicy}).
+   */
+  cacheTtl?: CacheTtl | CacheTtlPolicy
+  /** Which package documentation and types this work uses — see {@link PromptFocus}. */
+  focus?: PromptFocus
 }
 
 /**
@@ -126,8 +173,13 @@ export interface PromptPolicy {
 export interface CacheUsage {
   /** Tokens served from cache (~0.1x price). */
   read: number
-  /** Tokens written to cache (~1.25x price at 5m TTL, ~2x at 1h). */
+  /** Tokens written to cache (~1.25x price at 5m TTL, ~2x at 1h) — both lifetimes together. */
   creation: number
+  /**
+   * Of {@link creation}, the tokens written at the 1-hour TTL. Present only when the provider
+   * reported a non-zero 1-hour write.
+   */
+  creationLong?: number
   /** Tokens processed at full price. */
   input: number
   output: number
@@ -209,7 +261,10 @@ export interface NullCapture {
   request: {
     messages: unknown[]
     schema?: { toolName: string; innerSchema: unknown }
+    /** Whether the prepared request carried at least one cache breakpoint. */
     useCache: boolean
+    /** How many lead messages the caller declared stable across calls (`LlmCallOptions.stable`). */
+    stable?: number
   }
   response: {
     content: unknown
