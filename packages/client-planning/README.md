@@ -9,7 +9,7 @@ planning service runs in-process.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-planning@^0.1.18-rc.40
+bun add @owlmeans/client-planning@^0.1.18-rc.41
 ```
 
 ## Concepts
