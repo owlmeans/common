@@ -1,0 +1,154 @@
+{
+  "common": {
+    "cancel": "Anuluj",
+    "close": "Zamknij",
+    "save": "Zapisz",
+    "edit": "Edytuj",
+    "remove": "Usuń",
+    "refresh": "Odśwież",
+    "copy": "Kopiuj",
+    "copied": "Skopiowano",
+    "enabled": "Włączony",
+    "loading": "Ładowanie…",
+    "optional": "opcjonalnie"
+  },
+  "status": {
+    "pending": "Niezweryfikowany",
+    "connected": "Połączony",
+    "failed": "Błąd",
+    "disabled": "Wyłączony"
+  },
+  "transport": {
+    "mock": "Testowy"
+  },
+  "receive": {
+    "webhook": "Webhook",
+    "poll": "Odpytywanie",
+    "gateway": "Gateway"
+  },
+  "action": {
+    "reply": "Odpowiedź",
+    "send": "Wiadomość",
+    "delete": "Usunięcie",
+    "mute": "Wyciszenie",
+    "ban": "Blokada",
+    "react": "Reakcja",
+    "note": "Notatka"
+  },
+  "credentials": {
+    "telegram": {
+      "token": {
+        "label": "Token bota",
+        "hint": "Od @BotFather w Telegramie: /newbot tworzy bota, /token pokazuje jego token."
+      }
+    },
+    "whatsapp": {
+      "accessToken": {
+        "label": "Token dostępu",
+        "hint": "Stały token użytkownika systemowego Twojej aplikacji Meta z uprawnieniem do wiadomości WhatsApp."
+      },
+      "phoneNumberId": {
+        "label": "ID numeru telefonu",
+        "hint": "WhatsApp → API Setup w panelu Twojej aplikacji Meta."
+      },
+      "appSecret": {
+        "label": "Sekret aplikacji",
+        "hint": "App settings → Basic w Twojej aplikacji Meta; potwierdza, że każda przychodząca wiadomość pochodzi od Meta."
+      },
+      "verifyToken": {
+        "label": "Token weryfikacyjny",
+        "hint": "Tworzony dla Ciebie; wklej go w ustawieniach webhooka Twojej aplikacji Meta."
+      }
+    },
+    "discord": {
+      "token": {
+        "label": "Token bota",
+        "hint": "Developer Portal → Twoja aplikacja → Bot → Reset Token. Włącz tam też intencję Message Content."
+      },
+      "applicationId": {
+        "label": "ID aplikacji",
+        "hint": "Developer Portal → Twoja aplikacja → General Information."
+      }
+    },
+    "slack": {
+      "botToken": {
+        "label": "Token bota (xoxb-…)",
+        "hint": "Twoja aplikacja Slack → OAuth & Permissions → Bot User OAuth Token."
+      },
+      "signingSecret": {
+        "label": "Sekret podpisu",
+        "hint": "Twoja aplikacja Slack → Basic Information → App Credentials."
+      },
+      "userToken": {
+        "label": "Token administratora (xoxp-…)",
+        "hint": "Pozwala botowi usuwać wiadomości. Instaluje go administrator przestrzeni roboczej; bez niego bot zamiast tego ostrzega."
+      }
+    }
+  },
+  "connections": {
+    "title": "Połączenia botów",
+    "description": "Konta botów obsługiwane przez tę aplikację. Dane uwierzytelniające są przechowywane w postaci zaszyfrowanej i nigdy nie są ponownie pokazywane.",
+    "add": "Połącz bota",
+    "empty": "Żaden bot nie jest jeszcze połączony.",
+    "identity": "Konto bota",
+    "no-identity": "Jeszcze niezweryfikowane",
+    "receive": "Odbiera przez",
+    "last-event": "Ostatnia wiadomość",
+    "last-error": "Ostatni błąd",
+    "verify": "Zweryfikuj",
+    "verifying": "Weryfikacja…",
+    "verified": "Połączono jako {{name}}.",
+    "remove-title": "Usunąć to połączenie?",
+    "remove-description": "„{{label}}” od razu przestanie odbierać wiadomości i na nie odpowiadać. Tego nie można cofnąć.",
+    "setup-title": "Dokończ konfigurację na platformie {{platform}}",
+    "hook-url": "Adres webhooka",
+    "hint": {
+      "telegram": "Dodaj bota do grupy jako administratora z prawem usuwania wiadomości i blokowania użytkowników, aby mógł reagować na to, co czyta.",
+      "whatsapp": "Wklej poniższy adres webhooka i token weryfikacyjny w ustawieniach webhooka Twojej aplikacji Meta, a następnie zasubskrybuj pole messages.",
+      "discord": "Zaproś bota na swój serwer z uprawnieniami potrzebnymi do jego działań i włącz intencję Message Content w Developer Portal.",
+      "slack": "Wklej poniższy adres jako Request URL w Event Subscriptions swojej aplikacji Slack, zasubskrybuj zdarzenia wiadomości i dodaj bota do jego kanałów.",
+      "discord-invite": "Zaproś bota na serwer",
+      "discord-pending": "Link z zaproszeniem pojawi się, gdy ID aplikacji będzie znane.",
+      "after-save": "Po zapisaniu połączenie pokaże adres webhooka i wartości do wklejenia na platformie {{platform}}."
+    }
+  },
+  "form": {
+    "add-title": "Połącz bota",
+    "edit-title": "Edytuj: {{label}}",
+    "description": "Wklej dane uwierzytelniające otrzymane od platformy. Zapisuje się je raz i nigdy nie są pokazywane z powrotem.",
+    "platform": "Platforma",
+    "label": "Nazwa",
+    "label-placeholder": "Moderator społeczności",
+    "credentials": "Dane uwierzytelniające",
+    "secret-set": "Ustawiony",
+    "secret-keep": "Zapisany — zostaw puste, aby zachować",
+    "generated": "tworzony dla Ciebie przy zapisie.",
+    "docs": "Jak uzyskać te dane na platformie {{platform}}"
+  },
+  "activity": {
+    "title": "Aktywność bota",
+    "description": "Co zrobił bot, od najnowszych. Lista odświeża się sama.",
+    "empty": "Bot jeszcze nic nie zrobił.",
+    "limit": "Ile pokazać",
+    "limit-option": "Ostatnie {{count}}",
+    "ok": "Wykonano",
+    "failed": "Błąd",
+    "chat": "czat",
+    "message": "wiadomość",
+    "user": "użytkownik"
+  },
+  "errors": {
+    "title": "Coś poszło nie tak",
+    "connection-not-found": "To połączenie już nie istnieje.",
+    "credentials-rejected": "Platforma odrzuciła te dane uwierzytelniające. Sprawdź je i spróbuj ponownie.",
+    "signature-rejected": "Nie udało się potwierdzić, że żądanie pochodzi od platformy.",
+    "transport-mismatch": "Symulowane wiadomości może odbierać tylko połączenie testowe.",
+    "unsupported-action": "Ta platforma z tymi danymi uwierzytelniającymi nie może tego zrobić.",
+    "connection-disabled": "To połączenie jest wyłączone. Najpierw je włącz.",
+    "secret-missing": "Serwer nie ma klucza do ochrony danych uwierzytelniających botów. Poproś administratora o jego ustawienie.",
+    "credentials-unreadable": "Zapisanych danych uwierzytelniających nie da się już odczytać na tym serwerze. Wprowadź je ponownie.",
+    "platform-refused": "Platforma odmówiła: {{detail}}",
+    "bot": "Bot nie mógł tego wykonać.",
+    "generic": "Coś poszło nie tak. Spróbuj ponownie."
+  }
+}

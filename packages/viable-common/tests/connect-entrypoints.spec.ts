@@ -20,6 +20,8 @@ import {
   PlanningKitViewSchema, ConnectActivityQuerySchema, ConnectFeedQuerySchema,
 } from '../src/connect/schemas.js'
 import { connectProtocols } from '../src/connect/entrypoints.js'
+import { AGENT_STEER_PROMPT_MAX, AgentStopScope, STORY_BATCH_MAX } from '../src/batch/consts.js'
+import { AgentSteerArgsSchema, AgentStopArgsSchema, StoryBatchStartArgsSchema } from '../src/batch/schemas.js'
 import { connectRef } from '../src/connect/references.js'
 
 describe('@owlmeans/viable-common — connector protocol tree', () => {
@@ -51,8 +53,12 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.production.auth.get.alias).toBe(connect.production.auth.get)
     expect(tree.iam.grants.assign.alias).toBe(connect.iam.grants.assign)
     expect(tree.account.iam.users.alias).toBe(connect.account.iam.users)
-    expect(protocols(tree)).toHaveLength(107)
-    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(107)
+    expect(tree.account.blueprints.alias).toBe(connect.account.blueprints)
+    expect(tree.project.stop.alias).toBe(connect.project.stop)
+    expect(tree.project.steer.alias).toBe(connect.project.steer)
+    expect(tree.project.batch.start.alias).toBe(connect.project.batch.start)
+    expect(protocols(tree)).toHaveLength(113)
+    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(113)
   })
 
   test('declares exactly the routes a connector calls — every alias, reference and path, and no socket', () => {
@@ -62,9 +68,9 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
 
     expect(addresses).toEqual([
       'DELETE /project/:id', 'DELETE /project/:id/files/content',
-      'GET /access-tokens', 'GET /branding', 'GET /call/:callId', 'GET /convert/:id', 'GET /convert/:id/check',
+      'GET /access-tokens', 'GET /blueprints', 'GET /branding', 'GET /call/:callId', 'GET /convert/:id', 'GET /convert/:id/check',
       'GET /iam/users', 'GET /llm', 'GET /notifications', 'GET /pipeline/:id/:runId',
-      'GET /privacy', 'GET /project', 'GET /project/:id/activity',
+      'GET /privacy', 'GET /project', 'GET /project/:id/activity', 'GET /project/:id/batch',
       'GET /project/:id/branding', 'GET /project/:id/config', 'GET /project/:id/files', 'GET /project/:id/files/changes',
       'GET /project/:id/files/content',
       'GET /project/:id/files/meta', 'GET /project/:id/git', 'GET /project/:id/git/log', 'GET /project/:id/github/branches',
@@ -77,7 +83,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /access-tokens/:id/revoke', 'POST /branding', 'POST /branding/backfill',
       'POST /convert', 'POST /convert/:id/proceed', 'POST /convert/:id/purge', 'POST /convert/:id/start',
       'POST /intent/pickup', 'POST /llm',
-      'POST /pipeline/:id/:runId/resume', 'POST /privacy/withdraw', 'POST /project', 'POST /project/:id/branding',
+      'POST /pipeline/:id/:runId/resume', 'POST /privacy/withdraw', 'POST /project', 'POST /project/:id/batch',
+      'POST /project/:id/batch/cancel', 'POST /project/:id/branding',
       'POST /project/:id/branding/copy-defaults', 'POST /project/:id/branding/credit',
       'POST /project/:id/config', 'POST /project/:id/config/recollect', 'POST /project/:id/confirm', 'POST /project/:id/files/content',
       'POST /project/:id/git/commit', 'POST /project/:id/git/discard', 'POST /project/:id/git/revert',
@@ -101,7 +108,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /project/:id/production/publish', 'POST /project/:id/production/restart', 'POST /project/:id/production/stop',
       'POST /project/:id/reinit', 'POST /project/:id/rename',
       'POST /project/:id/sandbox/rebuild', 'POST /project/:id/sandbox/restart', 'POST /project/:id/sandbox/run',
-      'POST /project/:id/sandbox/stop', 'POST /project/:id/unlock', 'POST /project/attach', 'POST /session',
+      'POST /project/:id/sandbox/stop', 'POST /project/:id/steer', 'POST /project/:id/stop',
+      'POST /project/:id/unlock', 'POST /project/attach', 'POST /session',
       'POST /session/:sessionId/close', 'POST /session/:sessionId/ops/:opId', 'POST /session/delegated',
     ])
     expect(declared.every(protocol => protocol.route.route.protocol !== RouteProtocols.SOCKET)).toBe(true)
@@ -407,6 +415,56 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect([destroy.gate, unlock.gate]).toEqual([undefined, undefined])
     expect([connectRef.project.destroy.alias, connectRef.project.unlock.alias])
       .toEqual([connect.project.destroy, connect.project.unlock])
+  })
+
+  test('stops, steers and batches a project\'s stories under the owned base, no payment gate, closed bodies', () => {
+    const paid = connectProtocols({
+      guard: DEFAULT_GUARD,
+      gate: { alias: 'test-gate', params: ['owner'] },
+      paid: Object.fromEntries(Object.values(ConnectPaidGate).map(kind => [kind, { alias: `gate-${kind}`, params: [kind] }])),
+    })
+    const { stop, steer, batch } = paid.project
+    const routes = [stop, steer, batch.start, batch.get, batch.cancel]
+
+    expect(routes.map(route => `${route.route.route.method!.toUpperCase()} ${route.route.route.path}`)).toEqual([
+      'POST /project/:id/stop', 'POST /project/:id/steer', 'POST /project/:id/batch', 'GET /project/:id/batch',
+      'POST /project/:id/batch/cancel',
+    ])
+    expect(routes.every(route => aliasOf(route.route.route.parent) === connect.base)).toBe(true)
+    // A stop spends nothing, a message joins a paid run, and each batch story passes the story gate inside.
+    expect(routes.map(route => route.gate)).toEqual(routes.map(() => undefined))
+    // Never addressed as a story route: a batch belongs to the project.
+    expect(routes.some(route => route.route.route.path.includes('/story'))).toBe(false)
+    expect([
+      connectRef.project.stop.alias, connectRef.project.steer.alias, connectRef.project.batch.start.alias,
+      connectRef.project.batch.get.alias, connectRef.project.batch.cancel.alias,
+    ]).toEqual([
+      connect.project.stop, connect.project.steer, connect.project.batch.start, connect.project.batch.get,
+      connect.project.batch.cancel,
+    ])
+
+    const ajv = new Ajv({ strict: false })
+    const stopBody = ajv.compile(AgentStopArgsSchema)
+    expect(stopBody({})).toBe(true)
+    expect(stopBody({ scope: AgentStopScope.Story, storyId: 'card-1', confirm: true })).toBe(true)
+    // A connector serialises an unset optional as `null`: the nullable enum carries it.
+    expect(stopBody({ scope: null, storyId: null, confirm: null })).toBe(true)
+    expect(stopBody({ scope: 'everything' })).toBe(false)
+    expect(stopBody({ scope: AgentStopScope.Run, force: true })).toBe(false)
+    const steerBody = ajv.compile(AgentSteerArgsSchema)
+    expect(steerBody({ prompt: 'use the blue accent' })).toBe(true)
+    expect(steerBody({ prompt: '' })).toBe(false)
+    expect(steerBody({ prompt: 'x'.repeat(AGENT_STEER_PROMPT_MAX + 1) })).toBe(false)
+    expect(steerBody({ prompt: 'x', id: 'm1' })).toBe(false)
+    const startBody = ajv.compile(StoryBatchStartArgsSchema)
+    expect(startBody({})).toBe(true)
+    expect(startBody({ stories: null })).toBe(true)
+    expect(startBody({ stories: ['c1', 'c2'] })).toBe(true)
+    // An empty selection reaches the platform, which answers it as the phrased StoryBatchEmpty.
+    expect(startBody({ stories: [] })).toBe(true)
+    expect(startBody({ stories: ['c1', 'c1'] })).toBe(false)
+    expect(startBody({ stories: Array.from({ length: STORY_BATCH_MAX + 1 }, (_, at) => `c${at}`) })).toBe(false)
+    expect(startBody({ stories: ['c1'], kind: 'conversion' })).toBe(false)
   })
 
   test('a proceed carries the person\'s edits as an optional closed patch', () => {

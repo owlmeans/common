@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/log",
-  "version": "0.1.18-rc.3",
-  "generatedAt": "2026-10-08T08:29:59.283Z",
+  "version": "0.1.18-rc.4",
+  "generatedAt": "2026-10-20T23:19:58.649Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,58 @@
       "name": "log",
       "category": "package-specific",
       "file": "skills/log/SKILL.md",
-      "canonicalPath": ".agents/skills/log/SKILL.md"
+      "canonicalPath": ".agents/skills/log/SKILL.md",
+      "parts": [
+        {
+          "name": "config",
+          "file": "skills/log/parts/config.md",
+          "description": "The global console override appendLog installs, and cfg.log (level, debug scopes, format, console) on a server, file-resolved, and in a browser, at build time.",
+          "purposes": [
+            "config",
+            "ops"
+          ],
+          "mentions": [
+            "cfg.log",
+            "appendLog",
+            "configureLog",
+            "logConfig",
+            "overrideConsole",
+            "restoreConsole",
+            "nativeConsole",
+            "parseLogLevel",
+            "VITE_LOG_LEVEL"
+          ]
+        },
+        {
+          "name": "plugins",
+          "file": "skills/log/parts/plugins.md",
+          "description": "The LogPlugin contract (log, track, install), addLogPlugin, and what is a plugin (analytics, a platform link, a file, a test).",
+          "purposes": [
+            "config",
+            "ops"
+          ],
+          "mentions": [
+            "LogPlugin",
+            "addLogPlugin",
+            "removeLogPlugin",
+            "logPlugins",
+            "AnalyticsEvent"
+          ]
+        },
+        {
+          "name": "test",
+          "file": "skills/log/parts/test.md",
+          "description": "Testing with memoryPlugin and resetLog, and quieting a noisy test without replacing console methods.",
+          "purposes": [
+            "test"
+          ],
+          "mentions": [
+            "memoryPlugin",
+            "resetLog",
+            "configureLog"
+          ]
+        }
+      ]
     }
   ]
 }

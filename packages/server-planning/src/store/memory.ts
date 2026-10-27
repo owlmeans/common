@@ -63,7 +63,7 @@ export const wantsSpecifications = (where?: Criteria<Workcard>): boolean => {
  *
  * `schemas: true` adds the data-defined schema port: records keyed by layer, a revision per
  * organization bumped on every write, and `watch` listeners called synchronously. A purged project
- * takes its schema layer with it.
+ * takes its schema layer with it. A dropped card takes its own documents with it.
  *
  * It is wrong for anything with more than one process or a restart: the log, the cards and the
  * commit feed are all this process's heap.
@@ -117,6 +117,24 @@ export const makeMemoryPlanningStore = (opts: MemoryPlanningStoreOptions = {}): 
   }
 
   const recordOf = (id: string): Workcard | undefined => cards.get(id) ?? specs.get(id)
+
+  /** A record's own documents: the specifications whose primary parent is it, and theirs in turn. */
+  const documentsOf = (id: string, entityId: string): Set<string> => {
+    const owners = new Set([id])
+    let grown = true
+    while (grown) {
+      grown = false
+      for (const spec of specs.values()) {
+        if (spec.entityId === entityId && spec.parent != null && owners.has(spec.parent) && !owners.has(spec.id!)) {
+          owners.add(spec.id!)
+          grown = true
+        }
+      }
+    }
+    owners.delete(id)
+
+    return owners
+  }
 
   const logOf = (card: string): Transition[] => (byCard.get(card) ?? [])
     .map(id => log.get(id))
@@ -390,13 +408,31 @@ export const makeMemoryPlanningStore = (opts: MemoryPlanningStoreOptions = {}): 
     },
 
     drop: async (id, entityId) => {
-      if (recordOf(id)?.entityId === entityId) {
-        cards.delete(id)
-        specs.delete(id)
-        for (const row of [...comments.values()]) if (row.entityId === entityId && row.card === id) {
-          for (const mention of [...mentions.values()]) if (mention.entityId === entityId && mention.comment === row.id) mentions.delete(mention.id!)
-          comments.delete(row.id!)
+      if (recordOf(id)?.entityId !== entityId) {
+        return
+      }
+      // The record's own documents go with it, the way everything under a project goes with the
+      // project: their edges and log too. The record's own log stays — its delete is the tombstone.
+      const documents = documentsOf(id, entityId)
+      for (const link of [...links.values()]) {
+        if (link.entityId === entityId && (((link.fromKind ?? PlanningResourceKind.Workcard) === PlanningResourceKind.Workcard && documents.has(link.from))
+          || ((link.toKind ?? PlanningResourceKind.Workcard) === PlanningResourceKind.Workcard && documents.has(link.to)))) {
+          links.delete(link.id!)
         }
+      }
+      for (const transition of [...log.values()]) {
+        if (transition.entityId === entityId && documents.has(transition.card)) {
+          forget(transition.id!)
+        }
+      }
+      const doomed = new Set([id, ...documents])
+      for (const target of doomed) {
+        cards.delete(target)
+        specs.delete(target)
+      }
+      for (const row of [...comments.values()]) if (row.entityId === entityId && doomed.has(row.card)) {
+        for (const mention of [...mentions.values()]) if (mention.entityId === entityId && mention.comment === row.id) mentions.delete(mention.id!)
+        comments.delete(row.id!)
       }
     },
 

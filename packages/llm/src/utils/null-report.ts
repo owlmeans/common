@@ -49,6 +49,7 @@ const buildNullReport = (p: NullReportParams): NullCapture => {
       messages: p.msgs as unknown[],
       schema: p.schema,
       useCache: p.useCache,
+      ...(p.stable != null ? { stable: p.stable } : {}),
     },
     response: raw != null ? {
       content: raw.content,

@@ -23,6 +23,8 @@ import {
 } from '../../src/consent/index.js'
 import { LoginOutcome, ensureLoginService } from '@owlmeans/client-auth/login'
 import type { LoginMethod } from '@owlmeans/client-auth/login'
+import { EditorHarness } from './editor.js'
+import { PickerScreen, TranslatedPickerScreen } from './picker.js'
 
 // A real app: a context, a layout entrypoint rendering NavLayout, and screens under it.
 // The nav model resolves the active screen from the router, so nothing here may be faked.
@@ -35,11 +37,13 @@ const alias = {
   reports: `${SERVICE}:web:reports`,
   reportsIndex: `${SERVICE}:web:reports-index`,
   reportDetail: `${SERVICE}:web:report-detail`,
+  reportSibling: `${SERVICE}:web:report-sibling`,
   prefs: `${SERVICE}:web:prefs`,
   login: `${SERVICE}:web:login`,
   socket: `${SERVICE}:web:socket`,
   lazy: `${SERVICE}:web:lazy`,
   lazyEntry: `${SERVICE}:web:lazy-entry`,
+  picker: `${SERVICE}:web:picker`,
 }
 
 /** A harness id for the ONE tracked connection this screen simulates — a real `ws()`/`useWs()`
@@ -52,19 +56,19 @@ const navConfig: PanelNavConfig = {
     // Two screens — the side menu shows.
     {
       name: 'work', label: 'Work', items: [
-        { alias: alias.dash, label: 'Dashboard' },
+        { alias: alias.dash, label: 'Dashboard', testId: 'dashboard-nav' },
         { alias: alias.reports, label: 'Reports' },
       ]
     },
     // One screen — the side menu must not render at all.
-    { name: 'settings', label: 'Settings', items: [{ alias: alias.prefs, label: 'Preferences' }] },
+    { name: 'settings', label: 'Settings', testId: 'settings-nav', items: [{ alias: alias.prefs, label: 'Preferences' }] },
     // No literal labels: exercises the humanized-alias fallback with no i18n present.
     { name: 'extra', items: [{ alias: HOME }] },
   ],
 }
 
 const footerLinks: PanelNavLink[] = [
-  { alias: alias.dash, label: 'Dashboard' },
+  { alias: alias.dash, label: 'Dashboard', testId: 'dashboard-nav' },
   { href: 'https://owlmeans.com', label: 'OwlMeans', open: true },
 ]
 
@@ -173,9 +177,15 @@ const FooterBlock: FC = () => <div id="footer-block" className="flex flex-wrap j
   </nav>
 </div>
 
-const Layout: FC<PropsWithChildren> = ({ children }) => <>
+// `/picker` is a page of its own — no shell around it, so its screenshots show the picker alone.
+const pickerPage = window.location.pathname.startsWith('/picker')
+// `/picker?bare=1` is mounted with no `PanelApp` and no i18n instance at all — the parts must render.
+const pickerBare = pickerPage && new URLSearchParams(window.location.search).get('bare') === '1'
+
+const Layout: FC<PropsWithChildren> = ({ children }) => pickerPage ? <>{children}</> : <>
   <NavLayout
     nav={navConfig}
+    navTestId="harness-nav"
     title="Harness"
     actions={<button id="action-slot">action</button>}
     {...(noFooterProp ? {} : { footer: nodeFooter ? <FooterBlock /> : footerLinks })}
@@ -251,6 +261,7 @@ const ReportsIndex: FC = () => {
   return <div id="reports">
     reports-screen
     <button id="to-detail" onClick={nav.press(alias.reportDetail)}>detail</button>
+    <button id="to-sibling" onClick={nav.press(alias.reportSibling)}>sibling detail</button>
   </div>
 }
 
@@ -397,11 +408,13 @@ const protocols = {
   reports: openProtocol(route(alias.reports, '/reports', frontend({ parent: BASE }))),
   reportsIndex: openProtocol(route(alias.reportsIndex, '/', frontend({ default: true, parent: alias.reports }))),
   reportDetail: openProtocol(route(alias.reportDetail, '/detail', frontend({ parent: alias.reports }))),
+  reportSibling: openProtocol(route(alias.reportSibling, '/reports/sibling', frontend({ parent: BASE }))),
   prefs: openProtocol(route(alias.prefs, '/prefs', frontend({ parent: BASE }))),
   login: openProtocol(route(alias.login, '/login', frontend({ parent: BASE }))),
   socket: openProtocol(route(alias.socket, '/socket', frontend({ parent: BASE }))),
   lazy: openProtocol(route(alias.lazy, '/lazy', frontend({ parent: BASE }))),
   lazyEntry: openProtocol(route(alias.lazyEntry, '/lazy-entry', frontend({ parent: BASE }))),
+  picker: openProtocol(route(alias.picker, '/picker', frontend({ parent: BASE }))),
 }
 
 const entrypoints = [
@@ -417,18 +430,22 @@ const entrypoints = [
   bindScreen(protocols.reports, handler(ReportsGroup)),
   bindScreen(protocols.reportsIndex, handler(ReportsIndex)),
   bindScreen(protocols.reportDetail, handler(screen('detail', 'detail-screen'))),
+  bindScreen(protocols.reportSibling, handler(screen('sibling-detail', 'sibling-detail-screen'))),
   bindScreen(protocols.prefs, handler(PrefsScreen)),
   bindScreen(protocols.login, handler(LoginHarness)),
   bindScreen(protocols.socket, handler(SocketStatusScreen)),
   bindScreen(protocols.lazy, lazyScreen),
   bindScreen(protocols.lazyEntry, handler(LazyEntry)),
+  bindScreen(protocols.picker, handler(TranslatedPickerScreen)),
 ]
 
 context.registerEntrypoints(entrypoints)
 
 // The consent dialog is a sibling of the Router, as in an application — and only on the consent
 // branches, since its first-visit overlay covers the page every other test clicks through.
-createRoot(document.getElementById('root')!).render(<PanelApp context={context as never}>
+createRoot(document.getElementById('root')!).render(new URLSearchParams(location.search).has('editor') ? <EditorHarness /> : pickerBare
+  ? <div className="min-h-screen bg-background text-foreground"><PickerScreen /></div>
+  : <PanelApp context={context as never}>
   {consentMode != null && <PanelCookieConsent
     policyHref="/cookies"
     {...(withDomains ? { linker: { domains: ['harness-partner.test'] } } : {})}

@@ -8,6 +8,11 @@ describe('@owlmeans/viable-common — agent message presentation', () => {
       .toMatchObject({ category: AgentMessageCategory.Code, language: AgentCodeLanguage.ReactTsx })
     expect(agentPresentationHelper.classifyAgentMessage({ action: 'update-code', text: '--- a/app.css\n+++ b/app.css\n@@ -1 +1 @@\n-.old {}\n+.new {}' }))
       .toMatchObject({ category: AgentMessageCategory.Diff, language: AgentCodeLanguage.Css })
+    expect(agentPresentationHelper.classifyAgentMessage({
+      action: 'update-contract', source: 'coder', text: '<edit op="import">import * as shipment from \'@/app/shipment/index.js\'</edit>',
+    })).toMatchObject({ category: AgentMessageCategory.Code, language: AgentCodeLanguage.TypeScript, role: AgentMessageRole.Developer })
+    expect(agentPresentationHelper.classifyAgentMessage({ action: 'update-contract', text: '<unchanged/>' }))
+      .toMatchObject({ category: AgentMessageCategory.Code, language: AgentCodeLanguage.TypeScript })
     expect(agentPresentationHelper.classifyAgentMessage({ text: '{"ready": true}' }))
       .toMatchObject({ category: AgentMessageCategory.Code, language: AgentCodeLanguage.Json })
   })

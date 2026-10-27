@@ -1,4 +1,7 @@
 import type { ProjectArea } from '../areas/consts.js'
+import type { BotKitAction } from '../blueprint/consts.js'
+import type { StatedRequirement } from '../ba/types.js'
+import type { RecordInteractionPlan } from '../interaction/types.js'
 
 import type { AccessList } from '../dev/types.js'
 import type { UXTransition } from '../ux/types.js'
@@ -36,7 +39,33 @@ export interface StoryDesignScreen {
   specs: { ux: string, ui: string }
   /** Keys into `components`, in render order. */
   components: string[]
+  /**
+   * How the screen arranges its components, decided by the `composition` design step: one page, or
+   * one TAB per heavy form. Absent on a design written before the step, and on a one-component screen.
+   */
+  composition?: StoryScreenComposition
 }
+
+/** One tab of a tabbed screen: an id for the URL, a label a person reads, the components it holds. */
+export interface StoryScreenTab {
+  id: string
+  label: string
+  /** Keys into `StoryDesign.components`, in render order. */
+  components: string[]
+}
+
+export interface StoryScreenComposition {
+  kind: 'page' | 'tabs'
+  /** The tabs, in order; empty for a page. */
+  tabs: StoryScreenTab[]
+  /** Components shown above the tabs on every tab — the ones that only display records. */
+  shared: string[]
+  /** What each component weighs, by its key — the facts the decision was taken from. */
+  weights: Record<string, StoryComponentWeight>
+}
+
+/** `complex` — rows of fields the person adds and removes, or many inputs; `form` — a few fields and a submit; `display` — shows and opens records. */
+export type StoryComponentWeight = 'complex' | 'form' | 'display'
 
 export interface StoryDesignComponent {
   name: string
@@ -97,7 +126,11 @@ export interface StoryDesignApi {
   type: string
   model: string
   endpoints: StoryDesignEndpoint[]
+  /** Required operations; a read dependency does not acquire an unrelated management workflow. */
+  operations?: StoryRecordOperation[]
 }
+
+export type StoryRecordOperation = 'list' | 'get' | 'create' | 'update' | 'remove'
 
 export interface StoryDesignStore {
   path: string
@@ -121,6 +154,11 @@ export interface StoryDesignProvenance {
    * now, so a tree that moved is a flipped branch rather than a crash.
    */
   paths: Array<{ path: string, hash: string }>
+  /**
+   * The digest of the story's stated requirements the design was written against
+   * (`requirementsHelper.digest`). Absent on a design written without any — read as `''`.
+   */
+  requirementsHash?: string
 }
 
 /**
@@ -131,6 +169,8 @@ export interface StoryDesignProvenance {
  * what makes a design reviewable, amendable and reusable at all.
  */
 export interface StoryDesign {
+  /** Shared by scaffold, guided development and free flight. Absent on legacy designs. */
+  interaction?: RecordInteractionPlan
   version: number
   code: string
   narrative: string
@@ -167,6 +207,12 @@ export interface StoryDesign {
    * existed carries none, and "none" is both the safe reading and the true one.
    */
   runtime?: StoryDesignRuntime
+  /**
+   * The stated requirements this story must honour — its slice of the project's, plus the ones
+   * quoted from a person's own story. Optional: a story without any carries none, and a design
+   * written before requirements existed reads as "none".
+   */
+  requirements?: StatedRequirement[]
   provenance: StoryDesignProvenance
 }
 
@@ -261,6 +307,41 @@ export interface StoryDesignRuntime {
    * the permission to enqueue and to watch is granted to that area's role.
    */
   feedback?: string
+  /**
+   * The bot handlers this story writes — on a target whose blueprint has `capabilities.bot`.
+   *
+   * Optional, read through `storyRuntimeHelper.botHandlersOf`: an absent block (every design written
+   * before bots, and every story that reacts to no message) reads as no handlers.
+   */
+  bot?: { handlers: StoryDesignBotHandler[] }
+}
+
+// Kept as a type: a closed string union.
+/**
+ * Which inbound updates a bot handler acts on: those matching the product's OWN keyword-group records
+ * (`keywords` — the handler loads the type named in `records` and matches the text against it), every
+ * message (`all`), one `/command`, or those addressed to the bot (a DM, a mention, a reply to it).
+ */
+export type StoryDesignBotTrigger = 'keywords' | 'all' | 'command' | 'addressed'
+
+/** One generated bot handler: `sources/backend/src/bot/handlers/<name>.ts`, listed in the barrel. */
+export interface StoryDesignBotHandler {
+  /** The handler's name — its file slug and the name it is registered under. */
+  name: string
+  /** What it does, in one sentence, for the coder that writes it. */
+  purpose: string
+  trigger: StoryDesignBotTrigger
+  /** The command name, without the slash, when `trigger` is `command`. */
+  command?: string
+  /** The kit actions it carries out — the ones the project's bot kit offers. */
+  actions: BotKitAction[]
+  /** The alias of the generated agent it asks (an `ai-bot`). */
+  agent?: string
+  /**
+   * The product record types it reads or writes: the keyword-group type a `keywords` handler matches
+   * against, and the request record an `intake` bot writes.
+   */
+  records?: string[]
 }
 
 /** What the gate answers with — the model's half of {@link StoryDesignRuntime}. */

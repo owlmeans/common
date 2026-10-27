@@ -178,5 +178,11 @@ Then read the diff once for what no grep sees: a second exported function of one
 that takes the same first argument as its siblings, a private helper exposed on the interface, a
 bound object built in a loop, a barrel re-exporting a `.local` file.
 
-Classification details, folder decisions and the pitfalls of moving code into closures: `reference.md`
-(in the OwlMeans repositories).
+Classification details, folder decisions and the pitfalls of moving code into closures: the
+`code-structure-reference` part ([parts/code-structure-reference.md](parts/code-structure-reference.md)).
+
+## Parts
+
+| Part | Load it when |
+|---|---|
+| [code-structure-reference](parts/code-structure-reference.md) | classifying a declaration, deciding a folder, converting a module, or moving code into closures |

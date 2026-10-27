@@ -6,11 +6,9 @@ import { useContext, useNavigate } from '@owlmeans/client'
 
 import type { PanelNavConfig, PanelNavItem, PanelNavModel, PanelNavSection } from './types.js'
 
-const visibleItems = (section: PanelNavSection): PanelNavItem[] =>
-  section.items.filter(item => item.hidden !== true)
+const visibleItems = (section: PanelNavSection): PanelNavItem[] => section.items.filter((item) => item.hidden !== true)
 
-const normalizePath = (path: string): string =>
-  path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
+const normalizePath = (path: string): string => (path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path)
 
 /**
  * The navigation model behind both menus.
@@ -32,8 +30,8 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
 
   return useMemo(() => {
     const sections = config.sections
-      .filter(section => section.hidden !== true)
-      .map(section => ({ ...section, items: visibleItems(section) }))
+      .filter((section) => section.hidden !== true)
+      .map((section) => ({ ...section, items: visibleItems(section) }))
 
     const pathOf = (alias: string): string | null => {
       try {
@@ -45,27 +43,29 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
       }
     }
 
-    const all = sections.flatMap(section => section.items)
+    const all = sections.flatMap((section) => section.items)
 
     let current: string | null = state?.alias ?? null
     if (current == null) {
       const here = normalizePath(pathname)
-      const exact = all.find(item => pathOf(item.alias) === here)
+      const exact = all.find((item) => pathOf(item.alias) === here)
       if (exact != null) {
         current = exact.alias
       } else {
         // Longest prefix: a detail screen under a listed one still belongs to its section.
         const prefixed = all
-          .map(item => ({ item, path: pathOf(item.alias) }))
-          .filter((entry): entry is { item: PanelNavItem, path: string } =>
-            entry.path != null && entry.path !== '/' && here.startsWith(`${entry.path}/`))
+          .map((item) => ({ item, path: pathOf(item.alias) }))
+          .filter(
+            (entry): entry is { item: PanelNavItem; path: string } =>
+              entry.path != null && entry.path !== '/' && here.startsWith(`${entry.path}/`)
+          )
           .sort((a, b) => b.path.length - a.path.length)[0]
         current = prefixed?.item.alias ?? null
       }
     }
 
     const sectionOf = (alias: string | null): PanelNavSection | null =>
-      alias == null ? null : sections.find(section => section.items.some(item => item.alias === alias)) ?? null
+      alias == null ? null : (sections.find((section) => section.items.some((item) => item.alias === alias)) ?? null)
 
     let active = sectionOf(current)
     if (active == null && current != null) {
@@ -88,9 +88,22 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
       }
     }
 
+    // A detail entrypoint may be a sibling of its list in the route tree. Keep the
+    // section selected by its longest listed pathname when no ancestor is listed.
+    if (active == null) {
+      const here = normalizePath(pathname)
+      const match = all
+        .map((item) => ({ item, path: pathOf(item.alias) }))
+        .filter(
+          (entry): entry is { item: PanelNavItem; path: string } =>
+            entry.path != null && entry.path !== '/' && here.startsWith(`${entry.path}/`)
+        )
+        .sort((a, b) => b.path.length - a.path.length)[0]
+      if (match != null) active = sectionOf(match.item.alias)
+    }
+
     const isItemActive = (item: PanelNavItem): boolean => item.alias === current
-    const isSectionActive = (section: PanelNavSection): boolean =>
-      active != null && section.name === active.name
+    const isSectionActive = (section: PanelNavSection): boolean => active != null && section.name === active.name
 
     return {
       sections,
@@ -99,12 +112,12 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
       showSide: active != null && active.items.length > 1,
       isSectionActive,
       isItemActive,
-      goSection: section => {
+      goSection: (section) => {
         const first = section.items[0]
         return first != null ? nav.press(first.alias) : () => {}
       },
-      goItem: item => nav.press(item.alias),
-      hrefOf: target => {
+      goItem: (item) => nav.press(item.alias),
+      hrefOf: (target) => {
         const alias = 'alias' in target ? target.alias : target.items[0]?.alias
         if (alias == null) {
           return undefined
@@ -112,7 +125,7 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
         const path = pathOf(alias)
 
         return path == null || path.includes(':') ? undefined : path
-      },
+      }
     }
   }, [config, pathname, state?.alias, context, nav])
 }

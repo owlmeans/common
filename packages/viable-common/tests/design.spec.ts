@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import { ProjectArea } from '../src/areas/consts.js'
-import { SpecCategory } from '../src/ba/consts.js'
-import { DesignStaleness, STORY_DESIGN_VERSION, StoryDesignSchema, storyDesignHelper } from '../src/design/index.js'
+import { RequirementKind, RequirementSource, SpecCategory } from '../src/ba/consts.js'
+import { BotKitAction } from '../src/blueprint/index.js'
+import { DesignStaleness, NO_RUNTIME, STORY_DESIGN_VERSION, StoryDesignSchema, storyDesignHelper, storyRuntimeHelper } from '../src/design/index.js'
 import type { StoryDesign } from '../src/design/index.js'
 
 const design = (extra: Partial<StoryDesign> = {}): StoryDesign => storyDesignHelper.emptyStoryDesign({
@@ -90,6 +91,21 @@ describe('viable-common - design staleness', () => {
     expect(storyDesignHelper.designStaleness(fresh(), { ...now, registryHash: 'x' })).toBe(DesignStaleness.Tree)
   })
 
+  test('a changed set of stated requirements re-designs, ranked right after the narrative', () => {
+    // Absent on both sides is the design every story had before requirements existed.
+    expect(storyDesignHelper.designStaleness(fresh(), { ...now, requirementsHash: '' })).toBe(DesignStaleness.Fresh)
+    expect(storyDesignHelper.designStaleness(fresh(), { ...now, requirementsHash: 'q' })).toBe(DesignStaleness.Narrative)
+
+    const hashed = fresh()
+    hashed.provenance.requirementsHash = 'q'
+    expect(storyDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q' })).toBe(DesignStaleness.Fresh)
+    expect(storyDesignHelper.designStaleness(hashed, now)).toBe(DesignStaleness.Narrative)
+    expect(storyDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q2', projectHash: 'x', registryHash: 'x' }))
+      .toBe(DesignStaleness.Narrative)
+    expect(storyDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q', projectHash: 'x' }))
+      .toBe(DesignStaleness.Project)
+  })
+
   test('the hash is stable and distinguishes its inputs', () => {
     expect(storyDesignHelper.designHash('a', 'b')).toBe(storyDesignHelper.designHash('a', 'b'))
     expect(storyDesignHelper.designHash('a', 'b')).not.toBe(storyDesignHelper.designHash('a', 'c'))
@@ -112,6 +128,38 @@ describe('viable-common - the design schema', () => {
     expect(validate(design())).toBe(true)
   })
 
+  test('the empty design carries no requirements unless it is given some', () => {
+    const empty = design()
+
+    expect('requirements' in empty).toBe(false)
+    expect('requirementsHash' in empty.provenance).toBe(false)
+  })
+
+  test('accepts stated requirements and their hash, and refuses an unknown part', () => {
+    const value = withScreens()
+    value.requirements = [{
+      id: 'R1', quote: 'bookings must be exportable', statement: 'An admin exports bookings.',
+      kind: RequirementKind.Story, parts: { ux: 'An export button on the list.' }, source: RequirementSource.Prompt,
+    }]
+    value.provenance.requirementsHash = 'abcd0123'
+    expect(validate(value)).toBe(true)
+
+    const rogue = withScreens()
+    rogue.requirements = [{ ...value.requirements[0]!, parts: { qa: 'x' } as never }]
+    expect(validate(rogue)).toBe(false)
+  })
+
+  test('persists scoped components and required read operations while accepting legacy API plans', () => {
+    const value = withScreens()
+    value.interaction = { entity: 'Booking', capabilities: ['list', 'read'], placement: 'destination', presentation: 'inline',
+      componentResponsibilities: [{ component: value.components[0].path, entity: 'Booking', roles: ['collection'], capabilities: ['list', 'read'], scope: 'List and select bookings.' }] }
+    value.api = [{ path: 'sources/api/src/app/booking/index.ts', entity: 'Booking', type: 'sources/common/src/models/booking.ts', model: '', endpoints: [], operations: ['list', 'get'] }]
+    expect(validate(value)).toBe(true)
+    expect(validate({ ...value, api: [{ ...value.api[0], operations: ['publish'] }] })).toBe(false)
+    delete value.api[0].operations
+    expect(validate(value)).toBe(true)
+  })
+
   test('refuses a field the shape does not declare', () => {
     const rogue = { ...design(), somethingNew: 1 }
 
@@ -124,10 +172,49 @@ describe('viable-common - the design schema', () => {
     expect(validate(rogue)).toBe(false)
   })
 
+  test('accepts a runtime with bot handlers and refuses an unknown trigger or action', () => {
+    const value = withScreens()
+    value.runtime = {
+      ...NO_RUNTIME,
+      bot: {
+        handlers: [
+          { name: 'moderate', purpose: 'Follows the matched keyword group.', trigger: 'keywords', actions: [BotKitAction.Delete, BotKitAction.Warn], records: ['KeywordGroup'] },
+          { name: 'report', purpose: 'Handles /report.', trigger: 'command', command: 'report', actions: [BotKitAction.Reply], agent: 'judge', records: ['Report'] },
+        ],
+      },
+    }
+    expect(validate(value)).toBe(true)
+
+    const trigger = structuredClone(value)
+    trigger.runtime!.bot!.handlers[0]!.trigger = 'schedule' as never
+    expect(validate(trigger)).toBe(false)
+
+    // No stock keyword rules: `rules` is no trigger.
+    const rules = structuredClone(value)
+    rules.runtime!.bot!.handlers[0]!.trigger = 'rules' as never
+    expect(validate(rules)).toBe(false)
+
+    const action = structuredClone(value)
+    action.runtime!.bot!.handlers[0]!.actions = ['kick' as never]
+    expect(validate(action)).toBe(false)
+  })
+
   test('keeps the write-back slots optional', () => {
     const value = withScreens()
     value.models = [{ path: 'sources/backend/src/domain/booking.ts', entities: ['Booking'] }]
 
     expect(validate(value)).toBe(true)
+  })
+})
+
+describe('viable-common - the bot handlers of a runtime', () => {
+  test('are total: a design without a runtime, or a runtime without a bot block, has none', () => {
+    expect(storyRuntimeHelper.botHandlersOf(storyRuntimeHelper.runtimeOf(design()))).toEqual([])
+    expect(storyRuntimeHelper.botHandlersOf(NO_RUNTIME)).toEqual([])
+
+    const handlers = [{ name: 'reply', purpose: 'Answers.', trigger: 'keywords' as const, actions: [BotKitAction.Reply], records: ['KeywordGroup'] }]
+    expect(storyRuntimeHelper.botHandlersOf({ ...NO_RUNTIME, bot: { handlers } })).toEqual(handlers)
+    // Bot handlers are not queue work: the queue gate stays closed.
+    expect(storyRuntimeHelper.needsRuntime({ ...NO_RUNTIME, bot: { handlers } })).toBe(false)
   })
 })

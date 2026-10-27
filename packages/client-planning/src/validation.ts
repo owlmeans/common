@@ -3,13 +3,12 @@ import type { OutputUnit, Schema } from '@cfworker/json-schema'
 import type { AnySchema, Format } from 'ajv'
 import formatsPlugin from 'ajv-formats'
 import type { FormatName } from 'ajv-formats'
-import draft7 from 'ajv/dist/refs/json-schema-draft-07.json'
 import { SchemaInvalid } from '@owlmeans/planning'
 import type { PlanningFieldError, PlanningFieldValidation, PlanningFieldValidator } from './validation/types.js'
 import {
   FIELD_ERROR_MESSAGES, FIELD_ERROR_WRAPPERS, FIELD_FORMAT_PREFIX, FIELD_SCHEMA_ANNOTATIONS, FIELD_SCHEMA_ARRAYS,
   FIELD_SCHEMA_CHILDREN, FIELD_SCHEMA_DRAFTS, FIELD_SCHEMA_KEYWORDS, FIELD_SCHEMA_MAPS,
-  MAX_FIELD_ERRORS, MAX_FIELD_ERROR_PATH, REQUIRED_ERROR_PREFIX, REQUIRED_ERROR_SUFFIX,
+  JSON_SCHEMA_DRAFT_07, MAX_FIELD_ERRORS, MAX_FIELD_ERROR_PATH, REQUIRED_ERROR_PREFIX, REQUIRED_ERROR_SUFFIX,
 } from './validation/consts.js'
 
 /**
@@ -24,7 +23,7 @@ export const makePlanningFieldValidator = (fieldsSchema: AnySchema): PlanningFie
   }
   const pointer = (part: string): string => part.replaceAll('~', '~0').replaceAll('/', '~1')
   const nodes = new Map<Schema, string>()
-  const meta = new Validator(structuredClone(draft7) as Schema, '7', false)
+  const meta = new Validator(structuredClone(JSON_SCHEMA_DRAFT_07) as Schema, '7', false)
 
   const prepare = (source: unknown, path: string): Schema | boolean => {
     if (typeof source === 'boolean') return source

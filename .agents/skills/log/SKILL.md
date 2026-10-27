@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/log
 
 **Layer:** Core (depends on `@owlmeans/context` only; isomorphic — server, browser, worker)
-**Install:** `"@owlmeans/log": "^0.1.18-rc.2"` in `dependencies`
+**Install:** `"@owlmeans/log": "^0.1.18-rc.4"` in `dependencies`
 
 Everything a process says about itself goes through this package. It owns four decisions that a bare
 `console.*` leaves to chance: **how much** is written (the level), **in what form** (text or JSON on a
@@ -73,77 +73,19 @@ log.info('Plain line')                                                   // cons
 it ignores the level — an analytics call needs none. `console: false` keeps it out of the console
 sink and the plugins' `log`. Use `analytics` only for product events that something should count.
 
-## Plugins
-
-```ts
-interface LogPlugin {
-  name: string
-  log?: (record: LogRecord) => void        // every record the level filter admitted
-  track?: (event: AnalyticsEvent) => void  // every call that asked for analytics
-  install?: () => void; uninstall?: () => void
-}
-addLogPlugin(plugin)  // same name replaces; returns the remover
-```
-
-Analytics systems (`@owlmeans/web-log`'s GTM plugin, a server-side measurement sender), a target's
-link to the platform (`@owlmeans/viable-log`), a file or a test's memory are all plugins. A plugin that
-throws is skipped (and reported at most once a minute) — logging never breaks the work.
-
-## Console override
-
-`appendLog(context)` — which `makeServerContext` and `makeClientContext` already call — applies
-`cfg.log` and **replaces the global `console`**: `console.debug/log/trace` become debug, `info`, `warn`
-and `error` keep their level, all under scope `console`. A library that still calls `console.*` is
-therefore under the same level as everything else. `cfg.log.console: 'native'` leaves the console
-alone; CLIs do not install the override. Do not write new `console.*` calls anyway: a scope and a
-level are the point.
-
-The sink writes through the console methods captured when the module loaded (shared through
-`globalThis`, so duplicate copies of the package cannot capture each other's override). In a browser
-the sink passes the original objects, **including an `Error`, to `console.error`** — an error reporter
-hooked on `console.error` (the preview's) keeps working.
-
-## Configure it — `cfg.log`
-
-```ts
-cfg.log = { level: 'info', debug: 'agent:slot,jobs', format: 'text', console: 'override' }
-```
-
-| Field | Values | Meaning |
-|---|---|---|
-| `level` | `debug` `info` `warn` `error` `silent` | the floor; default `info` |
-| `debug` | `'*'` or comma-separated scopes | scopes that log at debug whatever `level` is (a scope matches itself and its children) |
-| `format` | `text` `json` | server sink only |
-| `console` | `override` `native` | whether `appendLog` replaces the global console |
-
-Every field also accepts the raw string a config file resolves to; a value that does not parse
-(including an unresolved `/etc/…` path) is ignored and the previous setting stays — a mistake can
-never silence or flood a process.
-
-- **Server:** declare the leaves as file paths (`level: '/etc/app-config/log-level'`); the server
-  context's file reader resolves them, and `appendLog` applies the result — as a Config middleware
-  right after the reader and again as a Context middleware after every reader has finished.
-- **Browser:** the value must be known at the first render (the i18n instance is created then), so
-  it is a **build-time constant** (`import.meta.env.VITE_LOG_LEVEL` in a Vite app), not something the
-  API's advertised config can change later. `log` is deliberately NOT in the advertised config.
-- `debug.all` of `cfg.debug` no longer controls logging; it is a feature flag for other things.
-
-## Test with it
-
-```ts
-const memory = memoryPlugin()
-addLogPlugin(memory)
-logger('x').warn('boom', { id: 1 })
-expect(memory.records[0]).toMatchObject({ level: 'warn', scope: 'x', data: { id: 1 } })
-resetLog()           // restores the console, drops plugins, back to the defaults
-```
-
-`configureLog({ level: 'silent' })` quiets a noisy test; do not replace `console.*` methods — the sink
-writes through captured natives, so it would not see them.
-
 ## API
 
 `logger`, `appendLog`, `configureLog`, `logConfig`, `logEnabled`, `logThrottle`, `addLogPlugin`,
 `removeLogPlugin`, `logPlugins`, `overrideConsole`, `restoreConsole`, `resetLog`, `memoryPlugin`,
 `redact`, `parseLogLevel`, `nativeConsole`; types `LogConfig`, `LogRecord`, `AnalyticsEvent`,
 `LogPlugin`, `Logger`, `LogOptions`.
+
+## Parts
+
+Load a part on top of this core when its job is in play.
+
+| Part | Load it when |
+|---|---|
+| [plugins](parts/plugins.md) | Writing or registering a log plugin — analytics, a platform link, a file (`LogPlugin`, `addLogPlugin`) |
+| [config](parts/config.md) | Setting a level or debug scopes (`cfg.log`, a chart, `.env`, a Vite constant), or the global console override |
+| [test](parts/test.md) | Asserting on log lines in a test, or quieting a noisy one (`memoryPlugin`, `resetLog`) |

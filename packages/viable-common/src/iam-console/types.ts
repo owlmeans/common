@@ -64,6 +64,14 @@ export interface IamListResponse<T> {
 
 export interface IamUsersResponse extends IamListResponse<IamUser> {}
 
+/**
+ * A grant listing: what each subject HOLDS, `origin` telling how — `direct` (its own value),
+ * `default` (a definition's default class), `group` (a person's, `through` naming the group) or
+ * `bundle` (a group's own listing: the names its bundles select). The console's listing also
+ * carries what a subject's OWN restriction withholds from what it would inherit, as
+ * `restricted: true` — NOT held and in no claim, listed so the restriction can be lifted (a revoke
+ * with `mode: inherit`).
+ */
 export interface IamGrantsResponse extends IamListResponse<IamGrant> {}
 
 export interface IamOrganizationsResponse extends IamListResponse<IamOrganization> {}
@@ -85,7 +93,8 @@ export interface IamPermissionsResponse extends IamListResponse<IamPermissionDef
 /**
  * Query for listing grants: everything the client's subjects hold, one person's (`profileId`), or
  * one group's (`group`, the key, with the `entitySlug` of its organization). With a person, an
- * `entitySlug` alone narrows to the grants bound to that organization.
+ * `entitySlug` alone narrows to the grants bound to that organization. The answer lists the
+ * restricted entries beside the held ones ({@link IamGrantsResponse}).
  */
 export interface IamGrantsQuery extends IamScoped {
   profileId?: string
@@ -127,7 +136,11 @@ export interface IamAssignGrant extends IamScoped {
   group?: IamGroupRef
   permission: string
   resources?: string[]
-  /** `blanket` (all resources) or `resources`. Inferred from `resources` when omitted. */
+  /**
+   * `blanket` (all resources) or `resources`; inferred from `resources` when omitted. `all` and
+   * `inherit` are revoke-only: the schema admits every mode on both bodies, and the IAM refuses
+   * those two on a grant.
+   */
   mode?: IamGrantMode
   entitySlug?: string
 }
@@ -136,6 +149,12 @@ export interface IamAssignGrant extends IamScoped {
  * Body to revoke a grant, the same shape. With `resources` only those ids are removed; an omitted
  * `mode` means ALL forms, which is what a bare revoke has always meant — narrowing that default
  * would leave a resource-scoped grant standing after a revoke reported success.
+ *
+ * A `blanket` or `all` revoke of a declared permission RESTRICTS the subject: it writes the
+ * subject's own `false`, which also cuts what the subject inherits — a default class, a group or a
+ * group's bundle. `mode: inherit` takes back only the subject's OWN value (grant or restriction) in
+ * the binding, so it holds exactly what it inherits again; its resource-scoped grants stay and
+ * `resources` is ignored.
  */
 export interface IamRevokeGrant extends IamAssignGrant {}
 

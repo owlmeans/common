@@ -44,6 +44,19 @@ export enum BlueprintCase {
    * code picks it from {@link WorkManagement} when the project's tenancy decision has a flag on.
    */
   WorkManagementTenanted = 'work-management-tenanted',
+  /**
+   * A chat bot: the product's core is a bot INSIDE a named messaging platform (`BotPlatform`) that
+   * reacts to messages by stated rules. The plumbing is stock (`@owlmeans/bot`, `server-bot`,
+   * `web-bot`: connections, the hook, the activity log); generation writes the product's OWN
+   * keyword-group records and screens, where the stock panels live, and the handler that matches a
+   * message against those records and acts.
+   */
+  Bot = 'bot',
+  /**
+   * A chat bot whose reply or verdict a language model writes, optionally pre-filtered by the
+   * product's own keyword groups, whose instructions the model is given.
+   */
+  AiBot = 'ai-bot',
 }
 
 /**
@@ -82,6 +95,41 @@ export enum WorkKind {
   /** Requests, approvals or cases through a defined multi-step process. */
   Process = 'process',
 }
+
+/**
+ * What a bot is FOR — decides the {@link BotKitAction}s its keyword groups offer, its main flow and
+ * its agent's role. Recorded beside the case on the project card (`fields.botKit`), like
+ * {@link WorkKind}. The keyword groups are the product's OWN records (a type generation designs).
+ */
+export enum BotKit {
+  /** The product's keyword groups delete, warn, mute or ban (plus commands such as `/report`). */
+  Moderation = 'moderation',
+  /** The product's keyword groups answer with a fixed text, or the agent writes the answer. */
+  Support = 'support',
+  /** A matching message becomes a request record of the product, confirmed back to the sender. */
+  Intake = 'intake',
+}
+
+/**
+ * What a bot kit's handler does with a message — the product vocabulary of a bot, not a platform's:
+ * `delete`, `mute`, `ban` and `reply` are the platform actions of the same name, `warn` is a reply to
+ * the sender, `record` writes the product's request record, `agent` asks the product's agent.
+ */
+export enum BotKitAction {
+  Delete = 'delete',
+  Warn = 'warn',
+  Mute = 'mute',
+  Ban = 'ban',
+  Reply = 'reply',
+  Record = 'record',
+  Agent = 'agent',
+}
+
+/**
+ * The messaging platforms a bot product lives on (`fields.botPlatforms`), re-exported: the card
+ * contract names them, and a consumer of the contract reaches them here rather than through hoisting.
+ */
+export { BotPlatform } from '@owlmeans/bot'
 
 /** The longest case quote a project card keeps (`fields.caseQuote`) — one sentence, generously. */
 export const CASE_QUOTE_MAX = 1024

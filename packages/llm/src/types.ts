@@ -5,7 +5,7 @@ import type { JSONSchemaType } from 'ajv'
 import type { InitializedService } from '@owlmeans/context'
 import type {
   CumulativeResults, FileProviderRef, LlmPurpose, ModelEffort, ModelProvider, NullCapture,
-  SpectatorArgument, SpectatorEntryLogged,
+  PromptFocus, SpectatorArgument, SpectatorEntryLogged,
 } from '@owlmeans/llm-common'
 import type { PromptInput, PromptService } from './prompt/types.js'
 
@@ -61,6 +61,9 @@ export interface LlmModelOptions extends LlmLogging {
   results?: CumulativeResults
 }
 
+/** OpenAI prompt-cache mode — automatic (`implicit`) or breakpoints only (`explicit`). */
+export type CacheMode = 'explicit' | 'implicit'
+
 export type ModelMessage = BaseMessage | MessageFieldWithRole
 export type ModelInputItem = ModelMessage | string
 export type ModelInput = MaybeArray<ModelInputItem>
@@ -69,20 +72,26 @@ export interface LlmCallOptions {
   /** Short name of the operation — used as the LangChain run name and in spectator entries. */
   action: string
   /**
-   * Cache the leading MESSAGES too. The composed system prompt is cached by default and
-   * independently of this flag — this one is about the conversation prefix, which is only
-   * worth caching when the same leading messages recur across calls.
-   */
-  useCache?: boolean
-  /**
-   * How many leading messages form the stable prefix. One breakpoint is placed at its
-   * end (not one per message), capped by whatever the system prompt left unspent.
+   * The cache-breakpoint budget of this request — at most {@link MAX_CACHE_BREAKPOINTS}, which is
+   * also the default. Breakpoints are placed earliest boundary first until it is spent.
    */
   cacheMax?: number
   /**
-   * Skill aliases for THIS call only. Rendered into the volatile `Context` block, so they
-   * never disturb the cached region — declare a skill on the execution instead when it
-   * should be part of the shared prefix.
+   * How many of the caller's lead messages (after any leading system message) repeat byte for
+   * byte across calls — a constant instruction, a shared source pin. One breakpoint closes them,
+   * so a batch of calls reads them back; never the final message. Defaults to 0: the
+   * conversation is not cached, only the composed prompt above it.
+   */
+  stable?: number
+  /**
+   * Which package documentation and types THIS call uses, merged over the execution's own
+   * `prompt.focus` as a deeper level (arrays union, `late` replaced).
+   */
+  focus?: PromptFocus
+  /**
+   * Skill aliases for THIS call only. Rendered into the uncached `Tail`, after the call's own
+   * payload — declare a skill on the execution instead when it should be part of the shared
+   * prefix.
    */
   skills?: string[]
   /**
@@ -118,13 +127,28 @@ export interface LlmTalkOptions extends LlmCallOptions {
   filter?: (result: AIMessage) => Promise<AIMessage | null>
 }
 
-export interface LlmInvokeOptions<T> extends LlmCallOptions {
+/**
+ * Where a structured call puts its schema.
+ *
+ * - `native` (default) — the provider's own channel: a pinned tool or a `json_schema` response
+ *   format. Both sit AHEAD of the cached prefix, so every distinct schema is its own cache line.
+ * - `tail` — a constant provider setting (JSON mode where the provider has one, plain text
+ *   otherwise) and the schema text in the uncached Tail. A persona that alternates schemas then
+ *   shares one cached prefix; the answer is parsed and validated exactly as a native one.
+ */
+export type SchemaPlacement = 'native' | 'tail'
+
+export interface LlmStructuredOptions {
+  schemaPlacement?: SchemaPlacement
+}
+
+export interface LlmInvokeOptions<T> extends LlmCallOptions, LlmStructuredOptions {
   temperature?: number | undefined
   ref?: RefferedResult<AIMessage>
   filter?: (output: T, result: AIMessage) => (T | null) | Promise<T | null>
 }
 
-export interface LlmRequestOptions extends LlmCallOptions {
+export interface LlmRequestOptions extends LlmCallOptions, LlmStructuredOptions {
   ref?: RefferedResult<AIMessage>
   filter?: (result: AIMessage) => Promise<AIMessage | null>
 }
@@ -304,6 +328,13 @@ export interface ModelConfig {
    * silently never cache.
    */
   cacheMinTokens?: number
+  /**
+   * Overrides the provider plugin's own choice of OpenAI prompt-cache mode: `'explicit'` places
+   * breakpoints and asks for explicit mode (a Responses-API family not yet listed in
+   * `OPENAI_EXPLICIT_CACHE_PREFIXES`), `'implicit'` leaves caching automatic for one that is.
+   * Never takes effect outside the Responses API; other providers ignore it.
+   */
+  cacheMode?: CacheMode
   /**
    * Cache-routing key for providers whose prompt cache is automatic (OpenAI's
    * `prompt_cache_key`): requests sharing a key are routed to the same backend, which

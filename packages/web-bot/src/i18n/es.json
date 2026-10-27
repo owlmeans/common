@@ -1,0 +1,154 @@
+{
+  "common": {
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "save": "Guardar",
+    "edit": "Editar",
+    "remove": "Eliminar",
+    "refresh": "Actualizar",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "enabled": "Activado",
+    "loading": "Cargando…",
+    "optional": "opcional"
+  },
+  "status": {
+    "pending": "Sin verificar",
+    "connected": "Conectado",
+    "failed": "Error",
+    "disabled": "Desactivado"
+  },
+  "transport": {
+    "mock": "Simulado"
+  },
+  "receive": {
+    "webhook": "Webhook",
+    "poll": "Sondeo",
+    "gateway": "Gateway"
+  },
+  "action": {
+    "reply": "Respuesta",
+    "send": "Mensaje",
+    "delete": "Eliminación",
+    "mute": "Silencio",
+    "ban": "Expulsión",
+    "react": "Reacción",
+    "note": "Nota"
+  },
+  "credentials": {
+    "telegram": {
+      "token": {
+        "label": "Token del bot",
+        "hint": "De @BotFather en Telegram: /newbot crea un bot y /token muestra su token."
+      }
+    },
+    "whatsapp": {
+      "accessToken": {
+        "label": "Token de acceso",
+        "hint": "Un token permanente de usuario del sistema de tu app de Meta con permiso de mensajería de WhatsApp."
+      },
+      "phoneNumberId": {
+        "label": "ID del número de teléfono",
+        "hint": "WhatsApp → API Setup en el panel de tu app de Meta."
+      },
+      "appSecret": {
+        "label": "Secreto de la app",
+        "hint": "App settings → Basic en tu app de Meta; demuestra que cada mensaje entrante viene de Meta."
+      },
+      "verifyToken": {
+        "label": "Token de verificación",
+        "hint": "Se crea por ti; pégalo en la configuración del webhook de tu app de Meta."
+      }
+    },
+    "discord": {
+      "token": {
+        "label": "Token del bot",
+        "hint": "Developer Portal → tu aplicación → Bot → Reset Token. Activa allí también el intent Message Content."
+      },
+      "applicationId": {
+        "label": "ID de la aplicación",
+        "hint": "Developer Portal → tu aplicación → General Information."
+      }
+    },
+    "slack": {
+      "botToken": {
+        "label": "Token del bot (xoxb-…)",
+        "hint": "Tu app de Slack → OAuth & Permissions → Bot User OAuth Token."
+      },
+      "signingSecret": {
+        "label": "Secreto de firma",
+        "hint": "Tu app de Slack → Basic Information → App Credentials."
+      },
+      "userToken": {
+        "label": "Token de usuario administrador (xoxp-…)",
+        "hint": "Permite al bot eliminar mensajes. Lo instala un administrador del espacio de trabajo; sin él, el bot advierte en su lugar."
+      }
+    }
+  },
+  "connections": {
+    "title": "Conexiones de bots",
+    "description": "Las cuentas de bot que gestiona esta aplicación. Las credenciales se guardan cifradas y no se vuelven a mostrar.",
+    "add": "Conectar un bot",
+    "empty": "Todavía no hay ningún bot conectado.",
+    "identity": "Cuenta del bot",
+    "no-identity": "Aún sin verificar",
+    "receive": "Recibe por",
+    "last-event": "Último mensaje",
+    "last-error": "Último error",
+    "verify": "Verificar",
+    "verifying": "Verificando…",
+    "verified": "Conectado como {{name}}.",
+    "remove-title": "¿Eliminar esta conexión?",
+    "remove-description": "«{{label}}» dejará de recibir y responder mensajes de inmediato. No se puede deshacer.",
+    "setup-title": "Termina la configuración en {{platform}}",
+    "hook-url": "URL del webhook",
+    "hint": {
+      "telegram": "Añade el bot a tu grupo como administrador con permiso para eliminar mensajes y expulsar usuarios, para que pueda actuar sobre lo que lee.",
+      "whatsapp": "Pega la URL del webhook y el token de verificación de abajo en la configuración del webhook de tu app de Meta y suscríbete al campo messages.",
+      "discord": "Invita al bot a tu servidor con los permisos que necesitan sus acciones y activa el intent Message Content en el Developer Portal.",
+      "slack": "Pega la URL de abajo como Request URL en Event Subscriptions de tu app de Slack, suscríbete a los eventos de mensajes y añade el bot a sus canales.",
+      "discord-invite": "Invitar al bot a un servidor",
+      "discord-pending": "El enlace de invitación aparece cuando se conoce el ID de la aplicación.",
+      "after-save": "Al guardar, la conexión mostrará la URL del webhook y los valores que debes pegar en {{platform}}."
+    }
+  },
+  "form": {
+    "add-title": "Conectar un bot",
+    "edit-title": "Editar {{label}}",
+    "description": "Pega las credenciales que te dio la plataforma. Se escriben una vez y nunca se vuelven a mostrar.",
+    "platform": "Plataforma",
+    "label": "Nombre",
+    "label-placeholder": "Moderador de la comunidad",
+    "credentials": "Credenciales",
+    "secret-set": "Guardado",
+    "secret-keep": "Guardado: déjalo vacío para conservarlo",
+    "generated": "se crea por ti al guardar.",
+    "docs": "Cómo obtenerlas en {{platform}}"
+  },
+  "activity": {
+    "title": "Actividad del bot",
+    "description": "Lo que hizo el bot, de lo más reciente a lo más antiguo. La lista se actualiza sola.",
+    "empty": "El bot todavía no ha hecho nada.",
+    "limit": "Cuántos mostrar",
+    "limit-option": "Últimos {{count}}",
+    "ok": "Hecho",
+    "failed": "Error",
+    "chat": "chat",
+    "message": "mensaje",
+    "user": "usuario"
+  },
+  "errors": {
+    "title": "Algo salió mal",
+    "connection-not-found": "Esta conexión ya no existe.",
+    "credentials-rejected": "La plataforma rechazó estas credenciales. Revísalas e inténtalo de nuevo.",
+    "signature-rejected": "No se pudo comprobar que la solicitud venga de la plataforma.",
+    "transport-mismatch": "Solo una conexión simulada puede recibir mensajes simulados.",
+    "unsupported-action": "Esta plataforma, con estas credenciales, no puede hacer eso.",
+    "connection-disabled": "Esta conexión está desactivada. Actívala primero.",
+    "secret-missing": "El servidor no tiene un secreto con el que proteger las credenciales de los bots. Pide a quien lo administra que lo configure.",
+    "credentials-unreadable": "Las credenciales guardadas ya no se pueden leer en este servidor. Vuelve a introducirlas.",
+    "platform-refused": "La plataforma lo rechazó: {{detail}}",
+    "bot": "El bot no pudo completar esto.",
+    "generic": "Algo salió mal. Inténtalo de nuevo."
+  }
+}

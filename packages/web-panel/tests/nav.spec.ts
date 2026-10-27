@@ -12,6 +12,14 @@ afterAll(async () => {
 const open = async (path: string) => mountComponent({ url: `${HARNESS_URL.replace(/\/$/, '')}${path}` })
 
 describe('@owlmeans/web-panel — two-layer navigation', () => {
+  test('a sibling detail route keeps the section selected through its pathname', async () => {
+    const { page, close } = await open('/reports')
+    try {
+      await page.locator('#to-sibling').click()
+      await page.waitForSelector('#sibling-detail')
+      expect(await page.locator('[data-slot="navigation-menu-link"][data-active]').textContent()).toBe('Work')
+    } finally { await close() }
+  }, TIMEOUT)
   test('a deep link resolves the active section with no history state', async () => {
     // The hard-load case: `location.state` is null here, so the section can only come from
     // the pathname. A menu that highlights nothing on a deep link is the bug this pins.
@@ -397,6 +405,21 @@ describe('@owlmeans/web-panel — a node footer', () => {
 const PHONE = { width: 375, height: 800 }
 
 describe('@owlmeans/web-panel — the narrow-viewport menu', () => {
+  test('configured selectors identify a single destination in desktop and mobile navigation', async () => {
+    const { page, close } = await open('/dash?mobileMenu=1')
+    try {
+      await page.getByTestId('harness-nav').waitFor()
+      expect(await page.getByTestId('settings-nav').count()).toBe(1)
+      expect(await page.getByTestId('dashboard-nav').count()).toBe(1)
+      await page.setViewportSize(PHONE)
+      await page.getByRole('button', { name: 'Menu' }).click()
+      expect(await page.getByTestId('settings-nav').count()).toBe(1)
+      expect(await page.getByTestId('dashboard-nav').count()).toBe(1)
+      await page.getByTestId('settings-nav').click()
+      await page.waitForSelector('#prefs')
+      await page.getByRole('dialog', { name: 'Menu' }).waitFor({ state: 'detached' })
+    } finally { await close() }
+  }, TIMEOUT)
   test('with mobileMenu, a phone gets a menu button instead of the section menu', async () => {
     const { page, close } = await open('/dash?mobileMenu=1')
     try {
