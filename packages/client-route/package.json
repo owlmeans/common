@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-route",
-  "version": "0.1.18-rc.53",
+  "version": "0.1.18-rc.55",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-context": "^0.1.18-rc.53",
+    "@owlmeans/client-context": "^0.1.18-rc.55",
     "@owlmeans/route": "^0.1.18-rc.36"
   },
   "devDependencies": {

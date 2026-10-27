@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { landingGatePreferenceOf, LandingGatePreference } from '../src/blueprint/index.js'
+import { BotPlatform as BotPlatformOfBot } from '@owlmeans/bot'
+import { BlueprintCase, BotKit, BotPlatform, landingGatePreferenceOf, LandingGatePreference } from '../src/blueprint/index.js'
 import type { Blueprint } from '../src/blueprint/index.js'
 import { ViablePersona, ViableSkill } from '../src/skills/consts.js'
 
@@ -29,5 +30,13 @@ describe('viable-common - the landing-gate preference', () => {
       .toBe(LandingGatePreference.Allow)
     expect(landingGatePreferenceOf({ experience: { landingGate: LandingGatePreference.Discourage } }))
       .toBe(LandingGatePreference.Discourage)
+  })
+})
+
+describe('viable-common - the bot case vocabulary', () => {
+  test('names both bot cases and the three kits, and re-exports the platforms of @owlmeans/bot', () => {
+    expect([BlueprintCase.Bot, BlueprintCase.AiBot]).toEqual(['bot', 'ai-bot'] as BlueprintCase[])
+    expect(Object.values(BotKit)).toEqual(['moderation', 'support', 'intake'] as BotKit[])
+    expect(BotPlatform).toBe(BotPlatformOfBot)
   })
 })

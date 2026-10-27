@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/postgres-resource",
-  "version": "0.1.18-rc.48",
-  "generatedAt": "2026-10-20T23:19:58.627Z",
+  "version": "0.1.18-rc.50",
+  "generatedAt": "2026-10-26T22:23:53.851Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

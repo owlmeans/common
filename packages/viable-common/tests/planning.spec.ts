@@ -269,6 +269,16 @@ describe('viable-common - the viable field schemas', () => {
     expect(project({ caseQuote: 'x'.repeat(1025) })).toBe(false)
   })
 
+  test('a project records its bot platforms (at least one, known, unique) and a bot kit from the closed set', () => {
+    expect(project({ blueprintCase: 'bot', botPlatforms: ['telegram'], botKit: 'moderation', caseQuote: 'A Telegram moderation bot.' })).toBe(true)
+    expect(project({ blueprintCase: 'ai-bot', botPlatforms: ['whatsapp', 'slack'], botKit: 'intake' })).toBe(true)
+    expect(project({ botPlatforms: null, botKit: null })).toBe(true)
+    expect(project({ botPlatforms: [] })).toBe(false)
+    expect(project({ botPlatforms: ['viber'] })).toBe(false)
+    expect(project({ botPlatforms: ['telegram', 'telegram'] })).toBe(false)
+    expect(project({ botKit: 'marketing' })).toBe(false)
+  })
+
   test('a story carries the landing flag, spelled or nulled', () => {
     expect(story({ area: ProjectArea.User, primary: false, landing: true })).toBe(true)
     expect(story({ area: ProjectArea.User, primary: false, landing: null })).toBe(true)

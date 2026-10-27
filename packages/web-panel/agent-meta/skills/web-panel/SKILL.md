@@ -1,6 +1,6 @@
 ---
 name: web-panel
-description: How to use @owlmeans/web-panel — base browser context factory (makeContext) with shadcn/Radix + Tailwind and the default OwlMeans router wired in, the two-layer navigation shell (NavLayout/TopNav/SideNav/Footer), form/panel components, and the standard icon + colour picker (`./picker`: IconColorPicker, ColorPicker, IconPicker, IconTile, ColorDot). Auto-invoked when building a web app's makeContext, wiring its navigation or layout, importing web panel components, or letting a person choose (or showing) an icon or a colour.
+description: How to use @owlmeans/web-panel — base browser context factory (makeContext) with shadcn/Radix + Tailwind and the default OwlMeans router wired in, the two-layer navigation shell (NavLayout/TopNav/SideNav/Footer), form/panel components, and the controlled JSON editor (`./editor`: JsonEditor), the standard icon + colour picker (`./picker`: IconColorPicker, ColorPicker, IconPicker, IconTile, ColorDot). Auto-invoked when building a web app's makeContext, wiring its navigation or layout, importing web panel components, or letting a person choose (or showing) an icon or a colour.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.80"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.82"` in `dependencies`
 
 ## Choosing a component
 
@@ -36,6 +36,7 @@ root unless the import column names a subpath.
 | The same, inline in a dialog the app already owns | `ColorSwatches`, `IconGrid` | `./picker` | `<IconGrid value={icon} onChange={setIcon} color={color} />` |
 | Show a chosen mark or colour (list, chip, header) | `IconTile`, `ColorDot` | `./picker` | `<IconTile icon={type.icon} color={type.tone} size="sm" />` |
 | Palette, icon names, colour maths — no React | `PICKER_*`, `pickerColorHelper`, `pickerIconHelper` | `./picker/vocabulary` (`pickerIconHelper`, `PICKER_ICONS`: `./picker`) | `pickerColorHelper.styleOf(color)` |
+| Editable or read-only JSON | `JsonEditor` | `./editor` | `<JsonEditor key={record.id} value={draft} onChange={setDraft} onValidityChange={setValid} ariaLabel="Record JSON" />` |
 | The current breakpoint | `useBreakPoint` / `useMapBreakpoint` | root | `useMapBreakpoint({ xs: 1, md: 2 }, 3)` |
 
 **Common mistakes:**
@@ -179,6 +180,7 @@ Load a part on top of this core when its job is in play.
 
 | Part | Load it when |
 |---|---|
+| [editor](parts/editor.md) | Editing or displaying JSON, syntax diagnostics, controlled text, read-only previews and document identity |
 | [navigation](parts/navigation.md) | Building or restyling the application shell — `NavLayout`, `TopNav`/`SideNav`/`MobileNav`/`Footer`, the nav config, `mobileMenu`, the skip link, the footer credit, the header surface |
 | [forms](parts/forms.md) | Writing a form (`Form`, `TextInput`, the buttons) or raising a toast (`Toaster`, `sonner`, the permission-denied toast) |
 | [theme](parts/theme.md) | Adding the light/dark switch (`ThemeToggle`, `useColorScheme`), the head bootstrap from `./scheme`, or CSS that follows the scheme |

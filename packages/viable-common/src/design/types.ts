@@ -1,3 +1,4 @@
+import type { BotRuleAction } from '@owlmeans/bot'
 import type { ProjectArea } from '../areas/consts.js'
 import type { StatedRequirement } from '../ba/types.js'
 import type { RecordInteractionPlan } from '../interaction/types.js'
@@ -306,6 +307,37 @@ export interface StoryDesignRuntime {
    * the permission to enqueue and to watch is granted to that area's role.
    */
   feedback?: string
+  /**
+   * The bot handlers this story writes — on a target whose blueprint has `capabilities.bot`.
+   *
+   * Optional, read through `storyRuntimeHelper.botHandlersOf`: an absent block (every design written
+   * before bots, and every story that reacts to no message) reads as no handlers.
+   */
+  bot?: { handlers: StoryDesignBotHandler[] }
+}
+
+// Kept as a type: a closed string union.
+/**
+ * Which inbound updates a bot handler acts on: the ones that matched a keyword group (`rules`), every
+ * message (`all`), one `/command`, or those addressed to the bot (a DM, a mention, a reply to it).
+ */
+export type StoryDesignBotTrigger = 'rules' | 'all' | 'command' | 'addressed'
+
+/** One generated bot handler: `sources/backend/src/bot/handlers/<name>.ts`, listed in the barrel. */
+export interface StoryDesignBotHandler {
+  /** The handler's name — its file slug and the name it is registered under. */
+  name: string
+  /** What it does, in one sentence, for the coder that writes it. */
+  purpose: string
+  trigger: StoryDesignBotTrigger
+  /** The command name, without the slash, when `trigger` is `command`. */
+  command?: string
+  /** The rule actions it carries out — the ones the project's bot kit offers. */
+  actions: BotRuleAction[]
+  /** The alias of the generated agent it asks (an `ai-bot`). */
+  agent?: string
+  /** The product records it writes (an `intake` bot's request record). */
+  records?: string[]
 }
 
 /** What the gate answers with — the model's half of {@link StoryDesignRuntime}. */

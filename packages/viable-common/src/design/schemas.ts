@@ -1,9 +1,10 @@
 import type { JSONSchemaType } from 'ajv'
+import { BotRuleAction } from '@owlmeans/bot'
 import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
 import { ProjectArea } from '../areas/consts.js'
 import { StatedRequirementSchema } from '../ba/schemas.js'
-import { StoryActor, StoryAgentKind } from './consts.js'
+import { STORY_BOT_TRIGGERS, StoryActor, StoryAgentKind } from './consts.js'
 import type { StoryDesign, RuntimeDecision } from './types.js'
 
 /**
@@ -282,6 +283,32 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
             required: ['alias', 'path', 'purpose', 'kind'],
             additionalProperties: false,
           },
+        },
+        // Optional: a design written before bots, and a story that reacts to no message, carry none.
+        bot: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            handlers: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', minLength: 1 },
+                  purpose: { type: 'string' },
+                  trigger: { type: 'string', enum: STORY_BOT_TRIGGERS },
+                  command: { type: 'string', nullable: true },
+                  actions: { type: 'array', items: { type: 'string', enum: Object.values(BotRuleAction) } },
+                  agent: { type: 'string', nullable: true },
+                  records: { type: 'array', items: { type: 'string' }, nullable: true },
+                },
+                required: ['name', 'purpose', 'trigger', 'actions'],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ['handlers'],
+          additionalProperties: false,
         },
       },
       required: ['actor', 'worker', 'kv', 'jobs', 'agents'],

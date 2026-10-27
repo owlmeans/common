@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/mui-oidc-rp",
-  "version": "0.1.18-rc.65",
+  "version": "0.1.18-rc.67",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -30,19 +30,19 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/basic-envelope": "^0.1.18-rc.51",
-    "@owlmeans/client": "^0.1.18-rc.57",
-    "@owlmeans/client-auth": "^0.1.18-rc.65",
-    "@owlmeans/client-flow": "^0.1.18-rc.60",
-    "@owlmeans/client-i18n": "^0.1.18-rc.56",
+    "@owlmeans/basic-envelope": "^0.1.18-rc.53",
+    "@owlmeans/client": "^0.1.18-rc.59",
+    "@owlmeans/client-auth": "^0.1.18-rc.67",
+    "@owlmeans/client-flow": "^0.1.18-rc.62",
+    "@owlmeans/client-i18n": "^0.1.18-rc.58",
     "@owlmeans/context": "^0.1.18-rc.35",
     "@owlmeans/flow": "^0.1.18-rc.46",
     "@owlmeans/log": "^0.1.18-rc.4",
     "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/oidc": "^0.1.18-rc.60",
+    "@owlmeans/oidc": "^0.1.18-rc.62",
     "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/web-client": "^0.1.18-rc.68",
-    "@owlmeans/web-flow": "^0.1.18-rc.59",
+    "@owlmeans/web-client": "^0.1.18-rc.70",
+    "@owlmeans/web-flow": "^0.1.18-rc.61",
     "oidc-client-ts": "3.5.0"
   },
   "peerDependencies": {
@@ -51,7 +51,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-auth": "^0.1.18-rc.51",
+    "@owlmeans/test-auth": "^0.1.18-rc.53",
     "@types/bun": "^1.4.2",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",

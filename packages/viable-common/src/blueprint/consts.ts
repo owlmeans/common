@@ -44,6 +44,14 @@ export enum BlueprintCase {
    * code picks it from {@link WorkManagement} when the project's tenancy decision has a flag on.
    */
   WorkManagementTenanted = 'work-management-tenanted',
+  /**
+   * A chat bot: the product's core is a bot INSIDE a named messaging platform (`BotPlatform`) that
+   * reacts to messages by stated rules. The plumbing is stock (`@owlmeans/bot`, `server-bot`,
+   * `web-bot`); generation writes where the panels live and the handler that follows the rules.
+   */
+  Bot = 'bot',
+  /** A chat bot whose reply or verdict a language model writes, optionally pre-filtered by keyword groups. */
+  AiBot = 'ai-bot',
 }
 
 /**
@@ -82,6 +90,25 @@ export enum WorkKind {
   /** Requests, approvals or cases through a defined multi-step process. */
   Process = 'process',
 }
+
+/**
+ * What a bot is FOR — decides the rule actions a bot product offers, its main flow and its agent's
+ * role. Recorded beside the case on the project card (`fields.botKit`), like {@link WorkKind}.
+ */
+export enum BotKit {
+  /** Keyword groups delete, warn, mute or ban (plus commands such as `/report`). */
+  Moderation = 'moderation',
+  /** Keyword groups answer with a fixed text, or the agent writes the answer. */
+  Support = 'support',
+  /** A matching message becomes a request record of the product, confirmed back to the sender. */
+  Intake = 'intake',
+}
+
+/**
+ * The messaging platforms a bot product lives on (`fields.botPlatforms`), re-exported: the card
+ * contract names them, and a consumer of the contract reaches them here rather than through hoisting.
+ */
+export { BotPlatform } from '@owlmeans/bot'
 
 /** The longest case quote a project card keeps (`fields.caseQuote`) — one sentence, generously. */
 export const CASE_QUOTE_MAX = 1024

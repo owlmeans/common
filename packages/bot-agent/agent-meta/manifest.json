@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/bot-agent",
+  "version": "0.1.18-rc.2",
+  "generatedAt": "2026-10-26T22:23:53.870Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "bot-agent",
+      "category": "package-specific",
+      "file": "skills/bot-agent/SKILL.md",
+      "canonicalPath": ".agents/skills/bot-agent/SKILL.md"
+    }
+  ]
+}

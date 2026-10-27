@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/web-panel",
-  "version": "0.1.18-rc.80",
-  "generatedAt": "2026-10-22T17:25:04.165Z",
+  "version": "0.1.18-rc.82",
+  "generatedAt": "2026-10-26T22:23:53.874Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -28,6 +28,20 @@
             "appendConsentGeoPlugin",
             "cookieConsent",
             "@owlmeans/web-panel/consent"
+          ]
+        },
+        {
+          "name": "editor",
+          "file": "skills/web-panel/parts/editor.md",
+          "description": "Controlled JSON editing and previews with the optional web-panel/editor entrypoint, CodeMirror 6, syntax diagnostics, formatting, copying and read-only state.",
+          "purposes": [
+            "form",
+            "view"
+          ],
+          "mentions": [
+            "JsonEditor",
+            "JsonEditorProps",
+            "JsonEditorLabels"
           ]
         },
         {

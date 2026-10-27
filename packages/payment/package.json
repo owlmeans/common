@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/payment",
-  "version": "0.1.18-rc.53",
+  "version": "0.1.18-rc.55",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -34,7 +34,7 @@
   "dependencies": {
     "@owlmeans/api-config": "^0.1.18-rc.44",
     "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/basic-envelope": "^0.1.18-rc.51",
+    "@owlmeans/basic-envelope": "^0.1.18-rc.53",
     "@owlmeans/config": "^0.1.18-rc.45",
     "@owlmeans/context": "^0.1.18-rc.35",
     "@owlmeans/error": "^0.1.18-rc.39",

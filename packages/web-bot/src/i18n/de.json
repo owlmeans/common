@@ -1,0 +1,232 @@
+{
+  "common": {
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "save": "Speichern",
+    "edit": "Bearbeiten",
+    "remove": "Entfernen",
+    "refresh": "Aktualisieren",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "enabled": "Aktiv",
+    "loading": "Wird geladen…",
+    "optional": "optional",
+    "all-connections": "Alle Verbindungen"
+  },
+  "status": {
+    "pending": "Nicht geprüft",
+    "connected": "Verbunden",
+    "failed": "Fehlgeschlagen",
+    "disabled": "Aus"
+  },
+  "transport": {
+    "live": "Echt",
+    "mock": "Simuliert"
+  },
+  "receive": {
+    "webhook": "Webhook",
+    "poll": "Abfrage",
+    "gateway": "Gateway"
+  },
+  "action": {
+    "reply": "Antwort",
+    "send": "Nachricht",
+    "delete": "Löschen",
+    "mute": "Stummschalten",
+    "ban": "Sperren",
+    "react": "Reaktion",
+    "note": "Notiz"
+  },
+  "rule-action": {
+    "delete": "Nachricht löschen",
+    "warn": "Absender verwarnen",
+    "mute": "Absender stummschalten",
+    "ban": "Absender sperren",
+    "reply": "Mit einem Text antworten",
+    "record": "Anfrage erfassen",
+    "agent": "Den Assistenten antworten lassen"
+  },
+  "mode": {
+    "word": "Ganze Wörter",
+    "contains": "Enthält"
+  },
+  "mode-hint": {
+    "word": "Findet ganze Wörter und Phrasen ohne Rücksicht auf Groß- und Kleinschreibung: „free money“ passt auf „FREE money!“, nicht auf „freedom“.",
+    "contains": "Findet jeden Teil der Nachricht ohne Rücksicht auf Groß- und Kleinschreibung – auch für Sprachen, die ohne Leerzeichen geschrieben werden."
+  },
+  "credentials": {
+    "telegram": {
+      "token": {
+        "label": "Bot-Token",
+        "hint": "Von @BotFather in Telegram: /newbot legt einen Bot an, /token zeigt sein Token."
+      }
+    },
+    "whatsapp": {
+      "accessToken": {
+        "label": "Zugriffstoken",
+        "hint": "Ein dauerhaftes System-User-Token Ihrer Meta-App mit der Berechtigung für WhatsApp-Nachrichten."
+      },
+      "phoneNumberId": {
+        "label": "Telefonnummern-ID",
+        "hint": "WhatsApp → API Setup im Dashboard Ihrer Meta-App."
+      },
+      "appSecret": {
+        "label": "App-Geheimnis",
+        "hint": "App settings → Basic in Ihrer Meta-App; es belegt, dass jede eingehende Nachricht von Meta stammt."
+      },
+      "verifyToken": {
+        "label": "Verifizierungstoken",
+        "hint": "Wird für Sie erzeugt; fügen Sie es in die Webhook-Einstellungen Ihrer Meta-App ein."
+      }
+    },
+    "discord": {
+      "token": {
+        "label": "Bot-Token",
+        "hint": "Developer Portal → Ihre Anwendung → Bot → Reset Token. Aktivieren Sie dort auch den Message-Content-Intent."
+      },
+      "applicationId": {
+        "label": "Anwendungs-ID",
+        "hint": "Developer Portal → Ihre Anwendung → General Information."
+      }
+    },
+    "slack": {
+      "botToken": {
+        "label": "Bot-Token (xoxb-…)",
+        "hint": "Ihre Slack-App → OAuth & Permissions → Bot User OAuth Token."
+      },
+      "signingSecret": {
+        "label": "Signaturgeheimnis",
+        "hint": "Ihre Slack-App → Basic Information → App Credentials."
+      },
+      "userToken": {
+        "label": "Admin-Benutzertoken (xoxp-…)",
+        "hint": "Erlaubt dem Bot, Nachrichten zu löschen. Ein Workspace-Admin installiert es; ohne es verwarnt der Bot stattdessen."
+      }
+    }
+  },
+  "connections": {
+    "title": "Bot-Verbindungen",
+    "description": "Die Bot-Konten, die diese Anwendung betreibt. Zugangsdaten werden verschlüsselt gespeichert und nie wieder angezeigt.",
+    "add": "Bot verbinden",
+    "empty": "Noch ist kein Bot verbunden.",
+    "identity": "Bot-Konto",
+    "no-identity": "Noch nicht geprüft",
+    "receive": "Empfängt per",
+    "last-event": "Letzte Nachricht",
+    "last-error": "Letzter Fehler",
+    "verify": "Prüfen",
+    "verifying": "Wird geprüft…",
+    "verified": "Verbunden als {{name}}.",
+    "remove-title": "Diese Verbindung entfernen?",
+    "remove-description": "„{{label}}“ empfängt und beantwortet sofort keine Nachrichten mehr. Das lässt sich nicht rückgängig machen.",
+    "mock-note": "Simulierte Verbindung: Nichts erreicht {{platform}}. Probieren Sie sie im Simulator aus.",
+    "setup-title": "Einrichtung in {{platform}} abschließen",
+    "hook-url": "Webhook-URL",
+    "hint": {
+      "telegram": "Fügen Sie den Bot Ihrer Gruppe als Administrator mit dem Recht hinzu, Nachrichten zu löschen und Nutzer zu sperren, damit er auf das Gelesene reagieren kann.",
+      "whatsapp": "Fügen Sie die Webhook-URL und das Verifizierungstoken unten in die Webhook-Einstellungen Ihrer Meta-App ein und abonnieren Sie dann das Feld messages.",
+      "discord": "Laden Sie den Bot mit den Berechtigungen, die seine Aktionen brauchen, auf Ihren Server ein und aktivieren Sie den Message-Content-Intent im Developer Portal.",
+      "slack": "Fügen Sie die URL unten als Request URL unter Event Subscriptions Ihrer Slack-App ein, abonnieren Sie Nachrichtenereignisse und fügen Sie den Bot seinen Kanälen hinzu.",
+      "discord-invite": "Bot auf einen Server einladen",
+      "discord-pending": "Der Einladungslink erscheint, sobald die Anwendungs-ID bekannt ist.",
+      "after-save": "Nach dem Speichern zeigt die Verbindung die Webhook-URL und die Werte, die Sie in {{platform}} einfügen."
+    }
+  },
+  "form": {
+    "add-title": "Bot verbinden",
+    "edit-title": "{{label}} bearbeiten",
+    "description": "Fügen Sie die Zugangsdaten ein, die Sie von der Plattform erhalten haben. Sie werden einmal geschrieben und nie wieder angezeigt.",
+    "platform": "Plattform",
+    "label": "Name",
+    "label-placeholder": "Community-Moderator",
+    "transport": "Modus",
+    "transport-live-hint": "Spricht mit der echten Plattform.",
+    "transport-mock-hint": "Eine getreue Nachbildung zum Ausprobieren des Bots: Nichts verlässt die Anwendung.",
+    "credentials": "Zugangsdaten",
+    "secret-set": "Gesetzt",
+    "secret-keep": "Gespeichert – leer lassen, um es zu behalten",
+    "generated": "wird beim Speichern für Sie erzeugt.",
+    "docs": "So erhalten Sie diese in {{platform}}"
+  },
+  "rules": {
+    "title": "Stichwortgruppen",
+    "description": "Enthält eine Nachricht ein Stichwort einer Gruppe, tut der Bot, was die Gruppe vorgibt. Die Gruppen gelten in ihrer Reihenfolge.",
+    "add": "Gruppe hinzufügen",
+    "empty": "Noch keine Stichwortgruppe vorhanden.",
+    "add-title": "Stichwortgruppe hinzufügen",
+    "edit-title": "{{name}} bearbeiten",
+    "form-description": "Listen Sie die Stichwörter auf, wählen Sie, was der Bot mit einer passenden Nachricht tut, und geben Sie ihm seinen Text oder seine Anweisung.",
+    "name": "Name",
+    "name-placeholder": "Spam-Links",
+    "keywords": "Stichwörter",
+    "keywords-placeholder": "Stichwort eingeben und Enter drücken",
+    "keywords-hint": "Trennen Sie sie mit Enter oder Kommas. Ein Stichwort aus mehreren Wörtern ist eine Phrase.",
+    "remove-keyword": "{{keyword}} entfernen",
+    "more": "+{{count}}",
+    "mode": "Abgleich",
+    "action": "Was der Bot tut",
+    "reply": {
+      "reply": "Antworttext",
+      "warn": "Warntext",
+      "record": "Bestätigungstext"
+    },
+    "instruction": "Anweisung",
+    "instruction-placeholder": "Antworte höflich und verweise auf die Seite mit den Öffnungszeiten.",
+    "instruction-hint": "Zusätzliche Hinweise, wie der Bot mit den Nachrichten dieser Gruppe umgeht.",
+    "instruction-hint-agent": "Die Anweisung, die der Assistent für Nachrichten dieser Gruppe erhält.",
+    "applies-to": "Gilt für",
+    "order": "Reihenfolge",
+    "try": "Ausprobieren",
+    "try-placeholder": "Geben Sie eine Nachricht ein, um zu sehen, ob diese Gruppe passt",
+    "try-match": "Passt: {{keywords}}",
+    "try-none": "Kein Treffer.",
+    "remove-title": "Diese Stichwortgruppe entfernen?",
+    "remove-description": "Der Bot reagiert nicht mehr auf die Stichwörter von „{{name}}“. Das lässt sich nicht rückgängig machen."
+  },
+  "activity": {
+    "title": "Bot-Aktivität",
+    "description": "Was der Bot getan hat, das Neueste zuerst. Die Liste aktualisiert sich selbst.",
+    "empty": "Der Bot hat noch nichts getan.",
+    "limit": "Wie viele anzeigen",
+    "limit-option": "Letzte {{count}}",
+    "ok": "Erledigt",
+    "failed": "Fehlgeschlagen",
+    "rule": "Gruppe: {{name}}",
+    "chat": "Chat",
+    "message": "Nachricht",
+    "user": "Nutzer"
+  },
+  "simulator": {
+    "title": "Simulator",
+    "description": "Senden Sie eine Nachricht an „{{label}}“, als hätte ein Mitglied sie geschrieben, und sehen Sie, was der Bot tut.",
+    "text": "Nachricht",
+    "text-placeholder": "Geben Sie ein, was ein Mitglied schreiben würde",
+    "matches": "Passt zu den Gruppen: {{names}}",
+    "no-match": "Keine Stichwortgruppe passt zu dieser Nachricht.",
+    "chat": "Chat",
+    "chat-group": "Gruppe",
+    "chat-private": "Privat",
+    "chat-title": "Chat-Name",
+    "sender": "Name des Absenders",
+    "send": "Senden",
+    "waiting": "Warten auf den Bot…",
+    "reacted": "Der Bot hat reagiert:",
+    "silent": "Der Bot hat auf diese Nachricht nicht reagiert."
+  },
+  "errors": {
+    "title": "Etwas ist schiefgelaufen",
+    "connection-not-found": "Diese Verbindung gibt es nicht mehr.",
+    "credentials-rejected": "Die Plattform hat diese Zugangsdaten abgelehnt. Prüfen Sie sie und versuchen Sie es erneut.",
+    "signature-rejected": "Es ließ sich nicht belegen, dass die Anfrage von der Plattform stammt.",
+    "transport-mismatch": "Nur eine simulierte Verbindung kann simulierte Nachrichten empfangen.",
+    "unsupported-action": "Diese Plattform kann das mit diesen Zugangsdaten nicht.",
+    "rule-not-found": "Diese Stichwortgruppe gibt es nicht mehr.",
+    "rule-invalid": "Diese Stichwortgruppe ließ sich nicht speichern – prüfen Sie ihre Stichwörter.",
+    "connection-disabled": "Diese Verbindung ist ausgeschaltet. Schalten Sie sie zuerst ein.",
+    "secret-missing": "Dem Server fehlt das Geheimnis, mit dem Bot-Zugangsdaten geschützt werden. Bitten Sie die Administration, es festzulegen.",
+    "credentials-unreadable": "Die gespeicherten Zugangsdaten lassen sich auf diesem Server nicht mehr lesen. Geben Sie sie erneut ein.",
+    "platform-refused": "Die Plattform hat abgelehnt: {{detail}}",
+    "bot": "Der Bot konnte das nicht abschließen.",
+    "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
+  }
+}

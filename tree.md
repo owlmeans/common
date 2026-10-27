@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All 113 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All 118 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -14,7 +14,7 @@ This is the canonical, machine-friendly map of every published `@owlmeans/*` pac
 
 1. [Configuration & tooling](#1-configuration--tooling) — shared TypeScript configs, scaffolder and skills installer
 2. [Core foundations](#2-core-foundations) — environment-agnostic primitives
-3. [Cross-cutting domain](#3-cross-cutting-domain) — llm, agent, queue, consent, inquiry, mailer, flow, iam, payment, oidc, wled, planning
+3. [Cross-cutting domain](#3-cross-cutting-domain) — llm, agent, queue, consent, inquiry, mailer, flow, iam, payment, oidc, wled, planning, bot
 4. [Auth shared](#4-auth-shared) — `auth-common`
 5. [API & API config](#5-api--api-config) — HTTP client and runtime config plumbing
 6. [Storage & infrastructure](#6-storage--infrastructure) — Mongo, Postgres, Redis, S3, Kubernetes, queue and mail drivers
@@ -78,18 +78,19 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`flow`](packages/flow) → `auth`, `config`, `error`, `i18n`, `resource`
 - [`iam`](packages/iam) → `auth`, `context`, `entrypoint`, `error`, `oidc`, `route`
 - [`auth-otp`](packages/auth-otp) → `context`, `error`
+- [`bot`](packages/bot) → `context`, `entrypoint`, `error`, `route`
 - [`wled`](packages/wled) → `auth`, `entrypoint`, `route`
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `entrypoint`, `error`, `i18n`, `resource`, `route`
 - [`planning-auth`](packages/planning-auth) → `planning`
 - [`planning`](packages/planning) → `auth`, `basic-ids`, `context`, `entrypoint`, `error`, `i18n`, `queue`, `resource`, `route`
 - [`oidc`](packages/oidc) → `auth`, `auth-common`, `basic-envelope`, `config`, `context`, `entrypoint`, `resource`, `route`
-- [`viable-common`](packages/viable-common) → `agent-common`, `auth`, `auth-common`, `context`, `entrypoint`, `error`, `flow`, `iam`, `llm-common`, `planning`, `resource`, `route`
+- [`viable-common`](packages/viable-common) → `agent-common`, `auth`, `auth-common`, `bot`, `context`, `entrypoint`, `error`, `flow`, `iam`, `llm-common`, `planning`, `resource`, `route`
 
 > **Note.** `agent-common` carries both the agent run-lifecycle records and the runtime-free PIPELINE declaration (`PipelineSpec`/`PipelineRun`); `agent` holds two runtimes over LangGraph — the ReAct loop on the functional API and `makePipeline`, a resumable `StateGraph`. Its storage is PORTS only; the durable Mongo half is `@owlmeans/agent-checkpoint` in the `internal` monorepo.
 >
 > **Note.** `llm-common` declares the `ModelProvider.Delegated` contracts (`DelegatedTask`, `DelegatedResult`, `DelegateTransport`) but holds no runtime for them: the `BaseChatModel` that performs such a call outside the process is `@owlmeans/llm-delegate` in the `internal` monorepo. `viable-common` is the runtime-free contract package (slot commands, the connector protocol, the owner console's IAM contract over `iam`, target integrity, the conversion vocabulary) that the OwlMeans Viable platform, its SDK and its MCP host all read.
 >
-> **Note.** `log` is the one logging system (levels, scopes, redaction, console override, plugins) — it depends on `context` only, so every layer above may import it; `web-log` is its consent-gated browser analytics plugin and `viable-log` a generated app's link to the OwlMeans Viable platform (two plugins and the stdout/preview contract). `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it. `mailer` is the abstract mail contract — `mailer-smtp` and `server-mailer-mailgun` drive it. `consent` holds the consent policy and Consent Mode signalling that `web-consent`, `web-gtm` and `astro` render. `common-inquiry` is the runtime-free contract of the customer inquiry widget — its config, window runtime, multipart submission and limits — shared by `web-inquiry`, the widget bundle and a CRM API. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
+> **Note.** `log` is the one logging system (levels, scopes, redaction, console override, plugins) — it depends on `context` only, so every layer above may import it; `web-log` is its consent-gated browser analytics plugin and `viable-log` a generated app's link to the OwlMeans Viable platform (two plugins and the stdout/preview contract). `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it. `mailer` is the abstract mail contract — `mailer-smtp` and `server-mailer-mailgun` drive it. `consent` holds the consent policy and Consent Mode signalling that `web-consent`, `web-gtm` and `astro` render. `bot` is the runtime-free, browser-safe chat-bot contract (platform descriptors, connections, keyword rules and their matcher, the managing and hook protocol trees, the bot errors) that the bot case's server, store, panels and agent tools build on, and that `viable-common` names its bot card fields from. `common-inquiry` is the runtime-free contract of the customer inquiry widget — its config, window runtime, multipart submission and limits — shared by `web-inquiry`, the widget bundle and a CRM API. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
 
 ## 4. Auth shared
 
@@ -126,6 +127,7 @@ External-system integrations: Mongo, Postgres, Redis, S3-compatible object stora
 - [`postgres-resource`](packages/postgres-resource) → `basic-ids`, `context`, `resource`, `server-context`
 - [`postgres`](packages/postgres) → `basic-keys`, `context`, `postgres-resource`, `resource`, `server-context`
 - [`planning-postgres`](packages/planning-postgres) → `basic-ids`, `context`, `error`, `planning`, `postgres-resource`, `resource`, `server-planning`
+- [`bot-postgres`](packages/bot-postgres) → `context`, `postgres-resource`, `resource`, `server-bot`
 - [`kluster`](packages/kluster) → `config`, `context`, `server-config`, `server-context`
 - [`mailer-smtp`](packages/mailer-smtp) → `context`, `mailer`, `server-context`
 - [`server-mailer-mailgun`](packages/server-mailer-mailgun) → `context`, `error`, `mailer`
@@ -151,6 +153,8 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-iam`](packages/server-iam) → `auth`, `context`, `entrypoint`, `error`, `iam`, `oidc`, `server-context`, `server-oidc-rp`
 - [`server-job`](packages/server-job) → `auth`, `auth-common`, `context`, `entrypoint`, `queue`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-socket`, `socket`
 - [`server-planning`](packages/server-planning) → `auth`, `auth-common`, `basic-ids`, `context`, `entrypoint`, `error`, `planning`, `queue`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-socket`, `socket`
+- [`server-bot`](packages/server-bot) → `bot`, `context`, `entrypoint`, `error`, `log`, `resource`, `server-api`, `server-entrypoint`
+- [`bot-agent`](packages/bot-agent) → `agent`, `bot`, `server-bot`
 - [`server-app`](packages/server-app) → `api`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `static-resource`
 - [`server-payment`](packages/server-payment) → `auth`, `config`, `context`, `entrypoint`, `iam`, `mongo-resource`, `payment`, `resource`, `route`, `server-api`, `server-app`, `server-context`, `server-entrypoint`
 
@@ -195,6 +199,7 @@ Browser-specific React (DOM, IndexedDB) plus the Astro integration. The panel an
 - [`web-flow`](packages/web-flow) → `client`, `client-context`, `client-entrypoint`, `client-flow`, `client-resource`, `context`, `error`, `flow`
 - [`web-auth`](packages/web-auth) → `auth`, `auth-common`, `basic-ids`, `basic-keys`, `client`, `client-auth`, `client-flow`, `config`, `context`, `web-client`
 - [`web-auth-token`](packages/web-auth-token) → `auth-token`, `client`, `client-entrypoint`, `client-i18n`, `context`, `entrypoint`, `error`, `i18n`
+- [`web-bot`](packages/web-bot) → `bot`, `client`, `client-entrypoint`, `client-i18n`, `entrypoint`, `error`, `i18n`, `log`
 - [`web-oauth`](packages/web-oauth) → `auth-common`, `client`, `client-auth`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `error`, `flow`, `i18n`, `oauth`, `route`
 - [`web-oidc-provider`](packages/web-oidc-provider) → `auth`, `client-flow`, `oidc`, `resource`, `web-client`
 - [`web-oidc-rp`](packages/web-oidc-rp) → `auth`, `basic-envelope`, `client`, `client-auth`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `flow`, `oidc`, `resource`, `web-client`, `web-flow`
@@ -233,6 +238,7 @@ A handful of dependencies cross the obvious layer boundaries. They are intention
 - **`web-auth`, `web-oidc-rp`, `client-auth` → `client-flow`.** After sign-in the dispatcher, the supervisor plugin and the Google plugin resume a flow suspended in `client-flow` (`suspendFlow` / `resumeSuspendedFlow`) instead of always navigating home; `web-auth` gained the direct edge, `client-auth` and `web-oidc-rp` already had it.
 - **Tooling → domain (`create-app` → `agent-skills` → `agent`, `llm`).** The scaffolder and the skills installer are CLIs, not framework layers: they sit in [Configuration & tooling](#1-configuration--tooling) but build after the packages they drive. No runtime framework package depends on either.
 - **`astro` → `consent`, `web-gtm`.** The Astro integration composes the browser consent and tag-manager packages for static sites; it is a web-layer package that ships no React.
+- **`bot-agent` → `agent`, `server-bot`.** The bridge from a chat bot to an agent: the update as context, the bot's actions as tools. It sits in the server layer, without the `server-` prefix, because its tools call `server-bot`'s `BotActions` (a type-only edge); `agent` is a peer.
 
 If you add a new cross-layer dependency, document it here and explain why.
 
@@ -244,12 +250,12 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 - **L1**: `error`, `log`, `route`, `router`, `web-consent`, `web-gtm`
 - **L2**: `astro`, `auth`, `auth-otp`, `llm`, `mailer`, `resource`, `server-route`, `web-inquiry`, `web-router`, `web-router-react-router`
 - **L3**: `basic-keys`, `config`, `entrypoint`, `server-mailer-mailgun`, `socket`, `state`, `static-resource`, `storage-common`
-- **L4**: `api-config`, `auth-token`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
+- **L4**: `api-config`, `auth-token`, `basic-envelope`, `bot`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
 - **L5**: `agent-common`, `oauth`, `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
 - **L6**: `agent`, `api-config-client`, `cli-auth`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`
-- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-oidc-provider`, `server-wl`, `web-db`
-- **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-common`, `web-wl`, `{server-auth | server-socket}`
-- **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oauth`, `server-oidc-rp`, `viable-sdk`, `web-auth-token`, `web-flow`
+- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-bot`, `server-oidc-provider`, `server-wl`, `web-db`
+- **L8**: `bot-agent`, `bot-postgres`, `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-common`, `web-wl`, `{server-auth | server-socket}`
+- **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oauth`, `server-oidc-rp`, `viable-sdk`, `web-auth-token`, `web-bot`, `web-flow`
 - **L10**: `client-auth`, `server-iam`, `server-payment`
 - **L11**: `client-job`, `client-panel`, `client-payment`, `web-client`, `web-oauth`
 - **L12**: `mui-oidc-rp`, `mui-panel`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `web-panel`, `web-payment`
@@ -272,7 +278,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  web-panel        web-client      web-flow        web-router                 ║
  ║  web-oidc-rp      web-oidc-provider  web-auth     web-wl        web-db       ║
  ║  mui-panel        mui-oidc-rp     web-payment     web-consent    web-gtm      ║
- ║  astro            web-inquiry                                                ║
+ ║  astro            web-inquiry     web-bot                                    ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  CLIENT  (platform-agnostic React — web + React Native)          L0–L13      ║
  ║                                                                              ║
@@ -290,7 +296,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  server-oidc-rp   server-socket┘ SCC              server-oidc-provider       ║
  ║  server-auth-identity  server-auth-otp  server-iam   server-job              ║
  ║  server-entrypoint  server-route  server-context   server-config             ║
- ║  server-wl        server-payment                                             ║
+ ║  server-wl        server-payment  server-bot       bot-agent                 ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  STORAGE & INFRASTRUCTURE                                         L3–L8      ║
  ║                                                                              ║
@@ -298,6 +304,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  storage-resource image-resource  storage-common   static-resource           ║
  ║  kluster          postgres        postgres-resource                          ║
  ║  redis-queue      mailer-smtp     server-mailer-mailgun                      ║
+ ║  bot-postgres                                                                ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  API & API-CONFIG  (HTTP client + runtime config plumbing)        L4–L7      ║
  ║                                                                              ║
@@ -311,7 +318,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║                                                                              ║
  ║  flow             oidc            payment          wled            iam       ║
  ║  queue            consent         mailer           auth-otp   common-inquiry ║
- ║  llm-common       llm             agent-common     agent                     ║
+ ║  llm-common       llm             agent-common     agent           bot       ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  CORE FOUNDATIONS  (environment-agnostic primitives)              L0–L4      ║
  ║                                                                              ║
@@ -335,19 +342,19 @@ Dependencies flow downward: every package can only import from the layers below 
   L11  █████ client-job  client-panel  client-payment  web-client  web-oauth
   L10  ███ client-auth  server-iam  server-payment
    L9  ██████ server-app  server-auth-otp  server-job  server-oauth  server-oidc-rp
-               web-auth-token  web-flow
-   L8  ███████ client-did  client-flow  client-i18n  client-socket  create-app
-               redis-queue  web-wl
+               web-auth-token  web-bot  web-flow
+   L8  █████████ bot-agent  bot-postgres  client-did  client-flow  client-i18n  client-socket
+               create-app  redis-queue  web-wl
         ████ {server-auth ↔ server-socket}
-   L7  ████████████ agent-skills  api-config-server  client  iam  image-resource
-                mongo  postgres  redis  server-auth-identity  server-oidc-provider
-                server-wl  web-db
+   L7  █████████████ agent-skills  api-config-server  client  iam  image-resource
+                mongo  postgres  redis  server-auth-identity  server-bot
+                server-oidc-provider  server-wl  web-db
    L6  ████████████ agent  api-config-client  cli-auth  client-resource  kluster  mailer-smtp
                 mongo-resource  oidc  postgres-resource  queue  redis-resource
                 server-api  storage-resource
    L5  ████ agent-common  oauth  payment  server-context
         █████████████ {api ↔ auth-common ↔ client-context ↔ client-entrypoint ↔ client-route}
-   L4  ████████ api-config  basic-envelope  client-config  did  flow
+   L4  █████████ api-config  basic-envelope  bot  client-config  did  flow
                 server-config  server-entrypoint  wled
    L3  ████████ basic-keys  config  entrypoint  server-mailer-mailgun  socket
                 state  static-resource  storage-common

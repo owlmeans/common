@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-flow",
-  "version": "0.1.18-rc.60",
+  "version": "0.1.18-rc.62",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,11 +22,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth-common": "^0.1.18-rc.52",
-    "@owlmeans/client": "^0.1.18-rc.57",
-    "@owlmeans/client-context": "^0.1.18-rc.53",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.52",
-    "@owlmeans/client-resource": "^0.1.18-rc.52",
+    "@owlmeans/auth-common": "^0.1.18-rc.54",
+    "@owlmeans/client": "^0.1.18-rc.59",
+    "@owlmeans/client-context": "^0.1.18-rc.55",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.54",
+    "@owlmeans/client-resource": "^0.1.18-rc.54",
     "@owlmeans/config": "^0.1.18-rc.45",
     "@owlmeans/context": "^0.1.18-rc.35",
     "@owlmeans/error": "^0.1.18-rc.39",

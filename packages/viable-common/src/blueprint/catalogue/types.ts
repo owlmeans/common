@@ -15,8 +15,10 @@ export interface SupportedBlueprintCase {
   capabilities: BlueprintCapabilities
   tenancy: 'single-organization' | 'multiple-organizations' | 'configurable'
   categories: SupportedAppCategory[]
-  categoryKind?: 'work' | 'game'
+  categoryKind?: 'work' | 'game' | 'bot'
   planningResources?: string[]
+  /** A bot case's supported messaging platforms (`BotPlatform` values). */
+  botPlatforms?: string[]
 }
 
 export interface SupportedBlueprint {

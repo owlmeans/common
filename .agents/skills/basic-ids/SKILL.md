@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/basic-ids
 
 **Layer:** Core
-**Install:** `"@owlmeans/basic-ids": "^0.1.18-rc.41"` in `dependencies`
+**Install:** `"@owlmeans/basic-ids": "^0.1.18-rc.42"` in `dependencies`
 
 ## Key Exports
 

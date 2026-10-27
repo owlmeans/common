@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/web-bot",
+  "version": "0.1.18-rc.2",
+  "generatedAt": "2026-10-26T22:23:53.871Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-bot",
+      "category": "package-specific",
+      "file": "skills/web-bot/SKILL.md",
+      "canonicalPath": ".agents/skills/web-bot/SKILL.md"
+    }
+  ]
+}

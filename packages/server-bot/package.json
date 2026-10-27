@@ -1,0 +1,65 @@
+{
+  "name": "@owlmeans/server-bot",
+  "version": "0.1.18-rc.2",
+  "license": "MIT",
+  "description": "The server runtime of OwlMeans chat bots — connections with sealed credentials, keyword rules, the signed inbound hook and its inbox, the worker's dispatcher and receivers, never-throwing bot actions recorded as activity, the platform plugin interface with the Telegram plugin, and an API-faithful mock transport.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 6 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./mock": {
+      "import": "./build/mock/index.js",
+      "require": "./build/mock/index.js",
+      "default": "./build/mock/index.js",
+      "module": "./build/mock/index.js",
+      "types": "./build/mock/index.d.ts"
+    },
+    "./conformance": {
+      "import": "./build/conformance/index.js",
+      "require": "./build/conformance/index.js",
+      "default": "./build/conformance/index.js",
+      "module": "./build/conformance/index.js",
+      "types": "./build/conformance/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/bot": "^0.1.18-rc.2",
+    "@owlmeans/context": "^0.1.18-rc.35",
+    "@owlmeans/entrypoint": "^0.1.18-rc.42",
+    "@owlmeans/error": "^0.1.18-rc.39",
+    "@owlmeans/log": "^0.1.18-rc.4",
+    "@owlmeans/resource": "^0.1.18-rc.41",
+    "@owlmeans/server-api": "^0.1.18-rc.58",
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.41"
+  },
+  "peerDependencies": {
+    "ajv": "*"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/static-resource": "^0.1.18-rc.40",
+    "@owlmeans/test": "^0.1.18-rc.39",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.6.4",
+    "ajv": "^8.20.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

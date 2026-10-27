@@ -82,6 +82,14 @@ export interface SlotSecretMetadata {
    * application's own directory. Its password lives only in the ACL Secret.
    */
   valkeyPassword?: string
+  /**
+   * The workload's own secret — random, 32 bytes, base64url — which its api and worker read as
+   * `APP_SECRET` (`APP_SECRET_ENV`) and derive their at-rest encryption keys from.
+   *
+   * Minted ONCE per project and scope by the platform and read back ever after: what it encrypted
+   * in the target's own database is unreadable under any other value. Never an owner variable.
+   */
+  appSecret?: string
 }
 
 export interface SlotListMetadata {

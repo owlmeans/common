@@ -1,7 +1,8 @@
 import type { JSONSchemaType } from 'ajv'
 import { CODE_MAX, IntrinsicPolicy, IntrinsicStatus, SpecificationFormat, WorkcardKind, AnyTypeSchema, ProjectTypeSchema, RelationshipType, SpecificationSlot, StatusFlowSchema, WorkcardTypeSchema } from '@owlmeans/planning'
 import { ORIGIN_TENANCY_LIST_MAX, ORIGIN_TENANCY_WORD_MAX, ProjectArea, TENANCY_QUOTE_MAX } from '../areas/consts.js'
-import { CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
+import { BotPlatform } from '@owlmeans/bot'
+import { BotKit, CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
 import { REQUIREMENTS_VERSION, StoryKind } from '../ba/consts.js'
 import { RequirementsDocumentSchema } from '../ba/schemas.js'
 import { ConnectLlm, ConnectTarget } from '../connect/consts.js'
@@ -30,6 +31,15 @@ export const ViableProjectFieldsSchema = {
     blueprintCase: { type: 'string', minLength: 1, maxLength: 64, nullable: true },
     gameKind: { type: 'string', minLength: 1, maxLength: 64, nullable: true },
     workKind: { type: 'string', enum: [...Object.values(WorkKind), null], nullable: true },
+    botPlatforms: {
+      type: 'array',
+      items: { type: 'string', enum: Object.values(BotPlatform) },
+      minItems: 1,
+      maxItems: Object.values(BotPlatform).length,
+      uniqueItems: true,
+      nullable: true,
+    },
+    botKit: { type: 'string', enum: [...Object.values(BotKit), null], nullable: true },
     caseQuote: { type: 'string', minLength: 1, maxLength: CASE_QUOTE_MAX, nullable: true },
     target: { type: 'string', enum: [...Object.values(ConnectTarget), null], nullable: true },
     origin: { ...ProjectOriginSchema, nullable: true },

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-iam",
-  "version": "0.1.18-rc.63",
+  "version": "0.1.18-rc.65",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -26,11 +26,11 @@
     "@owlmeans/context": "^0.1.18-rc.35",
     "@owlmeans/entrypoint": "^0.1.18-rc.42",
     "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/iam": "^0.1.18-rc.55",
+    "@owlmeans/iam": "^0.1.18-rc.57",
     "@owlmeans/log": "^0.1.18-rc.4",
-    "@owlmeans/oidc": "^0.1.18-rc.60",
+    "@owlmeans/oidc": "^0.1.18-rc.62",
     "@owlmeans/server-context": "^0.1.18-rc.45",
-    "@owlmeans/server-oidc-rp": "^0.1.18-rc.61"
+    "@owlmeans/server-oidc-rp": "^0.1.18-rc.63"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

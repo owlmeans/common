@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import { ProjectArea } from '../src/areas/consts.js'
 import { RequirementKind, RequirementSource, SpecCategory } from '../src/ba/consts.js'
-import { DesignStaleness, STORY_DESIGN_VERSION, StoryDesignSchema, storyDesignHelper } from '../src/design/index.js'
+import { BotRuleAction } from '@owlmeans/bot'
+import { DesignStaleness, NO_RUNTIME, STORY_DESIGN_VERSION, StoryDesignSchema, storyDesignHelper, storyRuntimeHelper } from '../src/design/index.js'
 import type { StoryDesign } from '../src/design/index.js'
 
 const design = (extra: Partial<StoryDesign> = {}): StoryDesign => storyDesignHelper.emptyStoryDesign({
@@ -171,10 +172,44 @@ describe('viable-common - the design schema', () => {
     expect(validate(rogue)).toBe(false)
   })
 
+  test('accepts a runtime with bot handlers and refuses an unknown trigger or action', () => {
+    const value = withScreens()
+    value.runtime = {
+      ...NO_RUNTIME,
+      bot: {
+        handlers: [
+          { name: 'moderate', purpose: 'Follows the matched group.', trigger: 'rules', actions: [BotRuleAction.Delete, BotRuleAction.Warn] },
+          { name: 'report', purpose: 'Handles /report.', trigger: 'command', command: 'report', actions: [BotRuleAction.Reply], agent: 'judge', records: ['Report'] },
+        ],
+      },
+    }
+    expect(validate(value)).toBe(true)
+
+    const trigger = structuredClone(value)
+    trigger.runtime!.bot!.handlers[0]!.trigger = 'schedule' as never
+    expect(validate(trigger)).toBe(false)
+
+    const action = structuredClone(value)
+    action.runtime!.bot!.handlers[0]!.actions = ['kick' as never]
+    expect(validate(action)).toBe(false)
+  })
+
   test('keeps the write-back slots optional', () => {
     const value = withScreens()
     value.models = [{ path: 'sources/backend/src/domain/booking.ts', entities: ['Booking'] }]
 
     expect(validate(value)).toBe(true)
+  })
+})
+
+describe('viable-common - the bot handlers of a runtime', () => {
+  test('are total: a design without a runtime, or a runtime without a bot block, has none', () => {
+    expect(storyRuntimeHelper.botHandlersOf(storyRuntimeHelper.runtimeOf(design()))).toEqual([])
+    expect(storyRuntimeHelper.botHandlersOf(NO_RUNTIME)).toEqual([])
+
+    const handlers = [{ name: 'reply', purpose: 'Answers.', trigger: 'rules' as const, actions: [BotRuleAction.Reply] }]
+    expect(storyRuntimeHelper.botHandlersOf({ ...NO_RUNTIME, bot: { handlers } })).toEqual(handlers)
+    // Bot handlers are not queue work: the queue gate stays closed.
+    expect(storyRuntimeHelper.needsRuntime({ ...NO_RUNTIME, bot: { handlers } })).toBe(false)
   })
 })

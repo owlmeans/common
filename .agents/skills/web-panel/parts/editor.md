@@ -1,6 +1,9 @@
 ---
 name: editor
 description: Controlled JSON editing and previews with the optional web-panel/editor entrypoint, CodeMirror 6, syntax diagnostics, formatting, copying and read-only state.
+metadata:
+  purposes: form, view
+  mentions: JsonEditor, JsonEditorProps, JsonEditorLabels
 ---
 
 # JSON editor
@@ -34,7 +37,7 @@ out of consumers that do not use it. JSON support, linting and highlighting are 
 - Colours use host shadcn variables, falling back to Tailwind's `--color-*` variables. Brand-specific
   primary/chart colours have standard-token fallbacks. The host still scans web-panel's `src`.
 
-Acceptance: `bun test ./packages/web-panel/tests/editor.spec.ts`; the real Chromium harness checks
+Acceptance: `@owlmeans/web-panel`'s `editor.spec.ts` (`bun test tests/editor.spec.ts` in the package); the real Chromium harness checks
 highlighting, formatting, undo, incomplete drafts, validity, external values and read-only controls.
 
 ## External docs

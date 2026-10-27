@@ -31,12 +31,12 @@ New auth mocks belong in `@owlmeans/test-auth`, never in a package's own `tests/
 
 ## Package → category map
 
-All 103 packages, one category each.
+All 108 packages, one category each.
 
-- **A** (53): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `basic-ids`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-resource`, `client-route`, `client-socket`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `flow`, `i18n`, `iam`, `image-resource`, `llm-common`, `mailer`, `payment`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-config`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `web-db`, `web-gtm`, `web-inquiry`, `web-router-react-router`
+- **A** (56): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `basic-ids`, `bot`, `bot-agent`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-resource`, `client-route`, `client-socket`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `flow`, `i18n`, `iam`, `image-resource`, `llm-common`, `mailer`, `payment`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-bot`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-config`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `web-db`, `web-gtm`, `web-inquiry`, `web-router-react-router`
 - **B** (20): `auth`, `auth-common`, `auth-otp`, `basic-envelope`, `basic-keys`, `client-auth`, `client-did`, `client-iam`, `client-payment`, `did`, `mui-oidc-rp`, `oidc`, `server-auth`, `server-auth-otp`, `server-oidc-provider`, `server-oidc-rp`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `wled`
-- **C** (15): `kluster`, `llm` (live inference providers), `mailer-smtp`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-mailer-mailgun`, `storage-resource`
-- **D** (11): `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-client`, `web-consent`, `web-flow`, `web-panel`, `web-router`, `web-wl`
+- **C** (16): `bot-postgres`, `kluster`, `llm` (live inference providers), `mailer-smtp`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-mailer-mailgun`, `storage-resource`
+- **D** (12): `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-bot`, `web-client`, `web-consent`, `web-flow`, `web-panel`, `web-router`, `web-wl`
 - **None** (5): `_tpl`, and the four harness packages themselves — `test`, `test-auth`, `test-integration`, `test-ui`
 
 A **contract** package and its **backend** split across categories. `queue`, `resource`,
@@ -48,6 +48,11 @@ its manifest lists: a package that only declares types, schemas and errors has n
 while one whose code issues real commands against the service is C even when it names no driver.
 `redis-resource` imports `ioredis` for types alone and drives the client the db service hands it;
 `mongo-resource` carries its driver as a devDependency, for its specs only. Both are C.
+
+`server-bot` is A although its platforms are external services: they are reached only through the
+plugin seam, and its own API-faithful mock transport (a shipped feature, not a test mock) or a
+spec's `fetch` answering a platform's documented envelopes stands in for them; its store is any
+`Resource` (static resources in its specs). Its Postgres store, `bot-postgres`, is C.
 
 `web-router` is D, not A: it drives the History API, so its routing behaviour is only observable in
 a browser and its specs mount a real harness in chromium. A client-side package stays in A when it

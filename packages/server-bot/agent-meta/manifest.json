@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/server-bot",
+  "version": "0.1.18-rc.2",
+  "generatedAt": "2026-10-26T22:23:53.848Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "server-bot",
+      "category": "package-specific",
+      "file": "skills/server-bot/SKILL.md",
+      "canonicalPath": ".agents/skills/server-bot/SKILL.md",
+      "parts": [
+        {
+          "name": "discord",
+          "file": "skills/server-bot/parts/discord.md",
+          "description": "The Discord plugin — the REST calls each step makes, the invite URL and permission bits, rate-limit retries, the gateway receiver (heartbeat, identify, resume, close codes, fatal faults), its normalization and addressing rules, and its mock REST routes and fake gateway socket.",
+          "purposes": [
+            "server-api",
+            "test"
+          ],
+          "mentions": [
+            "makeDiscordBotPlatform",
+            "discordBotPlatform",
+            "discordSetupHelper",
+            "DISCORD_PERMISSIONS",
+            "DiscordApiError",
+            "DiscordGatewayError",
+            "DISCORD_FATAL_CLOSE_CODES",
+            "makeDiscordGateway",
+            "DiscordMock"
+          ]
+        },
+        {
+          "name": "platforms",
+          "file": "skills/server-bot/parts/platforms.md",
+          "description": "The BotPlatformPlugin interface and the rules every plugin follows (session fetch, deadlines, authenticate, normalize, receiver and fatal faults); how to add a platform without touching the core; the mock transport, mock calls with `auth`, simulate's path and botMockHelper. Each platform's API calls are its own part (telegram, whatsapp, discord, slack).",
+          "purposes": [
+            "server-api",
+            "test"
+          ],
+          "mentions": [
+            "BotPlatformPlugin",
+            "BotPlatformSession",
+            "BotMockCall",
+            "BOT_BUILTIN_PLATFORMS",
+            "makeBotPlatformRegistry",
+            "botHookHelper",
+            "botMockHelper",
+            "signalUtils"
+          ]
+        },
+        {
+          "name": "slack",
+          "file": "skills/server-bot/parts/slack.md",
+          "description": "The Slack plugin — the Web API calls each step makes, the signing-secret signature and url_verification handshake, the admin user token for delete, emoji names, 429 retries, its normalization, dedupe key and addressing rules, and its mock workspace, signed inbound and challenge.",
+          "purposes": [
+            "server-api",
+            "test"
+          ],
+          "mentions": [
+            "makeSlackBotPlatform",
+            "slackBotPlatform",
+            "SlackApiError",
+            "SLACK_EMOJI_NAMES",
+            "slackSignatureHelper"
+          ]
+        },
+        {
+          "name": "telegram",
+          "file": "skills/server-bot/parts/telegram.md",
+          "description": "The Telegram plugin — the Bot API calls each step makes (getMe, setWebhook, getUpdates, sendMessage, deleteMessage, restrictChatMember, banChatMember, setMessageReaction), its secret-token hook, its fatal codes, its normalization and addressing rules, and privacy mode in groups.",
+          "purposes": [
+            "server-api",
+            "test"
+          ],
+          "mentions": [
+            "makeTelegramBotPlatform",
+            "telegramBotPlatform",
+            "TelegramApiError",
+            "TELEGRAM_FATAL_CODES"
+          ]
+        },
+        {
+          "name": "whatsapp",
+          "file": "skills/server-bot/parts/whatsapp.md",
+          "description": "The WhatsApp plugin — the Cloud API calls each step makes, the verify-token handshake and app-secret signature, manual setup and the one-callback-per-app rule, its normalization, its mock (phone number ids, wamids, signed inbound, challenge) and the unused per-number callback override.",
+          "purposes": [
+            "server-api",
+            "test"
+          ],
+          "mentions": [
+            "makeWhatsAppBotPlatform",
+            "whatsappBotPlatform",
+            "WhatsAppApiError",
+            "WhatsAppMock"
+          ]
+        }
+      ]
+    }
+  ]
+}
