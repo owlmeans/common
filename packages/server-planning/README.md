@@ -10,7 +10,7 @@ the `@owlmeans/server-planning/store` subpath.
 ## Installation
 
 ```sh
-bun add @owlmeans/server-planning@^0.1.18-rc.38 @owlmeans/planning@^0.1.18-rc.31 ajv
+bun add @owlmeans/server-planning@^0.1.18-rc.39 @owlmeans/planning@^0.1.18-rc.32 ajv
 ```
 
 ## Concepts

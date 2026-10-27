@@ -17,7 +17,7 @@ contracts they are written against live in `@owlmeans/bot`.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-bot@^0.1.18-rc.2
+bun add @owlmeans/web-bot@^0.1.18-rc.3
 ```
 
 The package ships its own private shadcn primitives and imports them with relative specifiers.

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-bot",
-  "version": "0.1.18-rc.2",
+  "version": "0.1.18-rc.3",
   "license": "MIT",
   "description": "The browser half of OwlMeans chat bots — shadcn panels for bot connections, keyword groups, activity and the mock-message simulator, their hooks over a bound @owlmeans/bot protocol tree, and their translations.",
   "type": "module",

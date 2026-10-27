@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-bot
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-bot": "^0.1.18-rc.2"` in `dependencies`
+**Install:** `"@owlmeans/web-bot": "^0.1.18-rc.3"` in `dependencies`
 **Contracts:** `@owlmeans/bot` — platforms and their descriptors, connections, rules, activity, the
 `makeBotProtocols` tree the panels call, the `BotError` family
 
@@ -116,7 +116,7 @@ runs the bot:
 | none / `operators` | operator area (`/backoffice`) | `appProtocols.api.bot.operator` |
 | `users` | user area (`/frontoffice`) | `appProtocols.api.bot.member` |
 
-- `sources/web/package.json`: `"@owlmeans/web-bot": "^0.1.18-rc.2"` (with `@owlmeans/bot` from common).
+- `sources/web/package.json`: `"@owlmeans/web-bot": "^0.1.18-rc.3"` (with `@owlmeans/bot` from common).
 - `sources/web/src/index.css`, beside the other package lines — BOTH paths, because the installer
   decides where the package lands:
 
