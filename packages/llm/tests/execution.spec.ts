@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import {
-  ExecutionEffort, ExecutionLevel, ModelEffort, ModelProvider, UTILITY_ROLE,
+  ExecutionEffort, ExecutionLevel, ModelEffort, ModelProvider, PackagePurpose, UTILITY_ROLE,
 } from '@owlmeans/llm-common'
 import type { ExecutionState, ModelConfigPatch, TaskExecutionState } from '@owlmeans/llm-common'
 import { DEFAULT_EFFORT, EFFORT_TABLE, makeExecutionService, makeLlmService } from '@owlmeans/llm'
@@ -281,6 +281,46 @@ describe('@owlmeans/llm — prompt policy accumulation', () => {
     const helper = service.forHelper(withPrompt(), { role: Role.Analyst })
     const restored = service.restore(service.snapshot(helper), { models: makeService() })
     expect(restored.prompt).toEqual({ role: 'project role', skills: ['base'] })
+    expect('focus' in restored.prompt!).toBe(false)
+    expect('cacheTtl' in restored.prompt!).toBe(false)
+  })
+
+  // A focus narrows as work does: each level adds what it uses, and the package plugin sorts what
+  // it renders, so first-seen order is enough to keep the bytes stable.
+  test('focus lists union in first-seen order, and late is the deepest level\'s', () => {
+    const task = service.forTask(withPrompt(), {
+      prompt: { focus: { packages: ['@owlmeans/web-panel', '@owlmeans/client'], late: false } },
+    })
+    const helper = service.forHelper(task, {
+      role: Role.Analyst,
+      prompt: { focus: { packages: ['@owlmeans/client', '@owlmeans/auth'], purposes: [PackagePurpose.Form], late: true } },
+    })
+
+    expect(helper.prompt?.focus).toEqual({
+      packages: ['@owlmeans/web-panel', '@owlmeans/client', '@owlmeans/auth'], purposes: [PackagePurpose.Form], late: true,
+    })
+    expect('parts' in helper.prompt!.focus!).toBe(false)
+    expect(task.prompt?.focus?.late).toBe(false)
+  })
+
+  test('cache lifetimes merge key by key, a string naming every key', () => {
+    const task = service.forTask(withPrompt(), { prompt: { cacheTtl: '1h' } })
+    const helper = service.forHelper(task, { role: Role.Analyst, prompt: { cacheTtl: { stable: '5m' } } })
+    expect(helper.prompt?.cacheTtl).toEqual({ skills: '1h', packages: '1h', project: '1h', stable: '5m' })
+
+    const objects = service.forHelper(
+      service.forTask(withPrompt(), { prompt: { cacheTtl: { skills: '1h' } } }),
+      { role: Role.Analyst, prompt: { cacheTtl: { packages: '1h' } } },
+    )
+    expect(objects.prompt?.cacheTtl).toEqual({ skills: '1h', packages: '1h' })
+  })
+
+  test('a focus survives a snapshot/restore round trip', () => {
+    const helper = service.forHelper(withPrompt(), {
+      role: Role.Analyst, prompt: { focus: { packages: ['@owlmeans/planning'], types: ['Task'], late: false } },
+    })
+    const restored = service.restore(JSON.parse(JSON.stringify(service.snapshot(helper))), { models: makeService() })
+    expect(restored.prompt?.focus).toEqual({ packages: ['@owlmeans/planning'], types: ['Task'], late: false })
   })
 })
 

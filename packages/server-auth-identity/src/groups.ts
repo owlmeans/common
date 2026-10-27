@@ -4,8 +4,9 @@ import type { Document } from 'mongodb'
 import type { OrgEntityResource, OrgGroup } from './types.js'
 import { AUTH_IDENTITY_ORG_ENTITY, MAX_GUARDED_UPDATE_ATTEMPTS } from './consts.js'
 import { nativeUtils } from './utils/native.js'
-import type { OrgGroupHelper } from './groups/types.js'
+import type { OrgGroupFields, OrgGroupHelper } from './groups/types.js'
 import type { Context } from './types.local.js'
+import { ORG_GROUP_FIELDS } from './consts.local.js'
 
 export const makeOrgGroupHelper = (ctx: Context): OrgGroupHelper => {
   const entities = () => ctx.resource<OrgEntityResource>(AUTH_IDENTITY_ORG_ENTITY)
@@ -42,6 +43,20 @@ export const makeOrgGroupHelper = (ctx: Context): OrgGroupHelper => {
     throw new SyntaxError(`entity:group-contended:${group.service}:${group.key}`)
   }
 
+  const updateOrgGroup = async (entityId: string, service: string, key: string, fields: OrgGroupFields): Promise<boolean> => {
+    const res = entities()
+    // Positional paths of the matched element only: the other fields of the group, and every
+    // other group of the organization, stay exactly as the store has them now.
+    const set: Document = Object.fromEntries(ORG_GROUP_FIELDS.filter(field => fields[field] !== undefined)
+      .map(field => [`groups.$.${field}`, fields[field]]))
+    const result = await res.collection.updateOne(
+      { ...nativeUtils.idFilter(res, entityId), groups: { $elemMatch: { service, key } } },
+      { $set: { ...set, updatedAt: new Date() } },
+    )
+
+    return result.matchedCount > 0
+  }
+
   const removeOrgGroup = async (entityId: string, service: string, key: string): Promise<boolean> => {
     const res = entities()
     const pull: Document = { $pull: { groups: { service, key } }, $set: { updatedAt: new Date() } }
@@ -52,7 +67,7 @@ export const makeOrgGroupHelper = (ctx: Context): OrgGroupHelper => {
     return result.matchedCount > 0
   }
 
-  return { listOrgGroups, putOrgGroup, removeOrgGroup }
+  return { listOrgGroups, putOrgGroup, updateOrgGroup, removeOrgGroup }
 }
 
 /** The organization groups of a context — one per context. */

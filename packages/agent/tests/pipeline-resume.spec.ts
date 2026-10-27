@@ -172,6 +172,39 @@ describe('agent — resume', () => {
     expect(rest.calls).toEqual({ b: 1, c: 1 })
   })
 
+  test('a run stopped by the person is continued by a later resume from the next step', async () => {
+    const runs = createMemoryPipelineRunStore()
+    const stop = new AbortController()
+    const stopping = makePipeline<State, Deps>(linear, {
+      runs,
+      steps: linear.steps.map(declared => ({
+        step: declared.step,
+        run: async (state, ctx) => {
+          bump(ctx.deps, declared.step)
+          if (declared.step === 'a') {
+            stop.abort()
+          }
+
+          return { value: (state.value ?? 0) + 1 }
+        },
+      })),
+    })
+
+    const first = deps()
+    const stopped = await stopping.invoke({}, { runId: 'r', deps: first, scope: 's', stop: stop.signal })
+    expect(stopped.status).toBe(PipelineRunStatus.Aborted)
+    expect(stopped.stopped).toBe('stop')
+    expect(first.calls).toEqual({ a: 1 })
+
+    const rest = deps()
+    const finished = await build(runs).resume('r', { deps: rest })
+
+    expect(finished.status).toBe(PipelineRunStatus.Done)
+    expect(finished.stopped).toBeUndefined()
+    expect(rest.calls).toEqual({ b: 1, c: 1 })
+    expect(finished.state.value).toBe(3)
+  })
+
   test('a plain invoke of an unfinished run CONTINUES it; `restart` starts over', async () => {
     const runs = createMemoryPipelineRunStore()
     await build(runs).invoke({}, { runId: 'r', deps: deps(['b']), scope: 's' })
@@ -316,5 +349,95 @@ describe('agent — composition', () => {
     const result = await composed.invoke({}, { runId: 'p', deps: deps(), scope: 's' })
 
     expect(result.status).toBe(PipelineRunStatus.Done)
+  })
+
+  test('a child stopped by the person stops the parent, and the composing step is not committed', async () => {
+    const runs = createMemoryPipelineRunStore()
+    const stop = new AbortController()
+    const stoppingChild = makePipeline<State, Deps>(child, {
+      runs,
+      steps: child.steps.map(declared => ({
+        step: declared.step,
+        run: async (state, ctx) => {
+          bump(ctx.deps, `child:${declared.step}`)
+          if (declared.step === 'x') {
+            stop.abort()
+          }
+
+          return { value: (state.value ?? 0) + 1 }
+        },
+      })),
+    })
+    const compose = (inner: PipelineModel<State, Deps>) => makePipeline<State, Deps>(parent, {
+      runs,
+      steps: [
+        { step: 'before', run: async (_s, ctx) => { bump(ctx.deps, 'before'); return { value: 1 } } },
+        inner.asStep<State>('inner', {
+          input: state => ({ value: state.value }),
+          output: childState => ({ value: childState.value }),
+        }),
+      ],
+    })
+
+    const first = deps()
+    const result = await compose(stoppingChild).invoke({}, { runId: 'p', deps: first, scope: 's', stop: stop.signal })
+
+    expect(result.status).toBe(PipelineRunStatus.Aborted)
+    expect(result.stopped).toBe('stop')
+    expect(result.completed).toEqual(['before'])
+    expect(first.calls).toEqual({ before: 1, 'child:x': 1 })
+    expect((await runs.load('p'))?.note).toBe('stopped: stop')
+    const childRow = await runs.load('p/inner')
+    expect(childRow?.status).toBe(PipelineRunStatus.Aborted)
+    expect(childRow?.completed).toEqual(['x'])
+
+    const later = deps()
+    const resumed = await compose(childModel(runs)).resume('p', { deps: later })
+
+    expect(resumed.status).toBe(PipelineRunStatus.Done)
+    expect(later.calls).toEqual({ 'child:y': 1 })
+  })
+
+  test('a child out of budget stops the parent instead of completing the composing step', async () => {
+    // Its state handed to `output` would commit the composing step complete, and a resume of the
+    // parent would never re-enter the child's unfinished steps.
+    const runs = createMemoryPipelineRunStore()
+    const slowChild = makePipeline<State, Deps>(child, {
+      runs,
+      steps: child.steps.map(declared => ({
+        step: declared.step,
+        run: async (state, ctx) => {
+          bump(ctx.deps, `child:${declared.step}`)
+          if (declared.step === 'x') {
+            await new Promise(resolve => setTimeout(resolve, 150))
+          }
+
+          return { value: (state.value ?? 0) + 1 }
+        },
+      })),
+    })
+    const compose = (inner: PipelineModel<State, Deps>) => makePipeline<State, Deps>(parent, {
+      runs,
+      steps: [
+        { step: 'before', run: async () => ({ value: 1 }) },
+        inner.asStep<State>('inner', {
+          input: state => ({ value: state.value }),
+          output: childState => ({ value: childState.value }),
+        }),
+      ],
+    })
+
+    const result = await compose(slowChild).invoke({}, { runId: 'p', deps: deps(), scope: 's', budgetMs: 100 })
+
+    expect(result.status).toBe(PipelineRunStatus.Aborted)
+    expect(result.stopped).toBe('budget')
+    expect(result.completed).toEqual(['before'])
+    expect((await runs.load('p/inner'))?.note).toBe('stopped: budget')
+
+    const later = deps()
+    const resumed = await compose(childModel(runs)).resume('p', { deps: later })
+
+    expect(resumed.status).toBe(PipelineRunStatus.Done)
+    expect(later.calls).toEqual({ 'child:y': 1 })
   })
 })

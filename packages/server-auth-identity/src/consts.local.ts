@@ -7,3 +7,9 @@
  * resolving through `formerSlugs` rather than failing.
  */
 export const CACHE_TTL = 30_000
+
+/**
+ * The fields of an organization group a field-level update may write. `service` and `key` are the
+ * group's identity and are never rewritten in place.
+ */
+export const ORG_GROUP_FIELDS = ['title', 'managed', 'permissions', 'bundles'] as const

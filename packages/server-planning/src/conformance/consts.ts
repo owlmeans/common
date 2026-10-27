@@ -147,3 +147,19 @@ export const planningConformancePlugin: PlanningPlugin = Object.freeze({
     { type: LIBRARY.guest, version: 1, kind: AssigneeKind.Human, authentication: 'optional' as const, fields: { type: 'object', additionalProperties: true } },
   ] },
 })
+
+/**
+ * The library's own definition properties and base card fields — registered by the case that checks
+ * them for its duration only, then replaced by a plugin of the same name that declares nothing.
+ */
+export const CONFORMANCE_APP_PLUGIN: PlanningPlugin = Object.freeze({
+  name: 'planning-conformance-app',
+  order: 1,
+  schemas: {
+    app: {
+      type: { properties: { description: { type: 'string', maxLength: 200 } } },
+      flow: { properties: { description: { type: 'string', maxLength: 200 } }, required: ['description'] },
+      card: { properties: { shelfmark: { type: 'string', pattern: '^[A-Z]-[0-9]+$' } } },
+    },
+  },
+})

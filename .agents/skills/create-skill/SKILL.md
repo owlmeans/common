@@ -38,7 +38,8 @@ carries the `owlmeans-` prefix — `owlmeans-context` for `@owlmeans/context`, `
 ```
 .agents/skills/<skill-name>/
 ├── SKILL.md          # Required — entrypoint with frontmatter + instructions
-├── reference.md      # Optional — detailed reference docs
+├── parts/<part>.md   # Optional — a package skill's purpose parts (see below)
+├── reference.md      # Optional — detailed reference docs (repo-only; a package skill uses a part)
 ├── examples.md       # Optional — usage examples
 └── scripts/          # Optional — bundled shell scripts the skill runs
     └── <name>.sh
@@ -84,16 +85,33 @@ silently disappears from every agent. Keep it under 1024 characters; Copilot rej
 | `argument-hint` | Skill takes arguments — show hint in autocomplete |
 
 Six fields are portable: `name`, `description`, `license`, `compatibility`, `allowed-tools` and
-nested `metadata` — exactly what the Agent Skills frontmatter parser in `@owlmeans/agent-skills`
-reads. `user-invocable`, `disable-model-invocation` and `argument-hint` are understood by Claude
+nested `metadata` — the fields the Agent Skills standard defines. `@owlmeans/agent-skills` has no
+frontmatter parser; the generator that embeds package guidance reads the frontmatter.
+`user-invocable`, `disable-model-invocation` and `argument-hint` are understood by Claude
 Code and Copilot; use them only when the skill genuinely needs them. Everything else, including
 project-specific routing markers such as `scope: general`, belongs under `metadata:`.
 
 Write `allowed-tools` as a comma-separated list (`Bash(bun *), Read`), a flow sequence
-(`[Bash(bun *), Read]`), or an indented `- ` block. The parser breaks entries on commas, newlines
-and `- ` only — never on a bare space — so `Bash(bun *) Read` is read as one tool whose name is
-`Bash(bun *) Read`. `@owlmeans/agent-skills` keeps the parsed list advisory and enforces no tool
-policy itself; the agent running the skill is what honours it.
+(`[Bash(bun *), Read]`), or an indented `- ` block. Agents break entries on commas, newlines and
+`- ` only — never on a bare space — so `Bash(bun *) Read` is read as one tool whose name is
+`Bash(bun *) Read`. Nothing in `@owlmeans/agent-skills` reads or enforces the list; the agent
+running the skill is what honours it.
+
+## Package skills with parts
+
+A package skill that grows large is split into a core and purpose parts — full rules in
+`skill-authoring` → Chunked package skills (parts). The shape:
+
+- `SKILL.md` is the core (target ≤ 12 000 chars): frontmatter, install line, exports, wiring, any
+  `## Target wiring` section and the rules every use needs. It ENDS with a `## Parts` table,
+  `| Part | Load it when |`, linking each `parts/<part>.md`.
+- Each part opens with exactly `name` (= the file stem, unique within the package), `description`
+  and `metadata:` → `purposes` (comma list from the closed vocabulary) and `mentions` (symbols and
+  import specifiers), then `# @owlmeans/<package> — <part title>`.
+- Purposes: `view`, `form`, `list`, `detail`, `dialog`, `picker`, `navigation`, `layout`, `screen`,
+  `theme`, `feedback`, `state`, `client-api`, `server-api`, `data`, `migration`, `query`, `auth`,
+  `consent`, `payment`, `planning`, `job`, `agent`, `config`, `test`, `ops`.
+- The generator warns above 12 000 chars per part and fails above 16 000.
 
 ## Decision guide
 

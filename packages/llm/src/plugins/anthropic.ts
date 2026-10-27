@@ -1,15 +1,19 @@
 import { ChatAnthropic } from '@langchain/anthropic'
 import { BadRequestError } from '@anthropic-ai/sdk'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import type { MessageContent, MessageFieldWithRole } from '@langchain/core/messages'
-import { ModelProvider, PromptBlock, StructuredMode, type CacheTtl } from '@owlmeans/llm-common'
-import type { EffortSupport, LlmPlugin, AnthropicModelSupport } from './types.js'
+import type { MessageFieldWithRole } from '@langchain/core/messages'
+import { ModelProvider, StructuredMode, type CacheTtl } from '@owlmeans/llm-common'
+import type { EffortSupport, LlmPlugin, AnthropicModelSupport, PromptBoundary } from './types.js'
+import type { MarkDialect } from '../utils/marks/types.js'
 import type { ModelConfig } from '../types.js'
 import { CHARS_PER_TOKEN, MAX_CACHE_BREAKPOINTS, MIN_CACHEABLE_TOKENS } from '../consts.js'
 import { configUtils } from '../utils/config.js'
+import { markUtils } from '../utils/marks.js'
+import { messageUtils } from '../utils/messages.js'
+import { promptUtils } from '../utils/prompt.js'
 import { pluginUtils } from './utils.js'
-import { CACHEABLE_PREFIX } from './consts.local.js'
-import { ADAPTIVE_MIN_MAX_TOKENS, ANTHROPIC_FAMILY, type ThinkingOff } from './consts.js'
+import { ANTHROPIC_AUTOMATIC_MARKER, ANTHROPIC_MARKABLE_BLOCKS, CACHEABLE_PREFIX } from './consts.local.js'
+import { ADAPTIVE_MIN_MAX_TOKENS, ANTHROPIC_FAMILY, CacheDialect, type ThinkingOff } from './consts.js'
 import type { AnthropicKwargs, ContentBlock, WireOutputConfig, WireThinking } from './types.local.js'
 import { effortUtils } from '../utils/effort.js'
 import { schemaUtils } from '../utils/schema.js'
@@ -77,8 +81,8 @@ const supportsCache = (model: BaseChatModel): boolean =>
  * create an entry below its own per-model minimum, so a marker there wastes one of the
  * four breakpoints and reports a cache that was never written.
  */
-const minCacheableChars = (model: BaseChatModel): number =>
-  (configUtils.readConfig(model).cacheMinTokens
+const minCacheableChars = (model: BaseChatModel, config: Partial<ModelConfig> = configUtils.readConfig(model)): number =>
+  (config.cacheMinTokens
     ?? anthropicSupportHelper.anthropicSupportOf((model as ChatAnthropic).modelName)?.cacheMinTokens
     ?? MIN_CACHEABLE_TOKENS) * CHARS_PER_TOKEN
 
@@ -90,42 +94,43 @@ const minCacheableChars = (model: BaseChatModel): number =>
 const marker = (ttl: CacheTtl): ContentBlock =>
   ttl === '1h' ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' }
 
-const contentLength = (content: MessageContent | undefined): number => {
-  if (typeof content === 'string') {
-    return content.length
+/** Whether a message can carry a marker on its last block: a blank text or a thinking block cannot. */
+const markable = (msg: MessageFieldWithRole | undefined): boolean => {
+  if (msg == null) {
+    return false
   }
-  if (Array.isArray(content)) {
-    return content.reduce<number>((sum, part) => {
-      const text = (part as unknown as { text?: unknown }).text
-      return sum + (typeof text === 'string' ? text.length : 0)
-    }, 0)
+  if (typeof msg.content === 'string') {
+    return msg.content.trim() !== ''
   }
-  return 0
+  const last = Array.isArray(msg.content) ? msg.content[msg.content.length - 1] as ContentBlock | undefined : undefined
+  return last != null && ANTHROPIC_MARKABLE_BLOCKS.has(String(last.type))
 }
 
 /**
- * Put a breakpoint on a message's LAST content block, lifting string content into a block
- * so the marker has somewhere to live. Idempotent, and it never mutates a block the
- * caller owns — the array is rebuilt around a fresh copy of the final entry.
+ * A copy of the message whose LAST content block carries the marker, string content lifted into
+ * a block so the marker has somewhere to live. The message handed in is never edited.
  */
-const markMessage = (msg: MessageFieldWithRole, mark: ContentBlock): boolean => {
+const markedCopy = (msg: MessageFieldWithRole, ttl: CacheTtl): MessageFieldWithRole => {
   if (typeof msg.content === 'string') {
-    msg.content = [{ type: 'text', text: msg.content, cache_control: mark }] as unknown as MessageContent
-    return true
+    return messageUtils.withContent(msg, [{ type: 'text', text: msg.content, cache_control: marker(ttl) }])
   }
-  if (Array.isArray(msg.content) && msg.content.length > 0) {
-    const blocks = [...msg.content] as ContentBlock[]
-    const last = blocks[blocks.length - 1]
-    if (last.cache_control != null) {
-      return true
-    }
-    blocks[blocks.length - 1] = { ...last, cache_control: mark }
-    msg.content = blocks as unknown as MessageContent
-    return true
-  }
-
-  return false
+  const blocks = [...msg.content as ContentBlock[]]
+  blocks[blocks.length - 1] = { ...blocks[blocks.length - 1], cache_control: marker(ttl) }
+  return messageUtils.withContent(msg, blocks)
 }
+
+/** Anthropic's spelling of a breakpoint: `cache_control` on a content block. */
+const dialect: MarkDialect = {
+  block: (text, boundary) => ({
+    type: 'text', text, ...(boundary != null ? { cache_control: marker(boundary.ttl) } : {}),
+  }),
+  message: (msg, boundary) => markedCopy(msg, boundary.ttl),
+}
+
+/** The boundaries a message list can actually carry — never the final message, the per-call payload. */
+const carriable = (messages: readonly MessageFieldWithRole[], boundaries: readonly PromptBoundary[]): PromptBoundary[] =>
+  boundaries.filter(boundary => boundary.message < messages.length - 1
+    && (boundary.segment != null || markable(messages[boundary.message])))
 
 export const anthropicPlugin: LlmPlugin = {
   type: ModelProvider.Anthropic,
@@ -233,93 +238,44 @@ export const anthropicPlugin: LlmPlugin = {
     return new ChatAnthropic(cfg)
   },
 
+  cacheDialect: () => CacheDialect.Anthropic,
+
   /**
-   * Render the composed system prompt as Anthropic content blocks, one per section, with
-   * a breakpoint on each stability boundary:
-   *
-   * - after `Role` + `Skills` — the region every call of this role shares;
-   * - after `Packages`        — varies with what the request mentions, so it gets its own
-   *                             entry and can never invalidate the block above it;
-   * - after the last block    — so the whole system prompt is cached, which is the
-   *                             default this layer promises.
-   *
-   * Boundaries that coincide collapse into one. Marking stops as soon as the budget is
-   * spent, earliest boundary first — the earliest prefix is the one most calls share.
+   * Place `cache_control` markers on the plan's boundaries — role + skills and packages inside the
+   * system message, the project message, the caller's stable lead messages — earliest first,
+   * skipping a prefix below the model's minimum, within the request's budget. The final message
+   * is never marked: it is the per-call payload and its tail.
    */
-  patchSystem: (blocks, { model, cacheMax, ttl }) => {
-    const content: ContentBlock[] = blocks.map(block => ({ type: 'text', text: block.text }))
-    if (!supportsCache(model) || cacheMax < 1) {
-      return { content: content as unknown as MessageContent, breakpoints: 0 }
+  patchPrompt: plan => {
+    if (!supportsCache(plan.model) || plan.budget < 1) {
+      return { messages: plan.messages, placed: 0 }
     }
+    const chosen = markUtils.select(
+      carriable(plan.messages, plan.boundaries), minCacheableChars(plan.model, plan.config), plan.budget,
+    )
 
-    const lastOf = (...wanted: PromptBlock[]): number =>
-      blocks.reduce((found, block, i) => wanted.includes(block.block) ? i : found, -1)
-
-    // Closing the prompt is worth a breakpoint only when the last block is STABLE. A
-    // trailing `Context` changes every call, so marking it would pay a cache write every
-    // time and never read one back — it burns a breakpoint to buy nothing. A prompt that
-    // is ONLY context (a caller that has not adopted role/skills) is still worth marking,
-    // because there it IS the stable part.
-    const last = blocks.length - 1
-    const closing = blocks[last].block === PromptBlock.Context && blocks.length > 1 ? -1 : last
-
-    const boundaries = [...new Set([
-      lastOf(PromptBlock.Role, PromptBlock.Skills),
-      lastOf(PromptBlock.Packages),
-      closing,
-    ].filter(index => index >= 0))].sort((a, b) => a - b)
-
-    const minChars = minCacheableChars(model)
-    let consumed = 0
-    let chars = 0
-    let next = 0
-    for (let i = 0; i < content.length; i++) {
-      chars += blocks[i].text.length
-      if (i !== boundaries[next]) {
-        continue
-      }
-      next++
-      if (chars < minChars || consumed >= cacheMax) {
-        continue
-      }
-      content[i].cache_control = marker(ttl)
-      consumed++
-    }
-
-    return { content: content as unknown as MessageContent, breakpoints: consumed }
+    return markUtils.render(plan.messages, plan.system, chosen, dialect)
   },
 
   /**
-   * One breakpoint, at the end of the stable message prefix (`cacheMax` messages).
-   *
-   * Not one marker per message: the request budget is {@link MAX_CACHE_BREAKPOINTS} in
-   * total across tools, system and messages, and the system prompt — the part that is
-   * genuinely identical between calls — has first claim on it. `reserved` is what the
-   * system prompt already spent.
+   * One round of a tool loop: at most three explicit markers on the stable opening (role + skills,
+   * packages, the project message), never on the final message — plus Anthropic's automatic
+   * top-level `cache_control`, which marks the last block of each request and so moves forward
+   * round by round, reading back everything the round before it sent.
    */
-  patchCache: (msgs, { model, useCache, cacheMax, reserved = 0, ttl = '5m' }) => {
-    if (!useCache || !supportsCache(model) || msgs.length === 0) {
-      return false
+  loopCache: (messages, model, hints = {}) => {
+    const wire = messages.map(messageUtils.copy)
+    promptUtils.stripCacheMarkers(wire)
+    if (!supportsCache(model) || wire.length === 0) {
+      return { messages: wire, placed: 0 }
     }
-    if (Math.min(cacheMax, MAX_CACHE_BREAKPOINTS - reserved) < 1) {
-      return false
-    }
+    const opening = markUtils.loopOpening(wire, hints, markUtils.resolveTtl(hints.ttl))
+    const chosen = markUtils.select(
+      carriable(wire, opening.boundaries), minCacheableChars(model), MAX_CACHE_BREAKPOINTS - 1,
+    )
+    const patch = markUtils.render(wire, opening.system, chosen, dialect)
 
-    // The final message is the per-call payload, and `ensureJsonMention` / `applyNoThink`
-    // append to it — including it in the prefix would write a fresh entry every call and
-    // read none. The stable prefix therefore stops one short of the end.
-    const index = Math.min(cacheMax, msgs.length - 1) - 1
-    const target = index >= 0 ? msgs[index] : null
-    if (target == null) {
-      return false
-    }
-    const chars = msgs.slice(0, index + 1)
-      .reduce((sum, msg) => sum + contentLength(msg.content), 0)
-    if (chars < minCacheableChars(model)) {
-      return false
-    }
-
-    return markMessage(target, marker(ttl))
+    return { ...patch, options: { cache_control: { ...ANTHROPIC_AUTOMATIC_MARKER } } }
   },
 
   /**

@@ -3,17 +3,18 @@ import type { MessageFieldWithRole } from '@langchain/core/messages'
 /** In-place preparation of the messages one model call sends. */
 export interface PromptUtils {
   /**
-   * Drop every `cache_control` marker from the messages.
+   * Drop every cache marker from the messages — Anthropic's `cache_control` and OpenAI's
+   * `prompt_cache_breakpoint`, also when it sits under a block's `extras`.
    *
-   * Markers are placed in-place, on the caller's own message objects — and a caller that
-   * carries its message array across calls (the coder's growing conversation, a fix loop
-   * re-sending the same sources) hands them back still marked. The provider counts markers
-   * per REQUEST, not per message: Anthropic rejects the fifth outright with
+   * The model marks only its own copies, but a caller may still hand in messages it marked
+   * itself, or ones a tool loop sent before. The provider counts markers per REQUEST, not per
+   * message: Anthropic rejects the fifth outright with
    * `400 A maximum of 4 blocks with cache_control may be provided. Found 5.`, and since a
    * 400 is fatal it burns the entire retry budget before surfacing.
    *
    * So the pipeline always starts from a clean slate and re-places its own markers, which
-   * makes the per-request count a function of THIS call alone.
+   * makes the per-request count a function of THIS call alone. Marked blocks are replaced,
+   * never edited.
    */
   stripCacheMarkers: (msgs: MessageFieldWithRole[]) => void
   /**
@@ -48,4 +49,10 @@ export interface PromptUtils {
    * belongs in the tool — a reply in plain text is a failed attempt.
    */
   ensureToolCall: (msgs: MessageFieldWithRole[], toolName: string) => void
+  /**
+   * Append the per-call tail to the final message, after its payload: a string stays a string
+   * (`content + '\n\n' + tail`), block content gains a text block. A final tool result, assistant
+   * turn or system message is never edited — the tail goes in a new user message after it.
+   */
+  appendTail: (msgs: MessageFieldWithRole[], tail: string) => void
 }

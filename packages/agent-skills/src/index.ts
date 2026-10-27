@@ -1,5 +1,5 @@
 export { discover } from './discover.js'
-export type { DiscoveredEntry, Manifest, ManifestEntry, DiscoverOptions } from './types.js'
+export type { DiscoveredEntry, DiscoveredPart, Manifest, ManifestEntry, ManifestPart, DiscoverOptions } from './types.js'
 
 export { detectLinked } from './linked.js'
 export type { LinkedResult } from './types.js'

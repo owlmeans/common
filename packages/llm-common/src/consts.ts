@@ -97,7 +97,7 @@ export enum SpectatorContentType {
 export const SPECTATOR_GENERAL = 'general'
 
 /**
- * Ordered sections of a composed system prompt.
+ * Ordered sections of a composed prompt.
  *
  * The ordering is not cosmetic — it IS the prompt-cache design. Every provider caches
  * a prompt by exact PREFIX match, so the sections are laid out most-stable first and a
@@ -106,15 +106,19 @@ export const SPECTATOR_GENERAL = 'general'
  * - `Role`     — the base system prompt defining who the model is. Stable per role.
  * - `Skills`   — the statically declared capabilities, rendered in a deterministic
  *                order. Stable per helper. A breakpoint closes `Role` + `Skills`.
- * - `Packages` — capabilities resolved from whatever the request happens to mention.
- *                Varies per request, so it gets its OWN breakpoint and can never
- *                invalidate the two blocks above it.
+ * - `Packages` — the package documentation this persona needs for the work at hand (a focus),
+ *                or what the request happens to mention. It gets its OWN breakpoint and can
+ *                never invalidate the two blocks above it.
  * - `Results`  — what the earlier steps of the pipeline this call runs in produced
  *                (`ExecutionState.results`). Stable within one step, different on the
  *                next, so it sits BELOW every boundary that is cached across steps and
- *                is emitted only when a view is present — a call without one composes
- *                exactly the bytes it composed before this block existed.
- * - `Context`  — volatile, caller-supplied system text. Never cached.
+ *                is emitted only when a view is present.
+ * - `Context`  — caller-supplied system text and project facts. Stable for one step of the work,
+ *                so it sits in the project message with `Results`.
+ * - `Tail`     — what belongs to ONE call: per-call skills, late packages and types. Appended to the
+ *                final message after the call's payload and never cached.
+ *
+ * Where each block is sent is {@link PROMPT_REGIONS}.
  */
 export enum PromptBlock {
   Role = 'role',
@@ -122,6 +126,7 @@ export enum PromptBlock {
   Packages = 'packages',
   Results = 'results',
   Context = 'context',
+  Tail = 'tail',
 }
 
 /**
@@ -135,7 +140,75 @@ export const PROMPT_BLOCK_ORDER: readonly PromptBlock[] = [
   PromptBlock.Packages,
   PromptBlock.Results,
   PromptBlock.Context,
+  PromptBlock.Tail,
 ] as const
+
+/**
+ * Where a composed block travels in a request. Each region is stable for a different span of
+ * work, so each closes on its own cache breakpoint (the tail on none):
+ *
+ * - `System`  — the system message: who the model is and what it may use. Stable per persona
+ *               (role + skills) and per persona and story (packages).
+ * - `Project` — the user turn right after the system: facts about this project and step.
+ * - `Tail`    — appended to the final message, after the call's own payload.
+ */
+export enum PromptRegion {
+  System = 'system',
+  Project = 'project',
+  Tail = 'tail',
+}
+
+/** The blocks of each {@link PromptRegion}, in emission order. */
+export const PROMPT_REGIONS: Readonly<Record<PromptRegion, readonly PromptBlock[]>> = Object.freeze({
+  [PromptRegion.System]: [PromptBlock.Role, PromptBlock.Skills, PromptBlock.Packages],
+  [PromptRegion.Project]: [PromptBlock.Results, PromptBlock.Context],
+  [PromptRegion.Tail]: [PromptBlock.Tail],
+})
+
+/**
+ * What a part of a package's documentation is FOR — the closed vocabulary a chunked package skill
+ * tags its parts with, and a {@link PromptFocus} selects them by. `library-manager` keeps a copy
+ * (it cannot import this package) and a test pins that the two are equal.
+ */
+export enum PackagePurpose {
+  View = 'view',
+  Form = 'form',
+  List = 'list',
+  Detail = 'detail',
+  Dialog = 'dialog',
+  Picker = 'picker',
+  Navigation = 'navigation',
+  Layout = 'layout',
+  Screen = 'screen',
+  Theme = 'theme',
+  Feedback = 'feedback',
+  State = 'state',
+  ClientApi = 'client-api',
+  ServerApi = 'server-api',
+  Data = 'data',
+  Migration = 'migration',
+  Query = 'query',
+  Auth = 'auth',
+  Consent = 'consent',
+  Payment = 'payment',
+  Planning = 'planning',
+  Job = 'job',
+  Agent = 'agent',
+  Config = 'config',
+  Test = 'test',
+  Ops = 'ops',
+}
+
+/** Every {@link PackagePurpose}, in declaration order — declared, not derived from the enum. */
+export const PACKAGE_PURPOSES: readonly PackagePurpose[] = Object.freeze([
+  PackagePurpose.View, PackagePurpose.Form, PackagePurpose.List, PackagePurpose.Detail,
+  PackagePurpose.Dialog, PackagePurpose.Picker, PackagePurpose.Navigation, PackagePurpose.Layout,
+  PackagePurpose.Screen, PackagePurpose.Theme, PackagePurpose.Feedback, PackagePurpose.State,
+  PackagePurpose.ClientApi, PackagePurpose.ServerApi, PackagePurpose.Data, PackagePurpose.Migration,
+  PackagePurpose.Query, PackagePurpose.Auth, PackagePurpose.Consent, PackagePurpose.Payment,
+  PackagePurpose.Planning, PackagePurpose.Job, PackagePurpose.Agent, PackagePurpose.Config,
+  PackagePurpose.Test, PackagePurpose.Ops,
+])
 
 /** Sort weight of a skill that declares none — see `SkillDefinition.order`. */
 export const DEFAULT_SKILL_ORDER = 100

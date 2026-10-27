@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.49"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.60"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -32,7 +32,8 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 | `makeModelTaskDriver({ models })` · `TaskDriver` | A reference parent agent backed by a chat model (tests, CLIs) |
 | `ToolHost.extensions` · `EXTENSION_TOOLS` | Tools the hosting process adds beyond the catalogue (the agent-setup pair `describe_harness` / `install_harness` is one such extension, shipped outside this package); listed, filtered by their own `availability` and registered like the catalogue's own |
 | `catalogue` · `catalogueHelper` (`.visibleTools(host)` · `.toolByName`) · `registerCatalogue(server, deps)` · `serverInstructions({ host })` | The tools and how they reach an MCP server |
-| `statusTextHelper` — `.renderProjectStatus`, `.renderStoryStatus(status, { landing? })`, `.renderPipelineStatus`, `.conversionNext` | Domain status as concise lines ending in the next valid action |
+| `statusTextHelper` — `.renderProjectStatus`, `.renderStoryStatus(status, { landing? })`, `.renderPipelineStatus`, `.renderBatchStatus`, `.conversionNext` | Domain status as concise lines ending in the next valid action |
+| `controlToolHelper` — `.stopNeedsConfirm`, `.unconfirmedStop`, `.unconfirmedCancel`, `.renderStop`, `.renderSteer`, `.renderCancel` | The agent controls' words: what a stop rolls back, what a steering message does |
 | `storyHelper` — `.resolveStory(deps, projectId, ref)` · `.storyQuery(projectId, filter?)` · `.renderStories(items, page, total)` · `.isLandingStory(card)`; `STORY_ORDER` · `LANDING_MARK` · `LANDING_NOTE` | The story tools' reading of planning cards |
 | `PROJECT_SETTINGS` · `settingsHelper` — `.projectSettingOf(key)` · `.settingsPatch(args)` · `.renderProjectSettings(projectId, settings)` · `.settingsReach(target)` | The project-settings tools: each setting's label and rule, the patch a call asks for, the rendering |
 | `PLATFORM_CATALOGUE` (`pipelines`, `features`, `capabilities`) · `renderPlatform(catalogue, host)` · `GENERATED_SUMMARY` | What `describe_platform` renders, and the one-sentence product summary `describe_capabilities` ends with |
@@ -106,7 +107,10 @@ tool is written against it, so a tool cannot accidentally work in only one of th
 without the capability is refused at the boundary rather than by a check somewhere inside.
 
 `ConnectorApi` has exactly one member per connector route plus the planning facade — the session
-(`openSession`, `closeSession`, `pullOps`, `submitOp`), projects, branding (`projectBranding(id, scope?)`,
+(`openSession`, `closeSession`, `pullOps`, `submitOp`), projects (with the agent controls
+`project.stop(id, AgentStopArgs)` → `ConnectAgentLock`, `project.steer(id, { prompt })` → `AgentSteerResult`
+and the story batch `project.batch.start(id, { stories? })` / `.get(id)` (`null` when none ran) /
+`.cancel(id)` → `StoryBatchView` — only the fields named cross the wire), branding (`projectBranding(id, scope?)`,
 `saveProjectBranding(id, patch, scope?)`, `setPlatformCredit(id, hidden, scope?)`,
 `copyOrganizationBranding(id, scope?)` — a scope sent only when named), the configuration
 (`config.get(id, scope?)`, `config.save(id, body, scope?)`, `config.recollect(id)`), the
@@ -134,7 +138,8 @@ task until its answer comes back. The URL-configured host answers one request an
 opening one there would claim the project's single connector slot, **supersede the stdio connector
 legitimately holding it**, and be abandoned before the first operation was delivered.
 
-So `ensureSession` — what `confirm_project`, `reinitialize_project`, `develop_story`, `reset_story`,
+So `ensureSession` — what `confirm_project`, `reinitialize_project`, `develop_story`, `start_story_batch`,
+`steer_agent`, `reset_story`,
 `complete_story`,
 `modify_project`, `rename_project` and `resume_pipeline` call before returning their job, every
 story write, `update_project_settings`, `set_platform_credit`, `update_project_configuration`,
@@ -269,6 +274,9 @@ platform's in-process host. The scope a call answers for is the CREDENTIAL's; a 
 | `reset_story` | `storyHelper.transit(…, reset, 'connector:reset-story')` — any status back to planned |
 | `complete_story` | `storyHelper.transit(…, complete, 'connector:complete-story')` — in progress only |
 | `story_status` | `storyHelper.resolveStory` → the card, its development run, pending inquiry, warning and landing mark |
+| `start_story_batch` | `ensureSession` → each `storyIds` ref `storyHelper.resolveStory`d to its card id (deduplicated; none = every planned story, `{}`) → `api.project.batch.start` → `statusTextHelper.renderBatchStatus` |
+| `story_batch_status` | `api.project.batch.get` → the batch in implementation order (code, state, ordering reason), progress, halt reason phrased, `next:`; `null` → "No story batch has run" |
+| `cancel_story_batch` | `confirm: true` → `api.project.batch.cancel` FIRST, then — when `current` has no outcome — `api.project.stop({ scope: story, storyId: current, confirm: true })`; `AgentNotRunning` there means the batch was between stories |
 
 Rules the table rests on:
 
@@ -317,12 +325,26 @@ Rules the table rests on:
   is never replaced) and `api:auth:guard:auth-token` (a file token the platform refused — forgotten,
   the next call signs in). Each ends with "call this tool again".
 
+- **Run all, Stop and Steer are the browser's own controls.** A batch is the PROJECT's (no story
+  route), started over planned stories only, ordered by the platform before its first story, and
+  each of its stories runs exactly as `develop_story`'s would; `start_story_batch` is never a near-twin
+  of `develop_story` in its description. `stop_agent { scope?: run | story | batch, storyId?, confirm? }`
+  sends only what it was given (a `storyId` resolved to its card): a story stop rolls the story back to
+  where that run started and returns it to planned, `batch` also cancels the batch, `run` (an open-ended
+  change) stops once the model's current answer arrives and keeps its edits — so every scope but `run`
+  (an omitted scope included) needs `confirm: true`. A stop opens no session; `steer_agent { prompt }`
+  does (`ensureSession`: its content check is a model call) and answers the queued message id.
+  `AgentNotRunning`, `StoryBatchActive` and `StoryBatchEmpty` are phrased in `REFUSALS` by their
+  `viable-common` markers ("Nothing is running on this project right now …"). `project_status` says
+  `agent: stopping (…)` while `agent.stopping`, and names `steer_agent` / `stop_agent` while
+  `agent.steerable`.
+
 ## An irreversible tool asks for `confirm: true`, and every tool declares its annotations
 
 `delete_project`, `unlock_project_agent`, `delete_file`, `purge_origin`, `git_discard`, `git_revert`,
-`disconnect_github`, `revoke_access_token` and `publish_production` take `confirm` (`z.boolean()`,
-described, NO default), and `manage_app_user`'s `remove` and `manage_app_group`'s `delete` take it as an
-optional field the action requires; each answers "Not done … ask the user" without a single platform
+`disconnect_github`, `revoke_access_token`, `publish_production` and `cancel_story_batch` take `confirm` (`z.boolean()`,
+described, NO default), and `manage_app_user`'s `remove`, `manage_app_group`'s `delete` and every
+`stop_agent` scope but `run` take it as an optional field the action requires; each answers "Not done … ask the user" without a single platform
 call unless it is `true` — the confirmation is the TOOL's, a person agreed before the route is reached.
 `serverInstructions` names the same set in one sentence. `delete_project` also
 REQUIRES `projectId` (`z.string().min(1)`, never the attached project by default) and, on a
@@ -338,6 +360,7 @@ The shapes live in `tools/consts.local.ts`: `READ_ONLY` (reads, statuses, descri
 (additive changes, the task and question loop), `IDEMPOTENT_WRITE` (setting a value: settings,
 `update_story`, `reset_story`, `attach_project`, `stop_local`, `set_local_service`) and
 `DESTRUCTIVE` (`delete_project`, `delete_story`, `purge_origin`, `reinitialize_project`, `git_revert`,
+`cancel_story_batch` and `stop_agent` (both idempotent — a story stop rolls code back),
 `publish_production` (it replaces the live site), and — also idempotent — `unlock_project_agent`,
 `write_file` (it replaces a file whole), `delete_file`, `git_discard`, `disconnect_github`,
 `revoke_access_token` and `production_control` (it takes the live site down or restarts it); `preview_control` and
@@ -450,17 +473,39 @@ query, a write — a removal included — in its body.
   resources?, mode? }`**, **`manage_app_organization { action: rename | add-member | update-member |
   remove-member, entitySlug }`**, **`manage_app_group { action: create | update | delete | add-members |
   remove-members, entitySlug, group }`**.
+- **Grants restrict as well as grant.** Every subject (person or group) has its OWN blanket value per
+  binding: granted, restricted, or absent (inherits). A whole-permission revoke (`blanket`/`all`, or no
+  mode without `resources`) RESTRICTS a declared permission — the subject also loses what it inherits
+  from a default class, a group or a bundle; `mode: inherit` (revoke-only) takes back only the
+  subject's own value, so it holds what it inherits again; a `resources` revoke removes those ids only.
+  `iamToolHelper.renderRevoke` words the result by that mode. The tool descriptions and the `mode`
+  enum text say the same, and nothing here re-implements the IAM's evaluation.
+- `app_grants` prints what is HELD and what a subject's own restriction withholds (`restricted: true`
+  — listed, never held): the head counts them apart (`Grants (N held, M restricted)`), a restricted row
+  ends `· restricted`, and `IAM_RESTRICTED_NOTE` closes a listing that has any. Origins print as
+  given: `direct`, `default`, `group` (with `through`), `bundle` (a group's own listing: the names its
+  bundles select).
+- The platform's staff group (`IAM_MEMBERS_GROUP`, `managed: true`) keeps its members, bundles and
+  existence: `manage_app_group` writes to them are refused by the IAM; its PERMISSIONS are the owner's,
+  granted and restricted with `manage_app_grant { group }`. `renderGroup` and the `manage_app_group`
+  description say exactly that — never "read-only".
 - **Action-specific fields are checked BEFORE any call** (`iamToolHelper.missing`): an invite needs
   `email`, an update something to change, a grant exactly ONE subject (a person, or a group with its
-  organization's `entitySlug` — never both), a group's update `title` or the WHOLE `bundles` list, the
-  members' moves `profileIds`; **`remove` and `delete` need `confirm: true`**. A refusal is `isError`
-  with nothing called.
+  organization's `entitySlug` — never both), an `assign` no revoke-only mode (`REVOKE_ONLY_GRANT_MODES`:
+  `all`, `inherit`), a group's update `title` or the WHOLE `bundles` list, the members' moves
+  `profileIds`; **`remove` and `delete` need `confirm: true`**. A refusal is `isError` with nothing
+  called. The contract's schema admits every mode on both bodies; the IAM refuses the revoke-only
+  ones on a grant.
 - A listing answered `external: true` prints `IAM_EXTERNAL` (the app's sign-in is managed in a console
-  of its own), never "nobody". `iam-refused:` (a managed group or definition, the last owner) is phrased
-  by `refusalHelper`; every tool runs in `answering`. The writes map to their read for the handover
-  (`STATUS_TOOL_OF`). No staff-synchronization tool.
-- Specs: `tests/iam-tools.spec.ts` (hosts, annotations, every refused shape with no call, the calls
-  made), `remote.spec.ts` (scope placement, the account-base listing).
+  of its own), never "nobody". `refusalHelper` phrases `iam:group:managed:` (the staff group: members,
+  bundles and existence the platform's, its permissions editable — placed ABOVE `iam-refused:`) and
+  `iam-refused:` (a managed definition or member, the last owner, an empty organization); every tool
+  runs in `answering`. The writes map to their read for the handover (`STATUS_TOOL_OF`). No
+  staff-synchronization tool.
+- Specs: `tests/iam-tools.spec.ts` (hosts, annotations, every refused shape with no call — revoke-only
+  modes on assign included —, the calls made, `inherit` and records revokes, held/restricted counts and
+  the `bundle` origin, the staff group's line, the staff-group and generic refusals), `remote.spec.ts`
+  (scope placement, the account-base listing).
 
 ## What the browser streams is read by cursor
 
@@ -649,8 +694,9 @@ call carries them too.
 
 The integrations' refusals each have a sentence in `REFUSALS` as well: `github:not-connected`,
 `github:not-published`, `oauth:invalid-or-expired-state` (the GitHub authorization),
-`viable-domain:taken:` (a custom domain held by another project) and `iam-refused:` (the app's own
-sign-in refusing a console change on its terms).
+`viable-domain:taken:` (a custom domain held by another project), `iam:group:managed:` (the staff
+group's members, bundles or existence) and `iam-refused:` (the app's own sign-in refusing a console
+change on its terms).
 
 The same refusals also arrive where no class survives, and `REFUSALS` phrases them by marker:
 `viable-connect:consent-required:` (a stored run error; the URL and deadline parsed from the
@@ -738,7 +784,10 @@ read the instruction. The task id appears at the top and in the follow-up call b
 only thing that routes an answer back: a parent that paraphrases the rest but copies the id still
 works. A retry says which attempt it is and why the previous answer was refused. Harnesses differ
 only in the isolation mechanism, never in what is asked; `Other` gets the request stated rather than
-mechanised.
+mechanised. Record-interaction tasks preserve their complete system instructions and JSON answer
+schema, including host/parent bindings and `selectionComponents`, through every harness. They need
+no navigation-specific MCP arguments: guided story tools and direct free flight share the platform's
+record-placement and wiring capabilities.
 
 For Codex, the parent gives a fresh `viable-worker` only the task's system prompt, then its
 conversation, then the requested result shape: the outer handoff instruction and
@@ -904,7 +953,10 @@ the `registerCatalogue` out-of-credits, consent and planning-refusal phrasing an
 commit failure in `catalogue.spec.ts`; the conversion confirmation — schemas and descriptions, the
 start and stage phrasing, the repeat call naming a freshly filed project, the stored marker, the
 bare 428 either side of `confirm`, the confirmed call's balance and consent refusals and the MCP
-boundary — in `conversion-confirmation.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
+boundary — in `conversion-confirmation.spec.ts`; the batch, stop and steer tools — attach order, codes
+resolved to card ids, the batch rendering and each final status's `next:`, cancel-then-stop, no call
+without `confirm`, only the named stop fields, the stopping/steerable status lines and the three
+refusals at the MCP boundary — in `run-control.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
 block. The story tools run over a REAL `@owlmeans/server-planning` service (memory store, the Viable
 types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`,
 the landing mark included; the settings, configuration, credit, organization (`configuration.spec.ts`:

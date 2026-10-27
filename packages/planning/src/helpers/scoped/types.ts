@@ -1,7 +1,7 @@
 import type { AssigneeTypeSchema } from '../../resources/types.js'
 import type { PlanningSchemaKind } from '../../consts.js'
 import type {
-  PlanningSchemaBundle, PlanningSchemaRegistry, SchemaScope, ScopedSchemaBundle, ScopedSchemaRecord,
+  PlanningAppDeclarations, PlanningSchemaBundle, PlanningSchemaRegistry, SchemaScope, ScopedSchemaBundle, ScopedSchemaRecord,
   ScopedSchemaRegistry, StatusFlowSchema, WorkcardTypeSchema,
 } from '../../types.js'
 
@@ -21,21 +21,30 @@ export interface ScopedSchemaHelper {
     code: Pick<PlanningSchemaRegistry, 'has' | 'type' | 'flows' | 'assigneeTypes'>, kind: PlanningSchemaKind, key: string
   ) => void
   /**
-   * The closed-form checks of a data-defined flow: the declaration's own schema, at least one status,
-   * unique status keys, every rule's `to` declared, and a `from` that is `'*'` or a list of declared
-   * statuses.
+   * The closed-form checks of a data-defined assignee type: the declaration's own schema and a
+   * `fields` schema that compiles.
    *
    * @throws {SchemaInvalid}
    */
   assertAssigneeTypeSchema: (schema: AssigneeTypeSchema) => void
-  assertFlowSchema: (flow: StatusFlowSchema) => void
   /**
-   * The closed-form checks of a data-defined type: the declaration's own schema, the `card` kind,
-   * a `fields` schema that compiles, and unique flow ids every one of which resolves.
+   * The closed-form checks of a data-defined flow: the declaration's own schema, at least one status,
+   * unique status keys, every rule's `to` declared, a `from` that is `'*'` or a list of declared
+   * statuses, and its `app` bag against the application's `flow` declaration
+   * (`appSchemaHelper.assertBag` — refused when `app` declares none).
    *
    * @throws {SchemaInvalid}
    */
-  assertTypeSchema: (type: WorkcardTypeSchema, flows: Pick<PlanningSchemaRegistry, 'flow'>) => void
+  assertFlowSchema: (flow: StatusFlowSchema, app?: PlanningAppDeclarations) => void
+  /**
+   * The closed-form checks of a data-defined type: the declaration's own schema, the `card` kind,
+   * its `app` bag against the application's `type` declaration (refused when `app` declares none),
+   * a `fields` schema that compiles together with the application's base card fields, and unique
+   * flow ids every one of which resolves.
+   *
+   * @throws {SchemaInvalid}
+   */
+  assertTypeSchema: (type: WorkcardTypeSchema, flows: Pick<PlanningSchemaRegistry, 'flow'>, app?: PlanningAppDeclarations) => void
   /**
    * One layer resolved: the code bundle, overlaid by the organization-wide records, then by the
    * project's (when `scope.project` names one). Pure — every store and both sides of the wire resolve
@@ -48,6 +57,9 @@ export interface ScopedSchemaHelper {
    * - A retired record gives way to the nearest live declaration below it; a key retired in every
    *   layer resolves retired — present in `types`/`flows`, listed in `retired`.
    * - A data-defined declaration carries its record's `version`.
+   * - The code bundle's `app` declarations pass through as they are; a record's `app` bag is not
+   *   re-checked here (the write path checks it), so a record written under earlier declarations
+   *   still resolves.
    */
   resolveScopedBundle: (
     code: PlanningSchemaBundle, records: readonly ScopedSchemaRecord[], scope: SchemaScope & { revision?: number }

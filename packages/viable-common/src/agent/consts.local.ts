@@ -9,7 +9,13 @@ export const documentActions: Record<string, AgentMarkdownKind> = {
   'describe-ui-layout': AgentMarkdownKind.DesignDocument,
 }
 
-export const codeActions = new Set(['code', 'update-code', 'update-code-full'])
+export const codeActions = new Set(['code', 'update-code', 'update-code-full', 'update-contract'])
+
+/**
+ * Edit blocks over a TypeScript contract file (`<edit op=… at=…>` with source inside). Their tags
+ * read as JSX to the language heuristics, so the language is the action's, never the text's.
+ */
+export const contractActions = new Set(['update-contract'])
 
 /**
  * The model's schema makes the final output self-describing; while it streams, the helper action

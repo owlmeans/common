@@ -57,4 +57,29 @@ export interface ViableTenancyDecision extends ProjectTenancy {
   quotes?: { operators?: string; users?: string }
   by: 'model' | 'owner'
   at: string
+  /**
+   * What a CONVERTED project's origin called its tenant — present only on a conversion whose
+   * original split its people into tenants (a team, a workspace, an account) and only while a flag
+   * is on. The quotes then come from the origin's own texts rather than from a prompt.
+   */
+  origin?: OriginTenancyFacts
+}
+
+/**
+ * The origin's tenant, compacted to the words generation is held to.
+ *
+ * The record of a converted project's tenancy (`docs/conversion/tenancy.md`) is a map with proofs;
+ * this is the part every later run needs without reading a file: what the original called its
+ * tenant, the fields it keyed records by, and the records it kept people in. Carried on the project
+ * card (`fields.tenancy.origin`) and, from there, on every execution of the project
+ * (`ExecutionState.originTenancy`), so a fresh, resumed, free-flight or story-format run holds the
+ * same facts.
+ */
+export interface OriginTenancyFacts {
+  /** The word the origin's people saw for their tenant — `team`, `workspace`, `account`. */
+  label: string
+  /** The fields the origin keyed every tenant record by — `teamId`. The ORGANIZATION key now. */
+  keys: string[]
+  /** The origin's records of people inside a tenant — its membership and invitation models. */
+  people: string[]
 }

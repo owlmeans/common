@@ -82,12 +82,22 @@ export enum GateResolutionFailure {
  * carrying no `resources`, which `hasPermission` reads as covering every id) and `Resources` (an
  * explicit id list). They are stored separately and must be revoked separately, or a UI offering
  * both controls would have one silently wipe the other.
+ *
+ * Every subject, person or group, also has ONE blanket value of its own per binding: `true` grants,
+ * `false` RESTRICTS (it cuts what the subject would inherit from a default class, a group or a
+ * bundle), absent inherits. A `Blanket` or `All` revoke of a declared definition writes the
+ * restriction; `Inherit` takes the subject's own value back.
  */
 export enum IamGrantMode {
   Blanket = 'blanket',
   Resources = 'resources',
   /** Revoke-only: every form. Illegal on a grant. */
-  All = 'all'
+  All = 'all',
+  /**
+   * Revoke-only: drop the subject's OWN blanket value in the binding — a grant or a restriction —
+   * so it holds exactly what it inherits. Resource-scoped sets are untouched. Illegal on a grant.
+   */
+  Inherit = 'inherit'
 }
 
 /** What to do about grants that still reference a definition being removed. */
@@ -134,12 +144,16 @@ export enum IamGrantOrigin {
   /** The definition's `defaultClass` covers the subject. */
   Default = 'default',
   /** Held by a group the subject is a member of — `IamGrant.through` names it. */
-  Group = 'group'
+  Group = 'group',
+  /** A group's own listing only: the names its bundles select; its own grants are `Direct`. */
+  Bundle = 'bundle'
 }
 
 /**
  * The managed group `syncStaff` keeps in a client's owning organization: the owner's own staff,
- * admitted to the client with the bundles the sync hands it. Read-only to an operator.
+ * admitted to the client with the bundles the sync hands it. Its key, membership, bundles and
+ * existence are the synchronization's alone; its grants and restrictions are the operator's and
+ * survive every sync.
  */
 export const IAM_MEMBERS_GROUP = 'members'
 

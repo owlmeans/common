@@ -34,7 +34,15 @@ export const metadataSecrets = [
   'oidcClientSecret',
   'dbAppPassword',
   'valkeyPassword',
+  'appSecret',
 ] satisfies (keyof SlotSecretMetadata)[]
+
+/**
+ * The environment key a generated application's api and worker read the workload's `appSecret`
+ * from — set by the platform after the owner's variables, in the preview, in production and in a
+ * local target's `.env`, so no owner variable can replace it.
+ */
+export const APP_SECRET_ENV = 'APP_SECRET'
 
 /**
  * The build-time environment keys a generated application reads its branding from.
