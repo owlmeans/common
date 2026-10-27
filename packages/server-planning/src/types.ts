@@ -1,6 +1,6 @@
 import type { BasicConfig, BasicContext, LazyService } from '@owlmeans/context'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
-import type { AssigneeTypeSchema, AnyTypeSchema, PlanningPlugin, PlanningScope, PlanningService, PlanningStore, StatusFlowSchema, WithPlanningService, PlanningSchemaRegistry, SchemaStore, ScopedSchemaRegistry, CommitEvent, PlanningExecContext, PlanningHookContext, TransitionExecution, WorkcardDraft } from '@owlmeans/planning'
+import type { AssigneeTypeSchema, AnyTypeSchema, PlanningAppDeclarations, PlanningPlugin, PlanningScope, PlanningService, PlanningStore, StatusFlowSchema, WithPlanningService, PlanningSchemaRegistry, SchemaStore, ScopedSchemaRegistry, CommitEvent, PlanningExecContext, PlanningHookContext, TransitionExecution, WorkcardDraft } from '@owlmeans/planning'
 import type { ApiServerAppend } from '@owlmeans/server-api'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { StoreRoute } from './store/types.js'
@@ -14,8 +14,11 @@ export interface PlanningServiceOptions {
   /** The default store — every type no plugin owns. An in-memory store when omitted. */
   store?: PlanningStore
   plugins?: PlanningPlugin[]
-  /** Schemas registered before any plugin's. */
-  schemas?: { types?: AnyTypeSchema[], flows?: StatusFlowSchema[], assigneeTypes?: AssigneeTypeSchema[] }
+  /**
+   * Schemas registered before any plugin's; `app` is the first source every plugin's `schemas.app`
+   * is merged over.
+   */
+  schemas?: { types?: AnyTypeSchema[], flows?: StatusFlowSchema[], assigneeTypes?: AssigneeTypeSchema[], app?: PlanningAppDeclarations }
   /** Run the `after` chain in this process. Default `true`. */
   hooks?: boolean
   /** Card ids when the store mints none. */
@@ -126,7 +129,13 @@ export interface ProjectionOptions {
 }
 
 export interface PluginRegistry {
-  /** Register, or replace the plugin of the same `name`. Its schemas are contributed now. */
+  /**
+   * Register, or replace the plugin of the same `name`. Its schemas are contributed now; the
+   * application's declarations are re-merged from the service's own and every plugin's, in plugin
+   * order (`appSchemaHelper.merge`), so a replaced plugin's declarations leave with it.
+   *
+   * @throws {SchemaInvalid} a malformed `schemas.app` — the plugin is not registered
+   */
   use: (plugin: PlanningPlugin) => void
   /** Every plugin, `order` ascending (registration order among equals). */
   plugins: () => PlanningPlugin[]

@@ -1,4 +1,6 @@
-import { DEFAULT_SKILL_ORDER, type SkillDefinition } from '@owlmeans/llm-common'
+import {
+  DEFAULT_SKILL_ORDER, PROMPT_REGIONS, PromptRegion, type PromptBlock, type SkillDefinition,
+} from '@owlmeans/llm-common'
 import { CHUNK_SEPARATOR } from './consts.js'
 import type { PromptRenderHelper } from './render/types.js'
 
@@ -27,7 +29,12 @@ export const createPromptRenderHelper = (): PromptRenderHelper => {
     return hash.toString(36)
   }
 
-  return { compareAlias, sortSkills, renderSkill, joinChunks, prefixHash }
+  const regionOf = (block: PromptBlock): PromptRegion =>
+    PROMPT_REGIONS[PromptRegion.System].includes(block)
+      ? PromptRegion.System
+      : PROMPT_REGIONS[PromptRegion.Project].includes(block) ? PromptRegion.Project : PromptRegion.Tail
+
+  return { compareAlias, sortSkills, renderSkill, joinChunks, prefixHash, regionOf }
 }
 
 export const promptRenderHelper = createPromptRenderHelper()

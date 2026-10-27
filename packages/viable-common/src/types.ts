@@ -49,6 +49,16 @@ export interface SlotConstMetadata {
    * therefore never reach one — which only absence guarantees.
    */
   brandingGoogleTag?: string
+  /**
+   * Which audiences of the target work inside organizations — the project's tenancy flags that are
+   * on, comma-separated (`users`, `operators`, `users,operators`); the publisher hands it to the
+   * target's backend as `IAM_TENANCY`, which the seed's `mine` reads to offer "New organization".
+   *
+   * Computed by the platform from the project card at every push, never stored by an owner — so it
+   * is in no `metadataConfigs` list — and OMITTED while no flag is on, for the reason
+   * `brandingGoogleTag` is: a publisher that predates the key strips it and fails the signature.
+   */
+  iamTenancy?: string
 }
 
 export interface SlotSecretMetadata {
@@ -72,6 +82,14 @@ export interface SlotSecretMetadata {
    * application's own directory. Its password lives only in the ACL Secret.
    */
   valkeyPassword?: string
+  /**
+   * The workload's own secret — random, 32 bytes, base64url — which its api and worker read as
+   * `APP_SECRET` (`APP_SECRET_ENV`) and derive their at-rest encryption keys from.
+   *
+   * Minted ONCE per project and scope by the platform and read back ever after: what it encrypted
+   * in the target's own database is unreadable under any other value. Never an owner variable.
+   */
+  appSecret?: string
 }
 
 export interface SlotListMetadata {

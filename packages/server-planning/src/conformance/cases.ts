@@ -1,10 +1,10 @@
 import { resourceConformance } from './resources.js'
 
-import { applyHelper, CardTypeNotAllowed, CommitState, IntrinsicStatus, PlanningError, PlanningSchemaKind, RelationshipRefused, SchemaConflict, SchemaInUse, SchemaInvalid, SchemaOrigin, SchemaSealed, SpecificationFormat, TransitionAction, UnknownWorkcardType, WorkcardConflict, WorkcardKind, WorkcardNotFound, type CommitEvent, type PlanningFacade, type PlanningStore, type StatusFlowSchema, type Transition, type TransitionExecution, type Unsubscribe, type Workcard, type WorkcardQuery, type WorkcardTypeSchema } from '@owlmeans/planning'
+import { applyHelper, CardTypeNotAllowed, CommitState, FieldsInvalid, IntrinsicStatus, PlanningError, PlanningSchemaKind, RelationshipRefused, SchemaConflict, SchemaInUse, SchemaInvalid, SchemaOrigin, SchemaSealed, SpecificationFormat, TransitionAction, UnknownWorkcardType, WorkcardConflict, WorkcardKind, WorkcardNotFound, type CommitEvent, type PlanningFacade, type PlanningStore, type StatusFlowSchema, type Transition, type TransitionExecution, type Unsubscribe, type Workcard, type WorkcardQuery, type WorkcardTypeSchema } from '@owlmeans/planning'
 import { creatorHelper } from '../executor/creator.js'
 import { assertHelper } from './assert.js'
 import { conformanceFixturesOf } from './fixtures.js'
-import { BOOK_TYPE, LIBRARY, PERIODICAL_TYPE } from './consts.js'
+import { BOOK_TYPE, CONFORMANCE_APP_PLUGIN, LIBRARY, PERIODICAL_TYPE } from './consts.js'
 import type { ConformanceCase } from './types.js'
 import { idHelper } from '@owlmeans/basic-ids'
 
@@ -366,6 +366,43 @@ const cases: ConformanceCase[] = [
   },
 
   {
+    name: 'deletes a card with its own documents and refuses one with a child card',
+    run: async ({ facade, store }) => {
+      const entityId = organization()
+      const planning = facade(entityId)
+      const fixtures = conformanceFixturesOf(planning)
+      const branch = await fixtures.createBranch()
+      const book = await fixtures.createBook(branch.id!, 'Documented')
+      const neighbour = await fixtures.createBook(branch.id!, 'Neighbour')
+      const summary = (await (await planning.model(book)).write('summary', '{"lines":["first"]}', { wait: true })).card!
+      await (await planning.model(book.id!)).write('summary', '{"lines":["second"]}', { wait: true })
+      await execute(planning, { card: neighbour.id!, action: TransitionAction.Link, link: { type: 'shelved-near', to: book.id! } })
+
+      const deleted = await planning.execute({ card: book.id!, action: TransitionAction.Delete }, { wait: true })
+
+      same((await planning.commits.status(deleted.transition.id!)).state, CommitState.Committed, 'the delete commits')
+      same(await planning.cards.load(book.id!), null, 'the card is gone')
+      same(await planning.cards.load(summary.id!), null, 'its document is gone')
+      same(await store.specs!.current(book.id!, 'summary', entityId), null, 'no current document')
+      same((await planning.cards.list({ kind: WorkcardKind.Specification })).total, 0, 'no listed document')
+      same((await store.transitions!.list({ entityId, card: summary.id! }, { size: 0 })).total, 0, 'the document\'s log goes with it')
+      check((await store.transitions!.list({ entityId, card: book.id! }, { size: 0 })).items.some(row => row.action === TransitionAction.Delete), 'the card keeps its own delete')
+      same((await planning.relationships.list({ from: neighbour.id })).total, 0, 'edges into the card dropped')
+      check(await planning.cards.load(neighbour.id!) != null, 'a sibling survives')
+
+      const shelf = (await planning.execute({
+        card: { kind: WorkcardKind.Card, type: LIBRARY.section, parent: branch.id!, title: 'Shelf' }, action: TransitionAction.Create,
+      }, { wait: true })).card!
+      const shelved = await fixtures.createBook(shelf.id!, 'Shelved')
+      await (await planning.model(shelved)).write('summary', '{"lines":["kept"]}', { wait: true })
+      const refusal = await rejects(planning.execute({ card: shelf.id!, action: TransitionAction.Delete }), PlanningError, 'a card with a child card')
+      check(refusal.message.includes('hierarchy:parent-in-use'), `the refusal names the hierarchy: ${refusal.message}`)
+      same((await planning.cards.get(shelved.id!)).parent, shelf.id, 'the child card stays')
+      same((await planning.specifications.current(shelved.id!, 'summary'))?.body, '{"lines":["kept"]}', 'with its document')
+    },
+  },
+
+  {
     name: 'settles a transition that cannot fold in order and folds past it',
     run: async ({ facade, store }) => {
       const org = organization()
@@ -505,6 +542,56 @@ const cases: ConformanceCase[] = [
 
       same((await definitions.retire(PlanningSchemaKind.Flow, repair.id)).retired, true, 'the flow retires once no live type runs it')
       same((await definitions.bundle()).retired, { types: [folio.type], flows: [repair.id] }, 'both listed retired')
+    },
+  },
+
+  {
+    name: 'stores the application\'s own type and flow properties and validates its base card fields',
+    needs: ['schemas'],
+    run: async ({ service, facade }) => {
+      service.use(CONFORMANCE_APP_PLUGIN)
+      try {
+        const planning = facade(organization())
+        const definitions = planning.definitions!
+        const leaflets: StatusFlowSchema = {
+          id: 'library:leaflet-life', version: 1, app: { description: 'Leaflets come and go' },
+          statuses: [{ key: 'racked', intrinsic: IntrinsicStatus.Planned, initial: true }, { key: 'gone', intrinsic: IntrinsicStatus.Closed }],
+          transitions: [{ name: 'take', from: ['racked'], to: 'gone' }],
+        }
+        const leaflet: WorkcardTypeSchema = {
+          type: 'library:leaflet', kind: WorkcardKind.Card, version: 1, app: { description: 'A folded sheet' },
+          fields: { type: 'object', properties: { pages: { type: 'number' } }, additionalProperties: false },
+          flows: [leaflets.id], specifications: [],
+        }
+        await definitions.define({ flows: [leaflets], types: [leaflet] })
+
+        const stored = await definitions.records({ project: null })
+        same(stored.map(record => [record.key, (record.definition as { app?: unknown }).app]).sort(),
+          [[leaflet.type, leaflet.app], [leaflets.id, leaflets.app]], 'the records keep the app bags')
+        const bundle = await definitions.bundle()
+        same([bundle.types.find(type => type.type === leaflet.type)?.app, bundle.flows.find(flow => flow.id === leaflets.id)?.app],
+          [leaflet.app, leaflets.app], 'the resolved layer keeps them')
+        same(Object.keys(bundle.app?.card?.properties ?? {}), ['shelfmark'], 'the bundle carries the declarations')
+
+        await rejects(definitions.putType({ ...leaflet, version: 2, app: { colour: 'red' } }), SchemaInvalid, 'an undeclared app property')
+        await rejects(definitions.putFlow({ ...leaflets, version: 2, app: undefined }), SchemaInvalid, 'a required app property missing')
+        same((await definitions.registry()).type(leaflet.type).version, 1, 'a refused write stores nothing')
+
+        const branch = await conformanceFixturesOf(planning).createBranch()
+        const card = await execute(planning, {
+          card: { kind: WorkcardKind.Card, type: leaflet.type, parent: branch.id!, title: 'Opening hours', fields: { pages: 2, shelfmark: 'L-1' } },
+          action: TransitionAction.Create,
+        })
+        same(card?.fields, { pages: 2, shelfmark: 'L-1' }, 'a base field beside closed type fields')
+        await rejects(planning.execute({
+          card: { kind: WorkcardKind.Card, type: leaflet.type, parent: branch.id!, title: 'Refused', fields: { shelfmark: 'nope' } },
+          action: TransitionAction.Create,
+        }), FieldsInvalid, 'a base field off its schema')
+        await rejects(planning.execute({ card: card!.id!, action: TransitionAction.Update, changes: { fields: { shelfmark: 'x' } } }),
+          FieldsInvalid, 'an update off the base schema')
+      } finally {
+        service.use({ name: CONFORMANCE_APP_PLUGIN.name })
+      }
     },
   },
 

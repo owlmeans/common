@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/client-auth",
-  "version": "0.1.18-rc.61",
-  "generatedAt": "2026-10-10T17:07:11.315Z",
+  "version": "0.1.18-rc.67",
+  "generatedAt": "2026-10-26T22:23:53.827Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,53 @@
       "name": "client-auth",
       "category": "package-specific",
       "file": "skills/client-auth/SKILL.md",
-      "canonicalPath": ".agents/skills/client-auth/SKILL.md"
+      "canonicalPath": ".agents/skills/client-auth/SKILL.md",
+      "parts": [
+        {
+          "name": "login",
+          "file": "skills/client-auth/parts/login.md",
+          "description": "The ./login host — method registry, post-login landing, the terms confirmation, surrogate windows, token adoption, and the useLogin/useLogout hooks.",
+          "purposes": [
+            "auth",
+            "consent"
+          ],
+          "mentions": [
+            "useLogin",
+            "@owlmeans/client-auth/login",
+            "useLogout",
+            "appendLogin",
+            "loginTermsHelper",
+            "loginLandingOf",
+            "loginTokenOf",
+            "loginStartOf",
+            "loginMethodsHelper",
+            "LoginStep",
+            "LoginPlugin",
+            "FallbackLoginScreen"
+          ]
+        },
+        {
+          "name": "manager",
+          "file": "skills/client-auth/parts/manager.md",
+          "description": "The ./manager authentication screen, control and plugin registry, and the ./manager/plugins contract an authentication-plugin package writes against.",
+          "purposes": [
+            "auth"
+          ],
+          "mentions": [
+            "AuthenticationPlugin",
+            "@owlmeans/client-auth/manager",
+            "@owlmeans/client-auth/manager/plugins",
+            "AuthenticationHOC",
+            "AuthenticationRenderer",
+            "makeControl",
+            "authPluginHelper",
+            "registerAuthPlugin",
+            "pluginMethodSource",
+            "createWalletFacade",
+            "TunnelConsumer"
+          ]
+        }
+      ]
     }
   ]
 }

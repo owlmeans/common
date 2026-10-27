@@ -1,12 +1,17 @@
 import { describe, expect, test } from 'bun:test'
 import { tool } from '@langchain/core/tools'
+import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import * as z from 'zod'
-import { ExecutionLevel, PromptBlock } from '@owlmeans/llm-common'
-import { makePromptService } from '@owlmeans/llm'
-import type { Execution, PromptService } from '@owlmeans/llm'
+import { ExecutionLevel, ModelProvider, PromptBlock } from '@owlmeans/llm-common'
+import { anthropicPlugin, makePromptService, openAiPlugin } from '@owlmeans/llm'
+import type { Execution, ModelConfig, PromptService } from '@owlmeans/llm'
+import { HumanMessage, ToolMessage } from '@langchain/core/messages'
 import { AgentRunStatus } from '@owlmeans/agent-common'
-import { makeAgentModel } from '../src/index.js'
-import type { AgentPlugin, AgentToolSet } from '../src/index.js'
+import {
+  AGENT_INBOX_PREFIX, AGENT_STOP_INSTRUCTION, AGENT_STOP_SUMMARY_TIMEOUT_MS, AGENT_STOPPED_NOTE,
+  AGENT_STOPPED_TOOL_RESULT, makeAgentModel,
+} from '../src/index.js'
+import type { AgentInbox, AgentPlugin, AgentToolSet } from '../src/index.js'
 import { scriptedModel } from './_tools/model.js'
 
 let seq = 0
@@ -115,9 +120,9 @@ describe('agent — plugins', () => {
     expect((finished[0] as { status: string }).status).toBe(AgentRunStatus.Ok)
   })
 
-  test('contributed context lands in the volatile block, never in the cached prefix', async () => {
-    // The Context block is the only one a provider will not put a cache breakpoint on. Volatile
-    // material anywhere above it invalidates the prefix every call that shares the persona pays for.
+  test('contributed context lands in the project message, never in the cached system', async () => {
+    // The system region is what every run of the persona shares. Run-specific material anywhere in
+    // it invalidates the prefix every call that shares the persona pays for.
     const prompts = promptService()
     const composed = await prompts.compose(
       { role: 'You are a test agent.', context: ['REMEMBERED CONTEXT'] },
@@ -233,8 +238,256 @@ describe('agent — finalization', () => {
 
     await agent.invoke('go')
 
-    const system = String(scripted.asked()[0][0].content)
-    expect(system).toContain('the agent version')
-    expect(system).not.toContain('the service version')
+    // The project message, right after the system, carries what the plugins contributed.
+    const project = String((scripted.asked()[0][1] as { content: unknown }).content)
+    expect(project).toContain('the agent version')
+    expect(project).not.toContain('the service version')
+  })
+})
+
+describe('agent — the prompt on the wire', () => {
+  const content = (message: unknown): unknown => (message as { content: unknown }).content
+  const marks = (message: unknown, key: string): number => Array.isArray(content(message))
+    ? (content(message) as Array<Record<string, unknown>>).filter(block => block[key] != null).length
+    : 0
+  const long = 'x'.repeat(400)
+  const anthropicExec = (prompts: () => PromptService): Execution => ({
+    ...execution(prompts), prompt: { role: `You are a test agent. ${long}`, skills: [] },
+  } as unknown as Execution)
+
+  // The system was stringified once — a JSON dump of content blocks sent as the persona.
+  test('the system goes out as text blocks, the project message second, the tail on a copy of the opening', async () => {
+    const scripted = scriptedModel([
+      { toolCalls: [{ name: 'echo', args: { value: 'hi' } }] },
+      { content: 'done' },
+    ], { modelName: 'claude-haiku-4-5', metadata: { config: { model: 'claude-haiku-4-5', cacheMinTokens: 1 } } })
+    const prompts = promptService()
+    prompts.register({ alias: 'percall', body: 'per-call skill' })
+    const agent = makeAgentModel({
+      exec: anthropicExec(() => prompts), agentModel: scripted.model, tools: { echo }, provider: anthropicPlugin,
+      context: ['RUN FACTS'],
+    })
+
+    const result = await agent.invoke('use the tool')
+
+    const [first, second] = scripted.asked()
+    expect(content(first![0])).toEqual([
+      { type: 'text', text: `You are a test agent. ${long}`, cache_control: { type: 'ephemeral' } },
+    ])
+    expect(JSON.stringify(content(first![1]))).toContain('RUN FACTS')
+    expect(marks(first![1], 'cache_control')).toBe(1)
+    // Three explicit markers at most, never on the final message; the automatic one moves forward.
+    for (const round of [first!, second!]) {
+      const explicit = round.reduce<number>((sum, message) => sum + marks(message, 'cache_control'), 0)
+      expect(explicit).toBeLessThanOrEqual(3)
+      expect(marks(round[round.length - 1], 'cache_control')).toBe(0)
+    }
+    expect(scripted.options()[1]!.cache_control).toEqual({ type: 'ephemeral' })
+    expect(second!.length).toBe(first!.length + 2)
+    // The transcript keeps the opening as the caller sent it.
+    expect(result.messages[0]!.content).toBe('use the tool')
+  })
+
+  test('the tail rides a copy of the opening, after the payload', async () => {
+    const scripted = scriptedModel([{ content: 'ok' }])
+    const prompts = makePromptService({}, `agent-spec-prompts-${++seq}`)
+    prompts.use({ alias: 'late', compose: ctx => ctx.add(PromptBlock.Tail, 'LATE PACKAGE') })
+    const agent = makeAgentModel({ exec: execution(() => prompts), agentModel: scripted.model, tools: {} })
+
+    const result = await agent.invoke('go')
+
+    const asked = scripted.asked()[0]!
+    expect(content(asked[asked.length - 1])).toBe('go\n\nLATE PACKAGE')
+    expect(result.messages[0]!.content).toBe('go')
+  })
+
+  // By instance alone every ChatOpenAI is the compatible plugin's, which caches nothing; the agent
+  // resolves the provider the service built the model with.
+  test('a service-built ChatOpenAI is cached through the OpenAI plugin', async () => {
+    const scripted = scriptedModel([{ content: 'ok' }])
+    const chat = openAiPlugin.build({
+      alias: 'spec', secret: 'sk-test', callbacks: [],
+      config: { alias: 'spec', provider: ModelProvider.OpenAI, model: 'gpt-6-sol', cacheMinTokens: 1 } as ModelConfig,
+    })
+    ;(chat as unknown as { bindTools: () => BaseChatModel }).bindTools = () => scripted.model
+    const agent = makeAgentModel({
+      exec: anthropicExec(promptService), agentModel: chat, tools: {}, context: ['RUN FACTS'],
+    })
+
+    await agent.invoke('go')
+
+    expect(JSON.stringify(scripted.asked()[0])).toContain('prompt_cache_breakpoint')
+    expect(scripted.options()[0]!.promptCacheOptions).toEqual({ mode: 'explicit' })
+  })
+})
+
+describe('agent — stop and inbox', () => {
+  const counting = (): { echo: AgentToolSet[string], runs: string[] } => {
+    const runs: string[] = []
+    return {
+      runs,
+      echo: tool(
+        async ({ value }: { value: string }) => { runs.push(value); return `echoed:${value}` },
+        { name: 'echo', description: 'Echoes its argument.', schema: z.object({ value: z.string() }) },
+      ) as unknown as AgentToolSet[string],
+    }
+  }
+  const contentOf = (message: unknown): string => String((message as { content: unknown }).content)
+  const last = <T>(list: readonly T[]): T => list[list.length - 1]
+
+  test('a stop during a tool round runs nothing more and ends on ONE summary that may choose no tool', async () => {
+    const stop = new AbortController()
+    const { echo, runs } = counting()
+    const halt = tool(
+      async () => { stop.abort(); return 'halted' },
+      { name: 'halt', description: 'Presses stop.', schema: z.object({}) },
+    ) as unknown as AgentToolSet[string]
+    const scripted = scriptedModel([
+      { toolCalls: [{ name: 'halt', args: {} }] },
+      // A provider that ignored the tool choice: the call is still never run.
+      { content: 'Changed A; B is left undone.', toolCalls: [{ name: 'echo', args: { value: 'never' } }] },
+      { content: 'a third call must not happen' },
+    ])
+    const finished: Array<{ note?: string }> = []
+    const agent = makeAgentModel({
+      exec: execution(), agentModel: scripted.model, tools: { echo, halt },
+      plugins: [{ alias: 'c', onFinish: async (_run, _result, outcome) => { finished.push(outcome) } }],
+    })
+
+    const result = await agent.invoke('work', { stop: stop.signal })
+
+    expect(result.stopped).toBe(true)
+    expect(scripted.turns()).toBe(2)
+    expect(runs).toEqual([])
+    expect(scripted.options()[0]!.tool_choice).toBeUndefined()
+    expect(scripted.options()[1]!.tool_choice).toBe('none')
+    expect(scripted.options()[1]!.timeout).toBe(AGENT_STOP_SUMMARY_TIMEOUT_MS)
+    // The tools stay declared: a transcript carrying tool blocks needs them.
+    expect(scripted.bound()[1]).toEqual(['echo', 'halt'])
+    // The stop is never handed to a model call.
+    expect(scripted.options().every(option => option.signal == null)).toBe(true)
+    const summary = scripted.asked()[1]!
+    expect(contentOf(last(summary))).toBe(AGENT_STOP_INSTRUCTION)
+    expect(summary[summary.length - 2]).toBeInstanceOf(ToolMessage)
+    expect(contentOf(summary[summary.length - 2])).toBe('halted')
+    expect(result.message.content).toBe('Changed A; B is left undone.')
+    expect(result.message.tool_calls ?? []).toEqual([])
+    expect(finished[0]?.note).toBe(AGENT_STOPPED_NOTE)
+  })
+
+  test('the tool calls of an answer that arrives after the stop are answered, never run', async () => {
+    const stop = new AbortController()
+    const { echo, runs } = counting()
+    const scripted = scriptedModel([
+      {
+        before: () => { stop.abort() },
+        toolCalls: [{ name: 'echo', args: { value: 'a' } }, { name: 'echo', args: { value: 'b' } }],
+      },
+      { content: 'Nothing was changed.' },
+    ])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: { echo } })
+
+    const result = await agent.invoke('work', { stop: stop.signal })
+
+    expect(runs).toEqual([])
+    expect(result.stopped).toBe(true)
+    expect(scripted.turns()).toBe(2)
+    const answered = scripted.asked()[1]!.filter(message => message instanceof ToolMessage) as ToolMessage[]
+    expect(answered.map(message => [message.content, message.status])).toEqual([
+      [AGENT_STOPPED_TOOL_RESULT, 'error'], [AGENT_STOPPED_TOOL_RESULT, 'error'],
+    ])
+    expect(result.message.content).toBe('Nothing was changed.')
+  })
+
+  test('a stop that meets an answer without tool calls ends there, with no summary and no inbox close', async () => {
+    const stop = new AbortController()
+    let closes = 0
+    const scripted = scriptedModel([{ before: () => { stop.abort() }, content: 'all done' }])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: {} })
+
+    const result = await agent.invoke('work', {
+      stop: stop.signal, inbox: { drain: async () => [], drainOrClose: async () => { closes++; return ['more'] } },
+    })
+
+    expect(result.stopped).toBe(true)
+    expect(scripted.turns()).toBe(1)
+    expect(closes).toBe(0)
+    expect(result.message.content).toBe('all done')
+  })
+
+  test('a failing summary call costs the summary, never the run', async () => {
+    const stop = new AbortController()
+    const scripted = scriptedModel([
+      { before: () => { stop.abort() }, toolCalls: [{ name: 'echo', args: { value: 'a' } }] },
+      { error: 'provider down' },
+    ])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: { echo } })
+
+    const result = await agent.invoke('work', { stop: stop.signal })
+
+    expect(result.stopped).toBe(true)
+    expect(result.message.content).toBe('')
+  })
+
+  test('messages drained between rounds reach the next call as ONE turn, after the tool results', async () => {
+    const queue = ['also check B', 'and C']
+    let drains = 0
+    const inbox: AgentInbox = {
+      drain: async () => { drains++; return queue.splice(0) },
+      drainOrClose: async () => [],
+    }
+    const scripted = scriptedModel([
+      { toolCalls: [{ name: 'echo', args: { value: 'hi' } }] },
+      { content: 'done' },
+    ])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: { echo } })
+
+    const result = await agent.invoke('work', { inbox })
+
+    // Before every model call after the first — never before the first.
+    expect(drains).toBe(1)
+    expect(JSON.stringify(scripted.asked()[0])).not.toContain(AGENT_INBOX_PREFIX)
+    const second = scripted.asked()[1]!
+    expect(last(second)).toBeInstanceOf(HumanMessage)
+    expect(contentOf(last(second))).toBe(`${AGENT_INBOX_PREFIX}\n\nalso check B\n\nand C`)
+    expect(second[second.length - 2]).toBeInstanceOf(ToolMessage)
+    expect(result.messages.some(message => contentOf(message).includes('also check B'))).toBe(true)
+    expect(result.stopped).toBeUndefined()
+  })
+
+  test('a message waiting where the run would end keeps the loop going', async () => {
+    const late = [['and one more thing'], []]
+    let closes = 0
+    const inbox: AgentInbox = {
+      drain: async () => [],
+      drainOrClose: async () => { closes++; return late.shift() ?? [] },
+    }
+    const scripted = scriptedModel([{ content: 'first answer' }, { content: 'second answer' }])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: {} })
+
+    const result = await agent.invoke('work', { inbox })
+
+    expect(scripted.turns()).toBe(2)
+    expect(closes).toBe(2)
+    expect(contentOf(last(scripted.asked()[1]!))).toBe(`${AGENT_INBOX_PREFIX}\n\nand one more thing`)
+    expect(scripted.asked()[1]!.map(contentOf)).toContain('first answer')
+    expect(result.message.content).toBe('second answer')
+  })
+
+  test('a failing inbox is treated as empty and never fails the run', async () => {
+    const inbox: AgentInbox = {
+      drain: async () => { throw new Error('inbox down') },
+      drainOrClose: async () => { throw new Error('inbox down') },
+    }
+    const scripted = scriptedModel([
+      { toolCalls: [{ name: 'echo', args: { value: 'hi' } }] },
+      { content: 'done' },
+    ])
+    const agent = makeAgentModel({ exec: execution(), agentModel: scripted.model, tools: { echo } })
+
+    const result = await agent.invoke('work', { inbox })
+
+    expect(result.message.content).toBe('done')
+    expect(scripted.turns()).toBe(2)
   })
 })

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/common-inquiry
 
 **Layer:** Cross-cutting domain (no `@owlmeans/*` dependencies; optional `ajv` peer for schema types)
-**Install:** `"@owlmeans/common-inquiry": "^0.1.18-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/common-inquiry": "^0.1.18-rc.3"` in `dependencies`
 
 The one place the three parties of the inquiry widget agree: the browser SDK
 (`@owlmeans/web-inquiry`), the widget bundle that renders the dialog, and the CRM API that accepts
@@ -74,6 +74,12 @@ The bundle installs an `InquiryRuntime` at `window[INQUIRY_GLOBAL]` (`window.__o
 `open`, the floating button — with `{ widget, tab, source }`. Opening a dialog that is already open
 does not call it again. The SDK reports analytics from this callback only, so a runtime that also
 reported from elsewhere would double-count.
+
+`InquiryOpenOptions.message` is an optional `InquiryMessagePreset`: an `InquiryMessage`
+(`{ subject?, body? }`) or a sync provider returning one (or null/undefined), read once on each
+closed-to-open transition. The runtime replaces only the draft fields it names; an empty result or a
+throwing provider presets nothing, and omitting it keeps the draft. A runtime that predates it
+ignores it, so `INQUIRY_RUNTIME_VERSION` is unchanged.
 
 `InquiryEmailOptions.email` is an optional `InquiryEmailPreset`: a string or a lazy function
 returning `InquiryEmailValue` (`string | null | undefined`), synchronously or in a Promise. The

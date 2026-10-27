@@ -81,7 +81,8 @@ describe('@owlmeans/llm — a hidden property fails the call before any request'
     } as unknown as BaseChatModel
     llmPluginRegistry.register({
       ...base, type: provider, family: provider, owns: candidate => candidate === fake,
-      refine: ({ base: same }) => same, patchCache: undefined, patchSystem: undefined, isFatal: undefined,
+      refine: ({ base: same }) => same, patchPrompt: undefined, loopCache: undefined, cacheDialect: undefined,
+      isFatal: undefined,
     })
 
     return { fake, calls }
@@ -130,5 +131,91 @@ describe('@owlmeans/llm — a hidden property fails the call before any request'
     expect(await makeLlmModel({ model: viaTools.fake, retries: 2 }, spectator)
       .invoke('Label the shelf.', field('required') as unknown as JSONSchemaType<Shelf>, { action: 'spec' }))
       .toEqual({ label: 'low', required: false })
+  })
+})
+
+describe('@owlmeans/llm — schemaPlacement: tail keeps one prefix across schemas', () => {
+  let seq = 0
+  interface Shelf { label: string }
+  const spectator = { log: async () => undefined } as unknown as LlmSpectator
+  const other = {
+    title: 'bin', type: 'object', properties: { size: { type: 'number' } }, required: ['size'], additionalProperties: false,
+  }
+
+  /** Records every request — messages, call options, and whether a tool was bound. */
+  const recording = (base: LlmPlugin, model: string, reply: string) => {
+    const calls: Array<{ msgs: Array<{ role?: string, content: unknown }>, options: Record<string, unknown>, tools: boolean }> = []
+    const provider = `spec-tail-${seq++}`
+    const answer = (tools: boolean) => async (msgs: unknown, options: Record<string, unknown>) => {
+      calls.push({ msgs: msgs as Array<{ role?: string, content: unknown }>, options, tools })
+      return (async function* () { yield new AIMessageChunk({ content: reply }) })()
+    }
+    const fake = {
+      getName: () => 'fake',
+      lc_kwargs: { model },
+      metadata: { config: { alias: 'spec', provider, model } },
+      stream: answer(false),
+      bindTools: () => ({ stream: answer(true) }),
+    } as unknown as BaseChatModel
+    llmPluginRegistry.register({
+      ...base, type: provider, family: provider, owns: candidate => candidate === fake,
+      refine: ({ base: same }) => same, patchPrompt: undefined, loopCache: undefined, cacheDialect: undefined,
+      isFatal: undefined,
+    })
+
+    return { fake, calls }
+  }
+
+  const textOf = (content: unknown): string => typeof content === 'string'
+    ? content
+    : (content as Array<{ text?: string }>).map(part => part.text ?? '').join('\n')
+
+  test('OpenAI: JSON mode, no tool, the schema in the final message', async () => {
+    const { fake, calls } = recording(openAiPlugin, 'gpt-6-sol', '{"label":"top","mandatory":true}')
+    const llm = makeLlmModel({ model: fake, retries: 2 }, spectator)
+
+    expect(await llm.invoke('Label the shelf.', field('mandatory') as unknown as JSONSchemaType<Shelf>, {
+      action: 'spec', schemaPlacement: 'tail',
+    })).toEqual({ label: 'top', mandatory: true })
+    expect(calls).toHaveLength(1)
+    expect(calls[0].tools).toBe(false)
+    expect(calls[0].options.response_format).toEqual({ type: 'json_object' })
+    const last = textOf(calls[0].msgs[calls[0].msgs.length - 1].content)
+    expect(last).toContain('Answer with ONLY one JSON object')
+    expect(last).toContain('"mandatory"')
+  })
+
+  test('Anthropic: no tool and no response format; the answer is parsed from the text', async () => {
+    const { fake, calls } = recording(anthropicPlugin, 'claude-sonnet-5-5', '{"size":3}')
+    const llm = makeLlmModel({ model: fake, retries: 2 }, spectator)
+
+    expect(await llm.invoke('Size the bin.', other as unknown as JSONSchemaType<{ size: number }>, {
+      action: 'spec', schemaPlacement: 'tail',
+    })).toEqual({ size: 3 })
+    expect(calls[0].tools).toBe(false)
+    expect(calls[0].options.response_format).toBeUndefined()
+  })
+
+  test('two schemas on one conversation differ only in the final message', async () => {
+    const shelf = recording(openAiPlugin, 'gpt-6-sol', '{"label":"x","kind":true}')
+    const bin = recording(openAiPlugin, 'gpt-6-sol', '{"size":1}')
+    const conversation = ['The storeroom has shelves and bins.', 'Answer about one item.']
+    await makeLlmModel({ model: shelf.fake, retries: 1 }, spectator)
+      .invoke([...conversation], field('kind') as unknown as JSONSchemaType<Shelf>, { action: 'spec', schemaPlacement: 'tail' })
+    await makeLlmModel({ model: bin.fake, retries: 1 }, spectator)
+      .invoke([...conversation], other as unknown as JSONSchemaType<{ size: number }>, { action: 'spec', schemaPlacement: 'tail' })
+
+    const a = shelf.calls[0].msgs
+    const b = bin.calls[0].msgs
+    expect(a.length).toBe(b.length)
+    expect(a.slice(0, -1).map(msg => textOf(msg.content))).toEqual(b.slice(0, -1).map(msg => textOf(msg.content)))
+    expect(shelf.calls[0].options.response_format).toEqual(bin.calls[0].options.response_format)
+  })
+
+  test('a property OpenAI would hide in json_schema is shown as text, so it is not refused', async () => {
+    const { fake } = recording(openAiPlugin, 'gpt-6-sol', '{"label":"a","required":true}')
+    expect(await makeLlmModel({ model: fake, retries: 2 }, spectator)
+      .invoke('Label the shelf.', field('required') as unknown as JSONSchemaType<Shelf>, { action: 'spec', schemaPlacement: 'tail' }))
+      .toEqual({ label: 'a', required: true })
   })
 })

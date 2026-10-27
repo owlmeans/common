@@ -1,8 +1,10 @@
 import type { JSONSchemaType } from 'ajv'
 import { CODE_MAX, IntrinsicPolicy, IntrinsicStatus, SpecificationFormat, WorkcardKind, AnyTypeSchema, ProjectTypeSchema, RelationshipType, SpecificationSlot, StatusFlowSchema, WorkcardTypeSchema } from '@owlmeans/planning'
-import { ProjectArea, TENANCY_QUOTE_MAX } from '../areas/consts.js'
-import { CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
-import { StoryKind } from '../ba/consts.js'
+import { ORIGIN_TENANCY_LIST_MAX, ORIGIN_TENANCY_WORD_MAX, ProjectArea, TENANCY_QUOTE_MAX } from '../areas/consts.js'
+import { BotPlatform } from '@owlmeans/bot'
+import { BotKit, CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
+import { REQUIREMENTS_VERSION, StoryKind } from '../ba/consts.js'
+import { RequirementsDocumentSchema } from '../ba/schemas.js'
 import { ConnectLlm, ConnectTarget } from '../connect/consts.js'
 import { ProjectOriginSchema } from '../convert/schemas.js'
 import { StoryActor, STORY_DESIGN_VERSION } from '../design/consts.js'
@@ -29,6 +31,15 @@ export const ViableProjectFieldsSchema = {
     blueprintCase: { type: 'string', minLength: 1, maxLength: 64, nullable: true },
     gameKind: { type: 'string', minLength: 1, maxLength: 64, nullable: true },
     workKind: { type: 'string', enum: [...Object.values(WorkKind), null], nullable: true },
+    botPlatforms: {
+      type: 'array',
+      items: { type: 'string', enum: Object.values(BotPlatform) },
+      minItems: 1,
+      maxItems: Object.values(BotPlatform).length,
+      uniqueItems: true,
+      nullable: true,
+    },
+    botKit: { type: 'string', enum: [...Object.values(BotKit), null], nullable: true },
     caseQuote: { type: 'string', minLength: 1, maxLength: CASE_QUOTE_MAX, nullable: true },
     target: { type: 'string', enum: [...Object.values(ConnectTarget), null], nullable: true },
     origin: { ...ProjectOriginSchema, nullable: true },
@@ -65,6 +76,27 @@ export const ViableProjectFieldsSchema = {
         },
         by: { type: 'string', enum: ['model', 'owner'] },
         at: { type: 'string', minLength: 1, maxLength: 32 },
+        // A converted project's origin tenant, compacted (`OriginTenancyFacts`). Bounded like
+        // every list a card carries: the card rides on every planning read.
+        origin: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            label: { type: 'string', minLength: 1, maxLength: ORIGIN_TENANCY_WORD_MAX },
+            keys: {
+              type: 'array',
+              items: { type: 'string', minLength: 1, maxLength: ORIGIN_TENANCY_WORD_MAX },
+              maxItems: ORIGIN_TENANCY_LIST_MAX,
+            },
+            people: {
+              type: 'array',
+              items: { type: 'string', minLength: 1, maxLength: ORIGIN_TENANCY_WORD_MAX },
+              maxItems: ORIGIN_TENANCY_LIST_MAX,
+            },
+          },
+          required: ['label', 'keys', 'people'],
+          additionalProperties: false,
+        },
       },
       required: ['operators', 'users', 'by', 'at'],
       additionalProperties: false,
@@ -201,7 +233,15 @@ const slot = (
   category: ViableSpecCategory, format: SpecificationFormat, extra: Partial<SpecificationSlot> = {},
 ): SpecificationSlot => ({ category, format, type: VIABLE_SPEC_TYPE, ...extra })
 
-/** The brief a person confirms, and the plan the scaffold draws from it. */
+/** The stated requirements — the same slot on a project card and on a story card. */
+const requirementsSlot = (): SpecificationSlot => slot(ViableSpecCategory.Requirements, SpecificationFormat.Json, {
+  revisioned: true,
+  keepRevisions: VIABLE_DESIGN_REVISIONS_KEPT,
+  schema: RequirementsDocumentSchema,
+  version: REQUIREMENTS_VERSION,
+})
+
+/** The brief a person confirms, the plan the scaffold draws from it, and the stated requirements. */
 export const VIABLE_PROJECT_SLOTS: SpecificationSlot[] = [
   slot(ViableSpecCategory.Specification, SpecificationFormat.Markdown, { required: true }),
   slot(ViableSpecCategory.Vision, SpecificationFormat.Markdown),
@@ -209,9 +249,10 @@ export const VIABLE_PROJECT_SLOTS: SpecificationSlot[] = [
   slot(ViableSpecCategory.Scaffold, SpecificationFormat.Json, {
     revisioned: true, keepRevisions: VIABLE_DESIGN_REVISIONS_KEPT, schema: ScaffoldPlanSchema,
   }),
+  requirementsSlot(),
 ]
 
-/** A story's design — the payload the implementation stage consumes. */
+/** A story's design — the payload the implementation stage consumes — and its stated requirements. */
 export const VIABLE_STORY_SLOTS: SpecificationSlot[] = [
   slot(ViableSpecCategory.Design, SpecificationFormat.Json, {
     revisioned: true,
@@ -219,6 +260,7 @@ export const VIABLE_STORY_SLOTS: SpecificationSlot[] = [
     schema: StoryDesignSchema,
     version: STORY_DESIGN_VERSION,
   }),
+  requirementsSlot(),
 ]
 
 const storyLink = (name: ViableRelationship): RelationshipType =>

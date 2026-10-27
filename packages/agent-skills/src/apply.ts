@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { InstallItem, ApplyResult } from './types.js'
 
@@ -31,36 +31,59 @@ const linkForClaude = (targetDir: string, names: string[]): number => {
   return linked
 }
 
+/** The embedded file an item copies: its part's, or the skill's own `SKILL.md`. */
+const sourceOf = (item: InstallItem): string | undefined =>
+  item.part == null
+    ? item.entry.sourcePath
+    : item.entry.parts?.find(part => part.name === item.part)?.sourcePath
+
+/** Remove a pruned part, and its `parts/` directory once nothing is left in it. */
+const prune = (path: string): void => {
+  rmSync(path, { force: true })
+  const partsDir = dirname(path)
+  try {
+    if (readdirSync(partsDir).length === 0) rmSync(partsDir, { recursive: true, force: true })
+  } catch { /* already gone */ }
+}
+
 /**
  * Execute an install plan. Items with action 'conflict' or 'skip-uptodate'
- * are not written. Only 'install' and 'update' items are written.
+ * are not written; 'install' and 'update' items are written and 'prune' items removed.
+ * Each skill is linked once, however many of its files the plan touched.
  */
 export const applyInstall = (items: InstallItem[], targetDir?: string): ApplyResult => {
-  const result: ApplyResult = { installed: 0, updated: 0, skipped: 0, conflicts: 0, linked: 0 }
-  const written: string[] = []
+  const result: ApplyResult = { installed: 0, updated: 0, skipped: 0, conflicts: 0, linked: 0, pruned: 0 }
+  const written = new Set<string>()
 
   for (const item of items) {
     if (item.action === 'skip-uptodate') {
       result.skipped++
-      written.push(item.entry.name)
+      written.add(item.entry.name)
       continue
     }
     if (item.action === 'conflict') {
       result.conflicts++
       continue
     }
+    if (item.action === 'prune') {
+      prune(item.targetPath)
+      result.pruned++
+      continue
+    }
 
-    const content = readFileSync(item.entry.sourcePath, 'utf8')
+    const source = sourceOf(item)
+    if (source == null) continue
+    const content = readFileSync(source, 'utf8')
     mkdirSync(dirname(item.targetPath), { recursive: true })
     writeFileSync(item.targetPath, content, 'utf8')
-    written.push(item.entry.name)
+    written.add(item.entry.name)
 
     if (item.action === 'install') result.installed++
     else result.updated++
   }
 
-  if (targetDir != null && written.length > 0) {
-    result.linked = linkForClaude(targetDir, written)
+  if (targetDir != null && written.size > 0) {
+    result.linked = linkForClaude(targetDir, [...written])
   }
 
   return result

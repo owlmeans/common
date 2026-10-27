@@ -52,17 +52,12 @@ export const TEMPERATURE_PER_EFFORT_STEP = 0.3
  */
 export const DEFAULT_MAX_OUTPUT_CAP = 3 * 64000
 
-/** Provider hard limit on prompt-cache breakpoints per REQUEST (Anthropic). */
-export const MAX_CACHE_BREAKPOINTS = 4
-
 /**
- * Share of {@link MAX_CACHE_BREAKPOINTS} the composed system prompt may spend.
- *
- * Two is all it can use: the only STABLE boundaries are the end of role+skills and the end
- * of the packages block. The trailing context block is volatile and deliberately never
- * marked, so the remaining two breakpoints always stay available to the message prefix.
+ * Provider hard limit on prompt-cache breakpoints per REQUEST — Anthropic rejects a fifth, and
+ * OpenAI's explicit mode writes at most four. The prompt layout has exactly four boundaries:
+ * role + skills, packages, the project message and the caller's stable lead messages.
  */
-export const MAX_SYSTEM_BREAKPOINTS = 2
+export const MAX_CACHE_BREAKPOINTS = 4
 
 /** Cache lifetime used when neither the call nor the service asks for another. */
 export const DEFAULT_CACHE_TTL: CacheTtl = '5m'
@@ -112,6 +107,16 @@ export const DEFAULT_TOOL_NAME = 'extract'
  * the smallest honest signal that the caller supplied nothing.
  */
 export const EMPTY_CONTENT_STUB = '(empty)'
+
+/**
+ * The schema instruction of a `schemaPlacement: 'tail'` structured call — the per-call half that a
+ * native call carries in its tool or response format. It rides the uncached Tail, so the constant
+ * prefix stays shared across every schema a persona answers.
+ */
+export const TAIL_SCHEMA_INSTRUCTION = 'Answer with ONLY one JSON object (no prose, no code fence) that is valid against this JSON Schema:'
+
+/** The constant response format a `tail` call asks of a provider with a native JSON mode. */
+export const TAIL_JSON_FORMAT = { type: 'json_object' } as const
 
 /** Default effort tier when a policy does not specify one. */
 export const DEFAULT_EFFORT = ExecutionEffort.Standard

@@ -1,13 +1,13 @@
 ---
 name: llm-common
-description: How to use @owlmeans/llm-common — runtime-free serializable contracts for LLM inference and execution (ModelProvider, ExecutionEffort/Level, ModelPolicy, PromptPolicy, SkillDefinition, ExecutionState and its cumulative-results view, PromptBlock, spectator records, NullCapture, LlmFileProvider). Auto-invoked when importing those contracts or extending them for a domain.
+description: How to use @owlmeans/llm-common — runtime-free serializable contracts for LLM inference and execution (ModelProvider, ExecutionEffort/Level, ModelPolicy, PromptPolicy, SkillDefinition, ExecutionState and its cumulative-results view, PromptBlock/PromptRegion, PromptFocus, PackagePurpose, CacheTtlPolicy, spectator records, NullCapture, LlmFileProvider). Auto-invoked when importing those contracts or extending them for a domain.
 user-invocable: false
 ---
 
 # @owlmeans/llm-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.39"` in `dependencies`
+**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.40"` in `dependencies`
 
 The contracts half of the LLM stack. **No `@langchain/*` runtime dependency** — importable
 from a browser bundle, a queue worker, or any package that must not pull an inference SDK.
@@ -30,15 +30,18 @@ The dependency direction is one-way: a domain contracts package extends these;
 | `UTILITY_ROLE` | `'utility'` — the conventional cheap tier for side calls (a relevance pick, a classification). `ModelPolicy.utilityRole` points it at another alias; `ExecutionService.utility` resolves it. |
 | `ExecutionState` / `TaskExecutionState` | The persistable core (`level`/`purpose`/`policy`, optional `prompt`/`inquiry`/`results`, plus `phase`/`completed`/`cursor`/`data`). |
 | `LlmPurpose` | `{ type?, dedication? }` — metadata carried on every model call. |
-| `PromptBlock`, `PROMPT_BLOCK_ORDER`, `DEFAULT_SKILL_ORDER` | The ordered sections of a composed system prompt — `Role`, `Skills`, `Packages`, `Results`, `Context`; the order IS the cache key. |
+| `PromptBlock`, `PROMPT_BLOCK_ORDER`, `DEFAULT_SKILL_ORDER` | The ordered sections of a composed prompt — `Role`, `Skills`, `Packages`, `Results`, `Context`, `Tail`; the order IS the cache key. |
+| `PromptRegion`, `PROMPT_REGIONS` | Where each block travels: `System` (role, skills, packages — the system message), `Project` (results, context — a user turn right after it), `Tail` (appended to the final message, never cached). |
+| `PackagePurpose`, `PACKAGE_PURPOSES` | The closed vocabulary a package skill's parts are tagged with and a focus selects by (`view`, `form`, … `ops`); `library-manager` keeps a pinned copy. |
+| `PromptFocus` | `{ packages?, purposes?, parts?, types?, late? }` — the package documentation (and types) a persona works with, chosen once per persona and story; arrays merge as a first-seen union down the chain, the deepest `late` wins. |
 | `CumulativeResults`, `CumulativeResultsSection` | A pipeline step's view of what earlier steps produced: `step`, rendered `sections` (oldest first), `omitted` step names, `chars`, and a `digest` that is never rendered. |
 | `renderCumulativeResults(view)` · `CUMULATIVE_RESULTS_PREAMBLE` · `CUMULATIVE_RESULTS_OMITTED_LEAD`/`_TAIL` | The view as prompt text: the fixed rules, the sections, the "not listed for space" line — or `''` for no view. |
 | `SkillDefinition` | One named block of reusable prompt knowledge. `body` must be a pure constant. |
-| `PromptPolicy` | `{ role?, skills?, cacheSystem?, cacheTtl? }` — carried on `ExecutionState`, merged downward. |
-| `CacheTtl`, `CacheUsage` | `'5m' \| '1h'`; normalized prompt-cache accounting. |
+| `PromptPolicy` | `{ role?, skills?, cacheSystem?, cacheTtl?, focus? }` — carried on `ExecutionState`, merged downward. `cacheSystem: false` leaves the system and project message unmarked. |
+| `CacheTtl`, `CacheTtlPolicy`, `CacheUsage` | `'5m' \| '1h'`; a lifetime per breakpoint (`skills`, `packages`, `project`, `stable`), which never rises along the prefix; normalized prompt-cache accounting — `creationLong` is the 1-hour share of `creation`, present only when non-zero. |
 | `LlmFileProvider`, `FileProviderRef`, `resolveFileProvider` | The file contract prompt plugins work against — four members, every path relative to the host's project root. `FileProviderRef` accepts the provider or a thunk returning one; `resolveFileProvider` unwraps whichever form arrived, or `undefined`. |
-| `NullCapture`, `NullKind` | Full diagnostics of a call that returned nothing usable. |
-| `SpectatorArgument`, `SpectatorEntry`, `SpectatorEntryLogged`, `SpectatorEntryMessage` | What an observability sink stores. |
+| `NullCapture`, `NullKind` | Full diagnostics of a call that returned nothing usable; `request.useCache` = the prepared request carried a breakpoint, `request.stable` = the caller's `stable` count. |
+| `SpectatorArgument`, `SpectatorEntry`, `SpectatorEntryLogged`, `SpectatorEntryMessage` | What an observability sink stores. `SpectatorArgument.model` is the model that ANSWERED (a fallback rung's own id); absent, a sink falls back to its own resolution. |
 
 ## `LlmFileProvider` — what a host must supply
 
@@ -118,10 +121,10 @@ on a spectator message only.
 ## Testing
 
 Category A. `bun test ./tests` (the package's `test` script, so the root run includes it):
-`inquiry.spec.ts` for the answer helpers, `results.spec.ts` for the block order and the rendered view.
+`inquiry.spec.ts` for the answer helpers, `results.spec.ts` for the block order, the regions, the purpose list and the rendered view.
 
 ## Related
 
 - [[llm]] — the runtime that implements these contracts
-- [[llm-prompt-caching]] — why `Results` sits where it does in the block order
+- [[llm-prompt-caching]] — the regions, the cache boundaries and their lifetimes
 - [[agent]] — `cumulativeResultsPlugin`, which cuts the view

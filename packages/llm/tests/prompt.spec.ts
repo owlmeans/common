@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { PromptBlock } from '@owlmeans/llm-common'
+import { PromptBlock, PromptRegion } from '@owlmeans/llm-common'
 import type { SkillDefinition } from '@owlmeans/llm-common'
-import { anthropicPlugin, makePromptService } from '@owlmeans/llm'
+import { anthropicPlugin, makePromptService, PROJECT_CONTEXT_HEADER } from '@owlmeans/llm'
 import type { LlmPromptPlugin, ModelConfig, PromptService } from '@owlmeans/llm'
 
 /** `cacheMinTokens: 1` puts the cacheable minimum at 4 characters so fixtures stay short. */
@@ -93,14 +93,16 @@ describe('@owlmeans/llm — prompt composition', () => {
     expect(two.blocks.find(b => b.block === PromptBlock.Packages)?.text).toBe('second')
   })
 
-  test('per-call skills render into the volatile context block, not the cached one', async () => {
+  test('per-call skills render into the uncached tail, not the cached skills block', async () => {
     const result = await compose(
       service([skill('static', 'S'), skill('percall', 'P')]),
       { skills: ['static'], callSkills: ['percall'] },
     )
     expect(result.blocks.find(b => b.block === PromptBlock.Skills)?.text).toContain('## static')
     expect(result.blocks.find(b => b.block === PromptBlock.Skills)?.text).not.toContain('## percall')
-    expect(result.blocks.find(b => b.block === PromptBlock.Context)?.text).toContain('## percall')
+    expect(result.blocks.find(b => b.block === PromptBlock.Tail)?.text).toContain('## percall')
+    expect(result.tail).toBe('## percall\n\nP')
+    expect(result.system).not.toContain('## percall')
   })
 
   test('an inline skill overrides the registered one of the same alias', async () => {
@@ -134,18 +136,17 @@ describe('@owlmeans/llm — prompt composition', () => {
     expect(seen).toEqual(['compose:x', 'compose:y', 'inspect:x'])
   })
 
-  // Volatile parts are merged rather than emitted separately: the block carries no
-  // breakpoint, so keeping them separable buys nothing and reads worse to the model.
-  test('every volatile part lands in a single context chunk', async () => {
+  // A region's parts are merged rather than emitted separately: keeping them separable buys
+  // nothing and reads worse to the model.
+  test('the caller\'s text lands in one context chunk, the per-call skills in one tail chunk', async () => {
     const result = await compose(
       service([skill('a', 'A'), skill('percall', 'P')]),
       { skills: ['a'], callSkills: ['percall'], context: ['first note', 'second note'] },
     )
     const context = result.blocks.filter(block => block.block === PromptBlock.Context)
     expect(context).toHaveLength(1)
-    expect(context[0]!.text).toContain('## percall')
-    expect(context[0]!.text).toContain('first note')
-    expect(context[0]!.text).toContain('second note')
+    expect(context[0]!.text).toBe('first note\n\nsecond note')
+    expect(result.blocks.filter(block => block.block === PromptBlock.Tail)).toHaveLength(1)
   })
 
   // Two plugins can each be able to render the same skill — a static catalogue and a
@@ -187,51 +188,81 @@ describe('@owlmeans/llm — prompt composition', () => {
       service([skill('a', 'A')], [{ alias: 'quiet', compose: ctx => { ctx.claim('a') } }]),
       input,
     )
-    expect(JSON.stringify(claiming.system)).toBe(JSON.stringify(plain.system))
-    expect(claiming.breakpoints).toBe(plain.breakpoints)
+    expect(JSON.stringify(claiming)).toBe(JSON.stringify(plain))
   })
 
-  test('nothing declared composes to no system message at all', async () => {
+  test('nothing declared composes to no message at all', async () => {
     const result = await compose(service())
     expect(result.system).toBeNull()
-    expect(result.breakpoints).toBe(0)
+    expect(result.project).toBeNull()
+    expect(result.tail).toBeNull()
+    expect(result.blocks).toEqual([])
   })
 })
 
-describe('@owlmeans/llm — composed prompt caching', () => {
-  test('the system prompt is cached by default, and marks its boundaries', async () => {
-    const result = await compose(
-      service([skill('a', 'A')], [{ alias: 'pkg', inspect: ctx => ctx.add(PromptBlock.Packages, 'pkg') }]),
-      { role: 'R', skills: ['a'] },
-    )
-    expect(result.breakpoints).toBe(2)
-    expect(Array.isArray(result.system?.content)).toBe(true)
+describe('@owlmeans/llm — prompt regions', () => {
+  const full = () => compose(
+    service([skill('a', 'A'), skill('percall', 'P')], [
+      { alias: 'pkg', inspect: ctx => ctx.add(PromptBlock.Packages, 'package text') },
+    ]),
+    { role: 'R', skills: ['a'], callSkills: ['percall'], context: ['caller system'] },
+  )
+
+  // The system is stable for a persona (and its packages), the project message for a step, the
+  // tail for one call — each region travels where its stability allows it to be cached.
+  test('the system holds the persona, the project message the facts, the tail the call', async () => {
+    const result = await full()
+    expect(result.system).toBe('R\n\n## a\n\nA\n\npackage text')
+    expect(result.project).toBe(`${PROJECT_CONTEXT_HEADER}\n\ncaller system`)
+    expect(result.tail).toBe('## percall\n\nP')
+    expect(result.blocks.map(block => [block.block, block.region])).toEqual([
+      [PromptBlock.Role, PromptRegion.System], [PromptBlock.Skills, PromptRegion.System],
+      [PromptBlock.Packages, PromptRegion.System], [PromptBlock.Context, PromptRegion.Project],
+      [PromptBlock.Tail, PromptRegion.Tail],
+    ])
   })
 
-  test('opting out yields a plain joined string and spends no breakpoints', async () => {
+  // A caller that adopted no persona keeps sending what it built: its own system text stays the
+  // system message, and there is no project message.
+  test('with nothing for the system region, the project facts stay in the system message', async () => {
+    const result = await compose(service(), { context: ['legacy system message'] })
+    expect(result.system).toBe('legacy system message')
+    expect(result.project).toBeNull()
+    expect(result.blocks.map(block => block.region)).toEqual([PromptRegion.System])
+  })
+
+  test('the operator header opens the project message only when there are facts', async () => {
+    const result = await compose(service([skill('a', 'A')]), { role: 'R', skills: ['a'] })
+    expect(result.project).toBeNull()
+    expect(result.system).not.toContain(PROJECT_CONTEXT_HEADER)
+  })
+})
+
+describe('@owlmeans/llm — composed prompt cache policy', () => {
+  test('caching is on by default, at five minutes everywhere', async () => {
+    const result = await compose(service([skill('a', 'A')]), { role: 'R', skills: ['a'] })
+    expect(result.cache).toEqual({ enabled: true, ttl: { skills: '5m', packages: '5m', project: '5m', stable: '5m' } })
+  })
+
+  test('opting out is carried to the provider, and the regions stay plain text', async () => {
     const result = await compose(service([skill('a', 'A')]), { role: 'R', skills: ['a'], cacheSystem: false })
-    expect(result.breakpoints).toBe(0)
-    expect(typeof result.system?.content).toBe('string')
-    expect(result.system?.content).toContain('## a')
+    expect(result.cache.enabled).toBe(false)
+    expect(result.system).toBe('R\n\n## a\n\nA')
   })
 
-  test('a provider without explicit markers still gets the blocks, in order', async () => {
-    const svc = service([skill('a', 'A')])
-    const result = await svc.compose({ role: 'R', skills: ['a'] }, [], { model })
-    expect(result.breakpoints).toBe(0)
-    expect(result.system?.content).toBe('R\n\n## a\n\nA')
+  // The service default sits under the policy key by key; a string names every key at once.
+  test('lifetimes resolve service default, then policy, key by key', async () => {
+    const svc = makePromptService({ cacheTtl: { skills: '1h' } }, `spec-prompt-${seq++}`)
+    const result = await compose(svc, { role: 'R', cacheTtl: { packages: '1h' } })
+    expect(result.cache.ttl).toEqual({ skills: '1h', packages: '1h', project: '5m', stable: '5m' })
+
+    const all = await compose(svc, { role: 'R', cacheTtl: '1h' })
+    expect(all.cache.ttl).toEqual({ skills: '1h', packages: '1h', project: '1h', stable: '1h' })
   })
 
-  // Two stable boundaries at most, so the messages always keep half the request budget.
-  test('the system prompt never spends more than half the request budget', async () => {
-    const noisy: LlmPromptPlugin = {
-      alias: 'noisy',
-      compose: ctx => {
-        ctx.add(PromptBlock.Packages, 'pkg')
-        ctx.add(PromptBlock.Context, 'ctx')
-      },
-    }
-    const result = await compose(service([skill('a', 'A')], [noisy]), { role: 'R', skills: ['a'] })
-    expect(result.breakpoints).toBeLessThanOrEqual(2)
+  // A provider refuses a longer-lived entry after a shorter-lived one.
+  test('a lifetime never rises along the prefix', async () => {
+    const result = await compose(service(), { role: 'R', cacheTtl: { skills: '5m', project: '1h', stable: '1h' } })
+    expect(result.cache.ttl).toEqual({ skills: '5m', packages: '5m', project: '5m', stable: '5m' })
   })
 })

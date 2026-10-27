@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/client-planning",
-  "version": "0.1.18-rc.31",
-  "generatedAt": "2026-10-10T22:28:00.510Z",
+  "version": "0.1.18-rc.41",
+  "generatedAt": "2026-10-27T08:58:03.615Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,65 @@
       "name": "client-planning",
       "category": "package-specific",
       "file": "skills/client-planning/SKILL.md",
-      "canonicalPath": ".agents/skills/client-planning/SKILL.md"
+      "canonicalPath": ".agents/skills/client-planning/SKILL.md",
+      "parts": [
+        {
+          "name": "aux-mirrors",
+          "file": "skills/client-planning/parts/aux-mirrors.md",
+          "description": "The assignee, team, comment and mention mirrors and resource feeds, and the authenticated scope lifecycle (scopeKey, close, lifecycle.run and lifecycle.mutate).",
+          "purposes": [
+            "state",
+            "auth"
+          ],
+          "mentions": [
+            "makePlanningResourceFeed",
+            "scopeKey",
+            "lifecycle.run",
+            "lifecycle.mutate",
+            "registerFeed",
+            "client:scope-changed",
+            "PlanningReply"
+          ]
+        },
+        {
+          "name": "mirror",
+          "file": "skills/client-planning/parts/mirror.md",
+          "description": "The state mirror's one id space and fold rules, makePlanningFeed, and optimistic writes with head over seq.",
+          "purposes": [
+            "state",
+            "list"
+          ],
+          "mentions": [
+            "appendPlanningStores",
+            "planningMirrorOf",
+            "applyCommitEvent",
+            "applyReceipt",
+            "applyCards",
+            "syncHelper",
+            "syncCards",
+            "syncLinks",
+            "makePlanningFeed",
+            "PlanningFeed",
+            "useStoreList"
+          ]
+        },
+        {
+          "name": "validation",
+          "file": "skills/client-planning/parts/validation.md",
+          "description": "CSP-safe browser validation of a served field schema with makePlanningFieldValidator — the supported keywords, refusals and limits, and the external references behind them.",
+          "purposes": [
+            "form"
+          ],
+          "mentions": [
+            "makePlanningFieldValidator",
+            "validateFields",
+            "@cfworker/json-schema",
+            "JSON_SCHEMA_DRAFT_07",
+            "unsafe-eval",
+            "SchemaInvalid"
+          ]
+        }
+      ]
     }
   ]
 }

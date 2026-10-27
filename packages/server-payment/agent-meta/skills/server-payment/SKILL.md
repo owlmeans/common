@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.34`
+**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.39`
 
 Public MIT package. It embeds Stripe into an application backend and owns everything between
 Stripe and an entity's entitlements: the subscription store, one-time fulfillments, the usage
@@ -17,7 +17,8 @@ functions. The application owns its catalogue, what a purchase is worth to it (c
 provisioning), its usage meter and its side effects. Contracts — plans, limits, promos, the
 entitlement view, the consumer-rights views, calculators, copy and refusals — are
 `@owlmeans/payment`; the model across packages is the `entitlements` skill. Field lists, the
-service contract and the step-by-step algorithms are in `reference.md` in this skill folder.
+service contract and the step-by-step algorithms are in the `reference` part
+([parts/reference.md](parts/reference.md)).
 
 ## Wiring
 
@@ -383,7 +384,7 @@ skill).
 The EU right of withdrawal (with the Art. 11a withdrawal function), spend consent for prepaid
 credits, subscription start requests, the cancellation function and a billing country fixed at the
 first purchase. The service is `paymentAccessOf(ctx).consumerRights()` (`.consumerRightsOf()` is null-safe); its
-full contract is in `reference.md`.
+full contract is in the `reference` part ([parts/reference.md](parts/reference.md)).
 
 - **A purchase** is a paid one-time checkout, or a subscription's FIRST invoice — renewals,
   internal grants and manual credits never are. Its row (`purchaseId` `stripe:<cs_…>` /
@@ -633,3 +634,9 @@ concurrent withdrawals.
 - [[web-payment]] — hooks and pieces, the consumer-rights dialogs and functions
 - [[mailer]] — the mail transport the consumer-rights mails go through
 - [[mongo-resource]] — raw collection access, duplicate-key detection, field locking
+
+## Parts
+
+| Part | Load it when |
+|---|---|
+| [reference](parts/reference.md) | implementing or changing consumer rights — the policy, records, service methods, withdrawal, cancellation, mails or handler options |

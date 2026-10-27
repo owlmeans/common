@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/planning",
-  "version": "0.1.18-rc.26",
-  "generatedAt": "2026-10-10T17:07:11.323Z",
+  "version": "0.1.18-rc.32",
+  "generatedAt": "2026-10-27T08:58:03.612Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,134 @@
       "name": "planning",
       "category": "package-specific",
       "file": "skills/planning/SKILL.md",
-      "canonicalPath": ".agents/skills/planning/SKILL.md"
+      "canonicalPath": ".agents/skills/planning/SKILL.md",
+      "parts": [
+        {
+          "name": "collaboration",
+          "file": "skills/planning/parts/collaboration.md",
+          "description": "Assignees, comments with stable mentions, teams across projects, card hierarchy rules, the resources protocol branches, and PlanningReply's organization-free records.",
+          "purposes": [
+            "detail",
+            "view"
+          ],
+          "mentions": [
+            "Assignee",
+            "Team",
+            "Comment",
+            "CommentMention",
+            "mentionHelper",
+            "PlanningResourceKind",
+            "PLANNING_PROJECT_TEAM",
+            "planningResourceAliases",
+            "planningReplyHelper",
+            "PlanningReply",
+            "teams.addMember",
+            "reporter",
+            "assignee"
+          ]
+        },
+        {
+          "name": "errors",
+          "file": "skills/planning/parts/errors.md",
+          "description": "Every refusal class with its planning marker and HTTP status, the httpStatus rules for a new refusal, and the eight-language i18n the package registers.",
+          "purposes": [
+            "feedback"
+          ],
+          "mentions": [
+            "PlanningError",
+            "WorkcardNotFound",
+            "IllegalTransition",
+            "WorkcardConflict",
+            "PlanningRefused",
+            "FieldsInvalid",
+            "SchemaConflict",
+            "SchemaSealed",
+            "SchemaInvalid",
+            "PlanningForbidden",
+            "CommitTimeout",
+            "CommitFailed",
+            "lib:planning"
+          ]
+        },
+        {
+          "name": "fold",
+          "file": "skills/planning/parts/fold.md",
+          "description": "The pure fold (applyTransition, applyRelationship), what computeChanges records and assertMutable refuses, and the one query translation with its wire form.",
+          "purposes": [
+            "query",
+            "state"
+          ],
+          "mentions": [
+            "applyHelper",
+            "applyTransition",
+            "applyRelationship",
+            "changesHelper",
+            "computeChanges",
+            "assertMutable",
+            "isEmptyChange",
+            "queryHelper",
+            "criteriaOf",
+            "listOptionsOf",
+            "summaryOf",
+            "wireHelper",
+            "encodeWorkcardQuery",
+            "decodeWorkcardQuery",
+            "WorkcardQuery"
+          ]
+        },
+        {
+          "name": "mounting",
+          "file": "skills/planning/parts/mounting.md",
+          "description": "The protocol tree makePlanningProtocols declares (leaves, routes, aliases, guards, the commit socket) and how a generated target mounts it.",
+          "purposes": [
+            "server-api",
+            "config"
+          ],
+          "mentions": [
+            "makePlanningProtocols",
+            "planningAliasHelper",
+            "planningAliases",
+            "planningDefinitionAliases",
+            "PLANNING_PATH",
+            "socketBase",
+            "ExecuteRequest",
+            "CommitQuery",
+            "CommitFeedQuery",
+            "schema.define"
+          ]
+        },
+        {
+          "name": "types",
+          "file": "skills/planning/parts/types.md",
+          "description": "Declaring card, project and specification types and status flows as closed data, the application's own definition properties and base card fields (`app`), the data-defined layers (code, entity, project) and retirement, and the rules every record schema keeps.",
+          "purposes": [
+            "data"
+          ],
+          "mentions": [
+            "WorkcardTypeSchema",
+            "ProjectTypeSchema",
+            "StatusFlowSchema",
+            "SpecificationSlot",
+            "CodePolicy",
+            "makeSchemaRegistry",
+            "scopedSchemaHelper",
+            "resolveScopedBundle",
+            "ScopedSchemaRecord",
+            "ScopedSchemaBundle",
+            "SchemaStore",
+            "putType",
+            "putFlow",
+            "putAssigneeType",
+            "scopedCardTypes",
+            "overridable",
+            "appSchemaHelper",
+            "PlanningAppDeclarations",
+            "PlanningAppSchema",
+            "registerApp",
+            "fieldsSchema"
+          ]
+        }
+      ]
     }
   ]
 }
