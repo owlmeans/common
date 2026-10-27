@@ -1,6 +1,9 @@
 import { BaseMessage, type MessageFieldWithRole } from '@langchain/core/messages'
 import { EMPTY_CONTENT_STUB, JSON_INSTRUCTION, NO_THINK_DIRECTIVE } from '../consts.js'
+import { CHUNK_SEPARATOR } from '../prompt/consts.js'
 import { toolCallInstruction } from '../utils.js'
+import { messageUtils } from './messages.js'
+import { CACHE_MARKER_KEYS, TAIL_TAKERS } from './prompt/consts.js'
 import type { PromptUtils } from './prompt/types.js'
 
 export const createPromptUtils = (): PromptUtils => {
@@ -26,23 +29,56 @@ export const createPromptUtils = (): PromptUtils => {
     }
   }
 
+  /** The block without any cache marker, or the block itself when it carries none. */
+  const unmarked = (part: unknown): unknown => {
+    if (typeof part !== 'object' || part === null) {
+      return part
+    }
+    const record = part as Record<string, unknown>
+    const extras = record.extras as Record<string, unknown> | undefined
+    const inExtras = typeof extras === 'object' && extras !== null && 'prompt_cache_breakpoint' in extras
+    if (!inExtras && !CACHE_MARKER_KEYS.some(key => key in record)) {
+      return part
+    }
+    const rest = Object.fromEntries(Object.entries(record).filter(([key]) => !CACHE_MARKER_KEYS.includes(key)))
+    if (inExtras) {
+      const { prompt_cache_breakpoint: _dropped, ...kept } = extras
+      if (Object.keys(kept).length > 0) {
+        rest.extras = kept
+      } else {
+        delete rest.extras
+      }
+    }
+
+    return rest
+  }
+
   const stripCacheMarkers = (msgs: MessageFieldWithRole[]): void => {
     for (const msg of msgs) {
       if (!Array.isArray(msg.content)) {
         continue
       }
-      let found = false
-      const blocks = msg.content.map(part => {
-        if (typeof part === 'object' && part !== null && 'cache_control' in part) {
-          found = true
-          const { cache_control: _dropped, ...rest } = part as Record<string, unknown>
-          return rest
-        }
-        return part
-      })
-      if (found) {
+      const blocks = msg.content.map(unmarked)
+      if (blocks.some((block, i) => block !== (msg.content as unknown[])[i])) {
         msg.content = blocks as unknown as typeof msg.content
       }
+    }
+  }
+
+  const appendTail = (msgs: MessageFieldWithRole[], tail: string): void => {
+    const text = tail.trim()
+    if (text === '') {
+      return
+    }
+    const last = msgs[msgs.length - 1]
+    if (last == null || !TAIL_TAKERS.includes(messageUtils.roleOf(last))) {
+      msgs.push({ role: 'user', content: text })
+    } else if (typeof last.content === 'string') {
+      last.content = `${last.content}${CHUNK_SEPARATOR}${text}`
+    } else if (Array.isArray(last.content)) {
+      last.content = [...last.content, { type: 'text', text }] as unknown as typeof last.content
+    } else {
+      msgs.push({ role: 'user', content: text })
     }
   }
 
@@ -100,7 +136,7 @@ export const createPromptUtils = (): PromptUtils => {
     appendDirective(msgs, instruction)
   }
 
-  return { stripCacheMarkers, dropBlankContent, ensureJsonMention, applyNoThink, ensureToolCall }
+  return { stripCacheMarkers, dropBlankContent, ensureJsonMention, applyNoThink, ensureToolCall, appendTail }
 }
 
 export const promptUtils = createPromptUtils()

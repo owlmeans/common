@@ -1,4 +1,4 @@
-import { ConnectFeedDetail, ModerationCategory, WorkloadKind } from '@owlmeans/viable-common'
+import { AgentStopScope, ConnectFeedDetail, IamGrantMode, ModerationCategory, StoryBatchOutcome, WorkloadKind } from '@owlmeans/viable-common'
 import type { ToolAnnotations } from './types.js'
 
 /** What a production body leaves of a confirmation or consent refusal (`@owlmeans/api` `ApiStatusError`). */
@@ -65,6 +65,11 @@ export const STATUS_TOOL_OF: Readonly<Record<string, string>> = {
   delete_story: 'story_status',
   develop_story: 'story_status',
   story_status: 'story_status',
+  start_story_batch: 'story_batch_status',
+  story_batch_status: 'story_batch_status',
+  cancel_story_batch: 'story_batch_status',
+  stop_agent: 'project_status',
+  steer_agent: 'project_status',
   convert_project: 'conversion_status',
   proceed_conversion: 'conversion_status',
   check_convertible: 'conversion_status',
@@ -227,6 +232,12 @@ export const APP_USER_ACTIONS = ['invite', 'update', 'remove'] as const
 /** What `manage_app_grant` does: grant a permission to one subject, or take it back. */
 export const APP_GRANT_ACTIONS = ['assign', 'revoke'] as const
 
+/**
+ * The grant modes that only take something back — every form (`all`) or the subject's own value
+ * (`inherit`) — and so are refused on `manage_app_grant { action: assign }` before any call.
+ */
+export const REVOKE_ONLY_GRANT_MODES: readonly string[] = [IamGrantMode.All, IamGrantMode.Inherit]
+
 /** What `manage_app_organization` does to an organization of the generated app and its members. */
 export const APP_ORGANIZATION_ACTIONS = ['rename', 'add-member', 'update-member', 'remove-member'] as const
 
@@ -235,6 +246,10 @@ export const APP_GROUP_ACTIONS = ['create', 'update', 'delete', 'add-members', '
 
 /** How many rows of one IAM listing a tool prints; the structured answer carries them all. */
 export const IAM_ROWS_SHOWN = 50
+
+/** What a grant listing adds under its rows when some are `restricted: true`. */
+export const IAM_RESTRICTED_NOTE = '  restricted = inherited (a default, a group or a bundle) but withheld by the subject\'s own'
+  + ' restriction — not held; manage_app_grant { action: revoke, mode: inherit } lifts it.'
 
 /** What an `external` IAM listing means — the backend keeps it in a console of its own. */
 export const IAM_EXTERNAL = 'This application\'s sign-in is managed in a console of its own (an external'
@@ -251,3 +266,24 @@ export const FEED_TOAST_WORDS: Readonly<Record<string, string>> = {
   'out-of-tokens': 'a run stopped: the organization ran out of credits — the user tops up in the web application\'s Billing',
   'allowance-exhausted': 'a run stopped: the plan allowance it started on is used up — the user reads their plan in Billing',
 }
+
+/** What `stop_agent` can address: the run in progress, the story in progress, or the whole batch. */
+export const STOP_SCOPES = [AgentStopScope.Run, AgentStopScope.Story, AgentStopScope.Batch] as const
+
+/** What became of a story of a batch, in the words every batch answer uses. */
+export const BATCH_OUTCOME_WORDS: Readonly<Record<string, string>> = {
+  [StoryBatchOutcome.Completed]: 'completed',
+  [StoryBatchOutcome.Failed]: 'failed — story_status says why; the batch went on with the next one',
+  [StoryBatchOutcome.Stopped]: 'stopped by a person — its changes were rolled back and it is planned again',
+  [StoryBatchOutcome.Skipped]: 'skipped — it left the project before its turn',
+  [StoryBatchOutcome.Refused]: 'refused — its start was refused; the batch went on with the next one',
+}
+
+/** Why a batch halted when the story it started stopped moving and nothing runs it any more. */
+export const BATCH_STALLED_WORDS = 'the story it started stopped moving and nothing runs it any more'
+  + ' (the run behind it ended without finishing it)'
+
+/** What every rolled-back story stop says it does: what is lost, and what is kept. */
+export const STORY_STOP_ROLLBACK = 'the story in progress stops at its next step, and every change made since'
+  + ' that run started — edits saved in the web editor meanwhile included — is rolled back; the story returns'
+  + ' to planned'

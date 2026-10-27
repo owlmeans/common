@@ -89,7 +89,7 @@ bun run test
 | **State store** | The browser's in-memory resource with live subscriptions, registered with `appendStateResource`. React reads it through `useStoreList` and `useStoreModel`. | [`state`](packages/state), [`client`](packages/client) |
 | **Flow** | A serializable step/transition state machine whose whole state is one string, so a multi-step process survives redirects and reloads. | [`flow`](packages/flow), [`client-flow`](packages/client-flow) |
 | **Resilient error** | A registered error class that marshals across a service boundary and is restored as the same class on the other side, with i18n-aware messages. | [`error`](packages/error) |
-| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.53` installs it. | [`agent-skills`](packages/agent-skills) |
+| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.59` installs it. | [`agent-skills`](packages/agent-skills) |
 
 ## How an application is shaped
 
@@ -243,6 +243,7 @@ application packages above, or add one when they need that specific feature.
 | Cross-cutting domain | [`agent`](packages/agent) | Context-aware LLM agents over LangGraph's functional API, and resumable checkpointed pipelines |
 |  | [`agent-common`](packages/agent-common) | Runtime-free agent contracts: conversation identity, the run lifecycle and pipeline declarations |
 |  | [`auth-otp`](packages/auth-otp) | Email-OTP sign-in contracts: the auth type, the service and cache names, the code length and lifetime |
+|  | [`bot`](packages/bot) | Runtime-free chat-bot contract for Telegram, WhatsApp, Discord and Slack: platform descriptors, connections, the Unicode-aware text helper, the managing and hook protocol trees, the bot errors |
 |  | [`common-inquiry`](packages/common-inquiry) | Runtime-free contract of the customer inquiry widget: the widget config, the window runtime, the multipart submission, its limits and schemas |
 |  | [`consent`](packages/consent) | The cookie-consent model, its categories, the storage contract and Consent Mode v2 signalling |
 |  | [`flow`](packages/flow) | A serializable step/transition state machine whose whole state is one string |
@@ -265,7 +266,8 @@ application packages above, or add one when they need that specific feature.
 |  | [`api-config`](packages/api-config) | The runtime config document a backend advertises: its entrypoint and the allowlist plugins |
 |  | [`api-config-client`](packages/api-config-client) | Fetches the runtime config a backend advertises and merges it into the client config at boot |
 |  | [`api-config-server`](packages/api-config-server) | Answers the runtime config endpoint from package-owned allowlist plugins |
-| Storage and infrastructure | [`image-resource`](packages/image-resource) | Image-shaped names and schemas over the shared stored-file types |
+| Storage and infrastructure | [`bot-postgres`](packages/bot-postgres) | Postgres tables for the three chat-bot resources of a generated target project: connections, the deduplicating inbox and the activity log |
+|  | [`image-resource`](packages/image-resource) | Image-shaped names and schemas over the shared stored-file types |
 |  | [`kluster`](packages/kluster) | The Kubernetes API client service and the `kluster:` config directive that resolves cluster addresses at boot |
 |  | [`mailer-smtp`](packages/mailer-smtp) | The SMTP (nodemailer) transport for the MailerService contract |
 |  | [`marketing-consent-mongo`](packages/marketing-consent-mongo) | Mongo storage for the two marketing-consent resources |
@@ -279,9 +281,11 @@ application packages above, or add one when they need that specific feature.
 |  | [`static-resource`](packages/static-resource) | An in-process Resource over a module-scope map, for records an app holds in memory |
 |  | [`storage-common`](packages/storage-common) | Shared object and file storage types, errors and model |
 |  | [`storage-resource`](packages/storage-resource) | An upload-only S3-compatible object storage resource with MIME sniffing |
-| Server | [`server-auth-otp`](packages/server-auth-otp) | The email-OTP auth plugin and OtpService for passwordless sign-in |
+| Server | [`bot-agent`](packages/bot-agent) | Lets an `@owlmeans/agent` agent act on a chat-bot message: the message and the instructions its handler passes as context, the bot's supported actions as never-throwing tools |
+|  | [`server-auth-otp`](packages/server-auth-otp) | The email-OTP auth plugin and OtpService for passwordless sign-in |
 |  | [`server-auth-session`](packages/server-auth-session) | The seven-day session registry, with memory and Redis implementations |
 |  | [`server-auth-token`](packages/server-auth-token) | The server half of access tokens: the store, the verifying guard, the management handlers and the coguard |
+|  | [`server-bot`](packages/server-bot) | The chat-bot runtime: sealed connections, the signed hook and its inbox, the worker's dispatcher and receivers, never-throwing actions, the Telegram, WhatsApp, Discord and Slack platform plugins and an API-faithful mock transport |
 |  | [`server-config`](packages/server-config) | `sservice()` for backend service routes, file-mounted config values and the server config shape |
 |  | [`server-context`](packages/server-context) | `makeServerContext()`, the server config shape and the file config reader |
 |  | [`server-iam`](packages/server-iam) | One-call OIDC relying-party wiring and the IAM gate for unscoped and resource-scoped permissions |
@@ -312,6 +316,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`mui-panel`](packages/mui-panel) | The legacy MUI v7 browser layer |
 |  | [`web-auth`](packages/web-auth) | Web authentication plugins for the shared client-auth registry, including the development supervisor login |
 |  | [`web-auth-token`](packages/web-auth-token) | The browser half of access tokens: the management panel and its hook |
+|  | [`web-bot`](packages/web-bot) | The browser half of chat bots: the connections and activity panels and their hooks over a bound bot surface |
 |  | [`web-consent`](packages/web-consent) | The React cookie-consent dialog, its re-open button, the cookie-policy page and the consent hooks |
 |  | [`web-db`](packages/web-db) | IndexedDB-backed browser storage |
 |  | [`web-flow`](packages/web-flow) | The browser flow service that rehydrates a flow from the URL, and `useFlow()` |
@@ -339,7 +344,7 @@ Published packages include generated, version-matched guidance in `agent-meta/`.
 installing OwlMeans packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.53
+npx @owlmeans/agent-skills@^0.1.18-rc.59
 ```
 
 The installer copies applicable skills to `.agents/skills/`; `AGENTS.md` documents the generated

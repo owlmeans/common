@@ -109,6 +109,22 @@ describe('bind', () => {
     expect(fake.opened.at(-1)?.opts?.email).toBe('override@example.test')
   })
 
+  test('hands a trigger\'s message provider to the open unread, so the runtime reads it at the click', async () => {
+    const fake = makeRuntime()
+    page.onScript = script => page.install(fake.runtime, script)
+    let calls = 0
+    const message = () => { calls++; return { subject: 'Estimate', body: '24–58 h' } }
+    const link = page.add('a', { href: 'mailto:sales@example.test' })
+    makeInquiryClient({ url: nextUrl() }).bind(link as unknown as Element, config, { source: 'estimate', message })
+
+    link.dispatch('click')
+    await settle(10)
+
+    expect(fake.opened.at(-1)?.opts?.message).toBe(message)
+    expect(fake.opened.at(-1)?.opts?.source).toBe('estimate')
+    expect(calls).toBe(0)
+  })
+
   test('a click opens the dialog instead of following the link', async () => {
     const fake = makeRuntime()
     page.onScript = script => page.install(fake.runtime, script)

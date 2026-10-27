@@ -6,9 +6,10 @@ import { PlanningUnsupported, SchemaInvalid, SchemaSealed } from '../errors.js'
 import { makeSchemaRegistry } from '../registry.js'
 import { StatusFlowSchemaSchema, WorkcardTypeSchemaSchema } from '../schemas.js'
 import type {
-  AnyTypeSchema, PlanningSchemaBundle, PlanningSchemaRegistry, SchemaScope, ScopedSchemaBundle,
+  AnyTypeSchema, PlanningAppDeclarations, PlanningSchemaBundle, PlanningSchemaRegistry, SchemaScope, ScopedSchemaBundle,
   ScopedSchemaRecord, ScopedSchemaRegistry, StatusFlowSchema, WorkcardTypeSchema,
 } from '../types.js'
+import { appSchemaHelper } from './app.js'
 import type { ScopedSchemaHelper } from './scoped/types.js'
 import type { Candidate, Resolved } from './types.local.js'
 import { makeAjv, validateHelper } from './validate.js'
@@ -55,7 +56,7 @@ export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
     try { makeAjv().compile(schema.fields) } catch (error) { throw new SchemaInvalid(`assignee:${schema.type}:fields:${messageOf(error)}`) }
   }
 
-  const assertFlowSchema = (flow: StatusFlowSchema): void => {
+  const assertFlowSchema = (flow: StatusFlowSchema, app?: PlanningAppDeclarations): void => {
     const validate = checkers().flow
     if (!validate(flow)) {
       throw new SchemaInvalid(`flow:${(flow as Partial<StatusFlowSchema>)?.id ?? ''}:${validateHelper.ajvErrorText(validate.errors)}`)
@@ -82,10 +83,11 @@ export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
         throw new SchemaInvalid(`flow:${flow.id}:${rule.name}:from:${unknown}`)
       }
     }
+    appSchemaHelper.assertBag(PlanningSchemaKind.Flow, flow.id, flow.app, app)
   }
 
   const assertTypeSchema = (
-    type: WorkcardTypeSchema, flows: Pick<PlanningSchemaRegistry, 'flow'>
+    type: WorkcardTypeSchema, flows: Pick<PlanningSchemaRegistry, 'flow'>, app?: PlanningAppDeclarations
   ): void => {
     const validate = checkers().type
     if (!validate(type)) {
@@ -94,8 +96,9 @@ export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
     if (type.kind !== WorkcardKind.Card) {
       throw new SchemaInvalid(`type:${type.type}:kind:${type.kind}`)
     }
+    appSchemaHelper.assertBag(PlanningSchemaKind.Type, type.type, type.app, app)
     try {
-      makeAjv().compile(type.fields)
+      makeAjv().compile(appSchemaHelper.fieldsSchemaOf(type, app))
     } catch (error) {
       throw new SchemaInvalid(`type:${type.type}:fields:${messageOf(error)}`)
     }
@@ -193,6 +196,7 @@ export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
       version: code.version,
       types: types.definitions,
       flows: flows.definitions,
+      ...(code.app != null ? { app: code.app } : {}),
       scope: scope.project == null ? { entityId: scope.entityId } : { entityId: scope.entityId, project: scope.project },
       revision: scope.revision ?? 0,
       origins: { types: types.origins, flows: flows.origins, assigneeTypes: assignees.origins },
@@ -216,6 +220,7 @@ export const createScopedSchemaHelper = (): ScopedSchemaHelper => {
       registerAssigneeType: refuse,
       registerType: refuse,
       registerFlow: refuse,
+      registerApp: refuse,
       load: refuse,
       scope: kept.scope ?? { entityId: '' },
       revision: kept.revision ?? 0,
@@ -258,11 +263,11 @@ export const assertOverridable = (
 ): void => scopedSchemaHelper.assertOverridable(code, kind, key)
 
 /** @deprecated compat:factory-refactor — use `scopedSchemaHelper.assertFlowSchema(…)` */
-export const assertFlowSchema = (flow: StatusFlowSchema): void => scopedSchemaHelper.assertFlowSchema(flow)
+export const assertFlowSchema = (flow: StatusFlowSchema, app?: PlanningAppDeclarations): void => scopedSchemaHelper.assertFlowSchema(flow, app)
 
 /** @deprecated compat:factory-refactor — use `scopedSchemaHelper.assertTypeSchema(…)` */
-export const assertTypeSchema = (type: WorkcardTypeSchema, flows: Pick<PlanningSchemaRegistry, 'flow'>): void =>
-  scopedSchemaHelper.assertTypeSchema(type, flows)
+export const assertTypeSchema = (type: WorkcardTypeSchema, flows: Pick<PlanningSchemaRegistry, 'flow'>, app?: PlanningAppDeclarations): void =>
+  scopedSchemaHelper.assertTypeSchema(type, flows, app)
 
 /** @deprecated compat:factory-refactor — use `scopedSchemaHelper.resolveScopedBundle(…)` */
 export const resolveScopedBundle = (

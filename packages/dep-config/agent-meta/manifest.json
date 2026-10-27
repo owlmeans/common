@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/dep-config",
+  "version": "0.1.18-rc.8",
+  "generatedAt": "2026-10-20T23:19:58.622Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "third-party-notices",
+      "category": "multi-package",
+      "file": "skills/third-party-notices/SKILL.md",
+      "canonicalPath": ".agents/skills/third-party-notices/SKILL.md"
+    }
+  ]
+}

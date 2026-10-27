@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { ConnectHarness, ModelTaskMode, ModelTaskResultKind, ModelTaskRole } from '@owlmeans/viable-common'
+import { ConnectHarness, ModelTaskMode, ModelTaskResultKind, ModelTaskRole, RecordInteractionPlanSchema } from '@owlmeans/viable-common'
 import type { ModelTask } from '@owlmeans/viable-common'
 import { makeTaskEnvelopeModel } from '../src/task/envelope.js'
 
@@ -17,6 +17,26 @@ const task = (patch: Partial<ModelTask> = {}): ModelTask => ({
 })
 
 describe('viable-sdk — what the parent agent is told', () => {
+  test('every harness preserves contextual CRUDL instructions, host bindings and the structured answer', () => {
+    const plan = { entity: 'Document', ownerEntity: 'Task', capabilities: ['create'], placement: 'contextual',
+      presentation: 'inline', hostScreen: 'Tasks/List', selectionComponents: ['sources/web/src/components/task/list.tsx'], parentKey: 'taskId', recordKey: 'id' }
+    const model = makeTaskEnvelopeModel(task({ mode: ModelTaskMode.Json,
+      system: 'Keep task documents inside the open task detail. Never add an upload sidebar item.',
+      messages: [{ role: ModelTaskRole.User, content: JSON.stringify({ host: 'Tasks/List', selectedTask: 'task-A' }) }],
+      outputSchema: RecordInteractionPlanSchema,
+    }))
+    for (const harness of Object.values(ConnectHarness)) {
+      const envelope = model.renderTaskEnvelope({ harness })
+      expect(envelope).toContain('Never add an upload sidebar item')
+      expect(envelope).toContain('task-A')
+      expect(envelope).toContain('ownerEntity')
+      expect(envelope).toContain('hostScreen')
+      expect(envelope).toContain('selectionComponents')
+    }
+    const parsed = model.parseTaskResult(JSON.stringify(plan))
+    expect(parsed.problem).toBeUndefined()
+    expect(parsed.result).toMatchObject({ kind: ModelTaskResultKind.Json, json: plan })
+  })
   test('names the task, the follow-up call and the isolation, before the material', () => {
     const text = makeTaskEnvelopeModel(task()).renderTaskEnvelope({ harness: ConnectHarness.ClaudeCode })
 

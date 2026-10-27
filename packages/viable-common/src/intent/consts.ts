@@ -22,11 +22,32 @@ export const intent = Object.freeze({
   stash: 'viable:manager-api:intent:stash',
   pickup: 'viable:manager-api:intent:pickup',
   landing: 'viable:manager-web:intent:landing',
+  importLanding: 'viable:manager-web:intent:import',
+  proLanding: 'viable:manager-web:intent:pro',
 } as const)
 
 /** Where the guest API lives, and the screen the visitor's browser is sent to. */
 export const INTENT_API_PATH = '/public/intent'
 export const INTENT_LANDING_PATH = '/start'
+
+/**
+ * The second way in: the public site's "Import from GitHub" is a plain link to this screen. There
+ * is nothing to stash — the visitor brings no text, only the wish — so no guest API call and no
+ * reference; the platform records the wish in the visitor's browser and opens its import dialog on
+ * the home screen once they are signed in.
+ */
+export const INTENT_IMPORT_PATH = '/start/import'
+
+/**
+ * The third way in: the public site's Pro plan "Start now" is a plain link to this screen. Like the
+ * import landing it carries nothing but the wish — here, to subscribe to Pro — so there is no guest
+ * call and no reference; the platform opens its billing screen with the Pro subscription's start
+ * dialog, through sign-in first when the visitor has no session.
+ */
+export const INTENT_PRO_PATH = '/start/pro'
+
+/** `kind` of the browser record an import wish waits in ({@link IntentImportDraft}). */
+export const INTENT_IMPORT_KIND = 'import'
 
 /** The flow the two sides walk. */
 export const INTENT_FLOW = 'viable:intent'
@@ -54,7 +75,10 @@ export const INTENT_PAYLOAD_REF = 'ref'
 /** How long the visitor's draft survives in their own browser waiting for a decision. */
 export const INTENT_DRAFT_TTL_MS = 24 * 60 * 60 * 1000
 
-/** How long a suspended landing waits while the visitor signs in or registers. */
+/**
+ * How long a suspended landing waits while the visitor signs in or registers — and how long an
+ * import wish waits in the browser: it belongs to that sign-in, not to a later visit.
+ */
 export const INTENT_SUSPEND_TTL_MS = 30 * 60 * 1000
 
 /** Steps of {@link intentFlow}, exported so a screen never spells one as a literal. */

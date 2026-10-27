@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { CommitState, TransitionAction } from '@owlmeans/planning'
-import { CONNECT_TOKEN_PREFIX, connect, ConnectFeedDetail, ConnectLlm, VIABLE_STORY_TYPE, WorkloadKind } from '@owlmeans/viable-common'
+import { AgentStopScope, CONNECT_TOKEN_PREFIX, connect, ConnectFeedDetail, ConnectLlm, VIABLE_STORY_TYPE, WorkloadKind } from '@owlmeans/viable-common'
 
 import { makeRemoteConnectorApi } from '../src/api/remote.js'
 import { transportHelper } from '../src/api/transport.js'
@@ -105,6 +105,44 @@ describe('viable-sdk — the remote project lifecycle', () => {
     expect(calls.map(call => [call.alias, call.path, call.timeout])).toEqual([
       [connect.project.destroy, '/connect/project/:id', TOOL_DEADLINE_MS],
       [connect.project.unlock, '/connect/project/:id/unlock', TOOL_DEADLINE_MS],
+    ])
+  })
+})
+
+describe('viable-sdk — the remote agent controls and story batches', () => {
+  test('stop, steer and the batch reach their project routes under the tool deadline, carrying only the fields named', async () => {
+    const context = await makeSdkContext({
+      apiUrl: 'http://127.0.0.1:9', token: `${CONNECT_TOKEN_PREFIX}offline_test_token`,
+    })
+    const calls = captureTransport(context, call => call.alias === connect.project.batch.get
+      ? null
+      : call.alias === connect.project.steer ? { queued: true, id: 'm1' } : { ok: true })
+    const api = makeRemoteConnectorApi(context)
+
+    await api.project.stop('p1', { scope: AgentStopScope.Story, storyId: 'c1', confirm: true })
+    await api.project.stop('p1', {})
+    expect(await api.project.steer('p1', { prompt: 'keep the blue accent' })).toEqual({ queued: true, id: 'm1' })
+    await api.project.batch.start('p1', { stories: ['c1', 'c2'] })
+    await api.project.batch.start('p1', {})
+    // No batch ever ran: the answer is `null`, never an empty object.
+    expect(await api.project.batch.get('p1')).toBeNull()
+    await api.project.batch.cancel('p1')
+
+    expect(calls.map(call => [call.alias, call.path, call.timeout])).toEqual([
+      [connect.project.stop, '/connect/project/:id/stop', TOOL_DEADLINE_MS],
+      [connect.project.stop, '/connect/project/:id/stop', TOOL_DEADLINE_MS],
+      [connect.project.steer, '/connect/project/:id/steer', TOOL_DEADLINE_MS],
+      [connect.project.batch.start, '/connect/project/:id/batch', TOOL_DEADLINE_MS],
+      [connect.project.batch.start, '/connect/project/:id/batch', TOOL_DEADLINE_MS],
+      [connect.project.batch.get, '/connect/project/:id/batch', TOOL_DEADLINE_MS],
+      [connect.project.batch.cancel, '/connect/project/:id/batch/cancel', TOOL_DEADLINE_MS],
+    ])
+    expect(calls.slice(0, 5).map(call => call.body)).toEqual([
+      { scope: AgentStopScope.Story, storyId: 'c1', confirm: true },
+      {},
+      { prompt: 'keep the blue accent' },
+      { stories: ['c1', 'c2'] },
+      {},
     ])
   })
 })
@@ -337,7 +375,8 @@ describe('viable-sdk — the remote API addresses only routes the platform serve
     // Read and withdrawn — a consent is never granted through the connector.
     expect(Object.keys(api.account.privacy).sort()).toEqual(['status', 'withdraw'])
     expect(Object.keys(api.account.intent)).toEqual(['pickup'])
-    expect(Object.keys(api.project)).toEqual(expect.arrayContaining(['llm', 'setLlm', 'activity']))
+    expect(Object.keys(api.project)).toEqual(expect.arrayContaining(['llm', 'setLlm', 'activity', 'stop', 'steer', 'batch']))
+    expect(Object.keys(api.project.batch).sort()).toEqual(['cancel', 'get', 'start'])
     expect(Object.keys(api.files).sort()).toEqual(['changes', 'get', 'list', 'meta', 'remove', 'save'])
     expect(Object.keys(api.sandbox).sort()).toEqual(['rebuild', 'restart', 'run', 'stop'])
     expect(Object.keys(api.slot)).toEqual(['list'])

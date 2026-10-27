@@ -243,6 +243,7 @@ describe('viable-sdk — what a parent agent is offered', () => {
       for (const tool of [
         'describe_capabilities', 'create_project', 'confirm_project', 'project_status',
         'list_stories', 'develop_story', 'story_status', 'resume_pipeline', 'modify_project',
+        'start_story_batch', 'story_batch_status', 'stop_agent', 'steer_agent',
       ]) {
         expect(offered).toContain(tool)
       }
@@ -1694,15 +1695,15 @@ describe('viable-sdk — tool annotations', () => {
     }
     const destructive = catalogue.filter(tool => tool.annotations.destructiveHint === true).map(tool => tool.name).sort()
     expect(destructive).toEqual([
-      'delete_file', 'delete_project', 'delete_story', 'disconnect_github', 'git_discard', 'git_revert',
+      'cancel_story_batch', 'delete_file', 'delete_project', 'delete_story', 'disconnect_github', 'git_discard', 'git_revert',
       'manage_app_grant', 'manage_app_group', 'manage_app_organization', 'manage_app_user', 'production_control', 'publish_production', 'purge_origin', 'reinitialize_project', 'revoke_access_token',
-      'unlock_project_agent', 'write_file',
+      'stop_agent', 'unlock_project_agent', 'write_file',
     ])
     for (const name of [
       'project_status', 'list_projects', 'story_status', 'conversion_status', 'list_files', 'read_file', 'list_slots',
       'inference_settings', 'list_access_tokens', 'privacy_choices', 'git_status', 'git_history', 'github_repositories',
       'production_status', 'production_auth', 'app_users', 'app_permissions', 'app_grants', 'app_organizations',
-      'app_groups', 'project_activity', 'notifications', 'file_changes',
+      'app_groups', 'project_activity', 'notifications', 'file_changes', 'story_batch_status',
     ]) {
       expect(catalogue.find(tool => tool.name === name)!.annotations.readOnlyHint).toBe(true)
     }

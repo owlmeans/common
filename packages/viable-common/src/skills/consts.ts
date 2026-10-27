@@ -14,6 +14,8 @@ export enum ViableSkill {
   ScopeDiscipline = 'scope-discipline',
   /** One key user, one shortest path to value — for every analysis-stage helper. */
   MainFlowFocus = 'main-flow-focus',
+  /** CRUDL actions and dependent records belong to their domain host. */
+  RecordInteractions = 'record-interactions',
   /** Overrides the TypeScript rules for a file that is not TypeScript. */
   NonTypescriptOutput = 'non-typescript-output',
 
@@ -126,6 +128,16 @@ export enum ViablePersona {
   FreeFlightCoder = 'free-flight-coder',
 
   Fixer = 'fixer',
+  /** Chooses the files a build error is read and repaired in — the fixer's two cheap list calls. */
+  FixPicker = 'fix-picker',
+  /** Repairs the browser app: the web coders' rules plus the fixer's heuristics. */
+  WebFixer = 'web-fixer',
+  /** Repairs the HTTP server and the shared backend library: the api coder's rules plus the fixer's. */
+  ApiFixer = 'api-fixer',
+  /** Repairs the shared package: the common coder's rules plus the fixer's. */
+  CommonFixer = 'common-fixer',
+  /** Repairs the queue consumer: the worker coder's rules plus the fixer's. */
+  WorkerFixer = 'worker-fixer',
   Orchestrator = 'orchestrator',
   SourceExtractor = 'source-extractor',
   DeclarationLookup = 'declaration-lookup',

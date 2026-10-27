@@ -1,4 +1,4 @@
-import { cardHelper, CommitState, PlanningUnsupported, TransitionAction, type CommitEvent, type PlanningStore, type Transition, type Workcard } from '@owlmeans/planning'
+import { cardHelper, CommitState, PlanningUnsupported, TransitionAction, WorkcardKind, type CommitEvent, type PlanningStore, type Transition, type Workcard } from '@owlmeans/planning'
 import { logger } from '@owlmeans/log'
 import { foldHelper, type FoldResult } from '@owlmeans/server-planning/store'
 import { DEFAULT_RECOVER_LIMIT, LOST_ALLOCATION, MAX_FOLD_PASSES, MAX_FOLD_ROUNDS, PLANNING_POSTGRES_STORE, LOCK_NOT_AVAILABLE } from '../consts.js'
@@ -172,6 +172,7 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
         summary: refuse('summary'),
         put: async card => { await cards.writeCard(card) },
         drop: async (id, entityId) => {
+          await dropDocuments(ctx, id, entityId)
           await ctx.runner.query(`DELETE FROM ${ctx.tables.mention.qualified} WHERE ${col(ctx.tables.mention, 'entityId')}=$1 AND ${col(ctx.tables.mention, 'card')}=$2`, [entityId, id])
           await ctx.runner.query(`DELETE FROM ${ctx.tables.comment.qualified} WHERE ${col(ctx.tables.comment, 'entityId')}=$1 AND ${col(ctx.tables.comment, 'card')}=$2`, [entityId, id])
           await cards.dropCard(id, entityId)
@@ -188,6 +189,46 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
   }
 
   // ─── Purge ─────────────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * A record's own documents, in the open transaction — the specifications whose primary parent is
+   * it, and theirs in turn — go the way a project purge takes what is under it: mentions, comments,
+   * links, transitions, then the documents. The record itself and its own log are the caller's.
+   */
+  const dropDocuments = async (ctx: FoldContext, id: string, entityId: string): Promise<number> => {
+    const { card: cards, transition: log, link: links } = ctx.tables
+    const documents = (await ctx.runner.query<{ id: string }>(
+      `WITH RECURSIVE owned(id) AS (`
+      + ` SELECT $1::text`
+      + ` UNION SELECT child.${col(cards, 'id')}::text FROM ${cards.qualified} AS child JOIN owned`
+      + ` ON child.${col(cards, 'parent')}::text = owned.id`
+      + ` WHERE child.${col(cards, 'entityId')} = $2 AND child.${col(cards, 'kind')} = $3`
+      + `) SELECT id FROM owned WHERE id <> $1`,
+      [id, entityId, WorkcardKind.Specification]
+    )).map(row => row.id)
+    if (documents.length === 0) {
+      return 0
+    }
+
+    let count = 0
+    for (const table of [ctx.tables.mention, ctx.tables.comment]) count += (await ctx.runner.query(`DELETE FROM ${table.qualified} WHERE ${col(table, 'entityId')}=$1 AND ${col(table, 'card')}=ANY($2) RETURNING ${col(table, 'id')}`, [entityId, documents])).length
+    count += (await ctx.runner.query(
+      `DELETE FROM ${links.qualified} WHERE ${col(links, 'entityId')} = $1 AND (`
+      + ` (COALESCE(${col(links, 'fromKind')}, 'workcard')='workcard' AND ${col(links, 'from')}=ANY($2))`
+      + ` OR (COALESCE(${col(links, 'toKind')}, 'workcard')='workcard' AND ${col(links, 'to')}=ANY($2))) RETURNING ${col(links, 'id')}`,
+      [entityId, documents]
+    )).length
+    count += (await ctx.runner.query(
+      `DELETE FROM ${log.qualified} WHERE ${col(log, 'entityId')} = $1 AND ${col(log, 'card')} = ANY($2) RETURNING ${col(log, 'id')}`,
+      [entityId, documents]
+    )).length
+    count += (await ctx.runner.query(
+      `DELETE FROM ${cards.qualified} WHERE ${col(cards, 'entityId')} = $1 AND ${col(cards, 'id')} = ANY($2) RETURNING ${col(cards, 'id')}`,
+      [entityId, documents]
+    )).length
+
+    return count
+  }
 
   /**
    * Everything under a project, in the open transaction: the recursive walk over `parents` finds

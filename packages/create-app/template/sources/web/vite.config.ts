@@ -1,3 +1,4 @@
+import { createThirdPartyNoticesPlugin } from '@owlmeans/dep-config/notices'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -13,7 +14,7 @@ const owlMeansSingletons = [
 ]
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [createThirdPartyNoticesPlugin({ root: import.meta.dirname, additionalPackages: ['tailwindcss'] }), react(), tailwindcss()],
   server: {
     port: 3001,
     host: '0.0.0.0',

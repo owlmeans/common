@@ -11,14 +11,14 @@ but never started.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-panel@^0.1.18-rc.74
+bun add @owlmeans/web-panel@^0.1.18-rc.82
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
 `react-hook-form`, `ajv`, `tailwindcss@^4`, `lucide-react`, `clsx`,
 `tailwind-merge`, `class-variance-authority`, plus the radix primitives
-listed in `peerDependencies` (`alert-dialog`, `dialog`, `label`, `navigation-menu`, `progress`,
-`separator`, `slot`). Also declare `ajv-formats` next to `ajv`: the form model imports it, but no dependency
+listed in `peerDependencies` (`alert-dialog`, `dialog`, `label`, `navigation-menu`, `popover`,
+`progress`, `separator`, `slot` — keep `dialog` and `popover` on the same Radix generation). Also declare `ajv-formats` next to `ajv`: the form model imports it, but no dependency
 section of this manifest lists it.
 
 ## Concepts
@@ -38,8 +38,12 @@ section of this manifest lists it.
   with tailwind-merge, never substituted.
 - **Global overlays** — `PanelApp` renders its `children` and `SocketReloadDialog` beside the
   router, so a dialog survives navigation.
-- **`translate` props** — the navigation and login components take a
+- **`translate` props** — the navigation, login and picker components take a
   `(key, defaultValue) => string` resolver as a prop instead of reading an i18n provider implicitly.
+- **Icon + colour picker** — `@owlmeans/web-panel/picker` is the standard way a person chooses an
+  icon and/or a colour (24 palette keys, ~250 curated lucide icons, an opt-in custom colour) and the
+  way a chosen mark is rendered (`IconTile`, `ColorDot`). A popover on wide screens, a bottom sheet
+  on phones; its data and colour helper are React-free under `./picker/vocabulary`.
 
 ## Usage
 
@@ -60,8 +64,8 @@ The components paint with these CSS variables, defined inside `@theme` in the ap
 - `--animate-progress-indeterminate` + the `@keyframes progress-indeterminate`
   rule for the `Progress` component's indeterminate mode
 
-A working set is shipped at `src/@/globals.css` (for dev/test only). Toasts additionally read
-`--popover`, `--popover-foreground` and `--border`.
+A working set is shipped at `src/@/globals.css` (for dev/test only). Toasts and the picker's
+surfaces additionally read `--popover`, `--popover-foreground` and `--border`.
 
 Tailwind's scanner reads your CSS root plus its `@source` directives, and it excludes
 `node_modules`. Classes that exist only inside this package's components — the whole navigation
@@ -316,6 +320,36 @@ export const ConnectionBadge: FC = () => {
 The dialog's strings are the lib-tier `socket` namespace (`reload.title`, `reload.description`,
 `reload.action`), shipped in seven languages.
 
+### 6. Icon and colour picker
+
+A person choosing a type's mark — an icon and a colour — gets one control; the stored values are a
+palette key (or `#rrggbb` with `customColors`) and a kebab-case lucide name:
+
+```tsx
+import { useState, type FC } from 'react'
+import { IconColorPicker, IconTile, usePickerTranslate } from '@owlmeans/web-panel/picker'
+import type { IconColorChange } from '@owlmeans/web-panel/picker'
+
+export const TypeMarkField: FC<{ initial: IconColorChange, onSave: (mark: IconColorChange) => void }> =
+  ({ initial, onSave }) => {
+    const translate = usePickerTranslate()          // only under PanelApp / render()
+    const [mark, setMark] = useState(initial)
+
+    return <div className="flex items-center gap-3">
+      <IconColorPicker label="Mark" value={mark} onChange={setMark} translate={translate} />
+      <button type="button" onClick={() => onSave(mark)}>Save</button>
+      <IconTile icon={mark.icon} color={mark.color} size="sm" />   {/* how a list shows it */}
+    </div>
+  }
+```
+
+`ColorPicker` and `IconPicker` edit one half; `ColorSwatches` and `IconGrid` are the same grids
+inline, for a dialog the app already owns. Stored marks render with `IconTile` / `ColorDot`, or with
+`pickerColorHelper.styleOf(color)` in custom markup. From 768px up the picker opens as a popover
+(modal, so it works inside an app's own Dialog or Sheet), below that as a bottom sheet with 44px
+targets and a Done button. Without `translate` every string is English; the packaged bundle covers
+eight languages.
+
 ## API
 
 ### Context and mounting
@@ -423,6 +457,37 @@ consumer's CSS puts dark tokens under `.dark` AND under
 | `ConsentWidgetPresenceRecord`, `ConsentWidgetService`, `ConsentWidgetServiceAppend` | type | Service types |
 | `useConsent`, `useConsentCategory`, `consentStore`, `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `consentBootstrapScript`, `DEFAULT_CONSENT_CATEGORIES`, `CONSENT_KEY`, `CONSENT_ESSENTIAL`, `CONSENT_ANALYTICS`, `CONSENT_MARKETING` and the consent types | re-export | `@owlmeans/web-consent` |
 
+### `@owlmeans/web-panel/picker`
+
+Not re-exported by the root. Re-exports everything of `./picker/vocabulary` too.
+
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `IconColorPicker`, `IconColorPickerProps` | component, type | Icon + colour: `value?: { icon?, color? }`, `onChange({ icon?, color? })`, `colors?`, `icons?`, `customColors?`, `trigger?: 'button' \| 'tile'` |
+| `ColorPicker`, `ColorPickerProps` | component, type | A colour: `value?`, `onChange(color)`, `colors?`, `customColors?`, `trigger?: 'button' \| 'dot'` |
+| `IconPicker`, `IconPickerProps` | component, type | An icon: `value?`, `onChange(icon)`, `color?` (tint), `icons?`, `trigger?: 'button' \| 'tile'` |
+| `PickerBaseProps` | type | Shared: `label?`, `placeholder?`, `disabled?`, `surface?: 'auto' \| 'popover' \| 'sheet'`, `translate?`, `className?`, `id?` |
+| `ColorSwatches`, `IconGrid` (+ `…Props`) | component, type | The grids inline, for an app's own dialog or sheet |
+| `IconTile`, `IconTileProps` | component, type | A stored mark: `icon?`, `color?`, `colors?`, `size?: 'xs' \| 'sm' \| 'md' \| 'lg'`, `variant?: 'tile' \| 'plain'`, `label?` |
+| `ColorDot`, `ColorDotProps` | component, type | A stored colour as a dot in its ink: `color?`, `colors?`, `size?`, `label?` |
+| `usePickerTranslate()`, `PickerTranslate` | hook, type | `(key, fallback) => string` over the lib-tier `picker` bundle — only under `PanelApp` / `render()` |
+| `IconColorValue`, `IconColorChange` | type | The composite's value and its change (`undefined`, never `null`, for an unset half) |
+| `PICKER_ICONS` | const | Catalogue name → statically imported lucide component |
+| `pickerIconHelper` (`iconOf`, `has`, `search`, `byCategory`), `createPickerIconHelper`, `PickerIconHelper` | helper, type | Icon lookup with the `circle` fallback and catalogue search |
+
+### `@owlmeans/web-panel/picker/vocabulary`
+
+React-free and icon-free — safe on a server or in a seed.
+
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `PICKER_COLOR_KEYS`, `PickerColorKey` | const, type | The 24 keys in hue order: red … rose, maroon, brown, olive, navy, slate, stone, graphite |
+| `PICKER_COLORS`, `PickerColor` | const, type | `{ key, swatch, ink, soft, inkDark?, softDark?, label? }` — every ink 4.5:1 on its ground and the page in both modes |
+| `PICKER_FALLBACK_COLOR`, `PICKER_FALLBACK_ICON` | const | `'slate'`, `'circle'` |
+| `PICKER_ICON_ENTRIES`, `PICKER_ICON_NAMES`, `PICKER_ICON_CATEGORIES` | const | The catalogue: `{ name, category, keywords }`, its names, its ten categories |
+| `PickerIconEntry`, `PickerIconCategory`, `ResolvedPickerColor` | type | |
+| `pickerColorHelper` (`isHex`, `normalizeHex`, `resolve`, `styleOf`, `hashKey`), `createPickerColorHelper`, `PickerColorHelper` | helper, type | Validate, normalize and resolve a stored colour (a hex gets contrast-safe inks); `styleOf` → the `--pick-*` custom properties the parts read |
+
 ### Differences from `@owlmeans/mui-panel`
 
 The public names match the MUI implementation; these props and types differ:
@@ -478,6 +543,14 @@ The public names match the MUI implementation; these props and types differ:
 - **Never import `@/…` from package code or vendor its primitives in the app.** The `@` alias
   belongs to the consumer.
 - **Every override of a packaged string covers all seven languages** (`SUPPORTED_LNGS`).
+- **A person-chosen colour or icon goes through `./picker`.** Never a `Select` or radio group of
+  colour names, a hand-made swatch row, or a class built from the stored value
+  (`` `text-${color}-600` ``); store the key and the icon name, never the label.
+- **Keep `@radix-ui/react-popover` and `@radix-ui/react-dialog` on one Radix generation.** They
+  share the dismissable-layer and focus-scope stacks; mixed, a picker inside a Dialog loses focus
+  to the dialog and its clicks count as outside.
+- **`usePickerTranslate()` needs `PanelApp` / `render()`.** Without an i18n instance it throws;
+  the picker parts themselves render English with no `translate`.
 
 ## Related packages
 
@@ -490,6 +563,15 @@ The public names match the MUI implementation; these props and types differ:
 - [`@owlmeans/web-router`](../web-router) — default OwlMeans routing plugin
 - [`@owlmeans/mui-panel`](../mui-panel) — legacy Material UI implementation of the same surface
 
+## Notes for coding agents
+
+- Read the embedded `web-panel` skill first: its *Choosing a component* table maps every job to the
+  export, the import path and a correct one-liner, and lists the mistakes that recur in generated
+  code (private primitives, a missing `@source`, two `Toaster`s, `Form decorate` with an own submit).
+- An icon or a colour a person chooses is edited with `@owlmeans/web-panel/picker`
+  (`IconColorPicker`, `ColorPicker`, `IconPicker`) and shown with `IconTile` / `ColorDot`; pass
+  `translate={usePickerTranslate()}` in an app rendered by `PanelApp`.
+
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
 
@@ -498,7 +580,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.53
+npx @owlmeans/agent-skills@^0.1.18-rc.59
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

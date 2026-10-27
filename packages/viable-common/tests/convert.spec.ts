@@ -4,7 +4,8 @@ import addFormats from 'ajv-formats'
 import * as convert from '../src/convert/index.js'
 import * as barrel from '../src/index.js'
 import {
-  CONVERSION_ARTIFACTS, CONVERSION_DIR, CONVERSION_DOCS, CONVERSION_MEMORY, ConversionStage,
+  CONVERSION_ARTIFACTS, CONVERSION_DIR, CONVERSION_DOCS, CONVERSION_MEMORY, CONVERSION_SUMMARY_DIR,
+  CONVERSION_SUMMARY_ROOT, ConversionStage,
   EntropyClass, FileClass, SizeClass, STACK_FAMILY, StackId, TAXONOMY_ORDER, TaxonomyKind
 } from '../src/convert/index.js'
 import { censusHelper } from '../src/convert/census.js'
@@ -147,6 +148,65 @@ describe('viable-common - the conversion contracts', () => {
     expect(validate(answer('cobol'))).toBe(false)
   })
 
+  test('the consolidation answer takes a closed platform vocabulary and nothing it does not declare', () => {
+    // `platform` is the one place a flow may leave the story list, so its vocabulary is CLOSED:
+    // account lifecycle only. An origin's administrative user management named there would be
+    // behaviour the rebuild owes and silently drops.
+    const ajv = addFormats(new Ajv({ strict: false }))
+    const validate = ajv.compile(convert.OriginFlowConsolidationSchema as never)
+    const answer = (provides: unknown, extra: Record<string, unknown> = {}) => ({
+      groups: [{
+        members: ['create-card', 'edit-card'], area: 'user', actor: 'a member', kind: 'ui',
+        story: 'As a member, I want to keep my cards current so that the board says what is true.',
+        ...extra,
+      }],
+      main: ['move-card'],
+      platform: [{ id: 'sign-in', provides }],
+    })
+
+    expect(validate(answer(convert.PlatformFlow.SignIn))).toBe(true)
+    expect(validate(answer('manage-users'))).toBe(false)
+    expect(validate(answer(convert.PlatformFlow.RecoverAccount, { ordinal: 3 }))).toBe(false)
+    expect(Object.values(convert.PlatformFlow).sort()).toEqual([
+      'organization-create', 'organization-switch', 'recover-account', 'sign-in', 'sign-out', 'sign-up',
+      'verify-email',
+    ])
+    // The two organization flows exist only for an origin that splits its people into tenants: the
+    // switch, and creating an organization inside it. People, roles and invitations stay stories.
+    expect([...convert.TENANT_PLATFORM_FLOWS].sort()).toEqual(['organization-create', 'organization-switch'])
+    expect(Object.values(convert.OriginFlowDisposition).sort()).toEqual(['main', 'platform', 'story'])
+  })
+
+  test('the origin tenancy answer takes nulls for every absent part and refuses a stray key', () => {
+    const ajv = addFormats(new Ajv({ strict: false }))
+    const validate = ajv.compile(convert.OriginTenancyAnswerSchema as never)
+    const none = {
+      tenanted: false, tenant: null, membership: null, invitation: null, switcher: null, settings: null,
+      scopedEntities: [], users: false, usersQuote: null, operators: false, operatorsQuote: null,
+      rationale: 'No record carries a tenant key.',
+    }
+    expect(validate(none)).toBe(true)
+
+    const proof = { path: 'src/models/team.ts', lines: [3, 9], note: 'The team model' }
+    const tenanted = {
+      ...none, tenanted: true, users: true, usersQuote: 'Every team has its own projects.',
+      tenant: { entity: 'Team', label: 'team', keyFields: ['teamId'], routePrefixes: ['/teams/:teamId'], proofs: [proof] },
+      membership: { entity: 'TeamMember', fields: ['role'], note: 'Who belongs to a team.', proofs: [proof] },
+      scopedEntities: ['Project', 'Card'],
+    }
+    expect(validate(tenanted)).toBe(true)
+    // Every part is a REQUIRED key: a structured answer writes an unset optional as null.
+    const { switcher: _switcher, ...partial } = tenanted
+    expect(validate(partial)).toBe(false)
+    expect(validate({ ...tenanted, tenant: { ...tenanted.tenant, scope: 'org' } })).toBe(false)
+    expect(validate({ ...tenanted, tenant: { ...tenanted.tenant, proofs: [{ ...proof, lines: [3] }] } })).toBe(false)
+  })
+
+  test('the tenancy document is a fixed conversion document', () => {
+    expect(convert.CONVERSION_TENANCY_FILE).toBe('docs/conversion/tenancy.md')
+    expect(CONVERSION_DOCS).toContain(convert.CONVERSION_TENANCY_FILE)
+  })
+
   test('no schema declares `items` as a tuple', () => {
     // Ajv accepts the draft-04 tuple form and `JSONSchemaType` demands it for a tuple TYPE, so
     // nothing here fails until the schema reaches a provider: a structured-output endpoint takes
@@ -196,6 +256,10 @@ describe('viable-common - the conversion contracts', () => {
       expect(doc.startsWith(`${CONVERSION_DIR}/`), doc).toBe(true)
     }
     expect(conversionDocHelper.conversionStoryDoc('US-ABC12').startsWith(`${CONVERSION_DIR}/`)).toBe(true)
+    // The whole-file summaries too — so they survive the relocation and the install with the rest.
+    expect(conversionDocHelper.conversionSummaryDoc(CONVERSION_SUMMARY_ROOT))
+      .toBe(`${CONVERSION_SUMMARY_DIR}/${CONVERSION_SUMMARY_ROOT}.md`)
+    expect(CONVERSION_SUMMARY_DIR.startsWith(`${CONVERSION_DIR}/`)).toBe(true)
     for (const node of CONVERSION_MEMORY) {
       expect(node.startsWith('.agents/memory/'), node).toBe(true)
     }

@@ -115,5 +115,11 @@ export const AREA_TIER: Record<ProjectArea, string | null> = {
 /** The longest requester sentence a tenancy decision quotes — a card refuses a longer one. */
 export const TENANCY_QUOTE_MAX = 1024
 
+/** The longest word an origin's tenant facts carry — a label, a key field, a record name. */
+export const ORIGIN_TENANCY_WORD_MAX = 64
+
+/** The most key fields, or people records, an origin's tenant facts carry. */
+export const ORIGIN_TENANCY_LIST_MAX = 8
+
 /** A single-organization application — what every project is until a decision says otherwise. */
 export const NO_TENANCY: ProjectTenancy = Object.freeze({ operators: false, users: false })

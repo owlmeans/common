@@ -39,8 +39,8 @@ once; never author a per-agent copy** (`.github/instructions/*.instructions.md`,
 
 ```
 .agents/skills/<name>/
-├── SKILL.md          # required — frontmatter + body
-├── reference.md      # optional — deeper detail loaded on demand
+├── SKILL.md          # required — frontmatter + body (a package skill's core)
+├── parts/<part>.md   # optional — a package skill's purpose parts, loaded on demand
 └── scripts/          # optional — shell scripts the skill runs
 ```
 
@@ -80,14 +80,66 @@ or the file stops parsing and the skill silently disappears from every agent.
 plain spaces. `Bash(bun *) Read` is read as one tool named `Bash(bun *) Read`, which matches
 nothing; write `Bash(bun *), Read`.
 
-Six keys are what the Agent Skills frontmatter parser in `@owlmeans/agent-skills` stores:
-`name`, `description`, `license`, `compatibility`, `allowed-tools` and nested `metadata`.
-Project-specific keys — including the OwlMeans `scope: general` routing marker, which sends a skill
-to the installer bundle rather than to one package — belong under `metadata:`, so a skill stays
-valid in every agent that reads it. The invocation switches sit outside what that parser stores and
-are written at the top level alongside it: `user-invocable` (`false` hides a skill from the `/`
+Six keys are what the Agent Skills standard defines: `name`, `description`, `license`,
+`compatibility`, `allowed-tools` and nested `metadata`. `@owlmeans/agent-skills` parses no
+frontmatter; the generator that embeds package guidance reads it. Project-specific keys —
+including the OwlMeans `scope: general` routing marker, which sends a skill to the installer bundle
+rather than to one package — belong under `metadata:`, so a skill stays valid in every agent that
+reads it. The invocation switches sit outside the standard and are written at the top level
+alongside it: `user-invocable` (`false` hides a skill from the `/`
 menu, marking it background knowledge), plus `disable-model-invocation` and `argument-hint`, which
 Claude Code understands. Set any of them only when the skill needs it.
+
+## Chunked package skills (parts)
+
+A package skill that grows past what one call should carry is split. `SKILL.md` stays the
+**core**, loaded whenever the package is chosen; each `parts/<part>.md` holds ONE purpose, loaded
+only for a call that needs it (selection: the `agent-skills` skill).
+
+- **The core** keeps the frontmatter, the `**Install:**` line, the exports, the wiring, any
+  `## Target wiring` section (an adoption reads it from the core alone) and the rules every use
+  needs. Target ≤ 12 000 chars. It ENDS with a Parts table linking every part:
+
+  ```markdown
+  ## Parts
+
+  | Part | Load it when |
+  |---|---|
+  | [navigation](parts/navigation.md) | building the application shell or its menus |
+  ```
+
+- **A part** opens with exactly this frontmatter, then `# @owlmeans/<package> — <part title>` and
+  the moved sections:
+
+  ```yaml
+  ---
+  name: navigation                 # = the file stem, [a-z0-9-], unique within the package
+  description: The application shell — NavLayout, TopNav/SideNav/MobileNav/Footer, the nav config.
+  metadata:
+    purposes: navigation, layout, screen      # closed vocabulary, comma-separated
+    mentions: NavLayout, TopNav, SideNav      # symbols and import specifiers that call for it
+  ---
+  ```
+
+- **Size:** the generator warns above 12 000 chars per part and fails above 16 000; it also warns
+  about a package-specific skill over 16 000 chars that has no parts.
+- **Purposes** come from a closed vocabulary (`PACKAGE_PURPOSES`, `@owlmeans/llm-common`):
+  `view`, `form`, `list`, `detail`, `dialog`, `picker`, `navigation`, `layout`, `screen`,
+  `theme`, `feedback`, `state`, `client-api`, `server-api`, `data`, `migration`, `query`, `auth`,
+  `consent`, `payment`, `planning`, `job`, `agent`, `config`, `test`, `ops`.
+  A value outside it fails the generator. Purposes may stay empty only in a general skill.
+- **Mentions** are distinctive symbols or import specifiers, never common words: a call without a
+  focus loads every part whose mention appears in its messages.
+- **Names are unique per package** — a part is addressed as `@owlmeans/<package>#<part>`. Every
+  general skill routes to the installer package, so a general skill's part carries the skill's own
+  prefix (`code-structure-reference`, never `reference`).
+- **YAML:** a value that starts with `@`, a backtick, `[`, `{`, `*` or `&`, or that contains `: `
+  or ` #`, stops parsing — start the mentions with a symbol, not an import specifier.
+- **Splitting moves text, never rewrites it.** Every section lands in the core or in exactly one
+  part, each part stands alone for its purpose, and a reference to a moved section names its part
+  (see "Organizations" in the `sessions` part).
+- Only `SKILL.md` and `parts/*.md` are embedded into a package; any other file beside them stays in
+  the repository, and the generator warns about a root `reference.md`.
 
 ## Refresh the Claude Code links
 

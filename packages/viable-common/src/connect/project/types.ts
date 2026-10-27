@@ -1,3 +1,4 @@
+import type { AgentStopScope } from '../../batch/consts.js'
 import type { ConnectTarget, ConnectWaitReason } from '../consts.js'
 import type { InquiryPayload } from '../ops/types.js'
 import type { ConnectSessionView } from '../session/types.js'
@@ -53,11 +54,20 @@ export interface ConnectProjectStatus {
 /**
  * The project's agent lock as a connector reads it — held while a run, a conversion stage or a
  * kit apply works on the project. `task` and `lockedAt` are set only while it is held.
+ *
+ * The controls a person has over the run that holds it ride along, each set only while it applies:
+ * `stopping` once a stop was requested (with the story it is meant for and its scope), and
+ * `steerable` while the run accepts messages (`connect.project.steer`). It is also what
+ * `connect.project.stop` answers.
  */
 export interface ConnectAgentLock {
   locked: boolean
   task?: string
   lockedAt?: string
+  stopping?: boolean
+  stoppingStoryId?: string
+  stopScope?: AgentStopScope
+  steerable?: boolean
 }
 
 /** A story card composed with its deterministic development run. */

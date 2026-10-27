@@ -2,7 +2,7 @@ import {
   CONSENT_IDLE_STATE, CONSENT_KEY, CONSENT_STATE_ATTRIBUTE, DEFAULT_CONSENT_CATEGORIES,
 } from './consts.js'
 import { CLOUDFLARE_LOCATOR_ALIAS } from './consts.local.js'
-import { consentModeHelper } from './gtm.js'
+import { consentModeHelper } from './gtobserver.js'
 import { consentGeoHelper } from './geo.js'
 import { consentLinkHelper } from './linker.js'
 import { consentPluginHelper } from './plugins.js'

@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/test-auth",
-  "version": "0.1.18-rc.48",
-  "generatedAt": "2026-10-08T21:27:54.284Z",
+  "version": "0.1.18-rc.53",
+  "generatedAt": "2026-10-26T22:23:53.829Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

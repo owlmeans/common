@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test'
 import { CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_KEY, CONSENT_LANGUAGE_KEY, CONSENT_MARKETING, DEFAULT_CONSENT_CATEGORIES, CONSENT_LINK_MAX_AGE, CONSENT_LINK_PARAM } from '../src/consts.js'
-import { consentModeHelper } from '../src/gtm.js'
+import { consentModeHelper } from '../src/gtobserver.js'
 import { consentLinkHelper } from '../src/linker.js'
 import { consentPluginHelper } from '../src/plugins.js'
 import { makeConsentStore } from '../src/store.js'

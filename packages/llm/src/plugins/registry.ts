@@ -1,6 +1,7 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { LlmPluginError } from '../errors.js'
 import type { ModelConfig } from '../types.js'
+import { configUtils } from '../utils/config.js'
 import type { EffortSupport, LlmPlugin } from './types.js'
 import type { LlmPluginRegistry } from './registry/types.js'
 import { anthropicPlugin } from './anthropic.js'
@@ -44,6 +45,9 @@ export const createLlmPluginRegistry = (): LlmPluginRegistry => {
   const pluginFor = (model: BaseChatModel): LlmPlugin | undefined =>
     order.map(type => plugins[type]).find(plugin => plugin?.owns(model) === true)
 
+  const resolveFor = (model: BaseChatModel): LlmPlugin | undefined =>
+    pluginOf(configUtils.readConfig(model).provider) ?? pluginFor(model)
+
   const resolvePlugin = (
     config: { provider?: string } | undefined,
     model?: BaseChatModel,
@@ -55,7 +59,7 @@ export const createLlmPluginRegistry = (): LlmPluginRegistry => {
     throw new LlmPluginError(`${LlmPluginError.NO_PLUGIN}:${config?.provider ?? 'unknown'}`)
   }
 
-  return { plugins, register, pluginOf, effortSupportOf, pluginFor, resolvePlugin }
+  return { plugins, register, pluginOf, effortSupportOf, pluginFor, resolveFor, resolvePlugin }
 }
 
 export const llmPluginRegistry = createLlmPluginRegistry()

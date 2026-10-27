@@ -73,8 +73,9 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
   const families = [
     'supported stacks and application categories (describe_blueprints)',
     'projects (list_projects, rename_project, delete_project, unlock_project_agent, list_slots)',
-    'stories (list_stories, create_story, develop_story)',
-    'open-ended changes (modify_project) and planning kits (describe_planning_kits)',
+    'stories (list_stories, create_story, develop_story, start_story_batch, story_batch_status)',
+    'open-ended changes (modify_project, steer_agent), stopping the agent (stop_agent) and planning kits'
+    + ' (describe_planning_kits)',
     ...(cloud
       ? [
         'the generated files and the preview (list_files, read_file, write_file, delete_file, preview_control)',
@@ -100,7 +101,9 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     `Mode: target=${host.target}, llm=${host.llm}.`,
     '',
     'Workflow: describe_capabilities → create_project → project_status → confirm_project →'
-    + ' project_status → list_stories → develop_story → story_status. An application that already'
+    + ' project_status → list_stories → develop_story → story_status. develop_story implements one'
+    + ' story; start_story_batch implements several (every planned one by default) one after another, in'
+    + ' the order the platform chooses for building them — follow it with story_batch_status. An application that already'
     + ' exists is brought onto the same rails instead: convert_project → conversion_status → check_convertible →'
     + ' proceed_conversion at each stage. The check reads what the intake found, so it comes'
     + ' after the first stage rather than before it. A conversion step that would use the plan\'s'
@@ -119,13 +122,17 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     + ' happens, pass each feed\'s cursor back as after (wait up to 20 s) instead of re-reading a status'
     + ' in a loop.',
     '',
-    'A story\'s status moves through the platform\'s story flow; develop_story is what starts that'
-    + ' move, reset_story and complete_story are the two manual moves, and update_story never changes'
-    + ' it.',
+    'A story\'s status moves through the platform\'s story flow; develop_story (or a batch) is what starts'
+    + ' that move, reset_story and complete_story are the two manual moves, and update_story never changes'
+    + ' it. While the agent works, stop_agent stops it — a story run at its next step, rolled back to where'
+    + ' that run started; an open-ended change once the model\'s current answer arrives, its edits kept and'
+    + ' summarised — and steer_agent sends a running open-ended change a message it reads before its next'
+    + ' model call.',
     '',
     'A tool that changes what cannot be undone — deleting a project'
     + (cloud ? ', a file' : '') + ', a converted origin, an application user or group, releasing an agent'
-    + ' lock, ' + (cloud ? 'discarding or reverting git changes, disconnecting GitHub, publishing the'
+    + ' lock, stopping a story run or cancelling a story batch (the story in progress is rolled back), '
+    + (cloud ? 'discarding or reverting git changes, disconnecting GitHub, publishing the'
       + ' production site, ' : '')
     + 'revoking an access token — refuses without confirm: true: ask the user first, and only then call'
     + ' it again with confirm: true.',

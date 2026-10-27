@@ -1,3 +1,11 @@
+/** How long a stream may keep delivering usage after its finish (see `STREAM_DRAIN_*`). */
+export interface StreamDrain {
+  /** At most this many reads after the finish. */
+  reads: number
+  /** Within this fixed window; never longer than the idle deadline. */
+  windowMs: number
+}
+
 /** Reading a model stream. */
 export interface StreamUtils {
   /**
@@ -15,14 +23,19 @@ export interface StreamUtils {
    * late results and cleanup cannot delay or resume the failed call. Because the timer
    * resets per token, long but actively streaming generations are never aborted.
    *
-   * The loop also breaks after the first chunk carrying a non-empty `finish_reason`. Some
-   * providers send the final SSE data event twice, which makes `AIMessageChunk.concat()`
-   * double-append every string field (`finish_reason` becomes `'stopstop'`, the model name
-   * doubles) and corrupts accumulated tool-call argument strings, breaking structured-output
-   * parsing. Nothing meaningful arrives after `finish_reason`, so breaking there is safe.
+   * After the first chunk carrying a non-empty `finish_reason` the stream DRAINS: at most
+   * `drain.reads` more reads within a fixed `drain.windowMs`, yielding only usage-only chunks
+   * (token counts, no content, no tool-call chunk, no finish reason) and then ending quietly — a
+   * silence, an error or a timeout there is not a failure of the call. Some providers send the
+   * final SSE data event twice, which makes `AIMessageChunk.concat()` double-append every string
+   * field (`finish_reason` becomes `'stopstop'`) and corrupts accumulated tool-call arguments, so a
+   * repeated finish is never yielded; Chat Completions sends the usage AFTER the finish, so it is.
    */
   streamWithDeadline: <T>(
     start: (signal: AbortSignal) => Promise<AsyncIterable<T>>,
     timeoutMs?: number,
+    drain?: StreamDrain,
   ) => AsyncGenerator<T>
+  /** Whether a chunk carries token usage and nothing else — what a drain lets through. */
+  isUsageOnly: (chunk: unknown) => boolean
 }

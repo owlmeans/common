@@ -56,14 +56,22 @@ const setPath = (doc: Rec, path: string, value: unknown): void => {
   target[steps[steps.length - 1]!] = value
 }
 
-/** `$set` (dotted, and the positional `array.$` the filter's `$elemMatch` selects), `$push`, `$pull`. */
+/**
+ * `$set` (dotted, and the positional `array.$` / `array.$.field` of the element the filter's
+ * `$elemMatch` selects), `$push`, `$pull`.
+ */
 const applyUpdate = (doc: Rec, update: Rec, filter: Rec): void => {
   for (const [path, value] of Object.entries(update.$set ?? {})) {
-    if (path.endsWith('.$')) {
-      const field = path.slice(0, -2)
+    const positional = path.match(/^([^$]+)\.\$(?:\.(.+))?$/)
+    if (positional != null) {
+      const [, field, rest] = positional as [string, string, string | undefined]
       const items = doc[field] as Rec[]
       const at = items.findIndex(item => recordQueryHelper.matchCriteria(item, filter[field].$elemMatch))
-      items[at] = structuredClone(value) as Rec
+      if (rest == null) {
+        items[at] = structuredClone(value) as Rec
+      } else {
+        setPath(items[at]!, rest, structuredClone(value))
+      }
       continue
     }
     setPath(doc, path, structuredClone(value))

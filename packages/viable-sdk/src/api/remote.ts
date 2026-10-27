@@ -1,5 +1,5 @@
 
-import { connectRef, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload } from '@owlmeans/viable-common'
+import { connectRef, type AgentSteerArgs, type AgentStopArgs, type StoryBatchStartArgs, type StoryBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import type { ConnectorApi, OpenSessionArgs, ProjectEdits } from '../types.js'
 import type { Ctx } from './types.local.js'
@@ -100,6 +100,30 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
         .entrypoint(connectRef.project.destroy).call({ params: { id }, timeout }),
       unlock: async (id: string): Promise<ConnectAgentLock> => await context
         .entrypoint(connectRef.project.unlock).call({ params: { id }, timeout }),
+      // Only the fields named cross the wire: the body is a closed shape.
+      stop: async (id: string, args: AgentStopArgs): Promise<ConnectAgentLock> => await context
+        .entrypoint(connectRef.project.stop).call({
+          params: { id },
+          body: {
+            ...(args.scope != null ? { scope: args.scope } : {}),
+            ...(args.storyId != null ? { storyId: args.storyId } : {}),
+            ...(args.confirm != null ? { confirm: args.confirm } : {}),
+          },
+          timeout,
+        }),
+      steer: async (id: string, args: AgentSteerArgs) => await context
+        .entrypoint(connectRef.project.steer).call({ params: { id }, body: { prompt: args.prompt }, timeout }),
+      batch: {
+        start: async (id: string, args: StoryBatchStartArgs): Promise<StoryBatchView> => await context
+          .entrypoint(connectRef.project.batch.start).call({
+            params: { id }, body: args.stories != null ? { stories: args.stories } : {}, timeout,
+          }),
+        // No batch ever ran: the platform answers `null`, and an empty body reads the same.
+        get: async (id: string): Promise<StoryBatchView | null> => (await context
+          .entrypoint(connectRef.project.batch.get).call({ params: { id }, timeout })) ?? null,
+        cancel: async (id: string): Promise<StoryBatchView> => await context
+          .entrypoint(connectRef.project.batch.cancel).call({ params: { id }, timeout }),
+      },
       activity: async (id: string, query?: ConnectActivityQuery) => await context
         .entrypoint(connectRef.project.activity).call({ params: { id }, query: feedQueryOf(query), timeout: feedTimeout(query) }),
       llm: async (id: string): Promise<ConnectProjectSettings> => await context

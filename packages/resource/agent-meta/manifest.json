@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/resource",
-  "version": "0.1.18-rc.40",
-  "generatedAt": "2026-10-05T21:03:06.379Z",
+  "version": "0.1.18-rc.41",
+  "generatedAt": "2026-10-20T23:19:58.613Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,83 @@
       "name": "resource",
       "category": "package-specific",
       "file": "skills/resource/SKILL.md",
-      "canonicalPath": ".agents/skills/resource/SKILL.md"
+      "canonicalPath": ".agents/skills/resource/SKILL.md",
+      "parts": [
+        {
+          "name": "capabilities",
+          "file": "skills/resource/parts/capabilities.md",
+          "description": "The optional capability interfaces a concrete resource composes beside Resource (pub/sub, watch, stream, lock, migrations).",
+          "purposes": [
+            "data"
+          ],
+          "mentions": [
+            "PubSubResource",
+            "WatchableResource",
+            "StreamResource",
+            "LockableResource",
+            "MigratableResource",
+            "SubscribeOptions"
+          ]
+        },
+        {
+          "name": "criteria",
+          "file": "skills/resource/parts/criteria.md",
+          "description": "The criteria language (equality, any-of arrays, operators, branches, nested keys), sort and where absent values land, and paging per backend.",
+          "purposes": [
+            "query",
+            "list"
+          ],
+          "mentions": [
+            "Criteria",
+            "FieldCriteria",
+            "FieldOperators",
+            "$or",
+            "$in",
+            "$ilike",
+            "$contains",
+            "$overlaps",
+            "Sort",
+            "ListOptions",
+            "ListResult",
+            "DEFAULT_PAGE_SIZE",
+            "page-without-size"
+          ]
+        },
+        {
+          "name": "memory-engine",
+          "file": "skills/resource/parts/memory-engine.md",
+          "description": "recordQueryHelper, the shared in-memory engine every store without a query engine of its own filters, sorts and pages through.",
+          "purposes": [
+            "test"
+          ],
+          "mentions": [
+            "recordQueryHelper",
+            "matchCriteria",
+            "filterRecords",
+            "sortRecords",
+            "firstMatch",
+            "applyQuery"
+          ]
+        },
+        {
+          "name": "migrations",
+          "file": "skills/resource/parts/migrations.md",
+          "description": "The migration framework — automatic on init — and the five steps of adding migration support to a new database backend.",
+          "purposes": [
+            "migration"
+          ],
+          "mentions": [
+            "MigratableResource",
+            "MigrationStore",
+            "createMigrationRegistry",
+            "runMigrations",
+            "MigrationStage",
+            "mongoDeclarationHelper",
+            "pgDeclarationHelper",
+            "_owlmeans_migrations"
+          ]
+        }
+      ]
     },
     {
       "kind": "skill",

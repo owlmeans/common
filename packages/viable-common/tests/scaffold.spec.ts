@@ -44,6 +44,9 @@ const newPlan = (): ScaffoldPlan => {
 
   return {
     ...plan,
+    stories: plan.stories.map(story => ({ ...story, interaction: {
+      entity: 'Bake', capabilities: ['list', 'read'], placement: 'destination', presentation: 'inline', hostScreen: story.screen,
+    } })),
     guestHome: {
       ...plan.guestHome,
       hero: {
@@ -163,6 +166,12 @@ describe('viable-common - the scaffold plan schema', () => {
 
 describe('viable-common - the scaffold plan the model answers', () => {
   const answer = new Ajv({ strict: false, allErrors: true }).compile(ScaffoldPlanAnswerSchema)
+  test('requires new interaction decisions while keeping stored legacy plans readable', () => {
+    const stored = new Ajv({ strict: false }).compile(ScaffoldPlanSchema)
+    expect(stored(oldPlan())).toBe(true)
+    expect(answer(oldPlan())).toBe(false)
+    expect(answer(newPlan())).toBe(true)
+  })
 
   test('accepts the form gate', () => {
     expect(answer(newPlan()), JSON.stringify(answer.errors)).toBe(true)
