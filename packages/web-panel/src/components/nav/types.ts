@@ -8,9 +8,10 @@ interface NavCommonProps extends StyledProps {
   /** See {@link NavTranslate} — omitted, literal labels and humanized aliases are used. */
   translate?: NavTranslate
   ariaLabel?: string
+  testId?: string
 }
 
-export interface TopNavProps extends NavCommonProps { }
+export interface TopNavProps extends NavCommonProps {}
 
 export interface SideNavProps extends NavCommonProps {
   /**
@@ -25,10 +26,12 @@ export interface SideNavProps extends NavCommonProps {
  * button's accessible name and the sheet's title (`shell.menu`, default "Menu") and its close
  * button's (`shell.close`, default "Close"). `className` and `style` land on the trigger button.
  */
-export interface MobileNavProps extends NavCommonProps { }
+export interface MobileNavProps extends NavCommonProps {}
 
 export interface NavLayoutProps extends PropsWithChildren<StyledProps> {
   nav: PanelNavConfig
+  /** Stable selector on the desktop navigation landmark. */
+  navTestId?: string
   translate?: NavTranslate
   /** Brand slot — rendered at the far left of the header. */
   title?: ReactNode

@@ -1,0 +1,68 @@
+{
+  "@cfworker/json-schema@4.1.1": {
+    "file": "licenses/cfworker-json-schema-4.1.1.txt",
+    "source": "https://raw.githubusercontent.com/cfworker/cfworker/5409fdc2bd144f68e8b28c61c71fcb16600000a6/LICENSE.md"
+  },
+  "abstract-logging@2.0.1": {
+    "file": "licenses/abstract-logging-2.0.1.txt",
+    "source": "https://jsumners.mit-license.org/",
+    "copyrightSource": "https://github.com/remy/mit-license/blob/master/users/jsumners.json",
+    "method": "MIT grant linked by the installed Readme.md; copyright holder from author-site configuration, without an inferred year."
+  },
+  "drizzle-orm@0.45.3": {
+    "file": "licenses/drizzle-orm-0.45.3.txt",
+    "source": "https://raw.githubusercontent.com/drizzle-team/drizzle-orm/0.45.3/LICENSE"
+  },
+  "embla-carousel-react@8.6.0": {
+    "file": "licenses/embla-carousel-8.6.0.txt",
+    "source": "https://raw.githubusercontent.com/davidjerleke/embla-carousel/0fe65834136f1aa35e4c1a4a477e5ccb4bb5ee54/LICENSE"
+  },
+  "embla-carousel-reactive-utils@8.6.0": {
+    "file": "licenses/embla-carousel-8.6.0.txt",
+    "source": "https://raw.githubusercontent.com/davidjerleke/embla-carousel/0fe65834136f1aa35e4c1a4a477e5ccb4bb5ee54/LICENSE"
+  },
+  "embla-carousel@8.6.0": {
+    "file": "licenses/embla-carousel-8.6.0.txt",
+    "source": "https://raw.githubusercontent.com/davidjerleke/embla-carousel/0fe65834136f1aa35e4c1a4a477e5ccb4bb5ee54/LICENSE"
+  },
+  "js-tiktoken@1.0.21": {
+    "file": "licenses/js-tiktoken-1.0.21.txt",
+    "source": "https://raw.githubusercontent.com/dqbd/tiktoken/4c8b748e07992c00386f3180af5c574b27b65139/LICENSE"
+  },
+  "koa-compose@4.1.0": {
+    "file": "licenses/koa-compose-4.1.0.txt",
+    "source": "https://raw.githubusercontent.com/koajs/compose/903480c36957776f8561a33a840cdd0a06ad611f/LICENSE"
+  },
+  "langsmith@0.10.2": {
+    "file": "licenses/langsmith-0.8.9.txt",
+    "source": "https://raw.githubusercontent.com/langchain-ai/langsmith-sdk/4792a53f807e9129fd4f5c243056d1976e2cff80/LICENSE"
+  },
+  "langsmith@0.10.8": {
+    "file": "licenses/langsmith-0.8.9.txt",
+    "source": "https://raw.githubusercontent.com/langchain-ai/langsmith-sdk/1cbb21e1c514d3101d3523ce3b2cf469ce90ae08/LICENSE"
+  },
+  "langsmith@0.5.18": {
+    "file": "licenses/langsmith-0.8.9.txt",
+    "source": "https://raw.githubusercontent.com/langchain-ai/langsmith-sdk/29c877260bd7f66b6c8ca21533cb97f99ad4e4d3/LICENSE"
+  },
+  "langsmith@0.8.9": {
+    "file": "licenses/langsmith-0.8.9.txt",
+    "source": "https://raw.githubusercontent.com/langchain-ai/langsmith-sdk/7ddda3c20b2338fdb0abc7ef49e9f445b8d07c79/LICENSE"
+  },
+  "react-remove-scroll-bar@2.3.8": {
+    "file": "licenses/react-remove-scroll-bar-2.3.8.txt",
+    "source": "https://raw.githubusercontent.com/theKashey/react-remove-scroll-bar/7301c160fda44cb8cf2b9fdfde61efad35736196/LICENSE"
+  },
+  "standardwebhooks@1.0.0": {
+    "file": "licenses/standardwebhooks-1.0.0.txt",
+    "source": "https://raw.githubusercontent.com/standard-webhooks/standard-webhooks/929bf0c1928b188287eaf88d0a9f0a4e87df6499/libraries/LICENSE"
+  },
+  "standardwebhooks@1.1.1": {
+    "file": "licenses/standardwebhooks-1.0.0.txt",
+    "source": "https://raw.githubusercontent.com/standard-webhooks/standard-webhooks/b4d2c14fc5b4ccff3ff271e3b087dff812254c59/libraries/LICENSE"
+  },
+  "victory-vendor@36.9.2": {
+    "file": "licenses/victory-vendor-36.9.2.txt",
+    "source": "https://raw.githubusercontent.com/FormidableLabs/victory/v36.9.2/LICENSE.txt"
+  }
+}

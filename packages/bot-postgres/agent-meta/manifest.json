@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/bot-postgres",
+  "version": "0.1.18-rc.3",
+  "generatedAt": "2026-10-27T13:25:25.418Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "bot-postgres",
+      "category": "package-specific",
+      "file": "skills/bot-postgres/SKILL.md",
+      "canonicalPath": ".agents/skills/bot-postgres/SKILL.md"
+    }
+  ]
+}

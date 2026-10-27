@@ -3,6 +3,7 @@ import { usePanelNav, navLabelHelper } from '@owlmeans/client-panel'
 import { cn } from '../../@/lib/utils.js'
 import { Button } from '../../@/components/ui/button.js'
 
+import { useWideNav } from './viewport.js'
 import type { SideNavProps } from './types.js'
 
 /**
@@ -12,41 +13,56 @@ import type { SideNavProps } from './types.js'
  * are already on is noise. The component still exists in the tree, so a section that grows
  * a second screen gains its side menu with no layout change.
  */
-export const SideNav: FC<SideNavProps> = (
-  { config, translate = navLabelHelper.defaultNavTranslate, variant = 'side', ariaLabel, className, style }
-) => {
+export const SideNav: FC<SideNavProps> = ({
+  config,
+  translate = navLabelHelper.defaultNavTranslate,
+  variant = 'side',
+  ariaLabel,
+  className,
+  style
+}) => {
   const model = usePanelNav(config)
+  const wide = useWideNav()
 
   if (!model.showSide || model.active == null) {
     return null
   }
 
-  const items = model.active.items.map(item => {
+  const items = model.active.items.map((item) => {
     const label = navLabelHelper.resolveNavLabel(translate, item.label, `modules.${item.alias}`, item.alias)
 
-    return <Button
-      key={item.alias}
-      variant="ghost"
-      size={variant === 'bar' ? 'sm' : 'default'}
-      onClick={model.goItem(item)}
-      aria-current={model.isItemActive(item) ? 'page' : undefined}
-      className={cn(
-        variant === 'bar' ? 'shrink-0' : 'w-full justify-start',
-        model.isItemActive(item) && 'bg-accent text-accent-foreground'
-      )}
-    >
-      {item.Icon != null ? <item.Icon className="size-4" /> : null}
-      {label}
-    </Button>
+    return (
+      <Button
+        key={item.alias}
+        data-testid={(variant === 'side' ? wide : !wide) ? item.testId : undefined}
+        variant="ghost"
+        size={variant === 'bar' ? 'sm' : 'default'}
+        onClick={model.goItem(item)}
+        aria-current={model.isItemActive(item) ? 'page' : undefined}
+        className={cn(
+          variant === 'bar' ? 'shrink-0' : 'w-full justify-start',
+          model.isItemActive(item) && 'bg-accent text-accent-foreground'
+        )}
+      >
+        {item.Icon != null ? <item.Icon className="size-4" /> : null}
+        {label}
+      </Button>
+    )
   })
 
-  return variant === 'bar'
-    ? <nav
+  return variant === 'bar' ? (
+    <nav
       aria-label={ariaLabel}
       className={cn('flex gap-1 overflow-x-auto border-b px-2 py-1', className)}
       style={style}
-    >{items}</nav>
-    : <aside className={cn('w-56 shrink-0 border-r', className)} style={style}>
-      <nav aria-label={ariaLabel} className="flex flex-col gap-1 p-3">{items}</nav>
+    >
+      {items}
+    </nav>
+  ) : (
+    <aside className={cn('w-56 shrink-0 border-r', className)} style={style}>
+      <nav aria-label={ariaLabel} className="flex flex-col gap-1 p-3">
+        {items}
+      </nav>
     </aside>
+  )
 }

@@ -3,6 +3,7 @@ import { ResilientError } from '@owlmeans/error'
 import { DEFAULT_DB_ALIAS } from '@owlmeans/redis-resource'
 import type { RedisDbService } from '@owlmeans/redis-resource'
 import type { JobContext, JobProcessor, QueueHooks } from '@owlmeans/queue'
+import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import {
   DEFAULT_ALIAS, DEFAULT_ATTEMPTS, entrypointJobsOf, JobEventType, JobState, queueConfigOf,
   QueueNotListening, UnknownJobName
@@ -238,7 +239,9 @@ export const makeRedisQueueWorker = (
         if (workers.has(name)) {
           continue
         }
-        const entrypoints = new Set((served.get(name) ?? []).map(entrypoint => entrypoint.alias))
+        const entrypoints = new Set<string>(
+          (served.get(name) ?? []).map((entrypoint: CommonEntrypoint) => entrypoint.alias)
+        )
         const lockDuration = queueConfigOf(ctx.cfg).queueOf(name).worker?.lockDuration ?? DEFAULT_LOCK_DURATION
         const controller = new AbortController()
 

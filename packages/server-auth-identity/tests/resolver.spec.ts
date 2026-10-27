@@ -99,6 +99,43 @@ describe('organization groups', () => {
     expect(row().groups.filter((item: OrgGroup) => item.service === 'shop-taskly' && item.key === 'members')).toHaveLength(1)
   })
 
+  test('updateOrgGroup sets only the given fields of the matched group, and never creates one', async () => {
+    const { ctx, entityId, row } = await organization()
+    const grants = [{ scope: 'shop-taskly', permissions: { 'article--read': false } }]
+    await orgGroupsOf(ctx).putOrgGroup(entityId, { ...group('shop-taskly', 'members', 'Staff'), permissions: grants })
+    await orgGroupsOf(ctx).putOrgGroup(entityId, group('shop-other', 'members', 'Other'))
+
+    expect(await orgGroupsOf(ctx).updateOrgGroup(entityId, 'shop-taskly', 'members', {
+      managed: true, bundles: [{ permissions: ['article--read'] }],
+      // Identity fields are not the update's to write, whatever a caller passes.
+      ...({ key: 'renamed', service: 'shop-other' } as {}),
+    })).toBe(true)
+
+    expect(row().groups).toEqual([
+      { service: 'shop-taskly', key: 'members', title: 'Staff', managed: true, permissions: grants, bundles: [{ permissions: ['article--read'] }] },
+      group('shop-other', 'members', 'Other'),
+    ])
+    expect(await orgGroupsOf(ctx).updateOrgGroup(entityId, 'shop-taskly', 'editors', { title: 'Editors' })).toBe(false)
+    expect(row().groups).toHaveLength(2)
+  })
+
+  test('concurrent field-level writers of one group keep each other\'s fields', async () => {
+    const { ctx, entityId, row } = await organization()
+    await orgGroupsOf(ctx).putOrgGroup(entityId, group('shop-taskly', 'members'))
+    const grants = [{ scope: 'shop-taskly', permissions: { 'article--edit': true } }]
+
+    await Promise.all([
+      orgGroupsOf(ctx).updateOrgGroup(entityId, 'shop-taskly', 'members', { managed: true, bundles: [{ permissions: ['article--read'] }] }),
+      orgGroupsOf(ctx).updateOrgGroup(entityId, 'shop-taskly', 'members', { permissions: grants }),
+      orgGroupsOf(ctx).updateOrgGroup(entityId, 'shop-taskly', 'members', { title: 'Staff' }),
+    ])
+
+    expect(row().groups).toEqual([{
+      service: 'shop-taskly', key: 'members', title: 'Staff', managed: true, permissions: grants,
+      bundles: [{ permissions: ['article--read'] }],
+    }])
+  })
+
   test('remove pulls only that group; an unknown organization is refused', async () => {
     const { ctx, entityId, row } = await organization()
     await orgGroupsOf(ctx).putOrgGroup(entityId, group('shop-taskly', 'members'))

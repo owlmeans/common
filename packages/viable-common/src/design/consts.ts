@@ -6,7 +6,7 @@
  * the fields it is missing were absent because they had not been designed and which because the
  * shape did not have them yet. Those are different questions with different answers.
  */
-import type { StoryDesignRuntime } from './types.js'
+import type { StoryDesignBotTrigger, StoryDesignRuntime } from './types.js'
 
 export const STORY_DESIGN_VERSION = 1
 
@@ -69,3 +69,6 @@ export const NO_RUNTIME: StoryDesignRuntime = {
   agents: [],
   kv: false,
 }
+
+/** Every {@link StoryDesignBotTrigger}, for a schema's `enum`. */
+export const STORY_BOT_TRIGGERS: StoryDesignBotTrigger[] = ['keywords', 'all', 'command', 'addressed']

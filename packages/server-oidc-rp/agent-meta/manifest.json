@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/server-oidc-rp",
-  "version": "0.1.18-rc.58",
-  "generatedAt": "2026-10-10T17:07:11.326Z",
+  "version": "0.1.18-rc.63",
+  "generatedAt": "2026-10-26T22:23:53.855Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,70 @@
       "name": "server-oidc-rp",
       "category": "package-specific",
       "file": "skills/server-oidc-rp/SKILL.md",
-      "canonicalPath": ".agents/skills/server-oidc-rp/SKILL.md"
+      "canonicalPath": ".agents/skills/server-oidc-rp/SKILL.md",
+      "parts": [
+        {
+          "name": "providers",
+          "file": "skills/server-oidc-rp/parts/providers.md",
+          "description": "Resolving a provider through OidcClientService, the client adapter surface, and the owned public types that keep openid-client out of the API.",
+          "purposes": [
+            "auth",
+            "config"
+          ],
+          "mentions": [
+            "OidcClientService",
+            "findProvider",
+            "hasProvider",
+            "getConfig",
+            "getDefault",
+            "entityToClientId",
+            "registerTemporaryProvider",
+            "OidcClientAdapter",
+            "OidcTokenSet",
+            "OidcClientDescriptor",
+            "openid-client"
+          ]
+        },
+        {
+          "name": "sessions",
+          "file": "skills/server-oidc-rp/parts/sessions.md",
+          "description": "Where the verifier, exchange and session records are cached, and the acting organization of a tenanted session and its switch.",
+          "purposes": [
+            "auth",
+            "state"
+          ],
+          "mentions": [
+            "OIDC_TOKEN_STORE",
+            "AUTH_CACHE",
+            "oidcCacheOf",
+            "sessionRecord",
+            "oidcOrganizationHelper",
+            "ORGANIZATIONS_SCOPE",
+            "pickOrganization",
+            "switchOrganization",
+            "listOrganizations",
+            "ORGANIZATION_REFUSAL"
+          ]
+        },
+        {
+          "name": "sign-in",
+          "file": "skills/server-oidc-rp/parts/sign-in.md",
+          "description": "The authorization round trip — requested scope, id_token-only decoding, consume-once PKCE verifiers, entityId in the browser-starts-server-finishes flow, and absolute URLs from a server context.",
+          "purposes": [
+            "auth"
+          ],
+          "mentions": [
+            "requestedScope",
+            "OIDC_RP_BASE_SCOPES",
+            "extraScopes",
+            "GOOGLE_CLIENT_AUTH",
+            "decodeJwt",
+            "id_token",
+            "DISPATCHER_OIDC",
+            "makeSecurityHelper"
+          ]
+        }
+      ]
     }
   ]
 }

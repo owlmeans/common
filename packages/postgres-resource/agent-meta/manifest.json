@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/postgres-resource",
-  "version": "0.1.18-rc.45",
-  "generatedAt": "2026-10-08T21:27:54.303Z",
+  "version": "0.1.18-rc.50",
+  "generatedAt": "2026-10-26T22:23:53.851Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,83 @@
       "name": "postgres-resource",
       "category": "package-specific",
       "file": "skills/postgres-resource/SKILL.md",
-      "canonicalPath": ".agents/skills/postgres-resource/SKILL.md"
+      "canonicalPath": ".agents/skills/postgres-resource/SKILL.md",
+      "parts": [
+        {
+          "name": "overrides",
+          "file": "skills/postgres-resource/parts/overrides.md",
+          "description": "The pg override keys for what JSON Schema cannot say, the AJV strict-mode keyword, and how index and unique specs are deduplicated.",
+          "purposes": [
+            "data",
+            "migration"
+          ],
+          "mentions": [
+            "pgKeyword",
+            "PgPropertyOverride",
+            "PgRootOverride",
+            "PgIndexSpec",
+            "PgUniqueSpec",
+            "PgCheckSpec",
+            "PgReferenceSpec",
+            "resource.index("
+          ]
+        },
+        {
+          "name": "sql",
+          "file": "skills/postgres-resource/parts/sql.md",
+          "description": "Custom SQL with {{alias}} placeholders (identifiers only) and how criteria compile against a table, jsonb paths and array operators included.",
+          "purposes": [
+            "query",
+            "data"
+          ],
+          "mentions": [
+            "criteriaToSql",
+            "sortToSql",
+            "resolvePlaceholders",
+            "refOf",
+            "PostgresPlaceholderError",
+            "selectOne",
+            "queryOne",
+            "$contains",
+            "$overlaps",
+            "$contained"
+          ]
+        },
+        {
+          "name": "sync",
+          "file": "skills/postgres-resource/parts/sync.md",
+          "description": "Authoritative structure reconciliation (PgAutoSync modes, canonical definition comparison, drops and retypes) and the code migrations that bracket it.",
+          "purposes": [
+            "migration",
+            "data",
+            "ops"
+          ],
+          "mentions": [
+            "PgAutoSync",
+            "autoSync",
+            "planSync",
+            "introspectTable",
+            "canonicalDefinition",
+            "PostgresCastRequired",
+            "MigrationStage",
+            "MigrationConflict",
+            "MigrationError",
+            "unmanaged"
+          ]
+        },
+        {
+          "name": "testing",
+          "file": "skills/postgres-resource/parts/testing.md",
+          "description": "Where this package's unit specs and the real-context specs live.",
+          "purposes": [
+            "test"
+          ],
+          "mentions": [
+            "sync.spec.ts",
+            "criteria.spec.ts"
+          ]
+        }
+      ]
     }
   ]
 }

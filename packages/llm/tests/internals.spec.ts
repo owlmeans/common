@@ -123,6 +123,40 @@ describe('utils/prompt — blank content sanitization', () => {
   })
 })
 
+describe('utils/prompt — the per-call tail', () => {
+  test('a string final message stays a string, the tail after its payload', () => {
+    const msgs: MessageFieldWithRole[] = [{ role: 'user', content: 'the task' }]
+    promptUtils.appendTail(msgs, 'per-call skill')
+    expect(msgs).toEqual([{ role: 'user', content: 'the task\n\nper-call skill' }])
+  })
+
+  test('block content gains a text block', () => {
+    const msgs = [{ role: 'user', content: [{ type: 'text', text: 'look' }] }] as unknown as MessageFieldWithRole[]
+    promptUtils.appendTail(msgs, 'tail')
+    expect(msgs[0]!.content).toEqual([{ type: 'text', text: 'look' }, { type: 'text', text: 'tail' }] as never)
+  })
+
+  // A tool result keeps its pairing and an assistant turn its authorship: the tail goes after them.
+  test('a final tool result or assistant turn is left alone; the tail follows as a user message', () => {
+    for (const last of [
+      new ToolMessage({ tool_call_id: 'c1', content: 'output' }),
+      new AIMessage('an answer'),
+    ]) {
+      const msgs = [{ role: 'user', content: 'run it' }, last] as MessageFieldWithRole[]
+      promptUtils.appendTail(msgs, 'tail')
+      expect(msgs).toHaveLength(3)
+      expect((msgs[1] as unknown as { content: string }).content).toBe(last.content as string)
+      expect(msgs[2]).toEqual({ role: 'user', content: 'tail' })
+    }
+  })
+
+  test('a blank tail adds nothing', () => {
+    const msgs: MessageFieldWithRole[] = [{ role: 'user', content: 'the task' }]
+    promptUtils.appendTail(msgs, '  \n')
+    expect(msgs).toEqual([{ role: 'user', content: 'the task' }])
+  })
+})
+
 describe('utils/schema — tool naming and unwrapping', () => {
   test('sanitises a schema title into a provider-acceptable tool name', () => {
     expect(schemaUtils.toToolName('User Story')).toBe('User_Story')
@@ -167,6 +201,14 @@ describe('utils/stream — idle deadline and duplicate-final-chunk dedup', () =>
     const final = { response_metadata: { finish_reason: 'stop' } }
     const out = await collect(streamUtils.streamWithDeadline(async () => chunks({ a: 1 }, final, final), 1000))
     expect(out).toEqual([{ a: 1 }, final])
+  })
+
+  // The duplicate final event a provider sometimes sends is still never delivered — only the usage
+  // that follows a finish is.
+  test('a repeated finish after the first is never delivered', async () => {
+    const final = { response_metadata: { finish_reason: 'stop' } }
+    const out = await collect(streamUtils.streamWithDeadline(async () => chunks(final, final, final), 1000))
+    expect(out).toEqual([final])
   })
 
   test('reads the finish reason out of a combined structured chunk too', () => {
@@ -330,4 +372,64 @@ describe('utils/stream — idle deadline and duplicate-final-chunk dedup', () =>
     expect(reads).toBe(1)
     expect(returned).toBe(1)
   }, 2000)
+})
+
+describe('utils/stream — the usage drain after a finish', () => {
+  const final = { content: '', response_metadata: { finish_reason: 'stop' } }
+  const usage = { content: '', usage_metadata: { input_tokens: 5, output_tokens: 2, total_tokens: 7 } }
+  const drain = { reads: 8, windowMs: 50 }
+
+  const collect = async (stream: AsyncGenerator<unknown>): Promise<unknown[]> => {
+    const out: unknown[] = []
+    for await (const chunk of stream) out.push(chunk)
+    return out
+  }
+  const scripted = (items: unknown[], after: () => Promise<IteratorResult<unknown>>) => {
+    let at = 0
+    let reads = 0
+    const iterator: AsyncIterator<unknown> = {
+      next: async () => {
+        reads += 1
+        return at < items.length ? { done: false, value: items[at++] } : await after()
+      },
+      return: async () => ({ done: true, value: undefined }),
+    }
+    return { start: async () => ({ [Symbol.asyncIterator]: () => iterator }), reads: () => reads }
+  }
+
+  // Chat Completions sends the token counts in a chunk of their own AFTER the finish; stopping at
+  // the finish billed the call as nothing.
+  test('a usage-only chunk after the finish is delivered', async () => {
+    const out = await collect(streamUtils.streamWithDeadline(async () => ({
+      async *[Symbol.asyncIterator]() { yield { content: 'hi' }; yield final; yield usage },
+    }), 1000, drain))
+    expect(out).toEqual([{ content: 'hi' }, final, usage])
+  })
+
+  test('content or a tool-call chunk after the finish is never delivered', async () => {
+    const late = { content: 'late', usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }
+    const tool = { content: '', tool_call_chunks: [{ name: 'x', args: '{}', index: 0 }], usage_metadata: usage.usage_metadata }
+    const out = await collect(streamUtils.streamWithDeadline(async () => ({
+      async *[Symbol.asyncIterator]() { yield final; yield late; yield tool; yield usage },
+    }), 1000, drain))
+    expect(out).toEqual([final, usage])
+  })
+
+  test('a stream that goes silent after the finish ends quietly within the fixed window', async () => {
+    const { start } = scripted([final], () => new Promise<IteratorResult<unknown>>(() => {}))
+    const started = Date.now()
+    expect(await collect(streamUtils.streamWithDeadline(start, 1000, drain))).toEqual([final])
+    expect(Date.now() - started).toBeLessThan(1000)
+  }, 2000)
+
+  test('a provider error after the finish ends the stream quietly', async () => {
+    const { start } = scripted([final], async () => { throw new Error('connection reset') })
+    expect(await collect(streamUtils.streamWithDeadline(start, 1000, drain))).toEqual([final])
+  })
+
+  test('at most the drain\'s reads after the finish', async () => {
+    const { start, reads } = scripted([final], async () => ({ done: false, value: { content: 'noise' } }))
+    expect(await collect(streamUtils.streamWithDeadline(start, 1000, drain))).toEqual([final])
+    expect(reads()).toBe(1 + drain.reads)
+  })
 })

@@ -89,9 +89,11 @@ export enum ViableTone {
 /**
  * The specification slots Viable cards carry.
  *
- * Project: `specification`, `vision`, `design-system` (the brief) and `scaffold` (the drawn plan).
- * Story: `design`. The co-located `*.spec/.ux/.ui.md` files of a target are FILES, not slots — that
- * prose already lives inside the `design` payload — so `SpecCategory` is not a slot vocabulary.
+ * Project: `specification`, `vision`, `design-system` (the brief), `scaffold` (the drawn plan) and
+ * `requirements` (every stated requirement and the story codes it applies to). Story: `design` and
+ * `requirements` (its slice, plus the ones quoted from a person's own story). The co-located
+ * `*.spec/.ux/.ui.md` files of a target are FILES, not slots — that prose already lives inside the
+ * `design` payload — so `SpecCategory` is not a slot vocabulary.
  */
 export enum ViableSpecCategory {
   Specification = 'specification',
@@ -99,9 +101,10 @@ export enum ViableSpecCategory {
   DesignSystem = 'design-system',
   Scaffold = 'scaffold',
   Design = 'design',
+  Requirements = 'requirements',
 }
 
-/** How many revisions of a `design` or `scaffold` document the history must be able to answer. */
+/** How many revisions of a `design`, `scaffold` or `requirements` document the history must be able to answer. */
 export const VIABLE_DESIGN_REVISIONS_KEPT = 3
 
 /**

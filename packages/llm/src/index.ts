@@ -18,7 +18,10 @@ export {
 export { createLlmPluginRegistry, llmPluginRegistry } from './plugins/registry.js'
 export { anthropicPlugin, anthropicSupportOf, rejectsForcedTool, rejectsSampling, thinkingOffFor } from './plugins/anthropic.js'
 export { anthropicSupportHelper, createAnthropicSupportHelper } from './plugins/anthropic/support.js'
-export { ANTHROPIC_FAMILY, ANTHROPIC_MODEL_SUPPORT, NO_SAMPLING_PREFIXES, ThinkingOff } from './plugins/consts.js'
+export {
+  ANTHROPIC_FAMILY, ANTHROPIC_MODEL_SUPPORT, NO_SAMPLING_PREFIXES, ThinkingOff, CacheBoundary, CacheDialect,
+  OPENAI_EXPLICIT_CACHE_PREFIXES,
+} from './plugins/consts.js'
 export type { AnthropicModelSupport } from './plugins/types.js'
 export { compatiblePlugin } from './plugins/compatible.js'
 export { openAiPlugin, openAiFamily, usesResponsesApi } from './plugins/openai.js'

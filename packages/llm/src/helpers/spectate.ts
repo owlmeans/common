@@ -48,6 +48,9 @@ const describeInput = (msg: ModelInputItem, callType: string): SpectatorEntryMes
 /**
  * Log a completed model call: every prompt message plus the completion, as one entry.
  * A tool-calling completion carries its arguments rather than its (empty) content.
+ *
+ * `model` is the id of the model that ANSWERED — the active rung's, not the role's primary — and
+ * is put on the entry only when known, so a sink falls back to its own resolution otherwise.
  */
 export const spectate = (spectator: LlmSpectator, callType: string) =>
   async (
@@ -56,6 +59,7 @@ export const spectate = (spectator: LlmSpectator, callType: string) =>
     action: string,
     retries: number,
     startedAt?: number,
+    model?: string,
   ) => {
     const messages = input.map(msg => describeInput(msg, callType))
 
@@ -80,8 +84,12 @@ export const spectate = (spectator: LlmSpectator, callType: string) =>
     // caching is off — and is the one signal that tells a stable prefix from a broken one.
     const cache = cacheHelper.readCacheUsage(message)
     if (cacheHelper.hasCacheActivity(cache)) {
-      log.debug('Prompt cache activity', { action, read: cache.read, written: cache.creation, uncached: cache.input })
+      log.debug('Prompt cache activity', {
+        action, read: cache.read, written: cache.creation, writtenLong: cache.creationLong ?? 0, uncached: cache.input,
+      })
     }
 
-    return spectator.log({ action, retries, startedAt, messages: [...messages, completion] })
+    return spectator.log({
+      action, retries, startedAt, messages: [...messages, completion], ...(model != null ? { model } : {}),
+    })
   }

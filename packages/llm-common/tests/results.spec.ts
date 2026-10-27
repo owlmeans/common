@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  CUMULATIVE_RESULTS_OMITTED_LEAD, CUMULATIVE_RESULTS_PREAMBLE, PROMPT_BLOCK_ORDER, PromptBlock,
-  renderCumulativeResults,
+  CUMULATIVE_RESULTS_OMITTED_LEAD, CUMULATIVE_RESULTS_PREAMBLE, PACKAGE_PURPOSES, PackagePurpose,
+  PROMPT_BLOCK_ORDER, PROMPT_REGIONS, PromptBlock, PromptRegion, renderCumulativeResults,
 } from '../src/index.js'
 import type { CumulativeResults } from '../src/index.js'
 
@@ -24,11 +24,27 @@ const view = (patch: Partial<CumulativeResults> = {}): CumulativeResults => ({
 })
 
 describe('@owlmeans/llm-common — results block placement', () => {
-  test('sits after the packages block and before the per-call context', () => {
+  test('sits after the packages block and before the context and the per-call tail', () => {
     expect(PROMPT_BLOCK_ORDER).toEqual([
       PromptBlock.Role, PromptBlock.Skills, PromptBlock.Packages, PromptBlock.Results,
-      PromptBlock.Context,
+      PromptBlock.Context, PromptBlock.Tail,
     ])
+  })
+
+  // The regions partition the order: every block travels in exactly one place, in emission order.
+  test('the regions cover every block once, in emission order', () => {
+    const regions = [PromptRegion.System, PromptRegion.Project, PromptRegion.Tail]
+    expect(regions.flatMap(region => PROMPT_REGIONS[region])).toEqual([...PROMPT_BLOCK_ORDER])
+    expect(PROMPT_REGIONS[PromptRegion.Project]).toEqual([PromptBlock.Results, PromptBlock.Context])
+  })
+})
+
+describe('@owlmeans/llm-common — package purposes', () => {
+  // A closed vocabulary that library-manager copies; the list must be the enum, once each.
+  test('the declared list holds every purpose exactly once', () => {
+    expect(PACKAGE_PURPOSES).toHaveLength(26)
+    expect(new Set(PACKAGE_PURPOSES).size).toBe(PACKAGE_PURPOSES.length)
+    expect([...PACKAGE_PURPOSES].sort()).toEqual([...Object.values(PackagePurpose)].sort())
   })
 })
 

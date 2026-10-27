@@ -138,6 +138,24 @@ describe('viable-sdk — describe_platform', () => {
     }
   })
 
+  test('stories run one by one or as a batch, and a running agent can be stopped or steered — said first', () => {
+    const develop = PLATFORM_CATALOGUE.pipelines.find(pipeline => pipeline.id === 'vib:story:develop')!
+    expect(develop.startedBy).toEqual(['develop_story', 'start_story_batch'])
+    const groupOf = (tool: string) => PLATFORM_CATALOGUE.capabilities.find(group => group.tools.includes(tool))?.id
+    expect(['start_story_batch', 'story_batch_status', 'cancel_story_batch', 'stop_agent', 'steer_agent'].map(groupOf))
+      .toEqual(['stories', 'stories', 'stories', 'runs', 'free-flight'])
+
+    for (const one of [host(), url]) {
+      const instructions = serverInstructions({ host: one })
+      expect(instructions).toContain('start_story_batch implements several')
+      expect(instructions).toContain('story_batch_status')
+      expect(instructions).toContain('stop_agent stops it')
+      expect(instructions).toContain('steer_agent sends a running open-ended change a message')
+      // Stopping a story rolls its code back: it is in the confirm: true set.
+      expect(instructions).toContain('stopping a story run or cancelling a story batch')
+    }
+  })
+
   test('the conversion group starts a conversion before it checks one', () => {
     // The order inside a group is the order a parent reads it in, and this one is a workflow: a
     // check reports what the INTAKE found, so the platform refuses it until a conversion exists.

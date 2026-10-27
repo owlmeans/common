@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TransitionAction, WorkcardKind } from '@owlmeans/planning'
-import { ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
+import { AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, STORY_BATCH_MAX, type StoryBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
 import {
   COMMIT_WAIT_MS, HANDOVER_WAIT_MS, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
 } from '../consts.js'
@@ -22,13 +22,14 @@ import { gitToolHelper } from './git.js'
 import { productionToolHelper } from './production.js'
 import { iamToolHelper } from './iam.js'
 import { feedToolHelper } from './feed.js'
+import { controlToolHelper } from './control.js'
 import { statusTextHelper } from './status.js'
 import { storyHelper } from './stories.js'
 import type { ToolDeps, ToolDefinition, ToolHost, ToolResult } from './types.js'
 import type { CatalogueHelper } from './catalogue/types.js'
 import { toolHostHelper } from './host.js'
 import { makeHandoverHelper } from './handover.js'
-import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, INFERENCE_LEVELS, INFERENCE_MODES, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, SOURCES_KIND, WRITE } from './consts.local.js'
+import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, INFERENCE_LEVELS, INFERENCE_MODES, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, SOURCES_KIND, STOP_SCOPES, WRITE } from './consts.local.js'
 
 export { ToolHostKind }
 
@@ -194,6 +195,30 @@ const BUNDLE_INPUT = z.object({
 const pipelineResult = (status: ConnectPipelineState) => ok(
   statusTextHelper.renderPipelineStatus(status), { pipeline: status as unknown as Record<string, unknown> }
 )
+/** A story batch, led by what a call just did where one did. */
+const batchResult = (view: StoryBatchView, lead?: string) => ok(
+  (lead != null ? `${lead}\n\n` : '') + statusTextHelper.renderBatchStatus(view),
+  { batch: view as unknown as Record<string, unknown> }
+)
+/**
+ * Stop the story a cancelled batch was implementing — the second half of the web's "Stop all",
+ * which cancels FIRST so no next story can start in between. Nothing running is no failure: the
+ * batch may have been between two stories. Answers whether a stop was requested.
+ */
+const stopBatchStory = async (deps: ToolDeps, projectId: string, storyId: string): Promise<boolean> => {
+  try {
+    await deps.api.project.stop(projectId, { scope: AgentStopScope.Story, storyId, confirm: true })
+
+    return true
+  } catch (e) {
+    if (e instanceof AgentNotRunning || refusalHelper.refusalMessage(e).includes(AGENT_NOT_RUNNING_MARKER)) {
+      deps.log(`cancel_story_batch: nothing to stop for ${storyId}: ${refusalHelper.refusalMessage(e)}`)
+
+      return false
+    }
+    throw e
+  }
+}
 const conversionResult = (status: ConversionStatusView) => ok(
   renderConversion(status), { conversion: status as unknown as Record<string, unknown> }
 )
@@ -1456,7 +1481,8 @@ export const catalogue: ToolDefinition[] = [
     title: 'Implement a user story',
     description:
       'Ask the platform to design and build one story: its screens, its data, its endpoints, its'
-      + ' navigation. This is the main event and takes many minutes. Returns the story status.',
+      + ' navigation. Stories may extend an existing collection/detail host; editing, deletion and'
+      + ' owned children are contextual controls. This takes many minutes. Returns the story status.',
     input: { storyId: z.string(), projectId: z.string().optional() },
     availability: toolHostHelper.anyHost,
     annotations: WRITE,
@@ -1534,6 +1560,90 @@ export const catalogue: ToolDefinition[] = [
   },
 
   {
+    name: 'start_story_batch',
+    title: 'Implement several stories, one after another',
+    description:
+      'Hand several planned stories to the platform at once — the web application\'s Run all. It first'
+      + ' orders them for building (a story comes after the records, screens and navigation it builds on),'
+      + ' then implements them one at a time, each exactly as a single development would; a story that'
+      + ' fails does not stop the rest. Leave storyIds out for every planned story. Takes many minutes per'
+      + ' story and returns the batch — follow it with story_batch_status. For one story, use develop_story.',
+    input: {
+      storyIds: z.array(z.string().min(1)).min(1).max(STORY_BATCH_MAX).optional().describe(
+        'The stories to implement, by code or id — planned ones only. Leave it out for every planned story.'
+      ),
+      projectId: z.string().optional(),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      // Every story of it is a run with the same connector needs as develop_story's.
+      await ensureSession(deps, project)
+      // A code is what list_stories prints; the platform keys a batch on card ids.
+      const refs = Array.isArray(args.storyIds) ? args.storyIds as string[] : []
+      const cards = await Promise.all(refs.map(async ref => await storyHelper.resolveStory(deps, project, ref)))
+      const stories = [...new Set(cards.map(card => card.id!))]
+      const view = await deps.api.project.batch.start(project, stories.length > 0 ? { stories } : {})
+
+      return batchResult(view, `Batch ${view.id} started over ${view.stories.length} `
+        + `${view.stories.length === 1 ? 'story' : 'stories'}: the platform orders them, then implements them one at a time.`)
+    },
+  },
+
+  {
+    name: 'story_batch_status',
+    title: 'Where a story batch stands',
+    description:
+      'The project\'s latest story batch: its stories in implementation order with the reason for each'
+      + ' place, which are completed, failed, stopped or still queued, the one in progress, and why it'
+      + ' halted when it did.',
+    input: { projectId: z.string().optional() },
+    availability: toolHostHelper.anyHost,
+    annotations: READ_ONLY,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const view = await deps.api.project.batch.get(project)
+      if (view == null) {
+        return ok(
+          'No story batch has run on this project.\nnext: start_story_batch implements its planned stories one after another',
+          { projectId: project, batch: null },
+        )
+      }
+
+      return batchResult(view)
+    },
+  },
+
+  {
+    name: 'cancel_story_batch',
+    title: 'Stop a story batch',
+    description:
+      'Stop the project\'s running story batch: no further story of it starts, and the story it is'
+      + ' implementing now stops at its next step and is ROLLED BACK to where that run started — it'
+      + ' returns to planned. Stories it already completed stay. Ask the user first.',
+    input: {
+      projectId: z.string().optional(),
+      confirm: z.boolean().describe(
+        'Must be true. The user has to have agreed to stopping the batch and rolling back the story in progress.'
+      ),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: { ...DESTRUCTIVE, idempotentHint: true },
+    run: async (args, deps) => {
+      if (args.confirm !== true) return fail(controlToolHelper.unconfirmedCancel())
+      const project = projectOf(args, deps)
+      const view = await deps.api.project.batch.cancel(project)
+      const current = view.current != null && view.outcomes[view.current] == null ? view.current : null
+      const stopped = current != null && await stopBatchStory(deps, project, current)
+
+      return ok(controlToolHelper.renderCancel(view, stopped), {
+        batch: view as unknown as Record<string, unknown>, ...(stopped ? { stopped: current } : {}),
+      })
+    },
+  },
+
+  {
     name: 'modify_project',
     title: 'Ask the agent for an open-ended change',
     description:
@@ -1547,6 +1657,27 @@ export const catalogue: ToolDefinition[] = [
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
       return projectResult(await deps.api.project.modify(project, args.prompt as string))
+    },
+  },
+
+  {
+    name: 'steer_agent',
+    title: 'Send the running agent a message',
+    description:
+      'Add a message to the open-ended change the platform\'s agent is making right now (modify_project,'
+      + ' rename_project) — a correction, a detail, a priority. It is checked like any prompt, read before'
+      + ' the agent\'s next model call, and the agent goes on from there. Only a running open-ended change'
+      + ' takes messages; to ask for a new change, use modify_project.',
+    input: { prompt: z.string().min(1).max(AGENT_STEER_PROMPT_MAX), projectId: z.string().optional() },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      // The content check is a model call, the delegating session's parent's to perform.
+      await ensureSession(deps, project)
+      const result = await deps.api.project.steer(project, { prompt: args.prompt as string })
+
+      return ok(controlToolHelper.renderSteer(project, result), { projectId: project, ...result })
     },
   },
 
@@ -1651,6 +1782,53 @@ export const catalogue: ToolDefinition[] = [
           : 'The project lock is released. project_status shows the project as it now stands.',
         { projectId: project, lock: lock as unknown as Record<string, unknown> },
       )
+    },
+  },
+
+  {
+    name: 'stop_agent',
+    title: 'Stop what the agent is doing',
+    description:
+      'Stop the run the platform\'s agent works on now — the web application\'s Stop. A story being'
+      + ' implemented stops at its next step and is ROLLED BACK to where that run started (it returns to'
+      + ' planned); an open-ended change (modify_project, rename_project) stops once the model\'s current'
+      + ' answer arrives and ends with a short summary, its edits kept; scope batch also cancels the story'
+      + ' batch. Every stop but scope run needs the user\'s agreement (confirm: true).',
+    input: {
+      scope: z.enum(STOP_SCOPES).optional().describe(
+        'run — an open-ended change: it stops and keeps its edits; story — the story in progress, rolled back;'
+        + ' batch — the story batch: no further story starts and the story in progress is rolled back. Leave it'
+        + ' out to stop whatever runs.'
+      ),
+      storyId: z.string().optional().describe(
+        'The story in progress a story stop is meant for, by code or id — refused when another one is in progress.'
+      ),
+      confirm: z.boolean().optional().describe(
+        'Must be true for every scope but run: the user has to have agreed to rolling the story back.'
+      ),
+      projectId: z.string().optional(),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: { ...DESTRUCTIVE, idempotentHint: true },
+    run: async (args, deps) => {
+      const scope = (STOP_SCOPES as readonly string[]).includes(args.scope as string)
+        ? args.scope as AgentStopScope : undefined
+      if (controlToolHelper.stopNeedsConfirm(scope) && args.confirm !== true) {
+        return fail(controlToolHelper.unconfirmedStop(scope))
+      }
+      const project = projectOf(args, deps)
+      const storyId = typeof args.storyId === 'string' && args.storyId.trim() !== ''
+        ? (await storyHelper.resolveStory(deps, project, args.storyId.trim())).id!
+        : undefined
+      const lock = await deps.api.project.stop(project, {
+        ...(scope != null ? { scope } : {}),
+        ...(storyId != null ? { storyId } : {}),
+        ...(args.confirm === true ? { confirm: true } : {}),
+      })
+
+      return ok(controlToolHelper.renderStop(project, lock, scope), {
+        projectId: project, lock: lock as unknown as Record<string, unknown>,
+      })
     },
   },
 
@@ -2893,7 +3071,9 @@ export const catalogue: ToolDefinition[] = [
     description:
       'The grants of a project\'s generated application — every one, one user\'s (profileId; with'
       + ' entitySlug, only those bound to that organization) or one group\'s (group with its entitySlug) —'
-      + ' each with where it comes from: direct, a default, or through a group.',
+      + ' each with where it comes from: direct, a default, through a group, or a group\'s bundle. Also lists'
+      + ' what a subject\'s own restriction withholds from what it would inherit, marked restricted: true —'
+      + ' those are NOT held.',
     input: {
       projectId: z.string().optional(),
       scope: APP_SCOPE_INPUT,
@@ -2925,8 +3105,11 @@ export const catalogue: ToolDefinition[] = [
     description:
       'Grant one of the generated application\'s permissions to exactly ONE subject — a user (profileId;'
       + ' entitySlug binds the grant to that organization when the permission is organization-bound) or a'
-      + ' group (group key with its entitySlug) — or revoke it. A per-record permission takes resources'
-      + ' (record ids) or covers every record; mode names which form when both exist.',
+      + ' group (group key with its entitySlug) — or revoke it. Revoking a whole permission RESTRICTS the'
+      + ' subject: it also loses what it inherits (a default, a group, a bundle) until a revoke with mode:'
+      + ' inherit takes back only its own grant or restriction, so it holds what it inherits again. A'
+      + ' per-record permission takes resources (record ids) or covers every record; mode names which form'
+      + ' when both exist.',
     input: {
       projectId: z.string().optional(),
       scope: APP_SCOPE_INPUT,
@@ -2937,7 +3120,8 @@ export const catalogue: ToolDefinition[] = [
       entitySlug: z.string().min(1).max(63).optional(),
       resources: z.array(z.string().min(1).max(128)).max(256).optional().describe('Record ids of a per-record permission.'),
       mode: z.enum(Object.values(IamGrantMode) as [string, ...string[]]).optional()
-        .describe('blanket (every record) or resources (only those listed).'),
+        .describe('blanket (every record) or resources (only those listed); revoke only: inherit (take back'
+          + ' the subject\'s own grant or restriction) or all (every form, a revoke\'s default).'),
     },
     availability: toolHostHelper.anyHost,
     annotations: DESTRUCTIVE,
@@ -2952,8 +3136,7 @@ export const catalogue: ToolDefinition[] = [
       }
       await deps.api.iam.grants.revoke(project, body)
 
-      return ok(`Revoked ${body.permission}${body.resources != null ? ` (records ${body.resources.join(', ')})` : ''}.`,
-        { projectId: project, revoked: body as unknown as Record<string, unknown> })
+      return ok(iamToolHelper.renderRevoke(body), { projectId: project, revoked: body as unknown as Record<string, unknown> })
     }),
   },
 
@@ -3082,7 +3265,8 @@ export const catalogue: ToolDefinition[] = [
       'Change a group of an organization of a project\'s generated application: create it (find-or-create'
       + ' by key), update its title or what it grants (bundles — the WHOLE list, it replaces the group\'s),'
       + ' delete it (the user agreed: confirm: true), or add and remove members by profileIds. The platform\'s'
-      + ' own staff group is read-only.',
+      + ' own staff group keeps its members, bundles and existence — those changes are refused; its permissions'
+      + ' are granted and restricted with manage_app_grant (group).',
     input: {
       projectId: z.string().optional(),
       scope: APP_SCOPE_INPUT,

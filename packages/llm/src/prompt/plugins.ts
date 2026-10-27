@@ -44,10 +44,8 @@ export const skillsPlugin: LlmPromptPlugin = {
  * Block 3 — what the earlier steps of the pipeline produced, as the pipeline runtime cut it for
  * the step this call belongs to (`PromptComposeParams.results`, normally `exec.results`).
  *
- * Contributes NOTHING without a view, so every call that is not inside an opted-in pipeline
- * composes byte-identically to a service that never had this plugin. With one, it lands below the
- * two cached boundaries (role + skills, packages) and above the per-call context: it changes from
- * one step to the next, so it may never sit inside a region other steps read back from cache.
+ * Contributes NOTHING without a view. With one, it opens the project message: it changes from one
+ * step to the next, so it may never sit inside the system region other steps read back from cache.
  */
 export const resultsPlugin: LlmPromptPlugin = {
   alias: 'results',
@@ -61,24 +59,23 @@ export const resultsPlugin: LlmPromptPlugin = {
 }
 
 /**
- * Block 4 — whatever the caller handed over verbatim, plus any skills requested for this
- * one call. Emitted last and never marked cacheable: its content varies per request by
- * definition, and a varying tail must not sit inside a prefix other calls depend on.
+ * Block 4 and the tail — whatever the caller handed over verbatim goes to `Context`, in the
+ * project message; the skills requested for this one call go to the `Tail`, after the call's own
+ * payload, where a set that changes per call costs no cached prefix anything.
  */
 export const contextPlugin: LlmPromptPlugin = {
   alias: 'context',
   order: 90,
   compose: ctx => {
-    // Everything volatile is merged into ONE chunk rather than added piece by piece: the
-    // block carries no cache breakpoint, so there is nothing to gain from keeping the
-    // parts separable, and a single contiguous section reads as one instruction to the
-    // model instead of a pile of loose fragments.
-    const parts = [
-      ...promptRenderHelper.sortSkills(ctx.resolve(ctx.input.callSkills ?? [])).map(promptRenderHelper.renderSkill),
-      ...(ctx.input.context ?? []),
-    ]
-    if (parts.length > 0) {
-      ctx.add(PromptBlock.Context, promptRenderHelper.joinChunks(parts))
+    // Each region gets ONE chunk rather than loose pieces: it reads as one instruction to the
+    // model, and nothing downstream needs the parts separable.
+    const context = ctx.input.context ?? []
+    if (context.length > 0) {
+      ctx.add(PromptBlock.Context, promptRenderHelper.joinChunks(context))
+    }
+    const skills = promptRenderHelper.sortSkills(ctx.resolve(ctx.input.callSkills ?? [])).map(promptRenderHelper.renderSkill)
+    if (skills.length > 0) {
+      ctx.add(PromptBlock.Tail, promptRenderHelper.joinChunks(skills))
     }
   },
 }

@@ -59,7 +59,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       what: 'Designs the story, then implements it: types, data, endpoints, access, state,'
         + ' components, screens and navigation, then checks that the application still boots. The'
         + ' landing gate story also puts its real component on the guest home.',
-      startedBy: ['develop_story'],
+      startedBy: ['develop_story', 'start_story_batch'],
       stages: ['design', 'implement', 'widget', 'landing', 'boot gate'],
       resumable: true,
       waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
@@ -111,8 +111,9 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     {
       id: 'vib:project:convert:implementation',
       title: 'Re-implement it on the platform',
-      what: 'Develops every extracted story with the ordinary story pipeline, with the origin kept'
-        + ' beside it as evidence.',
+      what: 'Hands every extracted story to a story batch, which develops them one after another with the'
+        + ' ordinary story pipeline, the origin kept beside them as evidence; stopping the batch ends the'
+        + ' conversion with the stories still planned.',
       startedBy: ['proceed_conversion'],
       resumable: true,
       waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
@@ -279,20 +280,23 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       title: 'User stories',
       what: 'User stories are planning CARDS: each has a code, a status in the story flow'
         + ' (planned → in-progress → completed | failed), an area and a place in the flow order.'
-        + ' List, search, add, reword and delete them, ask for one to be implemented, put one back to'
+        + ' List, search, add, reword and delete them, ask for one to be implemented — or several, one after'
+        + ' another, as a batch the platform orders for building — follow and cancel a batch, put one back to'
         + ' planned, and mark one in progress as completed.',
       tools: [
         'list_stories', 'search_stories', 'create_story', 'update_story', 'delete_story',
-        'develop_story', 'reset_story', 'complete_story', 'story_status',
+        'develop_story', 'start_story_batch', 'story_batch_status', 'cancel_story_batch',
+        'reset_story', 'complete_story', 'story_status',
       ],
       absent: 'no story tools are offered here',
     },
     {
       id: 'runs',
       title: 'Runs and statuses',
-      what: 'Read where a run stopped, continue it, and see what this connector is'
+      what: 'Read where a run stopped, continue it, stop what the agent runs now (a story run is rolled'
+        + ' back to its start, so only once the user agreed — confirm: true), and see what this connector is'
         + ' currently doing.',
-      tools: ['pipeline_status', 'resume_pipeline', 'session_status'],
+      tools: ['pipeline_status', 'resume_pipeline', 'stop_agent', 'session_status'],
       absent: 'no run tools are offered here',
     },
     {
@@ -309,8 +313,8 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       id: 'free-flight',
       title: 'An open-ended change',
       what: 'Describe a change in words and let the platform\'s own coding agent make it — for'
-        + ' anything that is not a user story.',
-      tools: ['modify_project'],
+        + ' anything that is not a user story — and send it messages while it works.',
+      tools: ['modify_project', 'steer_agent'],
       absent: 'open-ended changes are not offered here',
     },
     {

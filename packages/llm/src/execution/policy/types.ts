@@ -1,6 +1,7 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type {
-  ExecutionEffort, ModelConfigOverride, ModelConfigPatch, ModelEffort, ModelPolicy, ModelRole, PromptPolicy,
+  ExecutionEffort, ModelConfigOverride, ModelConfigPatch, ModelEffort, ModelPolicy, ModelRole, PromptFocus,
+  PromptPolicy,
 } from '@owlmeans/llm-common'
 
 /** How an execution's model policy and prompt policy are layered and resolved. */
@@ -16,8 +17,16 @@ export interface ExecutionPolicyHelper {
    *
    * The union preserves first-seen order and de-duplicates, so the composed prompt is
    * byte-identical no matter how many levels contributed the same skill.
+   *
+   * `focus` merges through {@link mergeFocus}; a `cacheTtl` object merges key by key over the
+   * level above (a string sets every key). Either key is added only when some level names it.
    */
   mergePrompt: (base: PromptPolicy | undefined, patch: PromptPolicy | undefined) => PromptPolicy | undefined
+  /**
+   * Overlay a focus onto the inherited one: each list is a first-seen union (the package plugin
+   * sorts what it renders), `late` is the deepest level's, and a list no level names stays absent.
+   */
+  mergeFocus: (base: PromptFocus | undefined, patch: PromptFocus | undefined) => PromptFocus | undefined
   /** Apply the policy's role→role remap. */
   resolveRole: (policy: ModelPolicy, role: ModelRole) => ModelRole
   effortPatch: (effort: ExecutionEffort) => ModelConfigPatch

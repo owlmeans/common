@@ -5,7 +5,7 @@ import { logger } from '@owlmeans/log'
 import type {
   PipelineEnterMode, PipelineInvokeArgs, PipelineModel, PipelineOptions, PipelineParentRef,
   PipelinePlugin, PipelineResult, PipelineRunContext, PipelineStep, PipelineStepContribution,
-  PipelineStepMapping,
+  PipelineStepMapping, PipelineStopReason,
 } from './runner/types.js'
 import type { StepResults } from './results/types.js'
 import { DEFAULT_PIPELINE_PLUGIN_ORDER, MAX_INQUIRY_ROUNDS } from './consts.local.js'
@@ -35,11 +35,12 @@ const seatPlugins = <S extends PipelineState, C>(
 /**
  * Ends a run on purpose, with work left to do.
  *
- * Thrown after a step has completed and committed, so it never reads as that step failing — it is
- * how a cooperative budget stops the graph without inventing a failure.
+ * Thrown after a step has completed and committed — or by a composing step whose child stopped short
+ * — so it never reads as that step failing: it is how a budget or a cooperative stop ends the graph
+ * without inventing a failure.
  */
 class PipelineStopSignal extends Error {
-  constructor(public readonly reason: 'budget' | 'signal' | 'inquiry') {
+  constructor(public readonly reason: PipelineStopReason) {
     super(`pipeline-stop:${reason}`)
     this.name = 'PipelineStopSignal'
   }
@@ -179,6 +180,7 @@ export const makePipeline = <S extends PipelineState, C>(
       deps: C
       budgetMs?: number
       signal?: AbortSignal
+      stop?: AbortSignal
       onProgress?: (progress: PipelineProgress) => void
     },
     entry: { mode: PipelineEnterMode, parent?: PipelineParentRef },
@@ -201,7 +203,7 @@ export const makePipeline = <S extends PipelineState, C>(
       failedAt: string | null
       error: Error | null
       fatal: unknown
-      stopped: 'budget' | 'signal' | 'inquiry' | null
+      stopped: PipelineStopReason | null
       inquiry: PipelineRunInquiry | null
     } = { failedAt: null, error: null, fatal: null, stopped: null, inquiry: null }
 
@@ -299,6 +301,9 @@ export const makePipeline = <S extends PipelineState, C>(
         entityId: row.entityId,
         completed: row.completed,
         signal: controller.signal,
+        // Only when the caller passed one, exactly like `results`: a step of a run nobody can stop
+        // never sees the key.
+        ...(args.stop != null ? { stop: args.stop } : {}),
         mark: async patch => {
           Object.assign(live, patch)
           await commit()
@@ -396,6 +401,12 @@ export const makePipeline = <S extends PipelineState, C>(
         const index = order.indexOf(step) + 1
         const handler = handlers.get(step)!
 
+        if (outcome.stopped == null && args.stop?.aborted === true) {
+          // The cooperative stop: no step starts once it is aborted. Recorded rather than thrown — a
+          // throw here would make LangGraph abandon a sibling still running in this superstep — so
+          // every remaining node returns empty and the run ends `Aborted` once the graph drains.
+          outcome.stopped = 'stop'
+        }
         if (outcome.stopped != null) {
           // A sibling branch already ended the run; do not start more work.
           return {}
@@ -474,14 +485,21 @@ export const makePipeline = <S extends PipelineState, C>(
             outcome.error = null
           }
 
-          if (ctx.expired()) {
-            outcome.stopped = controller.signal.aborted ? 'signal' : 'budget'
+          if (ctx.expired() || args.stop?.aborted === true) {
+            // Thrown, so the graph stops at once — and LangGraph abandons a step still running beside
+            // this one: it carries on detached, unattended.
+            outcome.stopped = controller.signal.aborted
+              ? 'signal'
+              : args.stop?.aborted === true ? 'stop' : 'budget'
             throw new PipelineStopSignal(outcome.stopped)
           }
 
           return { state: patch as Record<string, unknown>, completed: [step] }
         } catch (e) {
           if (isStop(e)) {
+            // Its own boundary check, a question parked, or a composed child that stopped short —
+            // the reason travels up so the row's note names it.
+            outcome.stopped ??= e.reason
             throw e
           }
           if (options.fatal?.(e) === true) {
@@ -561,7 +579,26 @@ export const makePipeline = <S extends PipelineState, C>(
       ...(error != null ? { error } : {}),
       ...(row.note != null ? { note: row.note } : {}),
       ...(row.inquiry != null ? { inquiry: row.inquiry } : {}),
+      ...(row.status === PipelineRunStatus.Aborted || row.status === PipelineRunStatus.Waiting
+        ? { stopped: outcome.stopped ?? 'budget' }
+        : {}),
     })
+
+    /** The terminal write of a run that stopped on purpose: `Waiting` on a question, else `Aborted`. */
+    const halt = async (): Promise<void> => {
+      const waiting = outcome.stopped === 'inquiry'
+      await commit({
+        status: waiting ? PipelineRunStatus.Waiting : PipelineRunStatus.Aborted,
+        note: waiting
+          ? `waiting: ${outcome.inquiry?.inquiry.id ?? '?'}`
+          : `stopped: ${outcome.stopped ?? 'budget'}`,
+        freezeState: true,
+      })
+      log.info('Pipeline stopped', {
+        alias: spec.alias, runId: row.runId, reason: outcome.stopped ?? 'budget', ms: Date.now() - startedAt,
+        completed: row.completed.length, steps: total,
+      }, { event: 'job.stop' })
+    }
 
     /**
      * `exit` of every plugin, with the result the caller is about to receive. On a run already
@@ -624,21 +661,13 @@ export const makePipeline = <S extends PipelineState, C>(
         log.info('Pipeline completed', {
           alias: spec.alias, runId: row.runId, ms: Date.now() - startedAt, completed: row.completed.length, steps: total,
         }, { event: 'job.complete' })
+      } else {
+        // Drained without a throw: the cooperative stop was met at a node's entry.
+        await halt()
       }
     } catch (e) {
       if (isStop(e) || outcome.stopped != null) {
-        const waiting = outcome.stopped === 'inquiry'
-        await commit({
-          status: waiting ? PipelineRunStatus.Waiting : PipelineRunStatus.Aborted,
-          note: waiting
-            ? `waiting: ${outcome.inquiry?.inquiry.id ?? '?'}`
-            : `stopped: ${outcome.stopped ?? 'budget'}`,
-          freezeState: true,
-        })
-        log.info('Pipeline stopped', {
-          alias: spec.alias, runId: row.runId, reason: outcome.stopped ?? 'budget', ms: Date.now() - startedAt,
-          completed: row.completed.length, steps: total,
-        }, { event: 'job.stop' })
+        await halt()
       } else if (outcome.fatal != null) {
         await commit({
           status: PipelineRunStatus.Failed,
@@ -836,6 +865,7 @@ export const makePipeline = <S extends PipelineState, C>(
               return remaining != null ? { budgetMs: remaining } : {}
             })(),
             signal: ctx.signal,
+            ...(ctx.stop != null ? { stop: ctx.stop } : {}),
             // Where the child sits, for its plugins: a results ledger shared with the parent, and
             // the parent's view for this step as what the child's first step starts from.
             parent: {
@@ -859,6 +889,13 @@ export const makePipeline = <S extends PipelineState, C>(
             // leaves here as the runner's stop signal rather than as a failure.
             answers[result.inquiry.inquiry.id] = await ctx.ask(result.inquiry.inquiry)
             continue
+          }
+
+          if (result.status === PipelineRunStatus.Aborted) {
+            // A child that stopped short is not a finished step. Handing its state to `output`
+            // would commit the composing step complete, and a resume of the parent would never
+            // re-enter the child's unfinished steps. The parent stops with the child's reason.
+            throw new PipelineStopSignal(result.stopped ?? 'budget')
           }
 
           if (result.status === PipelineRunStatus.Failed) {
