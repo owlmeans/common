@@ -6,7 +6,6 @@ export const BOT_SERVICE = 'bot'
  * under exactly these strings; `BotServiceOptions.resources` overrides them.
  */
 export const RES_BOT_CONNECTION = 'bot-connection'
-export const RES_BOT_RULE = 'bot-rule'
 export const RES_BOT_UPDATE = 'bot-update'
 export const RES_BOT_ACTIVITY = 'bot-activity'
 

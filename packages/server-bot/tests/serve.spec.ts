@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  BotPlatform, BotRuleAction, BotSignatureRejected, BotTransport, makeBotHookProtocols, makeBotProtocols,
+  BotPlatform, BotSignatureRejected, BotTransport, makeBotHookProtocols, makeBotProtocols,
 } from '@owlmeans/bot'
 import { protocols } from '@owlmeans/entrypoint'
 import { botMockHelper } from '../src/mock/index.js'
@@ -38,14 +38,12 @@ describe('@owlmeans/server-bot — serving the protocol trees', () => {
 
     const verified = await invoke(at(operator.connection.verify.alias), { headers: forwarded, params: { id: saved.id } })
     expect(verified.receive).toBe('webhook')
-    await invoke(at(operator.rule.save.alias), { body: { name: 'Spam', keywords: ['casino'], action: BotRuleAction.Delete } })
-    expect((await invoke(at(operator.rule.list.alias), { query: { connection: saved.id } })).map((rule: { name: string }) => rule.name)).toEqual(['Spam'])
     const simulated = await invoke(at(operator.connection.simulate.alias), { params: { id: saved.id }, body: { text: 'casino' } })
     expect(typeof simulated.update).toBe('string')
     expect(await invoke(at(operator.activity.list.alias), { query: { limit: '5' } })).toEqual([])
     expect((await invoke(at(operator.connection.list.alias), {})).map((connection: { id: string }) => connection.id)).toEqual([saved.id])
     expect(await invoke(at(operator.connection.remove.alias), { params: { id: saved.id } })).toEqual({ id: saved.id })
-    expect(seen.length).toBe(8)
+    expect(seen.length).toBe(6)
   })
 
   test('the hook reads the raw body Fastify keeps and answers 200 at once; a forged one is refused', async () => {

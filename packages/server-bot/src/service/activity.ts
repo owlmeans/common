@@ -22,7 +22,7 @@ export const makeBotActivity = (parts: BotServiceParts): BotActivityPart => {
       }
       : {}),
     ...(record.text != null ? { text: record.text } : {}),
-    ...(record.rule != null ? { rule: record.rule } : {}),
+    ...(record.ref != null ? { ref: record.ref } : {}),
     ok: record.ok,
     ...(record.error != null ? { error: record.error } : {}),
     ...(record.code != null ? { code: record.code } : {}),

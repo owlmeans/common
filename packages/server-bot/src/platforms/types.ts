@@ -61,7 +61,7 @@ export type BotAuthentication =
 export interface BotNormalizedUpdate {
   /** The platform's own update id — the dedupe key's tail, unique per connection. */
   platformId: string
-  update: Omit<BotUpdate, 'id' | 'connection' | 'scope' | 'platform' | 'matches' | 'receivedAt'>
+  update: Omit<BotUpdate, 'id' | 'connection' | 'scope' | 'platform' | 'receivedAt'>
 }
 
 /** Hand a native payload to the inbox — a receiver awaits it before confirming the update. */

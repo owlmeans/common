@@ -205,7 +205,6 @@ export const makeBotConnections = (parts: BotServiceParts, sessions: BotSessions
       await dropHook(plugin, record)
     }
     await store.connections().delete(id)
-    await store.rules().purge({ scope, connection: id })
     await store.updates().purge({ connection: id })
     log.info('Bot connection removed', { connection: id, platform: record.platform }, { event: 'bot.connection.removed' })
 

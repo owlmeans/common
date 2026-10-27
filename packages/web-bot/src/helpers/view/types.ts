@@ -1,4 +1,4 @@
-import type { BotCredentialField, BotPlatform, BotRule, BotRuleInput } from '@owlmeans/bot'
+import type { BotCredentialField, BotPlatform } from '@owlmeans/bot'
 
 /** One manual setup step, split so its value can be copied on its own. */
 export interface BotSetupLine {
@@ -17,12 +17,6 @@ export interface BotViewHelper {
   platformsOf: (platforms?: readonly BotPlatform[]) => BotPlatform[]
   /** The credentials a person TYPES for a platform — a `generated` one is the server's to create. */
   typedCredentialsOf: (platform: BotPlatform) => BotCredentialField[]
-  /** Groups in the order the bot applies them (`order`, ties by name). */
-  orderRules: (rules: readonly BotRule[]) => BotRule[]
-  /** A stored group as the write that would store it again — what a one-field change starts from. */
-  ruleInputOf: (rule: BotRule) => BotRuleInput
-  /** The next free `order` after the given groups. */
-  nextOrder: (rules: readonly BotRule[]) => number
   /** A moment in the reader's own language, or null when there is none (or it does not parse). */
   formatMoment: (value: string | null | undefined, lng?: string) => string | null
   /** A message cut to `max` characters on one line, with an ellipsis when it was cut. */
@@ -31,6 +25,4 @@ export interface BotViewHelper {
   setupLineOf: (step: string) => BotSetupLine
   /** The link that invites a Discord bot with the permissions its actions need, or null without an id. */
   discordInviteUrl: (applicationId: string | null | undefined) => string | null
-  /** A comma-, semicolon- or newline-separated list, trimmed, empties dropped. */
-  splitKeywords: (text: string) => string[]
 }

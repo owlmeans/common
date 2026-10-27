@@ -14,9 +14,18 @@ export interface BotAgentToolsOptions {
    * with `bot.supports(kind)`: a tool the platform cannot perform is never offered.
    */
   allow?: readonly BotActionKind[]
+  /**
+   * An opaque reference every action records on its activity (`{ ref }`) — the id of the
+   * application's own record the handler followed (the keyword group the message matched).
+   */
+  ref?: string
 }
 
 export interface BotAgentOptions extends BotAgentToolsOptions {
-  /** One more instruction, contributed after the matched groups' — the product's own rule for this agent. */
-  instruction?: string
+  /**
+   * What the model is told for this message: the instructions of the application's keyword groups
+   * the message matched (the handler matches them and passes them here), or one instruction of the
+   * product's own. Absent or blank: the context is the message alone.
+   */
+  instruction?: string | readonly string[]
 }

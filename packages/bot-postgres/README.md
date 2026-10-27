@@ -1,29 +1,30 @@
 # @owlmeans/bot-postgres
 
-PostgreSQL storage for `@owlmeans/server-bot`: it registers the four resources the `BotService`
-resolves by alias — `bot-connection`, `bot-rule`, `bot-update` (the inbox) and `bot-activity` — with
+PostgreSQL storage for `@owlmeans/server-bot`: it registers the three resources the `BotService`
+resolves by alias — `bot-connection`, `bot-update` (the inbox) and `bot-activity` — with
 the shared AJV schemas and the indexes the service reads by. A Postgres-backed server (typically a
 generated target project) adds it next to `appendBot`.
 
 ## Installation
 
 ```bash
-bun add @owlmeans/bot-postgres@^0.1.18-rc.2
+bun add @owlmeans/bot-postgres@^0.1.18-rc.3
 ```
 
 Peer dependencies: `pg`, `ajv`.
 
 ## Concepts
 
-- **Four resources** — `BotConnectionResource`, `BotRuleResource`, `BotUpdateResource` and
-  `BotActivityResource`, each a `PostgresResource` of the matching `@owlmeans/server-bot` record, at
-  the aliases `RES_BOT_CONNECTION`, `RES_BOT_RULE`, `RES_BOT_UPDATE`, `RES_BOT_ACTIVITY`.
+- **Three resources** — `BotConnectionResource`, `BotUpdateResource` and `BotActivityResource`, each
+  a `PostgresResource` of the matching `@owlmeans/server-bot` record, at the aliases
+  `RES_BOT_CONNECTION`, `RES_BOT_UPDATE`, `RES_BOT_ACTIVITY`. An application's keyword groups are its
+  own records, stored by its own resources — not here.
 - **Shared schemas** — `resource.schema` is exactly `server-bot`'s record schema; this package
   declares no schema of its own.
 - **Column shapes** — nested objects (`identity`, the inbox `update`, the activity `target`) are one
-  `jsonb` column each; string lists (`keywords`, `setup`, `credentialsSet`, `handled`) are `text[]`;
-  timestamps are ISO `text`; the sealed credentials are one `text` column; the rule's `order` is a
-  quoted `double precision` column.
+  `jsonb` column each; string lists (`setup`, `credentialsSet`, `handled`) are `text[]`; timestamps
+  are ISO `text`; the sealed credentials are one `text` column; the activity's `ref` (the handler's
+  opaque reference) is a nullable `text` column.
 - **Unique inbox key** — `dedupe` carries a unique index, so a redelivered update is one row even
   when two deliveries race.
 - **Ids** — records are created without one; Postgres mints it.
@@ -38,7 +39,7 @@ import { appendPostgresBot } from '@owlmeans/bot-postgres'
 import { appendBot } from '@owlmeans/server-bot'
 
 appendPostgres(context)              // the Postgres connection service, cfg.dbs[...]
-appendPostgresBot(context)           // the four resources
+appendPostgresBot(context)           // the three resources
 appendBot(context)                   // the service that resolves them by alias
 
 await context.configure().init()     // resource init reconciles tables and indexes (meta.autoSync, default Full)
@@ -49,7 +50,7 @@ await context.configure().init()     // resource init reconciles tables and inde
 ### Another database, connection service or alias set
 
 ```typescript
-const resources = { connection: 'chat-connection', rule: 'chat-rule', update: 'chat-update', activity: 'chat-activity' }
+const resources = { connection: 'chat-connection', update: 'chat-update', activity: 'chat-activity' }
 
 appendPostgresBot(context, { dbAlias: 'bots', serviceAlias: 'postgres-secondary', resources })
 appendBot(context, { resources })
@@ -72,15 +73,14 @@ export const makeResource: ResourceMaker<BotConnectionRecord, BotConnectionResou
   (dbAlias, serviceAlias) => makeBotConnectionResource(dbAlias, RES_BOT_CONNECTION, serviceAlias)
 ```
 
-`rule.ts`, `update.ts` and `activity.ts` follow the same shape.
+`update.ts` and `activity.ts` follow the same shape.
 
 ## API
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `appendPostgresBot(ctx, opts?)` | function | Registers the four resources, each only if its alias is free |
+| `appendPostgresBot(ctx, opts?)` | function | Registers the three resources, each only if its alias is free |
 | `makeBotConnectionResource(dbAlias?, alias?, serviceAlias?)` | function | `BotConnectionResource` |
-| `makeBotRuleResource(dbAlias?, alias?, serviceAlias?)` | function | `BotRuleResource` |
 | `makeBotUpdateResource(dbAlias?, alias?, serviceAlias?)` | function | `BotUpdateResource` (the inbox) |
 | `makeBotActivityResource(dbAlias?, alias?, serviceAlias?)` | function | `BotActivityResource` |
 | `BotPostgresOptions` | type | `{ dbAlias?, serviceAlias?, resources? }` |
@@ -93,8 +93,6 @@ Named `<table>_<suffix>`:
 |---|---|---|
 | `bot_connection` | `scope_created` | `scope`, `createdAt` |
 | `bot_connection` | `receive` | `enabled`, `status`, `receive` |
-| `bot_rule` | `scope` | `scope` |
-| `bot_rule` | `scope_connection` | `scope`, `connection` |
 | `bot_update` | `dedupe` (unique) | `dedupe` |
 | `bot_update` | `inbox` | `status`, `receivedAt` |
 | `bot_update` | `lease` | `status`, `claimedAt` |
@@ -106,7 +104,7 @@ Named `<table>_<suffix>`:
 ## Testing
 
 `tests/schema.spec.ts` needs no database: it compiles the shared schemas and asserts the column
-types, the quoted `order` column, the declared indexes and idempotent registration.
+types, the activity's `ref` column, the declared indexes and idempotent registration.
 `tests/conformance.spec.ts` (the `@owlmeans/server-bot/conformance` store suite, every case including
 the unique one) and `tests/tables.spec.ts` (a second boot plans no DDL; the round trips) are
 integration suites gated on `POSTGRES_URL`; they skip without one.

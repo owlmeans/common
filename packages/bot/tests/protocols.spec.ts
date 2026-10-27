@@ -16,7 +16,6 @@ describe('makeBotProtocols', () => {
       BASE,
       `${BASE}:connection:list`, `${BASE}:connection:save`, `${BASE}:connection:verify`,
       `${BASE}:connection:remove`, `${BASE}:connection:simulate`,
-      `${BASE}:rule:list`, `${BASE}:rule:save`, `${BASE}:rule:remove`,
       `${BASE}:activity:list`,
     ].sort())
   })
@@ -28,9 +27,6 @@ describe('makeBotProtocols', () => {
       [tree.connection.verify, RouteMethod.POST, '/connections/:id/verify'],
       [tree.connection.remove, RouteMethod.DELETE, '/connections/:id'],
       [tree.connection.simulate, RouteMethod.POST, '/connections/:id/simulate'],
-      [tree.rule.list, RouteMethod.GET, '/rules'],
-      [tree.rule.save, RouteMethod.POST, '/rules'],
-      [tree.rule.remove, RouteMethod.DELETE, '/rules/:id'],
       [tree.activity.list, RouteMethod.GET, '/activity'],
     ] as const
 
@@ -47,9 +43,9 @@ describe('makeBotProtocols', () => {
     expect(tree.base.guards).toEqual(['guard:default'])
     expect(tree.base.gate).toEqual(gate)
     expect(tree.base.route.route.path).toBe('/bot/operator')
-    expect(tree.rule.list.guards).toEqual([])
-    expect(tree.rule.list.gate).toBeUndefined()
-    expect(Object.isFrozen(tree) && Object.isFrozen(tree.connection) && Object.isFrozen(tree.rule.save)).toBe(true)
+    expect(tree.activity.list.guards).toEqual([])
+    expect(tree.activity.list.gate).toBeUndefined()
+    expect(Object.isFrozen(tree) && Object.isFrozen(tree.connection) && Object.isFrozen(tree.connection.save)).toBe(true)
   })
 
   test('two mounts are two alias families, and parent and service reach the base', () => {

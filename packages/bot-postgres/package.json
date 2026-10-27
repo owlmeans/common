@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/bot-postgres",
-  "version": "0.1.18-rc.2",
+  "version": "0.1.18-rc.3",
   "license": "MIT",
-  "description": "Postgres-backed resources for @owlmeans/server-bot — the connection, rule, inbox and activity tables of a generated target project, compiled from the shared AJV schemas, with the unique inbox dedupe key.",
+  "description": "Postgres-backed resources for @owlmeans/server-bot — the connection, inbox and activity tables of a generated target project, compiled from the shared AJV schemas, with the unique inbox dedupe key.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -26,14 +26,14 @@
     "@owlmeans/context": "^0.1.18-rc.35",
     "@owlmeans/postgres-resource": "^0.1.18-rc.50",
     "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/server-bot": "^0.1.18-rc.2"
+    "@owlmeans/server-bot": "^0.1.18-rc.3"
   },
   "peerDependencies": {
     "ajv": "*",
     "pg": "*"
   },
   "devDependencies": {
-    "@owlmeans/bot": "^0.1.18-rc.2",
+    "@owlmeans/bot": "^0.1.18-rc.3",
     "@owlmeans/dep-config": "workspace:*",
     "@owlmeans/log": "^0.1.18-rc.4",
     "@owlmeans/postgres": "^0.1.18-rc.52",

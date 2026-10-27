@@ -29,7 +29,7 @@ interface BotPlatformPlugin {
 interface BotPlatformSession { connection: BotPlatformConnection, transport: BotTransport, fetch: BotFetch }
 interface BotPlatformConnection extends BotConnection { credentials: Record<string, string>, hookSecret: string }
 type BotAuthentication = { result: 'ok' } | { result: 'challenge', reply?: BotHookReply, text?: string } | { result: 'reject', reason: string }
-interface BotNormalizedUpdate { platformId: string, update: Omit<BotUpdate, 'id' | 'connection' | 'scope' | 'platform' | 'matches' | 'receivedAt'> }
+interface BotNormalizedUpdate { platformId: string, update: Omit<BotUpdate, 'id' | 'connection' | 'scope' | 'platform' | 'receivedAt'> }
 type BotPlatformAction =
   | { kind: Reply, to: BotMessageRef, text } | { kind: Send, chat: BotChatRef, text } | { kind: Delete, message: BotMessageRef }
   | { kind: Mute, chat, user, space?, until: Date } | { kind: Ban, chat, user, space? } | { kind: React, message: BotMessageRef, emoji }
@@ -94,7 +94,8 @@ action reaching the mock API).
 
 ## Mock transport and `@owlmeans/server-bot/mock`
 
-- `transport: 'mock'` on a connection: verify, hooks, receivers and actions go to `plugin.mock.fetch`
+- `transport: 'mock'` on a connection (written through the API — the runtime smoke and end-to-end
+  tests; no panel offers it): verify, hooks, receivers and actions go to `plugin.mock.fetch`
   (and Discord's fake socket), activity says `mock`. Mock state (ids, sent messages, the poll queue,
   recorded calls) is per plugin instance and per connection id, in process.
 - **Mock ids never repeat across process lifetimes or processes.** The inbox dedupes on the native

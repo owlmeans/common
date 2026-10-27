@@ -8,7 +8,6 @@ export interface BotAliases {
     readonly remove: string
     readonly simulate: string
   }
-  readonly rule: { readonly list: string, readonly save: string, readonly remove: string }
   readonly activity: { readonly list: string }
 }
 

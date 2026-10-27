@@ -14,7 +14,6 @@ export interface ConnectionFormProps {
   /** The connection being changed; a new one when null. */
   editing: BotConnection | null
   platforms: BotPlatform[]
-  allowMock: boolean
   onSave: (input: BotConnectionInput) => Promise<BotOutcome<BotConnection>>
   onClose: () => void
 }

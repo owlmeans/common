@@ -10,8 +10,7 @@
     "copied": "Copié",
     "enabled": "Activé",
     "loading": "Chargement…",
-    "optional": "facultatif",
-    "all-connections": "Toutes les connexions"
+    "optional": "facultatif"
   },
   "status": {
     "pending": "Non vérifié",
@@ -20,7 +19,6 @@
     "disabled": "Désactivé"
   },
   "transport": {
-    "live": "Réel",
     "mock": "Simulé"
   },
   "receive": {
@@ -36,23 +34,6 @@
     "ban": "Bannissement",
     "react": "Réaction",
     "note": "Note"
-  },
-  "rule-action": {
-    "delete": "Supprimer le message",
-    "warn": "Avertir l’expéditeur",
-    "mute": "Rendre l’expéditeur muet",
-    "ban": "Bannir l’expéditeur",
-    "reply": "Répondre par un texte",
-    "record": "Enregistrer une demande",
-    "agent": "Laisser l’assistant répondre"
-  },
-  "mode": {
-    "word": "Mots entiers",
-    "contains": "Contient"
-  },
-  "mode-hint": {
-    "word": "Trouve les mots et expressions entiers, sans tenir compte de la casse : « free money » correspond à « FREE money! », pas à « freedom ».",
-    "contains": "Trouve n’importe quelle partie du message, sans tenir compte de la casse — y compris pour les langues écrites sans espaces."
   },
   "credentials": {
     "telegram": {
@@ -119,7 +100,6 @@
     "verified": "Connecté en tant que {{name}}.",
     "remove-title": "Supprimer cette connexion ?",
     "remove-description": "« {{label}} » cesse immédiatement de recevoir des messages et d’y répondre. Cette action est irréversible.",
-    "mock-note": "Connexion simulée : rien n’atteint {{platform}}. Essayez-la avec le simulateur.",
     "setup-title": "Terminez la configuration dans {{platform}}",
     "hook-url": "URL du webhook",
     "hint": {
@@ -139,49 +119,11 @@
     "platform": "Plateforme",
     "label": "Nom",
     "label-placeholder": "Modérateur de la communauté",
-    "transport": "Mode",
-    "transport-live-hint": "Communique avec la vraie plateforme.",
-    "transport-mock-hint": "Une imitation fidèle pour essayer le bot : rien ne quitte l’application.",
     "credentials": "Identifiants",
     "secret-set": "Défini",
     "secret-keep": "Enregistré — laissez vide pour le conserver",
     "generated": "créé pour vous à l’enregistrement.",
     "docs": "Où les obtenir dans {{platform}}"
-  },
-  "rules": {
-    "title": "Groupes de mots-clés",
-    "description": "Quand un message contient un mot-clé d’un groupe, le bot fait ce que le groupe indique. Les groupes s’appliquent dans leur ordre.",
-    "add": "Ajouter un groupe",
-    "empty": "Aucun groupe de mots-clés pour le moment.",
-    "add-title": "Ajouter un groupe de mots-clés",
-    "edit-title": "Modifier {{name}}",
-    "form-description": "Listez les mots-clés, choisissez ce que fait le bot d’un message correspondant et donnez-lui son texte ou son instruction.",
-    "name": "Nom",
-    "name-placeholder": "Liens de spam",
-    "keywords": "Mots-clés",
-    "keywords-placeholder": "Saisissez un mot-clé et appuyez sur Entrée",
-    "keywords-hint": "Séparez-les par Entrée ou des virgules. Un mot-clé de plusieurs mots est une expression.",
-    "remove-keyword": "Retirer {{keyword}}",
-    "more": "+{{count}}",
-    "mode": "Correspondance",
-    "action": "Ce que fait le bot",
-    "reply": {
-      "reply": "Texte de la réponse",
-      "warn": "Texte de l’avertissement",
-      "record": "Texte de confirmation"
-    },
-    "instruction": "Instruction",
-    "instruction-placeholder": "Réponds poliment et renvoie vers la page des horaires d’ouverture.",
-    "instruction-hint": "Indications supplémentaires sur la façon dont le bot traite les messages de ce groupe.",
-    "instruction-hint-agent": "Ce qui est indiqué à l’assistant pour les messages de ce groupe.",
-    "applies-to": "S’applique à",
-    "order": "Ordre",
-    "try": "Essayer",
-    "try-placeholder": "Saisissez un message pour voir si ce groupe y correspond",
-    "try-match": "Correspond : {{keywords}}",
-    "try-none": "Aucune correspondance.",
-    "remove-title": "Supprimer ce groupe de mots-clés ?",
-    "remove-description": "Le bot ne réagit plus aux mots-clés de « {{name}} ». Cette action est irréversible."
   },
   "activity": {
     "title": "Activité du bot",
@@ -191,27 +133,9 @@
     "limit-option": "Les {{count}} derniers",
     "ok": "Effectué",
     "failed": "Échec",
-    "rule": "Groupe : {{name}}",
     "chat": "discussion",
     "message": "message",
     "user": "utilisateur"
-  },
-  "simulator": {
-    "title": "Simulateur",
-    "description": "Envoyez un message à « {{label}} » comme si un membre l’avait écrit, et voyez ce que fait le bot.",
-    "text": "Message",
-    "text-placeholder": "Saisissez ce qu’un membre écrirait",
-    "matches": "Correspond aux groupes : {{names}}",
-    "no-match": "Aucun groupe de mots-clés ne correspond à ce message.",
-    "chat": "Discussion",
-    "chat-group": "Groupe",
-    "chat-private": "Privée",
-    "chat-title": "Nom de la discussion",
-    "sender": "Nom de l’expéditeur",
-    "send": "Envoyer",
-    "waiting": "En attente du bot…",
-    "reacted": "Le bot a réagi :",
-    "silent": "Le bot n’a pas réagi à ce message."
   },
   "errors": {
     "title": "Une erreur est survenue",
@@ -220,8 +144,6 @@
     "signature-rejected": "Impossible de prouver que la requête vient de la plateforme.",
     "transport-mismatch": "Seule une connexion simulée peut recevoir des messages simulés.",
     "unsupported-action": "Cette plateforme, avec ces identifiants, ne peut pas faire cela.",
-    "rule-not-found": "Ce groupe de mots-clés n’existe plus.",
-    "rule-invalid": "Impossible d’enregistrer ce groupe de mots-clés : vérifiez ses mots-clés.",
     "connection-disabled": "Cette connexion est désactivée. Activez-la d’abord.",
     "secret-missing": "Le serveur n’a pas de secret pour protéger les identifiants des bots. Demandez à son administrateur d’en définir un.",
     "credentials-unreadable": "Les identifiants enregistrés ne peuvent plus être lus sur ce serveur. Saisissez-les à nouveau.",

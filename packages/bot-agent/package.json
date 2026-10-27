@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/bot-agent",
-  "version": "0.1.18-rc.2",
+  "version": "0.1.18-rc.3",
   "license": "MIT",
-  "description": "The bridge between an OwlMeans chat bot and an @owlmeans/agent agent — botAgentPlugin contributes a bot update (platform, chat, sender, message, the matched keyword groups and their instructions) as the agent's context and the bot's actions (reply, delete, warn, mute, ban, react) as never-throwing tools, limited to what the platform supports and the caller allows.",
+  "description": "The bridge between an OwlMeans chat bot and an @owlmeans/agent agent — botAgentPlugin contributes a bot update (platform, chat, sender, message) and the instructions its handler passes as the agent's context and the bot's actions (reply, delete, warn, mute, ban, react) as never-throwing tools, limited to what the platform supports and the caller allows.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -23,8 +23,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/bot": "^0.1.18-rc.2",
-    "@owlmeans/server-bot": "^0.1.18-rc.2"
+    "@owlmeans/bot": "^0.1.18-rc.3",
+    "@owlmeans/server-bot": "^0.1.18-rc.3"
   },
   "peerDependencies": {
     "@langchain/core": "^1.2.14",

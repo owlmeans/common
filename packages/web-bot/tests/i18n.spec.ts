@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BOT_PLATFORMS, BotActionKind, BotConnectionStatus, BotMatchMode, BotReceiveMode, BotRuleAction } from '@owlmeans/bot'
+import { BOT_PLATFORMS, BotActionKind, BotConnectionStatus, BotReceiveMode } from '@owlmeans/bot'
 import en from '../src/i18n/en.json' with { type: 'json' }
 import pl from '../src/i18n/pl.json' with { type: 'json' }
 import ru from '../src/i18n/ru.json' with { type: 'json' }
@@ -34,8 +34,6 @@ describe('@owlmeans/web-bot — translations', () => {
       ...Object.values(BotConnectionStatus).map(value => `status.${value}`),
       ...Object.values(BotReceiveMode).map(value => `receive.${value}`),
       ...Object.values(BotActionKind).map(value => `action.${value}`),
-      ...Object.values(BotRuleAction).map(value => `rule-action.${value}`),
-      ...Object.values(BotMatchMode).flatMap(value => [`mode.${value}`, `mode-hint.${value}`]),
       ...Object.values(BOT_PLATFORMS).flatMap(descriptor => [
         `connections.hint.${descriptor.platform}`,
         ...descriptor.credentials.flatMap(field => [
@@ -44,11 +42,17 @@ describe('@owlmeans/web-bot — translations', () => {
       ]),
       ...[
         'connection-not-found', 'credentials-rejected', 'signature-rejected', 'transport-mismatch', 'unsupported-action',
-        'rule-not-found', 'rule-invalid', 'connection-disabled', 'secret-missing', 'credentials-unreadable',
-        'platform-refused', 'bot', 'generic',
+        'connection-disabled', 'secret-missing', 'credentials-unreadable', 'platform-refused', 'bot', 'generic',
       ].map(key => `errors.${key}`),
     ]
     for (const key of expected) expect([key, englishKeys.includes(key)]).toEqual([key, true])
+  })
+
+  test('ships no keyword-group, simulator or transport-choice copy', () => {
+    for (const key of englishKeys) {
+      expect([key, /^(rules|rule-action|mode|mode-hint|simulator)\.|^activity\.rule$|^errors\.rule-|^form\.transport|^connections\.mock-note$|^transport\.live$/.test(key)])
+        .toEqual([key, false])
+    }
   })
 
   test('every key the components ask for exists in English', () => {

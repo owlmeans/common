@@ -20,13 +20,13 @@ import type { BotAgentToolArgs } from './tools/types.local.js'
  * update has what it acts on (a message for `reply` / `warn` / `delete` / `react`, a sender for
  * `mute` / `ban`). Every tool NEVER throws: it answers `done`, or `{ error }` with the action's
  * one-sentence `error` — the `toolHelper` contract, so a refused action is something the model reads
- * and adapts to. The activity each action records names the first matched group as its rule.
+ * and adapts to. Every action records `ref` (when given) on its activity — the application's own
+ * record the handler followed.
  */
 export const botAgentTools = (options: BotAgentToolsOptions): AgentToolSet => {
   const { update, bot } = options
   const allowed = new Set<BotActionKind>(options.allow ?? BOT_AGENT_ACTIONS)
-  const rule = update.matches?.[0]?.rule.id
-  const opts: BotActionOptions = rule != null ? { rule } : {}
+  const opts: BotActionOptions = options.ref != null && options.ref !== '' ? { ref: options.ref } : {}
 
   const supported = (kind: BotActionKind): boolean => {
     try {

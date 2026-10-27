@@ -70,7 +70,7 @@ export const makeBotActionsFactory = (
           action: plan.kind,
           target: plan.target ?? null,
           text: plan.text ?? null,
-          rule: plan.rule ?? null,
+          ref: plan.ref ?? null,
           ok: result.ok,
           error: result.error ?? null,
           code: result.code ?? null,
@@ -131,7 +131,7 @@ export const makeBotActionsFactory = (
         ...(ref != null ? { target: { chat: ref.chat, message: ref.id } } : {}),
         ...(text !== undefined ? { text } : {}),
         ...(update != null ? { update } : {}),
-        ...(opts?.rule != null ? { rule: opts.rule } : {}),
+        ...(opts?.ref != null ? { ref: opts.ref } : {}),
         ...(ref == null ? { invalid: 'bot:invalid-action:no-message' } : invalidBody != null ? { invalid: invalidBody } : {}),
         ...(ref != null ? { action: action(ref) } : {}),
       }
@@ -148,7 +148,7 @@ export const makeBotActionsFactory = (
         kind,
         ...(member != null ? { target: { chat: member.chat, user: member.user } } : {}),
         ...(update != null ? { update } : {}),
-        ...(opts?.rule != null ? { rule: opts.rule } : {}),
+        ...(opts?.ref != null ? { ref: opts.ref } : {}),
         ...(member == null ? { invalid: 'bot:invalid-action:no-member' } : invalid != null ? { invalid } : {}),
         ...(member != null ? { action: action(member) } : {}),
       }
@@ -166,7 +166,7 @@ export const makeBotActionsFactory = (
         kind: BotActionKind.Send,
         target: { chat: `${target?.id ?? ''}` },
         text,
-        ...(opts?.rule != null ? { rule: opts.rule } : {}),
+        ...(opts?.ref != null ? { ref: opts.ref } : {}),
         ...(invalid != null ? { invalid } : {}),
         action: { kind: BotActionKind.Send, chat: target, text },
       })
@@ -201,7 +201,7 @@ export const makeBotActionsFactory = (
       kind: BotActionKind.Note,
       ...(isUpdate(update) ? { target: { chat: update.chat.id, ...(update.message != null ? { message: update.message.ref.id } : {}) }, update: update.id } : {}),
       text,
-      ...(opts?.rule != null ? { rule: opts.rule } : {}),
+      ...(opts?.ref != null ? { ref: opts.ref } : {}),
       ...(invalidText(text) != null ? { invalid: invalidText(text) } : {}),
     })
 

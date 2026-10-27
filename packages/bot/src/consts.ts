@@ -56,24 +56,8 @@ export enum BotActionKind {
   Note = 'note',
 }
 
-/**
- * What a keyword group (a rule) tells the bot to do with a message it matches.
- *
- * A product vocabulary, not a platform one: `warn` is a reply, `record` is a request record of the
- * product, `agent` hands the message to the product's own agent.
- */
-export enum BotRuleAction {
-  Delete = 'delete',
-  Warn = 'warn',
-  Mute = 'mute',
-  Ban = 'ban',
-  Reply = 'reply',
-  Record = 'record',
-  Agent = 'agent',
-}
-
-/** How a rule's keywords are compared with a message. */
-export enum BotMatchMode {
+/** How `botTextHelper.matched` compares a phrase with a message. */
+export enum BotTextMatch {
   /** Whole words and whole phrases (consecutive words), Unicode-aware and case-insensitive. */
   Word = 'word',
   /** A case-insensitive substring — also the mode for scripts written without spaces. */
@@ -93,7 +77,7 @@ export enum BotChatKind {
   Channel = 'channel',
 }
 
-/** The longest identifier (connection, rule, activity, update) the wire accepts. */
+/** The longest identifier (connection, activity, update) the wire accepts. */
 export const BOT_ID_MAX = 128
 
 /** What an identifier on the wire may look like — it is also a path segment of the hook URL. */
@@ -101,21 +85,6 @@ export const BOT_ID_PATTERN = '^[A-Za-z0-9][A-Za-z0-9_.:-]*$'
 
 /** The longest connection label. */
 export const BOT_LABEL_MAX = 120
-
-/** The longest rule (keyword group) name. */
-export const BOT_RULE_NAME_MAX = 120
-
-/** How many keywords one rule keeps. */
-export const BOT_KEYWORDS_MAX = 200
-
-/** The longest keyword or phrase, in code points. */
-export const BOT_KEYWORD_MAX = 100
-
-/** The longest fixed reply text of a rule. */
-export const BOT_REPLY_MAX = 4096
-
-/** The longest instruction a rule hands to the product's agent. */
-export const BOT_INSTRUCTION_MAX = 4000
 
 /** The longest message text the simulator accepts. */
 export const BOT_TEXT_MAX = 4096
@@ -140,9 +109,9 @@ export const BOT_ACTIVITY_LIMIT_DEFAULT = 50
 
 /**
  * The permission the MEMBER mount's gate requires (`gates: { alias: OIDC_GATE, params:
- * [BOT_MANAGE_PERMISSION] }`) — who may connect an organization's bots, edit its keyword groups and
- * read its bot activity. In a product whose users work in organizations, an organization's owners hold
- * it by default; otherwise it is only ever granted explicitly.
+ * [BOT_MANAGE_PERMISSION] }`) — who may connect an organization's bots and read its bot activity.
+ * In a product whose users work in organizations, an organization's owners hold it by default;
+ * otherwise it is only ever granted explicitly.
  */
 export const BOT_MANAGE_PERMISSION = 'bot--manage'
 

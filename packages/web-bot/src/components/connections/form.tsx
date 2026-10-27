@@ -1,7 +1,7 @@
 import { useCallback, useId, useMemo, useState, type FC, type FormEvent } from 'react'
 import { useI18nLib } from '@owlmeans/client-i18n'
 import {
-  BOT_CREDENTIAL_MAX, BOT_LABEL_MAX, BOT_PLATFORMS, BotPlatform, BotTransport, type BotConnectionInput,
+  BOT_CREDENTIAL_MAX, BOT_LABEL_MAX, BOT_PLATFORMS, BotPlatform, type BotConnectionInput,
 } from '@owlmeans/bot'
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { Badge } from '../../@/components/ui/badge.js'
@@ -18,7 +18,6 @@ import { BOT_I18N } from '../../consts.js'
 import { botViewHelper } from '../../helpers/view.js'
 import { BotErrorNote } from '../shared/error-note.js'
 import { PlatformIcon } from '../shared/platform-icon.js'
-import { Segmented } from '../shared/segmented.js'
 import { PlatformHint } from './setup.js'
 import type { ConnectionFormProps } from './types.js'
 
@@ -28,15 +27,14 @@ import type { ConnectionFormProps } from './types.js'
  * only says it is set, and leaving it empty keeps it.
  *
  * Mounted afresh for every opening (the panel keys it), so a half-typed secret never survives a
- * close.
+ * close. It never sends a transport: a new connection is live, and an existing one keeps its own.
  */
-export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platforms, allowMock, onSave, onClose }) => {
+export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platforms, onSave, onClose }) => {
   const t = useI18nLib(BOT_I18N)
   const id = useId()
 
   const [platform, setPlatform] = useState<BotPlatform>(editing?.platform ?? platforms[0] ?? BotPlatform.Telegram)
   const [label, setLabel] = useState(editing?.label ?? '')
-  const [transport, setTransport] = useState<BotTransport>(editing?.transport ?? BotTransport.Live)
   const [values, setValues] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -45,11 +43,9 @@ export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platfor
   const fields = useMemo(() => botViewHelper.typedCredentialsOf(platform), [platform])
   const generated = (descriptor?.credentials ?? []).filter(field => field.generated === true)
   const stored = editing?.platform === platform ? editing.credentialsSet : []
-  const mock = transport === BotTransport.Mock
 
-  // A live bot cannot be verified without its required credentials, so they are asked for here; a
-  // mock one answers without a platform and needs none.
-  const missing = mock ? [] : fields.filter(field =>
+  // A bot cannot be verified without its required credentials, so they are asked for here.
+  const missing = fields.filter(field =>
     field.required && (values[field.key] ?? '').trim() === '' && !stored.includes(field.key)
   )
   const valid = label.trim() !== '' && missing.length === 0
@@ -69,9 +65,6 @@ export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platfor
       ...(editing != null ? { id: editing.id } : {}),
       platform,
       label: label.trim(),
-      // Without the mock option the transport is never sent: a new connection is the server's
-      // default (live), and an existing one keeps what it has.
-      ...(allowMock ? { transport } : {}),
       ...(Object.keys(credentials).length > 0 ? { credentials } : {}),
     }
     setSaving(true)
@@ -86,7 +79,7 @@ export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platfor
     } finally {
       setSaving(false)
     }
-  }, [valid, saving, values, fields, editing, platform, label, allowMock, transport, onSave, onClose])
+  }, [valid, saving, values, fields, editing, platform, label, onSave, onClose])
 
   return <Dialog open={open} onOpenChange={next => { if (!next) onClose() }}>
     <DialogContent closeLabel={t('common.close')} className="max-h-[calc(100dvh-2rem)] overflow-y-auto" data-bot-connection-form>
@@ -126,24 +119,11 @@ export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platfor
           />
         </div>
 
-        {allowMock && <div className="flex flex-col gap-2">
-          <p className="text-sm leading-none font-medium">{t('form.transport')}</p>
-          <Segmented
-            name="transport" label={t('form.transport')} value={transport}
-            onChange={setTransport}
-            options={[
-              { value: BotTransport.Live, label: t('transport.live') },
-              { value: BotTransport.Mock, label: t('transport.mock') },
-            ]}
-          />
-          <p className="text-muted-foreground text-xs">{t(mock ? 'form.transport-mock-hint' : 'form.transport-live-hint')}</p>
-        </div>}
-
         <fieldset className="flex flex-col gap-4" data-bot-credentials={platform}>
           <legend className="sr-only">{t('form.credentials')}</legend>
           {fields.map(field => {
             const set = stored.includes(field.key)
-            const required = field.required && !mock
+            const required = field.required
 
             return <div key={`${platform}:${field.key}`} className="flex flex-col gap-2">
               <Label htmlFor={`${id}-cred-${field.key}`}>
@@ -182,11 +162,11 @@ export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platfor
           </p>)}
         </fieldset>
 
-        {!mock && <PlatformHint
+        <PlatformHint
           platform={platform}
           beforeSave
           applicationId={platform === BotPlatform.Discord ? values.applicationId ?? editing?.identity?.id : null}
-        />}
+        />
 
         {descriptor?.docs != null && <a
           href={descriptor.docs} target="_blank" rel="noopener noreferrer" data-bot-docs

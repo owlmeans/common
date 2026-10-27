@@ -8,8 +8,9 @@ import type { BotAgentOptions } from './types.js'
  * Lets an `@owlmeans/agent` agent act on ONE chat-bot update.
  *
  * `context` contributes the message — platform, chat, sender, the text quoted as data, the replied-to
- * text — the matched keyword groups with their instructions, and `instruction` when given; it lands
- * in the agent's project message (`PromptBlock.Context`), never in the cached system prompt.
+ * text — and, when given, the instruction block: the instructions of the application's keyword groups
+ * the handler matched (`instruction`). It lands in the agent's project message (`PromptBlock.Context`),
+ * never in the cached system prompt.
  * `tools` are `botAgentTools(options)`: `reply`, `delete`, `warn`, `mute`, `ban`, `react` — only
  * those the platform supports and `allow` names — each acting on the update and never throwing.
  *

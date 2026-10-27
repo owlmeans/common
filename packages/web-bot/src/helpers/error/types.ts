@@ -7,7 +7,7 @@ import type { BotErrorKey } from '../../types.js'
 export interface BotErrorHelper {
   /**
    * The copy key for a failure: the class of a registered `@owlmeans/bot` error first, then the type
-   * name a `@owlmeans/server-bot` error keeps across the wire (`BotErrorRuleInvalid` …, every platform
+   * name a `@owlmeans/server-bot` error keeps across the wire (`BotErrorConnectionDisabled` …, every platform
    * API error → `platform-refused`), then the marker its message carries (`bot:credentials-rejected:…`
    * survives a hop where the class is unknown; a `receiver:` / `hook:` prefix is read past), then `bot`
    * for any other `bot:` message and `generic` for everything else. A plain string — a connection's

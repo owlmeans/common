@@ -10,8 +10,7 @@
     "copied": "Skopiowano",
     "enabled": "Włączony",
     "loading": "Ładowanie…",
-    "optional": "opcjonalnie",
-    "all-connections": "Wszystkie połączenia"
+    "optional": "opcjonalnie"
   },
   "status": {
     "pending": "Niezweryfikowany",
@@ -20,7 +19,6 @@
     "disabled": "Wyłączony"
   },
   "transport": {
-    "live": "Prawdziwy",
     "mock": "Testowy"
   },
   "receive": {
@@ -36,23 +34,6 @@
     "ban": "Blokada",
     "react": "Reakcja",
     "note": "Notatka"
-  },
-  "rule-action": {
-    "delete": "Usuń wiadomość",
-    "warn": "Ostrzeż nadawcę",
-    "mute": "Wycisz nadawcę",
-    "ban": "Zablokuj nadawcę",
-    "reply": "Odpowiedz tekstem",
-    "record": "Zapisz zgłoszenie",
-    "agent": "Niech odpowie asystent"
-  },
-  "mode": {
-    "word": "Całe słowa",
-    "contains": "Zawiera"
-  },
-  "mode-hint": {
-    "word": "Dopasowuje całe słowa i frazy bez względu na wielkość liter: „free money” pasuje do „FREE money!”, ale nie do „freedom”.",
-    "contains": "Dopasowuje dowolny fragment wiadomości bez względu na wielkość liter — także w językach pisanych bez spacji."
   },
   "credentials": {
     "telegram": {
@@ -119,7 +100,6 @@
     "verified": "Połączono jako {{name}}.",
     "remove-title": "Usunąć to połączenie?",
     "remove-description": "„{{label}}” od razu przestanie odbierać wiadomości i na nie odpowiadać. Tego nie można cofnąć.",
-    "mock-note": "Połączenie testowe: nic nie trafia na platformę {{platform}}. Wypróbuj je w symulatorze.",
     "setup-title": "Dokończ konfigurację na platformie {{platform}}",
     "hook-url": "Adres webhooka",
     "hint": {
@@ -139,49 +119,11 @@
     "platform": "Platforma",
     "label": "Nazwa",
     "label-placeholder": "Moderator społeczności",
-    "transport": "Tryb",
-    "transport-live-hint": "Łączy się z prawdziwą platformą.",
-    "transport-mock-hint": "Wierna imitacja do wypróbowania bota: nic nie opuszcza aplikacji.",
     "credentials": "Dane uwierzytelniające",
     "secret-set": "Ustawiony",
     "secret-keep": "Zapisany — zostaw puste, aby zachować",
     "generated": "tworzony dla Ciebie przy zapisie.",
     "docs": "Jak uzyskać te dane na platformie {{platform}}"
-  },
-  "rules": {
-    "title": "Grupy słów kluczowych",
-    "description": "Gdy wiadomość zawiera słowo kluczowe grupy, bot robi to, co mówi grupa. Grupy są stosowane w swojej kolejności.",
-    "add": "Dodaj grupę",
-    "empty": "Nie ma jeszcze żadnej grupy słów kluczowych.",
-    "add-title": "Dodaj grupę słów kluczowych",
-    "edit-title": "Edytuj: {{name}}",
-    "form-description": "Wypisz słowa kluczowe, wybierz, co bot zrobi z pasującą wiadomością, i podaj tekst lub instrukcję.",
-    "name": "Nazwa",
-    "name-placeholder": "Linki ze spamem",
-    "keywords": "Słowa kluczowe",
-    "keywords-placeholder": "Wpisz słowo kluczowe i naciśnij Enter",
-    "keywords-hint": "Oddzielaj je klawiszem Enter lub przecinkami. Słowo kluczowe z kilku słów to fraza.",
-    "remove-keyword": "Usuń {{keyword}}",
-    "more": "+{{count}}",
-    "mode": "Dopasowanie",
-    "action": "Co robi bot",
-    "reply": {
-      "reply": "Tekst odpowiedzi",
-      "warn": "Tekst ostrzeżenia",
-      "record": "Tekst potwierdzenia"
-    },
-    "instruction": "Instrukcja",
-    "instruction-placeholder": "Odpowiadaj uprzejmie i odsyłaj do strony z godzinami otwarcia.",
-    "instruction-hint": "Dodatkowe wskazówki, jak bot ma obsługiwać wiadomości tej grupy.",
-    "instruction-hint-agent": "Polecenie, które asystent otrzymuje dla wiadomości tej grupy.",
-    "applies-to": "Dotyczy",
-    "order": "Kolejność",
-    "try": "Wypróbuj",
-    "try-placeholder": "Wpisz wiadomość, aby sprawdzić, czy ta grupa do niej pasuje",
-    "try-match": "Pasuje: {{keywords}}",
-    "try-none": "Brak dopasowania.",
-    "remove-title": "Usunąć tę grupę słów kluczowych?",
-    "remove-description": "Bot przestanie reagować na słowa kluczowe grupy „{{name}}”. Tego nie można cofnąć."
   },
   "activity": {
     "title": "Aktywność bota",
@@ -191,27 +133,9 @@
     "limit-option": "Ostatnie {{count}}",
     "ok": "Wykonano",
     "failed": "Błąd",
-    "rule": "Grupa: {{name}}",
     "chat": "czat",
     "message": "wiadomość",
     "user": "użytkownik"
-  },
-  "simulator": {
-    "title": "Symulator",
-    "description": "Wyślij wiadomość do „{{label}}”, jakby napisał ją członek, i zobacz, co zrobi bot.",
-    "text": "Wiadomość",
-    "text-placeholder": "Wpisz, co napisałby członek",
-    "matches": "Pasuje do grup: {{names}}",
-    "no-match": "Żadna grupa słów kluczowych nie pasuje do tej wiadomości.",
-    "chat": "Czat",
-    "chat-group": "Grupa",
-    "chat-private": "Prywatny",
-    "chat-title": "Nazwa czatu",
-    "sender": "Nazwa nadawcy",
-    "send": "Wyślij",
-    "waiting": "Czekamy na bota…",
-    "reacted": "Bot zareagował:",
-    "silent": "Bot nie zareagował na tę wiadomość."
   },
   "errors": {
     "title": "Coś poszło nie tak",
@@ -220,8 +144,6 @@
     "signature-rejected": "Nie udało się potwierdzić, że żądanie pochodzi od platformy.",
     "transport-mismatch": "Symulowane wiadomości może odbierać tylko połączenie testowe.",
     "unsupported-action": "Ta platforma z tymi danymi uwierzytelniającymi nie może tego zrobić.",
-    "rule-not-found": "Ta grupa słów kluczowych już nie istnieje.",
-    "rule-invalid": "Nie udało się zapisać tej grupy słów kluczowych — sprawdź jej słowa kluczowe.",
     "connection-disabled": "To połączenie jest wyłączone. Najpierw je włącz.",
     "secret-missing": "Serwer nie ma klucza do ochrony danych uwierzytelniających botów. Poproś administratora o jego ustawienie.",
     "credentials-unreadable": "Zapisanych danych uwierzytelniających nie da się już odczytać na tym serwerze. Wprowadź je ponownie.",

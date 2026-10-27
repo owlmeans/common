@@ -67,30 +67,24 @@ describe('connections panel — the form follows the platform descriptor', () =>
     }
   }, TIMEOUT)
 
-  test('the transport toggle exists only with `allowMock`, and a mock connection needs no credentials', async () => {
-    const plain = await open({ panel: 'connections' }, listing([]))
-    try {
-      await plain.page.locator('[data-bot-connections] [data-bot-empty]').waitFor()
-      await plain.page.locator('[data-bot-action="add"]').click()
-      await plain.page.locator('[data-bot-field="token"]').waitFor()
-      expect(await plain.page.locator('[data-bot-input="transport"]').count()).toBe(0)
-    } finally {
-      await plain.close()
-    }
-
-    const { page, calls, close } = await open({ panel: 'connections', mock: '1' }, listing([]))
+  test('offers no transport choice: a new connection needs its credentials and the save sends no transport', async () => {
+    const { page, calls, close } = await open({ panel: 'connections' }, listing([]))
     try {
       await page.locator('[data-bot-connections] [data-bot-empty]').waitFor()
       await page.locator('[data-bot-action="add"]').click()
-      await page.locator('[data-bot-input="label"]').fill('Preview bot')
-      // Live: the required token is missing, so nothing can be saved yet.
+      await page.locator('[data-bot-field="token"]').waitFor()
+      expect(await page.locator('[data-bot-input="transport"]').count()).toBe(0)
+      expect(await page.locator('[data-bot-connection-form] [data-bot-option="mock"]').count()).toBe(0)
+
+      await page.locator('[data-bot-input="label"]').fill('Community bot')
+      // The required token is missing, so nothing can be saved yet.
       expect(await page.locator('[data-bot-action="save"]').isDisabled()).toBe(true)
-      await page.locator('[data-bot-input="transport"] [data-bot-option="mock"]').click()
+      await page.locator('[data-bot-field="token"]').fill('123456:ABC')
       expect(await page.locator('[data-bot-action="save"]').isDisabled()).toBe(false)
       await page.locator('[data-bot-action="save"]').click()
 
       const saved = await untilCall(calls, call => call.method === 'POST' && call.path === 'connections')
-      expect(saved.body).toEqual({ platform: BotPlatform.Telegram, label: 'Preview bot', transport: BotTransport.Mock })
+      expect(saved.body).toEqual({ platform: BotPlatform.Telegram, label: 'Community bot', credentials: { token: '123456:ABC' } })
       await page.locator('[data-bot-connection="c-new"]').waitFor()
     } finally {
       await close()
@@ -215,10 +209,11 @@ describe('connections panel — a connection in the list', () => {
 
       expect(await page.locator('[data-bot-connection="c1"] [data-bot-hint="telegram"]').textContent())
         .toContain(en.connections.hint.telegram)
-      // A mock connection reaches no platform: no setup, a mock badge instead.
+      // A mock connection (made through the API) reaches no platform: no setup, no note, a badge alone.
       const mock = page.locator('[data-bot-connection="m1"]')
       expect(await mock.locator('[data-bot-mock]').count()).toBe(1)
       expect(await mock.locator('[data-bot-setup]').count()).toBe(0)
+      expect(await mock.locator('[data-bot-hint]').count()).toBe(0)
     } finally {
       await close()
     }

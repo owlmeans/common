@@ -9,13 +9,13 @@ import { PlatformIcon } from '../shared/platform-icon.js'
 import type { ActivityListProps } from './types.js'
 
 /** What the bot did, one row per action: when, what, to whom, about which message, and whether it worked. */
-export const ActivityList: FC<ActivityListProps> = ({ items, rules, connections }) => {
+export const ActivityList: FC<ActivityListProps> = ({ items, refLabel, connections }) => {
   const t = useI18nLib(BOT_I18N)
   const [lng] = useLanguage()
 
   return <ul className="divide-y rounded-xl border">
     {items.map(activity => {
-      const rule = activity.rule != null ? rules.get(activity.rule) ?? activity.rule : null
+      const ref = activity.ref != null && activity.ref !== '' && refLabel != null ? refLabel(activity.ref) : undefined
       const target = activity.target == null ? [] : [
         activity.target.chat !== '' ? `${t('activity.chat')} ${activity.target.chat}` : null,
         activity.target.message != null ? `${t('activity.message')} ${activity.target.message}` : null,
@@ -45,8 +45,8 @@ export const ActivityList: FC<ActivityListProps> = ({ items, rules, connections 
           {activity.transport === BotTransport.Mock && <Badge variant="outline" className="rounded-full" data-bot-mock>
             {t('transport.mock')}
           </Badge>}
-          {rule != null && <span className="text-muted-foreground text-xs" data-bot-activity-rule>
-            {t('activity.rule', { name: rule })}
+          {ref != null && ref !== '' && <span className="text-muted-foreground text-xs" data-bot-activity-ref={activity.ref}>
+            {ref}
           </span>}
           {connections != null && <span className="text-muted-foreground text-xs">
             {connections.get(activity.connection) ?? activity.connection}

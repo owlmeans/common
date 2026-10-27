@@ -1,11 +1,8 @@
-import {
-  BotConnectionStatus, BotCredentialsRejected, BotReceiveMode, botRuleHelper, type BotUpdate,
-} from '@owlmeans/bot'
+import { BotConnectionStatus, BotCredentialsRejected, BotReceiveMode, type BotUpdate } from '@owlmeans/bot'
 import type { Criteria } from '@owlmeans/resource'
 import { BOT_DISPATCH_BATCH, BOT_RETRY_MAX_MS, BotInboxStatus } from '../consts.js'
 import type { BotPlatformPlugin } from '../platforms/types.js'
-import type { BotConnectionRecord, BotHandler, BotRuleRecord, BotRuntime, BotUpdateRecord } from '../types.js'
-import { ruleViewOf } from './rule-view.js'
+import type { BotConnectionRecord, BotHandler, BotRuntime, BotUpdateRecord } from '../types.js'
 import type {
   BotActionsPart, BotInbox, BotRunningReceiver, BotRuntimePart, BotServiceParts, BotSessions,
 } from './types.local.js'
@@ -53,16 +50,6 @@ export const makeBotRuntimeFactory = (
       })
     }
 
-    const rulesOf = async (cache: Map<string, Promise<BotRuleRecord[]>>, scope: string): Promise<BotRuleRecord[]> => {
-      let rules = cache.get(scope)
-      if (rules == null) {
-        rules = store.rules().list({ scope, enabled: true }, { size: 0 }).then(result => result.items)
-        cache.set(scope, rules)
-      }
-
-      return await rules
-    }
-
     const settle = async (row: BotUpdateRecord, handled: string[], errors: string[]): Promise<void> => {
       const error = errors.length > 0 ? errors.join('; ') : null
       if (error == null) {
@@ -87,8 +74,7 @@ export const makeBotRuntimeFactory = (
     }
 
     const dispatchRow = async (
-      row: BotUpdateRecord, leaseCutoff: string,
-      connections: Map<string, Promise<BotConnectionRecord | null>>, rules: Map<string, Promise<BotRuleRecord[]>>
+      row: BotUpdateRecord, leaseCutoff: string, connections: Map<string, Promise<BotConnectionRecord | null>>
     ): Promise<number> => {
       const claimed = await claim(row, leaseCutoff)
       if (claimed == null) {
@@ -108,15 +94,7 @@ export const makeBotRuntimeFactory = (
         return 1
       }
 
-      const payload = structuredClone(claimed.update)
-      const applicable = (await rulesOf(rules, claimed.scope))
-        .filter(rule => botRuleHelper.appliesTo(rule, claimed.connection))
-        .map(ruleViewOf)
-      const update: BotUpdate = {
-        ...payload,
-        id: claimed.id!,
-        matches: botRuleHelper.match(payload.message?.text ?? '', applicable),
-      }
+      const update: BotUpdate = { ...structuredClone(claimed.update), id: claimed.id! }
       const bot = actionsPart.actionsOf(record, claimed.scope, claimed.connection, update)
       const handled = [...(claimed.handled ?? [])]
       const errors: string[] = []
@@ -154,12 +132,11 @@ export const makeBotRuntimeFactory = (
         byConnection.set(row.connection, [...(byConnection.get(row.connection) ?? []), row])
       }
       const connections = new Map<string, Promise<BotConnectionRecord | null>>()
-      const rules = new Map<string, Promise<BotRuleRecord[]>>()
       const settled = await Promise.all([...byConnection.values()].map(async rows => {
         let count = 0
         for (const row of rows) {
           try {
-            count += await dispatchRow(row, leaseCutoff, connections, rules)
+            count += await dispatchRow(row, leaseCutoff, connections)
           } catch (error) {
             log.error('Bot update not dispatched', { update: row.id, connection: row.connection, error })
           }

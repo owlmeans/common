@@ -2,12 +2,12 @@ import { makePostgresResource, pgDeclarationHelper, pgNameHelper } from '@owlmea
 import type { PostgresResource } from '@owlmeans/postgres-resource'
 import type { ResourceRecord } from '@owlmeans/resource'
 import {
-  BotActivityRecordSchema, BotConnectionRecordSchema, BotRuleRecordSchema, BotUpdateRecordSchema,
-  RES_BOT_ACTIVITY, RES_BOT_CONNECTION, RES_BOT_RULE, RES_BOT_UPDATE,
+  BotActivityRecordSchema, BotConnectionRecordSchema, BotUpdateRecordSchema, RES_BOT_ACTIVITY, RES_BOT_CONNECTION,
+  RES_BOT_UPDATE,
 } from '@owlmeans/server-bot'
-import type { BotActivityRecord, BotConnectionRecord, BotRuleRecord, BotUpdateRecord } from '@owlmeans/server-bot'
+import type { BotActivityRecord, BotConnectionRecord, BotUpdateRecord } from '@owlmeans/server-bot'
 
-import type { BotActivityResource, BotConnectionResource, BotRuleResource, BotUpdateResource } from './types.js'
+import type { BotActivityResource, BotConnectionResource, BotUpdateResource } from './types.js'
 import type { IndexList } from './types.local.js'
 
 /**
@@ -47,23 +47,6 @@ export const makeBotConnectionResource = (
 }
 
 /**
- * `bot-rule` — keyword rules, scope-wide (`connection` null) or bound to one connection; `keywords` is
- * `text[]`, `order` a `double precision` column (quoted wherever the store names it).
- */
-export const makeBotRuleResource = (
-  dbAlias?: string, alias: string = RES_BOT_RULE, serviceAlias?: string
-): BotRuleResource => {
-  const resource = makePostgresResource<BotRuleRecord, BotRuleResource>(alias, dbAlias, serviceAlias)
-  resource.schema = BotRuleRecordSchema
-  declareIndexes(resource, alias, [
-    ['scope', { columns: ['scope'] }],
-    ['scope_connection', { columns: ['scope', 'connection'] }],
-  ])
-
-  return resource
-}
-
-/**
  * `bot-update` — the inbox. `dedupe` is UNIQUE: two concurrent deliveries of one platform update
  * collide here (`RecordExists`) and the service reads the stored row back. The normalized `update`
  * is one `jsonb` column, `handled` a `text[]`. Indexes follow the dispatcher (pending rows by age,
@@ -85,7 +68,10 @@ export const makeBotUpdateResource = (
   return resource
 }
 
-/** `bot-activity` — what every action did; `target` is one `jsonb` column. Read newest first per scope. */
+/**
+ * `bot-activity` — what every action did; `target` is one `jsonb` column, `ref` (the handler's opaque
+ * reference) a nullable `text` column. Read newest first per scope.
+ */
 export const makeBotActivityResource = (
   dbAlias?: string, alias: string = RES_BOT_ACTIVITY, serviceAlias?: string
 ): BotActivityResource => {

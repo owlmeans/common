@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import { ProjectArea } from '../src/areas/consts.js'
 import { RequirementKind, RequirementSource, SpecCategory } from '../src/ba/consts.js'
-import { BotRuleAction } from '@owlmeans/bot'
+import { BotKitAction } from '../src/blueprint/index.js'
 import { DesignStaleness, NO_RUNTIME, STORY_DESIGN_VERSION, StoryDesignSchema, storyDesignHelper, storyRuntimeHelper } from '../src/design/index.js'
 import type { StoryDesign } from '../src/design/index.js'
 
@@ -178,8 +178,8 @@ describe('viable-common - the design schema', () => {
       ...NO_RUNTIME,
       bot: {
         handlers: [
-          { name: 'moderate', purpose: 'Follows the matched group.', trigger: 'rules', actions: [BotRuleAction.Delete, BotRuleAction.Warn] },
-          { name: 'report', purpose: 'Handles /report.', trigger: 'command', command: 'report', actions: [BotRuleAction.Reply], agent: 'judge', records: ['Report'] },
+          { name: 'moderate', purpose: 'Follows the matched keyword group.', trigger: 'keywords', actions: [BotKitAction.Delete, BotKitAction.Warn], records: ['KeywordGroup'] },
+          { name: 'report', purpose: 'Handles /report.', trigger: 'command', command: 'report', actions: [BotKitAction.Reply], agent: 'judge', records: ['Report'] },
         ],
       },
     }
@@ -188,6 +188,11 @@ describe('viable-common - the design schema', () => {
     const trigger = structuredClone(value)
     trigger.runtime!.bot!.handlers[0]!.trigger = 'schedule' as never
     expect(validate(trigger)).toBe(false)
+
+    // No stock keyword rules: `rules` is no trigger.
+    const rules = structuredClone(value)
+    rules.runtime!.bot!.handlers[0]!.trigger = 'rules' as never
+    expect(validate(rules)).toBe(false)
 
     const action = structuredClone(value)
     action.runtime!.bot!.handlers[0]!.actions = ['kick' as never]
@@ -207,7 +212,7 @@ describe('viable-common - the bot handlers of a runtime', () => {
     expect(storyRuntimeHelper.botHandlersOf(storyRuntimeHelper.runtimeOf(design()))).toEqual([])
     expect(storyRuntimeHelper.botHandlersOf(NO_RUNTIME)).toEqual([])
 
-    const handlers = [{ name: 'reply', purpose: 'Answers.', trigger: 'rules' as const, actions: [BotRuleAction.Reply] }]
+    const handlers = [{ name: 'reply', purpose: 'Answers.', trigger: 'keywords' as const, actions: [BotKitAction.Reply], records: ['KeywordGroup'] }]
     expect(storyRuntimeHelper.botHandlersOf({ ...NO_RUNTIME, bot: { handlers } })).toEqual(handlers)
     // Bot handlers are not queue work: the queue gate stays closed.
     expect(storyRuntimeHelper.needsRuntime({ ...NO_RUNTIME, bot: { handlers } })).toBe(false)

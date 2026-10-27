@@ -1,8 +1,7 @@
 import type { Page } from '@owlmeans/test-ui'
 import { browserHelper } from '@owlmeans/test-ui'
 import {
-  BotActionKind, BotConnectionStatus, BotMatchMode, BotPlatform, BotReceiveMode, BotRuleAction, BotTransport,
-  type BotActivity, type BotConnection, type BotRule,
+  BotActionKind, BotConnectionStatus, BotPlatform, BotReceiveMode, BotTransport, type BotActivity, type BotConnection,
 } from '@owlmeans/bot'
 import { HARNESS_URL } from './context.js'
 
@@ -12,7 +11,7 @@ export const TIMEOUT = 60_000
 /** One request the page made to the bot API. */
 export interface Call {
   method: string
-  /** The path after `/bot/operator/` — `connections`, `connections/c1/verify`, `rules` … */
+  /** The path after `/bot/operator/` — `connections`, `connections/c1/verify`, `activity` … */
   path: string
   query: Record<string, string>
   body: any
@@ -37,17 +36,10 @@ export const connectionOf = (over: Partial<BotConnection> = {}): BotConnection =
   ...over,
 })
 
-export const ruleOf = (over: Partial<BotRule> = {}): BotRule => ({
-  id: 'r1', scope: 'org', connection: null, name: 'Spam', keywords: ['free money'], mode: BotMatchMode.Word,
-  action: BotRuleAction.Delete, enabled: true, order: 1,
-  createdAt: '2026-10-01T10:00:00.000Z', updatedAt: '2026-10-01T10:00:00.000Z',
-  ...over,
-})
-
 export const activityOf = (over: Partial<BotActivity> = {}): BotActivity => ({
   id: 'a1', scope: 'org', connection: 'c1', platform: BotPlatform.Telegram, update: 'u1',
   action: BotActionKind.Delete, target: { chat: '-100', message: '42', user: '7' }, text: 'free money here',
-  rule: 'r1', ok: true, transport: BotTransport.Mock, at: '2026-10-01T10:00:00.000Z',
+  ref: 'g1', ok: true, transport: BotTransport.Mock, at: '2026-10-01T10:00:00.000Z',
   ...over,
 })
 

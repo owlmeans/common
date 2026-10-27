@@ -1,6 +1,5 @@
 import type {
-  BotActionKind, BotChatKind, BotConnectionStatus, BotMatchMode, BotPlatform, BotReceiveMode, BotRuleAction,
-  BotTransport, BotUpdateKind,
+  BotActionKind, BotChatKind, BotConnectionStatus, BotPlatform, BotReceiveMode, BotTransport, BotUpdateKind,
 } from './consts.js'
 
 /** One credential a platform needs — what the panel draws an input for. */
@@ -119,45 +118,6 @@ export interface BotCommand {
   args: string
 }
 
-/** A keyword group: the keywords and what the bot does with a message that matches them. */
-export interface BotRule {
-  id: string
-  scope: string
-  /** One connection only; `null` or absent applies to every connection of the scope. */
-  connection?: string | null
-  name: string
-  keywords: string[]
-  mode: BotMatchMode
-  action: BotRuleAction
-  /** The fixed text of `reply` / `warn` (and the confirmation of `record`). */
-  reply?: string
-  /** What the product's agent is told for this group. */
-  instruction?: string
-  enabled: boolean
-  order: number
-  createdAt: string
-  updatedAt: string
-}
-
-export interface BotRuleInput {
-  id?: string
-  connection?: string | null
-  name: string
-  keywords: string[]
-  mode?: BotMatchMode
-  action: BotRuleAction
-  reply?: string
-  instruction?: string
-  enabled?: boolean
-  order?: number
-}
-
-/** A rule a message matched, with the rule's keywords (as stored) that matched it. */
-export interface BotMatch {
-  rule: BotRule
-  keywords: string[]
-}
-
 /** A normalized inbound update, as a handler receives it. */
 export interface BotUpdate {
   id: string
@@ -171,8 +131,6 @@ export interface BotUpdate {
   command?: BotCommand
   /** A direct message, a mention of the bot, or a reply to it. */
   addressed: boolean
-  /** Enabled rules of the scope (and connection) the text matches, by order. */
-  matches: BotMatch[]
   receivedAt: string
   raw?: unknown
 }
@@ -195,8 +153,12 @@ export interface BotActivity {
   action: BotActionKind
   target?: BotActivityTarget
   text?: string
-  /** The rule it followed. */
-  rule?: string
+  /**
+   * An opaque reference the acting handler passed (`{ ref }` on the action) — e.g. the id of the
+   * application's own record it followed, such as the keyword group a message matched. The bot
+   * packages never read it.
+   */
+  ref?: string
   ok: boolean
   /** Why it failed, as a short sentence a person reads. */
   error?: string

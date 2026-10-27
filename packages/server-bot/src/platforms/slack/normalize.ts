@@ -72,7 +72,7 @@ export const createSlackNormalizer = (): SlackNormalizer => {
       if (ts == null || ts === '' || own(message)) {
         return []
       }
-      // Mentions are control sequences of the escaped text; people (and rules) read the decoded one.
+      // Mentions are control sequences of the escaped text; people (and handlers) read the decoded one.
       const escaped = message.text ?? ''
       const text = slackTextHelper.decode(escaped)
       const thread = message.thread_ts != null && message.thread_ts !== '' ? message.thread_ts : undefined

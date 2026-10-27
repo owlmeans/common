@@ -196,8 +196,9 @@ export interface BlueprintCapabilities {
   marketingConsent: boolean
   /**
    * A chat bot inside a messaging platform (`@owlmeans/bot` + `@owlmeans/server-bot` +
-   * `@owlmeans/web-bot` + a database extension): connections, keyword rules, the hook and the
-   * worker's receivers. Optional — absent reads as off, so every case defined before it stays as is.
+   * `@owlmeans/web-bot` + a database extension): connections, the hook, the worker's receivers and
+   * the activity log; keyword groups are the product's own generated records. Optional — absent
+   * reads as off, so every case defined before it stays as is.
    */
   bot?: boolean
 }

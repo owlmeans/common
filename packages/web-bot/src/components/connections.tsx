@@ -21,10 +21,11 @@ import { ConfirmDialog } from './shared/confirm-dialog.js'
  * the bot account it verified as, how it receives and what failed last — and adding, changing,
  * verifying, switching off and removing one.
  *
- * `platforms` limits what a NEW connection may be made on (the product's platforms); `allowMock`
- * offers the mock transport, which the application passes everywhere but production.
+ * `platforms` limits what a NEW connection may be made on (the product's platforms). Every connection
+ * made here is live; a mock one exists only when created through the API (tests, the runtime smoke)
+ * and is shown with a badge.
  */
-export const BotConnectionsPanel: FC<BotConnectionsPanelProps> = ({ surface, platforms, allowMock = false, className }) => {
+export const BotConnectionsPanel: FC<BotConnectionsPanelProps> = ({ surface, platforms, className }) => {
   const t = useI18nLib(BOT_I18N)
   const { items, loading, error, save, verify, remove } = useBotConnections(surface)
   const allowed = useMemo(() => botViewHelper.platformsOf(platforms), [platforms])
@@ -101,7 +102,6 @@ export const BotConnectionsPanel: FC<BotConnectionsPanelProps> = ({ surface, pla
       open={formOpen}
       editing={editing}
       platforms={allowed}
-      allowMock={allowMock}
       onSave={save}
       onClose={() => setFormOpen(false)}
     />

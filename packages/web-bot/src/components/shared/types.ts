@@ -30,20 +30,3 @@ export interface PlatformIconProps {
   platform: BotPlatform
   className?: string
 }
-
-export interface SegmentedOption<T extends string> {
-  value: T
-  label: string
-}
-
-export interface SegmentedProps<T extends string> {
-  value: T
-  options: SegmentedOption<T>[]
-  onChange: (value: T) => void
-  /** The accessible name of the group. */
-  label: string
-  /** Stable hook for tests: `data-bot-input="<name>"` on the group, `data-bot-option="<value>"` on each. */
-  name: string
-  id?: string
-  disabled?: boolean
-}

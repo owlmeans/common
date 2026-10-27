@@ -1,5 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
-import { BotRuleAction } from '@owlmeans/bot'
+import { BotKitAction } from '../blueprint/consts.js'
 import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
 import { ProjectArea } from '../areas/consts.js'
@@ -298,7 +298,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
                   purpose: { type: 'string' },
                   trigger: { type: 'string', enum: STORY_BOT_TRIGGERS },
                   command: { type: 'string', nullable: true },
-                  actions: { type: 'array', items: { type: 'string', enum: Object.values(BotRuleAction) } },
+                  actions: { type: 'array', items: { type: 'string', enum: Object.values(BotKitAction) } },
                   agent: { type: 'string', nullable: true },
                   records: { type: 'array', items: { type: 'string' }, nullable: true },
                 },

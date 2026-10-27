@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import {
-  BotActionKind, BotChatKind, BotConnectionNotFound, BotUpdateKind, BotConnectionStatus, BotMatchMode, BotPlatform, BotReceiveMode, BotRuleAction,
-  BotTransport, type BotUpdate,
+  BotActionKind, BotChatKind, BotConnectionNotFound, BotConnectionStatus, BotPlatform, BotReceiveMode, BotTransport,
+  BotUpdateKind, botTextHelper, type BotUpdate,
 } from '@owlmeans/bot'
 import type { Criteria } from '@owlmeans/resource'
 import { BotInboxStatus } from '../consts.js'
@@ -89,34 +89,6 @@ const cases: BotConformanceCase[] = [
   },
 
   {
-    name: 'rules keep their order, keyword lists and nullable fields',
-    run: async subject => {
-      const { service } = subject
-      const scope = scopeOf()
-      const connection = await connect(subject, scope)
-      const own = await service.rules.save(scope, {
-        connection: connection.id, name: 'Spam', keywords: ['free money', ' Casino ', 'casino'],
-        action: BotRuleAction.Delete, order: 2,
-      })
-      const wide = await service.rules.save(scope, {
-        name: 'Greeting', keywords: ['hello'], mode: BotMatchMode.Contains, action: BotRuleAction.Reply, reply: 'Hi!',
-        order: 1,
-      })
-      same(own.keywords, ['free money', 'Casino'], 'keywords normalized, the first spelling kept')
-      same([own.connection, wide.connection], [connection.id, null], 'own and scope-wide')
-      check(!('reply' in own) && !('instruction' in own), 'absent text fields stay absent')
-      same((await service.rules.list(scope, connection.id)).map(rule => rule.name), ['Greeting', 'Spam'], 'by order')
-      same((await service.rules.list(scope, 'another-connection')).map(rule => rule.name), ['Greeting'],
-        'another connection sees only the scope-wide rule')
-
-      const edited = await service.rules.save(scope, { ...wide, id: wide.id, reply: '', enabled: false })
-      check(!('reply' in edited) && edited.enabled === false, 'an empty reply clears it; the rule is disabled')
-      await service.rules.remove(scope, own.id)
-      same((await service.rules.list(scope)).map(rule => rule.id), [wide.id], 'removed')
-    },
-  },
-
-  {
     name: 'the inbox stores a redelivered update once',
     run: async subject => {
       const { service } = subject
@@ -138,36 +110,38 @@ const cases: BotConformanceCase[] = [
   },
 
   {
-    name: 'the dispatcher settles an update and its actions are recorded, newest first',
+    name: 'the dispatcher settles an update and its actions are recorded with their ref, newest first',
     run: async subject => {
       const { service } = subject
       const scope = scopeOf()
       const connection = await connect(subject, scope)
-      await service.rules.save(scope, { name: 'Spam', keywords: ['casino'], action: BotRuleAction.Delete })
+      // The application's own keyword group — the handler reads and matches it, the service never does.
+      const group = { id: `group-${randomUUID()}`, keywords: ['casino'] }
       const seen: BotUpdate[] = []
       const runtime = service.runtime([botHandler('moderate', async (update, bot) => {
         if (update.scope !== scope) {
           return
         }
         seen.push(update)
-        if (update.matches.length > 0) {
-          await bot.delete(update, { rule: update.matches[0].rule.id })
+        if (botTextHelper.matched(update.message?.text ?? '', group.keywords).length > 0) {
+          await bot.delete(update, { ref: group.id })
           await bot.reply(update, 'Removed: no casino links here.')
         }
       })])
       const { update } = await service.simulate(scope, connection.id, { text: 'Visit my CASINO now' })
       await runtime.dispatch()
 
-      same(seen.map(entry => [entry.id, entry.matches.map(match => match.keywords)]), [[update, [['casino']]]],
-        'the handler saw the update with its matches')
+      same(seen.map(entry => [entry.id, entry.message?.text]), [[update, 'Visit my CASINO now']],
+        'the handler saw the stored update under its row id')
       const row = await subject.resources.update.get(update)
       same([row.status, row.attempts, row.handled], [BotInboxStatus.Done, 1, ['moderate']], 'settled done')
       check(typeof row.processedAt === 'string', 'processedAt is stamped')
 
       const activity = await service.activity.list(scope)
-      same(activity.map(entry => [entry.action, entry.ok, entry.transport, entry.update]),
-        [[BotActionKind.Reply, true, BotTransport.Mock, update], [BotActionKind.Delete, true, BotTransport.Mock, update]],
-        'reply after delete, newest first')
+      same(activity.map(entry => [entry.action, entry.ok, entry.transport, entry.update, entry.ref]),
+        [[BotActionKind.Reply, true, BotTransport.Mock, update, undefined], [BotActionKind.Delete, true, BotTransport.Mock, update, group.id]],
+        'reply after delete, newest first; the ref round-trips')
+      check(!('ref' in activity[0]), 'an absent ref stays absent')
       same((await service.activity.list(scope, { limit: 1 })).map(entry => entry.action), [BotActionKind.Reply], 'the limit')
       same((await service.activity.list(scope, { connection: 'another' })).length, 0, 'filtered by connection')
     },
@@ -222,20 +196,17 @@ const cases: BotConformanceCase[] = [
   },
 
   {
-    name: 'removing a connection removes its rules and inbox and keeps its activity',
+    name: 'removing a connection removes its inbox and keeps its activity',
     run: async subject => {
       const { service, resources } = subject
       const scope = scopeOf()
       const connection = await connect(subject, scope)
-      await service.rules.save(scope, { connection: connection.id, name: 'Own', keywords: ['x'], action: BotRuleAction.Warn })
-      const wide = await service.rules.save(scope, { name: 'Wide', keywords: ['y'], action: BotRuleAction.Warn })
       await service.simulate(scope, connection.id, { text: 'x' })
       const bot = await service.actions({ scope, connection: connection.id })
       await bot.send('-1001000000001', 'Announcement')
 
       same(await service.connections.remove(scope, connection.id), { id: connection.id }, 'removed')
       check(await resources.connection.load(connection.id) == null, 'the record is gone')
-      same((await service.rules.list(scope)).map(rule => rule.id), [wide.id], 'only the scope-wide rule is left')
       same((await rowsOf(subject, connection.id)).length, 0, 'its inbox is purged')
       same((await service.activity.list(scope)).length, 1, 'its activity is kept')
     },

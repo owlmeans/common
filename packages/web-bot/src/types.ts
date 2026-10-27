@@ -1,7 +1,4 @@
-import type {
-  BotActivity, BotConnection, BotConnectionInput, BotPlatform, BotProtocols, BotRule, BotRuleAction, BotRuleInput,
-  BotSimulateInput, BotSimulateResult,
-} from '@owlmeans/bot'
+import type { BotActivity, BotConnection, BotConnectionInput, BotPlatform, BotProtocols } from '@owlmeans/bot'
 
 /**
  * The managing protocol tree a screen works with — `appProtocols.api.bot.operator` or `.member`.
@@ -33,23 +30,6 @@ export interface UseBotConnections {
   /** Ask the platform who the bot is; the answer carries the identity or the failure. */
   verify: (id: string) => Promise<BotOutcome<BotConnection>>
   remove: (id: string) => Promise<BotOutcome<string>>
-  /** Feed a message to a MOCK connection through the platform's own path. */
-  simulate: (id: string, input: BotSimulateInput) => Promise<BotOutcome<BotSimulateResult>>
-}
-
-export interface BotRulesOptions {
-  /** This connection's groups plus the scope-wide ones; every group of the scope when absent. */
-  connection?: string
-}
-
-export interface UseBotRules {
-  /** Ordered by `order`. */
-  items: BotRule[]
-  loading: boolean
-  error: Error | null
-  reload: () => Promise<void>
-  save: (input: BotRuleInput) => Promise<BotOutcome<BotRule>>
-  remove: (id: string) => Promise<BotOutcome<string>>
 }
 
 export interface BotActivityOptions {
@@ -72,30 +52,22 @@ export interface BotConnectionsPanelProps {
   surface: BotSurface
   /** The platforms a new connection may be made on; all four when absent. */
   platforms?: BotPlatform[]
-  /** Offer the mock transport — the application passes "not production". */
-  allowMock?: boolean
   className?: string
 }
 
-export interface BotRulesPanelProps {
-  surface: BotSurface
-  /** The rule actions the product's kit offers — the action picker shows exactly these. */
-  actions: BotRuleAction[]
-  /** Show this connection's groups (and the scope-wide ones); a new group is made for it. */
-  connection?: string
-  className?: string
+/**
+ * What a row names for an activity's `ref` — the application's own record the acting handler
+ * followed (its keyword group, say). `undefined` draws nothing for that row.
+ */
+export interface BotRefLabel {
+  (ref: string): string | undefined
 }
 
 export interface BotActivityPanelProps {
   surface: BotSurface
   connection?: string
-  className?: string
-}
-
-export interface BotSimulatorProps {
-  surface: BotSurface
-  /** The connection, or its id. Renders nothing unless it is a MOCK connection. */
-  connection: BotConnection | string
+  /** Names a row's `ref` (e.g. the keyword group's name); without it no row shows its ref. */
+  refLabel?: BotRefLabel
   className?: string
 }
 
@@ -106,5 +78,5 @@ export interface BotSimulatorProps {
  */
 export type BotErrorKey =
   | 'connection-not-found' | 'credentials-rejected' | 'signature-rejected' | 'transport-mismatch'
-  | 'unsupported-action' | 'rule-not-found' | 'rule-invalid' | 'connection-disabled' | 'secret-missing'
-  | 'credentials-unreadable' | 'platform-refused' | 'bot' | 'generic'
+  | 'unsupported-action' | 'connection-disabled' | 'secret-missing' | 'credentials-unreadable'
+  | 'platform-refused' | 'bot' | 'generic'

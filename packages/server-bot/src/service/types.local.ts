@@ -9,13 +9,12 @@ import type { BotPlatformRegistry } from '../platforms/registry/types.js'
 import type { BotFetch, BotPlatformAction, BotPlatformConnection, BotPlatformSession } from '../platforms/types.js'
 import type {
   BotActions, BotActionsTarget, BotActivityApi, BotActivityRecord, BotConnectionRecord, BotHandler, BotHookAnswer,
-  BotHookRequest, BotHookUrlMaker, BotRuleRecord, BotRuntime, BotUpdateRecord,
+  BotHookRequest, BotHookUrlMaker, BotRuntime, BotUpdateRecord,
 } from '../types.js'
 
-/** The four stores, resolved by alias on every call (a store package registers them separately). */
+/** The three stores, resolved by alias on every call (a store package registers them separately). */
 export interface BotStore {
   connections: () => Resource<BotConnectionRecord>
-  rules: () => Resource<BotRuleRecord>
   updates: () => Resource<BotUpdateRecord>
   activities: () => Resource<BotActivityRecord>
 }
@@ -107,7 +106,8 @@ export interface BotActionPlan {
   target?: BotActivityTarget
   text?: string
   update?: string
-  rule?: string
+  /** The handler's opaque reference, recorded on the activity. */
+  ref?: string
   /** A refusal decided before any call (a missing target, an empty text). */
   invalid?: string
   /** The platform call; absent for `note`. */

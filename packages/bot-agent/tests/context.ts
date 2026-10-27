@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { AppType, makeBasicContext, type BasicConfig, type BasicContext } from '@owlmeans/context'
-import { BotPlatform, BotTransport, type BotRuleInput, type BotSimulateInput, type BotUpdate } from '@owlmeans/bot'
+import { BotPlatform, BotTransport, botTextHelper, type BotSimulateInput, type BotUpdate } from '@owlmeans/bot'
 import { configureLog } from '@owlmeans/log'
 import {
-  appendBot, botHandler, RES_BOT_ACTIVITY, RES_BOT_CONNECTION, RES_BOT_RULE, RES_BOT_UPDATE, type BotActions,
-  type BotActivityRecord, type BotConnectionRecord, type BotHandle, type BotRuleRecord, type BotService,
-  type BotUpdateRecord,
+  appendBot, botHandler, RES_BOT_ACTIVITY, RES_BOT_CONNECTION, RES_BOT_UPDATE, type BotActions,
+  type BotActivityRecord, type BotConnectionRecord, type BotHandle, type BotService, type BotUpdateRecord,
 } from '@owlmeans/server-bot'
 import { createStaticResource } from '@owlmeans/static-resource'
 
@@ -21,14 +20,13 @@ export interface TestBot {
 let stores = 0
 
 /**
- * One real context per test: the four bot resources as `@owlmeans/static-resource` stores (a fresh
+ * One real context per test: the three bot resources as `@owlmeans/static-resource` stores (a fresh
  * key each time), then `appendBot` — what a target's backend does with its Postgres resources.
  */
 export const makeTestBot = (): TestBot => {
   const key = `bot-agent-tests-${++stores}`
   const context = makeBasicContext<BasicConfig>({ ready: false, service: 'bot-agent-tests', type: AppType.Backend, services: {} })
   context.registerResource(createStaticResource<BotConnectionRecord>(RES_BOT_CONNECTION, `${key}-connection`))
-  context.registerResource(createStaticResource<BotRuleRecord>(RES_BOT_RULE, `${key}-rule`))
   context.registerResource(createStaticResource<BotUpdateRecord>(RES_BOT_UPDATE, `${key}-update`))
   context.registerResource(createStaticResource<BotActivityRecord>(RES_BOT_ACTIVITY, `${key}-activity`))
   const service = appendBot(context, { secret: () => 'bot-agent-tests-secret' })
@@ -49,19 +47,14 @@ export interface Received {
 }
 
 /**
- * A message through the platform's own path (Telegram unless `platform` says otherwise): the rules
- * saved, the message simulated on a mock connection and dispatched by the worker's runtime to
- * `handle` — the update and the actions a handler receives. `handle` runs inside the handler, as a
- * target's would.
+ * A message through the platform's own path (Telegram unless `platform` says otherwise): simulated on
+ * a mock connection and dispatched by the worker's runtime to `handle` — the update and the actions a
+ * handler receives. `handle` runs inside the handler, as a target's would.
  */
 export const receive = async (
-  bot: TestBot, input: BotSimulateInput, rules: BotRuleInput[] = [], handle?: BotHandle,
-  platform: BotPlatform = BotPlatform.Telegram,
+  bot: TestBot, input: BotSimulateInput, handle?: BotHandle, platform: BotPlatform = BotPlatform.Telegram,
 ): Promise<Received> => {
   const connection = await connect(bot, platform)
-  for (const rule of rules) {
-    await bot.service.rules.save(bot.scope, rule)
-  }
   let received: Received | null = null
   const runtime = bot.service.runtime([botHandler('agent', async (update, actions, context) => {
     received = { connection, update, actions }
@@ -82,4 +75,15 @@ export const receive = async (
  * a platform that can reply, send and react, never delete, mute or ban.
  */
 export const whatsAppUpdate = async (bot: TestBot): Promise<Received> =>
-  await receive(bot, { text: 'When do you open?', sender: { id: '4915550001', name: 'Ann' } }, [], undefined, BotPlatform.WhatsApp)
+  await receive(bot, { text: 'When do you open?', sender: { id: '4915550001', name: 'Ann' } }, undefined, BotPlatform.WhatsApp)
+
+/** An application's own keyword group, as a generated handler reads it from the app's records. */
+export interface KeywordGroup {
+  id: string
+  keywords: string[]
+  instruction?: string
+}
+
+/** What a generated handler does with its groups: the ones the text matches, in the given order. */
+export const matchedGroups = (text: string, groups: readonly KeywordGroup[]): KeywordGroup[] =>
+  groups.filter(group => botTextHelper.matched(text, group.keywords).length > 0)

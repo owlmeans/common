@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/viable-common",
-  "version": "0.0.48-rc.9",
+  "version": "0.0.48-rc.11",
   "license": "MIT",
   "description": "Runtime-free contracts of the OwlMeans Viable platform — the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary, the connector protocol, the owner console's IAM contract and the conversion vocabulary, and the intent-first hand-off from the public site to the platform.",
   "type": "module",
@@ -83,7 +83,7 @@
     "@owlmeans/agent-common": "^0.1.18-rc.50",
     "@owlmeans/auth": "^0.1.18-rc.42",
     "@owlmeans/auth-common": "^0.1.18-rc.54",
-    "@owlmeans/bot": "^0.1.18-rc.2",
+    "@owlmeans/bot": "^0.1.18-rc.3",
     "@owlmeans/context": "^0.1.18-rc.35",
     "@owlmeans/entrypoint": "^0.1.18-rc.42",
     "@owlmeans/error": "^0.1.18-rc.39",

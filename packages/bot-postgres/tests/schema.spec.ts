@@ -4,20 +4,19 @@ import { addLogPlugin, memoryPlugin } from '@owlmeans/log'
 import { pgDeclarationHelper, pgDiffHelper, pgSchemaHelper } from '@owlmeans/postgres-resource'
 import type { TableSpec } from '@owlmeans/postgres-resource'
 import {
-  BotActivityRecordSchema, BotConnectionRecordSchema, BotRuleRecordSchema, BotUpdateRecordSchema,
-  RES_BOT_ACTIVITY, RES_BOT_CONNECTION, RES_BOT_RULE, RES_BOT_UPDATE,
+  BotActivityRecordSchema, BotConnectionRecordSchema, BotUpdateRecordSchema, RES_BOT_ACTIVITY, RES_BOT_CONNECTION,
+  RES_BOT_UPDATE,
 } from '@owlmeans/server-bot'
 
 import {
-  appendPostgresBot, makeBotActivityResource, makeBotConnectionResource, makeBotRuleResource, makeBotUpdateResource,
+  appendPostgresBot, makeBotActivityResource, makeBotConnectionResource, makeBotUpdateResource,
 } from '../src/index.js'
 import type { BotUpdateResource } from '../src/index.js'
 
-const ALIASES = [RES_BOT_CONNECTION, RES_BOT_RULE, RES_BOT_UPDATE, RES_BOT_ACTIVITY]
+const ALIASES = [RES_BOT_CONNECTION, RES_BOT_UPDATE, RES_BOT_ACTIVITY]
 
 const SCHEMAS: Record<string, object> = {
   [RES_BOT_CONNECTION]: BotConnectionRecordSchema,
-  [RES_BOT_RULE]: BotRuleRecordSchema,
   [RES_BOT_UPDATE]: BotUpdateRecordSchema,
   [RES_BOT_ACTIVITY]: BotActivityRecordSchema,
 }
@@ -30,7 +29,6 @@ const reset = (): void => {
 
 const makeAll = (): void => {
   makeBotConnectionResource()
-  makeBotRuleResource()
   makeBotUpdateResource()
   makeBotActivityResource()
 }
@@ -59,7 +57,7 @@ const ddlOf = (spec: TableSpec): string[] =>
 describe('@owlmeans/bot-postgres — table shapes', () => {
   test('each maker assigns server-bot\'s schema, not a copy, under the default alias', () => {
     reset()
-    const made = [makeBotConnectionResource(), makeBotRuleResource(), makeBotUpdateResource(), makeBotActivityResource()]
+    const made = [makeBotConnectionResource(), makeBotUpdateResource(), makeBotActivityResource()]
 
     expect(made.map(resource => resource.alias)).toEqual(ALIASES)
     expect(made.map(resource => resource.schema)).toEqual(ALIASES.map(alias => SCHEMAS[alias]))
@@ -84,7 +82,6 @@ describe('@owlmeans/bot-postgres — table shapes', () => {
     reset()
     makeAll()
     const connection = specOf(RES_BOT_CONNECTION)
-    const rule = specOf(RES_BOT_RULE)
     const update = specOf(RES_BOT_UPDATE)
     const activity = specOf(RES_BOT_ACTIVITY)
 
@@ -96,7 +93,6 @@ describe('@owlmeans/bot-postgres — table shapes', () => {
     const strings = { sqlType: 'text[]', jsonb: false, array: true }
     expect(typeOf(connection, 'setup')).toEqual({ ...strings, notNull: false })
     expect(typeOf(connection, 'credentialsSet')).toEqual({ ...strings, notNull: true })
-    expect(typeOf(rule, 'keywords')).toEqual({ ...strings, notNull: true })
     expect(typeOf(update, 'handled')).toEqual({ ...strings, notNull: true })
 
     /** The sealed credentials are ONE opaque text column, never split per credential key. */
@@ -108,17 +104,15 @@ describe('@owlmeans/bot-postgres — table shapes', () => {
     ])
   })
 
-  test('the rule\'s order is a double precision column, quoted in the DDL', () => {
+  test('the activity\'s ref is a nullable text column — the handler\'s opaque reference', () => {
     reset()
     makeAll()
-    const rule = specOf(RES_BOT_RULE)
+    const activity = specOf(RES_BOT_ACTIVITY)
 
-    expect([rule.byProperty.order.column, rule.byProperty.order.sqlType, rule.byProperty.order.notNull])
-      .toEqual(['order', 'double precision', true])
-    expect(typeOf(rule, 'connection')).toEqual({ sqlType: 'text', jsonb: false, array: false, notNull: false })
-    const [create] = ddlOf(rule)
-    expect(create).toContain('"order" double precision NOT NULL')
-    expect(create).not.toMatch(/[^"]order[^"]/)
+    expect(typeOf(activity, 'ref')).toEqual({ sqlType: 'text', jsonb: false, array: false, notNull: false })
+    expect(activity.byProperty.rule).toBeUndefined()
+    const [create] = ddlOf(activity)
+    expect(create).toContain('"ref" text')
   })
 
   test('the inbox dedupe key is a unique index, and every index the reads need is declared', () => {
@@ -130,10 +124,6 @@ describe('@owlmeans/bot-postgres — table shapes', () => {
     expect(names(RES_BOT_CONNECTION)).toEqual([
       ['bot_connection_scope_created', ['scope', 'createdAt'], false],
       ['bot_connection_receive', ['enabled', 'status', 'receive'], false],
-    ])
-    expect(names(RES_BOT_RULE)).toEqual([
-      ['bot_rule_scope', ['scope'], false],
-      ['bot_rule_scope_connection', ['scope', 'connection'], false],
     ])
     expect(names(RES_BOT_UPDATE)).toEqual([
       ['bot_update_dedupe', ['dedupe'], true],
@@ -169,7 +159,7 @@ describe('@owlmeans/bot-postgres — table shapes', () => {
     }
   })
 
-  test('appendPostgresBot registers the four once, and custom aliases name their own tables and indexes', () => {
+  test('appendPostgresBot registers the three once, and custom aliases name their own tables and indexes', () => {
     const context = makeBasicContext<BasicConfig>({ ready: false, service: 'bot-pg-schema', type: AppType.Backend, services: {} })
     appendPostgresBot(context)
     const first = ALIASES.map(alias => context.resource(alias))
@@ -177,7 +167,7 @@ describe('@owlmeans/bot-postgres — table shapes', () => {
     expect(ALIASES.map(alias => context.resource(alias))).toEqual(first)
     first.forEach((resource, at) => expect(context.resource(ALIASES[at])).toBe(resource))
 
-    const custom = { connection: 'chat-connection', rule: 'chat-rule', update: 'chat-update', activity: 'chat-activity' }
+    const custom = { connection: 'chat-connection', update: 'chat-update', activity: 'chat-activity' }
     appendPostgresBot(context, { resources: custom })
     expect(Object.values(custom).map(alias => context.resource<BotUpdateResource>(alias).schema))
       .toEqual(ALIASES.map(alias => SCHEMAS[alias]))

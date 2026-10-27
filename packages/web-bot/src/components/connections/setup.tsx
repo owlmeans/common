@@ -34,17 +34,15 @@ export const PlatformHint: FC<PlatformHintProps> = ({ platform, applicationId, b
 
 /**
  * A live connection's setup: the platform hint, and for a platform set up by hand (WhatsApp, Slack)
- * the address and values to paste, each with its own copy button. A mock connection needs none of
- * it — nothing reaches the platform.
+ * the address and values to paste, each with its own copy button. A mock connection (made through
+ * the API for tests) reaches no platform: nothing is drawn for it.
  */
 export const ConnectionSetup: FC<ConnectionSetupProps> = ({ connection }) => {
   const t = useI18nLib(BOT_I18N, 'connections')
   const descriptor = BOT_PLATFORMS[connection.platform]
 
   if (connection.transport === BotTransport.Mock) {
-    return <p className="text-muted-foreground text-sm" data-bot-hint="mock">
-      {t('mock-note', { platform: descriptor?.title ?? connection.platform })}
-    </p>
+    return null
   }
 
   const manual = descriptor?.setup === 'manual'

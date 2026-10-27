@@ -11,7 +11,6 @@ import {
 import { BOT_ACTIVITY_LIMITS, BOT_ACTIVITY_REFRESH_MS, BOT_I18N } from '../consts.js'
 import { useBotActivity } from '../hooks/use-bot-activity.js'
 import { useBotConnections } from '../hooks/use-bot-connections.js'
-import { useBotRules } from '../hooks/use-bot-rules.js'
 import type { BotActivityPanelProps } from '../types.js'
 import { cn } from '../utils.js'
 import { ActivityList } from './activity/list.js'
@@ -20,18 +19,17 @@ import { BotErrorNote } from './shared/error-note.js'
 /**
  * What the bot DID, newest first — read again every few seconds while the page is visible. With
  * `connection`, that connection's activity only; without it, every connection's, each row naming
- * its own.
+ * its own. `refLabel` names what a row's handler followed (the application's own keyword group, say);
+ * without it a row shows no ref.
  */
-export const BotActivityPanel: FC<BotActivityPanelProps> = ({ surface, connection, className }) => {
+export const BotActivityPanel: FC<BotActivityPanelProps> = ({ surface, connection, refLabel, className }) => {
   const t = useI18nLib(BOT_I18N)
   const [limit, setLimit] = useState<number>(BOT_ACTIVITY_LIMITS[0])
   const { items, loading, error, reload } = useBotActivity(surface, {
     connection, limit, refreshMs: BOT_ACTIVITY_REFRESH_MS,
   })
-  const { items: rules } = useBotRules(surface, { connection })
   const { items: connections } = useBotConnections(surface)
 
-  const ruleNames = useMemo(() => new Map(rules.map(rule => [rule.id, rule.name])), [rules])
   const labels = useMemo(() => connection == null || connection === ''
     ? new Map(connections.map(entry => [entry.id, entry.label]))
     : undefined, [connection, connections])
@@ -69,7 +67,7 @@ export const BotActivityPanel: FC<BotActivityPanelProps> = ({ surface, connectio
         </div>
         : items.length === 0
           ? <p className="text-muted-foreground py-8 text-center text-sm" data-bot-empty>{t('activity.empty')}</p>
-          : <ActivityList items={items} rules={ruleNames} connections={labels} />}
+          : <ActivityList items={items} refLabel={refLabel} connections={labels} />}
     </CardContent>
   </Card>
 }

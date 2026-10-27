@@ -2,7 +2,7 @@ import type { SlackTextHelper } from './types.js'
 
 /**
  * Slack escapes `&`, `<` and `>` in message text (https://docs.slack.dev/messaging/formatting-message-text/):
- * an inbound text is decoded so rules match what people read; an outbound text is encoded so the
+ * an inbound text is decoded so handlers match what people read; an outbound text is encoded so the
  * contract's plain text stays literal (no accidental links or mentions).
  */
 export const createSlackTextHelper = (): SlackTextHelper => {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  BOT_ACTIVITY_LIMIT_MAX, BOT_KEYWORDS_MAX, BotActivityQuerySchema, BotChallengeQuerySchema, BotConnectionInputSchema,
-  BotHookParamsSchema, BotIdParamsSchema, BotRuleInputSchema, BotRuleListQuerySchema, BotSimulateInputSchema,
+  BOT_ACTIVITY_LIMIT_MAX, BotActivityQuerySchema, BotChallengeQuerySchema, BotConnectionInputSchema,
+  BotHookParamsSchema, BotIdParamsSchema, BotSimulateInputSchema,
 } from '../src/index.js'
 import { validatorOf } from './context.js'
 
@@ -22,27 +22,6 @@ describe('connection input', () => {
     expect(valid({ platform: 'telegram', label: 'x', scope: 'org-1' })).toBe(false)
     expect(valid({ platform: 'telegram', label: 'x', credentials: { 'bad key': 'v' } })).toBe(false)
     expect(valid({ platform: 'telegram', label: 'x', credentials: { token: { value: 'v' } } })).toBe(false)
-  })
-})
-
-describe('rule input', () => {
-  const valid = validatorOf(BotRuleInputSchema)
-
-  test('accepts a rule with keywords and an action, scope-wide (null) or bound to a connection', () => {
-    expect(valid({ name: 'Spam', keywords: ['casino'], action: 'delete' })).toBe(true)
-    expect(valid({
-      id: 'r1', connection: null, name: 'Hours', keywords: ['open', 'hours'], mode: 'contains',
-      action: 'reply', reply: 'We open at 9.', instruction: 'Be brief.', enabled: false, order: 2.5,
-    })).toBe(true)
-    expect(valid({ connection: 'conn_1', name: 'x', keywords: ['k'], action: 'agent' })).toBe(true)
-  })
-
-  test('refuses no keywords, too many, an unknown action or mode, and a missing name', () => {
-    expect(valid({ name: 'x', keywords: [], action: 'delete' })).toBe(false)
-    expect(valid({ name: 'x', keywords: Array.from({ length: BOT_KEYWORDS_MAX + 1 }, (_, n) => `k${n}`), action: 'delete' })).toBe(false)
-    expect(valid({ name: 'x', keywords: ['k'], action: 'kick' })).toBe(false)
-    expect(valid({ name: 'x', keywords: ['k'], action: 'delete', mode: 'regex' })).toBe(false)
-    expect(valid({ keywords: ['k'], action: 'delete' })).toBe(false)
   })
 })
 
@@ -82,13 +61,6 @@ describe('params and queries', () => {
     expect(valid({ limit: BOT_ACTIVITY_LIMIT_MAX + 1 })).toBe(false)
     expect(valid({ limit: 0 })).toBe(false)
     expect(valid({ limit: 1.5 })).toBe(false)
-  })
-
-  test('the rule list filters by connection only', () => {
-    const valid = validatorOf(BotRuleListQuerySchema)
-
-    expect(valid({ connection: 'conn_1' })).toBe(true)
-    expect(valid({ scope: 'org-1' })).toBe(false)
   })
 
   test('the hook names a known platform and a path-safe connection; its handshake query stays open', () => {

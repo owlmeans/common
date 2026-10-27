@@ -71,4 +71,4 @@ export const NO_RUNTIME: StoryDesignRuntime = {
 }
 
 /** Every {@link StoryDesignBotTrigger}, for a schema's `enum`. */
-export const STORY_BOT_TRIGGERS: StoryDesignBotTrigger[] = ['rules', 'all', 'command', 'addressed']
+export const STORY_BOT_TRIGGERS: StoryDesignBotTrigger[] = ['keywords', 'all', 'command', 'addressed']

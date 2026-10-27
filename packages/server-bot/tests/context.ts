@@ -3,10 +3,10 @@ import { AppType, makeBasicContext, type BasicConfig, type BasicContext } from '
 import type { Resource } from '@owlmeans/resource'
 import { createStaticResource } from '@owlmeans/static-resource'
 import { configureLog } from '@owlmeans/log'
-import { RES_BOT_ACTIVITY, RES_BOT_CONNECTION, RES_BOT_RULE, RES_BOT_UPDATE } from '../src/consts.js'
+import { RES_BOT_ACTIVITY, RES_BOT_CONNECTION, RES_BOT_UPDATE } from '../src/consts.js'
 import { appendBot } from '../src/service.js'
 import type {
-  BotActivityRecord, BotConnectionRecord, BotRuleRecord, BotService, BotServiceOptions, BotUpdateRecord,
+  BotActivityRecord, BotConnectionRecord, BotService, BotServiceOptions, BotUpdateRecord,
 } from '../src/types.js'
 
 export const SECRET = 'server-bot-tests-secret'
@@ -20,7 +20,6 @@ export interface TestBot {
   context: BasicContext<BasicConfig>
   service: BotService
   connections: Resource<BotConnectionRecord>
-  rules: Resource<BotRuleRecord>
   updates: Resource<BotUpdateRecord>
   activities: Resource<BotActivityRecord>
 }
@@ -28,7 +27,7 @@ export interface TestBot {
 let stores = 0
 
 /**
- * One real context per test: the four resources as `@owlmeans/static-resource` stores (a fresh key
+ * One real context per test: the three resources as `@owlmeans/static-resource` stores (a fresh key
  * each time, so tests never share rows — unless `store` names an earlier bot's, which is that bot's
  * process restarted), then `appendBot` — what a target's backend does with its Postgres resources.
  * A fast dispatcher; the secret is a fixture.
@@ -37,16 +36,14 @@ export const makeTestBot = (options: BotServiceOptions = {}, store?: string): Te
   const key = store ?? `server-bot-tests-${++stores}`
   const context = makeBasicContext<BasicConfig>({ ready: false, service: 'server-bot-tests', type: AppType.Backend, services: {} })
   const connections = createStaticResource<BotConnectionRecord>(RES_BOT_CONNECTION, `${key}-connection`)
-  const rules = createStaticResource<BotRuleRecord>(RES_BOT_RULE, `${key}-rule`)
   const updates = createStaticResource<BotUpdateRecord>(RES_BOT_UPDATE, `${key}-update`)
   const activities = createStaticResource<BotActivityRecord>(RES_BOT_ACTIVITY, `${key}-activity`)
   context.registerResource(connections)
-  context.registerResource(rules)
   context.registerResource(updates)
   context.registerResource(activities)
   const service = appendBot(context, { secret: () => SECRET, pollMs: 5, reconcileMs: 20, ...options })
 
-  return { store: key, context, service, connections, rules, updates, activities }
+  return { store: key, context, service, connections, updates, activities }
 }
 
 export const scopeOf = (): string => `scope-${randomUUID()}`

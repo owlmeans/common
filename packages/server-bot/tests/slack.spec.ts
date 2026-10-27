@@ -99,7 +99,7 @@ describe('@owlmeans/server-bot — Slack normalization (Events API shapes)', () 
     expect(one(envelope(message({ text: 'hey <@U0OTHER001>' }))).update.addressed).toBe(false)
   })
 
-  test('escaped text is decoded for people and rules; the mention is read from the escaped form', () => {
+  test('escaped text is decoded for people and handlers; the mention is read from the escaped form', () => {
     const update = one(envelope(message({ text: `<@${BOT}> AT&amp;T says &lt;b&gt; &amp;lt;` }))).update
     expect([update.message?.text, update.addressed]).toEqual([`<@${BOT}> AT&T says <b> &lt;`, true])
     // A decoded `<@BOT>` that a person typed literally is no mention.

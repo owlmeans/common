@@ -15,8 +15,6 @@ export const BOT_ERROR_MARKERS: Readonly<Record<string, BotErrorKey>> = Object.f
   'transport-mismatch': 'transport-mismatch',
   'unsupported-action': 'unsupported-action',
   // @owlmeans/server-bot's own refusals
-  'rule-not-found': 'rule-not-found',
-  'rule-invalid': 'rule-invalid',
   'connection-disabled': 'connection-disabled',
   'secret-missing': 'secret-missing',
   'credentials-unreadable': 'credentials-unreadable',
@@ -34,8 +32,6 @@ export const BOT_ERROR_MARKERS: Readonly<Record<string, BotErrorKey>> = Object.f
  * only its `type`. `@owlmeans/bot`'s own classes are told by `instanceof`.
  */
 export const BOT_ERROR_TYPES: Readonly<Record<string, BotErrorKey>> = Object.freeze({
-  BotErrorRuleNotFound: 'rule-not-found',
-  BotErrorRuleInvalid: 'rule-invalid',
   BotErrorConnectionDisabled: 'connection-disabled',
   BotErrorSecretMissing: 'secret-missing',
   BotErrorCredentialsUnreadable: 'credentials-unreadable',

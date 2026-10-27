@@ -1,7 +1,7 @@
 import type {
   BotActionKind, BotActivity, BotActivityTarget, BotChatRef, BotConnection, BotConnectionInput, BotConnectionStatus,
-  BotHookReply, BotMatchMode, BotMessageRef, BotPlatform, BotReceiveMode, BotRule, BotRuleAction, BotRuleInput,
-  BotSimulateInput, BotSimulateResult, BotTransport, BotUpdate,
+  BotHookReply, BotMessageRef, BotPlatform, BotReceiveMode, BotSimulateInput, BotSimulateResult, BotTransport,
+  BotUpdate,
 } from '@owlmeans/bot'
 import type { BasicConfig, BasicContext, LazyService } from '@owlmeans/context'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
@@ -47,25 +47,8 @@ export interface BotConnectionRecord extends ResourceRecord {
   updatedAt: string
 }
 
-/** A rule as stored — `BotRule`, its optional fields nullable. */
-export interface BotRuleRecord extends ResourceRecord {
-  scope: string
-  /** `null` / absent: every connection of the scope. */
-  connection?: string | null
-  name: string
-  keywords: string[]
-  mode: BotMatchMode
-  action: BotRuleAction
-  reply?: string | null
-  instruction?: string | null
-  enabled: boolean
-  order: number
-  createdAt: string
-  updatedAt: string
-}
-
-/** What an inbox row keeps of a normalized update: everything but its id (the row's) and `matches`. */
-export interface BotInboxPayload extends Omit<BotUpdate, 'id' | 'matches'> {}
+/** What an inbox row keeps of a normalized update: everything but its id (the row's). */
+export interface BotInboxPayload extends Omit<BotUpdate, 'id'> {}
 
 /** One inbound update in the inbox (`bot-update`). */
 export interface BotUpdateRecord extends ResourceRecord {
@@ -98,7 +81,8 @@ export interface BotActivityRecord extends ResourceRecord {
   action: BotActionKind
   target?: BotActivityTarget | null
   text?: string | null
-  rule?: string | null
+  /** The handler's opaque reference (`BotActionOptions.ref`). */
+  ref?: string | null
   ok: boolean
   /** Why it failed, as a short sentence a person reads. */
   error?: string | null
@@ -110,10 +94,9 @@ export interface BotActivityRecord extends ResourceRecord {
 
 // ─── Service ───
 
-/** Resource aliases — default `bot-connection`, `bot-rule`, `bot-update`, `bot-activity`. */
+/** Resource aliases — default `bot-connection`, `bot-update`, `bot-activity`. */
 export interface BotResourceAliases {
   connection?: string
-  rule?: string
   update?: string
   activity?: string
 }
@@ -182,20 +165,7 @@ export interface BotConnectionsApi {
    * @throws {BotCredentialsRejected}
    */
   verify: (scope: string, id: string, origin?: string) => Promise<BotConnection>
-  /** Unregisters the hook (best effort), removes the connection, its own rules and its inbox. */
-  remove: (scope: string, id: string) => Promise<{ id: string }>
-}
-
-export interface BotRulesApi {
-  /** The scope's rules — with `connection`, its own plus the scope-wide ones — by `order`. */
-  list: (scope: string, connection?: string) => Promise<BotRule[]>
-  /**
-   * @throws {BotRuleNotFound} an `id` that is absent or another scope's
-   * @throws {BotConnectionNotFound} a `connection` that is not the scope's
-   * @throws {BotRuleInvalid} no keyword left after normalization
-   */
-  save: (scope: string, input: BotRuleInput) => Promise<BotRule>
-  /** @throws {BotRuleNotFound} */
+  /** Unregisters the hook (best effort), removes the connection and its inbox; its activity is kept. */
   remove: (scope: string, id: string) => Promise<{ id: string }>
 }
 
@@ -270,8 +240,11 @@ export interface BotActionResult {
 }
 
 export interface BotActionOptions {
-  /** The rule the action follows — recorded on the activity. */
-  rule?: string
+  /**
+   * An opaque reference recorded on the activity (`BotActivity.ref`) — what the handler followed,
+   * e.g. the id of the application's own keyword group the message matched. Never interpreted here.
+   */
+  ref?: string
 }
 
 export interface BotMuteOptions extends BotActionOptions {
@@ -304,7 +277,6 @@ export type BotActionsTarget = BotUpdate | { scope: string, connection: string }
 
 export interface BotService extends LazyService {
   connections: BotConnectionsApi
-  rules: BotRulesApi
   activity: BotActivityApi
   /**
    * The platform's inbound request: authenticate → normalize → inbox (deduplicated) → answer at

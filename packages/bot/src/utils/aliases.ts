@@ -10,11 +10,6 @@ export const createBotAliasUtils = (): BotAliasUtils => {
       remove: `${base}:connection:remove`,
       simulate: `${base}:connection:simulate`,
     }),
-    rule: Object.freeze({
-      list: `${base}:rule:list`,
-      save: `${base}:rule:save`,
-      remove: `${base}:rule:remove`,
-    }),
     activity: Object.freeze({ list: `${base}:activity:list` }),
   })
 

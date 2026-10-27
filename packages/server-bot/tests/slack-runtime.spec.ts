@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import {
-  BotActionKind, BotChatKind, BotConnectionStatus, BotPlatform, BotReceiveMode, BotRuleAction, BotTransport,
-  BotUpdateKind, type BotUpdate,
+  BotActionKind, BotChatKind, BotConnectionStatus, BotPlatform, BotReceiveMode, BotTransport,
+  BotUpdateKind, botTextHelper, type BotUpdate,
 } from '@owlmeans/bot'
 import { BotInboxStatus } from '../src/consts.js'
 import { botHandler } from '../src/handler.js'
@@ -65,13 +65,14 @@ describe('@owlmeans/server-bot — Slack through the service (mock transport)', 
     const scope = scopeOf()
     const connection = await connect(bot, scope)
     const fake = slackBotPlatform.mock.identityOf(connection.id)
-    const spam = await bot.service.rules.save(scope, { name: 'Spam', keywords: ['casino'], action: BotRuleAction.Warn, reply: 'No casino links, please.' })
+    // The application's own keyword group with its warning, matched by the handler.
+    const spam = { id: 'group-spam', keywords: ['casino'], warning: 'No casino links, please.' }
     const seen: BotUpdate[] = []
     const runtime = bot.service.runtime([botHandler('warn', async (update, actions) => {
       seen.push(update)
-      for (const match of update.matches) {
-        expect((await actions.reply(update, match.rule.reply!, { rule: match.rule.id })).ok).toBe(true)
-        expect((await actions.react(update, ':no_entry_sign:', { rule: match.rule.id })).ok).toBe(true)
+      if (botTextHelper.matched(update.message?.text ?? '', spam.keywords).length > 0) {
+        expect((await actions.reply(update, spam.warning, { ref: spam.id })).ok).toBe(true)
+        expect((await actions.react(update, ':no_entry_sign:', { ref: spam.id })).ok).toBe(true)
       }
       expect(actions.supports(BotActionKind.Mute)).toBe(false)
     })])
@@ -87,7 +88,7 @@ describe('@owlmeans/server-bot — Slack through the service (mock transport)', 
       id: update, kind: BotUpdateKind.Message, addressed: true,
       chat: { kind: BotChatKind.Group, space: fake.teamId }, sender: { name: 'Spammer', bot: false },
     })
-    expect(message.matches.map(match => match.rule.id)).toEqual([spam.id])
+    expect(message.message?.text).toEndWith('Best CASINO in town')
     expect((await bot.updates.get(update)).status).toBe(BotInboxStatus.Done)
 
     const calls = callsOf(connection.id)
@@ -98,7 +99,7 @@ describe('@owlmeans/server-bot — Slack through the service (mock transport)', 
       channel: message.chat.id, timestamp: message.message!.ref.id, name: 'no_entry_sign',
     })
     const activity = await bot.service.activity.list(scope)
-    expect(activity.map(entry => [entry.action, entry.ok, entry.transport, entry.rule, entry.update])).toEqual([
+    expect(activity.map(entry => [entry.action, entry.ok, entry.transport, entry.ref, entry.update])).toEqual([
       [BotActionKind.React, true, BotTransport.Mock, spam.id, update],
       [BotActionKind.Reply, true, BotTransport.Mock, spam.id, update],
     ])

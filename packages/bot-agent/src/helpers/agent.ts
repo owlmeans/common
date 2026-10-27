@@ -1,4 +1,4 @@
-import { BOT_PLATFORMS, BotRuleAction, BotUpdateKind, type BotSenderRef, type BotUpdate } from '@owlmeans/bot'
+import { BOT_PLATFORMS, BotUpdateKind, type BotSenderRef, type BotUpdate } from '@owlmeans/bot'
 import { BOT_AGENT_DONE } from '../consts.js'
 import type { BotAgentHelper } from './agent/types.js'
 
@@ -24,10 +24,12 @@ export const createBotAgentHelper = (): BotAgentHelper => {
     return title !== '' ? `${update.chat.kind} "${title}"` : update.chat.kind
   }
 
-  const instructionOf: BotAgentHelper['instructionOf'] = (update, extra) => {
+  const instructionOf: BotAgentHelper['instructionOf'] = instruction => {
+    const list: readonly unknown[] = typeof instruction === 'string' ? [instruction]
+      : Array.isArray(instruction) ? instruction : []
     const seen = new Set<string>()
     const parts: string[] = []
-    for (const text of [...(update.matches ?? []).map(match => match.rule.instruction), extra]) {
+    for (const text of list) {
       const trimmed = typeof text === 'string' ? text.trim() : ''
       if (trimmed !== '' && !seen.has(trimmed)) {
         seen.add(trimmed)
@@ -75,42 +77,11 @@ export const createBotAgentHelper = (): BotAgentHelper => {
     return lines.join('\n')
   }
 
-  const groupsBlock = (update: BotUpdate): string => {
-    const matches = update.matches ?? []
-    if (matches.length === 0) {
-      return '# Matched keyword groups\n\nNone — the message matched no keyword group of the bot\'s owner.'
-    }
-
-    const groups = matches.map(({ rule, keywords }, index) => {
-      const lines = [`## ${index + 1}. ${rule.name}`, `Keywords matched: ${keywords.join(', ')}`]
-      if (rule.action !== BotRuleAction.Agent) {
-        lines.push(`Action: ${rule.action}`)
-      }
-      if (typeof rule.reply === 'string' && rule.reply.trim() !== '') {
-        lines.push(`Reply text: ${rule.reply.trim()}`)
-      }
-      if (typeof rule.instruction === 'string' && rule.instruction.trim() !== '') {
-        lines.push(`Instruction: ${rule.instruction.trim()}`)
-      }
-
-      return lines.join('\n')
-    })
-
-    return [
-      '# Matched keyword groups',
-      '',
-      'The message matched these keyword groups of the bot\'s owner, highest priority first. '
-      + 'Follow their instructions.',
-      '',
-      groups.join('\n\n'),
-    ].join('\n')
-  }
-
   const contextOf: BotAgentHelper['contextOf'] = (update, instruction) => {
-    const blocks = [messageBlock(update), groupsBlock(update)]
-    const extra = typeof instruction === 'string' ? instruction.trim() : ''
-    if (extra !== '') {
-      blocks.push(`# Instruction\n\n${extra}`)
+    const blocks = [messageBlock(update)]
+    const text = instructionOf(instruction)
+    if (text !== '') {
+      blocks.push(`# Instruction\n\n${text}`)
     }
 
     return blocks

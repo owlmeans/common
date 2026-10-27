@@ -49,19 +49,6 @@ export const serveBotEntrypoints = (protocols: BotProtocols, opts: BotServeOptio
       const [bot, scope] = await scoped(req, ctx)
       return await bot.simulate(scope, `${req.params.id}`, req.body)
     })),
-    bind(protocols.rule.list, api.request(protocols.rule.list, async (req, ctx) => {
-      const [bot, scope] = await scoped(req, ctx)
-      const connection = req.query?.connection
-      return await bot.rules.list(scope, typeof connection === 'string' && connection !== '' ? connection : undefined)
-    })),
-    bind(protocols.rule.save, api.request(protocols.rule.save, async (req, ctx) => {
-      const [bot, scope] = await scoped(req, ctx)
-      return await bot.rules.save(scope, req.body)
-    })),
-    bind(protocols.rule.remove, api.request(protocols.rule.remove, async (req, ctx) => {
-      const [bot, scope] = await scoped(req, ctx)
-      return await bot.rules.remove(scope, `${req.params.id}`)
-    })),
     bind(protocols.activity.list, api.request(protocols.activity.list, async (req, ctx) => {
       const [bot, scope] = await scoped(req, ctx)
       const connection = req.query?.connection

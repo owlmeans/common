@@ -4,8 +4,11 @@
  */
 export const BOT_TOKEN_PATTERN = /[\p{L}\p{M}\p{N}_]+/gu
 
-/** Any whitespace run — collapsed to one space before a `contains` comparison and in a stored keyword. */
+/** Any whitespace run — collapsed to one space before a `contains` comparison and in a typed phrase. */
 export const BOT_SPACE_PATTERN = /\s+/gu
+
+/** What separates the phrases of a typed list: commas (ASCII, full-width, ideographic) and line breaks. */
+export const BOT_PHRASE_SEPARATOR_PATTERN = /[,，、\r\n]+/u
 
 /**
  * A `/command`, optionally addressed `@ToBot`, ending at whitespace or at the end of the text, then

@@ -2,16 +2,14 @@ import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { backend, route, RouteMethod, type RouteOptions } from '@owlmeans/route'
 import {
   BotActivityQuerySchema, BotChallengeQuerySchema, BotConnectionInputSchema, BotHookParamsSchema, BotIdParamsSchema,
-  BotRuleInputSchema, BotRuleListQuerySchema, BotSimulateInputSchema,
+  BotSimulateInputSchema,
 } from './schemas.js'
 import { botAliasUtils } from './utils/aliases.js'
 import type {
   BotActivityQuery, BotBaseOptions, BotChallengeQuery, BotHookParams, BotHookPayload, BotHookProtocolOptions,
-  BotHookProtocols, BotHookReply, BotIdParams, BotProtocolOptions, BotProtocols, BotRemoveResult, BotRuleListQuery,
+  BotHookProtocols, BotHookReply, BotIdParams, BotProtocolOptions, BotProtocols, BotRemoveResult,
 } from './protocols/types.js'
-import type {
-  BotActivity, BotConnection, BotConnectionInput, BotRule, BotRuleInput, BotSimulateInput, BotSimulateResult,
-} from './types.js'
+import type { BotActivity, BotConnection, BotConnectionInput, BotSimulateInput, BotSimulateResult } from './types.js'
 
 const mountOf = (base: BotBaseOptions): Partial<RouteOptions> => ({
   ...(base.parent != null ? { parent: base.parent } : {}),
@@ -19,7 +17,7 @@ const mountOf = (base: BotBaseOptions): Partial<RouteOptions> => ({
 })
 
 /**
- * Declare one managing surface of the bot — connections, rules, activity — as an immutable tree a
+ * Declare one managing surface of the bot — connections and activity — as an immutable tree a
  * server binds and a client calls.
  *
  * Every leaf hangs under ONE base that carries the guards and the gate, so they cannot drift apart;
@@ -61,21 +59,6 @@ export const makeBotProtocols = (opts: BotProtocolOptions): BotProtocols => {
           params: typed<BotIdParams>(BotIdParamsSchema),
           body: typed<BotSimulateInput>(BotSimulateInputSchema),
         }, typed<BotSimulateResult>())
-      ),
-    }),
-
-    rule: Object.freeze({
-      list: protocol(
-        leaf(aliases.rule.list, '/rules', RouteMethod.GET),
-        contract.request({ query: typed<BotRuleListQuery>(BotRuleListQuerySchema) }, typed<BotRule[]>())
-      ),
-      save: protocol(
-        leaf(aliases.rule.save, '/rules', RouteMethod.POST),
-        contract.request({ body: typed<BotRuleInput>(BotRuleInputSchema) }, typed<BotRule>())
-      ),
-      remove: protocol(
-        leaf(aliases.rule.remove, '/rules/:id', RouteMethod.DELETE),
-        contract.request({ params: typed<BotIdParams>(BotIdParamsSchema) }, typed<BotRemoveResult>())
       ),
     }),
 

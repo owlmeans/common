@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import {
-  BotActionKind, BotChatKind, BotConnectionStatus, BotPlatform, BotReceiveMode, BotRuleAction, BotSignatureRejected,
-  BotTransport, type BotUpdate,
+  BotActionKind, BotChatKind, BotConnectionStatus, BotPlatform, BotReceiveMode, BotSignatureRejected,
+  BotTransport, botTextHelper, type BotUpdate,
 } from '@owlmeans/bot'
 import { BotInboxStatus } from '../src/consts.js'
 import { botHandler } from '../src/handler.js'
@@ -38,13 +38,14 @@ describe('@owlmeans/server-bot — Discord on the mock transport', () => {
     })
     expect(connection.setup?.[0]).toContain(discordSetupHelper.inviteUrl(APPLICATION_ID))
 
-    const spam = await bot.service.rules.save(scope, { name: 'Spam', keywords: ['casino'], action: BotRuleAction.Delete })
+    // The application's own keyword group, matched by the handler.
+    const spam = { id: 'group-spam', keywords: ['casino'] }
     const seen: BotUpdate[] = []
     const runtime = bot.service.runtime([botHandler('moderate', async (update, actions) => {
       seen.push(update)
-      for (const match of update.matches) {
-        expect((await actions.delete(update, { rule: match.rule.id })).ok).toBe(true)
-        const reply = await actions.reply(update, 'Removed: casino links are not allowed.', { rule: match.rule.id })
+      if (botTextHelper.matched(update.message?.text ?? '', spam.keywords).length > 0) {
+        expect((await actions.delete(update, { ref: spam.id })).ok).toBe(true)
+        const reply = await actions.reply(update, 'Removed: casino links are not allowed.', { ref: spam.id })
         expect(reply.ok).toBe(true)
         expect(reply.message).toMatchObject({ chat: update.chat.id, space: update.chat.space })
       }
@@ -62,13 +63,13 @@ describe('@owlmeans/server-bot — Discord on the mock transport', () => {
     expect(await runtime.dispatch()).toBe(1)
 
     const [message] = seen
-    expect([message.id, message.matches.map(match => match.rule.id), message.chat.kind, message.sender?.name])
-      .toEqual([update, [spam.id], BotChatKind.Group, 'Spammer'])
+    expect([message.id, message.message?.text, message.chat.kind, message.sender?.name])
+      .toEqual([update, 'Best CASINO in town', BotChatKind.Group, 'Spammer'])
     expect(message.chat.space).toMatch(/^\d{17,20}$/)
     expect(message.sender?.id).toMatch(/^\d{17,20}$/)
     expect((await bot.updates.get(update)).status).toBe(BotInboxStatus.Done)
     const activity = await bot.service.activity.list(scope)
-    expect(activity.map(entry => [entry.action, entry.ok, entry.transport, entry.rule, entry.update])).toEqual([
+    expect(activity.map(entry => [entry.action, entry.ok, entry.transport, entry.ref, entry.update])).toEqual([
       [BotActionKind.Reply, true, BotTransport.Mock, spam.id, update],
       [BotActionKind.Delete, true, BotTransport.Mock, spam.id, update],
     ])

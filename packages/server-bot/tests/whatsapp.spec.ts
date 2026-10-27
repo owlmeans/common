@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import {
   BotActionKind, BotChatKind, BotConnectionStatus, BotCredentialsRejected, BotPlatform, BotReceiveMode,
-  BotRuleAction, BotSignatureRejected, BotTransport, BotUnsupportedAction, BotUpdateKind, makeBotHookProtocols,
+  BotSignatureRejected, BotTransport, BotUnsupportedAction, BotUpdateKind, botTextHelper, makeBotHookProtocols,
   type BotConnection, type BotUpdate,
 } from '@owlmeans/bot'
 import { BotInboxStatus } from '../src/consts.js'
@@ -344,16 +344,17 @@ describe('@owlmeans/server-bot — WhatsApp through the service (mock transport)
     const bot = makeTestBot()
     const scope = scopeOf()
     const connection = await connect(bot, scope)
-    const hours = await bot.service.rules.save(scope, { name: 'Hours', keywords: ['open'], action: BotRuleAction.Reply, reply: 'We open at 7.' })
+    // The application's own keyword group with its fixed answer, matched by the handler.
+    const hours = { id: 'group-hours', keywords: ['open'], reply: 'We open at 7.' }
     const seen: BotUpdate[] = []
     const runtime = bot.service.runtime([botHandler('answer', async (update, actions) => {
       seen.push(update)
-      for (const match of update.matches) {
-        const reply = await actions.reply(update, match.rule.reply!, { rule: match.rule.id })
+      if (botTextHelper.matched(update.message?.text ?? '', hours.keywords).length > 0) {
+        const reply = await actions.reply(update, hours.reply, { ref: hours.id })
         expect(reply.ok).toBe(true)
         expect(reply.message?.chat).toBe(update.chat.id)
         expect(reply.message?.id.startsWith('wamid.')).toBe(true)
-        expect((await actions.react(update, '🥐', { rule: match.rule.id })).ok).toBe(true)
+        expect((await actions.react(update, '🥐', { ref: hours.id })).ok).toBe(true)
       }
     })])
     runtimes.push(runtime)
@@ -362,8 +363,8 @@ describe('@owlmeans/server-bot — WhatsApp through the service (mock transport)
     expect(await runtime.dispatch()).toBe(1)
 
     const [message] = seen
-    expect([message.chat, message.sender, message.addressed, message.matches.map(match => match.rule.id)]).toEqual([
-      { id: '447700900123', kind: BotChatKind.Private, title: 'Ann' }, { id: '447700900123', name: 'Ann', bot: false }, true, [hours.id],
+    expect([message.chat, message.sender, message.addressed, message.message?.text]).toEqual([
+      { id: '447700900123', kind: BotChatKind.Private, title: 'Ann' }, { id: '447700900123', name: 'Ann', bot: false }, true, 'When are you OPEN?',
     ])
     expect((await bot.updates.get(update)).status).toBe(BotInboxStatus.Done)
     const sent = mock.calls(connection.id).filter(call => call.method === 'messages').map(call => call.params)
@@ -378,7 +379,7 @@ describe('@owlmeans/server-bot — WhatsApp through the service (mock transport)
       },
     ])
     const activity = await bot.service.activity.list(scope)
-    expect(activity.map(entry => [entry.action, entry.ok, entry.transport, entry.rule, entry.update, entry.target])).toEqual([
+    expect(activity.map(entry => [entry.action, entry.ok, entry.transport, entry.ref, entry.update, entry.target])).toEqual([
       [BotActionKind.React, true, BotTransport.Mock, hours.id, update, { chat: '447700900123', message: message.message!.ref.id }],
       [BotActionKind.Reply, true, BotTransport.Mock, hours.id, update, { chat: '447700900123', message: message.message!.ref.id }],
     ])

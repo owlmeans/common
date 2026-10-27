@@ -1,32 +1,37 @@
 import { describe, expect, test } from 'bun:test'
 import { makeAgentModel, type AgentRun } from '@owlmeans/agent'
-import { BotActionKind, BotRuleAction } from '@owlmeans/bot'
+import { BotActionKind } from '@owlmeans/bot'
 import { DEFAULT_EFFORT, makeExecutionService, makePromptService } from '@owlmeans/llm'
 import { BOT_AGENT_PLUGIN, BotAgentTool, botAgentPlugin } from '../src/index.js'
-import { makeTestBot, receive, whatsAppUpdate } from './context.js'
+import { makeTestBot, matchedGroups, receive, whatsAppUpdate, type KeywordGroup } from './context.js'
 import { scriptedModel } from './_tools/model.js'
 
-const RULES = [
-  { name: 'Spam', keywords: ['casino', 'free money'], action: BotRuleAction.Delete, instruction: 'Delete advertising.', order: 1 },
-  { name: 'Rudeness', keywords: ['idiot'], action: BotRuleAction.Agent, instruction: 'Warn politely.', reply: 'Be kind.', order: 2 },
-  { name: 'Weather', keywords: ['rain'], action: BotRuleAction.Reply, reply: 'Take an umbrella.', order: 3 },
+/** The application's own keyword groups — the handler matches them, the plugin only hears their instructions. */
+const GROUPS: KeywordGroup[] = [
+  { id: 'g-spam', keywords: ['casino', 'free money'], instruction: 'Delete advertising.' },
+  { id: 'g-rude', keywords: ['idiot'], instruction: 'Warn politely.' },
+  { id: 'g-weather', keywords: ['rain'], instruction: 'Mention the umbrella.' },
 ]
 
 /** The plugin ignores the run it is handed; a spec has none outside a loop. */
 const NO_RUN = {} as AgentRun
 
 describe('@owlmeans/bot-agent — botAgentPlugin', () => {
-  test('contributes the message, chat, sender, replied-to text, every matched group and the instruction', async () => {
+  test('contributes the message, chat, sender, replied-to text and the instructions the handler passes', async () => {
     const bot = makeTestBot()
     const { update, actions } = await receive(bot, {
       text: 'Free money at the CASINO, idiot!\nJoin now',
       chat: { title: 'Gamers' },
       sender: { id: '777', name: 'Spammer', username: 'spammer' },
       replyTo: { id: '5', text: 'Welcome, everyone' },
-    }, RULES)
+    })
 
-    const plugin = botAgentPlugin({ update, bot: actions, instruction: 'Never ban anybody.' })
-    const [message, groups, instruction, ...rest] = await plugin.context!(NO_RUN)
+    const matched = matchedGroups(update.message?.text ?? '', GROUPS)
+    const plugin = botAgentPlugin({
+      update, bot: actions, ref: matched[0].id,
+      instruction: [...matched.map(group => group.instruction ?? ''), 'Never ban anybody.'],
+    })
+    const [message, instruction, ...rest] = await plugin.context!(NO_RUN)
 
     expect(rest).toEqual([])
     expect(message).toContain('Platform: Telegram')
@@ -34,16 +39,15 @@ describe('@owlmeans/bot-agent — botAgentPlugin', () => {
     expect(message).toContain('Sender: Spammer (@spammer)')
     expect(message).toContain('> Free money at the CASINO, idiot!\n> Join now')
     expect(message).toContain('> Welcome, everyone')
-    expect(groups).toContain('## 1. Spam\nKeywords matched: casino, free money\nAction: delete\nInstruction: Delete advertising.')
-    // `agent` is the hand-over itself, not an action to tell the model about.
-    expect(groups).toContain('## 2. Rudeness\nKeywords matched: idiot\nReply text: Be kind.\nInstruction: Warn politely.')
-    expect(groups).not.toContain('Weather')
-    expect(instruction).toBe('# Instruction\n\nNever ban anybody.')
+    expect(instruction).toBe('# Instruction\n\nDelete advertising.\n\nWarn politely.\n\nNever ban anybody.')
+    expect(instruction).not.toContain('umbrella')
+    // No instruction: the message alone.
+    expect(await botAgentPlugin({ update, bot: actions }).context!(NO_RUN)).toEqual([message])
   })
 
   test('offers only the tools the platform supports and allow names', async () => {
     const bot = makeTestBot()
-    const telegram = await receive(bot, { text: 'casino' }, RULES)
+    const telegram = await receive(bot, { text: 'casino' })
     const whatsApp = await whatsAppUpdate(bot)
     const names = (options: Parameters<typeof botAgentPlugin>[0]): string[] =>
       Object.values(botAgentPlugin(options).tools!(NO_RUN)).map(item => item.name)

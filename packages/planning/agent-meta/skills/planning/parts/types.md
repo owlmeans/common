@@ -70,7 +70,10 @@ schemas: { app: {
 
 - **Closed form** (`appSchemaHelper.assertDeclarations` → `SchemaInvalid('app:<kind>:…')`): each
   kind is `{ type?: 'object', properties, required? }` and nothing else; property names hold no
-  `.` or `$`; every `required` name is declared in the same declaration; the schema compiles.
+  `.` or `$`; every `required` name is declared in the same declaration; outside a browser document
+  the schema compiles. A page never compiles (a strict `script-src` refuses Ajv's code generation):
+  building, loading or merging a registry there runs the closed-form checks only, and what it
+  registers is the bundle its server compiled when the plugins were registered.
 - **Merge** (`appSchemaHelper.merge`, run by the server's plugin registry on every `use` and by
   the client over the served bundle): the service's own `schemas.app` first, then each plugin's in
   plugin order (`order` ascending, registration order among equals). Per kind `properties` are

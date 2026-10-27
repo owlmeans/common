@@ -1,4 +1,4 @@
-import { BOT_PLATFORMS, type BotCredentialField, type BotPlatform, type BotRule, type BotRuleInput } from '@owlmeans/bot'
+import { BOT_PLATFORMS, type BotCredentialField, type BotPlatform } from '@owlmeans/bot'
 import { BOT_DISCORD_INVITE_URL, BOT_DISCORD_PERMISSIONS, BOT_EXCERPT_MAX } from '../consts.js'
 import type { BotSetupLine, BotViewHelper } from './view/types.js'
 
@@ -13,26 +13,6 @@ export const createBotViewHelper = (): BotViewHelper => {
 
   const typedCredentialsOf = (platform: BotPlatform): BotCredentialField[] =>
     (BOT_PLATFORMS[platform]?.credentials ?? []).filter(field => field.generated !== true)
-
-  const orderRules = (rules: readonly BotRule[]): BotRule[] => [...rules].sort(
-    (a, b) => a.order - b.order || a.name.localeCompare(b.name)
-  )
-
-  const ruleInputOf = (rule: BotRule): BotRuleInput => ({
-    id: rule.id,
-    connection: rule.connection ?? null,
-    name: rule.name,
-    keywords: [...rule.keywords],
-    mode: rule.mode,
-    action: rule.action,
-    ...(rule.reply != null ? { reply: rule.reply } : {}),
-    ...(rule.instruction != null ? { instruction: rule.instruction } : {}),
-    enabled: rule.enabled,
-    order: rule.order,
-  })
-
-  const nextOrder = (rules: readonly BotRule[]): number =>
-    rules.reduce((max, rule) => Math.max(max, rule.order), 0) + 1
 
   const formatMoment = (value: string | null | undefined, lng?: string): string | null => {
     if (value == null || value === '') return null
@@ -67,12 +47,8 @@ export const createBotViewHelper = (): BotViewHelper => {
     return `${BOT_DISCORD_INVITE_URL}?${query.toString()}`
   }
 
-  const splitKeywords = (text: string): string[] =>
-    text.split(/[,;\n]/u).map(keyword => keyword.trim()).filter(keyword => keyword !== '')
-
   return {
-    platformsOf, typedCredentialsOf, orderRules, ruleInputOf, nextOrder, formatMoment, excerpt, setupLineOf, discordInviteUrl,
-    splitKeywords,
+    platformsOf, typedCredentialsOf, formatMoment, excerpt, setupLineOf, discordInviteUrl,
   }
 }
 

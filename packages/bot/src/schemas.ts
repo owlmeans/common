@@ -1,19 +1,15 @@
 import type { JSONSchemaType } from 'ajv'
 import {
   BOT_ACTIVITY_LIMIT_MAX, BOT_CREDENTIAL_KEY_PATTERN, BOT_CREDENTIAL_MAX, BOT_CREDENTIALS_MAX, BOT_ID_MAX,
-  BOT_ID_PATTERN, BOT_INSTRUCTION_MAX, BOT_KEYWORD_MAX, BOT_KEYWORDS_MAX, BOT_LABEL_MAX, BOT_NAME_MAX,
-  BOT_REPLY_MAX, BOT_RULE_NAME_MAX, BOT_TEXT_MAX, BotChatKind, BotMatchMode, BotPlatform, BotRuleAction,
-  BotTransport,
+  BOT_ID_PATTERN, BOT_LABEL_MAX, BOT_NAME_MAX, BOT_TEXT_MAX, BotChatKind, BotPlatform, BotTransport,
 } from './consts.js'
-import type {
-  BotActivityQuery, BotChallengeQuery, BotHookParams, BotIdParams, BotRuleListQuery,
-} from './protocols/types.js'
-import type { BotConnectionInput, BotRuleInput, BotSimulateInput } from './types.js'
+import type { BotActivityQuery, BotChallengeQuery, BotHookParams, BotIdParams } from './protocols/types.js'
+import type { BotConnectionInput, BotSimulateInput } from './types.js'
 
 /**
  * Hand-written request schemas, cast: an optional key is OPTIONAL, never `null` — the wire matches the
- * TypeScript type exactly. The only nullable is a rule's `connection`, whose `null` means "every
- * connection of the scope". `additionalProperties: false` everywhere a client writes.
+ * TypeScript type exactly, and nothing is nullable. `additionalProperties: false` everywhere a client
+ * writes.
  */
 const cast = <T>(schema: object): JSONSchemaType<T> => schema as unknown as JSONSchemaType<T>
 
@@ -48,29 +44,6 @@ export const BotConnectionInputSchema = cast<BotConnectionInput>({
     },
   },
   required: ['platform', 'label'],
-  additionalProperties: false,
-})
-
-export const BotRuleInputSchema = cast<BotRuleInput>({
-  type: 'object',
-  properties: {
-    id: Id,
-    connection: { ...Id, nullable: true },
-    name: { type: 'string', minLength: 1, maxLength: BOT_RULE_NAME_MAX },
-    keywords: {
-      type: 'array',
-      items: { type: 'string', minLength: 1, maxLength: BOT_KEYWORD_MAX },
-      minItems: 1,
-      maxItems: BOT_KEYWORDS_MAX,
-    },
-    mode: { type: 'string', enum: Object.values(BotMatchMode) },
-    action: { type: 'string', enum: Object.values(BotRuleAction) },
-    reply: { type: 'string', maxLength: BOT_REPLY_MAX },
-    instruction: { type: 'string', maxLength: BOT_INSTRUCTION_MAX },
-    enabled: { type: 'boolean' },
-    order: { type: 'number' },
-  },
-  required: ['name', 'keywords', 'action'],
   additionalProperties: false,
 })
 
@@ -112,13 +85,6 @@ export const BotSimulateInputSchema = cast<BotSimulateInput>({
     },
   },
   required: ['text'],
-  additionalProperties: false,
-})
-
-export const BotRuleListQuerySchema = cast<BotRuleListQuery>({
-  type: 'object',
-  properties: { connection: Id },
-  required: [],
   additionalProperties: false,
 })
 

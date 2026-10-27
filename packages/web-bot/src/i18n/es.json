@@ -10,8 +10,7 @@
     "copied": "Copiado",
     "enabled": "Activado",
     "loading": "Cargando…",
-    "optional": "opcional",
-    "all-connections": "Todas las conexiones"
+    "optional": "opcional"
   },
   "status": {
     "pending": "Sin verificar",
@@ -20,7 +19,6 @@
     "disabled": "Desactivado"
   },
   "transport": {
-    "live": "Real",
     "mock": "Simulado"
   },
   "receive": {
@@ -36,23 +34,6 @@
     "ban": "Expulsión",
     "react": "Reacción",
     "note": "Nota"
-  },
-  "rule-action": {
-    "delete": "Eliminar el mensaje",
-    "warn": "Advertir al remitente",
-    "mute": "Silenciar al remitente",
-    "ban": "Expulsar al remitente",
-    "reply": "Responder con un texto",
-    "record": "Registrar una solicitud",
-    "agent": "Que responda el asistente"
-  },
-  "mode": {
-    "word": "Palabras completas",
-    "contains": "Contiene"
-  },
-  "mode-hint": {
-    "word": "Busca palabras y frases completas, sin distinguir mayúsculas: «free money» coincide con «FREE money!», no con «freedom».",
-    "contains": "Busca cualquier parte del mensaje, sin distinguir mayúsculas; también sirve para idiomas que se escriben sin espacios."
   },
   "credentials": {
     "telegram": {
@@ -119,7 +100,6 @@
     "verified": "Conectado como {{name}}.",
     "remove-title": "¿Eliminar esta conexión?",
     "remove-description": "«{{label}}» dejará de recibir y responder mensajes de inmediato. No se puede deshacer.",
-    "mock-note": "Conexión simulada: nada llega a {{platform}}. Pruébala con el simulador.",
     "setup-title": "Termina la configuración en {{platform}}",
     "hook-url": "URL del webhook",
     "hint": {
@@ -139,49 +119,11 @@
     "platform": "Plataforma",
     "label": "Nombre",
     "label-placeholder": "Moderador de la comunidad",
-    "transport": "Modo",
-    "transport-live-hint": "Habla con la plataforma real.",
-    "transport-mock-hint": "Una imitación fiel para probar el bot: nada sale de la aplicación.",
     "credentials": "Credenciales",
     "secret-set": "Guardado",
     "secret-keep": "Guardado: déjalo vacío para conservarlo",
     "generated": "se crea por ti al guardar.",
     "docs": "Cómo obtenerlas en {{platform}}"
-  },
-  "rules": {
-    "title": "Grupos de palabras clave",
-    "description": "Cuando un mensaje contiene una palabra clave de un grupo, el bot hace lo que indica el grupo. Los grupos se aplican en su orden.",
-    "add": "Añadir un grupo",
-    "empty": "Todavía no hay grupos de palabras clave.",
-    "add-title": "Añadir un grupo de palabras clave",
-    "edit-title": "Editar {{name}}",
-    "form-description": "Enumera las palabras clave, elige qué hace el bot con un mensaje que coincide y dale su texto o instrucción.",
-    "name": "Nombre",
-    "name-placeholder": "Enlaces de spam",
-    "keywords": "Palabras clave",
-    "keywords-placeholder": "Escribe una palabra clave y pulsa Intro",
-    "keywords-hint": "Sepáralas con Intro o comas. Una palabra clave de varias palabras es una frase.",
-    "remove-keyword": "Quitar {{keyword}}",
-    "more": "+{{count}}",
-    "mode": "Coincidencia",
-    "action": "Qué hace el bot",
-    "reply": {
-      "reply": "Texto de respuesta",
-      "warn": "Texto de advertencia",
-      "record": "Texto de confirmación"
-    },
-    "instruction": "Instrucción",
-    "instruction-placeholder": "Responde con amabilidad y remite a la página de horarios.",
-    "instruction-hint": "Indicaciones adicionales sobre cómo trata el bot los mensajes de este grupo.",
-    "instruction-hint-agent": "Lo que se le indica al asistente para los mensajes de este grupo.",
-    "applies-to": "Se aplica a",
-    "order": "Orden",
-    "try": "Pruébalo",
-    "try-placeholder": "Escribe un mensaje para ver si este grupo coincide",
-    "try-match": "Coincide: {{keywords}}",
-    "try-none": "No hay coincidencia.",
-    "remove-title": "¿Eliminar este grupo de palabras clave?",
-    "remove-description": "El bot dejará de reaccionar a las palabras clave de «{{name}}». No se puede deshacer."
   },
   "activity": {
     "title": "Actividad del bot",
@@ -191,27 +133,9 @@
     "limit-option": "Últimos {{count}}",
     "ok": "Hecho",
     "failed": "Error",
-    "rule": "Grupo: {{name}}",
     "chat": "chat",
     "message": "mensaje",
     "user": "usuario"
-  },
-  "simulator": {
-    "title": "Simulador",
-    "description": "Envía un mensaje a «{{label}}» como si lo escribiera un miembro y mira qué hace el bot.",
-    "text": "Mensaje",
-    "text-placeholder": "Escribe lo que escribiría un miembro",
-    "matches": "Coincide con los grupos: {{names}}",
-    "no-match": "Ningún grupo de palabras clave coincide con este mensaje.",
-    "chat": "Chat",
-    "chat-group": "Grupo",
-    "chat-private": "Privado",
-    "chat-title": "Nombre del chat",
-    "sender": "Nombre del remitente",
-    "send": "Enviar",
-    "waiting": "Esperando al bot…",
-    "reacted": "El bot reaccionó:",
-    "silent": "El bot no reaccionó a este mensaje."
   },
   "errors": {
     "title": "Algo salió mal",
@@ -220,8 +144,6 @@
     "signature-rejected": "No se pudo comprobar que la solicitud venga de la plataforma.",
     "transport-mismatch": "Solo una conexión simulada puede recibir mensajes simulados.",
     "unsupported-action": "Esta plataforma, con estas credenciales, no puede hacer eso.",
-    "rule-not-found": "Este grupo de palabras clave ya no existe.",
-    "rule-invalid": "No se pudo guardar este grupo de palabras clave: revisa sus palabras clave.",
     "connection-disabled": "Esta conexión está desactivada. Actívala primero.",
     "secret-missing": "El servidor no tiene un secreto con el que proteger las credenciales de los bots. Pide a quien lo administra que lo configure.",
     "credentials-unreadable": "Las credenciales guardadas ya no se pueden leer en este servidor. Vuelve a introducirlas.",

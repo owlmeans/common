@@ -6,18 +6,18 @@ contracts they are written against live in `@owlmeans/bot`.
 
 ## Overview
 
-- `BotConnectionsPanel({ surface, platforms?, allowMock? })` — connect, verify, switch off and remove the bot accounts
-- `BotRulesPanel({ surface, actions, connection? })` — the keyword groups and their editor, limited to the kit's actions
-- `BotActivityPanel({ surface, connection? })` — what the bot did, newest first, refreshed while visible
-- `BotSimulator({ surface, connection })` — feed a message to a MOCK connection and watch the reaction
-- `useBotConnections(surface)`, `useBotRules(surface, { connection? })`, `useBotActivity(surface, { connection?, limit?, refreshMs? })` — the I/O half
+- `BotConnectionsPanel({ surface, platforms? })` — connect, verify, switch off and remove the bot accounts (live only; a
+  mock connection made through the API for tests shows a badge)
+- `BotActivityPanel({ surface, connection?, refLabel? })` — what the bot did, newest first, refreshed while visible;
+  `refLabel(ref)` names the application's own record a row's handler followed (its keyword group)
+- `useBotConnections(surface)`, `useBotActivity(surface, { connection?, limit?, refreshMs? })` — the I/O half
 - `botErrorHelper`, `botViewHelper` — the error-copy keys and the row helpers, for a host that draws its own view
 - `cn` — the class-name merger the components are written against
 
 ## Installation
 
 ```bash
-bun add @owlmeans/web-bot@^0.1.18-rc.2
+bun add @owlmeans/web-bot@^0.1.18-rc.4
 ```
 
 The package ships its own private shadcn primitives and imports them with relative specifiers.
@@ -42,15 +42,19 @@ The relative depth follows the app's own layout.
 The surface must be client-bound in the application's context (`bindAll` over its api tree):
 
 ```tsx
-import { BotPlatform, BotRuleAction } from '@owlmeans/bot'
-import { BotActivityPanel, BotConnectionsPanel, BotRulesPanel } from '@owlmeans/web-bot'
+import { BotPlatform } from '@owlmeans/bot'
+import { BotActivityPanel, BotConnectionsPanel } from '@owlmeans/web-bot'
 
 const surface = appProtocols.api.bot.operator
 
-<BotConnectionsPanel surface={surface} platforms={[BotPlatform.Telegram]} allowMock={!production} />
-<BotRulesPanel surface={surface} actions={[BotRuleAction.Delete, BotRuleAction.Warn]} />
-<BotActivityPanel surface={surface} />
+<BotConnectionsPanel surface={surface} platforms={[BotPlatform.Telegram]} />
+{/* `groups`: the application's own keyword-group records, read by the screen */}
+<BotActivityPanel surface={surface} refLabel={ref => groups.find(group => group.id === ref)?.name} />
 ```
+
+Keyword groups are not part of this package: an application's groups are its own records with its
+own screens, and its bot handler matches messages against them. Test mode (mock connections,
+simulated messages) is reached through the API only — no panel offers it.
 
 ## Translations
 

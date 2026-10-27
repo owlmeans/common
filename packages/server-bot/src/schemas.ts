@@ -1,9 +1,7 @@
-import {
-  BotActionKind, BotConnectionStatus, BotMatchMode, BotPlatform, BotReceiveMode, BotRuleAction, BotTransport,
-} from '@owlmeans/bot'
+import { BotActionKind, BotConnectionStatus, BotPlatform, BotReceiveMode, BotTransport } from '@owlmeans/bot'
 import type { JSONSchemaType } from 'ajv'
 import { BotInboxStatus } from './consts.js'
-import type { BotActivityRecord, BotConnectionRecord, BotRuleRecord, BotUpdateRecord } from './types.js'
+import type { BotActivityRecord, BotConnectionRecord, BotUpdateRecord } from './types.js'
 
 /**
  * The stored records' schemas — the ONE declaration a store package registers its resources with
@@ -52,27 +50,6 @@ export const BotConnectionRecordSchema = cast<BotConnectionRecord>({
     'id', 'scope', 'platform', 'label', 'transport', 'status', 'enabled', 'receive', 'credentialsSet', 'hookSecret',
     'createdAt', 'updatedAt',
   ],
-  additionalProperties: false,
-})
-
-export const BotRuleRecordSchema = cast<BotRuleRecord>({
-  type: 'object',
-  properties: {
-    id: required,
-    scope: required,
-    connection: optional,
-    name: text,
-    keywords: strings,
-    mode: { type: 'string', enum: Object.values(BotMatchMode) },
-    action: { type: 'string', enum: Object.values(BotRuleAction) },
-    reply: optional,
-    instruction: optional,
-    enabled: { type: 'boolean' },
-    order: { type: 'number' },
-    createdAt: required,
-    updatedAt: required,
-  },
-  required: ['id', 'scope', 'name', 'keywords', 'mode', 'action', 'enabled', 'order', 'createdAt', 'updatedAt'],
   additionalProperties: false,
 })
 
@@ -133,7 +110,7 @@ export const BotActivityRecordSchema = cast<BotActivityRecord>({
       additionalProperties: false,
     },
     text: optional,
-    rule: optional,
+    ref: optional,
     ok: { type: 'boolean' },
     error: optional,
     code: optional,

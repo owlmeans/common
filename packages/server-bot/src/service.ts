@@ -11,7 +11,6 @@ import { makeBotActionsFactory } from './service/actions.js'
 import { makeBotActivity } from './service/activity.js'
 import { makeBotConnections } from './service/connections.js'
 import { makeBotInbox } from './service/inbox.js'
-import { makeBotRules } from './service/rules.js'
 import { makeBotRuntimeFactory } from './service/runtime.js'
 import { makeBotSessions } from './service/sessions.js'
 import { makeBotStore } from './service/store.js'
@@ -22,8 +21,8 @@ const positive = (value: number | undefined, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback
 
 /**
- * The bot service over any `@owlmeans/resource` store: connections (credentials sealed), rules,
- * activity, the signed inbound hook into the inbox, simulation for mock connections, the worker's
+ * The bot service over any `@owlmeans/resource` store: connections (credentials sealed), activity,
+ * the signed inbound hook into the inbox, simulation for mock connections (API only), the worker's
  * runtime and the never-throwing actions. Resources are resolved by alias on every call.
  */
 export const makeBotService = (options: BotServiceOptions = {}, alias: string = BOT_SERVICE): BotService => {
@@ -54,7 +53,6 @@ export const makeBotService = (options: BotServiceOptions = {}, alias: string = 
 
   service = createLazyService<BotService>(alias, {
     connections: makeBotConnections(parts, sessions),
-    rules: makeBotRules(parts, sessions),
     activity: { list: activity.list },
     receive: inbox.receive,
     simulate: inbox.simulate,
@@ -67,7 +65,7 @@ export const makeBotService = (options: BotServiceOptions = {}, alias: string = 
 
 /**
  * Register the bot service (unless the alias is taken — then that one is answered) and return it.
- * The four resources are registered separately (`@owlmeans/bot-postgres`, or any `Resource`).
+ * The three resources are registered separately (`@owlmeans/bot-postgres`, or any `Resource`).
  */
 export const appendBot = <C extends BasicContext<any>>(
   context: C, options?: BotServiceOptions, alias: string = BOT_SERVICE

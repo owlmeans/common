@@ -2,7 +2,7 @@ import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entry
 import type { RouteParent } from '@owlmeans/route'
 import type { BotPlatform } from '../consts.js'
 import type {
-  BotActivity, BotConnection, BotConnectionInput, BotRule, BotRuleInput, BotSimulateInput, BotSimulateResult,
+  BotActivity, BotConnection, BotConnectionInput, BotSimulateInput, BotSimulateResult,
 } from '../types.js'
 
 /** Where a bot tree mounts. Every leaf alias derives from `alias` (`<alias>:connection:list` …). */
@@ -32,18 +32,13 @@ export interface BotHookProtocolOptions {
   base: BotBaseOptions
 }
 
-/** `:id` of a connection or a rule. */
+/** `:id` of a connection. */
 export interface BotIdParams {
   id: string
 }
 
 export interface BotRemoveResult {
   id: string
-}
-
-export interface BotRuleListQuery {
-  /** Rules of this connection plus the scope-wide ones; every rule of the scope when absent. */
-  connection?: string
 }
 
 export interface BotActivityQuery {
@@ -87,11 +82,6 @@ export interface BotProtocols {
     remove: EntrypointProtocol<{ params: BotIdParams }, BotRemoveResult>
     /** Mock transport only — a live connection answers `BotTransportMismatch` (409). */
     simulate: EntrypointProtocol<{ params: BotIdParams, body: BotSimulateInput }, BotSimulateResult>
-  }
-  rule: {
-    list: EntrypointProtocol<{ query: BotRuleListQuery }, BotRule[]>
-    save: EntrypointProtocol<{ body: BotRuleInput }, BotRule>
-    remove: EntrypointProtocol<{ params: BotIdParams }, BotRemoveResult>
   }
   activity: {
     /** Newest first. */

@@ -5,7 +5,7 @@ import { useBotCollection } from './use-bot-collection.js'
 
 /**
  * What the bot of one surface did, newest first — every reply, deletion, mute or ban, its target,
- * its rule and whether the platform accepted it.
+ * the handler's `ref` and whether the platform accepted it.
  *
  * `refreshMs` reads again on a timer, but only while the page is visible, and once more when it
  * becomes visible again; a background read never shows `loading`.

@@ -1,5 +1,5 @@
-import type { BotRuleAction } from '@owlmeans/bot'
 import type { ProjectArea } from '../areas/consts.js'
+import type { BotKitAction } from '../blueprint/consts.js'
 import type { StatedRequirement } from '../ba/types.js'
 import type { RecordInteractionPlan } from '../interaction/types.js'
 
@@ -318,10 +318,11 @@ export interface StoryDesignRuntime {
 
 // Kept as a type: a closed string union.
 /**
- * Which inbound updates a bot handler acts on: the ones that matched a keyword group (`rules`), every
+ * Which inbound updates a bot handler acts on: those matching the product's OWN keyword-group records
+ * (`keywords` — the handler loads the type named in `records` and matches the text against it), every
  * message (`all`), one `/command`, or those addressed to the bot (a DM, a mention, a reply to it).
  */
-export type StoryDesignBotTrigger = 'rules' | 'all' | 'command' | 'addressed'
+export type StoryDesignBotTrigger = 'keywords' | 'all' | 'command' | 'addressed'
 
 /** One generated bot handler: `sources/backend/src/bot/handlers/<name>.ts`, listed in the barrel. */
 export interface StoryDesignBotHandler {
@@ -332,11 +333,14 @@ export interface StoryDesignBotHandler {
   trigger: StoryDesignBotTrigger
   /** The command name, without the slash, when `trigger` is `command`. */
   command?: string
-  /** The rule actions it carries out — the ones the project's bot kit offers. */
-  actions: BotRuleAction[]
+  /** The kit actions it carries out — the ones the project's bot kit offers. */
+  actions: BotKitAction[]
   /** The alias of the generated agent it asks (an `ai-bot`). */
   agent?: string
-  /** The product records it writes (an `intake` bot's request record). */
+  /**
+   * The product record types it reads or writes: the keyword-group type a `keywords` handler matches
+   * against, and the request record an `intake` bot writes.
+   */
   records?: string[]
 }
 

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/server-bot",
-  "version": "0.1.18-rc.2",
-  "generatedAt": "2026-10-26T22:23:53.848Z",
+  "version": "0.1.18-rc.3",
+  "generatedAt": "2026-10-27T13:25:25.422Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

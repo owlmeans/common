@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { toolHelper } from '@owlmeans/agent'
-import { BotActionKind, BotRuleAction, BotTransport } from '@owlmeans/bot'
+import { BotActionKind, BotTransport } from '@owlmeans/bot'
 import { telegramBotPlatform } from '@owlmeans/server-bot'
 import { BOT_AGENT_DONE, BotAgentTool, botAgentTools } from '../src/index.js'
 import { makeTestBot, receive } from './context.js'
@@ -9,12 +9,12 @@ const callOf = (name: string, args: Record<string, unknown> = {}) =>
   ({ name, args, id: `call_${name}`, type: 'tool_call' as const })
 
 describe('@owlmeans/bot-agent — botAgentTools', () => {
-  test('each tool performs its action on the update and answers done', async () => {
+  test('each tool performs its action on the update, records the ref, and answers done', async () => {
     const bot = makeTestBot()
-    const { connection, update, actions } = await receive(bot, { text: 'casino tonight', sender: { id: '777' } }, [
-      { name: 'Spam', keywords: ['casino'], action: BotRuleAction.Delete, order: 1 },
-    ])
-    const tools = botAgentTools({ update, bot: actions })
+    const { connection, update, actions } = await receive(bot, { text: 'casino tonight', sender: { id: '777' } })
+    // The id of the application's own keyword group the handler matched.
+    const ref = 'group-spam'
+    const tools = botAgentTools({ update, bot: actions, ref })
 
     for (const [name, args] of [
       [BotAgentTool.Reply, { text: 'Hello' }], [BotAgentTool.Delete, {}], [BotAgentTool.Warn, { text: 'No ads, please.' }],
@@ -25,16 +25,15 @@ describe('@owlmeans/bot-agent — botAgentTools', () => {
 
     const message = { chat: update.chat.id, message: update.message!.ref.id }
     const member = { chat: update.chat.id, user: '777' }
-    const rule = update.matches[0].rule.id
     const activity = (await bot.service.activity.list(bot.scope)).reverse()
-    expect(activity.map(entry => [entry.action, entry.ok, entry.update, entry.rule, entry.target, entry.text ?? null]))
+    expect(activity.map(entry => [entry.action, entry.ok, entry.update, entry.ref, entry.target, entry.text ?? null]))
       .toEqual([
-        [BotActionKind.Reply, true, update.id, rule, message, 'Hello'],
-        [BotActionKind.Delete, true, update.id, rule, message, null],
-        [BotActionKind.Reply, true, update.id, rule, message, 'No ads, please.'],
-        [BotActionKind.Mute, true, update.id, rule, member, null],
-        [BotActionKind.Ban, true, update.id, rule, member, null],
-        [BotActionKind.React, true, update.id, rule, message, '👎'],
+        [BotActionKind.Reply, true, update.id, ref, message, 'Hello'],
+        [BotActionKind.Delete, true, update.id, ref, message, null],
+        [BotActionKind.Reply, true, update.id, ref, message, 'No ads, please.'],
+        [BotActionKind.Mute, true, update.id, ref, member, null],
+        [BotActionKind.Ban, true, update.id, ref, member, null],
+        [BotActionKind.React, true, update.id, ref, message, '👎'],
       ])
     expect(activity.every(entry => entry.transport === BotTransport.Mock)).toBe(true)
     expect(telegramBotPlatform.mock.calls(connection).map(call => call.method)).toEqual(expect.arrayContaining([

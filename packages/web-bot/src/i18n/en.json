@@ -10,8 +10,7 @@
     "copied": "Copied",
     "enabled": "Enabled",
     "loading": "Loading…",
-    "optional": "optional",
-    "all-connections": "All connections"
+    "optional": "optional"
   },
   "status": {
     "pending": "Not verified",
@@ -20,7 +19,6 @@
     "disabled": "Off"
   },
   "transport": {
-    "live": "Live",
     "mock": "Mock"
   },
   "receive": {
@@ -36,23 +34,6 @@
     "ban": "Ban",
     "react": "Reaction",
     "note": "Note"
-  },
-  "rule-action": {
-    "delete": "Delete the message",
-    "warn": "Warn the sender",
-    "mute": "Mute the sender",
-    "ban": "Ban the sender",
-    "reply": "Reply with a text",
-    "record": "Record a request",
-    "agent": "Let the assistant answer"
-  },
-  "mode": {
-    "word": "Whole words",
-    "contains": "Contains"
-  },
-  "mode-hint": {
-    "word": "Matches whole words and phrases, ignoring case: “free money” matches “FREE money!”, not “freedom”.",
-    "contains": "Matches any part of the message, ignoring case — also for languages written without spaces."
   },
   "credentials": {
     "telegram": {
@@ -119,7 +100,6 @@
     "verified": "Connected as {{name}}.",
     "remove-title": "Remove this connection?",
     "remove-description": "“{{label}}” stops receiving and answering messages at once. This cannot be undone.",
-    "mock-note": "Mock connection: nothing reaches {{platform}}. Try it with the simulator.",
     "setup-title": "Finish the setup in {{platform}}",
     "hook-url": "Webhook URL",
     "hint": {
@@ -139,49 +119,11 @@
     "platform": "Platform",
     "label": "Name",
     "label-placeholder": "Community moderator",
-    "transport": "Transport",
-    "transport-live-hint": "Talks to the real platform.",
-    "transport-mock-hint": "A faithful stand-in for trying the bot out: nothing leaves the application.",
     "credentials": "Credentials",
     "secret-set": "Set",
     "secret-keep": "Saved — leave empty to keep it",
     "generated": "created for you when you save.",
     "docs": "How to get these in {{platform}}"
-  },
-  "rules": {
-    "title": "Keyword groups",
-    "description": "When a message contains a keyword of a group, the bot does what the group says. Groups apply in their order.",
-    "add": "Add a group",
-    "empty": "No keyword group yet.",
-    "add-title": "Add a keyword group",
-    "edit-title": "Edit {{name}}",
-    "form-description": "List the keywords, choose what the bot does with a matching message, and give it its text or instruction.",
-    "name": "Name",
-    "name-placeholder": "Spam links",
-    "keywords": "Keywords",
-    "keywords-placeholder": "Type a keyword and press Enter",
-    "keywords-hint": "Separate them with Enter or commas. A keyword of several words is a phrase.",
-    "remove-keyword": "Remove {{keyword}}",
-    "more": "+{{count}}",
-    "mode": "Match",
-    "action": "What the bot does",
-    "reply": {
-      "reply": "Reply text",
-      "warn": "Warning text",
-      "record": "Confirmation text"
-    },
-    "instruction": "Instruction",
-    "instruction-placeholder": "Answer politely and point to the opening hours page.",
-    "instruction-hint": "Extra guidance for how the bot handles this group's messages.",
-    "instruction-hint-agent": "What the assistant is told for messages of this group.",
-    "applies-to": "Applies to",
-    "order": "Order",
-    "try": "Try it",
-    "try-placeholder": "Type a message to see whether this group matches it",
-    "try-match": "Matches: {{keywords}}",
-    "try-none": "No match.",
-    "remove-title": "Remove this keyword group?",
-    "remove-description": "The bot stops reacting to the keywords of “{{name}}”. This cannot be undone."
   },
   "activity": {
     "title": "Bot activity",
@@ -191,27 +133,9 @@
     "limit-option": "Last {{count}}",
     "ok": "Done",
     "failed": "Failed",
-    "rule": "Group: {{name}}",
     "chat": "chat",
     "message": "message",
     "user": "user"
-  },
-  "simulator": {
-    "title": "Simulator",
-    "description": "Send a message to “{{label}}” as if a member wrote it, and watch what the bot does.",
-    "text": "Message",
-    "text-placeholder": "Type what a member would write",
-    "matches": "Matches the groups: {{names}}",
-    "no-match": "No keyword group matches this message.",
-    "chat": "Chat",
-    "chat-group": "Group",
-    "chat-private": "Private",
-    "chat-title": "Chat name",
-    "sender": "Sender name",
-    "send": "Send",
-    "waiting": "Waiting for the bot…",
-    "reacted": "The bot reacted:",
-    "silent": "The bot did not react to this message."
   },
   "errors": {
     "title": "Something went wrong",
@@ -220,8 +144,6 @@
     "signature-rejected": "The request could not be proven to come from the platform.",
     "transport-mismatch": "Only a mock connection can receive simulated messages.",
     "unsupported-action": "This platform, with these credentials, cannot do that.",
-    "rule-not-found": "This keyword group no longer exists.",
-    "rule-invalid": "This keyword group could not be saved — check its keywords.",
     "connection-disabled": "This connection is switched off. Switch it on first.",
     "secret-missing": "The server has no secret to protect bot credentials with. Ask its administrator to set one.",
     "credentials-unreadable": "The saved credentials can no longer be read on this server. Enter them again.",

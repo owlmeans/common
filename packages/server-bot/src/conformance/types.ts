@@ -1,13 +1,12 @@
 import type { BasicContext } from '@owlmeans/context'
 import type { Resource } from '@owlmeans/resource'
 import type {
-  BotActivityRecord, BotConnectionRecord, BotResourceAliases, BotRuleRecord, BotService, BotUpdateRecord,
+  BotActivityRecord, BotConnectionRecord, BotResourceAliases, BotService, BotUpdateRecord,
 } from '../types.js'
 
-/** The four stores under test. */
+/** The three stores under test. */
 export interface BotConformanceResources {
   connection: Resource<BotConnectionRecord>
-  rule: Resource<BotRuleRecord>
   update: Resource<BotUpdateRecord>
   activity: Resource<BotActivityRecord>
 }
@@ -19,7 +18,7 @@ export interface BotConformanceResources {
  */
 export type BotConformanceCapability = 'unique'
 
-/** What a case runs against: a bot service over the store's four resources. */
+/** What a case runs against: a bot service over the store's three resources. */
 export interface BotConformanceSubject {
   service: BotService
   resources: BotConformanceResources

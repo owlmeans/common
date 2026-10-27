@@ -1,17 +1,17 @@
 ---
 name: bot-postgres
-description: How to use @owlmeans/bot-postgres — the Postgres extension that registers the four @owlmeans/server-bot resources (bot-connection, bot-rule, bot-update, bot-activity) for a GENERATED TARGET PROJECT, their table shapes and indexes, the unique inbox dedupe key, and the target's resource seed files. Auto-invoked when wiring bot storage into a target's Postgres backend, writing a target's resources/bot/*.ts, or touching the bot tables' shape or indexes.
+description: How to use @owlmeans/bot-postgres — the Postgres extension that registers the three @owlmeans/server-bot resources (bot-connection, bot-update, bot-activity) for a GENERATED TARGET PROJECT, their table shapes and indexes, the unique inbox dedupe key, and the target's resource seed files. Auto-invoked when wiring bot storage into a target's Postgres backend, writing a target's resources/bot/*.ts, or touching the bot tables' shape or indexes.
 user-invocable: false
 ---
 
 # @owlmeans/bot-postgres
 
 **Layer:** Infra extension
-**Install:** `"@owlmeans/bot-postgres": "^0.1.18-rc.2"` in `dependencies` (peers `pg`, `ajv`)
+**Install:** `"@owlmeans/bot-postgres": "^0.1.18-rc.3"` in `dependencies` (peers `pg`, `ajv`)
 
-The Postgres store of `@owlmeans/server-bot`: four `@owlmeans/postgres-resource` resources over the
+The Postgres store of `@owlmeans/server-bot`: three `@owlmeans/postgres-resource` resources over the
 record schemas `server-bot` declares, plus the indexes its reads need. It owns no bot behaviour — the
-`BotService` resolves the four by alias on every call, so this package and `appendBot` are registered
+`BotService` resolves the three by alias on every call, so this package and `appendBot` are registered
 independently, in any order.
 
 ## Key Exports
@@ -19,10 +19,9 @@ independently, in any order.
 | Export | Description |
 |--------|-------------|
 | `makeBotConnectionResource(dbAlias?, alias?, serviceAlias?)` | `BotConnectionResource` (`PostgresResource<BotConnectionRecord>`), alias default `RES_BOT_CONNECTION` |
-| `makeBotRuleResource(dbAlias?, alias?, serviceAlias?)` | `BotRuleResource`, default `RES_BOT_RULE` |
 | `makeBotUpdateResource(dbAlias?, alias?, serviceAlias?)` | `BotUpdateResource` — the inbox, default `RES_BOT_UPDATE` |
 | `makeBotActivityResource(dbAlias?, alias?, serviceAlias?)` | `BotActivityResource`, default `RES_BOT_ACTIVITY` |
-| `appendPostgresBot(ctx, opts?)` | Registers the four, each only while its alias is free — idempotent |
+| `appendPostgresBot(ctx, opts?)` | Registers the three, each only while its alias is free — idempotent |
 | `BotPostgresOptions` | `{ dbAlias?, serviceAlias?, resources?: BotResourceAliases }` |
 
 `dbAlias` is the `cfg.dbs` entry (default `postgres`), `serviceAlias` the connection service (default
@@ -31,8 +30,8 @@ independently, in any order.
 
 ## The schema is imported, never redeclared
 
-Each maker assigns `BotConnectionRecordSchema` / `BotRuleRecordSchema` / `BotUpdateRecordSchema` /
-`BotActivityRecordSchema` from `@owlmeans/server-bot` to `resource.schema` — the same object, never a
+Each maker assigns `BotConnectionRecordSchema` / `BotUpdateRecordSchema` / `BotActivityRecordSchema`
+from `@owlmeans/server-bot` to `resource.schema` — the same object, never a
 copy, and no `pg:` override. A change to a record is a change to `server-bot`'s schema; this package
 follows it at the next boot (`PgAutoSync.Full` reconciles the table).
 
@@ -43,11 +42,11 @@ What `postgres-resource`'s default compiler makes of the shared schemas (`tests/
 | Values | Column | Properties |
 |---|---|---|
 | nested objects | one `jsonb` column each | `identity`, the inbox `update` (open: `raw` is the platform's payload), the activity `target` |
-| string lists | native `text[]` | `setup`, `credentialsSet`, `keywords`, `handled` |
+| string lists | native `text[]` | `setup`, `credentialsSet`, `handled` |
 | timestamps | `text` (ISO, sortable as stored — no `format`, so never `timestamptz`) | `createdAt`, `updatedAt`, `receivedAt`, `claimedAt`, `retryAt`, `processedAt`, `at` |
 | sealed credentials | ONE `text` column, never split per credential key | `sealed` (`v1.<iv>.<tag>.<ciphertext>`) |
-| enums | `text` + `CHECK` | `platform`, `transport`, `status`, `receive`, `mode`, `action` |
-| `order` (a reserved word) | `double precision`, quoted wherever the store names it | rule `order` |
+| enums | `text` + `CHECK` | `platform`, `transport`, `status`, `receive`, `action` |
+| the handler's reference | nullable `text` | the activity `ref` (opaque: the id of the app's own record a handler followed) |
 
 Records are created without an `id` (Postgres mints `gen_random_uuid()::text`); `update`/`save` with an
 id REPLACES the whole row. Absent optional fields come back `null`; the service reads `null` as absent.
@@ -61,8 +60,6 @@ schema never collides; a maker run twice declares each index once.
 |---|---|---|---|
 | `bot_connection` | `scope_created` | `scope`, `createdAt` | a scope's connections in order |
 | `bot_connection` | `receive` | `enabled`, `status`, `receive` | the worker's receiver reconciliation |
-| `bot_rule` | `scope` | `scope` | a scope's rules |
-| `bot_rule` | `scope_connection` | `scope`, `connection` | a connection's own rules, the remove cascade |
 | `bot_update` | `dedupe` **UNIQUE** | `dedupe` | one row per redelivered update |
 | `bot_update` | `inbox` | `status`, `receivedAt` | pending rows, oldest first |
 | `bot_update` | `lease` | `status`, `claimedAt` | expired `processing` claims |
@@ -77,7 +74,7 @@ the conformance suite's `unique` capability.
 
 ## Target wiring
 
-**Backs:** chat-bot connections with sealed credentials, keyword rules, the inbound update inbox and the bots' activity log
+**Backs:** chat-bot connections with sealed credentials, the inbound update inbox and the bots' activity log
 
 | Sub-project | Packages |
 |---|---|
@@ -87,7 +84,8 @@ One file per resource under `sources/backend/src/resources/bot/`: the generated 
 file's zero-argument `makeResource` and registers it before `init()` creates the table. The path
 names the alias (`bot/connection.ts` → `bot-connection`), which is exactly `server-bot`'s default, so
 `appendBot(context)` needs no `resources` option. The bot service itself, the api trees and the
-worker runtime are `server-bot`'s wiring.
+worker runtime are `server-bot`'s wiring. Keyword groups are NOT stored here: they are the target's
+own generated product records, with their own resource file like any other record.
 
 ```ts file=sources/backend/src/resources/bot/connection.ts
 import { makeBotConnectionResource } from '@owlmeans/bot-postgres'
@@ -102,18 +100,6 @@ import type { ResourceMaker } from '@owlmeans/resource'
  */
 export const makeResource: ResourceMaker<BotConnectionRecord, BotConnectionResource> =
   (dbAlias, serviceAlias) => makeBotConnectionResource(dbAlias, RES_BOT_CONNECTION, serviceAlias)
-```
-
-```ts file=sources/backend/src/resources/bot/rule.ts
-import { makeBotRuleResource } from '@owlmeans/bot-postgres'
-import type { BotRuleResource } from '@owlmeans/bot-postgres'
-import { RES_BOT_RULE } from '@owlmeans/server-bot'
-import type { BotRuleRecord } from '@owlmeans/server-bot'
-import type { ResourceMaker } from '@owlmeans/resource'
-
-/** The keyword rules (`bot-rule`) — scope-wide or bound to one connection, kept in `order`. */
-export const makeResource: ResourceMaker<BotRuleRecord, BotRuleResource> =
-  (dbAlias, serviceAlias) => makeBotRuleResource(dbAlias, RES_BOT_RULE, serviceAlias)
 ```
 
 ```ts file=sources/backend/src/resources/bot/update.ts
@@ -140,7 +126,7 @@ export const makeResource: ResourceMaker<BotActivityRecord, BotActivityResource>
   (dbAlias, serviceAlias) => makeBotActivityResource(dbAlias, RES_BOT_ACTIVITY, serviceAlias)
 ```
 
-All four are required: the service reads and writes every one of them. Never pass a maker to
+All three are required: the service reads and writes every one of them. Never pass a maker to
 `ResourceMaker` directly (`makeResource = makeBotConnectionResource`) — a caller's `serviceAlias`
 would land in the resource-alias position.
 
@@ -152,9 +138,9 @@ import { appendPostgresBot } from '@owlmeans/bot-postgres'
 import { appendBot } from '@owlmeans/server-bot'
 
 appendPostgres(context)          // the connection service, cfg.dbs[...]
-appendPostgresBot(context)       // the four resources
+appendPostgresBot(context)       // the three resources
 appendBot(context)               // the service, which resolves them by alias per call
-await context.configure().init() // init reconciles the four tables and their indexes
+await context.configure().init() // init reconciles the three tables and their indexes
 ```
 
 Custom aliases go to both sides:
@@ -162,11 +148,11 @@ Custom aliases go to both sides:
 
 ## Testing
 
-Category C. `bun test ./tests`: `schema.spec.ts` needs no database (the column types, the quoted
-`order`, the declared indexes, the unique dedupe DDL, idempotent registration); `conformance.spec.ts`
+Category C. `bun test ./tests`: `schema.spec.ts` needs no database (the column types, the activity's
+`ref` column, the declared indexes, the unique dedupe DDL, idempotent registration); `conformance.spec.ts`
 runs `server-bot`'s store suite — `botConformanceCasesFor(['unique'])` over
 `makeBotConformanceSubject(context)`, every case — and `tables.spec.ts` asserts a second boot plans
-no DDL and round-trips the jsonb, `text[]` and `order` columns. Both are gated on `POSTGRES_URL`
+no DDL and round-trips the jsonb, `text[]` and `ref` columns. Both are gated on `POSTGRES_URL`
 (`gateHelper.postgresGate()`, each spec file its own throwaway schema) and skip cleanly without it.
 With no database of this checkout's own, run them against a throwaway container
 (`docker run --rm -d -p 127.0.0.1:<port>:5432 -e POSTGRES_PASSWORD=… postgres:<tag>`) — never another
