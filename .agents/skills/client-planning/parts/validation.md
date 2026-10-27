@@ -20,8 +20,12 @@ occurs, and the schema is left unchanged. Preserve nested money objects and cale
 The native server validates every write again.
 
 The validator interprets schemas with `@cfworker/json-schema`, with no `eval`, `new Function` or
-network reference loading. Do not call `makeSchemaRegistry(...).validator()` or
-`.assigneeValidator()` in a browser with strict `script-src`: those remain native AJV compilers.
+network reference loading. Building, loading and merging a registry is safe under a strict
+`script-src` — `loadSchemas()`, `definitions.registry()`/`bundle()`, `model()`, `makeSchemaRegistry(bundle)`,
+`scopedRegistryOf` — because a page runs only the closed-form checks of the served `app` declarations
+(`planning` → types part). Do not call `.validator()`, `.assigneeValidator()`, `appSchemaHelper.assertBag`,
+`scopedSchemaHelper.assert*Schema` or `validateHelper.*` in a browser with strict `script-src`: those
+remain native AJV compilers, the server's.
 The Draft 7 meta-schema is DATA in `src/validation/consts.ts` (`JSON_SCHEMA_DRAFT_07`, pinned to ajv's
 `refs/json-schema-draft-07.json` by `tests/draft7.spec.ts`), never an import of that file: Node ESM needs
 `with { type: 'json' }` on it, and a bundler that also meets ajv's own attribute-less `require` of the

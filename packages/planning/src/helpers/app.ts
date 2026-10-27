@@ -16,6 +16,10 @@ export const createAppSchemaHelper = (): AppSchemaHelper => {
   // declaration leaves nothing compiled behind.
   const bags = new WeakMap<PlanningAppSchema, ValidateFunction>()
 
+  // A page never compiles: under a strict `script-src` Ajv's code generation is refused, and the
+  // declarations a page registers are its server's, compiled there when they were registered.
+  const compiles = (): boolean => typeof (globalThis as { document?: unknown }).document === 'undefined'
+
   const objectSchemaOf = (declared: PlanningAppSchema): Record<string, unknown> => ({
     type: 'object',
     properties: declared.properties,
@@ -65,10 +69,12 @@ export const createAppSchemaHelper = (): AppSchemaHelper => {
       if (missing != null) {
         throw new SchemaInvalid(`app:${kind}:required:${missing}`)
       }
-      try {
-        makeAjv().compile(objectSchemaOf(declared as unknown as PlanningAppSchema))
-      } catch (error) {
-        throw new SchemaInvalid(`app:${kind}:${messageOf(error)}`)
+      if (compiles()) {
+        try {
+          makeAjv().compile(objectSchemaOf(declared as unknown as PlanningAppSchema))
+        } catch (error) {
+          throw new SchemaInvalid(`app:${kind}:${messageOf(error)}`)
+        }
       }
     }
   }

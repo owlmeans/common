@@ -62,6 +62,11 @@ this node keeps what cost time to find.
   function), `name`/`key` on a type or flow (`SchemaInvalid`) — each compiles only through an
   `any`-typed helper. Counter: the wrong-form table in `server-planning`, run by
   `server-planning/tests/create-example.spec.ts`.
+- **Nothing a registry build reaches may compile in a browser.** Targets are served under a
+  `script-src` without `'unsafe-eval'`; an eager Ajv compile in `assertDeclarations` made every schema
+  read of a work-management target throw `app:type:Evaluating a string as JavaScript…` until the compile
+  ran only outside a document. Playwright's `console` event never shows that refusal: test with a
+  trapped `Function` (each package's `tests/csp.spec.ts`).
 
 Related: [[queues]] (hook merge, job ids, unsigned enqueue), [[viable]] (the Viable vocabulary and
 connector tools over the facade), [[entrypoints]].

@@ -22,7 +22,9 @@ export interface AppSchemaHelper {
   merge: (sources: ReadonlyArray<PlanningAppDeclarations | undefined>) => PlanningAppDeclarations | undefined
   /**
    * The closed form of declarations: per kind only `type` (`'object'`), `properties` (names without
-   * `.` or `$`) and `required` (each name declared), and a schema that compiles.
+   * `.` or `$`) and `required` (each name declared), and — outside a browser document — a schema that
+   * compiles. A page never compiles: a strict `script-src` refuses code generation, and what a page
+   * registers its server compiled when it registered it.
    *
    * @throws {SchemaInvalid} `app:<kind>:…`
    */
