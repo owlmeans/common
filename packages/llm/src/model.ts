@@ -1,22 +1,27 @@
 import { Ajv, type JSONSchemaType } from 'ajv'
 import { AIMessage, BaseMessage, type AIMessageChunk, type MessageContent, type MessageFieldWithRole } from '@langchain/core/messages'
-import { StructuredMode, type NullKind } from '@owlmeans/llm-common'
+import { PromptRegion, StructuredMode, type NullKind } from '@owlmeans/llm-common'
 import { logger } from '@owlmeans/log'
-import { DEFAULT_MODEL_RETRIES, MAX_CACHE_BREAKPOINTS } from './consts.js'
+import { DEFAULT_MODEL_RETRIES, EMPTY_CONTENT_STUB, MAX_CACHE_BREAKPOINTS, TAIL_JSON_FORMAT, TAIL_SCHEMA_INSTRUCTION } from './consts.js'
 import { LlmMissconfiguredError, LlmModelError } from './errors.js'
-import type { LlmPlugin } from './plugins/types.js'
+import { executionPolicyHelper } from './execution/policy.js'
+import { CacheBoundary } from './plugins/consts.js'
+import type { LlmPlugin, LlmSystemBlock, PromptBoundary } from './plugins/types.js'
+import { cacheHelper } from './helpers/cache.js'
 import { jsonHelper } from './helpers/json.js'
 import { normalizeInput } from './helpers/messages.js'
 import { retryHelper } from './helpers/retry.js'
 import { spectate } from './helpers/spectate.js'
-import type { ModelConfig, LlmAskOptions, LlmInvokeOptions, LlmModel, LlmModelOptions, LlmRequestOptions, LlmSpectator, LlmTalkOptions, ModelInput, RefferedResult } from './types.js'
+import type { ModelConfig, LlmAskOptions, LlmInvokeOptions, SchemaPlacement, LlmModel, LlmModelOptions, LlmRequestOptions, LlmSpectator, LlmTalkOptions, ModelInput, RefferedResult } from './types.js'
 import { configUtils } from './utils/config.js'
+import { markUtils } from './utils/marks.js'
+import { messageUtils } from './utils/messages.js'
 import { reportNull } from './utils/null-report.js'
 import type { NullReportParams } from './utils/null-report/types.js'
 import type { Rung } from './utils/rungs/types.js'
 import { rungUtils } from './utils/rungs.js'
 import { streamUtils } from './utils/stream.js'
-import type { ActiveRung, StreamOptions } from './types.local.js'
+import type { ActiveRung, PrepareRequest, PreparedRequest, StreamOptions } from './types.local.js'
 import { promptUtils } from './utils/prompt.js'
 import { schemaUtils } from './utils/schema.js'
 
@@ -45,9 +50,9 @@ const textOf = (content: MessageContent | undefined): string => {
 /**
  * Detach the caller's LEADING system messages and return their text.
  *
- * They are re-emitted as the `Context` block of the composed prompt, which is what keeps
- * a caller that still builds its own `SystemMessage` working unchanged — the text simply
- * travels a different route and lands in the same place. Only the leading run is taken:
+ * They are re-emitted as the `Context` block of the composed prompt — the project message, or
+ * the system message itself for a caller that adopted no persona — which is what keeps a caller
+ * that still builds its own `SystemMessage` working unchanged. Only the leading run is taken:
  * a system message deliberately placed mid-conversation is an operator instruction whose
  * position carries meaning, and moving it would change what the model sees.
  */
@@ -105,100 +110,127 @@ export const makeLlmModel = ({
     Math.max(0, Math.min(Math.floor(escalation ?? 0), retries - 1))
 
   /**
-   * Normalize, compose the system prompt, then apply every in-place prompt adaptation, in
-   * dependency order.
+   * Prepare one request for one rung, in dependency order:
    *
-   * With no prompt service wired this is exactly what it always was — the caller's
-   * messages, a JSON nudge, `/no_think`, cache markers. With one, the caller's leading
-   * system text is folded into a composed prompt whose stable sections come first, which
-   * is the whole point: a prompt cache is a PREFIX match, so the bytes every call shares
-   * have to be physically ahead of the bytes that differ.
+   * 1. normalize (copies — the caller's messages are never edited), strip any cache marker they
+   *    carry, drop blank content;
+   * 2. note the caller's first `stable` non-system messages — the lead that repeats across calls;
+   * 3. compose: the caller's leading system text becomes `Context`, and the result is laid out as
+   *    `[system, project message, …caller]` — stable for a persona, for a step, for a batch;
+   * 4. append the tail and the JSON / tool / no-think directives to the final message;
+   * 5. plan the breakpoints — role + skills, packages, the project message, the last noted lead
+   *    message — and let the rung's plugin place them in its dialect, or send plain strings.
    *
-   * Rendered for one rung: the system blocks, cache markers, the thinking switch and the tool
-   * instruction are provider dialect, so a fallback on another provider needs its own rendering.
+   * With no prompt service wired, steps 3 and 4 add nothing: the caller's own messages go out.
    */
   const prepare = async (
-    input: ModelInput,
-    action: string,
-    useCache: boolean,
-    cacheMax: number,
-    json: boolean,
-    callSkills: string[] | undefined,
-    toolName: string | undefined,
+    { input, action, json, toolName, schemaText, skills, stable = 0, focus, cacheMax }: PrepareRequest,
     { model, plugin, config }: Rung,
-  ): Promise<MessageFieldWithRole[]> => {
+  ): Promise<PreparedRequest> => {
     const msgs = normalizeInput(input)
-    // The caller may hand back messages this pipeline marked on a PREVIOUS call — the
-    // markers live on its own objects. The budget is per request, so clear them and
-    // re-place our own below; otherwise they accumulate until the provider 400s.
     promptUtils.stripCacheMarkers(msgs)
     promptUtils.dropBlankContent(msgs)
-    let reserved = 0
+    // Identities, not positions: composition puts messages in front of these.
+    const lead = new Set(msgs.filter(msg => messageUtils.roleOf(msg) !== 'system').slice(0, Math.max(0, stable)))
 
+    let system: LlmSystemBlock[] = []
+    let projectAt = -1
+    let ttl = markUtils.resolveTtl()
+    let cached = true
     if (prompts != null) {
       const carried = takeLeadingSystem(msgs)
+      const merged = executionPolicyHelper.mergeFocus(prompt?.focus, focus)
       const composed = await prompts().compose(
         {
           ...prompt,
           context: [...(prompt?.context ?? []), ...carried],
-          callSkills: callSkills ?? prompt?.callSkills,
+          callSkills: skills ?? prompt?.callSkills,
+          ...(merged != null ? { focus: merged } : {}),
         },
         msgs,
-        { model, provider: plugin, purpose, action, cacheMax, files, utility, results },
+        { model, provider: plugin, purpose, action, files, utility, results },
       )
+      ttl = composed.cache.ttl
+      cached = composed.cache.enabled
+      // Defensive: a chain whose context plugin was replaced may drop the caller's own system
+      // text — then it goes back exactly as the caller sent it.
+      const head: MessageFieldWithRole[] = composed.system == null && composed.project == null
+        ? carried.map(text => ({ role: 'system', content: text }))
+        : []
       if (composed.system != null) {
-        msgs.unshift(composed.system)
-        reserved = composed.breakpoints
-      } else {
-        // Defensive: nothing was contributed, so hand the caller's own text straight back.
-        for (let i = carried.length - 1; i >= 0; i--) {
-          msgs.unshift({ role: 'system', content: carried[i] })
-        }
+        head.push({ role: 'system', content: composed.system })
+        system = composed.blocks.filter(block => block.region === PromptRegion.System)
+      }
+      if (composed.project != null) {
+        projectAt = head.length
+        head.push({ role: 'user', content: composed.project })
+      }
+      msgs.unshift(...head)
+      if (composed.tail != null) {
+        promptUtils.appendTail(msgs, composed.tail)
+      }
+      // A request that is only a system message has nowhere for the directives — and Anthropic
+      // refuses it outright.
+      if (msgs.every(msg => messageUtils.roleOf(msg) === 'system')) {
+        msgs.push({ role: 'user', content: EMPTY_CONTENT_STUB })
       }
     }
 
+    if (schemaText != null) promptUtils.appendTail(msgs, schemaText)
     if (json) promptUtils.ensureJsonMention(msgs)
     // A model that refuses a pinned tool is asked for it in words; `toolChoice` sends `auto`.
     if (toolName != null && plugin?.pinsTool?.(config) === false) promptUtils.ensureToolCall(msgs, toolName)
     // The soft switch is for models with no request-level control; a plugin that sends the
     // real parameter must not also get the directive as prompt text.
     promptUtils.applyNoThink(msgs, config.disableThinking === true && plugin?.suppressesThinking?.(config) !== true)
-    // Cache markers replace string content with content blocks, so they must go last.
-    const ttl = prompt?.cacheTtl
-    const marked = plugin?.patchCache?.(msgs, {
-      model, useCache, cacheMax, reserved, ...(ttl != null ? { ttl } : {}),
-    })
-    if (reserved > 0 || marked === true) {
-      log.debug('Prompt caching', { provider: plugin?.type, systemBreakpoints: reserved, messageBreakpoint: marked === true })
+
+    // The final message is the per-call payload and its tail: no boundary ever closes on it.
+    const final = msgs.length - 1
+    const boundaries: PromptBoundary[] = []
+    if (cached) {
+      boundaries.push(...markUtils.systemBoundaries(system, ttl))
+      if (projectAt >= 0 && projectAt < final) {
+        boundaries.push({
+          kind: CacheBoundary.Project, message: projectAt, ttl: ttl.project,
+          prefixChars: messageUtils.charsThrough(msgs, projectAt),
+        })
+      }
+    }
+    for (let at = final - 1; at > projectAt; at--) {
+      if (lead.has(msgs[at])) {
+        boundaries.push({
+          kind: CacheBoundary.Stable, message: at, ttl: ttl.stable, prefixChars: messageUtils.charsThrough(msgs, at),
+        })
+        break
+      }
     }
 
-    return msgs
+    const budget = Math.max(0, Math.min(cacheMax ?? MAX_CACHE_BREAKPOINTS, MAX_CACHE_BREAKPOINTS))
+    if (plugin?.patchPrompt == null || boundaries.length === 0 || budget === 0) {
+      return { msgs, options: {}, placed: 0 }
+    }
+    const patch = plugin.patchPrompt({ model, config, messages: msgs, system, boundaries, budget })
+    if (patch.placed > 0) {
+      log.debug('Prompt caching', { provider: plugin.type, breakpoints: patch.placed, candidates: boundaries.length })
+    }
+
+    return { msgs: patch.messages, options: patch.options ?? {}, placed: patch.placed }
   }
 
   /**
-   * `prepare` bound to one call, re-run only when an attempt lands on a rung of another
-   * provider family. The rungs are visited in order, so re-preparing on every family change
-   * is enough — and it has to re-run rather than be cached per family, because the
-   * markers live on the caller's message objects and each rendering clears the last one's.
+   * `prepare` bound to one call, re-run only when an attempt lands on a rung of another family
+   * or cache dialect — a fallback on another provider, or an explicit-cache OpenAI model falling
+   * back to one that caches implicitly. The rungs are visited in order, so re-preparing on every
+   * change is enough; each preparation starts again from the caller's untouched input.
    */
-  const preparing = (
-    input: ModelInput,
-    action: string,
-    useCache: boolean,
-    cacheMax: number,
-    json: boolean,
-    callSkills?: string[],
-    toolName?: string,
-  ): (rung: Rung) => Promise<MessageFieldWithRole[]> => {
-    let prepared: { family: string | undefined, msgs: MessageFieldWithRole[] } | null = null
+  const preparing = (request: PrepareRequest): (rung: Rung) => Promise<PreparedRequest> => {
+    let prepared: { key: string, request: PreparedRequest } | null = null
     return async rung => {
-      const family = rung.plugin?.family
-      if (prepared == null || prepared.family !== family) {
-        prepared = {
-          family, msgs: await prepare(input, action, useCache, cacheMax, json, callSkills, toolName, rung),
-        }
+      const key = `${rung.plugin?.family ?? ''}|${rung.plugin?.cacheDialect?.(rung.config) ?? ''}`
+      if (prepared == null || prepared.key !== key) {
+        prepared = { key, request: await prepare(request, rung) }
       }
-      return prepared.msgs
+      return prepared.request
     }
   }
 
@@ -288,6 +320,16 @@ export const makeLlmModel = ({
     }
   }
 
+  /**
+   * What `prepare` needs for a structured call: the tool name a model may have to be asked for in
+   * words (native), or the schema instruction for the Tail (tail) — never both.
+   */
+  const structuredPrompt = (
+    placement: SchemaPlacement | undefined, toolName: string, innerSchema: unknown,
+  ): Pick<PrepareRequest, 'toolName' | 'schemaText'> => placement === 'tail'
+    ? { schemaText: `${TAIL_SCHEMA_INSTRUCTION}\n${JSON.stringify(innerSchema)}` }
+    : { toolName }
+
   /** How this rung should be asked for schema-conforming output. */
   const structuredMode = ({ plugin, config }: Rung): StructuredMode => plugin != null
     ? plugin.structuredMode(config as Parameters<LlmPlugin['structuredMode']>[0])
@@ -304,20 +346,25 @@ export const makeLlmModel = ({
    */
   const streamStructured = async <T>(
     active: ActiveRung,
-    msgs: MessageFieldWithRole[],
+    { msgs, options }: PreparedRequest,
     innerSchema: JSONSchemaType<T>,
     toolName: string,
     action: string,
+    placement: SchemaPlacement = 'native',
   ): Promise<{ piece: AIMessageChunk | null; result: T | null; mode: StructuredMode }> => {
     const { refined, plugin } = active
-    const responseFormat = structuredMode(active) === StructuredMode.Native
-      ? plugin?.responseFormat?.(toolName, innerSchema)
-      : undefined
+    const native = structuredMode(active) === StructuredMode.Native
+    const tail = placement === 'tail'
+    // `tail`: the schema is in the prompt, so the request carries only a constant format — JSON mode
+    // where the provider has a native one, nothing otherwise — and every schema shares the prefix.
+    const responseFormat = tail
+      ? (native ? TAIL_JSON_FORMAT : undefined)
+      : native ? plugin?.responseFormat?.(toolName, innerSchema) : undefined
     // A plugin that declares Native but provides no response_format falls back to tools.
-    const mode = responseFormat != null ? StructuredMode.Native : StructuredMode.Tool
+    const mode = responseFormat != null || tail ? StructuredMode.Native : StructuredMode.Tool
 
     const start = (signal: AbortSignal): Promise<AsyncIterable<unknown>> => {
-      const base = { runName: action, metadata: { purpose }, signal }
+      const base = { ...options, runName: action, metadata: { purpose }, signal } as StreamOptions
       if (mode === StructuredMode.Native) {
         return refined.stream(msgs, { ...base, ...responseFormat && { response_format: responseFormat } } as unknown as StreamOptions)
       }
@@ -345,6 +392,9 @@ export const makeLlmModel = ({
       const chunk = rawChunk as AIMessageChunk
       piece = piece == null ? chunk : (piece.concat(chunk) as AIMessageChunk)
     }
+    if (piece != null) {
+      cacheHelper.withCacheTiers(piece)
+    }
 
     let result: T | null = null
     if (mode === StructuredMode.Tool) {
@@ -367,30 +417,31 @@ export const makeLlmModel = ({
     ask: async (
       input,
       {
-        ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills,
-        escalation, fatal,
+        ref, filter, action, cacheMax, stable, focus, skills, escalation, fatal,
       }: LlmAskOptions
     ) => {
       return await observeFailure(action, async () => {
-        const prepared = preparing(input, action, useCache, cacheMax, false, skills)
+        const prepared = preparing({ input, action, json: false, skills, stable, focus, cacheMax })
         const seed = ladderSeed(escalation)
         await prepared(rungUtils.rungAt(rungs, seed).rung)
         return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i)
         const { refined } = active
-        const msgs = await prepared(active)
+        const { msgs, options, placed } = await prepared(active)
+        const useCache = placed > 0
         log.debug('Use model to ask', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
         for await (const chunk of streamUtils.streamWithDeadline(
-          signal => refined.stream(msgs, { runName: action, metadata: { purpose }, signal }),
+          signal => refined.stream(msgs, { ...options, runName: action, metadata: { purpose }, signal } as StreamOptions),
           configUtils.idleTimeout(active.config),
         )) {
           result = result == null ? chunk : result.concat(chunk)
         }
         if (result == null) {
-          throw await nullResult('ask', active.config, { action, attempt: i, startedAt, refined, msgs, raw: result, useCache })
+          throw await nullResult('ask', active.config, { action, attempt: i, startedAt, refined, msgs, raw: result, useCache, stable })
         }
+        cacheHelper.withCacheTiers(result)
 
         const message = new AIMessage(result)
         let output: string = typeof result.content === 'string'
@@ -411,7 +462,7 @@ export const makeLlmModel = ({
           output = textOf(result.content)
         }
 
-        const entry = await spectate(spectator, 'ask')(msgs, message, action, i, startedAt)
+        const entry = await spectate(spectator, 'ask')(msgs, message, action, i, startedAt, active.config.model)
         if (ref != null) ref.spectatorEntry = entry
 
         // An empty completion is a NULL RESULT, and it is diagnosed here rather than blamed on
@@ -421,7 +472,7 @@ export const makeLlmModel = ({
         // things that say WHY nothing came back (a model that spent its whole budget thinking).
         if (output.trim() === '') {
           throw await nullResult('ask', active.config, {
-            action, attempt: i, startedAt, refined, msgs, raw: result, useCache,
+            action, attempt: i, startedAt, refined, msgs, raw: result, useCache, stable,
           })
         }
 
@@ -445,33 +496,35 @@ export const makeLlmModel = ({
     talk: async (
       input,
       {
-        ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills,
-        escalation, fatal,
+        ref, filter, action, cacheMax, stable, focus, skills, escalation, fatal,
       }: LlmTalkOptions
     ) => {
       return await observeFailure(action, async () => {
-        const prepared = preparing(input, action, useCache, cacheMax, false, skills)
+        const prepared = preparing({ input, action, json: false, skills, stable, focus, cacheMax })
         const seed = ladderSeed(escalation)
         await prepared(rungUtils.rungAt(rungs, seed).rung)
         return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i)
         const { refined } = active
-        const msgs = await prepared(active)
+        const { msgs, options, placed } = await prepared(active)
         log.debug('Use model to talk', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
         for await (const chunk of streamUtils.streamWithDeadline(
-          signal => refined.stream(msgs, { runName: action, metadata: { purpose }, signal }),
+          signal => refined.stream(msgs, { ...options, runName: action, metadata: { purpose }, signal } as StreamOptions),
           configUtils.idleTimeout(active.config),
         )) {
           result = result == null ? chunk : result.concat(chunk)
         }
         if (result == null) {
-          throw await nullResult('talk', active.config, { action, attempt: i, startedAt, refined, msgs, raw: result, useCache })
+          throw await nullResult('talk', active.config, {
+            action, attempt: i, startedAt, refined, msgs, raw: result, useCache: placed > 0, stable,
+          })
         }
+        cacheHelper.withCacheTiers(result)
 
         let message: AIMessage | null = new AIMessage(result)
-        const entry = await spectate(spectator, 'talk')(msgs, message, action, i, startedAt)
+        const entry = await spectate(spectator, 'talk')(msgs, message, action, i, startedAt, active.config.model)
         if (ref != null) ref.spectatorEntry = entry
 
         if (filter != null) {
@@ -491,36 +544,39 @@ export const makeLlmModel = ({
       input: ModelInput,
       schema: JSONSchemaType<T>,
       {
-        temperature, ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS,
-        skills, escalation, fatal,
+        temperature, ref, filter, action, cacheMax, stable, focus, skills, escalation, fatal, schemaPlacement,
       }: LlmInvokeOptions<T>
     ) => {
       return await observeFailure(action, async () => {
         const { name, innerSchema, validate } = schemaUtils.resolveSchemaValidator<T>(ajv, schema)
         const toolName = schemaUtils.toToolName((innerSchema as { title?: string }).title ?? name)
-        const prepared = preparing(input, action, useCache, cacheMax, true, skills, toolName)
+        const prepared = preparing({ input, action, json: true, skills, stable, focus, cacheMax, ...structuredPrompt(schemaPlacement, toolName, innerSchema) })
 
         const seed = ladderSeed(escalation)
         await prepared(rungUtils.rungAt(rungs, seed).rung)
         return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i, temperature)
-        assertSchemaShown(active, innerSchema)
+        if (schemaPlacement !== 'tail') assertSchemaShown(active, innerSchema)
         const { refined } = active
-        const msgs = await prepared(active)
+        const request = await prepared(active)
+        const { msgs } = request
         log.debug('Use model invoke', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
-        const { piece, result: collected } = await streamStructured(active, msgs, innerSchema, toolName, action)
+        const { piece, result: collected } = await streamStructured(active, request, innerSchema, toolName, action, schemaPlacement)
         let result: T | null = collected
+        // A response that was received is billed even when nothing usable came of it.
+        const entry = piece != null
+          ? await spectate(spectator, 'invoke')(msgs, new AIMessage(piece), action, i, startedAt, active.config.model)
+          : undefined
+        if (ref != null && entry != null) ref.spectatorEntry = entry
         if (piece == null || result == null) {
           throw await nullResult('invoke', active.config, {
             action, attempt: i, startedAt, refined, msgs, raw: piece,
-            schema: { toolName, innerSchema }, useCache,
+            schema: { toolName, innerSchema }, useCache: request.placed > 0, stable,
           }, result != null)
         }
 
         const message = new AIMessage(piece)
-        const entry = await spectate(spectator, 'invoke')(msgs, message, action, i, startedAt)
-        if (ref != null) ref.spectatorEntry = entry
 
         result = schemaUtils.unwrapNamed(result, name)
         result = jsonHelper.coerceToSchema(result, innerSchema) as T
@@ -549,36 +605,39 @@ export const makeLlmModel = ({
       input: ModelInput,
       schema: JSONSchemaType<T>,
       {
-        ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills,
-        escalation, fatal,
+        ref, filter, action, cacheMax, stable, focus, skills, escalation, fatal, schemaPlacement,
       }: LlmRequestOptions
     ) => {
       return await observeFailure(action, async () => {
         const { name, innerSchema, validate } = schemaUtils.resolveSchemaValidator<T>(ajv, schema)
         const toolName = schemaUtils.toToolName((innerSchema as { title?: string }).title ?? name)
-        const prepared = preparing(input, action, useCache, cacheMax, true, skills, toolName)
+        const prepared = preparing({ input, action, json: true, skills, stable, focus, cacheMax, ...structuredPrompt(schemaPlacement, toolName, innerSchema) })
 
         const seed = ladderSeed(escalation)
         await prepared(rungUtils.rungAt(rungs, seed).rung)
         return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i)
-        assertSchemaShown(active, innerSchema)
+        if (schemaPlacement !== 'tail') assertSchemaShown(active, innerSchema)
         const { refined } = active
-        const msgs = await prepared(active)
+        const request = await prepared(active)
+        const { msgs } = request
         log.debug('Use model request', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
-        const { piece, result: collected } = await streamStructured(active, msgs, innerSchema, toolName, action)
+        const { piece, result: collected } = await streamStructured(active, request, innerSchema, toolName, action, schemaPlacement)
         let result: T | null = collected
+        // A response that was received is billed even when nothing usable came of it.
+        const entry = piece != null
+          ? await spectate(spectator, 'request')(msgs, new AIMessage(piece), action, i, startedAt, active.config.model)
+          : undefined
+        if (ref != null && entry != null) ref.spectatorEntry = entry
         if (piece == null || result == null) {
           throw await nullResult('request', active.config, {
             action, attempt: i, startedAt, refined, msgs, raw: piece,
-            schema: { toolName, innerSchema }, useCache,
+            schema: { toolName, innerSchema }, useCache: request.placed > 0, stable,
           }, result != null)
         }
 
         let message: AIMessage | null = new AIMessage(piece)
-        const entry = await spectate(spectator, 'request')(msgs, message, action, i, startedAt)
-        if (ref != null) ref.spectatorEntry = entry
 
         // Structured output delivers the JSON as parsed tool arguments, not as message
         // content. Surface it on `.content` so the AIMessage contract callers rely on holds.

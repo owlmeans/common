@@ -20,6 +20,11 @@ this node keeps what cost time to find.
   the SDK runs long-poll only.
 - **Memory and Postgres settle an out-of-order row differently** (memory: failed; Postgres past the
   grace: placeholder + committed) — the conformance case asserts only "settled, never pending".
+- **App-pregenerated vs custom fields**: the application's own type/flow properties (`app` bags) and
+  base card fields are `schemas.app` (code, merged in plugin order); people's custom fields are a
+  data-defined type's `fields`. Rules: `planning` types part.
+- **Gated Postgres specs need a database of this checkout's own**: the running
+  `common0-planning-tests-*` containers are slot common-0's — start a throwaway `--rm` container.
 
 ## Invariants
 
@@ -47,11 +52,21 @@ this node keeps what cost time to find.
 - **An aborted Postgres transaction lies quietly**: after one failed statement every later one
   answers `25P02`, `COMMIT` becomes a silent `ROLLBACK`, and `foldPending`'s `safely` swallows the
   original — the runner tracks "poisoned" and reports the FIRST error, not the cascade.
+- **Composing a type's `fields` by nesting it (`allOf: [base, type.fields]`) breaks its `#/$defs/…`
+  references** — `#` becomes the wrapper. Keep the type's schema the root and append to its `allOf`.
+- **`schemas.spec.ts`'s walk reads a property NAMED `properties`/`required` as a schema node** and
+  crashes — a record schema carrying JSON-schema-shaped values keeps them `OptionalOpenObject`
+  and checks them in code (`appSchemaHelper.assertDeclarations`).
 - **Generated code invents the create call**: `draft:` for `card:` (`malformed:create-without-draft`),
   `wait: true` inside the execution (ignored in process), `ctx.planning()` in a target (not a
   function), `name`/`key` on a type or flow (`SchemaInvalid`) — each compiles only through an
   `any`-typed helper. Counter: the wrong-form table in `server-planning`, run by
   `server-planning/tests/create-example.spec.ts`.
+- **Nothing a registry build reaches may compile in a browser.** Targets are served under a
+  `script-src` without `'unsafe-eval'`; an eager Ajv compile in `assertDeclarations` made every schema
+  read of a work-management target throw `app:type:Evaluating a string as JavaScript…` until the compile
+  ran only outside a document. Playwright's `console` event never shows that refusal: test with a
+  trapped `Function` (each package's `tests/csp.spec.ts`).
 
 Related: [[queues]] (hook merge, job ids, unsigned enqueue), [[viable]] (the Viable vocabulary and
 connector tools over the facade), [[entrypoints]].

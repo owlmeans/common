@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "package": "@owlmeans/llm",
-  "version": "0.1.18-rc.49",
-  "generatedAt": "2026-10-10T17:07:11.322Z",
+  "version": "0.1.18-rc.54",
+  "generatedAt": "2026-10-26T22:23:53.844Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,135 @@
       "name": "llm",
       "category": "package-specific",
       "file": "skills/llm/SKILL.md",
-      "canonicalPath": ".agents/skills/llm/SKILL.md"
+      "canonicalPath": ".agents/skills/llm/SKILL.md",
+      "parts": [
+        {
+          "name": "execution",
+          "file": "skills/llm/parts/execution.md",
+          "description": "The execution service — frozen project, task and helper executions, model resolution precedence, the results view, the utility tier and the advise-only plugin seam.",
+          "purposes": [
+            "agent",
+            "state"
+          ],
+          "mentions": [
+            "makeExecutionService",
+            "appendExecutionService",
+            "ExecutionService",
+            "withResults",
+            "forTask",
+            "forHelper",
+            "escalate",
+            "UTILITY_ROLE",
+            "utilityRole",
+            "ExecutionPlugin",
+            "executionPolicyHelper",
+            "collaboratorKeys"
+          ]
+        },
+        {
+          "name": "presets",
+          "file": "skills/llm/parts/presets.md",
+          "description": "Model configuration — output caps, fallback chains across providers, provider effort tables, the per-family Anthropic and OpenAI wire facts, and preset precedence.",
+          "purposes": [
+            "agent",
+            "config"
+          ],
+          "mentions": [
+            "ModelConfig",
+            "maxTokensCap",
+            "maxOutput",
+            "contextWindow",
+            "resolveFallbacks",
+            "PROVIDER_NEUTRAL_FIELDS",
+            "ModelEffort",
+            "OPENAI_EFFORT_SUPPORT",
+            "ANTHROPIC_MODEL_SUPPORT",
+            "anthropicSupportHelper",
+            "OPENAI_HIDDEN_PROPERTY_NAMES",
+            "REASONING_MIN_MAX_TOKENS",
+            "presetOf"
+          ]
+        },
+        {
+          "name": "providers",
+          "file": "skills/llm/parts/providers.md",
+          "description": "The LlmPlugin seam that replaces provider ifs, the sampling parameters each family rejects, plugin registration order, and classifying a provider error by walking cause.",
+          "purposes": [
+            "agent",
+            "config"
+          ],
+          "mentions": [
+            "LlmPlugin",
+            "llmPluginRegistry",
+            "resolveFor",
+            "patchPrompt",
+            "loopCache",
+            "cacheDialect",
+            "anthropicPlugin",
+            "openAiPlugin",
+            "compatiblePlugin",
+            "openAiFamily",
+            "NO_SAMPLING_PREFIXES",
+            "RESPONSES_API_PREFIXES",
+            "usesResponsesApi",
+            "rejectsSampling",
+            "isBadRequest",
+            "@owlmeans/llm/plugins"
+          ]
+        },
+        {
+          "name": "reasoning",
+          "file": "skills/llm/parts/reasoning.md",
+          "description": "Why reasoning is off unless a preset asks for it — disableThinking and where it lands per plugin, the adaptive output floor, empty-completion diagnostics, and fresh requests per attempt.",
+          "purposes": [
+            "agent",
+            "config"
+          ],
+          "mentions": [
+            "disableThinking",
+            "suppressesThinking",
+            "/no_think",
+            "ADAPTIVE_MIN_MAX_TOKENS",
+            "thinkingOffFor",
+            "thinkingOnly",
+            "stop_reason"
+          ]
+        },
+        {
+          "name": "retries",
+          "file": "skills/llm/parts/retries.md",
+          "description": "The idle stream deadline, passing an outer attempt into the escalator, isFatalError for loops above the model, and the terminal failure observation hook.",
+          "purposes": [
+            "agent"
+          ],
+          "mentions": [
+            "MODEL_STREAM_TIMEOUT_MS",
+            "streamTimeout",
+            "escalation",
+            "LlmCallOptions",
+            "retryHelper",
+            "isFatalError",
+            "withRetry",
+            "FALLBACK_AFTER_ATTEMPTS",
+            "LlmSpectator"
+          ]
+        },
+        {
+          "name": "testing",
+          "file": "skills/llm/parts/testing.md",
+          "description": "The package's offline and gated specs, the golden prompt bytes, and the stream fixtures.",
+          "purposes": [
+            "test"
+          ],
+          "mentions": [
+            "ANTHROPIC_SECRET",
+            "results.spec.ts",
+            "model.spec.ts",
+            "anthropic-families.spec.ts",
+            "stream-sdk.spec.ts"
+          ]
+        }
+      ]
     },
     {
       "kind": "skill",
@@ -24,7 +152,52 @@
       "name": "llm-prompt-caching",
       "category": "multi-package",
       "file": "skills/llm-prompt-caching/SKILL.md",
-      "canonicalPath": ".agents/skills/llm-prompt-caching/SKILL.md"
+      "canonicalPath": ".agents/skills/llm-prompt-caching/SKILL.md",
+      "parts": [
+        {
+          "name": "caching-plugins",
+          "file": "skills/llm-prompt-caching/parts/caching-plugins.md",
+          "description": "Writing a prompt-composition plugin that keeps the cache — which block to add to, determinism, ctx.claim, the utility model, the results view — and how package skills reach a prompt.",
+          "purposes": [
+            "agent"
+          ],
+          "mentions": [
+            "LlmPromptPlugin",
+            "PromptContext",
+            "PromptComposeParams",
+            "claim",
+            "resultsPlugin",
+            "contextPlugin",
+            "owlmeansPackagesPlugin",
+            "LlmFileProvider"
+          ]
+        },
+        {
+          "name": "caching-providers",
+          "file": "skills/llm-prompt-caching/parts/caching-providers.md",
+          "description": "How the Anthropic and OpenAI plugins mark a prepared request and a tool-loop round — cache_control with per-region lifetimes, OpenAI explicit mode on the Responses API, implicit caching with prompt_cache_key — and the provider facts behind them.",
+          "purposes": [
+            "agent",
+            "config"
+          ],
+          "mentions": [
+            "patchPrompt",
+            "loopCache",
+            "cacheDialect",
+            "CacheDialect",
+            "CacheBoundary",
+            "PromptPlan",
+            "PromptPatch",
+            "LlmLoopCacheHints",
+            "cache_control",
+            "prompt_cache_breakpoint",
+            "promptCacheOptions",
+            "OPENAI_EXPLICIT_CACHE_PREFIXES",
+            "cacheMode",
+            "prompt_cache_key"
+          ]
+        }
+      ]
     }
   ]
 }

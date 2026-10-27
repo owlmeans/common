@@ -69,12 +69,16 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
 
   const designStaleness = (
     design: StoryDesign,
-    now: { narrativeHash: string, projectHash: string, registryHash: string },
+    now: { narrativeHash: string, projectHash: string, registryHash: string, requirementsHash?: string },
   ): DesignStaleness => {
     if (design.version !== STORY_DESIGN_VERSION) {
       return DesignStaleness.Version
     }
     if (design.provenance.narrativeHash !== now.narrativeHash) {
+      return DesignStaleness.Narrative
+    }
+    // Requirements are part of what the story IS: a changed set re-designs like a changed narrative.
+    if ((design.provenance.requirementsHash ?? '') !== (now.requirementsHash ?? '')) {
       return DesignStaleness.Narrative
     }
     if (design.provenance.projectHash !== now.projectHash) {
@@ -130,6 +134,7 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
     if (design.reserved.section != null || design.reserved.screen != null) {
       lines.push(`Reserved: section=${design.reserved.section ?? '-'} screen=${design.reserved.screen ?? '-'}`)
     }
+    if (design.interaction != null) lines.push(`Record interaction: ${JSON.stringify(design.interaction)}`)
     lines.push('', 'Screens:')
     for (const screen of design.screens) {
       lines.push(
@@ -201,6 +206,12 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
 
     checkList('screens', design.screens, patch.screens)
     checkList('components', design.components, patch.components)
+    if (design.interaction != null && patch.interaction != null && typeof patch.interaction === 'object') {
+      const next = patch.interaction as Partial<typeof design.interaction>
+      for (const key of ['hostScreen', 'hostComponent'] as const) {
+        if (next[key] != null && design.interaction[key] != null && next[key] !== design.interaction[key]) forbidden.push(`interaction.${key}`)
+      }
+    }
 
     if (forbidden.length > 0) {
       return `Refused: ${forbidden.join(', ')} name artifacts the project's registry allocated. `

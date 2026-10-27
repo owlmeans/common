@@ -2,6 +2,8 @@ import type { ProjectArea } from '../../areas/consts.js'
 import type {
   ArchitectureCase, ConversionStage, ConvertibilityVerdict, OriginKind, PurposeEvidenceSource, StackFamily, StackId
 } from '../consts.js'
+import type { FileSummary } from '../summary/types.js'
+import type { OriginDefinitionFacts, OriginTypeProof, OriginTypeSpec } from '../origin-types/types.js'
 
 /** Where the per-story and per-seed conversion documents live in a target. */
 export interface ConversionDocHelper {
@@ -11,6 +13,8 @@ export interface ConversionDocHelper {
   conversionSeedDoc: (name: string) => string
   /** The carried seed data file itself. */
   conversionSeedData: (name: string, ext: string) => string
+  /** The whole-file summaries of one top-level package, named by its document name. */
+  conversionSummaryDoc: (name: string) => string
 }
 
 export interface ConversionDocMeta {
@@ -90,6 +94,32 @@ export interface StoryProofDocMeta extends ConversionDocMeta {
   area: ProjectArea
   origin: string[]
   complexity: number
+}
+
+/**
+ * The frontmatter of one package's summaries document.
+ *
+ * `planned` is every readable file of the package the summaries step set out to read; the document
+ * is COMPLETE when each of them is an entry or is listed `skipped` (the read budget was spent
+ * before it). `packages` — on the root document — names every summaries document of the
+ * conversion, which is how a reader finds the set and how the step's guard knows it is whole.
+ */
+export interface SummaryDocMeta extends ConversionDocMeta {
+  package: string
+  packages: string[]
+  planned: string[]
+  skipped: string[]
+  entries: FileSummary[]
+}
+
+/**
+ * The frontmatter of `types.md`: the origin's types WITHOUT their proofs, the definitions facts, and
+ * the proofs in `origin` — the list a purge drops by shape, since every one is a path into sources.
+ */
+export interface OriginTypesDocMeta extends ConversionDocMeta {
+  types: Array<Omit<OriginTypeSpec, 'proofs'>>
+  definitions: OriginDefinitionFacts | null
+  origin?: OriginTypeProof[]
 }
 
 export interface EstimateDocMeta extends ConversionDocMeta {

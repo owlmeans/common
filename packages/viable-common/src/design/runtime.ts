@@ -15,7 +15,7 @@
  */
 
 import { EPHEMERAL_ACTORS, NO_RUNTIME, StoryActor } from './consts.js'
-import type { StoryDesignRuntime } from './types.js'
+import type { StoryDesignBotHandler, StoryDesignRuntime } from './types.js'
 import type { StoryRuntimeHelper } from './runtime/types.js'
 
 export const createStoryRuntimeHelper = (): StoryRuntimeHelper => {
@@ -28,7 +28,9 @@ export const createStoryRuntimeHelper = (): StoryRuntimeHelper => {
   const needsRuntime = (runtime: StoryDesignRuntime): boolean =>
     runtime.worker || runtime.jobs.length > 0 || runtime.agents.length > 0
 
-  return { isEphemeralActor, runtimeOf, needsRuntime }
+  const botHandlersOf = (runtime: StoryDesignRuntime): StoryDesignBotHandler[] => runtime.bot?.handlers ?? []
+
+  return { isEphemeralActor, runtimeOf, needsRuntime, botHandlersOf }
 }
 
 export const storyRuntimeHelper = createStoryRuntimeHelper()

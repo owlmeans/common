@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { AIMessageChunk } from '@langchain/core/messages'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { CUMULATIVE_RESULTS_PREAMBLE, ExecutionLevel, PromptBlock } from '@owlmeans/llm-common'
+import { CUMULATIVE_RESULTS_PREAMBLE, ExecutionLevel, PromptBlock, PromptRegion } from '@owlmeans/llm-common'
 import type { CumulativeResults, TaskExecutionState } from '@owlmeans/llm-common'
 import {
-  anthropicPlugin, DEFAULT_EFFORT, makeExecutionService, makeLlmModel, makeLlmService,
+  anthropicPlugin, DEFAULT_EFFORT, llmPluginRegistry, makeExecutionService, makeLlmModel, makeLlmService,
   makePromptService,
 } from '@owlmeans/llm'
 import type { LlmPromptPlugin, LlmSpectator, ModelConfig, PromptService } from '@owlmeans/llm'
@@ -12,12 +12,13 @@ import { offlineConfigs, Role } from './context.js'
 
 /**
  * The execution-context capability for cumulative pipeline results: a view travels on the
- * execution, the prompt service renders it into its own block, and a call WITHOUT one composes the
- * very bytes it composed before the capability existed.
+ * execution, the prompt service renders it into its own block at the head of the project message,
+ * and a call WITHOUT one composes the very bytes recorded below.
  *
- * The golden strings below were recorded from the prompt service and the model as they stood
- * before the results block was added. They are the backward-compatibility claim, not an
- * illustration of it: a single byte of drift invalidates every cached prefix in a deployment.
+ * The golden strings are the prompt layout itself — system (role, skills, packages), project
+ * message (operator header, results, context), the caller's turn — recorded when the layout was
+ * introduced. A single byte of drift invalidates every cached prefix in a deployment; never
+ * re-record them to make a change pass.
  */
 
 const anthropicModel = anthropicPlugin.build({
@@ -48,18 +49,18 @@ const view = (patch: Partial<CumulativeResults> = {}): CumulativeResults => ({
   ...patch,
 })
 
-const GOLDEN_ANTHROPIC = '{"role":"system","content":[{"type":"text","text":"The role."},{"type":"text","text":"## a\\n\\nSkill A body.","cache_control":{"type":"ephemeral"}},{"type":"text","text":"package text","cache_control":{"type":"ephemeral"}},{"type":"text","text":"per-call note"}]}'
-const GOLDEN_PLAIN = '{"role":"system","content":"The role.\\n\\n## a\\n\\nSkill A body.\\n\\npackage text\\n\\nper-call note"}'
-const GOLDEN_MODEL = '[{"role":"system","content":"The role.\\n\\n## a\\n\\nSkill A body.\\n\\npackage text\\n\\ncaller system"},{"role":"user","content":"do it"}]'
+const GOLDEN_SYSTEM = 'The role.\n\n## a\n\nSkill A body.\n\npackage text'
+const GOLDEN_PROJECT = 'Project context — facts about this project; they override general guidance where they differ.\n\nper-call note'
+const GOLDEN_MODEL = '[{"role":"system","content":"The role.\\n\\n## a\\n\\nSkill A body.\\n\\npackage text"},{"role":"user","content":"Project context — facts about this project; they override general guidance where they differ.\\n\\ncaller system"},{"role":"user","content":"do it"}]'
+const GOLDEN_ANTHROPIC_MODEL = '[{"role":"system","content":[{"type":"text","text":"The role.\\n\\n## a\\n\\nSkill A body.","cache_control":{"type":"ephemeral"}},{"type":"text","text":"package text","cache_control":{"type":"ephemeral"}}]},{"role":"user","content":[{"type":"text","text":"Project context — facts about this project; they override general guidance where they differ.\\n\\ncaller system","cache_control":{"type":"ephemeral"}}]},{"role":"user","content":"do it"}]'
 
-describe('@owlmeans/llm — no results view, no change', () => {
-  test('the composed prompt is byte-identical to the one recorded before the block existed', async () => {
-    const anthropic = await service().compose(input, task, { model: anthropicModel, provider: anthropicPlugin })
-    const plain = await service().compose(input, [], { model: anthropicModel })
+describe('@owlmeans/llm — no results view: the recorded layout', () => {
+  test('the composed regions are byte-identical to the recorded ones', async () => {
+    const composed = await service().compose(input, task, { model: anthropicModel, provider: anthropicPlugin })
 
-    expect(JSON.stringify(anthropic.system)).toBe(GOLDEN_ANTHROPIC)
-    expect(anthropic.breakpoints).toBe(2)
-    expect(JSON.stringify(plain.system)).toBe(GOLDEN_PLAIN)
+    expect(composed.system).toBe(GOLDEN_SYSTEM)
+    expect(composed.project).toBe(GOLDEN_PROJECT)
+    expect(composed.tail).toBeNull()
   })
 
   test('an explicit `results: undefined` composes the same bytes as a service without the plugin', async () => {
@@ -69,28 +70,37 @@ describe('@owlmeans/llm — no results view, no change', () => {
       input, task, { model: anthropicModel, provider: anthropicPlugin, results: undefined },
     )
 
-    expect(JSON.stringify(actual.system)).toBe(JSON.stringify(expected.system))
+    expect(JSON.stringify(actual)).toBe(JSON.stringify(expected))
     expect(actual.blocks.map(block => block.block)).not.toContain(PromptBlock.Results)
   })
 
-  test('a model built from options with no view sends the recorded bytes', async () => {
+  test('a model with no cache dialect sends the recorded plain bytes', async () => {
     const asked: string[] = []
-    const svc = makePromptService({ skills: [{ alias: 'a', body: 'Skill A body.' }], plugins: [
-      { alias: 'pkg', inspect: ctx => ctx.add(PromptBlock.Packages, 'package text') },
-    ] }, `spec-results-model-${seq++}`)
     const llm = makeLlmModel({
       model: fakeModel(asked), purpose: { type: 't' }, prompt: { role: 'The role.', skills: ['a'] },
-      prompts: () => svc,
+      prompts: () => service(),
     }, spectator)
 
     await llm.ask([{ role: 'system', content: 'caller system' }, { role: 'user', content: 'do it' }], { action: 'a' })
 
     expect(asked[0]).toBe(GOLDEN_MODEL)
   })
+
+  test('an anthropic rung sends the recorded marked bytes', async () => {
+    const asked: string[] = []
+    const llm = makeLlmModel({
+      model: anthropicFake(asked), purpose: { type: 't' }, prompt: { role: 'The role.', skills: ['a'] },
+      prompts: () => service(),
+    }, spectator)
+
+    await llm.ask([{ role: 'system', content: 'caller system' }, { role: 'user', content: 'do it' }], { action: 'a' })
+
+    expect(asked[0]).toBe(GOLDEN_ANTHROPIC_MODEL)
+  })
 })
 
 describe('@owlmeans/llm — the results block', () => {
-  test('renders between the packages block and the per-call context', async () => {
+  test('opens the project message, between the packages block and the context', async () => {
     const result = await service().compose(
       input, task, { model: anthropicModel, provider: anthropicPlugin, results: view() },
     )
@@ -99,36 +109,41 @@ describe('@owlmeans/llm — the results block', () => {
       PromptBlock.Role, PromptBlock.Skills, PromptBlock.Packages, PromptBlock.Results, PromptBlock.Context,
     ])
     expect(result.blocks[3]!.text.startsWith(CUMULATIVE_RESULTS_PREAMBLE)).toBe(true)
-    expect(result.blocks[3]!.text).toContain('### types')
+    expect(result.blocks[3]!.region).toBe(PromptRegion.Project)
+    expect(result.project!.indexOf('### types')).toBeLessThan(result.project!.indexOf('per-call note'))
   })
 
-  // The two cached boundaries are what every call of a role shares across steps. A block that
-  // changes per step must not move them, mark itself between them, or take one of their markers.
-  test('leaves the cached role + skills and packages regions and their markers untouched', async () => {
+  // The system region is what every call of a persona shares across steps. A block that changes
+  // per step must not move a byte of it — it belongs to the project message, closed by BP3.
+  test('leaves the system region byte-identical; the project message carries the view', async () => {
     const plain = await service().compose(input, task, { model: anthropicModel, provider: anthropicPlugin })
     const withView = await service().compose(
       input, task, { model: anthropicModel, provider: anthropicPlugin, results: view() },
     )
-    const content = (value: unknown) => (value as { content: Array<Record<string, unknown>> }).content
 
-    expect(content(withView.system).slice(0, 3)).toEqual(content(plain.system).slice(0, 3))
-    expect(content(withView.system)[3]!.cache_control).toBeUndefined()
-    expect(content(withView.system)[4]).toEqual(content(plain.system)[3])
-    expect(withView.breakpoints).toBe(plain.breakpoints)
+    expect(withView.system).toBe(plain.system)
+    expect(withView.project).not.toBe(plain.project)
+    expect(withView.project).toContain('### types')
   })
 
-  // With nothing after it, the view closes the prompt — stable for every call of that step, so
-  // it may take the closing breakpoint the packages block would have taken, never a third one.
-  test('as the last block it may take the closing marker, within the two-breakpoint budget', async () => {
+  test('on an anthropic rung the system keeps its marker and the project message takes its own', async () => {
+    const asked: string[] = []
     const svc = makePromptService({ skills: [{ alias: 'a', body: 'Skill A body.' }] }, `spec-results-${seq++}`)
-    const result = await svc.compose(
-      { role: 'The role.', skills: ['a'] }, task,
-      { model: anthropicModel, provider: anthropicPlugin, results: view() },
-    )
-    const marks = (result.system!.content as Array<Record<string, unknown>>).map(part => part.cache_control != null)
+    const llm = makeLlmModel({
+      model: anthropicFake(asked), purpose: { type: 't' }, prompt: { role: 'The role.', skills: ['a'] },
+      prompts: () => svc, results: view(),
+    }, spectator)
 
-    expect(marks).toEqual([false, true, true])
-    expect(result.breakpoints).toBeLessThanOrEqual(2)
+    await llm.ask('do it', { action: 'a' })
+    const sent = JSON.parse(asked[0]!) as Array<{ content: unknown }>
+    const marks = (content: unknown) => Array.isArray(content)
+      ? (content as Array<Record<string, unknown>>).filter(part => part.cache_control != null).length
+      : 0
+
+    expect(marks(sent[0]!.content)).toBe(1)
+    expect(marks(sent[1]!.content)).toBe(1)
+    expect(JSON.stringify(sent[1])).toContain('### types')
+    expect(sent[2]!.content).toBe('do it')
   })
 
   test('a model built from an execution carrying a view composes it, with no other wiring', async () => {
@@ -201,7 +216,7 @@ describe('@owlmeans/llm — withResults', () => {
 const spectator = { log: async () => undefined } as unknown as LlmSpectator
 
 /** Stands in for the MODEL — an external boundary — and records what it was sent, as JSON. */
-const fakeModel = (asked: string[]): BaseChatModel => ({
+const fakeModel = (asked: string[], extra: Record<string, unknown> = {}): BaseChatModel => ({
   getName: () => 'fake',
   lc_kwargs: { model: 'fake' },
   stream: async (messages: unknown[]) => {
@@ -209,4 +224,23 @@ const fakeModel = (asked: string[]): BaseChatModel => ({
 
     return (async function* () { yield new AIMessageChunk({ content: 'ok' }) })()
   },
+  ...extra,
 }) as unknown as BaseChatModel
+
+/**
+ * The same stand-in on a claude model, resolved through a copy of the real Anthropic plugin — its
+ * own cache placement, without the client rebuild that would reach the network.
+ */
+const anthropicFake = (asked: string[]): BaseChatModel => {
+  const provider = `spec-results-anthropic-${seq++}`
+  const fake = fakeModel(asked, {
+    modelName: 'claude-haiku-4-5-20251001',
+    metadata: { config: { alias: 'spec', provider, model: 'claude-haiku-4-5-20251001', cacheMinTokens: 1 } },
+  })
+  llmPluginRegistry.register({
+    ...anthropicPlugin, type: provider, family: provider, owns: candidate => candidate === fake,
+    refine: ({ base }) => base,
+  })
+
+  return fake
+}

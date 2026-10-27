@@ -195,11 +195,50 @@ export interface StatusFlowSchema {
   statuses: StatusDefinition[]
   transitions: StatusTransitionRule[]
   label?: string
+  /** A presentation hint: the colour family an application marks this flow with. Free text. */
+  tone?: string
+  /** A presentation hint: the icon name an application marks this flow with. Free text. */
+  icon?: string
   /**
    * A code-registered flow is sealed against a data-defined override unless it says so. Meaningless
    * on a data-defined flow: a project may override any organization-wide record.
    */
   overridable?: boolean
+  /**
+   * The application's own properties of this flow (`description`, …), closed over what the
+   * application declares in `PlanningAppDeclarations.flow`. Refused on a data-defined flow when the
+   * application declares none.
+   */
+  app?: Record<string, unknown>
+}
+
+/**
+ * One kind of property set an application declares in code: an object schema whose `properties`
+ * (and `required`) several plugins merge by name. No other keyword is admitted — a merge could not
+ * honour it.
+ */
+export interface PlanningAppSchema {
+  type?: 'object'
+  /** The JSON schema of each property, by name — no `.` or `$` in a name. */
+  properties: Record<string, AnySchema>
+  /** Names every record of the kind carries; each one declared in `properties`. */
+  required?: string[]
+}
+
+/**
+ * What an application pregenerates beside its people's own custom fields — declared in code
+ * (`PlanningPlugin.schemas.app`, `PlanningServiceOptions.schemas.app`), served in the bundle.
+ */
+export interface PlanningAppDeclarations {
+  /** The `app` bag of every type declaration — checked on a data-defined card type's write. */
+  type?: PlanningAppSchema
+  /** The `app` bag of every flow declaration — checked on a data-defined flow's write. */
+  flow?: PlanningAppSchema
+  /**
+   * Base `fields` of every card of kind `card` — code or data-defined type — validated beside the
+   * type's own `fields` schema. Projects and specifications are not affected.
+   */
+  card?: PlanningAppSchema
 }
 
 export interface SpecificationSlot {
@@ -265,11 +304,21 @@ export interface WorkcardTypeSchema {
   labels?: string[]
   code?: CodePolicy
   label?: string
+  /** A presentation hint: the colour family an application marks this type's cards with. Free text. */
+  tone?: string
+  /** A presentation hint: the icon name an application marks this type's cards with. Free text. */
+  icon?: string
   /**
    * A code-registered card type is sealed against a data-defined override unless it says so.
    * Meaningless on a data-defined type: a project may override any organization-wide record.
    */
   overridable?: boolean
+  /**
+   * The application's own properties of this type (`description`, …), closed over what the
+   * application declares in `PlanningAppDeclarations.type`. Refused on a data-defined type when the
+   * application declares none.
+   */
+  app?: Record<string, unknown>
 }
 
 export interface ProjectTypeSchema extends Omit<WorkcardTypeSchema, 'kind'> {
@@ -290,11 +339,22 @@ export interface PlanningSchemaBundle {
   types: AnyTypeSchema[]
   flows: StatusFlowSchema[]
   assigneeTypes?: AssigneeTypeSchema[]
+  /** The application's declarations, merged — absent when it declares none. */
+  app?: PlanningAppDeclarations
 }
 
 export interface PlanningSchemaRegistry extends AssigneeSchemaRegistry {
   registerType: (schema: AnyTypeSchema) => void
   registerFlow: (flow: StatusFlowSchema) => void
+  /**
+   * Replace the application's declarations (already merged; `undefined` clears them) — drops every
+   * cached validator.
+   *
+   * @throws {SchemaInvalid} a malformed declaration
+   */
+  registerApp: (app?: PlanningAppDeclarations) => void
+  /** The application's declarations in force, `undefined` when there are none. Do not mutate. */
+  app: () => PlanningAppDeclarations | undefined
   types: () => AnyTypeSchema[]
   /** @throws {UnknownWorkcardType} */
   type: (type: string) => AnyTypeSchema
@@ -304,7 +364,15 @@ export interface PlanningSchemaRegistry extends AssigneeSchemaRegistry {
   flow: (id: string) => StatusFlowSchema
   /** @throws {UnknownWorkcardType | UnknownStatusFlow} */
   primaryFlow: (type: string) => StatusFlowSchema
-  /** The compiled, cached validator of a type's `fields`. */
+  /**
+   * The schema a type's `fields` validate against: its own `fields`, plus the application's base
+   * card fields for a type of kind `card` (`appSchemaHelper.fieldsSchemaOf`). What a browser form
+   * hands `makePlanningFieldValidator`.
+   *
+   * @throws {UnknownWorkcardType}
+   */
+  fieldsSchema: (type: string) => AnySchema
+  /** The compiled, cached validator of a type's {@link fieldsSchema}. */
   validator: (type: string) => ValidateFunction
   bundle: () => PlanningSchemaBundle
   /** Replace everything with a bundle — a client's boot. */
@@ -613,6 +681,11 @@ export interface ProjectionStore {
   count: (where: Criteria<Workcard>) => Promise<number>
   summary: (parents: string[], where?: Criteria<Workcard>) => Promise<SummaryView>
   put: (card: Workcard) => Promise<void>
+  /**
+   * Remove a record — the fold of its `delete` — with its comments and mentions, and its own
+   * documents (the specifications whose primary parent is it, and theirs in turn) with their edges,
+   * comments, mentions and log. The record's own log stays: its delete row is the tombstone.
+   */
   drop: (id: string, entityId: string) => Promise<void>
   /** Fold what is pending for the card — now or through a durable server projection. */
   project: (card: string, hint?: { transition?: string }) => Promise<void>
@@ -943,7 +1016,11 @@ export interface PlanningPlugin {
   name: string
   /** Ascending; `DEFAULT_PLUGIN_ORDER` (50) when omitted. */
   order?: number
-  schemas?: { types?: AnyTypeSchema[], flows?: StatusFlowSchema[], assigneeTypes?: AssigneeTypeSchema[] }
+  /**
+   * Code declarations. `app` — the application's own definition properties and base card fields —
+   * is merged over every plugin in plugin order (`appSchemaHelper.merge`), not replaced.
+   */
+  schemas?: { types?: AnyTypeSchema[], flows?: StatusFlowSchema[], assigneeTypes?: AssigneeTypeSchema[], app?: PlanningAppDeclarations }
   owns?: (type: string) => boolean
   store?: PlanningStore | ((ctx: BasicContext<BasicConfig>) => PlanningStore)
   mintCode?: (draft: WorkcardDraft, taken: (code: string) => Promise<boolean>, ctx: PlanningExecContext) => Promise<string | undefined>

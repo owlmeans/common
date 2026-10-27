@@ -1,0 +1,154 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "edit": "Edit",
+    "remove": "Remove",
+    "refresh": "Refresh",
+    "copy": "Copy",
+    "copied": "Copied",
+    "enabled": "Enabled",
+    "loading": "Loading…",
+    "optional": "optional"
+  },
+  "status": {
+    "pending": "Not verified",
+    "connected": "Connected",
+    "failed": "Failed",
+    "disabled": "Off"
+  },
+  "transport": {
+    "mock": "Mock"
+  },
+  "receive": {
+    "webhook": "Webhook",
+    "poll": "Polling",
+    "gateway": "Gateway"
+  },
+  "action": {
+    "reply": "Reply",
+    "send": "Message",
+    "delete": "Delete",
+    "mute": "Mute",
+    "ban": "Ban",
+    "react": "Reaction",
+    "note": "Note"
+  },
+  "credentials": {
+    "telegram": {
+      "token": {
+        "label": "Bot token",
+        "hint": "From @BotFather in Telegram: /newbot creates a bot, /token shows its token."
+      }
+    },
+    "whatsapp": {
+      "accessToken": {
+        "label": "Access token",
+        "hint": "A permanent system-user token of your Meta app with the WhatsApp messaging permission."
+      },
+      "phoneNumberId": {
+        "label": "Phone number ID",
+        "hint": "WhatsApp → API Setup in your Meta app dashboard."
+      },
+      "appSecret": {
+        "label": "App secret",
+        "hint": "App settings → Basic in your Meta app; it proves every incoming message came from Meta."
+      },
+      "verifyToken": {
+        "label": "Verify token",
+        "hint": "Created for you; paste it into the webhook settings of your Meta app."
+      }
+    },
+    "discord": {
+      "token": {
+        "label": "Bot token",
+        "hint": "Developer Portal → your application → Bot → Reset Token. Turn on the Message Content intent there too."
+      },
+      "applicationId": {
+        "label": "Application ID",
+        "hint": "Developer Portal → your application → General Information."
+      }
+    },
+    "slack": {
+      "botToken": {
+        "label": "Bot token (xoxb-…)",
+        "hint": "Your Slack app → OAuth & Permissions → Bot User OAuth Token."
+      },
+      "signingSecret": {
+        "label": "Signing secret",
+        "hint": "Your Slack app → Basic Information → App Credentials."
+      },
+      "userToken": {
+        "label": "Admin user token (xoxp-…)",
+        "hint": "Lets the bot delete messages. Installed by a workspace admin; without it the bot warns instead."
+      }
+    }
+  },
+  "connections": {
+    "title": "Bot connections",
+    "description": "The bot accounts this application runs. Credentials are stored encrypted and are never shown again.",
+    "add": "Connect a bot",
+    "empty": "No bot is connected yet.",
+    "identity": "Bot account",
+    "no-identity": "Not verified yet",
+    "receive": "Receives by",
+    "last-event": "Last message",
+    "last-error": "Last error",
+    "verify": "Verify",
+    "verifying": "Verifying…",
+    "verified": "Connected as {{name}}.",
+    "remove-title": "Remove this connection?",
+    "remove-description": "“{{label}}” stops receiving and answering messages at once. This cannot be undone.",
+    "setup-title": "Finish the setup in {{platform}}",
+    "hook-url": "Webhook URL",
+    "hint": {
+      "telegram": "Add the bot to your group as an administrator with the right to delete messages and to ban users, so it can act on what it reads.",
+      "whatsapp": "Paste the webhook URL and the verify token below into the webhook settings of your Meta app, then subscribe to the messages field.",
+      "discord": "Invite the bot to your server with the permissions its actions need, and turn on the Message Content intent in the Developer Portal.",
+      "slack": "Paste the URL below as the Request URL under Event Subscriptions of your Slack app, subscribe to message events and add the bot to its channels.",
+      "discord-invite": "Invite the bot to a server",
+      "discord-pending": "The invite link appears once the application ID is known.",
+      "after-save": "Once saved, the connection shows the webhook URL and the values to paste into {{platform}}."
+    }
+  },
+  "form": {
+    "add-title": "Connect a bot",
+    "edit-title": "Edit {{label}}",
+    "description": "Paste the credentials the platform gave you. They are written once and never shown back.",
+    "platform": "Platform",
+    "label": "Name",
+    "label-placeholder": "Community moderator",
+    "credentials": "Credentials",
+    "secret-set": "Set",
+    "secret-keep": "Saved — leave empty to keep it",
+    "generated": "created for you when you save.",
+    "docs": "How to get these in {{platform}}"
+  },
+  "activity": {
+    "title": "Bot activity",
+    "description": "What the bot did, newest first. The list updates by itself.",
+    "empty": "The bot has not done anything yet.",
+    "limit": "How many to show",
+    "limit-option": "Last {{count}}",
+    "ok": "Done",
+    "failed": "Failed",
+    "chat": "chat",
+    "message": "message",
+    "user": "user"
+  },
+  "errors": {
+    "title": "Something went wrong",
+    "connection-not-found": "This connection no longer exists.",
+    "credentials-rejected": "The platform rejected these credentials. Check them and try again.",
+    "signature-rejected": "The request could not be proven to come from the platform.",
+    "transport-mismatch": "Only a mock connection can receive simulated messages.",
+    "unsupported-action": "This platform, with these credentials, cannot do that.",
+    "connection-disabled": "This connection is switched off. Switch it on first.",
+    "secret-missing": "The server has no secret to protect bot credentials with. Ask its administrator to set one.",
+    "credentials-unreadable": "The saved credentials can no longer be read on this server. Enter them again.",
+    "platform-refused": "The platform refused: {{detail}}",
+    "bot": "The bot could not complete this.",
+    "generic": "Something went wrong. Please try again."
+  }
+}

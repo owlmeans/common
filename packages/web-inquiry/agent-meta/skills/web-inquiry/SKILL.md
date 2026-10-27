@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-inquiry
 
 **Layer:** Web (depends on `@owlmeans/common-inquiry` and `@owlmeans/log`; no React, no widget code)
-**Install:** `"@owlmeans/web-inquiry": "^0.1.18-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/web-inquiry": "^0.1.18-rc.3"` in `dependencies`
 
 The host half of the inquiry widget. The dialog itself — React, styles, reCAPTCHA, the upload — is
 a bundle the CRM serves; this package only loads it, opens it and reports the opens. A page pays
@@ -42,6 +42,11 @@ the opens of an unclaimed widget). The last client to act sets the runtime's lan
 | `analytics` | the open event's name; default `INQUIRY_OPEN_EVENT`; `false` reports nothing |
 | `onOpen(event)` | called once per open, after the analytics event |
 | `timeoutMs` | how long `load` waits; default `INQUIRY_LOAD_TIMEOUT` (10 000) |
+
+A trigger can also prepare the message: `bind(element, config, { source, message: () => ({ subject,
+body }) })` hands the provider to the runtime unread, so it is read at the click and a trigger that
+keeps its text current (an estimate being adjusted) needs no re-binding (`InquiryOpenOptions.message`,
+`common-inquiry`).
 
 The client passes the email source to the widget; neither creating a client, binding triggers nor
 `load()` invokes it. Supply `email` in `open`, `bind` or `button` options to override the client's

@@ -12,8 +12,17 @@ export interface LlmPluginRegistry {
   pluginOf: (provider: string | undefined) => LlmPlugin | undefined
   /** The `ModelConfig.effort` levels this config's model accepts, or `undefined` for none. */
   effortSupportOf: (config: Pick<ModelConfig, 'provider' | 'model' | 'disableThinking'>) => EffortSupport | undefined
-  /** The first registered plugin that recognises this model instance, or `undefined`. */
+  /**
+   * The first registered plugin that recognises this model instance, or `undefined`. By instance
+   * alone every `ChatOpenAI` is `compatible`'s — use {@link resolveFor} for a model the service built.
+   */
   pluginFor: (model: BaseChatModel) => LlmPlugin | undefined
+  /**
+   * The plugin governing a model: the one of the provider its config names (what the service built
+   * it with), else {@link pluginFor}. Call it on the UNBOUND model — a `bindTools` binding carries
+   * no config and no plugin claims it.
+   */
+  resolveFor: (model: BaseChatModel) => LlmPlugin | undefined
   /**
    * Resolve the plugin governing a call. The config's `provider` is authoritative; when it
    * is unavailable (a refined instance whose metadata did not survive) the model instance

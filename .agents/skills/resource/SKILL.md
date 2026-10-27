@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/resource
 
 **Layer:** Core
-**Install:** `"@owlmeans/resource": "^0.1.18-rc.40"` in `dependencies`
+**Install:** `"@owlmeans/resource": "^0.1.18-rc.41"` in `dependencies`
 
 ## Key Exports
 
@@ -97,111 +97,6 @@ So `get` only what the REQUEST addressed. A missing row it did not name — a co
 a session, an internal lookup — is not the caller's 404: `load` it and throw the fault or the
 refusal that fits (an auth path throws `AuthorizationError`).
 
-### The criteria language
-
-`Criteria<T>` is keyed by the record's own fields, so a typo is a compile error. A dotted key
-reaches into a nested value (or a jsonb column) and stays open.
-
-| Written as | Means |
-|---|---|
-| `{ status: 'open' }` | equality |
-| `{ status: ['open', 'done'] }` | **any of these** — a bare array is never exact-array equality (that is `{ $eq: [...] }`) |
-| `{ archivedAt: null }` | the absence of a value |
-| `{ status: undefined }` | **skipped** — an untouched filter must never empty a list |
-| `{ 'profile.city': 'Kraków' }` | reach into a nested value or a jsonb column |
-
-Operators go in an object under the field: `$eq $ne $gt $gte $lt $lte $in $nin $exists $null
-$like $ilike $regex $startsWith $endsWith $between $contains $contained $overlaps`. Branches
-combine with `$and` / `$or` / `$not`, each taking criteria of the same shape.
-
-```typescript
-await projects.list({
-  entityId: 'abc',
-  createdAt: { $gte: since },
-  $or: [{ name: { $ilike: 'owl%' } }, { tags: { $overlaps: ['pinned'] } }]
-})
-```
-
-Every backend answers the same object the same way — that is the point of the vocabulary. An
-operator a store cannot express raises `UnsupportedArgumentError` rather than being quietly
-dropped.
-
-`Sort<T>` is a bare field name (ascending) or `{ field, order: 'asc' | 'desc' }`, and `sort` takes
-a list of them. Where an **absent** value lands is the store's own rule, not the vocabulary's: the
-in-memory sorter puts it last ascending, Postgres emits a bare `ASC` and so leaves it last (the
-server's `NULLS LAST` default), and Mongo hands the sort document to the driver untouched, so BSON
-ordering puts null and missing first. Sort on a field the schema requires when the position of an
-absent value matters.
-
-### Paging is a property of the backend
-
-`ListResult<T>` is `{ items, total, page?, size? }` — `total` always counts every match. Whether a
-missing `size` means "everything" depends on what the store can afford:
-
-| Backend | `list(where)` with no `size` |
-|---|---|
-| mongo, postgres | a page of `DEFAULT_PAGE_SIZE` (100) — an unbounded read of a growing table is an incident waiting to happen |
-| redis, static, client-resource, config, state | every match — answering the criteria already read the whole namespace, so an implied window would only hide records without saving work |
-
-`size: 0` means **no limit** on every backend — the explicit, greppable way to ask for a whole
-result set. `page` without `size` against an unpaged backend throws
-`UnsupportedArgumentError('page-without-size')`: there is no implied default to take a window of.
-
-### The shared in-memory engine
-
-Every store without a query engine of its own — redis after its SCAN, the client and static stores,
-state — filters through the same helper, `recordQueryHelper`, so a criteria object written for an
-endpoint selects the same records when a screen applies it locally:
-
-| Member | Answers |
-|---|---|
-| `recordQueryHelper.matchCriteria(record, where)` | does this one record match |
-| `recordQueryHelper.filterRecords(records, where)` | every match, in insertion order |
-| `recordQueryHelper.sortRecords(records, sort)` | a sorted copy |
-| `recordQueryHelper.firstMatch(records, where, { sort })` | the record `load(where)` / `get(where)` return |
-| `recordQueryHelper.applyQuery(records, where, opts)` | the whole `ListResult` — filter, sort and page in one call |
-
-Reach for them when implementing a backend, and when narrowing a list already in hand rather than
-going back to the store.
-
-### Optional capabilities
-
-A concrete resource interface composes the capabilities its backend actually has beside
-`Resource<T>`; a consumer types the **resource** once and gets exactly those methods.
-
-| Interface | Surface |
-|---|---|
-| `PubSubResource<T>` | `publish(value, channel?)` · `subscribe(handler, { channel?, once?, ttl? })` |
-| `WatchableResource<T>` | `watch(id, handler, { once?, ttl? })` — changes to ONE record |
-| `StreamResource<T>` | `stream(key, value)` · `consume(key, { group?, consumer?, block? })` |
-| `LockableResource<T>` | `lock`/`unlock` — field level encryption at rest |
-| `MigratableResource<Tx, Self>` | `migration(name, apply, stage?)` · `migrations()` |
-
-## The migration framework
-
-Migrations are **automatic on app setup**: a backend runs them inside the resource's
-`init()` — registering one is all an app ever does. Every migration self-describes when it
-applies: the registry skips names the store has recorded, `baseline` covers structures
-created already at head, and bodies are written idempotent so an interrupted run can repeat.
-
-Adding migration support to a new database backend:
-
-1. Extend the concrete resource interface with `MigratableResource<YourTx>` and design the
-   `Tx` façade a migration receives.
-2. Keep registrations in a **module-scope declaration keyed by alias** — the shape mongo and
-   postgres both expose as `mongoDeclarationHelper` / `pgDeclarationHelper` with
-   `.getDeclaration(alias)` / `.resetDeclarations(alias?)`. A maker that runs more than once for the
-   same alias (a custom maker, a test) then re-declares the same entries and loses nothing, where a
-   registry held on the resource object would silently lose data transformations.
-3. Implement `MigrationStore` over a durable ledger when the database can store one
-   (`_owlmeans_migrations` in both mongo and postgres); a store-less backend may run
-   migrations unconditionally if its bodies are self-checking.
-4. In the resource's `init()`: probe structure → absent: `runMigrations(..., { baseline: true })`;
-   present: run `Pre` → reconcile structure → run `Post`.
-5. Make `run` atomic with the ledger write where the database allows it (postgres: same
-   transaction). Where it doesn't (mongo: no multi-doc transactions on standalone), use
-   claim-then-complete on a unique `(alias, name)` key and require idempotent bodies.
-
 ## Depends On
 
 - `@owlmeans/context` — service/resource lifecycle
@@ -216,3 +111,14 @@ declares neither. Install both alongside it in any project that loads `createMig
 
 - [[mongo-resource]] · [[postgres-resource]] — the two `MigratableResource` implementations
 - [[redis-resource]] — a non-migratable backend (pub/sub capability instead)
+
+## Parts
+
+Load a part on top of this core when its job is in play.
+
+| Part | Load it when |
+|---|---|
+| [criteria](parts/criteria.md) | Writing a `where` (operators, `$or`, nested keys), a `sort`, or paging a `list` (`size`, `page`, `size: 0`) |
+| [memory-engine](parts/memory-engine.md) | Implementing a store without a query engine, or narrowing a list already in hand (`recordQueryHelper`) |
+| [capabilities](parts/capabilities.md) | Typing a resource with pub/sub, watch, stream, lock or migration capabilities |
+| [migrations](parts/migrations.md) | Registering a migration or adding migration support to a database backend |

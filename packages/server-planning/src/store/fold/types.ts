@@ -12,7 +12,7 @@ export interface FoldHelper {
    *
    * Transitions are read in `seq` order past the card's own `seq`, and only `pending` ones are
    * applied, each with `applyHelper.applyTransition` and nothing else. Per transition: write the
-   * record (a `delete` drops it, a project `delete` purges everything under it), fold its
+   * record (a `delete` drops it with its own documents, a project `delete` purges everything under it), fold its
    * relationships, mark it `committed`, `publish` the event, then run `onCommitted` — so the `after`
    * chain runs in THIS process, exactly once per committed transition. A transition that cannot be
    * folded is marked `failed` with the reason and a failed event is published, and the fold goes PAST

@@ -1,4 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
+import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
 import { ProjectArea } from '../areas/consts.js'
 import {
@@ -73,6 +74,7 @@ const ScaffoldStoryPlanSchema: JSONSchemaType<ScaffoldStoryPlan> = {
   title: 'ScaffoldStoryPlan',
   description: 'Where one user story lives in the menus, and what its dashboard widget shows',
   properties: {
+    interaction: { ...RecordInteractionPlanSchema, nullable: true },
     code: {
       type: 'string',
       description: 'The story code, copied EXACTLY from the story list given to you'
@@ -753,6 +755,14 @@ export const ScaffoldPlanAnswerSchema = {
   ...ScaffoldPlanSchema,
   properties: {
     ...ScaffoldPlanSchema.properties,
+    stories: {
+      ...ScaffoldPlanSchema.properties!.stories,
+      items: {
+        ...ScaffoldStoryPlanSchema,
+        required: [...(ScaffoldStoryPlanSchema.required ?? []), 'interaction'],
+        properties: { ...ScaffoldStoryPlanSchema.properties, interaction: RecordInteractionPlanSchema },
+      },
+    },
     guestHome: {
       ...GuestHomePlanSchema,
       properties: {

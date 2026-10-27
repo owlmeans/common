@@ -21,6 +21,7 @@ import type {
   IamOrganizationsResponse, IamPermissionDefinition, IamPermissionsResponse, IamProjectMemberInvite,
   IamProjectMemberUpdate, IamProjectUserInvite, IamProjectUserUpdate, IamRevokeGrant, IamUser, IamUsersResponse,
   ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFileChanges,
+  AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView,
 } from '@owlmeans/viable-common'
 
 export interface SdkOptions {
@@ -89,6 +90,35 @@ export interface ConnectorApi {
      * behind. A run still working is not stopped by it; the answer is the lock as it now stands.
      */
     unlock: (projectId: string) => Promise<ConnectAgentLock>
+    /**
+     * Stop what the agent runs now — the web's Stop. A story run stops at its next step boundary and
+     * its changes since that run started are rolled back (the story returns to planned); an
+     * open-ended change stops once the model's current answer arrives and ends with a short summary,
+     * its edits kept; the `batch` scope cancels the batch first. Answers the lock, `stopping` set.
+     * Refused `AgentNotRunning` when nothing it reaches runs.
+     */
+    stop: (projectId: string, args: AgentStopArgs) => Promise<ConnectAgentLock>
+    /**
+     * Send the open-ended change that runs now a message, read before the agent's next model call.
+     * Refused `AgentNotRunning` when no such run is open to messages.
+     */
+    steer: (projectId: string, args: AgentSteerArgs) => Promise<AgentSteerResult>
+    /**
+     * A story batch — the web's Run all: several planned stories implemented one after another, in
+     * the order the platform chooses for building them.
+     */
+    batch: {
+      /**
+       * Start one over the stories named (card ids), or every planned story when `stories` is left
+       * out. Refused `StoryBatchActive` while another runs, `StoryBatchEmpty` when nothing planned is
+       * selected; each story's start is admitted like a person's Start.
+       */
+      start: (projectId: string, args: StoryBatchStartArgs) => Promise<StoryBatchView>
+      /** The project's latest batch, or `null` when none ever ran. */
+      get: (projectId: string) => Promise<StoryBatchView | null>
+      /** No further story starts; the story in progress is stopped through {@link stop}. */
+      cancel: (projectId: string) => Promise<StoryBatchView>
+    }
     /**
      * What the project's agent did after a cursor — run starts and stops, pipeline steps, card,
      * workload and conversion changes, git proposals, tool outcomes, and with `detail: thinking` the
@@ -320,9 +350,10 @@ export interface ConnectorApi {
   /**
    * The generated app's sign-in — the owner console's own calls, per project and per app: `scope`
    * picks the preview's client (absent) or production's. Platform records, so a local target's app is
-   * managed here too. An IAM refusal the owner can act on (a managed group or definition, the last
-   * owner) is `IamRefused` (`iam-refused:<marker>`); a backend that keeps a listing in a console of
-   * its own answers it empty with `external: true`. Organizations travel by slug, groups by key.
+   * managed here too. An IAM refusal the owner can act on (the staff group's members, bundles or
+   * existence, a managed definition, the last owner) is `IamRefused` (`iam-refused:<marker>`); a
+   * backend that keeps a listing in a console of its own answers it empty with `external: true`.
+   * Organizations travel by slug, groups by key.
    */
   iam: {
     /** Every end user of every app the organization owns — read-only; a person is managed per project. */
@@ -332,10 +363,14 @@ export interface ConnectorApi {
     /** A definition's default class or organization binding; an omitted setting is kept. */
     setDefault: (projectId: string, body: IamDefinitionUpdate) => Promise<IamPermissionDefinition>
     grants: {
-      /** Every grant, one person's (`profileId`) or one group's (`group` with its `entitySlug`). */
+      /**
+       * Every grant, one person's (`profileId`) or one group's (`group` with its `entitySlug`) — what
+       * is held, plus the inherited grants a subject's own restriction withholds (`restricted: true`).
+       */
       list: (projectId: string, query?: IamGrantsQuery) => Promise<IamGrantsResponse>
       /** Grant to exactly one subject — a person or a group. */
       assign: (projectId: string, body: IamAssignGrant) => Promise<IamGrant>
+      /** A whole-permission revoke restricts the subject; `mode: inherit` takes its own value back. */
       revoke: (projectId: string, body: IamRevokeGrant) => Promise<void>
     }
     users: {

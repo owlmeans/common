@@ -1,7 +1,7 @@
 ---
 node: payments
 scope: "packages/{payment,server-payment,client-payment,web-payment}/**"
-updated: 2026-09
+updated: 2026-10
 ---
 
 # Payments
@@ -58,4 +58,4 @@ updated: 2026-09
 
 ## Pointers
 
-- Skills `payment`, `server-payment` (+ its `reference.md`), `web-payment`, `entitlements`.
+- Skills `payment`, `server-payment` (+ its `parts/reference.md`), `web-payment`, `entitlements`.

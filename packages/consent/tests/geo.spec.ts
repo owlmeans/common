@@ -4,7 +4,7 @@ import {
   CONSENT_REQUIRED_COUNTRIES, CONSENT_TRACE_PATH,
 } from '../src/consts.js'
 import { consentGeoHelper } from '../src/geo.js'
-import { consentModeHelper } from '../src/gtm.js'
+import { consentModeHelper } from '../src/gtobserver.js'
 import { consentLinkHelper } from '../src/linker.js'
 import { consentPluginHelper } from '../src/plugins.js'
 import { makeConsentStore } from '../src/store.js'

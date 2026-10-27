@@ -25,9 +25,13 @@ import { ENTRY_ACTIVE, TARGET, ENTRY } from './consts.local.js'
  * `className` and `style` land on the TRIGGER — the only element the sheet places in the host's
  * flow; the sheet itself is portalled to the document body.
  */
-export const MobileNav: FC<MobileNavProps> = (
-  { config, translate = navLabelHelper.defaultNavTranslate, ariaLabel, className, style }
-) => {
+export const MobileNav: FC<MobileNavProps> = ({
+  config,
+  translate = navLabelHelper.defaultNavTranslate,
+  ariaLabel,
+  className,
+  style
+}) => {
   const model = usePanelNav(config)
   const [open, setOpen] = useState(false)
   const id = useId()
@@ -47,82 +51,115 @@ export const MobileNav: FC<MobileNavProps> = (
     go()
   }
 
-  return <Sheet open={open} onOpenChange={setOpen}>
-    <SheetTrigger asChild>
-      <Button
-        variant="ghost" size="icon" aria-label={label} data-nav-menu-trigger
-        className={cn(TARGET, className)} style={style}
-      ><MenuIcon className="size-6" aria-hidden="true" /></Button>
-    </SheetTrigger>
-    {/*
-      * `text-foreground` beside the primitive's `bg-background`: the sheet is portalled to the
-      * document body, so it inherits nothing from the shell and states both halves of its surface
-      * itself — the same rule the header follows.
-      *
-      * No description, deliberately: the title names the dialog, and Radix only warns about a
-      * missing one unless `aria-describedby` is passed explicitly as undefined.
-      */}
-    <SheetContent
-      side="right" showCloseButton={false} aria-describedby={undefined} data-nav-sheet
-      className="gap-0 p-0 text-foreground"
-    >
-      <div className="flex h-14 shrink-0 items-center justify-between border-b pl-4 pr-2">
-        <SheetTitle className="text-base">{label}</SheetTitle>
-        <SheetClose asChild>
-          <Button variant="ghost" size="icon" aria-label={closeLabel} className={TARGET}>
-            <XIcon className="size-5" aria-hidden="true" />
-          </Button>
-        </SheetClose>
-      </div>
-      <nav aria-label={ariaLabel} className="flex-1 overflow-y-auto p-2">
-        <ul className="flex flex-col gap-1">
-          {model.sections.map(section => {
-            const sectionLabel = navLabelHelper.resolveNavLabel(translate, section.label, `nav.${section.name}`, section.name)
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={label}
+          data-nav-menu-trigger
+          className={cn(TARGET, className)}
+          style={style}
+        >
+          <MenuIcon className="size-6" aria-hidden="true" />
+        </Button>
+      </SheetTrigger>
+      {/*
+       * `text-foreground` beside the primitive's `bg-background`: the sheet is portalled to the
+       * document body, so it inherits nothing from the shell and states both halves of its surface
+       * itself — the same rule the header follows.
+       *
+       * No description, deliberately: the title names the dialog, and Radix only warns about a
+       * missing one unless `aria-describedby` is passed explicitly as undefined.
+       */}
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        aria-describedby={undefined}
+        data-nav-sheet
+        className="gap-0 p-0 text-foreground"
+      >
+        <div className="flex h-14 shrink-0 items-center justify-between border-b pl-4 pr-2">
+          <SheetTitle className="text-base">{label}</SheetTitle>
+          <SheetClose asChild>
+            <Button variant="ghost" size="icon" aria-label={closeLabel} className={TARGET}>
+              <XIcon className="size-5" aria-hidden="true" />
+            </Button>
+          </SheetClose>
+        </div>
+        <nav aria-label={ariaLabel} className="flex-1 overflow-y-auto p-2">
+          <ul className="flex flex-col gap-1">
+            {model.sections.map((section) => {
+              const sectionLabel = navLabelHelper.resolveNavLabel(
+                translate,
+                section.label,
+                `nav.${section.name}`,
+                section.name
+              )
 
-            if (section.items.length > 1) {
-              const heading = `${id}-${section.name}`
+              if (section.items.length > 1) {
+                const heading = `${id}-${section.name}`
 
-              return <li key={section.name} className="pt-2">
-                <p
-                  id={heading}
-                  className={cn(
-                    'px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground',
-                    model.isSectionActive(section) && 'text-foreground'
-                  )}
-                >{sectionLabel}</p>
-                <ul aria-labelledby={heading} className="flex flex-col gap-1">
-                  {section.items.map(item => {
-                    const active = model.isItemActive(item)
+                return (
+                  <li key={section.name} className="pt-2">
+                    <p
+                      id={heading}
+                      className={cn(
+                        'px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground',
+                        model.isSectionActive(section) && 'text-foreground'
+                      )}
+                    >
+                      {sectionLabel}
+                    </p>
+                    <ul aria-labelledby={heading} className="flex flex-col gap-1">
+                      {section.items.map((item) => {
+                        const active = model.isItemActive(item)
 
-                    return <li key={item.alias}>
-                      <a
-                        href={model.hrefOf(item)}
-                        onClick={follow(model.goItem(item))}
-                        aria-current={active ? 'page' : undefined}
-                        className={cn(ENTRY, active && ENTRY_ACTIVE)}
-                      >
-                        {item.Icon != null ? <item.Icon className="size-4" /> : null}
-                        {navLabelHelper.resolveNavLabel(translate, item.label, `modules.${item.alias}`, item.alias)}
-                      </a>
-                    </li>
-                  })}
-                </ul>
-              </li>
-            }
+                        return (
+                          <li key={item.alias}>
+                            <a
+                              data-testid={item.testId}
+                              href={model.hrefOf(item)}
+                              onClick={follow(model.goItem(item))}
+                              aria-current={active ? 'page' : undefined}
+                              className={cn(ENTRY, active && ENTRY_ACTIVE)}
+                            >
+                              {item.Icon != null ? <item.Icon className="size-4" /> : null}
+                              {navLabelHelper.resolveNavLabel(
+                                translate,
+                                item.label,
+                                `modules.${item.alias}`,
+                                item.alias
+                              )}
+                            </a>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </li>
+                )
+              }
 
-            const active = model.isSectionActive(section)
+              const active = model.isSectionActive(section)
 
-            return <li key={section.name}>
-              <a
-                href={model.hrefOf(section)}
-                onClick={follow(model.goSection(section))}
-                aria-current={active ? 'page' : undefined}
-                className={cn(ENTRY, active && ENTRY_ACTIVE)}
-              >{sectionLabel}</a>
-            </li>
-          })}
-        </ul>
-      </nav>
-    </SheetContent>
-  </Sheet>
+              return (
+                <li key={section.name}>
+                  <a
+                    data-testid={section.testId}
+                    href={model.hrefOf(section)}
+                    onClick={follow(model.goSection(section))}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(ENTRY, active && ENTRY_ACTIVE)}
+                  >
+                    {sectionLabel}
+                  </a>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
+      </SheetContent>
+    </Sheet>
+  )
 }

@@ -1,4 +1,4 @@
-import { CONVERSION_SEED_DATA_DIR, CONVERSION_SEED_DIR, CONVERSION_STORY_DIR } from './consts.js'
+import { CONVERSION_SEED_DATA_DIR, CONVERSION_SEED_DIR, CONVERSION_STORY_DIR, CONVERSION_SUMMARY_DIR } from './consts.js'
 import type { ConversionDocHelper } from './docs/types.js'
 
 export const createConversionDocHelper = (): ConversionDocHelper => {
@@ -9,7 +9,9 @@ export const createConversionDocHelper = (): ConversionDocHelper => {
   const conversionSeedData = (name: string, ext: string): string =>
     `${CONVERSION_SEED_DATA_DIR}/${name}.${ext}`
 
-  return { conversionStoryDoc, conversionSeedDoc, conversionSeedData }
+  const conversionSummaryDoc = (name: string): string => `${CONVERSION_SUMMARY_DIR}/${name}.md`
+
+  return { conversionStoryDoc, conversionSeedDoc, conversionSeedData, conversionSummaryDoc }
 }
 
 export const conversionDocHelper = createConversionDocHelper()

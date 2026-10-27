@@ -4,7 +4,7 @@ import {
   CONSENT_MARKETING, CONSENT_SCHEMA_VERSION, DEFAULT_CONSENT_CATEGORIES, DEFAULT_CONSENT_MESSAGES,
 } from '../src/consts.js'
 import { consentStorageHelper } from '../src/storage.js'
-import { consentModeHelper } from '../src/gtm.js'
+import { consentModeHelper } from '../src/gtobserver.js'
 import { makeConsentStore } from '../src/store.js'
 import { consentI18nHelper } from '../src/i18n.js'
 import type { ConsentCategory } from '../src/types.js'

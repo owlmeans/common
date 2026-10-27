@@ -28,7 +28,9 @@ must do it explicitly, or `request.entity` stays empty and handlers compare a sl
 
 ## Environments (mandatory)
 
-Parallel checkouts exist: primary `~/projects/owlmeans/common` and one per slot under
+The primary environment is **main**; **stage** means `vslots/stage` (host alias `staging`).
+
+Parallel checkouts exist: main `~/projects/owlmeans/common` and one per slot under
 `~/projects/owlmeans/vslots/<slot>/common`, each with its own deployed environment (releases, master
 secret, hosts, database, cache prefix). Build, test, deploy and inspect only the one your checkout
 path identifies; never touch another slot's files, releases or data, and never pass `--all` to a
@@ -87,14 +89,14 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 | Client (platform-agnostic) | `client-*` (`client-iam` and `client-auth` pull in the web layer) |
 | Web | `web-*` (incl. `web-log`), `astro`; LEGACY `mui-panel`, `mui-oidc-rp` (maintain only) |
 | Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource` |
-| AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `viable-common`, `viable-log`, `viable-sdk` |
+| AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `bot-agent`, `viable-common`, `viable-log`, `viable-sdk` |
 | Mail | `mailer`, `mailer-smtp`, `server-mailer-mailgun` |
-| Domain | `oidc`, `iam`, `payment`, `consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `planning`, `planning-auth` |
+| Domain | `oidc`, `iam`, `payment`, `consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `planning`, `planning-auth`, `bot` |
 | Not framework | `_tpl`, `test`, `test-auth`, `test-integration`, `test-ui` |
 
 ## Key Facts
 
-- 129 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
+- 134 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
 - ESM only, output in `build/`; TypeScript `^7.0.2` (`/tsconfig`, `/bun`).
 - Versions are per package and deliberately uneven — never resynchronise (`/versions`, `/publishing`).
 - React is a peer dependency; crypto via `@noble/*` + `@scure/*`; validation via AJV + ajv-formats.

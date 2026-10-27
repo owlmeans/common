@@ -9,9 +9,13 @@ import { ACTION_LABEL } from './consts.local.js'
 
 const padEnd = (s: string, n: number): string => s + ' '.repeat(Math.max(0, n - s.length))
 
+/** `skill`, or `skill/part` for a part file. */
+const labelOf = (item: InstallItem): string =>
+  item.part == null ? item.entry.name : `${item.entry.name}/${item.part}`
+
 const printTable = (items: InstallItem[]): void => {
   const colWidths = {
-    name: Math.max(...items.map(i => i.entry.name.length), 5) + 2,
+    name: Math.max(...items.map(i => labelOf(i).length), 5) + 2,
     pkg: Math.max(...items.map(i => i.entry.packageName.length), 7) + 2,
     action: 10,
   }
@@ -26,7 +30,7 @@ const printTable = (items: InstallItem[]): void => {
   for (const item of items) {
     const actionLabel = ACTION_LABEL[item.action]
     process.stdout.write(
-      padEnd(item.entry.name, colWidths.name) +
+      padEnd(labelOf(item), colWidths.name) +
       padEnd(item.entry.packageName, colWidths.pkg) +
       actionLabel +
       '\n',
@@ -82,7 +86,7 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
   }
 
   // 5. Count actionable items
-  const toWrite = items.filter(i => i.action === 'install' || i.action === 'update')
+  const toWrite = items.filter(i => i.action === 'install' || i.action === 'update' || i.action === 'prune')
   const conflicts = items.filter(i => i.action === 'conflict')
 
   if (toWrite.length === 0 && conflicts.length === 0) {
@@ -108,7 +112,7 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
     for (const item of resolvedItems) {
       if (item.action !== 'conflict') continue
       const ok = await promptUtils.confirm(
-        `  ${item.entry.name} has local edits — overwrite ${item.targetPath}?`,
+        `  ${labelOf(item)} has local edits — overwrite ${item.targetPath}?`,
       )
       if (ok) {
         // Upgrade to update
@@ -140,7 +144,8 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
 
   process.stdout.write(
     `Done: ${result.installed} installed, ${result.updated} updated, ` +
-    `${result.skipped} up-to-date, ${result.conflicts} skipped (conflicts).\n`,
+    `${result.skipped} up-to-date, ${result.conflicts} skipped (conflicts)` +
+    `${result.pruned > 0 ? `, ${result.pruned} pruned` : ''}.\n`,
   )
   if (result.linked > 0) {
     process.stdout.write(`Linked ${result.linked} skill(s) into .claude/skills/ for Claude Code.\n`)

@@ -26,8 +26,9 @@ updated: 2026-09
 
 ## Invariants
 
-- Plugin-contributed context reaches `PromptBlock.Context` only. `patchSystem` deliberately refuses
-  to cache-mark a trailing Context block, so it is free; anywhere above it invalidates the prefix.
+- Plugin-contributed context reaches `PromptBlock.Context` only, which renders into the project
+  message after the system prompt (its own cache boundary); anywhere in the system region it would
+  invalidate the persona prefix every call shares.
 - `safeInvokeTool` never throws. Broke when violated: a rejected LangGraph task aborts the whole
   superstep and every sibling tool call in the batch dies with it.
 - Tools resolve by `tool.name` first, map key second — `bindTools` advertises the name.

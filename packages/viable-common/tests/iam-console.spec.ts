@@ -10,8 +10,8 @@ import {
 } from '../src/connect/schemas.js'
 import { connectProtocols } from '../src/connect/entrypoints.js'
 import {
-  IAM_REFUSED, IamAssignGrantSchema, IamDefaultClass, IamDefinitionUpdateSchema, IamGrantMode, IamGroupMembersChangeSchema,
-  IamProjectUserInviteSchema, IamScopedSchema,
+  IAM_REFUSED, IamAssignGrantSchema, IamDefaultClass, IamDefinitionUpdateSchema, IamGrantMode, IamGrantOrigin,
+  IamGroupMembersChangeSchema, IamProjectUserInviteSchema, IamRevokeGrantSchema, IamScopedSchema,
 } from '../src/iam-console/index.js'
 import { WorkloadKind } from '../src/slot/consts.js'
 
@@ -42,6 +42,21 @@ describe('@owlmeans/viable-common — the owner console contract', () => {
     expect(ajv.compile(IamProjectUserInviteSchema)({ email: 'a@b.test', entitySlug: 'acme' })).toBe(false)
     expect(ajv.compile(IamGroupMembersChangeSchema)({ profileIds: [] })).toBe(false)
     expect(IAM_REFUSED).toBe('iam-refused')
+  })
+
+  test('a revoke may take back only the subject\'s own value (mode: inherit); the IAM, not the schema, refuses it on a grant', () => {
+    expect(IamGrantMode.Inherit).toBe('inherit' as IamGrantMode)
+    expect(IamGrantOrigin.Bundle).toBe('bundle' as IamGrantOrigin)
+    const revoke = ajv.compile(IamRevokeGrantSchema)
+    expect(revoke({ profileId: 'shop:abc', permission: 'order--view', mode: IamGrantMode.Inherit })).toBe(true)
+    expect(revoke({ group: { entitySlug: 'acme', key: 'members' }, permission: 'order--view', mode: IamGrantMode.Inherit })).toBe(true)
+    expect(revoke({ profileId: 'shop:abc', permission: 'order--view', mode: 'forget' })).toBe(false)
+    // Deliberately admitted: both bodies share one property set, and the schema never refused the
+    // revoke-only `all` on a grant either — the IAM does (`mode:*-is-revoke-only`), and the
+    // connector's tool checks it before any call.
+    const grant = ajv.compile(IamAssignGrantSchema)
+    expect(grant({ profileId: 'shop:abc', permission: 'order--view', mode: IamGrantMode.All })).toBe(true)
+    expect(grant({ profileId: 'shop:abc', permission: 'order--view', mode: IamGrantMode.Inherit })).toBe(true)
   })
 })
 

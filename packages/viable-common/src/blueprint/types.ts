@@ -1,3 +1,4 @@
+import type { ProjectArea } from '../areas/consts.js'
 import type { ProjectTenancy } from '../areas/types.js'
 import type { SubProject } from '../slot/consts.js'
 import type { ViablePersona, ViableSkill } from '../skills/consts.js'
@@ -51,6 +52,13 @@ export interface ExperienceLayer {
    * always read through `tenancyOf`.
    */
   tenancy?: ProjectTenancy
+  /**
+   * The signed-in areas the initialization's coverage stories must reach — an area outside it gets
+   * no coverage story. Absent is every signed-in area (user, admin, operator); a bot case narrows it
+   * to the area that runs the bot and the admin area. Always read through the library's total
+   * reader (`blueprintHelper.coverageAreasOf`), which also moves a bot's area with the tenancy.
+   */
+  coverage?: ProjectArea[]
 }
 
 /** Language and toolchain. Overrides everything below it. */
@@ -186,6 +194,13 @@ export interface BlueprintCapabilities {
    * whether the capability itself is reachable.
    */
   marketingConsent: boolean
+  /**
+   * A chat bot inside a messaging platform (`@owlmeans/bot` + `@owlmeans/server-bot` +
+   * `@owlmeans/web-bot` + a database extension): connections, the hook, the worker's receivers and
+   * the activity log; keyword groups are the product's own generated records. Optional — absent
+   * reads as off, so every case defined before it stays as is.
+   */
+  bot?: boolean
 }
 
 // Kept as a type: a mapped type over the blueprint's keys.

@@ -363,3 +363,133 @@ describe('applyInstall()', () => {
     expect(existsSync(join(tmpDir, '.claude'))).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Chunked skills — parts (manifest schemaVersion 3)
+// ---------------------------------------------------------------------------
+
+/** A v3 package whose one skill carries parts; `manifestParts` overrides what the manifest lists. */
+const writeSplitPackage = (
+  nmDir: string,
+  pkgName: string,
+  version: string,
+  name: string,
+  parts: string[],
+  opts: { schemaVersion?: number; manifestParts?: Array<Record<string, unknown>> } = {},
+): void => {
+  const agentMetaDir = join(nmDir, '@owlmeans', pkgName.replace('@owlmeans/', ''), 'agent-meta')
+  const skillDir = join(agentMetaDir, 'skills', name)
+  mkdirSync(join(skillDir, 'parts'), { recursive: true })
+  writeFileSync(join(skillDir, 'SKILL.md'), `---\nname: ${name}\n---\n${BANNER}\n# ${name}\n`, 'utf8')
+  for (const part of parts) {
+    writeFileSync(join(skillDir, 'parts', `${part}.md`), `---\nname: ${part}\n---\n${BANNER}\n# ${part}\n`, 'utf8')
+  }
+  const manifest = makeFixtureManifest(pkgName, version, [{ kind: 'skill', name }], opts.schemaVersion ?? 3)
+  ;(manifest.entries[0] as Record<string, unknown>).parts = opts.manifestParts ?? parts.map(part => ({
+    name: part,
+    file: `skills/${name}/parts/${part}.md`,
+    description: `The ${part} part.`,
+    purposes: ['view'],
+    mentions: [`${part}Widget`],
+  }))
+  writeFileSync(join(agentMetaDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8')
+}
+
+const partTarget = (root: string, name: string, part: string): string =>
+  join(root, '.agents', 'skills', name, 'parts', `${part}.md`)
+
+describe('parts — discover()', () => {
+  it('maps the parts a v3 manifest lists, with their purposes and mentions', () => {
+    writeSplitPackage(join(tmpDir, 'node_modules'), '@owlmeans/web-panel', '0.2.0', 'web-panel', ['navigation', 'picker'])
+    const [entry] = discover(tmpDir, { extras: false })
+    expect(entry.parts?.map(part => part.name)).toEqual(['navigation', 'picker'])
+    expect(entry.parts?.[0].purposes).toEqual(['view'])
+    expect(entry.parts?.[0].mentions).toEqual(['navigationWidget'])
+    expect(entry.parts?.[0].sourcePath.endsWith(join('skills', 'web-panel', 'parts', 'navigation.md'))).toBe(true)
+  })
+
+  it('rejects a bad part name and a file outside skills/<name>/parts/', () => {
+    writeSplitPackage(join(tmpDir, 'node_modules'), '@owlmeans/web-panel', '0.2.0', 'web-panel', ['good'], {
+      manifestParts: [
+        { name: 'good', file: 'skills/web-panel/parts/good.md', description: '', purposes: [], mentions: [] },
+        { name: '../evil', file: 'skills/web-panel/parts/../evil.md', description: '', purposes: [], mentions: [] },
+        { name: 'elsewhere', file: 'skills/other/parts/elsewhere.md', description: '', purposes: [], mentions: [] },
+        { name: 'flat', file: 'skills/web-panel/flat.md', description: '', purposes: [], mentions: [] },
+        { name: 'missing', file: 'skills/web-panel/parts/missing.md', description: '', purposes: [], mentions: [] },
+      ],
+    })
+    const [entry] = discover(tmpDir, { extras: false })
+    expect(entry.parts?.map(part => part.name)).toEqual(['good'])
+  })
+
+  it('a pre-v3 manifest gives the core only', () => {
+    writeSplitPackage(join(tmpDir, 'node_modules'), '@owlmeans/web-panel', '0.2.0', 'web-panel', ['navigation'], { schemaVersion: 2 })
+    const [entry] = discover(tmpDir, { extras: false })
+    expect(entry.parts).toBeUndefined()
+  })
+})
+
+describe('parts — planInstall() / applyInstall()', () => {
+  it('plans one item per part beside the skill and installs them', () => {
+    writeSplitPackage(join(tmpDir, 'node_modules'), '@owlmeans/web-panel', '0.2.0', 'web-panel', ['navigation', 'picker'])
+    mkdirSync(join(tmpDir, '.claude'), { recursive: true })
+    const items = planInstall(discover(tmpDir, { extras: false }), tmpDir)
+    expect(items.map(item => [item.part ?? null, item.action])).toEqual([
+      [null, 'install'], ['navigation', 'install'], ['picker', 'install'],
+    ])
+    expect(items[1].targetPath).toBe(partTarget(tmpDir, 'web-panel', 'navigation'))
+
+    const result = applyInstall(items, tmpDir)
+    expect(result.installed).toBe(3)
+    expect(result.linked).toBe(1)
+    expect(readFileSync(partTarget(tmpDir, 'web-panel', 'picker'), 'utf8')).toContain('# picker')
+    expect(planInstall(discover(tmpDir, { extras: false }), tmpDir).every(item => item.action === 'skip-uptodate')).toBe(true)
+  })
+
+  it('a part follows the banner and conflict rules of its skill', () => {
+    writeSplitPackage(join(tmpDir, 'node_modules'), '@owlmeans/web-panel', '0.2.0', 'web-panel', ['navigation', 'picker'])
+    applyInstall(planInstall(discover(tmpDir, { extras: false }), tmpDir))
+    writeFileSync(partTarget(tmpDir, 'web-panel', 'navigation'), '# my own navigation notes\n', 'utf8')
+    writeFileSync(partTarget(tmpDir, 'web-panel', 'picker'), `${BANNER}\n# an older picker\n`, 'utf8')
+
+    const items = planInstall(discover(tmpDir, { extras: false }), tmpDir)
+    const action = (part: string) => items.find(item => item.part === part)?.action
+    expect(action('navigation')).toBe('conflict')
+    expect(action('picker')).toBe('update')
+
+    applyInstall(items)
+    expect(readFileSync(partTarget(tmpDir, 'web-panel', 'navigation'), 'utf8')).toBe('# my own navigation notes\n')
+    const forced = planInstall(discover(tmpDir, { extras: false }), tmpDir, { force: true })
+    expect(forced.find(item => item.part === 'navigation')?.action).toBe('update')
+  })
+
+  it('prunes a generated part the skill no longer lists, never a hand-written one', () => {
+    const nm = join(tmpDir, 'node_modules')
+    writeSplitPackage(nm, '@owlmeans/web-panel', '0.2.0', 'web-panel', ['navigation', 'picker'])
+    applyInstall(planInstall(discover(tmpDir, { extras: false }), tmpDir))
+    writeFileSync(partTarget(tmpDir, 'web-panel', 'mine'), '# hand-written\n', 'utf8')
+
+    rmSync(join(nm, '@owlmeans'), { recursive: true, force: true })
+    writeSplitPackage(nm, '@owlmeans/web-panel', '0.2.1', 'web-panel', ['navigation'])
+    const items = planInstall(discover(tmpDir, { extras: false }), tmpDir)
+    expect(items.filter(item => item.action === 'prune').map(item => item.part)).toEqual(['picker'])
+
+    const result = applyInstall(items, tmpDir)
+    expect(result.pruned).toBe(1)
+    expect(existsSync(partTarget(tmpDir, 'web-panel', 'picker'))).toBe(false)
+    expect(existsSync(partTarget(tmpDir, 'web-panel', 'mine'))).toBe(true)
+    expect(existsSync(partTarget(tmpDir, 'web-panel', 'navigation'))).toBe(true)
+  })
+
+  it('removes the parts directory once its last generated part is pruned', () => {
+    const nm = join(tmpDir, 'node_modules')
+    writeSplitPackage(nm, '@owlmeans/web-panel', '0.2.0', 'web-panel', ['navigation'])
+    applyInstall(planInstall(discover(tmpDir, { extras: false }), tmpDir))
+    rmSync(join(nm, '@owlmeans'), { recursive: true, force: true })
+    writeFixturePackage(nm, '@owlmeans/web-panel', '0.2.1', [{ kind: 'skill', name: 'web-panel' }])
+
+    applyInstall(planInstall(discover(tmpDir, { extras: false }), tmpDir))
+    expect(existsSync(join(tmpDir, '.agents', 'skills', 'web-panel', 'parts'))).toBe(false)
+    expect(existsSync(skillTarget(tmpDir, 'web-panel'))).toBe(true)
+  })
+})
