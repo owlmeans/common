@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/common-inquiry
 
 **Layer:** Cross-cutting domain (no `@owlmeans/*` dependencies; optional `ajv` peer for schema types)
-**Install:** `"@owlmeans/common-inquiry": "^0.1.18-rc.3"` in `dependencies`
+**Install:** `"@owlmeans/common-inquiry": "^0.1.18"` in `dependencies`
 
 The one place the three parties of the inquiry widget agree: the browser SDK
 (`@owlmeans/web-inquiry`), the widget bundle that renders the dialog, and the CRM API that accepts

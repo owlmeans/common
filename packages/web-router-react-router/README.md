@@ -14,7 +14,7 @@ covers this package; the `router-plugins` skill covers the plugin model.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-router-react-router@^0.1.18-rc.34 react-router
+bun add @owlmeans/web-router-react-router@^0.1.18 react-router
 ```
 
 Peer dependencies: `react` and `react-router@^8.4.0`.
@@ -131,7 +131,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.57
+npx @owlmeans/agent-skills@^0.1.18
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/bot
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/bot": "^0.1.18-rc.3"` in `dependencies`
+**Install:** `"@owlmeans/bot": "^0.1.18"` in `dependencies`
 **Runtime-free:** no network, no storage, no logging — enums, descriptors, interfaces, AJV schemas
 (plain objects), three pure helpers, protocol factories and registered errors. Safe in a browser.
 
