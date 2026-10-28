@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/socket",
-  "version": "0.1.18-rc.46",
-  "generatedAt": "2026-10-26T16:31:24.915Z",
+  "version": "0.1.18",
+  "generatedAt": "2026-10-28T00:31:34.737Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

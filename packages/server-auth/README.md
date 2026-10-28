@@ -13,7 +13,7 @@ account/profile records `@owlmeans/server-auth-identity`, and the browser side `
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth@^0.1.18-rc.62
+bun add @owlmeans/server-auth@^0.1.18
 ```
 
 ## Concepts
@@ -254,7 +254,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.59
+npx @owlmeans/agent-skills@^0.1.18
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

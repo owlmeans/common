@@ -101,7 +101,7 @@ describe('create-app — bare scaffolding', () => {
     expect(read('sources/api/src/index.ts')).toContain("log.error('Start failed', error)")
 
     for (const pkg of ['sources/api/package.json', 'sources/web/package.json']) {
-      expect(JSON.parse(read(pkg)).dependencies['@owlmeans/log']).toMatch(/^\^0\.1\.18-rc\.\d+$/)
+      expect(JSON.parse(read(pkg)).dependencies['@owlmeans/log']).toBe('^' + JSON.parse(readFileSync(new URL('../../log/package.json', import.meta.url), 'utf8')).version)
     }
     expect(read('.gitignore').split('\n')).toContain('.env')
     expect(read('AGENTS.md')).toContain('## Logging (mandatory)')

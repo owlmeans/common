@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/server-bot",
-  "version": "0.1.18-rc.3",
+  "version": "0.1.18",
   "license": "MIT",
-  "description": "The server runtime of OwlMeans chat bots — connections with sealed credentials, the signed inbound hook and its inbox, the worker's dispatcher and receivers, never-throwing bot actions recorded as activity, the platform plugin interface with the Telegram, WhatsApp, Discord and Slack plugins, and an API-faithful mock transport.",
+  "description": "The server runtime of OwlMeans chat bots \u2014 connections with sealed credentials, the signed inbound hook and its inbox, the worker's dispatcher and receivers, never-throwing bot actions recorded as activity, the platform plugin interface with the Telegram, WhatsApp, Discord and Slack plugins, and an API-faithful mock transport.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -37,22 +37,22 @@
     }
   },
   "dependencies": {
-    "@owlmeans/bot": "^0.1.18-rc.3",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/log": "^0.1.18-rc.4",
-    "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/server-api": "^0.1.18-rc.58",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.41"
+    "@owlmeans/bot": "^0.1.18",
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/entrypoint": "^0.1.18",
+    "@owlmeans/error": "^0.1.18",
+    "@owlmeans/log": "^0.1.18",
+    "@owlmeans/resource": "^0.1.18",
+    "@owlmeans/server-api": "^0.1.18",
+    "@owlmeans/server-entrypoint": "^0.1.18"
   },
   "peerDependencies": {
     "ajv": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/static-resource": "^0.1.18-rc.40",
-    "@owlmeans/test": "^0.1.18-rc.39",
+    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/static-resource": "^0.1.18",
+    "@owlmeans/test": "^0.1.18",
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.4",
     "ajv": "^8.20.0",

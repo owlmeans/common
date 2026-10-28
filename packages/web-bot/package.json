@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/web-bot",
-  "version": "0.1.18-rc.4",
+  "version": "0.1.18",
   "license": "MIT",
-  "description": "The browser half of OwlMeans chat bots — shadcn panels for bot connections and activity, their hooks over a bound @owlmeans/bot protocol tree, and their translations.",
+  "description": "The browser half of OwlMeans chat bots \u2014 shadcn panels for bot connections and activity, their hooks over a bound @owlmeans/bot protocol tree, and their translations.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -23,14 +23,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/bot": "^0.1.18-rc.3",
-    "@owlmeans/client": "^0.1.18-rc.59",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.54",
-    "@owlmeans/client-i18n": "^0.1.18-rc.58",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/i18n": "^0.1.18-rc.40",
-    "@owlmeans/log": "^0.1.18-rc.4"
+    "@owlmeans/bot": "^0.1.18",
+    "@owlmeans/client": "^0.1.18",
+    "@owlmeans/client-entrypoint": "^0.1.18",
+    "@owlmeans/client-i18n": "^0.1.18",
+    "@owlmeans/entrypoint": "^0.1.18",
+    "@owlmeans/error": "^0.1.18",
+    "@owlmeans/i18n": "^0.1.18",
+    "@owlmeans/log": "^0.1.18"
   },
   "peerDependencies": {
     "@radix-ui/react-dialog": "*",
@@ -46,13 +46,13 @@
     "tailwindcss": "*"
   },
   "devDependencies": {
-    "@owlmeans/config": "^0.1.18-rc.45",
-    "@owlmeans/client-context": "^0.1.18-rc.55",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/route": "^0.1.18-rc.36",
-    "@owlmeans/test-ui": "^0.1.18-rc.57",
-    "@owlmeans/web-client": "^0.1.18-rc.70",
+    "@owlmeans/config": "^0.1.18",
+    "@owlmeans/client-context": "^0.1.18",
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/route": "^0.1.18",
+    "@owlmeans/test-ui": "^0.1.18",
+    "@owlmeans/web-client": "^0.1.18",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-label": "^2.1.15",
     "@radix-ui/react-select": "^2.3.7",

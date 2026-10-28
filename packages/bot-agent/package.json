@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/bot-agent",
-  "version": "0.1.18-rc.3",
+  "version": "0.1.18",
   "license": "MIT",
-  "description": "The bridge between an OwlMeans chat bot and an @owlmeans/agent agent — botAgentPlugin contributes a bot update (platform, chat, sender, message) and the instructions its handler passes as the agent's context and the bot's actions (reply, delete, warn, mute, ban, react) as never-throwing tools, limited to what the platform supports and the caller allows.",
+  "description": "The bridge between an OwlMeans chat bot and an @owlmeans/agent agent \u2014 botAgentPlugin contributes a bot update (platform, chat, sender, message) and the instructions its handler passes as the agent's context and the bot's actions (reply, delete, warn, mute, ban, react) as never-throwing tools, limited to what the platform supports and the caller allows.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -23,24 +23,24 @@
     }
   },
   "dependencies": {
-    "@owlmeans/bot": "^0.1.18-rc.3",
-    "@owlmeans/server-bot": "^0.1.18-rc.3"
+    "@owlmeans/bot": "^0.1.18",
+    "@owlmeans/server-bot": "^0.1.18"
   },
   "peerDependencies": {
     "@langchain/core": "^1.2.14",
-    "@owlmeans/agent": "^0.1.18-rc.56"
+    "@owlmeans/agent": "^0.1.18"
   },
   "devDependencies": {
     "@langchain/core": "^1.2.14",
     "@langchain/langgraph": "^1.4.19",
     "@langchain/langgraph-checkpoint": "^1.1.5",
-    "@owlmeans/agent": "^0.1.18-rc.56",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/llm": "^0.1.18-rc.54",
-    "@owlmeans/llm-common": "^0.1.18-rc.40",
-    "@owlmeans/log": "^0.1.18-rc.4",
-    "@owlmeans/static-resource": "^0.1.18-rc.40",
+    "@owlmeans/agent": "^0.1.18",
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/llm": "^0.1.18",
+    "@owlmeans/llm-common": "^0.1.18",
+    "@owlmeans/log": "^0.1.18",
+    "@owlmeans/static-resource": "^0.1.18",
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.4",
     "ajv": "^8.20.0",

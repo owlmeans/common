@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/web-log",
-  "version": "0.1.18-rc.5",
-  "generatedAt": "2026-10-22T17:25:04.160Z",
+  "version": "0.1.18",
+  "generatedAt": "2026-10-28T00:31:34.741Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
