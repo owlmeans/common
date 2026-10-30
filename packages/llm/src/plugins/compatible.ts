@@ -3,6 +3,7 @@ import { ModelProvider, StructuredMode } from '@owlmeans/llm-common'
 import type { LlmPlugin } from './types.js'
 import type { ModelConfig } from '../types.js'
 import { pluginUtils } from './utils.js'
+import { llmTransportRegistry } from './transport.js'
 import { openAiFamily } from './openai.js'
 import { HUGGINGFACE_MARKER } from './consts.local.js'
 
@@ -29,7 +30,7 @@ export const compatiblePlugin: LlmPlugin = {
   structuredMode: (config: ModelConfig): StructuredMode =>
     config.structuredOutput === true ? StructuredMode.Native : StructuredMode.Tool,
 
-  build: ({ config, secret, callbacks }) => {
+  build: ({ alias, config, secret, callbacks }) => {
     const baseModel = config.model ??= 'Qwen/Qwen3-235B-A22B-Instruct-2507'
     const baseURL = config.baseUrl
     const isHuggingFace = baseURL != null && baseURL.includes(HUGGINGFACE_MARKER)
@@ -54,7 +55,11 @@ export const compatiblePlugin: LlmPlugin = {
         ...(config.reasoning != null ? { reasoning: config.reasoning } : {}),
         provider: { require_parameters: true },
       },
-      ...pluginUtils.makeConfiguration({ baseURL, headers }),
+      ...pluginUtils.makeConfiguration({
+        baseURL,
+        headers,
+        fetch: llmTransportRegistry.fetchFor({ provider: ModelProvider.Compatible, alias, config }),
+      }),
     })
   },
 }

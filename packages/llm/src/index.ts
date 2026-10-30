@@ -11,11 +11,13 @@ export * from './inquiry/index.js'
 export * from './prompt/index.js'
 export type * from './plugins/types.js'
 export type * from './plugins/registry/types.js'
+export type * from './plugins/transport/types.js'
 export type * from './plugins/anthropic/support/types.js'
 export {
   plugins, registerLlmPlugin, pluginOf, pluginFor, resolvePlugin, effortSupportOf,
 } from './plugins/index.js'
 export { createLlmPluginRegistry, llmPluginRegistry } from './plugins/registry.js'
+export { createLlmTransportRegistry, llmTransportRegistry } from './plugins/transport.js'
 export { anthropicPlugin, anthropicSupportOf, rejectsForcedTool, rejectsSampling, thinkingOffFor } from './plugins/anthropic.js'
 export { anthropicSupportHelper, createAnthropicSupportHelper } from './plugins/anthropic/support.js'
 export {
