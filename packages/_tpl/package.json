@@ -22,7 +22,7 @@
     "react": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/dep-config": "^0.1.18",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",

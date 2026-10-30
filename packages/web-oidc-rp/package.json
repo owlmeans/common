@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-oidc-rp",
-  "version": "0.1.18-rc.73",
+  "version": "0.1.18",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -29,20 +29,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/basic-envelope": "^0.1.18-rc.53",
-    "@owlmeans/client": "^0.1.18-rc.59",
-    "@owlmeans/client-auth": "^0.1.18-rc.67",
-    "@owlmeans/client-flow": "^0.1.18-rc.62",
-    "@owlmeans/client-i18n": "^0.1.18-rc.58",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/flow": "^0.1.18-rc.46",
-    "@owlmeans/log": "^0.1.18-rc.4",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/oidc": "^0.1.18-rc.62",
-    "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/web-client": "^0.1.18-rc.70",
-    "@owlmeans/web-flow": "^0.1.18-rc.61",
+    "@owlmeans/auth": "^0.1.18",
+    "@owlmeans/basic-envelope": "^0.1.18",
+    "@owlmeans/client": "^0.1.18",
+    "@owlmeans/client-auth": "^0.1.18",
+    "@owlmeans/client-flow": "^0.1.18",
+    "@owlmeans/client-i18n": "^0.1.18",
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/flow": "^0.1.18",
+    "@owlmeans/log": "^0.1.18",
+    "@owlmeans/entrypoint": "^0.1.18",
+    "@owlmeans/oidc": "^0.1.18",
+    "@owlmeans/resource": "^0.1.18",
+    "@owlmeans/web-client": "^0.1.18",
+    "@owlmeans/web-flow": "^0.1.18",
     "oidc-client-ts": "3.5.0"
   },
   "peerDependencies": {
@@ -55,9 +55,9 @@
     "tailwindcss": "^4.*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-auth": "^0.1.18-rc.53",
-    "@owlmeans/test-ui": "^0.1.18-rc.57",
+    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/test-auth": "^0.1.18",
+    "@owlmeans/test-ui": "^0.1.18",
     "@radix-ui/react-progress": "^1.1.16",
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.4.2",

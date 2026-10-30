@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/web-inquiry",
-  "version": "0.1.18-rc.3",
+  "version": "0.1.18",
   "license": "MIT",
-  "description": "Lightweight browser SDK of the OwlMeans customer inquiry widget — injects the widget runtime once, opens its dialog from any trigger and reports each open as an analytics event.",
+  "description": "Lightweight browser SDK of the OwlMeans customer inquiry widget \u2014 injects the widget runtime once, opens its dialog from any trigger and reports each open as an analytics event.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -27,11 +27,11 @@
     "agent-meta"
   ],
   "dependencies": {
-    "@owlmeans/common-inquiry": "^0.1.18-rc.3",
-    "@owlmeans/log": "^0.1.18-rc.4"
+    "@owlmeans/common-inquiry": "^0.1.18",
+    "@owlmeans/log": "^0.1.18"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/dep-config": "^0.1.18",
     "@types/bun": "^1.4.2",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/web-auth-token",
-  "version": "0.1.18-rc.41",
+  "version": "0.1.18",
   "license": "MIT",
-  "description": "The browser half of long-lived access tokens (API keys) — the token management panel, its headless hook and its translations.",
+  "description": "The browser half of long-lived access tokens (API keys) \u2014 the token management panel, its headless hook and its translations.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -23,14 +23,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth-token": "^0.1.18-rc.34",
-    "@owlmeans/client": "^0.1.18-rc.59",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.54",
-    "@owlmeans/client-i18n": "^0.1.18-rc.58",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/i18n": "^0.1.18-rc.40"
+    "@owlmeans/auth-token": "^0.1.18",
+    "@owlmeans/client": "^0.1.18",
+    "@owlmeans/client-entrypoint": "^0.1.18",
+    "@owlmeans/client-i18n": "^0.1.18",
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/entrypoint": "^0.1.18",
+    "@owlmeans/error": "^0.1.18",
+    "@owlmeans/i18n": "^0.1.18"
   },
   "peerDependencies": {
     "@radix-ui/react-dialog": "*",
@@ -46,7 +46,7 @@
     "tailwindcss": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/dep-config": "^0.1.18",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-label": "^2.1.15",
     "@radix-ui/react-select": "^2.3.7",

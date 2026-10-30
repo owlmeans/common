@@ -13,7 +13,7 @@ target. Do not use it in a shared `common` package that only declares protocols 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-app@^0.1.18-rc.60
+bun add @owlmeans/server-app@^0.1.18
 ```
 
 ## Concepts
@@ -310,7 +310,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.59
+npx @owlmeans/agent-skills@^0.1.18
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

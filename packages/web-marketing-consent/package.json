@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/web-marketing-consent",
-  "version": "0.1.18-rc.24",
+  "version": "0.1.18",
   "license": "MIT",
-  "description": "The browser half of @owlmeans/marketing-consent — the post-sign-in privacy-choices screen, a reusable settings-card body, the login step and terms landing hook that wire it into @owlmeans/client-auth.",
+  "description": "The browser half of @owlmeans/marketing-consent \u2014 the post-sign-in privacy-choices screen, a reusable settings-card body, the login step and terms landing hook that wire it into @owlmeans/client-auth.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -23,19 +23,19 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/auth-common": "^0.1.18-rc.54",
-    "@owlmeans/client": "^0.1.18-rc.59",
-    "@owlmeans/client-auth": "^0.1.18-rc.67",
-    "@owlmeans/client-context": "^0.1.18-rc.55",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.54",
-    "@owlmeans/client-i18n": "^0.1.18-rc.58",
-    "@owlmeans/config": "^0.1.18-rc.45",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/i18n": "^0.1.18-rc.40",
-    "@owlmeans/marketing-consent": "^0.1.18-rc.14",
-    "@owlmeans/route": "^0.1.18-rc.36"
+    "@owlmeans/auth": "^0.1.18",
+    "@owlmeans/auth-common": "^0.1.18",
+    "@owlmeans/client": "^0.1.18",
+    "@owlmeans/client-auth": "^0.1.18",
+    "@owlmeans/client-context": "^0.1.18",
+    "@owlmeans/client-entrypoint": "^0.1.18",
+    "@owlmeans/client-i18n": "^0.1.18",
+    "@owlmeans/config": "^0.1.18",
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/entrypoint": "^0.1.18",
+    "@owlmeans/i18n": "^0.1.18",
+    "@owlmeans/marketing-consent": "^0.1.18",
+    "@owlmeans/route": "^0.1.18"
   },
   "peerDependencies": {
     "@radix-ui/react-label": "*",
@@ -48,11 +48,11 @@
     "tailwindcss": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-auth": "^0.1.18-rc.53",
-    "@owlmeans/test-ui": "^0.1.18-rc.57",
-    "@owlmeans/web-client": "^0.1.18-rc.70",
-    "@owlmeans/web-flow": "^0.1.18-rc.61",
+    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/test-auth": "^0.1.18",
+    "@owlmeans/test-ui": "^0.1.18",
+    "@owlmeans/web-client": "^0.1.18",
+    "@owlmeans/web-flow": "^0.1.18",
     "@radix-ui/react-label": "^2.1.15",
     "@radix-ui/react-slot": "^1.3.3",
     "@tailwindcss/vite": "^4.3.3",

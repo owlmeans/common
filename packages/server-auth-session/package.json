@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-auth-session",
-  "version": "0.1.18-rc.22",
+  "version": "0.1.18",
   "license": "MIT",
   "description": "Short-lived OwlMeans session registry with memory and Redis implementations.",
   "type": "module",
@@ -21,13 +21,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/redis-resource": "^0.1.18-rc.49",
-    "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/server-context": "^0.1.18-rc.45"
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/redis-resource": "^0.1.18",
+    "@owlmeans/resource": "^0.1.18",
+    "@owlmeans/server-context": "^0.1.18"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/dep-config": "^0.1.18",
     "@types/bun": "^1.4.2",
     "typescript": "^7.0.2"
   },
