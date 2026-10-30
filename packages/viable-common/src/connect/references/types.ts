@@ -96,7 +96,6 @@ export interface ConnectReferences {
     modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>
     rename: ConnectReference<{ params: { id: string }, body: ConnectRenameBody }, ConnectProjectStatus>
     destroy: ConnectReference<{ params: { id: string } }, ConnectProjectSummary>
-    unlock: ConnectReference<{ params: { id: string } }, ConnectAgentLock>
     stop: ConnectReference<{ params: { id: string }, body: AgentStopArgs }, ConnectAgentLock>
     steer: ConnectReference<{ params: { id: string }, body: AgentSteerArgs }, AgentSteerResult>
     batch: {

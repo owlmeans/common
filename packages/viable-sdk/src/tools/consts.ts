@@ -194,13 +194,12 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       id: 'projects',
       title: 'Projects',
       what: 'Create one, read what was drafted, list what this account has and every workload it runs'
-        + ' (previews, production sites, local targets), point the connector at an existing one,'
-        + ' release a lock a crashed run left behind, and delete a project — the last two only once the'
-        + ' user agreed (confirm: true).',
+        + ' (previews, production sites, local targets), point the connector at an existing one, and'
+        + ' delete a project — only once the user agreed (confirm: true).',
       tools: [
         'describe_blueprints', 'describe_capabilities', 'create_project', 'confirm_project', 'project_status',
         'list_projects', 'list_slots', 'attach_project', 'reinitialize_project', 'rename_project',
-        'unlock_project_agent', 'delete_project',
+        'delete_project',
       ],
       absent: 'no project tools are offered here',
     },

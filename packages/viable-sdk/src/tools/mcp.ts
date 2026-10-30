@@ -72,7 +72,7 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
   const cloud = toolHostHelper.cloudTarget(host)
   const families = [
     'supported stacks and application categories (describe_blueprints)',
-    'projects (list_projects, rename_project, delete_project, unlock_project_agent, list_slots)',
+    'projects (list_projects, rename_project, delete_project, list_slots)',
     'stories (list_stories, create_story, develop_story, start_story_batch, story_batch_status)',
     'open-ended changes (modify_project, steer_agent), stopping the agent (stop_agent) and planning kits'
     + ' (describe_planning_kits)',

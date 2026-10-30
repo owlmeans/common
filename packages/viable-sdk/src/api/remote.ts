@@ -98,8 +98,6 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
         }),
       destroy: async (id: string): Promise<ConnectProjectSummary> => await context
         .entrypoint(connectRef.project.destroy).call({ params: { id }, timeout }),
-      unlock: async (id: string): Promise<ConnectAgentLock> => await context
-        .entrypoint(connectRef.project.unlock).call({ params: { id }, timeout }),
       // Only the fields named cross the wire: the body is a closed shape.
       stop: async (id: string, args: AgentStopArgs): Promise<ConnectAgentLock> => await context
         .entrypoint(connectRef.project.stop).call({
