@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-payment",
-  "version": "0.1.18-rc.66",
+  "version": "0.1.18",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,15 +21,15 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-auth": "^0.1.18-rc.67",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/payment": "^0.1.18-rc.55"
+    "@owlmeans/client-auth": "^0.1.18",
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/payment": "^0.1.18"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/dep-config": "^0.1.18",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

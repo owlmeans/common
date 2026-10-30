@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-bot
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-bot": "^0.1.18-rc.3"` in `dependencies` (`ajv` is a peer)
+**Install:** `"@owlmeans/server-bot": "^0.1.18"` in `dependencies` (`ajv` is a peer)
 **Contract:** `@owlmeans/bot` — platforms, connections, updates, activity, the text helper, the two protocol trees, the errors
 
 The runtime of the bot case. It stores (over ANY `@owlmeans/resource` — `@owlmeans/bot-postgres` in a

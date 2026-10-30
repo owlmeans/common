@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/bot-postgres
 
 **Layer:** Infra extension
-**Install:** `"@owlmeans/bot-postgres": "^0.1.18-rc.3"` in `dependencies` (peers `pg`, `ajv`)
+**Install:** `"@owlmeans/bot-postgres": "^0.1.18"` in `dependencies` (peers `pg`, `ajv`)
 
 The Postgres store of `@owlmeans/server-bot`: three `@owlmeans/postgres-resource` resources over the
 record schemas `server-bot` declares, plus the indexes its reads need. It owns no bot behaviour — the

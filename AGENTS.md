@@ -30,6 +30,10 @@ must do it explicitly, or `request.entity` stays empty and handlers compare a sl
 
 The primary environment is **main**; **stage** means `vslots/stage` (host alias `staging`).
 
+`~/projects/owlmeans/prods/common` is an independent production library environment on protected `prod`.
+From that checkout, read [production-environments](../../library-manager/.agents/skills/production-environments/SKILL.md)
+before work; setup wires local skills only, and package publishing requires its own explicit request.
+
 Parallel checkouts exist: main `~/projects/owlmeans/common` and one per slot under
 `~/projects/owlmeans/vslots/<slot>/common`, each with its own deployed environment (releases, master
 secret, hosts, database, cache prefix). Build, test, deploy and inspect only the one your checkout

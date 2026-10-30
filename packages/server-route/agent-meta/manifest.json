@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/server-route",
-  "version": "0.1.18-rc.35",
-  "generatedAt": "2026-10-20T23:19:58.643Z",
+  "version": "0.1.18",
+  "generatedAt": "2026-10-28T00:31:34.764Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

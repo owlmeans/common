@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/agent-skills
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.59"` — in `devDependencies` for the CLI, in
+**Install:** `"@owlmeans/agent-skills": "^0.1.18"` — in `devDependencies` for the CLI, in
 `dependencies` for the `./llm` plugin (plus the `@owlmeans/llm` and `@owlmeans/llm-common`
 **optional peers**)
 
@@ -129,7 +129,7 @@ cached too.
 
 ## Installer CLI
 
-`npx @owlmeans/agent-skills@^0.1.18-rc.59` walks the **whole** project tree, reads every nested
+`npx @owlmeans/agent-skills@^0.1.18` walks the **whole** project tree, reads every nested
 `<dir>/node_modules/@owlmeans` scope it finds, and copies each `agent-meta/` skill into
 `.agents/skills/<name>/SKILL.md`. A workspace keeps its dependencies beside the workspace member
 that declares them, so the root scope is routinely empty and a root-only scan would find nothing.

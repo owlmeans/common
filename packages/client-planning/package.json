@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/client-planning",
-  "version": "0.1.18-rc.41",
+  "version": "0.1.18",
   "license": "MIT",
-  "description": "The client half of OwlMeans planning — the remote planning facade, the state mirror and its commit fold, and the subscribe-then-poll commit wait. React-free: it runs in a browser and in a Node client alike.",
+  "description": "The client half of OwlMeans planning \u2014 the remote planning facade, the state mirror and its commit fold, and the subscribe-then-poll commit wait. React-free: it runs in a browser and in a Node client alike.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -24,27 +24,27 @@
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/client-context": "^0.1.18-rc.55",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.54",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/planning": "^0.1.18-rc.32",
-    "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/log": "^0.1.18-rc.4",
-    "@owlmeans/route": "^0.1.18-rc.36",
-    "@owlmeans/socket": "^0.1.18-rc.46",
-    "@owlmeans/state": "^0.1.18-rc.40"
+    "@owlmeans/auth": "^0.1.18",
+    "@owlmeans/client-context": "^0.1.18",
+    "@owlmeans/client-entrypoint": "^0.1.18",
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/entrypoint": "^0.1.18",
+    "@owlmeans/error": "^0.1.18",
+    "@owlmeans/planning": "^0.1.18",
+    "@owlmeans/resource": "^0.1.18",
+    "@owlmeans/log": "^0.1.18",
+    "@owlmeans/route": "^0.1.18",
+    "@owlmeans/socket": "^0.1.18",
+    "@owlmeans/state": "^0.1.18"
   },
   "peerDependencies": {
     "ajv": "*",
     "ajv-formats": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/server-planning": "^0.1.18-rc.39",
-    "@owlmeans/test": "^0.1.18-rc.39",
+    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/server-planning": "^0.1.18",
+    "@owlmeans/test": "^0.1.18",
     "@types/bun": "^1.4.2",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",

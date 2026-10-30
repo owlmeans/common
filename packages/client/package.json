@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client",
-  "version": "0.1.18-rc.59",
+  "version": "0.1.18",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -29,17 +29,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/client-context": "^0.1.18-rc.55",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.54",
-    "@owlmeans/client-resource": "^0.1.18-rc.54",
-    "@owlmeans/config": "^0.1.18-rc.45",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/router": "^0.1.18-rc.35",
-    "@owlmeans/state": "^0.1.18-rc.40"
+    "@owlmeans/auth": "^0.1.18",
+    "@owlmeans/client-context": "^0.1.18",
+    "@owlmeans/client-entrypoint": "^0.1.18",
+    "@owlmeans/client-resource": "^0.1.18",
+    "@owlmeans/config": "^0.1.18",
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/error": "^0.1.18",
+    "@owlmeans/entrypoint": "^0.1.18",
+    "@owlmeans/resource": "^0.1.18",
+    "@owlmeans/router": "^0.1.18",
+    "@owlmeans/state": "^0.1.18"
   },
   "peerDependencies": {
     "@remix-run/router": "*",
@@ -51,8 +51,8 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-ui": "^0.1.18-rc.57",
+    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/test-ui": "^0.1.18",
     "@types/react": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "nodemon": "^3.1.14",

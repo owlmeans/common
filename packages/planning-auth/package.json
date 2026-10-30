@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/planning-auth",
-  "version": "0.1.0-rc.10",
+  "version": "0.1.18",
   "license": "MIT",
   "description": "Optional OwlMeans authentication identity and group links for the generic planning system.",
   "type": "module",
@@ -19,14 +19,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/planning": "^0.1.18-rc.32"
+    "@owlmeans/planning": "^0.1.18"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18-rc.8",
+    "@owlmeans/dep-config": "^0.1.18",
     "@types/bun": "^1.4.2",
     "typescript": "^7.0.2",
-    "@owlmeans/server-planning": "^0.1.18-rc.39",
-    "@owlmeans/context": "^0.1.18-rc.35"
+    "@owlmeans/server-planning": "^0.1.18",
+    "@owlmeans/context": "^0.1.18"
   },
   "publishConfig": {
     "access": "public"

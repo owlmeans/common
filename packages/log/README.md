@@ -12,7 +12,7 @@ as `@owlmeans/web-log` for a tag manager.
 ## Installation
 
 ```bash
-bun add @owlmeans/log@^0.1.18-rc.4
+bun add @owlmeans/log@^0.1.18
 ```
 
 ## Concepts
@@ -192,7 +192,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.57
+npx @owlmeans/agent-skills@^0.1.18
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

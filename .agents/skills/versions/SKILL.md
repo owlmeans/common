@@ -10,7 +10,7 @@ allowed-tools: Bash(grep *), Bash(sed *), Bash(bun install)
 
 - Versions are **per package and deliberately uneven** — a release bumps only what changed plus its
   dependents, so untouched packages stay behind. That is the intended state; never "resynchronise"
-  them. Cutting a release is the `publishing` skill — this one covers the version format itself.
+  them unless the operator explicitly requests a shared stable promotion. Cutting a release is the `publishing` skill — this one covers the version format itself.
 - Check a version, don't assume it (see below)
 - All use `@owlmeans/*` namespace with MIT license
 - Version is set in each `packages/*/package.json` under the `"version"` field, and in the root `package.json`

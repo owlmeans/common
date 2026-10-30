@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/bot-agent
 
 **Layer:** Server (its tools act through `@owlmeans/server-bot`'s `BotActions`; type-only edge)
-**Install:** `"@owlmeans/bot-agent": "^0.1.18-rc.3"` in `dependencies`, plus the `@owlmeans/agent` and
+**Install:** `"@owlmeans/bot-agent": "^0.1.18"` in `dependencies`, plus the `@owlmeans/agent` and
 `@langchain/core` **peers**
 **Contract:** `@owlmeans/bot` (updates, action kinds, the text helper); actions: `@owlmeans/server-bot`
 
