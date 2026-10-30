@@ -593,8 +593,6 @@ export const connect = Object.freeze({
      * sessions. Irreversible; the tool asks for an explicit `confirm`.
      */
     destroy: 'viable:manager-api:connect:project:destroy',
-    /** Release the project's agent lock by force — what the web's "unlock" button does. */
-    unlock: 'viable:manager-api:connect:project:unlock',
     /**
      * Stop what the agent runs — the web's Stop: a story run stops at its next step and is rolled
      * back to its start, an open-ended change stops once the model's current answer arrives and

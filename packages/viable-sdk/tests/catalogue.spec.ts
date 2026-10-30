@@ -1603,10 +1603,6 @@ describe('viable-sdk — deleting a project and releasing its lock', () => {
             order.push(`destroy:${projectId}`)
             return { id: projectId, name: 'Shop', alias: 'shop' }
           },
-          unlock: async (projectId: string) => {
-            order.push(`unlock:${projectId}`)
-            return { locked: false }
-          },
         },
       },
       session: async () => { order.push('session'); return {} as never },
@@ -1661,22 +1657,10 @@ describe('viable-sdk — deleting a project and releasing its lock', () => {
     expect(url.order).toEqual(['destroy:p1'])
   })
 
-  test('unlock_project_agent releases the lock only with confirm: true, on the attached project by default', async () => {
-    const { deps, order } = lifecycleDeps()
-
-    expect((await run('unlock_project_agent', {}, deps)).isError).toBe(true)
-    expect(order).toEqual([])
-
-    const released = await run('unlock_project_agent', { confirm: true }, deps)
-    expect(released.isError).not.toBe(true)
-    expect(released.text).toContain('released')
-    expect(order).toEqual(['unlock:p1'])
-  })
-
-  test('both are offered on every host, in the projects group', () => {
+  test('delete is offered on every host, in the projects group; no tool force-releases a lock', () => {
     for (const mode of [host(), host({ kind: ToolHostKind.Http, target: ConnectTarget.Cloud, hasExecutor: false })]) {
       expect(names(mode)).toContain('delete_project')
-      expect(names(mode)).toContain('unlock_project_agent')
+      expect(names(mode)).not.toContain('unlock_project_agent')
       expect(names(mode)).toContain('reset_story')
       expect(names(mode)).toContain('complete_story')
     }
@@ -1697,7 +1681,7 @@ describe('viable-sdk — tool annotations', () => {
     expect(destructive).toEqual([
       'cancel_story_batch', 'delete_file', 'delete_project', 'delete_story', 'disconnect_github', 'git_discard', 'git_revert',
       'manage_app_grant', 'manage_app_group', 'manage_app_organization', 'manage_app_user', 'production_control', 'publish_production', 'purge_origin', 'reinitialize_project', 'revoke_access_token',
-      'stop_agent', 'unlock_project_agent', 'write_file',
+      'stop_agent', 'write_file',
     ])
     for (const name of [
       'project_status', 'list_projects', 'story_status', 'conversion_status', 'list_files', 'read_file', 'list_slots',

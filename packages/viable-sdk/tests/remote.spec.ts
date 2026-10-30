@@ -92,20 +92,18 @@ describe('viable-sdk — the delegated mode\'s remote calls', () => {
 })
 
 describe('viable-sdk — the remote project lifecycle', () => {
-  test('delete and unlock address their own project routes, under the tool deadline', async () => {
+  test('delete addresses its own project route, under the tool deadline; there is no unlock', async () => {
     const context = await makeSdkContext({
       apiUrl: 'http://127.0.0.1:9', token: `${CONNECT_TOKEN_PREFIX}offline_test_token`,
     })
-    const calls = captureTransport(context, call => call.alias === connect.project.unlock
-      ? { locked: false } : { id: 'p1', name: 'Shop', alias: 'shop' })
+    const calls = captureTransport(context, () => ({ id: 'p1', name: 'Shop', alias: 'shop' }))
     const api = makeRemoteConnectorApi(context)
 
     expect(await api.project.destroy('p1')).toEqual({ id: 'p1', name: 'Shop', alias: 'shop' })
-    expect(await api.project.unlock('p1')).toEqual({ locked: false })
     expect(calls.map(call => [call.alias, call.path, call.timeout])).toEqual([
       [connect.project.destroy, '/connect/project/:id', TOOL_DEADLINE_MS],
-      [connect.project.unlock, '/connect/project/:id/unlock', TOOL_DEADLINE_MS],
     ])
+    expect('unlock' in api.project).toBe(false)
   })
 })
 

@@ -36,7 +36,6 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.files.list.alias).toBe(connect.files.list)
     expect(tree.account.base.alias).toBe(connect.account.base)
     expect(tree.project.destroy.alias).toBe(connect.project.destroy)
-    expect(tree.project.unlock.alias).toBe(connect.project.unlock)
     expect(tree.files.save.alias).toBe(connect.files.save)
     expect(tree.sandbox.run.alias).toBe(connect.sandbox.run)
     expect(tree.slot.list.alias).toBe(connect.slot.list)
@@ -57,8 +56,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.project.stop.alias).toBe(connect.project.stop)
     expect(tree.project.steer.alias).toBe(connect.project.steer)
     expect(tree.project.batch.start.alias).toBe(connect.project.batch.start)
-    expect(protocols(tree)).toHaveLength(113)
-    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(113)
+    expect(protocols(tree)).toHaveLength(112)
+    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(112)
   })
 
   test('declares exactly the routes a connector calls — every alias, reference and path, and no socket', () => {
@@ -109,7 +108,7 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /project/:id/reinit', 'POST /project/:id/rename',
       'POST /project/:id/sandbox/rebuild', 'POST /project/:id/sandbox/restart', 'POST /project/:id/sandbox/run',
       'POST /project/:id/sandbox/stop', 'POST /project/:id/steer', 'POST /project/:id/stop',
-      'POST /project/:id/unlock', 'POST /project/attach', 'POST /session',
+      'POST /project/attach', 'POST /session',
       'POST /session/:sessionId/close', 'POST /session/:sessionId/ops/:opId', 'POST /session/delegated',
     ])
     expect(declared.every(protocol => protocol.route.route.protocol !== RouteProtocols.SOCKET)).toBe(true)
@@ -401,20 +400,19 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(connectProtocols({ guard: DEFAULT_GUARD }).session.openDelegated.gate).toBeUndefined()
   })
 
-  test('deletes and unlocks a project under the owned base, no payment gate', () => {
+  test('deletes a project under the owned base, no payment gate; no force-unlock is declared', () => {
     const paid = connectProtocols({
       guard: DEFAULT_GUARD,
       gate: { alias: 'test-gate', params: ['owner'] },
       localLlm: { alias: 'test-paid-llm', params: ['cap'] },
     })
-    const { destroy, unlock } = paid.project
+    const { destroy } = paid.project
 
-    expect([destroy.route.route.path, unlock.route.route.path]).toEqual(['/project/:id', '/project/:id/unlock'])
-    expect([destroy.route.route.method, unlock.route.route.method]).toEqual([RouteMethod.DELETE, RouteMethod.POST])
-    expect([aliasOf(destroy.route.route.parent), aliasOf(unlock.route.route.parent)]).toEqual([connect.base, connect.base])
-    expect([destroy.gate, unlock.gate]).toEqual([undefined, undefined])
-    expect([connectRef.project.destroy.alias, connectRef.project.unlock.alias])
-      .toEqual([connect.project.destroy, connect.project.unlock])
+    expect([destroy.route.route.path, destroy.route.route.method]).toEqual(['/project/:id', RouteMethod.DELETE])
+    expect(aliasOf(destroy.route.route.parent)).toBe(connect.base)
+    expect(destroy.gate).toBeUndefined()
+    expect(connectRef.project.destroy.alias).toBe(connect.project.destroy)
+    expect('unlock' in paid.project).toBe(false)
   })
 
   test('stops, steers and batches a project\'s stories under the owned base, no payment gate, closed bodies', () => {

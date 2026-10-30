@@ -304,13 +304,6 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       }),
       contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectProjectSummary>())
     ),
-    // The web's force-unlock: under the owned base, no payment gate — nothing is spent.
-    unlock: protocol(
-      route(connect.project.unlock, '/project/:id/unlock', {
-        parent: base, method: RouteMethod.POST
-      }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectAgentLock>())
-    ),
     // The web's Stop and the console's steering — the ownership gate alone: a stop spends nothing,
     // and a steering message joins a run that was paid for when it started.
     stop: protocol(

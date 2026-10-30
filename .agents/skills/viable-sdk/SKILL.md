@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.19-rc.0"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -341,7 +341,7 @@ Rules the table rests on:
 
 ## An irreversible tool asks for `confirm: true`, and every tool declares its annotations
 
-`delete_project`, `unlock_project_agent`, `delete_file`, `purge_origin`, `git_discard`, `git_revert`,
+`delete_project`, `delete_file`, `purge_origin`, `git_discard`, `git_revert`,
 `disconnect_github`, `revoke_access_token`, `publish_production` and `cancel_story_batch` take `confirm` (`z.boolean()`,
 described, NO default), and `manage_app_user`'s `remove`, `manage_app_group`'s `delete` and every
 `stop_agent` scope but `run` take it as an optional field the action requires; each answers "Not done … ask the user" without a single platform
@@ -350,9 +350,9 @@ call unless it is `true` — the confirmation is the TOOL's, a person agreed bef
 REQUIRES `projectId` (`z.string().min(1)`, never the attached project by default) and, on a
 session-capable host attached to that project, closes the session first (`deps.release`, else
 `currentSession()?.close()`) and `deps.detach()`es, then `api.project.destroy` → `{ id, name, alias }`;
-on a local target it says the files and `.viable/` stay. `unlock_project_agent` (`api.project.unlock`
-→ `{ locked, task?, lockedAt? }`) defaults to the attached project and says when a run took the lock
-straight back.
+on a local target it says the files and `.viable/` stay. There is no tool and no `api.project` member
+that force-releases a project's lock: the connector never had a safe use for it (a run still working
+is not stopped), and a platform keeps the old route only to answer that it is no longer supported.
 
 `ToolDefinition.annotations` is REQUIRED — the MCP tool annotations a host shows the person approving
 a call — and `registerCatalogue` passes it through beside the title, description and input schema.
@@ -361,7 +361,7 @@ The shapes live in `tools/consts.local.ts`: `READ_ONLY` (reads, statuses, descri
 `update_story`, `reset_story`, `attach_project`, `stop_local`, `set_local_service`) and
 `DESTRUCTIVE` (`delete_project`, `delete_story`, `purge_origin`, `reinitialize_project`, `git_revert`,
 `cancel_story_batch` and `stop_agent` (both idempotent — a story stop rolls code back),
-`publish_production` (it replaces the live site), and — also idempotent — `unlock_project_agent`,
+`publish_production` (it replaces the live site), and — also idempotent —
 `write_file` (it replaces a file whole), `delete_file`, `git_discard`, `disconnect_github`,
 `revoke_access_token` and `production_control` (it takes the live site down or restarts it); `preview_control` and
 `link_github_origin` are `IDEMPOTENT_WRITE`); `openWorldHint` is `false` everywhere except
@@ -975,7 +975,7 @@ the SDK's transport stays in front): the header only in the delegated mode and o
 reused id, pending → collect → settled for a connector call and a planning execute, a settled error
 rethrown as its class, `lost` → `ConnectCallLost`, a dropped hop retried, ordinary answers untouched,
 and the handover over a call that went pending. `catalogue.spec.ts` also pins the manual story moves
-over the real planning service (order, the refusal, a late commit), `delete_project` / `unlock_project_agent`
+over the real planning service (order, the refusal, a late commit), `delete_project`
 (no call without `confirm`, the required `projectId`, release → detach → destroy only for the attached
 project), the annotations (declared everywhere, the destructive set, passed through `registerCatalogue`)
 and the plan and integration phrasings, the cloud-only file and preview tools on both hosts with
@@ -983,7 +983,7 @@ and the plan and integration phrasings, the cloud-only file and preview tools on
 attaching before its save and naming a failed rebuild, `delete_file` making no call without
 `confirm`, each `preview_control` action's member, and the protected-file and missing-workload
 phrasings; `conversion-confirmation.spec.ts` the proceed edits nested as
-`update` and repeated in the confirmed call; `remote.spec.ts` the delete and unlock routes. `handover.spec.ts` drives the delegated
+`update` and repeated in the confirmed call; `remote.spec.ts` the delete route. `handover.spec.ts` drives the delegated
 `registerCatalogue` over a real task queue: a task first is the answer and the submit replies with
 the call's result, a call first answers as before, an identical repeat joins the running call, a
 refused call is reported in `settled[]`, `next_task` names a call still running, and a delegated
