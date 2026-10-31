@@ -19,7 +19,7 @@ sets the linker and no timeout.
 - Install all workspace deps: `bun install`
 - Add dep to specific workspace: `bun add <pkg> --cwd packages/<name>`
 - Add dep to root: `bun add <pkg>`
-- Lock file: `bun.lock` (untracked — listed in `.gitignore`)
+- Lock file: root `bun.lock` is committed; CI and routine reinstalls use `bun install --frozen-lockfile`.
 - Workspace config: `workspaces: ["packages/*"]` in root `package.json`
 - Pin a transitive dependency through root `overrides` (Bun's field — not yarn's `resolutions`);
   the standing entry is `"react-router": "^8.*"`
@@ -71,9 +71,9 @@ sets the linker and no timeout.
   ```
 
   A genuine from-clean run converges in about three passes (order of ~2700 → single digits → 0).
-- `bun.lock` is **gitignored**, so it never appears in a merge conflict and any `bun install`
-  silently re-resolves every floating range. After one, re-check the versions that matter rather
-  than assuming the tree is unchanged.
+- The root `bun.lock` is **committed**. Regenerate it only for an intentional dependency refresh:
+  remove the old root lock, run `bun install --no-cache`, then review and commit the result.
+  Routine reinstalls use `bun install --frozen-lockfile` and retain the recorded versions.
 - `dep-config` is config-only and declares no `build` script; every other package under `packages/`
   builds. A directory there holding only `build/` and `node_modules/` with no `package.json` is an
   untracked leftover from a removed package, not a workspace member — delete it rather than
