@@ -15,7 +15,7 @@ the Viable platform has no use for it. The package's skills are `viable-common` 
 ## Installation
 
 ```bash
-bun add @owlmeans/viable-common@^0.1.18
+bun add @owlmeans/viable-common@^0.1.19-rc.0
 ```
 
 ## What is in it

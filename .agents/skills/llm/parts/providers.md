@@ -3,7 +3,7 @@ name: providers
 description: The LlmPlugin seam that replaces provider ifs, the sampling parameters each family rejects, plugin registration order, and classifying a provider error by walking cause.
 metadata:
   purposes: agent, config
-  mentions: LlmPlugin, llmPluginRegistry, resolveFor, patchPrompt, loopCache, cacheDialect, anthropicPlugin, openAiPlugin, compatiblePlugin, openAiFamily, NO_SAMPLING_PREFIXES, RESPONSES_API_PREFIXES, usesResponsesApi, rejectsSampling, isBadRequest, @owlmeans/llm/plugins
+  mentions: LlmPlugin, llmPluginRegistry, llmTransportRegistry, LlmTransport, LlmFetch, resolveFor, patchPrompt, loopCache, cacheDialect, anthropicPlugin, openAiPlugin, compatiblePlugin, openAiFamily, NO_SAMPLING_PREFIXES, RESPONSES_API_PREFIXES, usesResponsesApi, rejectsSampling, isBadRequest, @owlmeans/llm/plugins
 ---
 
 # @owlmeans/llm — Provider plugins
@@ -59,6 +59,26 @@ assuming the tool-calling hack for an unlabelled model is safe everywhere, assum
 JSON-schema support is not. So instance lookup sends every `ChatOpenAI` to `compatible` — code that
 holds a model the service built resolves with `llmPluginRegistry.resolveFor(model)` (the configured
 provider's plugin first), on the UNBOUND model: no plugin owns a `bindTools` binding.
+
+## Where a client's requests go over the wire is a transport, not a plugin
+
+A plugin decides what a request SAYS; a **transport** decides where it travels. `llmTransportRegistry`
+(process-wide, like the plugin table) maps a provider to an `LlmTransport`, whose `fetch(params)` —
+`{ provider, alias, config }`, the config without its secret — answers the `fetch` the client should
+use, or `undefined` to leave it on the SDK's own. The built-in plugins ask once, in `build`:
+`ChatOpenAI` gets it as `configuration.fetch` (the `openai` and `compatible` plugins, the Responses and
+the chat-completions client alike), `ChatAnthropic` as `clientOptions.fetch`. `refine`, `withConfig`
+and `bindTools` rebuild from `lc_kwargs`, which keep both, so every retry rung keeps its transport.
+
+- The SDKs call `fetch(urlString, { method, headers: Headers, body: JSON string, signal })`, one call
+  per attempt (langchain sets the SDK's own `maxRetries` to 0), and read a streamed answer from
+  `response.body` without checking its content type.
+- A transport is read when a client is BUILT; clients are memoized per alias, so attach before the first
+  model is resolved. `detach` does not touch clients already built.
+- The model id, the key and the wire shape stay the plugin's: a transport that renames a model or swaps
+  a key does it on the request it is handed, never in the config — `usesResponsesApi`, the effort
+  table, the cache dialect and every consumer's price list key on the id the config names.
+- Keep the proxying itself out of this package: `@owlmeans/llm-proxy` (internal) is the one consumer.
 
 ## Classify a provider error by walking `cause`, never by `instanceof` or a surface read
 

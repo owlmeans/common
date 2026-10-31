@@ -1753,39 +1753,6 @@ export const catalogue: ToolDefinition[] = [
   },
 
   {
-    name: 'unlock_project_agent',
-    title: 'Release a stuck project lock',
-    description:
-      'Release the project\'s agent lock by force — the recovery when project_status keeps reporting'
-      + ' the agent locked by a run that crashed or will never finish. A run that is still working is'
-      + ' NOT stopped and may collide with whatever starts next, so ask the user first.',
-    input: {
-      projectId: z.string().optional(),
-      confirm: z.boolean().describe('Must be true. The user has to have agreed to releasing the lock.'),
-    },
-    availability: toolHostHelper.anyHost,
-    annotations: { ...DESTRUCTIVE, idempotentHint: true },
-    run: async (args, deps) => {
-      if (args.confirm !== true) {
-        return fail(
-          'Not done. Releasing the lock does not stop a run that is still working, and the next run'
-          + ' may then collide with it. Ask the user, then call it again with confirm: true.'
-        )
-      }
-      const project = projectOf(args, deps)
-      const lock = await deps.api.project.unlock(project)
-
-      return ok(
-        lock.locked
-          ? `The lock is held again${lock.task != null ? ` (${lock.task})` : ''}: a run took it as soon as it was`
-            + ' released. Read project_status.'
-          : 'The project lock is released. project_status shows the project as it now stands.',
-        { projectId: project, lock: lock as unknown as Record<string, unknown> },
-      )
-    },
-  },
-
-  {
     name: 'stop_agent',
     title: 'Stop what the agent is doing',
     description:

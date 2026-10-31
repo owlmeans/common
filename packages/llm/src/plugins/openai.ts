@@ -11,6 +11,7 @@ import type { MarkDialect } from '../utils/marks/types.js'
 import { messageUtils } from '../utils/messages.js'
 import { promptUtils } from '../utils/prompt.js'
 import { pluginUtils } from './utils.js'
+import { llmTransportRegistry } from './transport.js'
 import {
   CacheBoundary, CacheDialect, OPENAI_EFFORT_SUPPORT, OPENAI_EXPLICIT_CACHE_PREFIXES, OPENAI_FAMILY,
   OPENAI_HIDDEN_PROPERTY_NAMES, REASONING_MIN_MAX_TOKENS, RESPONSES_API_PREFIXES,
@@ -340,7 +341,11 @@ export const openAiPlugin: LlmPlugin = {
 
   build: ({ alias, config, secret, callbacks }) => {
     const model = config.model ??= 'gpt-5.4-mini'
-    const configuration = pluginUtils.makeConfiguration({ baseURL: undefined, headers: config.headers })
+    const configuration = pluginUtils.makeConfiguration({
+      baseURL: undefined,
+      headers: config.headers,
+      fetch: llmTransportRegistry.fetchFor({ provider: ModelProvider.OpenAI, alias, config }),
+    })
 
     // OpenAI's prompt cache is automatic and prefix-based — there is nothing to mark. The
     // one lever a client has is routing: requests are dispatched by a hash of the prompt's

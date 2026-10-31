@@ -86,11 +86,6 @@ export interface ConnectorApi {
      */
     destroy: (projectId: string) => Promise<ConnectProjectSummary>
     /**
-     * Release the project's agent lock by force — the recovery for a lock a crashed run left
-     * behind. A run still working is not stopped by it; the answer is the lock as it now stands.
-     */
-    unlock: (projectId: string) => Promise<ConnectAgentLock>
-    /**
      * Stop what the agent runs now — the web's Stop. A story run stops at its next step boundary and
      * its changes since that run started are rolled back (the story returns to planned); an
      * open-ended change stops once the model's current answer arrives and ends with a short summary,

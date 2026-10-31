@@ -103,7 +103,6 @@ export const connectRef: ConnectReferences = {
     modify: entrypointRef<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>(connect.project.modify),
     rename: entrypointRef<{ params: { id: string }, body: ConnectRenameBody }, ConnectProjectStatus>(connect.project.rename),
     destroy: entrypointRef<{ params: { id: string } }, ConnectProjectSummary>(connect.project.destroy),
-    unlock: entrypointRef<{ params: { id: string } }, ConnectAgentLock>(connect.project.unlock),
     stop: entrypointRef<{ params: { id: string }, body: AgentStopArgs }, ConnectAgentLock>(connect.project.stop),
     steer: entrypointRef<{ params: { id: string }, body: AgentSteerArgs }, AgentSteerResult>(connect.project.steer),
     batch: {
