@@ -181,7 +181,8 @@ export const makeCaptureHelper = (ctx: ApiContext): CaptureHelper => {
       textVersion: metadata.termsVersion ?? policy.textVersion,
       copyVersion: metadata.copyVersion ?? CONSUMER_RIGHTS_COPY_VERSION,
       purchasedAt,
-      deadline: deadlineOf(policy, scoped, purchasedAt),
+      // Free redemptions retain their receipt but have no monetary withdrawal or consent window.
+      deadline: evidence.totalMinor === 0 ? undefined : deadlineOf(policy, scoped, purchasedAt),
     }) as PurchaseDraft
     const { record, created } = await records.createPurchase(draft)
     if (opts.mail !== false) await confirmPurchase(policy, record)

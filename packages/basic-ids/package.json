@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/basic-ids",
-  "version": "0.1.18",
+  "version": "0.1.19-rc.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -29,7 +29,7 @@
   "dependencies": {
     "@noble/hashes": "^2.4.0",
     "@scure/base": "^2.4.0",
-    "uuid": "^14.0.2"
+    "uuid": "^14.0.3"
   },
   "publishConfig": {
     "access": "public"

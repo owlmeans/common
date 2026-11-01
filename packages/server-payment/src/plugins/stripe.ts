@@ -410,7 +410,8 @@ export const makeStripeCheckoutHelper = (ctx: ApiContext): StripeCheckoutHelper 
     const catalogueCurrency = (plan.amountPolicy?.currency ?? plan.currency ?? 'usd').toLowerCase()
     const { buyer, customer } = await buyerOf(stripe, params, catalogueCurrency)
     const pricing = await access.payment().pricingPolicy()
-    const settlement = (await access.stripePricingConfig())?.settlementCurrency?.toLowerCase()
+    const stripePricing = await access.stripePricingConfig()
+    const settlement = stripePricing?.settlementCurrency?.toLowerCase()
     const ttl = checkoutPolicyHelper.sessionTtlOf(plugins)
     const now = new Date()
     const expiresAt = ttl != null ? new Date((Math.floor(now.getTime() / 1000) + ttl) * 1000) : undefined
@@ -459,7 +460,7 @@ export const makeStripeCheckoutHelper = (ctx: ApiContext): StripeCheckoutHelper 
         currency: charged.currency,
       }, {
         mode: 'payment', line_items: [lineItem], invoice_creation: { enabled: true },
-        ...checkoutOptions(pricing, false, { locked: buyer.addressLocked, adaptive }),
+        ...checkoutOptions(pricing, stripePricing?.amountPromotionCodes === true, { locked: buyer.addressLocked, adaptive }),
         ...termsParams,
         ...(Object.keys(customText).length > 0 ? { custom_text: customText } : {}),
         ...expiry,
@@ -518,7 +519,6 @@ export const makeStripeCheckoutHelper = (ctx: ApiContext): StripeCheckoutHelper 
     // A subscription starts services at once: in scope (or unknown and protected) it needs the
     // consumer's express start request, fresh and bound to this organization and plan.
     const start = buyer.policy != null ? await access.consumerRightsOf()?.assertStartRequest(params.entityId, plan.sku, params.startRequestId) ?? null : null
-    const stripePricing = await access.stripePricingConfig()
     const subscriptionPaymentMethodTypes = (stripePricing?.subscriptionPaymentMethodTypesByCurrency?.[currency]
       ?? stripePricing?.subscriptionPaymentMethodTypes) as string[] | undefined
     const unitAmount = forced.unitAmount ?? price.unit_amount ?? undefined

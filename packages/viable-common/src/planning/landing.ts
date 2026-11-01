@@ -5,18 +5,23 @@ import type { LandingSentenceHelper } from './landing/types.js'
 export const createLandingSentenceHelper = (): LandingSentenceHelper => {
   const normalized = (text: string): string => text.replace(/\s+/g, ' ')
 
-  const hasLandingSentence = (title: string): boolean =>
-    normalized(title).includes(LANDING_STORY_SENTENCE)
+  const hasLandingSentence = (title: string, sentence?: string): boolean => {
+    const text = normalized(title)
 
-  const withLandingSentence = (title: string): string => {
-    if (hasLandingSentence(title)) {
+    return text.includes(LANDING_STORY_SENTENCE)
+      || (sentence != null && sentence.trim() !== '' && text.includes(normalized(sentence.trim())))
+  }
+
+  const withLandingSentence = (title: string, sentence: string = LANDING_STORY_SENTENCE): string => {
+    if (hasLandingSentence(title, sentence)) {
       return title
     }
+    const said = sentence.trim() !== '' ? sentence.trim() : LANDING_STORY_SENTENCE
     const base = title.trimEnd()
     if (base === '') {
-      return LANDING_STORY_SENTENCE
+      return said
     }
-    const joined = `${base} ${LANDING_STORY_SENTENCE}`
+    const joined = `${base} ${said}`
 
     return joined.length > TITLE_MAX ? title : joined
   }

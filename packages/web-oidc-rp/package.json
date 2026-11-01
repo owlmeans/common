@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-oidc-rp",
-  "version": "0.1.18",
+  "version": "0.1.19-rc.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -29,20 +29,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18",
-    "@owlmeans/basic-envelope": "^0.1.18",
-    "@owlmeans/client": "^0.1.18",
-    "@owlmeans/client-auth": "^0.1.18",
-    "@owlmeans/client-flow": "^0.1.18",
-    "@owlmeans/client-i18n": "^0.1.18",
+    "@owlmeans/auth": "^0.1.19-rc.0",
+    "@owlmeans/basic-envelope": "^0.1.19-rc.0",
+    "@owlmeans/client": "^0.1.19-rc.0",
+    "@owlmeans/client-auth": "^0.1.19-rc.0",
+    "@owlmeans/client-flow": "^0.1.19-rc.0",
+    "@owlmeans/client-i18n": "^0.1.19-rc.0",
     "@owlmeans/context": "^0.1.18",
-    "@owlmeans/flow": "^0.1.18",
-    "@owlmeans/log": "^0.1.18",
-    "@owlmeans/entrypoint": "^0.1.18",
-    "@owlmeans/oidc": "^0.1.18",
-    "@owlmeans/resource": "^0.1.18",
-    "@owlmeans/web-client": "^0.1.18",
-    "@owlmeans/web-flow": "^0.1.18",
+    "@owlmeans/flow": "^0.1.19-rc.0",
+    "@owlmeans/log": "^0.1.19-rc.0",
+    "@owlmeans/entrypoint": "^0.1.19-rc.0",
+    "@owlmeans/oidc": "^0.1.19-rc.0",
+    "@owlmeans/resource": "^0.1.19-rc.0",
+    "@owlmeans/web-client": "^0.1.19-rc.0",
+    "@owlmeans/web-flow": "^0.1.19-rc.0",
     "oidc-client-ts": "3.5.0"
   },
   "peerDependencies": {
@@ -55,26 +55,26 @@
     "tailwindcss": "^4.*"
   },
   "devDependencies": {
-    "@owlmeans/api": "^0.1.18",
+    "@owlmeans/api": "^0.1.19-rc.0",
     "@owlmeans/dep-config": "^0.1.18",
     "@owlmeans/error": "^0.1.18",
-    "@owlmeans/test-auth": "^0.1.18",
-    "@owlmeans/test-ui": "^0.1.18",
-    "@radix-ui/react-progress": "^1.1.16",
+    "@owlmeans/test-auth": "^0.1.19-rc.0",
+    "@owlmeans/test-ui": "^0.1.19-rc.0",
+    "@radix-ui/react-progress": "^1.2.1",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/bun": "^1.4.2",
+    "@types/bun": "^1.4.4",
     "@types/react": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "^6.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.52.0",
+    "lucide-react": "^1.63.0",
     "nodemon": "^3.1.14",
-    "playwright": "^1.63.0",
+    "playwright": "^1.64.1",
     "react-dom": "^19.3.0",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2"
+    "vite": "^8.3.5"
   },
   "publishConfig": {
     "access": "public"

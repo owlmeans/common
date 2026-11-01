@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/client-planning",
-  "version": "0.1.18",
+  "version": "0.1.19-rc.0",
   "license": "MIT",
-  "description": "The client half of OwlMeans planning \u2014 the remote planning facade, the state mirror and its commit fold, and the subscribe-then-poll commit wait. React-free: it runs in a browser and in a Node client alike.",
+  "description": "The client half of OwlMeans planning — the remote planning facade, the state mirror and its commit fold, and the subscribe-then-poll commit wait. React-free: it runs in a browser and in a Node client alike.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -24,18 +24,18 @@
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
-    "@owlmeans/auth": "^0.1.18",
-    "@owlmeans/client-context": "^0.1.18",
-    "@owlmeans/client-entrypoint": "^0.1.18",
+    "@owlmeans/auth": "^0.1.19-rc.0",
+    "@owlmeans/client-context": "^0.1.19-rc.0",
+    "@owlmeans/client-entrypoint": "^0.1.19-rc.0",
     "@owlmeans/context": "^0.1.18",
-    "@owlmeans/entrypoint": "^0.1.18",
+    "@owlmeans/entrypoint": "^0.1.19-rc.0",
     "@owlmeans/error": "^0.1.18",
-    "@owlmeans/planning": "^0.1.18",
-    "@owlmeans/resource": "^0.1.18",
-    "@owlmeans/log": "^0.1.18",
+    "@owlmeans/planning": "^0.1.19-rc.0",
+    "@owlmeans/resource": "^0.1.19-rc.0",
+    "@owlmeans/log": "^0.1.19-rc.0",
     "@owlmeans/route": "^0.1.18",
-    "@owlmeans/socket": "^0.1.18",
-    "@owlmeans/state": "^0.1.18"
+    "@owlmeans/socket": "^0.1.19-rc.0",
+    "@owlmeans/state": "^0.1.19-rc.0"
   },
   "peerDependencies": {
     "ajv": "*",
@@ -43,9 +43,9 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.18",
-    "@owlmeans/server-planning": "^0.1.18",
-    "@owlmeans/test": "^0.1.18",
-    "@types/bun": "^1.4.2",
+    "@owlmeans/server-planning": "^0.1.19-rc.0",
+    "@owlmeans/test": "^0.1.19-rc.0",
+    "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "nodemon": "^3.1.14",

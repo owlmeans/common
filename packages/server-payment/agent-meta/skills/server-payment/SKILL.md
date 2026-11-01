@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.1.18`
+**Install:** `bun add @owlmeans/server-payment@^0.1.19-rc.0`
 
 Public MIT package. It embeds Stripe into an application backend and owns everything between
 Stripe and an entity's entitlements: the subscription store, one-time fulfillments, the usage
@@ -174,7 +174,10 @@ None declares an ObjectId reference: `entityId` is an organization key and every
 ## Checkout
 
 - `Amount`: one inline `price_data` item for the synchronized product, quantity 1, its
-  `tax_behavior` the declared `PricingPolicy.tax.behavior`, no promotion codes. `Quantity`: the
+  `tax_behavior` the declared `PricingPolicy.tax.behavior`. Promotion-code entry defaults off;
+  `declarePaymentPricing({ stripe: { amountPromotionCodes: true }, … })` enables it for amount
+  sessions in that deployment. Discounts reduce payment, never the selected `amountMinor` or its
+  original charge metadata. `Quantity`: the
   reusable price under the plan lookup key, adjustable quantity. Subscription: `planSku` (else the
   product's first recurring plan), quantity 1. One-time Sessions enable `invoice_creation`.
 - `CreateLinkParams.locale` is a caller-validated Stripe locale (Session `locale`, the Customer's
@@ -238,6 +241,22 @@ None declares an ObjectId reference: `entityId` is an organization key and every
   `startRequestId`, `profileId`, `countryPinned` (`'true'` only under `lockCustomerCountry` when the
   session kept the pinned address). The purchase's `termsAccepted` comes only from the completed
   session's `consent.terms_of_service` — absent when nothing was collected.
+
+### Amount promotion codes and free completions
+
+- Coupons apply to the existing single grossed-up line, processing adjustment included; Stripe
+  computes tax after the discount. `amount_subtotal` remains the original pre-discount base;
+  `amount_total` records the discounted, tax-inclusive payment, including an explicit zero.
+- A completed amount session with promotion codes enabled, a positive base subtotal fully covered
+  by `total_details.amount_discount`, zero tax and zero total fulfills for `no_payment_required`
+  as well as `paid`. Currency, subtotal and credit-value metadata checks still apply. Fulfillment
+  keeps the full selected credits and the existing session idempotency key; no PaymentIntent or
+  invoice is required for a free redemption. Purchase backfill uses the same completion predicate.
+- A zero-total top-up keeps its purchase receipt and country lock but has no monetary withdrawal
+  deadline, spending-consent window or refundable amount. Discounted paid purchases use the actual
+  payment for proportional refunds. Keep the original invoice-line basis in credit notes: Stripe
+  applies the invoice discount itself, once. `DisputeEvent.paidMinor` is the actual charge total in
+  dispute currency, including tax; an absent value retains the consumer's legacy fallback.
 
 ### Customer locks (`declarePaymentPricing` → `stripe`)
 
@@ -606,6 +625,13 @@ of every record, the unique indexes, the concurrent first lock and the single wi
 concurrent withdrawals.
 
 ## External docs
+
+- https://docs.stripe.com/api/checkout/sessions/object — `amount_subtotal` precedes discounts and
+  tax; `amount_total` follows them; a free payment can omit a PaymentIntent.
+- https://docs.stripe.com/payments/checkout/no-cost-orders — fulfill zero-cost orders on Checkout
+  completion, including orders discounted by 100%.
+- https://docs.stripe.com/invoicing/dashboard/credit-notes#credit-balances-and-discounts — invoice
+  discounts apply proportionally to credit-note lines; retain the original line basis.
 
 - https://docs.stripe.com/api/checkout/sessions/create — `customer`: "If the Customer already has a valid email set, the email will be prefilled and not editable in Checkout" (else Checkout saves the typed one); `customer_email` only prefills a NEW customer and cannot be combined with `customer`. Inline `price_data`; `consent_collection.terms_of_service` needs a terms URL in the Dashboard (else `invalid_request_error` on param `consent_collection[terms_of_service]`); `custom_text.{submit, after_submit, terms_of_service_acceptance}` ≤ 1200 characters each; `currency` forces a Price's currency option; `expires_at` 30 min – 24 h.
 - https://docs.stripe.com/tax/customer-locations — minimal tax location: country alone except US (postal code), CA and IN (postal code or province); https://docs.stripe.com/tax/checkout/page — an existing customer with `customer_update.address: 'never'` is taxed on its saved address. Verified against test mode (2026-10): a pinned DE customer keeps its VAT when the card country is switched to US; a country-only US/CA customer is refused at session creation.

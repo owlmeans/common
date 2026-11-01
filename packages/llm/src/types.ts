@@ -117,14 +117,52 @@ export interface LlmCallOptions {
   fatal?: (e: unknown) => Error | null
 }
 
+/**
+ * One attempt that was refused for what the model ANSWERED — what a {@link LlmGuide} is handed.
+ *
+ * Only an output refusal reaches a guide: a `filter` that returned null or threw (an
+ * {@link LlmOutputRejection} carries the caller's own `details`), or the schema validation of
+ * `invoke`/`request` (`validation-failed:…`, the first Ajv error on `cause`). A stalled stream, an
+ * empty answer and a fatal error never do — there is nothing in them to correct.
+ */
+export interface LlmFailedAttempt<T> {
+  /** Why the attempt was refused. */
+  error: unknown
+  /** The refused attempt's index, from 0. */
+  attempt: number
+  /**
+   * What the attempt produced before it was refused: the text (`ask`), the message (`talk`,
+   * `request`), the parsed object (`invoke`, after coercion — after the caller's filter when the
+   * schema refused it).
+   */
+  output: T
+}
+
+/**
+ * Guided regeneration: the messages the NEXT attempt appends after the call's own input, written
+ * from the refusal of the previous one — the reason, the bad parts, what may be used instead.
+ *
+ * Without a guide a refused attempt is asked again with the same prompt, and a model that does not
+ * know why its answer was refused tends to give the same answer. The latest refusal's guidance
+ * REPLACES the previous one: the model is told what was wrong with its LAST answer, never a history.
+ * `null` asks again unguided. A guide that throws is logged and ignored — it never replaces the
+ * attempt's own error. The guidance follows the caller's messages, so every cached prefix holds.
+ */
+export type LlmGuide<T> = (failed: LlmFailedAttempt<T>) => ModelInput | null | undefined
+  | Promise<ModelInput | null | undefined>
+
 export interface LlmAskOptions extends LlmCallOptions {
   ref?: RefferedResult<AIMessage>
   filter?: (output: string, result: AIMessage) => (string | null) | Promise<string | null>
+  /** Guided regeneration after a refused answer — see {@link LlmGuide}. */
+  guide?: LlmGuide<string>
 }
 
 export interface LlmTalkOptions extends LlmCallOptions {
   ref?: RefferedResult<AIMessage>
   filter?: (result: AIMessage) => Promise<AIMessage | null>
+  /** Guided regeneration after a refused answer — see {@link LlmGuide}. */
+  guide?: LlmGuide<AIMessage>
 }
 
 /**
@@ -145,12 +183,20 @@ export interface LlmStructuredOptions {
 export interface LlmInvokeOptions<T> extends LlmCallOptions, LlmStructuredOptions {
   temperature?: number | undefined
   ref?: RefferedResult<AIMessage>
+  /**
+   * Refuse or amend the parsed answer: `null` refuses it; throwing an {@link LlmOutputRejection}
+   * refuses it with `details` the {@link LlmInvokeOptions.guide} can turn into a correction.
+   */
   filter?: (output: T, result: AIMessage) => (T | null) | Promise<T | null>
+  /** Guided regeneration after a refused answer — see {@link LlmGuide}. */
+  guide?: LlmGuide<T>
 }
 
 export interface LlmRequestOptions extends LlmCallOptions, LlmStructuredOptions {
   ref?: RefferedResult<AIMessage>
   filter?: (result: AIMessage) => Promise<AIMessage | null>
+  /** Guided regeneration after a refused answer — see {@link LlmGuide}. */
+  guide?: LlmGuide<AIMessage>
 }
 
 /**

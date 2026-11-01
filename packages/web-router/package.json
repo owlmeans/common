@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-router",
-  "version": "0.1.18",
+  "version": "0.1.19-rc.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -26,20 +26,20 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.18",
-    "@owlmeans/test-ui": "^0.1.18",
-    "@types/node": "^26.6.4",
+    "@owlmeans/test-ui": "^0.1.19-rc.0",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "^6.1.2",
     "nodemon": "^3.1.14",
-    "playwright": "^1.63.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "playwright": "^1.64.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2"
+    "vite": "^8.3.5"
   },
   "dependencies": {
     "@owlmeans/context": "^0.1.18",
-    "@owlmeans/router": "^0.1.18"
+    "@owlmeans/router": "^0.1.19-rc.0"
   },
   "publishConfig": {
     "access": "public"

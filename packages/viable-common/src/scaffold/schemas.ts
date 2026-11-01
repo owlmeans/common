@@ -2,6 +2,7 @@ import type { JSONSchemaType } from 'ajv'
 import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
 import { ProjectArea } from '../areas/consts.js'
+import { ENGLISH_NAME_NOTE } from '../dev/consts.js'
 import {
   BENTO_FRAGMENT_KINDS, LANDING_ANCHORS, LANDING_GATE_FIELD_KINDS, LANDING_SLOTS, WidgetKind,
 } from './consts.js'
@@ -81,14 +82,15 @@ const ScaffoldStoryPlanSchema: JSONSchemaType<ScaffoldStoryPlan> = {
     },
     section: {
       type: 'string',
-      description: 'Top-menu section inside the story\'s own area, 1-2 words, Title Case.'
-        + ' Stories that an actor works on together share one section'
+      description: 'Top-menu section NAME inside the story\'s own area, 1-2 English words, Title Case.'
+        + ' Stories that an actor works on together share one section. ' + ENGLISH_NAME_NOTE
+        + ' (spaces allowed); the platform writes the menu label in the product\'s language'
     },
     screen: {
       type: 'string',
       description: 'The main screen this story will need, named "{section}/{purpose}" -'
         + ' e.g. "Requests/Submit request". The purpose is one or two words, never a sentence.'
-        + ' The section part must equal the section above'
+        + ' The section part must equal the section above. ' + ENGLISH_NAME_NOTE + ' (spaces and "/" allowed)'
     },
     widget: {
       type: 'object',
@@ -158,8 +160,8 @@ const ScaffoldAreaPlanSchema: JSONSchemaType<ScaffoldAreaPlan> = {
     sections: {
       type: 'array',
       items: { type: 'string' },
-      description: 'The top-menu sections of this area, in menu order.'
-        + ' Every section named by a story of this area must appear here'
+      description: 'The top-menu section NAMES of this area, in menu order.'
+        + ' Every section named by a story of this area must appear here. ' + ENGLISH_NAME_NOTE + ' (spaces allowed)'
     },
   },
   required: ['area', 'intro', 'sections'],
@@ -237,7 +239,7 @@ const LandingGateFieldSchema: JSONSchemaType<LandingGateField> = {
   properties: {
     name: {
       type: 'string',
-      description: 'The camelCase key its value travels under, one word - e.g. "dish"'
+      description: 'The camelCase key its value travels under, one English word - e.g. "dish". ' + ENGLISH_NAME_NOTE
     },
     label: {
       type: 'string',

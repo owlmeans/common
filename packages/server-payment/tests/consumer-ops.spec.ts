@@ -5,7 +5,7 @@ import {
 } from '@owlmeans/payment'
 import { checkoutReadEntrypoints, consumerRightsEntrypoints } from '../src/consumer/handlers.js'
 import {
-  ALL_ON, buyTopUp, CREDITS_PRODUCT, ENTITY, epoch, fixedMeter, makeRightsContext, paidSession, PLANS_PRODUCT, PRO,
+  ALL_ON, buyTopUp, CREDITS_PRODUCT, ENTITY, epoch, fixedMeter, freeSession, makeRightsContext, paidSession, PLANS_PRODUCT, PRO,
   rightsOf, TEXT_VERSION,
 } from './consumer-fixtures.js'
 import type { FakeContext } from './fake-stripe.js'
@@ -91,6 +91,17 @@ describe('reconcile', () => {
     expect(purchase).toEqual(expect.objectContaining({ purchasedAt: new Date(created * 1000), inScope: true }))
     expect(fake.mails).toHaveLength(0)
     expect((await paymentAccessOf(fake.ctx).billingProfiles().byEntity(ENTITY))?.country).toBe('PL')
+  })
+
+  test('backfills free completed amount checkouts without opening a consent or refund window', async () => {
+    const fake = await makeRightsContext()
+    fake.state.listedSessions = [freeSession()]
+    expect((await service(fake).reconcile()).backfilled).toBe(1)
+    const purchase = await paymentAccessOf(fake.ctx).purchases().load({ sessionId: 'cs_pl' })
+    expect(purchase?.amountTotalMinor).toBe(0)
+    expect(purchase?.deadline).toBeUndefined()
+    expect((await service(fake).consentView(ENTITY)).required).toBe(false)
+    expect(fake.mails).toHaveLength(0)
   })
 
   test('an organization that paid before the lock is locked from its paygate customer', async () => {

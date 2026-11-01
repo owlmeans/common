@@ -24,6 +24,24 @@ export class LlmModelError extends LlmError {
   }
 }
 
+/**
+ * A caller REFUSED what the model answered, and says why. Thrown by a `filter`; retryable like any
+ * {@link LlmModelError}, with the same `filter-rejected:` prefix. `details` is the caller's own
+ * account of what was wrong — the input its `guide` turns into the correction the next attempt
+ * reads.
+ */
+export class LlmOutputRejection extends LlmModelError {
+  public static override typeName = `OutputRejection${LlmModelError.typeName}`
+
+  public details: unknown
+
+  constructor(reason: string = 'rejected', details?: unknown) {
+    super(`filter-rejected:${reason}`)
+    this.type = LlmOutputRejection.typeName
+    this.details = details
+  }
+}
+
 /** A model alias has no config, or its config names no provider/secret/plugin. */
 export class LlmMissconfiguredError extends LlmError {
   public static override typeName = `Missconfigured${LlmError.typeName}`
@@ -60,6 +78,7 @@ export class LlmRetryExceededError extends LlmError {
 
 ResilientError.registerErrorClass(LlmError)
 ResilientError.registerErrorClass(LlmModelError)
+ResilientError.registerErrorClass(LlmOutputRejection)
 ResilientError.registerErrorClass(LlmMissconfiguredError)
 ResilientError.registerErrorClass(LlmPluginError)
 ResilientError.registerErrorClass(LlmRetryExceededError)
