@@ -14,7 +14,7 @@ not this package.
 ## Installation
 
 ```bash
-bun add @owlmeans/consent@^0.1.18
+bun add @owlmeans/consent@^0.1.19-rc.0
 ```
 
 ## Concepts

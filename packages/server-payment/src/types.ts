@@ -103,6 +103,8 @@ export interface StripePluginConfig extends PluginConfig { api: string; webhook?
 
 /** Stripe-only pricing settings — never a browser-visible field (see `PricingPolicy` for those). */
 export interface StripePricingDef {
+  /** Enable promotion-code entry on amount checkouts; absent/false keeps it disabled. */
+  amountPromotionCodes?: boolean
   /** Overrides `STRIPE_FX_QUOTES_API_VERSION`, when Stripe moves or renames the preview. */
   fxApiVersion?: string
   /**
@@ -543,6 +545,8 @@ export interface DisputeEvent {
   /** The paygate's dispute status (`needs_response`, `won`, `lost`, …). */
   status: string
   amountMinor: number
+  /** What the customer paid on the disputed charge, tax included, in the dispute currency. */
+  paidMinor?: number
   currency: string
   eventKey: string
   netAmountMinor?: number

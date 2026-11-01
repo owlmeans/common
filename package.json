@@ -12,7 +12,8 @@
     "packages/*"
   ],
   "overrides": {
-    "react-router": "^8.*"
+    "react-router": "^8.5.1",
+    "minimatch": "11.0.1"
   },
   "packageManager": "bun@1.4.2",
   "private": true,

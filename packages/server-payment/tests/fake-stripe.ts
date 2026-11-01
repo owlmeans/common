@@ -326,20 +326,26 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
         state.creditNotePreviews.push(structuredClone(params))
         const invoice = state.invoices[params.invoice]
         if (invoice == null) throw missing('invoice')
-        const rate = invoice.subtotal > 0 ? (invoice.tax ?? 0) / invoice.subtotal : 0
+        const discount = (invoice.total_discount_amounts ?? []).reduce((sum: number, item: Rec) => sum + item.amount, 0)
+        const net = invoice.subtotal - discount
+        const rate = net > 0 ? (invoice.tax ?? 0) / net : 0
         const amount = params.lines.reduce((sum: number, line: Rec) => sum + (line.amount ?? 0), 0)
-        const tax = Math.round(amount * rate)
-        return { id: 'cnpreview', object: 'credit_note', amount: amount + tax, total: amount + tax, subtotal: amount, currency: invoice.currency }
+        const discounted = amount - (invoice.subtotal > 0 ? Math.round(amount * discount / invoice.subtotal) : 0)
+        const tax = Math.round(discounted * rate)
+        return { id: 'cnpreview', object: 'credit_note', amount: discounted + tax, total: discounted + tax, subtotal: amount, currency: invoice.currency }
       },
       create: async (params: Rec, options?: Rec) => {
         call('creditNotes.create', options)
         const invoice = state.invoices[params.invoice]
         if (invoice == null) throw missing('invoice')
-        const rate = invoice.subtotal > 0 ? (invoice.tax ?? 0) / invoice.subtotal : 0
+        const discount = (invoice.total_discount_amounts ?? []).reduce((sum: number, item: Rec) => sum + item.amount, 0)
+        const net = invoice.subtotal - discount
+        const rate = net > 0 ? (invoice.tax ?? 0) / net : 0
         const amount = params.lines.reduce((sum: number, line: Rec) => sum + (line.amount ?? 0), 0)
+        const discounted = amount - (invoice.subtotal > 0 ? Math.round(amount * discount / invoice.subtotal) : 0)
         const note = {
           id: next('cn'), object: 'credit_note', invoice: params.invoice, refund: params.refund, status: 'issued',
-          total: amount + Math.round(amount * rate), currency: invoice.currency, memo: params.memo,
+          total: discounted + Math.round(discounted * rate), currency: invoice.currency, memo: params.memo,
           metadata: { ...params.metadata }, lines: structuredClone(params.lines),
         }
         state.creditNotes.push(note)

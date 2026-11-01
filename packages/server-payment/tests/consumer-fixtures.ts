@@ -104,6 +104,13 @@ export const paidSession = (overrides: Rec = {}): Rec => ({
   },
 })
 
+/** A completed 100% promotion-code redemption without a PaymentIntent or invoice. */
+export const freeSession = (overrides: Rec = {}): Rec => paidSession({
+  payment_status: 'no_payment_required', allow_promotion_codes: true,
+  amount_total: 0, total_details: { amount_tax: 0, amount_discount: 919 },
+  payment_intent: null, invoice: null, ...overrides,
+})
+
 /** The post-payment invoice of `paidSession`. */
 export const invoiceOf = (id = 'in_pl', overrides: Rec = {}): Rec => ({
   id, object: 'invoice', number: 'INV-0001', subtotal: 919, tax: 211, total: 1130, currency: 'eur',

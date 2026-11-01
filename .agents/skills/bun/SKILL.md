@@ -21,8 +21,12 @@ sets the linker and no timeout.
 - Add dep to root: `bun add <pkg>`
 - Lock file: root `bun.lock` is committed; CI and routine reinstalls use `bun install --frozen-lockfile`.
 - Workspace config: `workspaces: ["packages/*"]` in root `package.json`
-- Pin a transitive dependency through root `overrides` (Bun's field — not yarn's `resolutions`);
-  the standing entry is `"react-router": "^8.*"`
+- Pin a transitive dependency through root `overrides` (Bun's field — not yarn's `resolutions`),
+  carrying the range the manifests declare; the standing entry is `react-router` (one copy across
+  the shared checkout)
+- Third-party ranges are `^x.y.z`, identical in every linked repo; exact only for the security
+  ledger (`oidc-versions`' four libraries). Refreshing them is library-manager's
+  `/reconcile-external-dependencies`, run only when the operator asks
 
 ## Building
 
@@ -71,8 +75,9 @@ sets the linker and no timeout.
   ```
 
   A genuine from-clean run converges in about three passes (order of ~2700 → single digits → 0).
-- The root `bun.lock` is **committed**. Regenerate it only for an intentional dependency refresh:
-  remove the old root lock, run `bun install --no-cache`, then review and commit the result.
+- The root `bun.lock` is **committed**. Regenerate it only in a dependency refresh
+  (`/reconcile-external-dependencies`: the lock and the nested `node_modules` removed, then
+  `bun install --no-cache --minimum-release-age=259200` in dependency order across the linked repos).
   Routine reinstalls use `bun install --frozen-lockfile` and retain the recorded versions.
 - `dep-config` is config-only and declares no `build` script; every other package under `packages/`
   builds. A directory there holding only `build/` and `node_modules/` with no `package.json` is an

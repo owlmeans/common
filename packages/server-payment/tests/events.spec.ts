@@ -315,10 +315,20 @@ describe('@owlmeans/server-payment — refund and dispute events', () => {
       'dispute:dp_1:opened', 'dispute:dp_1:funds-withdrawn', 'dispute:dp_1:funds-reinstated', 'dispute:dp_1:closed',
     ])
     expect(fake.observed.dispute[0]).toEqual(expect.objectContaining({
+      paidMinor: 1225,
       target: 'fulfillment', externalId: 'cs_1', amountMinor: 1225, netAmountMinor: 1000,
     }))
     expect(fake.stores['payment-fulfillment'].rows[0]).toEqual(expect.objectContaining({ disputeStatus: 'won', chargeId: 'ch_1' }))
     expect(fake.stores['payment-fulfillment'].rows[0].disputedAt).toBeInstanceOf(Date)
+  })
+
+  test('a discounted dispute resolved by payment intent carries the actual charge including tax', async () => {
+    const fake = await fulfilled()
+    fake.state.charges.ch_1.amount = 600
+    await send(fake, 'charge.dispute.funds_withdrawn', {
+      id: 'dp_discount', amount: 600, currency: 'usd', charge: 'ch_1', payment_intent: 'pi_1', status: 'needs_response',
+    })
+    expect(fake.observed.dispute[0]).toEqual(expect.objectContaining({ paidMinor: 600, netAmountMinor: 1000, chargeAmountMinor: 1021 }))
   })
 })
 

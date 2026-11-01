@@ -3,6 +3,7 @@ import { BotKitAction } from '../blueprint/consts.js'
 import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
 import { ProjectArea } from '../areas/consts.js'
+import { ENGLISH_NAME_NOTE } from '../dev/consts.js'
 import { StatedRequirementSchema } from '../ba/schemas.js'
 import { STORY_BOT_TRIGGERS, StoryActor, StoryAgentKind } from './consts.js'
 import type { StoryDesign, RuntimeDecision } from './types.js'
@@ -376,12 +377,12 @@ export const RuntimeDecisionSchema = {
       items: {
         type: 'object',
         properties: {
-          queue: { type: 'string', description: 'The queue name. Reuse one the project has.' },
+          queue: { type: 'string', description: `The queue name. Reuse one the project has. ${ENGLISH_NAME_NOTE}` },
           name: {
             type: 'string',
             description: 'What the job DOES, as `<entity>:<action>` — `contract:analyze`, '
               + '`report:build`. The alias, the route, the processor file name and the handler '
-              + 'symbol are all derived from it, so give the action and not an identifier.',
+              + 'symbol are all derived from it, so give the action and not an identifier. ' + ENGLISH_NAME_NOTE,
           },
           path: { type: 'string', description: 'Ignored — the processor file is derived from the '
             + 'name, so the two can never disagree. Give the name and leave this empty.' },
@@ -406,8 +407,8 @@ export const RuntimeDecisionSchema = {
       items: {
         type: 'object',
         properties: {
-          alias: { type: 'string', description: 'lowerCamelCase alias in the app agent registry.' },
-          path: { type: 'string', description: 'Module file name, without a directory.' },
+          alias: { type: 'string', description: `lowerCamelCase alias in the app agent registry. ${ENGLISH_NAME_NOTE}` },
+          path: { type: 'string', description: `Module file name, without a directory. ${ENGLISH_NAME_NOTE}` },
           purpose: { type: 'string' },
           kind: {
             type: 'string',

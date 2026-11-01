@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/planning-postgres",
-  "version": "0.1.18",
+  "version": "0.1.19-rc.0",
   "license": "MIT",
   "description": "A durable Postgres PlanningStore with eight native resources, card folds and versioned auxiliary writes in organization transactions, scoped schemas, recovery and a LISTEN/NOTIFY commit bus.",
   "type": "module",
@@ -23,14 +23,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/basic-ids": "^0.1.18",
+    "@owlmeans/basic-ids": "^0.1.19-rc.0",
     "@owlmeans/context": "^0.1.18",
     "@owlmeans/error": "^0.1.18",
-    "@owlmeans/planning": "^0.1.18",
-    "@owlmeans/postgres-resource": "^0.1.18",
-    "@owlmeans/resource": "^0.1.18",
-    "@owlmeans/server-planning": "^0.1.18",
-    "@owlmeans/log": "^0.1.18"
+    "@owlmeans/planning": "^0.1.19-rc.0",
+    "@owlmeans/postgres-resource": "^0.1.19-rc.0",
+    "@owlmeans/resource": "^0.1.19-rc.0",
+    "@owlmeans/server-planning": "^0.1.19-rc.0",
+    "@owlmeans/log": "^0.1.19-rc.0"
   },
   "peerDependencies": {
     "ajv": "*",
@@ -39,11 +39,11 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.18",
-    "@owlmeans/postgres": "^0.1.18",
-    "@owlmeans/server-context": "^0.1.18",
-    "@owlmeans/test": "^0.1.18",
-    "@owlmeans/test-integration": "^0.1.18",
-    "@types/bun": "^1.4.2",
+    "@owlmeans/postgres": "^0.1.19-rc.0",
+    "@owlmeans/server-context": "^0.1.19-rc.0",
+    "@owlmeans/test": "^0.1.19-rc.0",
+    "@owlmeans/test-integration": "^0.1.19-rc.0",
+    "@types/bun": "^1.4.4",
     "@types/pg": "^8.23.1",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
