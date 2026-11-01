@@ -220,6 +220,30 @@
         "typescript": "^7.0.2",
       },
     },
+    "packages/auth-email": {
+      "name": "@owlmeans/auth-email",
+      "version": "0.1.19-rc.0",
+      "dependencies": {
+        "@owlmeans/auth": "^0.1.19-rc.0",
+        "@owlmeans/auth-common": "^0.1.19-rc.0",
+        "@owlmeans/context": "^0.1.18",
+        "@owlmeans/entrypoint": "^0.1.19-rc.0",
+        "@owlmeans/error": "^0.1.18",
+        "@owlmeans/route": "^0.1.18",
+      },
+      "devDependencies": {
+        "@owlmeans/dep-config": "^0.1.18",
+        "@types/bun": "^1.4.2",
+        "ajv": "^8.20.0",
+        "ajv-formats": "^3.0.1",
+        "nodemon": "^3.1.14",
+        "typescript": "^7.0.2",
+      },
+      "peerDependencies": {
+        "ajv": "*",
+        "ajv-formats": "*",
+      },
+    },
     "packages/auth-otp": {
       "name": "@owlmeans/auth-otp",
       "version": "0.1.19-rc.0",
@@ -382,6 +406,22 @@
       "peerDependencies": {
         "ajv": "*",
         "pg": "*",
+      },
+    },
+    "packages/captcha": {
+      "name": "@owlmeans/captcha",
+      "version": "0.1.19-rc.0",
+      "dependencies": {
+        "@owlmeans/auth": "^0.1.19-rc.0",
+        "@owlmeans/config": "^0.1.19-rc.0",
+        "@owlmeans/context": "^0.1.18",
+        "@owlmeans/log": "^0.1.19-rc.0",
+      },
+      "devDependencies": {
+        "@owlmeans/dep-config": "^0.1.18",
+        "@types/bun": "^1.4.2",
+        "nodemon": "^3.1.14",
+        "typescript": "^7.0.2",
       },
     },
     "packages/cli-auth": {
@@ -1721,6 +1761,7 @@
         "@owlmeans/basic-envelope": "^0.1.19-rc.0",
         "@owlmeans/basic-ids": "^0.1.19-rc.0",
         "@owlmeans/basic-keys": "^0.1.19-rc.0",
+        "@owlmeans/captcha": "^0.1.19-rc.0",
         "@owlmeans/client-config": "^0.1.19-rc.0",
         "@owlmeans/client-entrypoint": "^0.1.19-rc.0",
         "@owlmeans/config": "^0.1.19-rc.0",
@@ -1752,6 +1793,50 @@
       },
       "peerDependencies": {
         "ajv": "*",
+      },
+    },
+    "packages/server-auth-email": {
+      "name": "@owlmeans/server-auth-email",
+      "version": "0.1.19-rc.0",
+      "dependencies": {
+        "@owlmeans/auth": "^0.1.19-rc.0",
+        "@owlmeans/auth-common": "^0.1.19-rc.0",
+        "@owlmeans/auth-email": "^0.1.19-rc.0",
+        "@owlmeans/auth-otp": "^0.1.19-rc.0",
+        "@owlmeans/basic-envelope": "^0.1.19-rc.0",
+        "@owlmeans/basic-keys": "^0.1.19-rc.0",
+        "@owlmeans/captcha": "^0.1.19-rc.0",
+        "@owlmeans/config": "^0.1.19-rc.0",
+        "@owlmeans/context": "^0.1.18",
+        "@owlmeans/entrypoint": "^0.1.19-rc.0",
+        "@owlmeans/log": "^0.1.19-rc.0",
+        "@owlmeans/mongo-resource": "^0.1.19-rc.0",
+        "@owlmeans/oidc": "^0.1.19-rc.0",
+        "@owlmeans/redis-resource": "^0.1.19-rc.0",
+        "@owlmeans/resource": "^0.1.19-rc.0",
+        "@owlmeans/server-api": "^0.1.19-rc.0",
+        "@owlmeans/server-auth": "^0.1.19-rc.0",
+        "@owlmeans/server-auth-identity": "^0.1.19-rc.0",
+        "@owlmeans/server-auth-otp": "^0.1.19-rc.0",
+        "@owlmeans/server-context": "^0.1.19-rc.0",
+        "@owlmeans/server-entrypoint": "^0.1.19-rc.0",
+      },
+      "devDependencies": {
+        "@owlmeans/dep-config": "^0.1.18",
+        "@owlmeans/mailer": "^0.1.19-rc.0",
+        "@owlmeans/mongo": "^0.1.19-rc.0",
+        "@owlmeans/redis": "^0.1.19-rc.0",
+        "@owlmeans/static-resource": "^0.1.19-rc.0",
+        "@owlmeans/test": "^0.1.19-rc.0",
+        "@owlmeans/test-auth": "^0.1.19-rc.0",
+        "@owlmeans/test-integration": "^0.1.19-rc.0",
+        "@types/bun": "^1.4.2",
+        "mongodb": "^7.7.0",
+        "nodemon": "^3.1.14",
+        "typescript": "^7.0.2",
+      },
+      "peerDependencies": {
+        "mongodb": "*",
       },
     },
     "packages/server-auth-identity": {
@@ -1798,6 +1883,8 @@
       },
       "devDependencies": {
         "@owlmeans/dep-config": "^0.1.18",
+        "@owlmeans/redis": "^0.1.19-rc.0",
+        "@owlmeans/test-integration": "^0.1.19-rc.0",
         "@types/bun": "^1.4.4",
         "nodemon": "^3.1.14",
         "typescript": "^7.0.2",
@@ -2379,6 +2466,8 @@
       "version": "0.1.19-rc.0",
       "dependencies": {
         "@owlmeans/auth": "^0.1.19-rc.0",
+        "@owlmeans/auth-common": "^0.1.19-rc.0",
+        "@owlmeans/auth-email": "^0.1.19-rc.0",
         "@owlmeans/basic-envelope": "^0.1.19-rc.0",
         "@owlmeans/basic-ids": "^0.1.19-rc.0",
         "@owlmeans/basic-keys": "^0.1.19-rc.0",
@@ -2387,7 +2476,9 @@
         "playwright": "^1.64.1",
       },
       "devDependencies": {
+        "@owlmeans/context": "^0.1.18",
         "@owlmeans/dep-config": "^0.1.18",
+        "@owlmeans/entrypoint": "^0.1.19-rc.0",
         "@types/bun": "^1.4.4",
         "@types/react": "^19.3.0",
         "nodemon": "^3.1.14",
@@ -2515,6 +2606,55 @@
         "react": "*",
       },
     },
+    "packages/web-auth-email": {
+      "name": "@owlmeans/web-auth-email",
+      "version": "0.1.19-rc.0",
+      "dependencies": {
+        "@owlmeans/api": "^0.1.19-rc.0",
+        "@owlmeans/auth": "^0.1.19-rc.0",
+        "@owlmeans/auth-common": "^0.1.19-rc.0",
+        "@owlmeans/auth-email": "^0.1.19-rc.0",
+        "@owlmeans/client": "^0.1.19-rc.0",
+        "@owlmeans/client-auth": "^0.1.19-rc.0",
+        "@owlmeans/client-context": "^0.1.19-rc.0",
+        "@owlmeans/client-entrypoint": "^0.1.19-rc.0",
+        "@owlmeans/client-flow": "^0.1.19-rc.0",
+        "@owlmeans/client-i18n": "^0.1.19-rc.0",
+        "@owlmeans/config": "^0.1.19-rc.0",
+        "@owlmeans/context": "^0.1.18",
+        "@owlmeans/entrypoint": "^0.1.19-rc.0",
+        "@owlmeans/error": "^0.1.18",
+        "@owlmeans/i18n": "^0.1.18",
+        "@owlmeans/log": "^0.1.19-rc.0",
+        "@owlmeans/web-captcha": "^0.1.19-rc.0",
+      },
+      "devDependencies": {
+        "@owlmeans/dep-config": "^0.1.18",
+        "@radix-ui/react-label": "^2.1.15",
+        "@radix-ui/react-slot": "^1.3.3",
+        "@types/bun": "^1.4.2",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "lucide-react": "^1.52.0",
+        "nodemon": "^3.1.14",
+        "tailwind-merge": "^3.7.0",
+        "tailwindcss": "^4.3.3",
+        "typescript": "^7.0.2",
+      },
+      "peerDependencies": {
+        "@radix-ui/react-label": "*",
+        "@radix-ui/react-slot": "*",
+        "class-variance-authority": "*",
+        "clsx": "*",
+        "lucide-react": "*",
+        "react": "*",
+        "react-dom": "*",
+        "tailwind-merge": "*",
+        "tailwindcss": "*",
+      },
+    },
     "packages/web-auth-token": {
       "name": "@owlmeans/web-auth-token",
       "version": "0.1.19-rc.0",
@@ -2612,6 +2752,23 @@
         "tailwind-merge": "*",
         "tailwindcss": "*",
       },
+    },
+    "packages/web-captcha": {
+      "name": "@owlmeans/web-captcha",
+      "version": "0.1.19-rc.0",
+      "devDependencies": {
+        "@owlmeans/dep-config": "^0.1.18",
+        "@types/bun": "^1.4.2",
+        "@types/react": "^19.3.0",
+        "nodemon": "^3.1.14",
+        "typescript": "^7.0.2",
+      },
+      "peerDependencies": {
+        "react": "*",
+      },
+      "optionalPeers": [
+        "react",
+      ],
     },
     "packages/web-client": {
       "name": "@owlmeans/web-client",
@@ -3421,6 +3578,8 @@
 
     "@owlmeans/auth-common": ["@owlmeans/auth-common@workspace:packages/auth-common"],
 
+    "@owlmeans/auth-email": ["@owlmeans/auth-email@workspace:packages/auth-email"],
+
     "@owlmeans/auth-otp": ["@owlmeans/auth-otp@workspace:packages/auth-otp"],
 
     "@owlmeans/auth-token": ["@owlmeans/auth-token@workspace:packages/auth-token"],
@@ -3436,6 +3595,8 @@
     "@owlmeans/bot-agent": ["@owlmeans/bot-agent@workspace:packages/bot-agent"],
 
     "@owlmeans/bot-postgres": ["@owlmeans/bot-postgres@workspace:packages/bot-postgres"],
+
+    "@owlmeans/captcha": ["@owlmeans/captcha@workspace:packages/captcha"],
 
     "@owlmeans/cli-auth": ["@owlmeans/cli-auth@workspace:packages/cli-auth"],
 
@@ -3563,6 +3724,8 @@
 
     "@owlmeans/server-auth": ["@owlmeans/server-auth@workspace:packages/server-auth"],
 
+    "@owlmeans/server-auth-email": ["@owlmeans/server-auth-email@workspace:packages/server-auth-email"],
+
     "@owlmeans/server-auth-identity": ["@owlmeans/server-auth-identity@workspace:packages/server-auth-identity"],
 
     "@owlmeans/server-auth-otp": ["@owlmeans/server-auth-otp@workspace:packages/server-auth-otp"],
@@ -3629,9 +3792,13 @@
 
     "@owlmeans/web-auth": ["@owlmeans/web-auth@workspace:packages/web-auth"],
 
+    "@owlmeans/web-auth-email": ["@owlmeans/web-auth-email@workspace:packages/web-auth-email"],
+
     "@owlmeans/web-auth-token": ["@owlmeans/web-auth-token@workspace:packages/web-auth-token"],
 
     "@owlmeans/web-bot": ["@owlmeans/web-bot@workspace:packages/web-bot"],
+
+    "@owlmeans/web-captcha": ["@owlmeans/web-captcha@workspace:packages/web-captcha"],
 
     "@owlmeans/web-client": ["@owlmeans/web-client@workspace:packages/web-client"],
 

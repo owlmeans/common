@@ -9,7 +9,7 @@ routes with `@owlmeans/server-auth-email`, a browser signs in with `@owlmeans/we
 ## Installation
 
 ```bash
-bun add @owlmeans/auth-email@^0.1.18
+bun add @owlmeans/auth-email@^0.1.19-rc.0
 ```
 
 `ajv` and `ajv-formats` are peer dependencies (the schemas use `format: 'email'`).
@@ -134,3 +134,19 @@ A wrong PIN or password is `AuthenFailed` from `@owlmeans/auth`, never one of th
 - [`@owlmeans/auth-otp`](../auth-otp) — the PIN issuance and verification contract
 - [`@owlmeans/auth-common`](../auth-common) — `GUARD_ED25519` and `signBasicEd25519Request` for the tech routes
 - [`@owlmeans/entrypoint`](../entrypoint) / [`@owlmeans/route`](../route) — the protocol DSL
+
+<!-- owlmeans:agent-guidance:start -->
+## Agent guidance
+
+This package ships embedded agent skills under `agent-meta/`. After installing your
+`@owlmeans/*` packages, run the OwlMeans agent-skills installer to place them into
+your project's skill store (`.agents/skills/`):
+
+```sh
+npx @owlmeans/agent-skills@^0.1.19-rc.0
+```
+
+The embedded files are version-matched to this package release. Do not edit them
+directly — they are regenerated on each publish. To contribute guidance edits,
+open a PR against the source monorepo.
+<!-- owlmeans:agent-guidance:end -->

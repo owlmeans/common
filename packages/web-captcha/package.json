@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-captcha",
-  "version": "0.1.18",
+  "version": "0.1.19-rc.0",
   "license": "MIT",
   "description": "Browser half of OwlMeans captcha — the invisible score-based reCAPTCHA v3 loader and a React hook; no OwlMeans dependencies.",
   "type": "module",

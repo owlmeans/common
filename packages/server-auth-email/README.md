@@ -11,7 +11,7 @@ in. The browser half is `@owlmeans/web-auth-email`.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-email@^0.1.18
+bun add @owlmeans/server-auth-email@^0.1.19-rc.0
 ```
 
 ## Wiring
@@ -140,3 +140,19 @@ the 10 most recently seen devices. A hash is `scrypt$32768$8$1$<salt>$<key>` (`n
   on. It skips the captcha and the throttles, never the five-attempt limit of a PIN.
 - **Logs.** Logs carry an address's domain only, never a PIN, password, device id, waiver or token.
   Events are `auth.email.*`, beside `makeAuthModel`'s `auth.signed-in` / `auth.refused`.
+
+<!-- owlmeans:agent-guidance:start -->
+## Agent guidance
+
+This package ships embedded agent skills under `agent-meta/`. After installing your
+`@owlmeans/*` packages, run the OwlMeans agent-skills installer to place them into
+your project's skill store (`.agents/skills/`):
+
+```sh
+npx @owlmeans/agent-skills@^0.1.19-rc.0
+```
+
+The embedded files are version-matched to this package release. Do not edit them
+directly — they are regenerated on each publish. To contribute guidance edits,
+open a PR against the source monorepo.
+<!-- owlmeans:agent-guidance:end -->

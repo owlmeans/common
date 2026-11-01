@@ -8,7 +8,7 @@ a password. The browser half (loading reCAPTCHA v3 and getting a token) is `@owl
 ## Installation
 
 ```bash
-bun add @owlmeans/captcha@^0.1.18
+bun add @owlmeans/captcha@^0.1.19-rc.0
 ```
 
 ## Concepts
@@ -83,3 +83,19 @@ All refusals are `AuthenFailed` (401), in this order:
 
 `AuthUnavailable` (503): `recaptcha:config` (enabled with an empty secret, an empty hostname list or a
 `minScore` outside 0…1) and `recaptcha` (Google unreachable).
+
+<!-- owlmeans:agent-guidance:start -->
+## Agent guidance
+
+This package ships embedded agent skills under `agent-meta/`. After installing your
+`@owlmeans/*` packages, run the OwlMeans agent-skills installer to place them into
+your project's skill store (`.agents/skills/`):
+
+```sh
+npx @owlmeans/agent-skills@^0.1.19-rc.0
+```
+
+The embedded files are version-matched to this package release. Do not edit them
+directly — they are regenerated on each publish. To contribute guidance edits,
+open a PR against the source monorepo.
+<!-- owlmeans:agent-guidance:end -->

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-captcha
 
 **Layer:** Web (L0 — no `@owlmeans/*` dependencies; React an optional peer, used only by `./react`)
-**Install:** `"@owlmeans/web-captcha": "^0.1.18"` in `dependencies`
+**Install:** `"@owlmeans/web-captcha": "^0.1.19-rc.0"` in `dependencies`
 **Server half:** `@owlmeans/captcha` (`makeCaptchaCheck` verifies what this produces)
 
 Zero framework dependencies is deliberate: a size-sensitive bundle — an embedded IIFE widget that

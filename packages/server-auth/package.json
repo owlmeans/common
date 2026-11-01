@@ -44,7 +44,7 @@
     "@owlmeans/basic-envelope": "^0.1.19-rc.0",
     "@owlmeans/basic-ids": "^0.1.19-rc.0",
     "@owlmeans/basic-keys": "^0.1.19-rc.0",
-    "@owlmeans/captcha": "^0.1.18",
+    "@owlmeans/captcha": "^0.1.19-rc.0",
     "@owlmeans/client-config": "^0.1.19-rc.0",
     "@owlmeans/client-entrypoint": "^0.1.19-rc.0",
     "@owlmeans/config": "^0.1.19-rc.0",

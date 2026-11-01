@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/captcha",
-  "version": "0.1.18",
+  "version": "0.1.19-rc.0",
   "license": "MIT",
   "description": "Captcha verification for OwlMeans servers — the reCAPTCHA siteverify verifier, the policy of the re-captcha sign-in plugin, and a strict challenge-less check a route runs on a score-based token.",
   "type": "module",
@@ -23,10 +23,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18",
-    "@owlmeans/config": "^0.1.18",
+    "@owlmeans/auth": "^0.1.19-rc.0",
+    "@owlmeans/config": "^0.1.19-rc.0",
     "@owlmeans/context": "^0.1.18",
-    "@owlmeans/log": "^0.1.18"
+    "@owlmeans/log": "^0.1.19-rc.0"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.18",
