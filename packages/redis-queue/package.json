@@ -23,8 +23,8 @@
   },
   "dependencies": {
     "@owlmeans/basic-ids": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
-    "@owlmeans/error": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
+    "@owlmeans/error": "^0.1.19-rc.0",
     "@owlmeans/log": "^0.1.19-rc.0",
     "@owlmeans/queue": "^0.1.19-rc.0",
     "@owlmeans/redis": "^0.1.19-rc.0",
@@ -35,9 +35,9 @@
     "ioredis": "^6.0.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@owlmeans/entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.18",
+    "@owlmeans/route": "^0.1.19-rc.0",
     "@owlmeans/test-integration": "^0.1.19-rc.0",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",

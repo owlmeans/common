@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "package": "@owlmeans/llm",
   "version": "0.1.19-rc.0",
-  "generatedAt": "2026-10-31T12:13:02.375Z",
+  "generatedAt": "2026-11-01T18:50:42.723Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -110,7 +110,7 @@
         {
           "name": "retries",
           "file": "skills/llm/parts/retries.md",
-          "description": "The idle stream deadline, passing an outer attempt into the escalator, isFatalError for loops above the model, and the terminal failure observation hook.",
+          "description": "The idle stream deadline, passing an outer attempt into the escalator, isFatalError for loops above the model, guided regeneration after a refused answer (guide, LlmOutputRejection), and the terminal failure observation hook.",
           "purposes": [
             "agent"
           ],
@@ -123,7 +123,9 @@
             "isFatalError",
             "withRetry",
             "FALLBACK_AFTER_ATTEMPTS",
-            "LlmSpectator"
+            "LlmSpectator",
+            "LlmGuide",
+            "LlmOutputRejection"
           ]
         },
         {

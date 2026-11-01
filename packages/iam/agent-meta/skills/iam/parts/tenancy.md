@@ -49,7 +49,7 @@ a relying party calls it through `iamRuntime` (`@owlmeans/server-iam`) over plai
 |---|---|---|
 | `GET /organizations` | `organizations.list` | any subject — its own |
 | `POST /organizations` `{ title? }` | `organizations.create` | any subject of a tenanted client; it becomes owner |
-| `POST /organizations/:entitySlug` `{ title }` | `organizations.update` | owner |
+| `POST /organizations/:entitySlug` `{ title }` | `organizations.update` | owner — a personal organization only its own person |
 | `GET /organizations/:entitySlug/members` | `members.list` | member |
 | `POST /organizations/:entitySlug/members` `{ email, name?, owner? }` | `members.add` | owner; idempotent by e-mail |
 | `POST …/members/:profileId` `{ owner?, groups? }` | `members.update` | owner |

@@ -18,7 +18,7 @@
     "@owlmeans/client-i18n": "^0.1.19-rc.0",
     "@owlmeans/entrypoint": "^0.1.19-rc.0",
     "@owlmeans/log": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.18",
+    "@owlmeans/route": "^0.1.19-rc.0",
     "@owlmeans/state": "^0.1.19-rc.0",
     "@owlmeans/web-client": "^0.1.19-rc.0",
     "@owlmeans/web-panel": "^0.1.19-rc.0",
@@ -41,7 +41,7 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

@@ -22,8 +22,8 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "@types/oidc-provider": "9.13.0",
@@ -36,11 +36,11 @@
   "dependencies": {
     "@noble/hashes": "^2.4.0",
     "@owlmeans/config": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@owlmeans/entrypoint": "^0.1.19-rc.0",
     "@owlmeans/log": "^0.1.19-rc.0",
     "@owlmeans/oidc": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.18",
+    "@owlmeans/route": "^0.1.19-rc.0",
     "@owlmeans/server-api": "^0.1.19-rc.0",
     "@owlmeans/server-context": "^0.1.19-rc.0",
     "@scure/base": "^2.4.0",

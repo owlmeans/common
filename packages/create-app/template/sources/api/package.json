@@ -17,7 +17,7 @@
     "__APP_SLUG__-common": "workspace:^"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@types/node": "^26.6.5",
     "typescript": "^7.0.2"
   }

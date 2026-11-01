@@ -11,7 +11,7 @@ Multi-level translation resource registration for OwlMeans applications.
 ## Installation
 
 ```bash
-bun add @owlmeans/i18n@^0.1.18
+bun add @owlmeans/i18n@^0.1.19-rc.0
 ```
 
 ## Usage

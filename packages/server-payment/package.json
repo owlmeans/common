@@ -28,7 +28,7 @@
   "dependencies": {
     "@owlmeans/auth": "^0.1.19-rc.0",
     "@owlmeans/config": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@owlmeans/entrypoint": "^0.1.19-rc.0",
     "@owlmeans/iam": "^0.1.19-rc.0",
     "@owlmeans/mailer": "^0.1.19-rc.0",
@@ -36,7 +36,7 @@
     "@owlmeans/payment": "^0.1.19-rc.0",
     "@owlmeans/resource": "^0.1.19-rc.0",
     "@owlmeans/log": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.18",
+    "@owlmeans/route": "^0.1.19-rc.0",
     "@owlmeans/server-api": "^0.1.19-rc.0",
     "@owlmeans/server-app": "^0.1.19-rc.0",
     "@owlmeans/server-context": "^0.1.19-rc.0",
@@ -45,7 +45,7 @@
     "stripe": "^23.0.1"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@owlmeans/mongo": "^0.1.19-rc.0",
     "@owlmeans/test-integration": "^0.1.19-rc.0",
     "@types/bun": "^1.4.4",

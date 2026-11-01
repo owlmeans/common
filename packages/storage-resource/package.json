@@ -25,8 +25,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1158.0",
-    "@owlmeans/context": "^0.1.18",
-    "@owlmeans/error": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
+    "@owlmeans/error": "^0.1.19-rc.0",
     "@owlmeans/log": "^0.1.19-rc.0",
     "@owlmeans/resource": "^0.1.19-rc.0",
     "@owlmeans/server-context": "^0.1.19-rc.0",
@@ -34,7 +34,7 @@
     "file-type": "^22.2.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

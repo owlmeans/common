@@ -24,7 +24,7 @@
   "dependencies": {
     "@owlmeans/client-auth": "^0.1.19-rc.0",
     "@owlmeans/consent": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@owlmeans/entrypoint": "^0.1.19-rc.0",
     "@owlmeans/iam": "^0.1.19-rc.0",
     "@owlmeans/oidc": "^0.1.19-rc.0",
@@ -32,7 +32,7 @@
     "@owlmeans/web-oidc-rp": "^0.1.19-rc.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

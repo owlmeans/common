@@ -1,6 +1,6 @@
 ---
 name: auth-common
-description: How to use @owlmeans/auth-common — the auth vocabulary both sides of the wire share, covering guard aliases (DEFAULT_GUARD, GUARD_ED25519), the shared auth protocol trees, the Ed25519 signature guard, the TRUSTED-record trust() helper, and the organization-entity resolver contract (ENTITY_RESOLVER, makeEntityScope). Auto-invoked when importing guard constants, shared auth protocols, or entity-resolution helpers.
+description: How to use @owlmeans/auth-common — the auth vocabulary both sides of the wire share, covering guard aliases (DEFAULT_GUARD, GUARD_ED25519), the shared auth protocol trees, the Ed25519 signature guard and its context-free signer (signBasicEd25519Request), the TRUSTED-record trust() helper, and the organization-entity resolver contract (ENTITY_RESOLVER, makeEntityScope). Auto-invoked when importing guard constants, shared auth protocols, or entity-resolution helpers, or when signing a GUARD_ED25519 request outside a context.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -38,6 +38,7 @@ entity a token names.
 | `authProtocols` | The shared auth protocol tree — `AUTHEN*`, `CAUTHEN*`, `DISPATCHER`, `DISPATCHER_SURROGATE`, `DISPATCHER_AUTHEN`. Server and client packages bind the entries they serve |
 | `managerProtocols` | The auth-manager web API protocol tree (profile → entity slug, auth delegation) |
 | `makeBasicEd25519Guard(resource, opts?)` | The `GUARD_ED25519` guard service: signs outgoing requests as a client, verifies time/nonce/signature as a server |
+| `signBasicEd25519Request({ body?, credential, key })` | The guard's signing half as a pure helper: `{ authorization, headers }` for a request the guard accepts — no context needed |
 | `authMiddleware` | Loading-stage context middleware that attaches the guard's token to every guarded backend entrypoint's `invoke`/`call` |
 | `SurrogateQuery`, `SurrogateQuerySchema` | The surrogate window's `intent` / `next` / `method` query |
 
@@ -141,6 +142,12 @@ token's slug only; both write `'-'` when neither is available. Read the gate you
   accepts only canonical timestamps inside its symmetric 60-second window and claims the
   credential-and-nonce pair until that timestamp's absolute expiry; a replay-store error refuses
   authentication rather than disabling deduplication.
+- A process that holds a trusted record's private key but no context (a Node test helper, a
+  script) signs with `signBasicEd25519Request`, never a re-derived copy: `credential` is the
+  record's `id` (OwlMeans deployments use the key's address, `ed25519:<address>`), `key` a
+  `KeyPairModel` with the private key. Send `authorization` plus BOTH returned headers (lowercase
+  `x-auth-time`, `x-auth-nonce`) and the body byte-for-byte as signed — an absent body is signed as
+  `{}`, the time precedes the nonce in the signed payload, and the guard rebuilds exactly that.
 - OIDC used only to sign in authorizes with a product gate, not `OIDC_GATE` (`server-oidc-rp` → Rules).
 - The trust resource (`TRUSTED`, from `@owlmeans/config`) is the system's source of truth for known
   signing identities — the auth service, peer services, wallet providers, supervisors.

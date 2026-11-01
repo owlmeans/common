@@ -34,8 +34,8 @@
     "@owlmeans/client-entrypoint": "^0.1.19-rc.0",
     "@owlmeans/client-resource": "^0.1.19-rc.0",
     "@owlmeans/config": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
-    "@owlmeans/error": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
+    "@owlmeans/error": "^0.1.19-rc.0",
     "@owlmeans/entrypoint": "^0.1.19-rc.0",
     "@owlmeans/resource": "^0.1.19-rc.0",
     "@owlmeans/router": "^0.1.19-rc.0",
@@ -51,7 +51,7 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@owlmeans/test-ui": "^0.1.19-rc.0",
     "@types/react": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",

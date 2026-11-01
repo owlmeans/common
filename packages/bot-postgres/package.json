@@ -23,7 +23,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@owlmeans/postgres-resource": "^0.1.19-rc.0",
     "@owlmeans/resource": "^0.1.19-rc.0",
     "@owlmeans/server-bot": "^0.1.19-rc.0"
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@owlmeans/bot": "^0.1.19-rc.0",
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@owlmeans/log": "^0.1.19-rc.0",
     "@owlmeans/postgres": "^0.1.19-rc.0",
     "@owlmeans/server-context": "^0.1.19-rc.0",

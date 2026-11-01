@@ -22,7 +22,7 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@owlmeans/test-integration": "^0.1.19-rc.0",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
@@ -32,7 +32,7 @@
   "dependencies": {
     "@noble/hashes": "^2.4.0",
     "@owlmeans/basic-keys": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@owlmeans/mongo-resource": "^0.1.19-rc.0",
     "@owlmeans/resource": "^0.1.19-rc.0",
     "@owlmeans/server-context": "^0.1.19-rc.0",

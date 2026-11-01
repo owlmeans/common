@@ -23,13 +23,13 @@
   "dependencies": {
     "@owlmeans/auth": "^0.1.19-rc.0",
     "@owlmeans/config": "^0.1.19-rc.0",
-    "@owlmeans/error": "^0.1.18",
-    "@owlmeans/i18n": "^0.1.18",
+    "@owlmeans/error": "^0.1.19-rc.0",
+    "@owlmeans/i18n": "^0.1.19-rc.0",
     "@owlmeans/resource": "^0.1.19-rc.0",
     "@scure/base": "^2.4.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

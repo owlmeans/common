@@ -31,11 +31,11 @@
     "@owlmeans/client-resource": "^0.1.19-rc.0",
     "@owlmeans/client-route": "^0.1.19-rc.0",
     "@owlmeans/config": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
-    "@owlmeans/error": "^0.1.18",
-    "@owlmeans/i18n": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
+    "@owlmeans/error": "^0.1.19-rc.0",
+    "@owlmeans/i18n": "^0.1.19-rc.0",
     "@owlmeans/log": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.18",
+    "@owlmeans/route": "^0.1.19-rc.0",
     "@owlmeans/web-db": "^0.1.19-rc.0",
     "@owlmeans/web-router": "^0.1.19-rc.0",
     "react-dropzone": "^20.1.4"
@@ -45,7 +45,7 @@
     "react-dom": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "nodemon": "^3.1.14",

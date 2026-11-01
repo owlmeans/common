@@ -1,6 +1,6 @@
 ---
 name: client-auth
-description: How to use @owlmeans/client-auth — the browser side of OwlMeans authentication. Root exports the auth service, the shared client entrypoints and the dispatcher HOC; ./manager holds the authentication screen, its control and the plugin registry; ./manager/plugins holds the authentication-plugin contract a plugin package writes against; ./login holds the login-plugin host, the sign-in method registry, the terms confirmation and the useLogin/useLogout hooks. Auto-invoked when importing client-auth helpers, registering an authentication plugin, or wiring a sign-in control.
+description: How to use @owlmeans/client-auth — the browser side of OwlMeans authentication. Root exports the auth service, the shared client entrypoints and the dispatcher HOC; ./manager holds the authentication screen, its control and the plugin registry; ./manager/plugins holds the authentication-plugin contract a plugin package writes against; ./login holds the login-plugin host, the sign-in method registry, the terms confirmation, the useLogin/useLogout hooks and the failed-sign-in reading (loginFailureHelper, LoginFailureView — a refusal vs a failure). Auto-invoked when importing client-auth helpers, registering an authentication plugin, wiring a sign-in control, or phrasing a failed sign-in.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -63,6 +63,37 @@ setupExternalAuthentication(MY_WEB_SERVICE)   // the service alias the provider 
 `@owlmeans/web-client`'s own `makeContext` already appends the auth service and the login host, so
 a web application only calls these when it builds its context by hand.
 
+## A failed sign-in (`./login`: `loginFailureHelper`, `LoginFailureView`)
+
+Every sign-in surface — the dispatcher's token exchange, `FallbackLoginScreen`, the Google callback,
+the supervisor form, `client-panel`'s login model — reads a caught error through ONE helper and
+phrases it the same way:
+
+| `loginFailureHelper.failureOf(error).kind` | When | Action offered |
+|---|---|---|
+| `account-disabled` | a visible code `authen:account:disabled` / `forbidden:account:disabled` | "Back to sign-in" |
+| `profile-disabled` | a visible code `authen:profile:disabled` / `forbidden:profile:disabled` | "Back to sign-in" |
+| `refused` | an `AuthRefused` of any module copy (by `type`), or a production 403 carrying `X-OwlMeans-Denial: access-denied` (`apiStatusHelper.isAccessDenied`, `@owlmeans/api/status`) | "Back to sign-in" |
+| `failed` | anything else — a fault, a timeout, a 403 WITHOUT the marker (plan refusals use 403 too) | "Try again" + `Reference: <incident id>` when the server sent one |
+
+- `refused` is `true` for every kind but `failed`; `isRefusal(error)` reads it. A refusal is the
+  person's condition: it carries no incident line, and a surface logs it at `warn`
+  (`auth.refused`), a failure at `error`.
+- `phrase(failure, translate?)` → `{ message, incident, action }` over the `auth` library keys
+  `login.error.{refused,account-disabled,profile-disabled,failed,back,retry,incident}` (eight
+  languages, `src/login/i18n/*.json`), English without a translate. The incident id is filled into
+  `Reference: {{incident}}` AFTER translation, never as an i18next parameter. An app rewords a key
+  with an App-tier override of the `auth` resource.
+- `makeAuthTranslate(cfg)` is that translate without React context (it drains the `auth` bundle
+  into the app's i18next instance), for a surface rendered outside any screen binding.
+- `LoginFailureView({ failure, translate?, onAction?, page?, style? })` renders the end state with
+  raw elements and inline styles (any UI family); hooks `[data-login-failure="<kind>"]`,
+  `[data-login-refused]`, `[data-login-failure-message]`, `[data-login-failure-incident]`,
+  `[data-login-failure-action]`. The dispatcher renders it in place of its renderer when a supplied
+  token's exchange signs nobody in; its action is a restart (the token is single-use).
+- A server refusing a sign-in for who the person is throws `AuthRefused` (`@owlmeans/auth`); this
+  helper is what turns it into a sentence instead of a retry loop.
+
 ## Rules
 
 - An application's translated legal destinations are opt-in `login.terms.localizedHrefs`, keyed by
@@ -95,7 +126,9 @@ a web application only calls these when it builds its context by hand.
 
 ## Depends On
 
-- `@owlmeans/auth`, `@owlmeans/auth-common` — types, aliases, `authMiddleware`
+- `@owlmeans/auth`, `@owlmeans/auth-common` — types, aliases, `authMiddleware`, `AuthRefused`
+- `@owlmeans/api` — `apiStatusHelper` (`./status`): the denial marker and the incident id of a failure
+- `@owlmeans/client-i18n`, `@owlmeans/i18n` — the `auth` library resource `makeAuthTranslate` reads
 - `@owlmeans/client`, `@owlmeans/client-context`, `@owlmeans/client-entrypoint`, `@owlmeans/client-socket`
 - `@owlmeans/config` — the login screen, terms and credit configuration
 - `@owlmeans/basic-envelope` — decoding the bearer envelope

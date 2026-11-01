@@ -12,7 +12,7 @@ config package. Protocol declarations live in `@owlmeans/entrypoint`; data acces
 ## Installation
 
 ```bash
-bun add @owlmeans/context@^0.1.18
+bun add @owlmeans/context@^0.1.19-rc.0
 ```
 
 ## Concepts

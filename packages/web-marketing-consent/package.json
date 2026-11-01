@@ -31,11 +31,11 @@
     "@owlmeans/client-entrypoint": "^0.1.19-rc.0",
     "@owlmeans/client-i18n": "^0.1.19-rc.0",
     "@owlmeans/config": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@owlmeans/entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/i18n": "^0.1.18",
+    "@owlmeans/i18n": "^0.1.19-rc.0",
     "@owlmeans/marketing-consent": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.18"
+    "@owlmeans/route": "^0.1.19-rc.0"
   },
   "peerDependencies": {
     "@radix-ui/react-label": "*",
@@ -48,7 +48,7 @@
     "tailwindcss": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@owlmeans/test-auth": "^0.1.19-rc.0",
     "@owlmeans/test-ui": "^0.1.19-rc.0",
     "@owlmeans/web-client": "^0.1.19-rc.0",

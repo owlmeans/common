@@ -12,7 +12,7 @@ framework packages already ship: authentication and authorization failures from
 ## Installation
 
 ```bash
-bun add @owlmeans/error@^0.1.18
+bun add @owlmeans/error@^0.1.19-rc.0
 ```
 
 ## Concepts

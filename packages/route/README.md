@@ -16,7 +16,7 @@ context that asks, so the same declaration serves a server and a browser alike.
 ## Installation
 
 ```bash
-bun add @owlmeans/route@^0.1.18
+bun add @owlmeans/route@^0.1.19-rc.0
 ```
 
 ## Concepts

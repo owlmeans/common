@@ -33,11 +33,11 @@
     "@owlmeans/client-context": "^0.1.19-rc.0",
     "@owlmeans/client-route": "^0.1.19-rc.0",
     "@owlmeans/config": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@owlmeans/entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/error": "^0.1.18",
+    "@owlmeans/error": "^0.1.19-rc.0",
     "@owlmeans/log": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.18",
+    "@owlmeans/route": "^0.1.19-rc.0",
     "ajv-formats": "^3.0.1",
     "qs": "^6.17.0"
   },
@@ -45,7 +45,7 @@
     "ajv": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@types/qs": "^6.15.1",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "package": "@owlmeans/client-auth",
   "version": "0.1.19-rc.0",
-  "generatedAt": "2026-10-31T12:13:02.354Z",
+  "generatedAt": "2026-11-01T18:50:42.716Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -24,6 +24,8 @@
             "useLogin",
             "@owlmeans/client-auth/login",
             "useLogout",
+            "loginFailureHelper",
+            "LoginFailureView",
             "appendLogin",
             "loginTermsHelper",
             "loginLandingOf",

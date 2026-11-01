@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@langchain/core": "^1.3.1",
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@owlmeans/llm": "^0.1.19-rc.0",
     "@owlmeans/llm-common": "^0.1.19-rc.0",
     "@types/bun": "^1.4.4",

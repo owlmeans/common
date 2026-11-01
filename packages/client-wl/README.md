@@ -11,7 +11,7 @@ exports nothing. Nothing in the monorepo depends on it, and `@owlmeans/web-wl` r
 ## Installation
 
 ```bash
-bun add @owlmeans/client-wl@^0.1.18
+bun add @owlmeans/client-wl@^0.1.19-rc.0
 ```
 
 The package builds and publishes; installing it adds no API. `react` is declared as a peer for the

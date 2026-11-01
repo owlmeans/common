@@ -23,7 +23,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@owlmeans/marketing-consent": "^0.1.19-rc.0",
     "@owlmeans/mongo-resource": "^0.1.19-rc.0",
     "@owlmeans/resource": "^0.1.19-rc.0",
@@ -34,7 +34,7 @@
     "mongodb": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@owlmeans/mongo": "^0.1.19-rc.0",
     "@owlmeans/server-context": "^0.1.19-rc.0",
     "@owlmeans/test": "^0.1.19-rc.0",

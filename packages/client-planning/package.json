@@ -27,13 +27,13 @@
     "@owlmeans/auth": "^0.1.19-rc.0",
     "@owlmeans/client-context": "^0.1.19-rc.0",
     "@owlmeans/client-entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@owlmeans/entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/error": "^0.1.18",
+    "@owlmeans/error": "^0.1.19-rc.0",
     "@owlmeans/planning": "^0.1.19-rc.0",
     "@owlmeans/resource": "^0.1.19-rc.0",
     "@owlmeans/log": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.18",
+    "@owlmeans/route": "^0.1.19-rc.0",
     "@owlmeans/socket": "^0.1.19-rc.0",
     "@owlmeans/state": "^0.1.19-rc.0"
   },
@@ -42,7 +42,7 @@
     "ajv-formats": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@owlmeans/server-planning": "^0.1.19-rc.0",
     "@owlmeans/test": "^0.1.19-rc.0",
     "@types/bun": "^1.4.4",

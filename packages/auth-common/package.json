@@ -34,13 +34,13 @@
     "@owlmeans/basic-ids": "^0.1.19-rc.0",
     "@owlmeans/basic-keys": "^0.1.19-rc.0",
     "@owlmeans/client-entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/context": "^0.1.19-rc.0",
     "@owlmeans/entrypoint": "^0.1.19-rc.0",
     "@owlmeans/resource": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.18"
+    "@owlmeans/route": "^0.1.19-rc.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/dep-config": "^0.1.19-rc.0",
     "@owlmeans/test-auth": "^0.1.19-rc.0",
     "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
