@@ -14,17 +14,20 @@ touching any OIDC package implementation.
 
 | Library | Owner package(s) | Policy | Current pin |
 |---------|-----------------|--------|-------------|
-| `oidc-provider` | `@owlmeans/server-oidc-provider` | **exact** | `9.11.1` |
-| `jose` | `@owlmeans/server-oidc-provider`, `@owlmeans/server-oidc-rp` | **exact** | `6.2.5` |
-| `openid-client` | `@owlmeans/server-oidc-rp` | **exact** | `6.8.4` |
+| `oidc-provider` | `@owlmeans/server-oidc-provider` | **exact** | `9.13.1` |
+| `jose` | `@owlmeans/server-oidc-provider`, `@owlmeans/server-oidc-rp` (and internal's `keycloak`) | **exact** | `6.2.13` |
+| `openid-client` | `@owlmeans/server-oidc-rp` | **exact** | `6.8.8` |
 | `oidc-client-ts` | `@owlmeans/web-oidc-rp`, `@owlmeans/mui-oidc-rp` | **exact** | `3.5.0` |
 
-`@types/oidc-provider` is a dev dependency of `@owlmeans/server-oidc-provider` and must track the
-oidc-provider major: `9.5.0` (v9 ships no bundled types).
+`@types/oidc-provider` is a dev dependency of `@owlmeans/server-oidc-provider` and tracks the
+oidc-provider minor: `9.13.0` (v9 ships no bundled types).
 
-All four are authored by panva or authts and follow semantic versioning. **Exact pins** are the
-policy — no caret, no range — so that every bump is a deliberate, reviewed change. The pinned value
-lives in each owning package's `dependencies`; nothing else may declare one of these libraries.
+All four are authored by panva or authts and follow semantic versioning. They are the SECURITY pins
+of the external-version policy — every other third-party range is a caret — and are listed in
+library-manager's `reconcile-external-dependencies/pins.json`: **exact**, no caret, no range, so that
+every bump is a deliberate change read against the changelogs below. A reconcile moves them to the
+newest release at least three days old. The pinned value lives in each owning package's
+`dependencies`, identical wherever one of these libraries is declared.
 
 ## Checking installed vs latest
 

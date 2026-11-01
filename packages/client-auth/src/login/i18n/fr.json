@@ -34,7 +34,13 @@
     },
     "error": {
       "failed": "La connexion n’a pas abouti. Réessayez.",
-      "blocked": "La fenêtre de connexion a été bloquée. Cliquez sur l’icône de fenêtre contextuelle bloquée dans la barre d’adresse pour l’ouvrir."
+      "blocked": "La fenêtre de connexion a été bloquée. Cliquez sur l’icône de fenêtre contextuelle bloquée dans la barre d’adresse pour l’ouvrir.",
+      "refused": "Ce compte ne peut pas se connecter ici.",
+      "account-disabled": "Ce compte a été désactivé et ne peut pas se connecter ici.",
+      "profile-disabled": "L’accès de ce compte à cette application a été bloqué ; il ne peut donc pas se connecter ici.",
+      "retry": "Réessayer",
+      "back": "Retour à la connexion",
+      "incident": "Référence : {{incident}}"
     },
     "orphaned": "Vous êtes connecté. Vous pouvez fermer cette fenêtre et continuer dans l’application."
   }

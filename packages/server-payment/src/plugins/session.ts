@@ -1,11 +1,24 @@
 import type Stripe from 'stripe'
-import { ProductError, TaxBehavior, checkoutPricingHelper } from '@owlmeans/payment'
+import { CheckoutPricingMode, ProductError, TaxBehavior, checkoutPricingHelper } from '@owlmeans/payment'
 import type { PaymentPlan, PaymentProduct } from '../types.js'
 import { NEEDS_POSTAL_CODE, NEEDS_POSTAL_CODE_OR_STATE } from './consts.local.js'
 import type { StripeErrorShape } from './types.local.js'
 import type { StripeSessionHelper } from './session/types.js'
 
 export const createStripeSessionHelper = (): StripeSessionHelper => {
+  const canFulfillPayment = (session: Stripe.Checkout.Session): boolean => {
+    if (session.mode !== 'payment') return false
+    if (session.payment_status === 'paid'
+      && (session.amount_total !== 0 || session.metadata?.pricingMode !== CheckoutPricingMode.Amount)) return true
+
+    return (session.payment_status === 'no_payment_required' || session.payment_status === 'paid')
+      && session.status === 'complete' && session.metadata?.pricingMode === CheckoutPricingMode.Amount
+      && session.allow_promotion_codes === true && session.amount_total === 0
+      && Number.isSafeInteger(session.amount_subtotal) && (session.amount_subtotal ?? 0) > 0
+      && session.total_details?.amount_discount === session.amount_subtotal
+      && session.total_details?.amount_tax === 0
+  }
+
   const amountCheckoutLineItem = (
     product: PaymentProduct, plan: PaymentPlan, amountMinor: number, behavior: TaxBehavior = TaxBehavior.Exclusive,
   ): { lineItem: Stripe.Checkout.SessionCreateParams.LineItem; chargeMinor: number; currency: string } => {
@@ -67,7 +80,7 @@ export const createStripeSessionHelper = (): StripeSessionHelper => {
     return (onTermsParam && aboutTerms) || (aboutTerms && /\burl\b/i.test(message) && /dashboard/i.test(message))
   }
 
-  return { amountCheckoutLineItem, quantityCheckoutLineItem, isTaxLocatable, isMissingTermsUrl }
+  return { canFulfillPayment, amountCheckoutLineItem, quantityCheckoutLineItem, isTaxLocatable, isMissingTermsUrl }
 }
 
 export const stripeSessionHelper = createStripeSessionHelper()

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.18"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.19-rc.0"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only owns the
 provider-independent parts (streaming discipline, retries, validation, observability). Serializable
@@ -36,7 +36,7 @@ symbol "because a test needs it".
 | `llmPluginRegistry.effortSupportOf(config)` · `OPENAI_EFFORT_SUPPORT`, `OPENAI_HIDDEN_PROPERTY_NAMES`, `ANTHROPIC_MODEL_SUPPORT` / `anthropicSupportHelper.anthropicSupportOf(model)` · `REASONING_MIN_MAX_TOKENS` | Which `ModelConfig.effort` levels a model accepts, and the per-family Anthropic facts beside them — see "Fallback chains and provider effort" in the `presets` part. |
 | `ThinkingOff`, `anthropicSupportHelper.thinkingOffFor(config)` · `anthropicSupportHelper.rejectsForcedTool(model)` | The Anthropic off switch a config sends (`disabled`, `between_tools`, or none), and whether a model refuses a pinned `tool_choice`. |
 | `retryHelper.{withRetry, registerFatalError, isFatalError}`, `spectate(spectator, callType)(input, message, action, retries, startedAt?, model?)`, `normalizeInput`, `jsonHelper.{parseJsonContent, coerceToSchema}`, `resolveFallbacks`, `PROVIDER_NEUTRAL_FIELDS` | Helpers usable alongside a model. `spectate`'s `model` is the ANSWERING rung's id, put on the entry only when known; `normalizeInput` copies the caller's messages, so preparing never edits them. Also at `@owlmeans/llm/helpers`. |
-| `LlmError`, `LlmModelError`, `LlmMissconfiguredError`, `LlmPluginError`, `LlmRetryExceededError` | `ResilientError` family. `LlmModelError` is the RETRYABLE one. |
+| `LlmError`, `LlmModelError`, `LlmOutputRejection`, `LlmMissconfiguredError`, `LlmPluginError`, `LlmRetryExceededError` | `ResilientError` family. `LlmModelError` is the RETRYABLE one; `LlmOutputRejection(reason, details)` is the one a `filter` throws to refuse an answer with details its `guide` reads. |
 | `executionPolicyHelper.{mergePrompt, mergeFocus, mergePolicy, resolveRole, effortPatch}`, `executionStateHelper.freezeResults` | Execution merge helpers; `mergePrompt` unions skills, takes the deepest role, unions `focus` lists (the deepest `late` wins) and merges `cacheTtl` objects key by key; `freezeResults` deep-freezes a results view. |
 | `DEFAULT_MODEL_RETRIES`, `MODEL_STREAM_TIMEOUT_MS` (3 min idle), `FALLBACK_AFTER_ATTEMPTS`, `TEMPERATURE_PER_EFFORT_STEP`, `DEFAULT_EFFORT`, `EFFORT_TABLE`, `MAX_CACHE_BREAKPOINTS`, `MIN_CACHEABLE_TOKENS`, `DEFAULT_CACHE_TTL`, `PROJECT_CONTEXT_HEADER`, `TAIL_SCHEMA_INSTRUCTION`, `LLM_SERVICE`, `EXECUTION_SERVICE`, `PROMPT_SERVICE` | Tuning + aliases. |
 
@@ -92,7 +92,7 @@ blank tool results are stubbed to keep their `tool_use` pairing). Details: packa
 |---|---|
 | [providers](parts/providers.md) | adding or changing a provider plugin, or an error that is retried when it should not be |
 | [execution](parts/execution.md) | deriving executions, resolving a model by role or effort, passing a results view, or using the utility tier |
-| [retries](parts/retries.md) | writing a retry or validation loop around model calls, or a call that hangs or retries too long |
+| [retries](parts/retries.md) | writing a retry or validation loop around model calls, guiding a refused answer into the next attempt (`guide`), or a call that hangs or retries too long |
 | [presets](parts/presets.md) | writing or changing a model preset, a fallback rung or an effort level |
 | [reasoning](parts/reasoning.md) | turning reasoning on or off for a role, or diagnosing an empty or reasoning-only completion |
 | [testing](parts/testing.md) | running or adding tests of this package |

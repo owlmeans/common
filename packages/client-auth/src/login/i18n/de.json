@@ -34,7 +34,13 @@
     },
     "error": {
       "failed": "Die Anmeldung wurde nicht abgeschlossen. Bitte versuchen Sie es erneut.",
-      "blocked": "Das Anmeldefenster wurde blockiert. Klicken Sie auf das Symbol für blockierte Pop-ups in der Adressleiste Ihres Browsers, um es zu öffnen."
+      "blocked": "Das Anmeldefenster wurde blockiert. Klicken Sie auf das Symbol für blockierte Pop-ups in der Adressleiste Ihres Browsers, um es zu öffnen.",
+      "refused": "Mit diesem Konto ist hier keine Anmeldung möglich.",
+      "account-disabled": "Dieses Konto wurde deaktiviert; eine Anmeldung ist hier nicht möglich.",
+      "profile-disabled": "Der Zugang dieses Kontos zu dieser Anwendung wurde gesperrt; eine Anmeldung ist hier nicht möglich.",
+      "retry": "Erneut versuchen",
+      "back": "Zurück zur Anmeldung",
+      "incident": "Referenz: {{incident}}"
     },
     "orphaned": "Angemeldet. Sie können dieses Fenster schließen und in der Anwendung fortfahren."
   }

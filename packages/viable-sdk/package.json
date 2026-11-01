@@ -55,30 +55,30 @@
     "agent-meta"
   ],
   "dependencies": {
-    "@owlmeans/api": "^0.1.18",
-    "@owlmeans/auth": "^0.1.18",
-    "@owlmeans/auth-common": "^0.1.18",
-    "@owlmeans/auth-token": "^0.1.18",
-    "@owlmeans/basic-ids": "^0.1.18",
-    "@owlmeans/client-config": "^0.1.18",
-    "@owlmeans/client-context": "^0.1.18",
-    "@owlmeans/client-entrypoint": "^0.1.18",
-    "@owlmeans/client-planning": "^0.1.18",
-    "@owlmeans/config": "^0.1.18",
+    "@owlmeans/api": "^0.1.19-rc.0",
+    "@owlmeans/auth": "^0.1.19-rc.0",
+    "@owlmeans/auth-common": "^0.1.19-rc.0",
+    "@owlmeans/auth-token": "^0.1.19-rc.0",
+    "@owlmeans/basic-ids": "^0.1.19-rc.0",
+    "@owlmeans/client-config": "^0.1.19-rc.0",
+    "@owlmeans/client-context": "^0.1.19-rc.0",
+    "@owlmeans/client-entrypoint": "^0.1.19-rc.0",
+    "@owlmeans/client-planning": "^0.1.19-rc.0",
+    "@owlmeans/config": "^0.1.19-rc.0",
     "@owlmeans/context": "^0.1.18",
-    "@owlmeans/entrypoint": "^0.1.18",
+    "@owlmeans/entrypoint": "^0.1.19-rc.0",
     "@owlmeans/error": "^0.1.18",
-    "@owlmeans/planning": "^0.1.18",
+    "@owlmeans/planning": "^0.1.19-rc.0",
     "@owlmeans/route": "^0.1.18",
-    "@owlmeans/socket": "^0.1.18",
+    "@owlmeans/socket": "^0.1.19-rc.0",
     "@owlmeans/viable-common": "^0.1.19-rc.1",
     "ajv": "^8.20.0",
     "fs-extra": "^11.4.1",
     "globby": "^16.2.4",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
-    "@modelcontextprotocol/sdk": "^1.32.0"
+    "@modelcontextprotocol/sdk": "^1.32.2"
   },
   "peerDependenciesMeta": {
     "@modelcontextprotocol/sdk": {
@@ -86,12 +86,12 @@
     }
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.32.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@owlmeans/dep-config": "^0.1.18",
-    "@owlmeans/server-planning": "^0.1.18",
-    "@types/bun": "^1.4.2",
+    "@owlmeans/server-planning": "^0.1.19-rc.0",
+    "@types/bun": "^1.4.4",
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

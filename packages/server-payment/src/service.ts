@@ -6,7 +6,7 @@ import {
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import {
   ENTITLEMENT_SERVICE, GATEWAY_SERVICE, RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT,
-  RES_PAYMENT_SUBSCRIPTION, RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
+  RES_PAYMENT_GRANT, RES_PAYMENT_SUBSCRIPTION, RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
 } from './consts.js'
 import { registerConsumerRights } from './consumer/service.js'
 import { makeEntitlementService } from './entitlement.js'
@@ -14,8 +14,8 @@ import { makeCapabilityGate } from './gate.js'
 import { makeLimitGate } from './limit.js'
 import { appendCompletionObserver } from './observer.js'
 import {
-  makeFingerprintResource, makeFulfillmentResource, makePaygateCustomerResource, makeSubscriptionResource,
-  makeUsageCounterResource, makeUsageResource, makeWebhookResource,
+  makeFingerprintResource, makeFulfillmentResource, makeGrantResource, makePaygateCustomerResource,
+  makeSubscriptionResource, makeUsageCounterResource, makeUsageResource, makeWebhookResource,
 } from './resource.js'
 import type {
   Config, Context, GatewayService, PaymentGatewayOptions, PaymentPlan, GatewayServiceOptions, StripeBootstrapOptions,
@@ -99,6 +99,8 @@ export const makeGatewayService = (
       ? await portalOf(ctx).createPortalLink(await stripeOf(ctx), entityId, link) : unmanaged(),
     grantInternalPlan: async (ctx, entityId, planSku, grant) =>
       await subscriptionCommitOf(ctx).grantInternalPlan(entityId, planSku, grant),
+    revokeInternalPlan: async (ctx, entityId, planSku) =>
+      await subscriptionCommitOf(ctx).revokeInternalPlan(entityId, planSku),
     resyncSubscription: async (ctx, ref) => managed
       ? await stripeSubscriptionsOf(ctx).resyncStripeSubscription(await stripeOf(ctx), ref) : unmanaged(),
     resyncAll: async ctx => managed
@@ -127,9 +129,9 @@ export const makeGatewayService = (
 }
 
 /**
- * Register the payment resources, the catalogue service, the completion observer, the gateway, both
- * gate services, the entitlement service and the consumer-rights records and service — each only
- * when not registered yet.
+ * Register the payment resources (the entitlement grants `payment-grant` included, on `dbAlias` like
+ * the others), the catalogue service, the completion observer, the gateway, both gate services, the
+ * entitlement service and the consumer-rights records and service — each only when not registered yet.
  *
  * `manage: false` registers the same surface for a process that reads entitlements but never talks
  * to Stripe. Several managed processes of one deployment share the Stripe rows through one `owner`
@@ -146,6 +148,7 @@ export const appendPaymentGatewayService = <C extends Config, T extends Context<
     [RES_PAYMENT_USAGE, makeUsageResource],
     [RES_PAYMENT_USAGE_COUNTER, makeUsageCounterResource],
     [RES_PAYMENT_FINGERPRINT, makeFingerprintResource],
+    [RES_PAYMENT_GRANT, makeGrantResource],
   ] as const
   for (const [alias, maker] of makers) {
     if (!ctx.hasResource(alias)) {

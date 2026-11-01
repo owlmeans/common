@@ -19,6 +19,16 @@ export const box: CSSProperties = {
   width: '100%', maxWidth: '24rem', padding: '1.5rem', textAlign: 'center',
 }
 
+/** The one action of a failed sign-in — the way back, or the retry. */
+export const failureAction: CSSProperties = {
+  display: 'inline-block', marginTop: '1rem', padding: '.625rem 1rem', fontSize: '1rem',
+  cursor: 'pointer', borderRadius: '.375rem', border: '1px solid currentColor', background: 'transparent',
+  color: 'inherit',
+}
+
+/** The library resource the sign-in copy is registered in (`i18n.ts`), in the `lib` namespace. */
+export const LOGIN_I18N_RESOURCE = 'auth'
+
 /** The same English fallback a document's `i18nKey` translates to when nothing else names it. */
 export const DEFAULT_LABEL: Record<string, string> = {
   terms: 'Terms & Conditions',

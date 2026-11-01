@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useContext, useNavigate } from '@owlmeans/client'
 import type { CommonConfig } from '@owlmeans/config'
-import { resolveCredit, LoginOutcome, LOGIN_SERVICE, loginMethodsHelper, loginTermsHelper } from '@owlmeans/client-auth/login'
-import type { LoginContext, LoginMethod, LoginService } from '@owlmeans/client-auth/login'
+import {
+  resolveCredit, LoginOutcome, LOGIN_SERVICE, loginFailureHelper, loginMethodsHelper, loginTermsHelper, makeAuthTranslate,
+} from '@owlmeans/client-auth/login'
+import type { LoginContext, LoginFailure, LoginMethod, LoginService } from '@owlmeans/client-auth/login'
 import type { LoginMethodsModel, UseLoginMethodsOptions } from './types.js'
 import { loginProviderHelper } from './provider.js'
 
@@ -32,6 +34,7 @@ export const useLoginMethods = (opts?: UseLoginMethodsOptions): LoginMethodsMode
   const [busy, setBusy] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<LoginOutcome | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [failure, setFailure] = useState<LoginFailure | null>(null)
 
   const env = login.env()
   const all = login.methods({
@@ -55,6 +58,7 @@ export const useLoginMethods = (opts?: UseLoginMethodsOptions): LoginMethodsMode
     }
     setBusy(method.id)
     setError(null)
+    setFailure(null)
     void method.start({
       context, env,
       navigate: (alias, params) => { nav.go(alias, params != null ? { params } : undefined) },
@@ -64,8 +68,13 @@ export const useLoginMethods = (opts?: UseLoginMethodsOptions): LoginMethodsMode
       if (result !== LoginOutcome.Redirected) {
         setBusy(null)
       }
-    }).catch((e: Error) => {
-      setError(e.message)
+    }).catch((e: unknown) => {
+      // Phrased, never the raw message: a refusal of this account reads as one, anything else as
+      // a failure with the incident a person can report. The method buttons are the retry.
+      const failed = loginFailureHelper.failureOf(e)
+      const phrase = loginFailureHelper.phrase(failed, makeAuthTranslate(context.cfg))
+      setFailure(failed)
+      setError(phrase.incident != null ? `${phrase.message} ${phrase.incident}` : phrase.message)
       setOutcome(LoginOutcome.Failed)
       setBusy(null)
     })
@@ -97,6 +106,7 @@ export const useLoginMethods = (opts?: UseLoginMethodsOptions): LoginMethodsMode
     busy,
     outcome,
     error,
+    failure,
     select,
   }
 }

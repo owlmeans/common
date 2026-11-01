@@ -14,19 +14,19 @@ import {
 } from '../src/config.js'
 import {
   RES_BILLING_PROFILE, RES_CONSUMER_CONSENT, RES_CONSUMER_DECLARATION, RES_CONSUMER_EVENT, RES_PAYGATE_CUSTOMER,
-  RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_PURCHASE, RES_PAYMENT_SUBSCRIPTION,
+  RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_GRANT, RES_PAYMENT_PURCHASE, RES_PAYMENT_SUBSCRIPTION,
   RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
 } from '../src/consts.js'
 import { appendConsumerRights } from '../src/consumer/service.js'
 import {
   makeBillingProfileResource, makeConsumerConsentResource, makeConsumerDeclarationResource,
-  makeConsumerEventResource, makeFingerprintResource, makeFulfillmentResource, makePaygateCustomerResource,
-  makePurchaseResource, makeSubscriptionResource, makeUsageCounterResource, makeUsageResource, makeWebhookResource,
+  makeConsumerEventResource, makeFingerprintResource, makeFulfillmentResource, makeGrantResource,
+  makePaygateCustomerResource, makePurchaseResource, makeSubscriptionResource, makeUsageCounterResource, makeUsageResource, makeWebhookResource,
 } from '../src/resource.js'
 import { appendPaymentGatewayService } from '../src/service.js'
 import type {
   GatewayServiceOptions, CancellationEvent, Config, ConsentEvent, ConsumerRightsDef, ConsumerRightsOptions,
-  DisputeEvent, PaymentFailedEvent, PaymentPlanDef, PortalBrandingDef, PricingDef, RefundEvent, SubscriptionEvent,
+  DisputeEvent, EntitlementGrantEvent, PaymentFailedEvent, PaymentPlanDef, PortalBrandingDef, PricingDef, RefundEvent, SubscriptionEvent,
   TopUpCompletion, UsageMeter, WithdrawalEvent,
 } from '../src/types.js'
 import { paymentAccessOf } from '../src/access.js'
@@ -326,20 +326,26 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
         state.creditNotePreviews.push(structuredClone(params))
         const invoice = state.invoices[params.invoice]
         if (invoice == null) throw missing('invoice')
-        const rate = invoice.subtotal > 0 ? (invoice.tax ?? 0) / invoice.subtotal : 0
+        const discount = (invoice.total_discount_amounts ?? []).reduce((sum: number, item: Rec) => sum + item.amount, 0)
+        const net = invoice.subtotal - discount
+        const rate = net > 0 ? (invoice.tax ?? 0) / net : 0
         const amount = params.lines.reduce((sum: number, line: Rec) => sum + (line.amount ?? 0), 0)
-        const tax = Math.round(amount * rate)
-        return { id: 'cnpreview', object: 'credit_note', amount: amount + tax, total: amount + tax, subtotal: amount, currency: invoice.currency }
+        const discounted = amount - (invoice.subtotal > 0 ? Math.round(amount * discount / invoice.subtotal) : 0)
+        const tax = Math.round(discounted * rate)
+        return { id: 'cnpreview', object: 'credit_note', amount: discounted + tax, total: discounted + tax, subtotal: amount, currency: invoice.currency }
       },
       create: async (params: Rec, options?: Rec) => {
         call('creditNotes.create', options)
         const invoice = state.invoices[params.invoice]
         if (invoice == null) throw missing('invoice')
-        const rate = invoice.subtotal > 0 ? (invoice.tax ?? 0) / invoice.subtotal : 0
+        const discount = (invoice.total_discount_amounts ?? []).reduce((sum: number, item: Rec) => sum + item.amount, 0)
+        const net = invoice.subtotal - discount
+        const rate = net > 0 ? (invoice.tax ?? 0) / net : 0
         const amount = params.lines.reduce((sum: number, line: Rec) => sum + (line.amount ?? 0), 0)
+        const discounted = amount - (invoice.subtotal > 0 ? Math.round(amount * discount / invoice.subtotal) : 0)
         const note = {
           id: next('cn'), object: 'credit_note', invoice: params.invoice, refund: params.refund, status: 'issued',
-          total: amount + Math.round(amount * rate), currency: invoice.currency, memo: params.memo,
+          total: discounted + Math.round(discounted * rate), currency: invoice.currency, memo: params.memo,
           metadata: { ...params.metadata }, lines: structuredClone(params.lines),
         }
         state.creditNotes.push(note)
@@ -725,7 +731,13 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
     return before - store.rows.length
   }
 
-  const matchRaw = (filter: Rec) => store.rows.find(row => recordQueryHelper.matchCriteria(row, filter))
+  // A raw filter addresses a record by `_id` (`paymentUtils.idCriteria`); the rows carry it as `id`.
+  const rawFilter = (filter: Rec): Rec => {
+    if (!('_id' in filter)) return filter
+    const { _id: rawId, ...rest } = filter
+    return { ...rest, id: String(rawId) }
+  }
+  const matchRaw = (filter: Rec) => store.rows.find(row => recordQueryHelper.matchCriteria(row, rawFilter(filter)))
   const upsert = (filter: Rec, update: Rec, opts: Rec = {}): { doc: Rec | null, inserted: boolean } => {
     const found = matchRaw(filter)
     if (found != null) {
@@ -733,7 +745,7 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
       return { doc: found, inserted: false }
     }
     if (opts.upsert !== true) return { doc: null, inserted: false }
-    const doc: Rec = Object.fromEntries(Object.entries(filter).filter(([, value]) =>
+    const doc: Rec = Object.fromEntries(Object.entries(rawFilter(filter)).filter(([, value]) =>
       value === null || typeof value !== 'object' || value instanceof Date))
     applyUpdate(doc, update, true)
     if (violates(doc)) throw duplicate()
@@ -850,10 +862,13 @@ export interface Observed {
   consent: ConsentEvent[]
   withdrawal: WithdrawalEvent[]
   cancellation: CancellationEvent[]
+  grant: EntitlementGrantEvent[]
   /** Throw from the next `n` subscription callbacks. */
   failSubscription: number
   failTopUp: number
   failWithdrawal: number
+  /** Throw from the next `n` entitlement grant callbacks. */
+  failGrant: number
   /** Run inside every top-up / subscription callback, before it records the event. */
   onTopUp?: (event: TopUpCompletion) => Promise<void>
   onSubscription?: (event: SubscriptionEvent) => Promise<void>
@@ -916,6 +931,7 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
     [RES_CONSUMER_CONSENT, makeConsumerConsentResource()],
     [RES_CONSUMER_DECLARATION, makeConsumerDeclarationResource()],
     [RES_CONSUMER_EVENT, makeConsumerEventResource()],
+    [RES_PAYMENT_GRANT, makeGrantResource()],
   ] as const
   for (const [alias, resource] of resources) {
     stores[alias] = memoryResource(resource as unknown as MongoResource<ResourceRecord>)
@@ -944,7 +960,7 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
 
   const observed: Observed = {
     topUp: [], subscription: [], refund: [], dispute: [], paymentFailed: [], consent: [], withdrawal: [],
-    cancellation: [], failSubscription: 0, failTopUp: 0, failWithdrawal: 0,
+    cancellation: [], grant: [], failSubscription: 0, failTopUp: 0, failWithdrawal: 0, failGrant: 0,
   }
   const completions = paymentAccessOf(ctx).observer()
   await completions.ready()
@@ -976,6 +992,13 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
     observed.withdrawal.push(event)
   })
   completions.onCancellation(async event => { observed.cancellation.push(event) })
+  completions.onEntitlementGrant(async event => {
+    if (observed.failGrant > 0) {
+      observed.failGrant--
+      throw new Error('sweeps unavailable')
+    }
+    observed.grant.push(event)
+  })
 
   return { ctx, stripe, state, stores, observed, mails: mailer.captured, mailer }
 }

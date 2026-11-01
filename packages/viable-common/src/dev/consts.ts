@@ -44,6 +44,16 @@ export const ALIAS_PREFIX_API = 'api:'
 export const ALIAS_PREFIX_WEB = 'web:'
 
 /**
+ * What a model is told about every NAME a generated project's code is built from — appended to the
+ * description of each such schema field. A name in another script is erased by the code that turns
+ * it into an address or an identifier (`web:` with nothing after it), so a name is English, written
+ * in ASCII, whatever language the person wrote in; what a person READS is a label, never a name.
+ */
+export const ENGLISH_NAME_NOTE = 'An ENGLISH name in ASCII: only the letters A-Z and a-z, the digits 0-9 and the'
+  + ' separators this field allows - never the person\'s language and never another script; translate'
+  + ' it into English, never transliterate it'
+
+/**
  * The prefix of a LAYOUT entrypoint — the parent a screen hangs under so the layout wraps it.
  * A layout is addressed like a screen and rendered by the same router, so it has to be excluded
  * explicitly wherever "the entrypoint of this screen" is being resolved.

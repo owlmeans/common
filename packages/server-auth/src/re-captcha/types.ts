@@ -19,7 +19,8 @@ export interface ReCaptchaCarrier extends Partial<Pick<AbstractRequest, 'headers
 
 /**
  * The checks of a reCAPTCHA guest token (`Authorization: RE-CAPTCHA <token>`), bound to the context
- * whose `TRUSTED` record `AUTH_SRV_KEY` signed it and whose `AUTH_CACHE` spends it.
+ * whose `TRUSTED` record `cfg.auth.authKey` (default `AUTH_SRV_KEY`) signed it and whose `AUTH_CACHE`
+ * spends it.
  */
 export interface ReCaptchaTokenHelper {
   /**
@@ -29,7 +30,7 @@ export interface ReCaptchaTokenHelper {
    * the route itself still needs the guard, which spends.
    *
    * @returns `null` for a request without such a header or with a token that fails a check.
-   * @throws {SyntaxError} when the context has no `AUTH_SRV_KEY` trusted record (a configuration fault).
+   * @throws {SyntaxError} when the context has no trusted record of its auth key (a configuration fault).
    */
   inspect: (req: ReCaptchaCarrier) => Promise<ReCaptchaGuest | null>
   /** {@link inspect} for a bare token (the value after `RE-CAPTCHA `). */

@@ -1,6 +1,6 @@
 ---
 name: supervisor-auth
-description: PK-based supervisor authentication — a development-only login where a holder of one of the project's trusted private keys mints a token for any user id/email (registering them on first use), bypassing external IdPs. Primary use is end-to-end tests. Covers appendSupervisorAuth (server + web), the supervisor plugin, and the @owlmeans/test-ui helpers. Use when wiring or testing supervisor auth.
+description: PK-based supervisor authentication — a development-only login where a holder of one of the project's trusted private keys mints a token for any user id/email (registering them on first use), bypassing external IdPs. Primary use is end-to-end tests; the one production exception is a dedicated staff area whose resolver never registers. Covers appendSupervisorAuth (server + web), the supervisor plugin, the staff-area pattern, and the @owlmeans/test-ui helpers. Use when wiring or testing supervisor auth.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -50,14 +50,16 @@ Options:
 - `supervisors` — TRUSTED-record `name`s authorized to sign. Default `['master','superuser']`. The
   matching **public** key must be in the project's TRUSTED config; the **private** key is what the
   front-end signs with. Pick aliases whose private keys you actually have (e.g. in `.env.dev.secrets`).
-- `resolveUser` — `(userId, context, { register }) => Promise<SupervisorUserResolution>`. Default:
+- `resolveUser` — `(userId, context, { register }) => Promise<SupervisorUserResolution>`; `register`
+  mirrors `allowRegistration` (false → look existing users up only; a throw refuses the sign-in). Default:
   trust the id as-is (`{ userId }`). Wire it to `@owlmeans/server-auth-identity`'s
   `IdentityLinkingService` (`getLinkedProfile` / `linkProfile`) to find-or-create the person's
   account and the deployment's own row (a new address registers a personal organization). `SupervisorUserResolution` is `{ userId }` plus optional `profileId`,
   `entitySlug`, `role` and `scopes` — the organization value is a SLUG, the renameable public name
   that a token carries, never the stable `entityId`. `profileId` defaults to `userId`, `scopes` to
   the credential's own or `[ALL_SCOPES]`, and `role` to `AuthRole.User`.
-- `enabled` — force on/off. Default is development only. **Never enable in real production.**
+- `enabled` — force on/off. Default is development only. **Never enable in real production** —
+  the one exception is a staff area that never registers (§ A dedicated staff area).
 - `acceptInternalTokens` — when `true`, appends the internal `Ed25519BasicToken` guard
   (`DEFAULT_GUARD`) as a coguard on every already-guarded backend entrypoint, so internal OwlMeans
   tokens keep working where another guard (OIDC, say) is the primary one. The primary guard stays
@@ -89,6 +91,25 @@ accident. The plugin is `restricted`, so `appendSupervisorAuth` also writes
 `cfg.security.auth.login.overrides` to make it offerable; `{ offer: false }` registers it without
 advertising it.
 
+## A dedicated staff area — the PK login always on
+
+The one deployment that may enable the PK login outside development: a separate staff area (its
+own app, host, signing key and sessions) whose resolver NEVER registers anybody. The pattern:
+
+- server: `appendSupervisorAuth(ctx, { enabled: true, supervisors: <the area's own list>,
+  allowRegistration: false, acceptInternalTokens: false, resolveUser })` — `enabled: true` whatever
+  `cfg.debug` says; no internal-token coguard (the area's routes take its own bearer alone);
+- `resolveUser` admits an EXISTING account only: an unknown address throws `AuthRefused(<code>)`
+  (`@owlmeans/auth`, 403 + the access-denied marker), a banned one too; whatever the area grants a
+  supervisor sign-in (an admin permission, say) is written idempotently and audited by the resolver;
+- web: `appendSupervisorAuth(context, { enabled: true, offer: true })`; the form phrases a refusal
+  through `loginFailureHelper` (`web-auth`);
+- the supervisor list is per environment configuration: production names only the offline keys
+  (e.g. `master-key,super-user`), never a key shared with test tooling.
+
+Example: Viable's operator panel (`viable-operator-api` `services/supervisor.ts`). A customer-facing
+app keeps the development-only default.
+
 ## Tests: `@owlmeans/test-ui` helpers
 
 - `supervisorAuthHelper.authenticateViaSupervisorApi({ apiBaseUrl, userId, pk })` — drives the live API
@@ -102,6 +123,13 @@ advertising it.
 - `supervisorAuthHelper.pregenerateAuthToken({ userId, pk, scopes?, role?, profileId?, source?, ... })` — offline mint via
   `@owlmeans/test-auth`'s `makeBearer`, using the project's **own** trusted signing key (lowest-level
   primitive). No plugin, no registration.
+- `makeEmailTechClient({ apiUrl, privateKey })` + `makePageHelper(page).loginViaEmailForm({ baseUrl,
+  email, rewritePin, waiver })` — the browser sign-in of an app that offers e-mail sign-in
+  (`@owlmeans/web-auth-email`): the same supervisor private key signs that package's developer
+  routes (`GUARD_ED25519`, the record named in the server's `tech.signers`), which rewrite the
+  mailed PIN and waive the captcha — no mailbox. Provision first with
+  `authenticateViaSupervisorApi` (registration, plan, credits): the identity store keeps one account
+  per address, so the e-mail sign-in lands on the account the supervisor login provisioned.
 
 `makePageHelper(page).loginViaSupervisorForm` answers a cookie-consent dialog by default (`consent: 'accept'`): an
 OwlMeans app refuses to start an authentication flow until consent is answered, and the modal
@@ -111,7 +139,8 @@ subresource and a tag manager or analytics beacon that never settles holds it op
 
 ## Security
 
-- Development/stage only. Gate on `cfg.debug`; never ship enabled to real production.
+- Development/stage only. Gate on `cfg.debug`; never ship enabled to real production — except a
+  dedicated staff area whose resolver never registers (§ A dedicated staff area).
 - Anyone with a supervisor **private** key can impersonate/register any user — treat those keys as
   highly sensitive.
 

@@ -3,7 +3,7 @@ name: login
 description: The ./login host — method registry, post-login landing, the terms confirmation, surrogate windows, token adoption, and the useLogin/useLogout hooks.
 metadata:
   purposes: auth, consent
-  mentions: useLogin, @owlmeans/client-auth/login, useLogout, appendLogin, loginTermsHelper, loginLandingOf, loginTokenOf, loginStartOf, loginMethodsHelper, LoginStep, LoginPlugin, FallbackLoginScreen
+  mentions: useLogin, @owlmeans/client-auth/login, useLogout, loginFailureHelper, LoginFailureView, appendLogin, loginTermsHelper, loginLandingOf, loginTokenOf, loginStartOf, loginMethodsHelper, LoginStep, LoginPlugin, FallbackLoginScreen
 ---
 
 # @owlmeans/client-auth — The login-plugin host
@@ -30,6 +30,7 @@ browsing context the round trip can complete at all.
 | `FallbackLoginScreen`, `LoginScreenProps` (now also carries `locale?: string`, for `Intl.ListFormat` and a custom document's locale-keyed label), `LoginScreenComponent` | The plain sign-in screen a relying party renders when no UI family registered one |
 | `surrogatePath(ctx, target)`, `SurrogateTarget` | Where a surrogate login window opens; `null` on an older entrypoint list |
 | `loginResumeHelper.resumeAction(outcome)`, `ResumeAction`, `loginResumeHelper.loginAttemptError(outcome)` | The one reading of a `resume` outcome, and the one reading of a finished attempt |
+| `loginFailureHelper` → `.failureOf(error)`, `.isRefusal(error)`, `.phrase(failure, translate?)`; `LoginFailureView`; `LoginFailureKind`; `makeAuthTranslate(cfg)` | The one reading and phrasing of a failed sign-in — refusal vs failure (SKILL.md § A failed sign-in) |
 | `registerNotifier(notifier)` (on `LoginService`), `LoginNotifier` | Surfaces a `begin`/`logout` outcome that has no inline screen to render it on — e.g. a toast on `LoginOutcome.Blocked` for a header "Log in"/"Log out" control. `web-panel`'s `appendLoginScreen` registers a default; unregistered, it is silence |
 | `enterOidcAuthorization(model)` | Move a flow to the step that can authorize — idempotent, call it before every `authenticate` |
 | `loginTokenOf(ctx).adoptToken(token)`, `.revokeToken()` | The single adoption and de-adoption paths |

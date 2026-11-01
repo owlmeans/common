@@ -20,8 +20,23 @@ export interface SubscriptionCommitHelper {
   ) => Promise<CommitResult>
   /**
    * Grant a plan without a paygate — the free plan every entity holds, or a complimentary one
-   * (`force`). One row per grant (`free:<entityId>` / `internal:<planSku>:<entityId>`), upserted: its
-   * `createdAt` survives a re-grant, and observers hear `created` once.
+   * (`force`). One row per grant (`free:<entityId>` / `internal:<planSku>:<entityId>`), upserted.
+   *
+   * Observers hear `created` when the row first entitles, and again (`previous: null`, the key
+   * suffixed with the row's new `restartedAt`) when a re-grant re-activates a row that had stopped
+   * entitling — revoked, or past its period end. A re-grant of an entitling row only moves its
+   * period end and tells nobody. `createdAt` is always the FIRST grant's: subscription-week windows,
+   * credit frames and grandfathered promos keep their anchor, so a revoke and a re-grant inside one
+   * window never open a second allowance in it.
    */
   grantInternalPlan: (entityId: string, planSku: string, opts?: GrantInternalPlanOptions) => Promise<PaymentSubscriptionRecord>
+  /**
+   * End an internal grant now: `status: canceled`, `periodEnd` / `endedAt` = now (a grant already
+   * past its period end keeps that instant), `canceledAt` = now. Observers hear `canceled` — the
+   * event a paygate cancellation delivers. Idempotent: no row, or a row ended already, changes
+   * nothing and tells nobody.
+   *
+   * @returns whether anything changed
+   */
+  revokeInternalPlan: (entityId: string, planSku: string) => Promise<boolean>
 }

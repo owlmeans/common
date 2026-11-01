@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/common-inquiry",
-  "version": "0.1.18",
+  "version": "0.1.19-rc.0",
   "license": "MIT",
-  "description": "Runtime-free contract of the OwlMeans customer inquiry widget \u2014 the window runtime, the widget config, the multipart submission and its limits, schemas and the config helper.",
+  "description": "Runtime-free contract of the OwlMeans customer inquiry widget — the window runtime, the widget config, the multipart submission and its limits, schemas and the config helper.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -36,7 +36,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.18",
-    "@types/bun": "^1.4.2",
+    "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "nodemon": "^3.1.14",

@@ -65,6 +65,28 @@ export class AuthenFailed extends AuthManagerError {
   }
 }
 
+/**
+ * A sign-in that was understood and is refused for this person — a banned account
+ * (`account:disabled`), the app's own access blocked (`profile:disabled`), or a deployment's own
+ * refusal (an operator area that admits only its staff). Trying again with the same account changes
+ * nothing, which is what a browser has to be able to tell from a failed attempt.
+ *
+ * Still an {@link AuthenFailed}, with the same message (`auth:manager:authen:<code>`), so every
+ * caller that catches or matches a failed sign-in keeps working. It answers 403 (`httpStatus`, read
+ * by `@owlmeans/server-api`), and the HTTP boundary marks it `X-OwlMeans-Denial: access-denied`,
+ * which survives production exposure where the body is only an incident id. A deployment throws it
+ * for its own sign-in refusals: `throw new AuthRefused('operator:refused')`.
+ */
+export class AuthRefused extends AuthenFailed {
+  public static override typeName: string = `${AuthenFailed.typeName}Refused`
+  public static httpStatus = 403
+
+  constructor(message: string = 'refused') {
+    super(message)
+    this.type = AuthRefused.typeName
+  }
+}
+
 export class AuthenExists extends AuthenFailed {
   public static override typeName: string = `${AuthenFailed.typeName}Exists`
 
@@ -143,6 +165,7 @@ ResilientError.registerErrorClass(AuthManagerError)
 ResilientError.registerErrorClass(AuthUnavailable)
 ResilientError.registerErrorClass(AuthManagerUnsupported)
 ResilientError.registerErrorClass(AuthenFailed)
+ResilientError.registerErrorClass(AuthRefused)
 ResilientError.registerErrorClass(AuthenExists)
 ResilientError.registerErrorClass(AuthenPayloadError)
 ResilientError.registerErrorClass(AuthPluginError)

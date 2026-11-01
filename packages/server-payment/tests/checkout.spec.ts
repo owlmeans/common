@@ -8,6 +8,7 @@ import { CREDITS_PRODUCT, FREE, makeFakeContext, PLANS_PRODUCT, PRO, TEAM } from
 import type { FakeContext } from './fake-stripe.js'
 import { stripeCheckoutOf } from '../src/plugins/stripe.js'
 import { stripeSessionHelper } from '../src/plugins/session.js'
+import { freeSession } from './consumer-fixtures.js'
 
 const proPrice = { id: 'price_pro', product: PLANS_PRODUCT, lookup_key: PRO, active: true, recurring: { interval: 'month' } }
 const successUrl = 'https://app.example.com/ok'
@@ -81,6 +82,24 @@ describe('Stripe checkout', () => {
 })
 
 describe('Stripe checkout — pricing policy', () => {
+  test('amount promotion codes are opt-in and never change the selected credit value or base charge', async () => {
+    for (const enabled of [undefined, false, true]) {
+      const fake = await makeFakeContext({
+        pricing: {
+          tax: { automatic: true, collectTaxId: true, estimate: false }, currency: { estimate: false },
+          ...(enabled != null ? { stripe: { amountPromotionCodes: enabled } } : {}),
+        },
+      })
+      await stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
+        productSku: CREDITS_PRODUCT, entityId: 'entity-1', service: 'app', amountMinor: 1000, successUrl,
+      })
+      const session = fake.state.checkoutSessions[0]
+      expect(session.allow_promotion_codes).toBe(enabled === true)
+      expect(session.metadata.amountMinor).toBe('1000')
+      expect(session.line_items[0].price_data.unit_amount).toBe(1021)
+    }
+  })
+
   test('an undeclared policy reproduces exactly the session hard-coded before this policy existed', async () => {
     const fake = await makeFakeContext({ stripe: { prices: [proPrice] } })
     await stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
@@ -181,6 +200,49 @@ describe('Stripe checkout — pricing policy', () => {
 })
 
 describe('Stripe checkout fulfillment', () => {
+  test('percentage and fixed discounts grant the full selected credit value once', async () => {
+    for (const discount of [511, 100]) {
+      const fake = await makeFakeContext()
+      const session = paid({
+        allow_promotion_codes: true, amount_total: 1021 - discount,
+        total_details: { amount_tax: 0, amount_discount: discount },
+      })
+      await process(fake, 'checkout.session.completed', session)
+      await process(fake, 'checkout.session.completed', session)
+      expect(fake.observed.topUp).toEqual([expect.objectContaining({ amountMinor: 1000, chargeAmountMinor: 1021 })])
+      expect(fulfillment(fake)[0].amountTotalMinor).toBe(1021 - discount)
+    }
+  })
+
+  test('a fully discounted completion without a payment intent retries the observer and fulfills once', async () => {
+    for (const payment_status of ['no_payment_required', 'paid']) {
+      const fake = await makeFakeContext()
+      const session = freeSession({ payment_status })
+      fake.observed.failTopUp = 1
+      await expect(process(fake, 'checkout.session.completed', session)).rejects.toThrow('ledger unavailable')
+      await process(fake, 'checkout.session.completed', session)
+      await process(fake, 'checkout.session.completed', session)
+      expect(fake.observed.topUp).toEqual([expect.objectContaining({ amountMinor: 1000, chargeAmountMinor: 919 })])
+      expect(fulfillment(fake)[0]).toEqual(expect.objectContaining({ amountTotalMinor: 0, fulfilledAt: expect.any(Date) }))
+      expect(fulfillment(fake)[0].paymentIntentId).toBeUndefined()
+    }
+  })
+
+  test('free fulfillment requires a completed amount session and a full authorized discount', async () => {
+    const fake = await makeFakeContext()
+    for (const patch of [
+      { status: 'open' }, { payment_status: 'unpaid' }, { amount_total: 1 },
+      { allow_promotion_codes: false }, { metadata: { pricingMode: 'quantity' } },
+      { total_details: { amount_discount: 918, amount_tax: 0 } },
+      { total_details: { amount_discount: 919, amount_tax: 1 } },
+    ]) {
+      await process(fake, 'checkout.session.completed', freeSession(patch))
+    }
+    expect(fake.observed.topUp).toHaveLength(0)
+    await expect(process(fake, 'checkout.session.completed', freeSession({ metadata: { currency: 'usd' } }))).rejects.toThrow('amount-mismatch')
+    await expect(process(fake, 'checkout.session.completed', freeSession({ metadata: { chargeAmountMinor: '918' } }))).rejects.toThrow('amount-mismatch')
+  })
+
   test('fulfills a paid amount once even when the session carries Adaptive Pricing presentment details', async () => {
     const fake = await makeFakeContext()
     await process(fake, 'checkout.session.completed', paid({

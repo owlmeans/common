@@ -1,6 +1,6 @@
 import type { ServerContext } from '@owlmeans/server-context'
 import { TRUSTED } from '@owlmeans/config'
-import { AUTH_CACHE, AUTH_SRV_KEY, AUTHEN_TIMEFRAME, DEFAULT_ALIAS } from './consts.js'
+import { AUTH_CACHE, AUTHEN_TIMEFRAME, DEFAULT_ALIAS } from './consts.js'
 import type { AuthServiceAppend, AuthService, AuthSpent } from './types.js'
 import { assertContext, createService } from '@owlmeans/context'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
@@ -10,11 +10,16 @@ import type { Resource } from '@owlmeans/resource'
 import { createStaticResource } from '@owlmeans/static-resource'
 import { trust, extractAuthToken } from '@owlmeans/auth-common/utils'
 import { ENTITY_RESOLVER, type EntityResolverService, TOKEN_UPDATE } from '@owlmeans/auth-common'
-import { AUTH_IDENTITY_PROFILE, type IdentityProfile, type IdentityProfileResource } from '@owlmeans/server-auth-identity'
-import { appendMemoryAuthSessionManager, AUTH_SESSION_MANAGER, AUTH_SESSION_TTL, type AuthSessionManager } from '@owlmeans/server-auth-session'
+import {
+  accountStateOf, AUTH_IDENTITY_ACCOUNT, AUTH_IDENTITY_PROFILE, type IdentityProfile, type IdentityProfileResource,
+  type IdentityRefusal,
+} from '@owlmeans/server-auth-identity'
+import { appendMemoryAuthSessionManager, AUTH_SESSION_MANAGER, type AuthSessionManager } from '@owlmeans/server-auth-session'
 import { idHelper } from '@owlmeans/basic-ids'
 import { logger } from '@owlmeans/log'
 import type { Config, Context } from './types.local.js'
+import { authSettingsOf } from './settings.js'
+import { appendAuthEventsService, authEvents } from './events.js'
 
 
 const log = logger('server-auth')
@@ -61,6 +66,20 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       throw new AuthUnavailable('identity-profile')
     }
     if (profile == null || (profile.expiresAt != null && new Date(profile.expiresAt).getTime() <= Date.now())) return null
+    // A banned account, or the app's PRIMARY row disabled since the session began, ends it — the same
+    // refusal the sign-in itself gives. Without the account store nothing says which row is primary.
+    if (context.hasResource(AUTH_IDENTITY_ACCOUNT)) {
+      let refusal: IdentityRefusal | null
+      try {
+        refusal = await accountStateOf(context).refusalOf(profile)
+      } catch {
+        throw new AuthUnavailable('identity-account')
+      }
+      if (refusal != null) {
+        log.debug('Session refresh refused', { reason: refusal, profileId: auth.profileId }, { event: 'auth.refused' })
+        return null
+      }
+    }
     return {
       ...auth,
       userId: profile.userId ?? auth.userId,
@@ -73,8 +92,9 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
   }
 
   const sign = async (context: Context, auth: Auth): Promise<string> => {
-    const trusted = await trust<Config, Context>(context, TRUSTED, context.cfg.alias ?? context.cfg.service)
-    const ttl = auth.expiresAt == null ? AUTH_SESSION_TTL : Math.max(0, new Date(auth.expiresAt).getTime() - Date.now())
+    const settings = authSettingsOf(context)
+    const trusted = await trust<Config, Context>(context, TRUSTED, settings.tokenKey())
+    const ttl = auth.expiresAt == null ? settings.sessionTtl() : Math.max(0, new Date(auth.expiresAt).getTime() - Date.now())
     const authorization = await makeEnvelopeModel<Auth>(AuthroizationType.Ed25519BasicToken)
       .send(auth, ttl).sign(trusted.key, EnvelopeKind.Token)
     return `${AuthroizationType.Ed25519BasicToken.toUpperCase()} ${authorization}`
@@ -92,7 +112,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
       const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
 
-      const trusted = await trust<Config, Context>(context, TRUSTED, context.cfg.alias ?? context.cfg.service)
+      const trusted = await trust<Config, Context>(context, TRUSTED, authSettingsOf(context).tokenKey())
       if (!await envelope.verify(trusted.key)) {
         return false as T
       }
@@ -129,7 +149,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       const [, authorization] = token.split(' ')
       const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
 
-      const trusted = await trust<Config, Context>(context, TRUSTED, context.cfg.alias ?? context.cfg.service)
+      const trusted = await trust<Config, Context>(context, TRUSTED, authSettingsOf(context).tokenKey())
       if (!await envelope.verify(trusted.key)) {
         throw new AuthorizationError('unpack')
       }
@@ -156,7 +176,8 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       const context = assertContext<Config, Context>(service.ctx as Context, location)
       const envelope = makeEnvelopeModel<AuthCredentials>(token.token, EnvelopeKind.Token)
 
-      const authService = await trust<Config, Context>(context, TRUSTED, AUTH_SRV_KEY)
+      const settings = authSettingsOf(context)
+      const authService = await trust<Config, Context>(context, TRUSTED, settings.authKey())
       if (!await envelope.verify(authService.key)) {
         throw refuse('signature', new AuthenFailed())
       }
@@ -183,7 +204,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
       // @TODO Move to a plugin
       const issuedAt = Date.now()
-      const expiresAt = new Date(issuedAt + AUTH_SESSION_TTL)
+      const expiresAt = new Date(issuedAt + settings.sessionTtl())
       const auth: Auth = {
         token: credentials.challenge,
         userId: credentials.userId,
@@ -211,7 +232,11 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
         auth.authorizationVersion = decision.version
       }
 
-      return { token: await sign(context, auth) }
+      const bearer = await sign(context, auth)
+      // The session exists and its token is signed: the sign-in has happened. Listeners never fail it.
+      await authEvents(context)?.propagateAuthenticated(auth)
+
+      return { token: bearer }
     }
   })
 
@@ -229,6 +254,8 @@ export const appendAuthService = <C extends Config, T extends ServerContext<C>>(
   // Every standalone server gets an expiring process-local registry. Scaled deployments replace
   // it with appendRedisAuthSessionManager before calling this helper.
   appendMemoryAuthSessionManager(ctx)
+  // Behind `hasService`, so a deployment that registered its own events service first keeps it.
+  appendAuthEventsService(ctx)
 
   const service = makeAuthService(alias)
   const context = ctx as T & AuthServiceAppend

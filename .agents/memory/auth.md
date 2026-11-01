@@ -12,8 +12,13 @@ updated: 2026-11
   (account, app, organization), field-level org writes) and `server-oidc-rp` → "Organizations"
   (acting organization = session state, `entityKey` as tenant key). Viable-side facts:
 - A gate MUST require its own `service` — one organization holds hosted apps' rows too (viable:
-  `VIABLE_AUTH_GATE` + `VIABLE_APP`). Every registration creates a personal organization, a hosted
-  app's end user's too; viable's free plan hangs on `onProfileCreated` filtered by `service`.
+  `VIABLE_AUTH_GATE` + `VIABLE_APP`, read through `viableAdmissionOf`). Every registration creates
+  a personal organization, a hosted app's end user's too; viable's free plan hangs on
+  `onProfileCreated` filtered by `service`.
+- Ban = `IdentityAccount.disabled` (every app); block = one app's PRIMARY row `disabled`. Sign-in
+  refuses both with `AuthRefused` (403 + access-denied marker); an open session ends at its next
+  refresh, gate or socket re-check (`accountStateOf(ctx).refusalOf`) — the bearer itself stays
+  verifiable until its session is revoked.
 - Fixtures use record ids, never slugs, in declared references (`MisshapedRecord` otherwise).
 
 ## Facts
@@ -29,7 +34,9 @@ updated: 2026-11
   is proven; `client-auth/login` (`LoginPlugin`, `context.login()`, cascade over `LoginEnv`) = *where*
   the round trip runs — redirect (0) and surrogate-window (100). Rules: `login-plugins` skill.
 - Backend: `server-auth` verifies bearer tokens and populates `req.auth`; `AUTH_CACHE` is
-  registered explicitly in custom contexts.
+  registered explicitly in custom contexts. `cfg.auth.{tokenKey,authKey,sessionTtl}` separate a
+  staff area's tokens/challenges from the customer area's (viable's operator-api); `onAuthenticated`
+  carries the last-sign-in stamp.
 - OIDC server client: `server-oidc-rp` reads `cfg.oidc.providers`; lookup via `findProvider`,
   `hasProvider`, `entityToClientId`.
 
@@ -44,6 +51,9 @@ updated: 2026-11
 
 ## Gotchas
 
+- A session-registry `revoke` also refuses the subject's NEXT sign-in until a `refresh` or the
+  subject's expiry (≤ 7 d): symptom "signed out, and now cannot sign in again". Use it for bans and
+  disablements only, never for a logout (`server-auth-session` skill).
 - `Resource.take()` is delete-and-return — never in an auth gate or a read-only identity check;
   `load(where)` answers a multi-field lookup in one call ([[resources]]).
 - A freshly signed sign-in token is refused by the bearer exchange's body schema (`/authenticate`)

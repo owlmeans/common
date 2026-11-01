@@ -210,8 +210,18 @@ export interface RegistryAllocation extends Record<string, unknown> {
   parent?: string
   /** The area a screen belongs to — one of the four {@link ProjectArea} values. */
   area?: string
-  /** Top-menu group of a screen. A label, never a URL segment. */
+  /**
+   * Top-menu group of a screen: an English NAME, never a URL segment. What the menu SHOWS for it is
+   * {@link RegistryAllocation.sectionLabel}.
+   */
   section?: string
+  /**
+   * What a person READS for this allocation — a screen's menu label, an entity's heading — in the
+   * project's language. Absent: the label is derived from the English name.
+   */
+  label?: string
+  /** What the menu shows for the screen's {@link RegistryAllocation.section}, in the project's language. */
+  sectionLabel?: string
   /**
    * A SCAFFOLD placeholder — drawn at initialization, replaced or deleted later.
    *

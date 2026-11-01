@@ -177,7 +177,10 @@ not move, and if nothing renders the button is indistinguishable from a broken o
 `loginResumeHelper.loginAttemptError(outcome)` (`@owlmeans/client-auth/login`) is the single reading
 of a finished attempt — `Passed`/`Failed` → `login.error.failed`, `Gesture` → `login.error.blocked`,
 everything else → null. A screen renders a thrown `model.error` first (it names the fault) and this
-second. A `start` that cannot proceed should **throw**, not return `Passed`.
+second; `model.error` is already phrased — `client-panel`'s login model reads the caught error
+through `loginFailureHelper.failureOf` + `.phrase` (`client-auth` → A failed sign-in), so a refused
+account reads as a refusal, not as a fault to retry. A `start` that cannot proceed should **throw**,
+not return `Passed`.
 
 This is not hypothetical: the generic OIDC method returned `Passed` whenever it could not build an
 authorization URL, and a generated application's only sign-in button did nothing, reported nothing,
@@ -375,6 +378,7 @@ nothing in this package reads it any more.
 2. ?error=  → render it, stop               ← the anti-loop guard
 3. ?token=  → provideToken(...)
 4. ?code=   → oidc.dispatch → login().complete → Handled | Orphaned | navigate()
+             .catch → loginFailureHelper.failureOf → LoginFailureView (refusal: back; failure: retry)
 5. ?method= → start that method             ← the surrogate's re-entry
 6. signed in already → login().resume(token) → loginResumeHelper.resumeAction(...)
 7. otherwise → render login().screen() ?? FallbackLoginScreen. START NOTHING.

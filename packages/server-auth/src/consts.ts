@@ -6,3 +6,6 @@ export const AUTH_SRV_KEY = 'auth-service'
 export const DEFAULT_ALIAS = 'auth'
 
 export const AUTH_CACHE = 'auth-cache'
+
+/** The service alias of the auth events seam (`authEvents(ctx)`). */
+export const AUTH_EVENTS = 'auth-events'

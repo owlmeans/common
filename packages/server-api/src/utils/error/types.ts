@@ -36,7 +36,11 @@ export interface HttpErrorHelper {
   errorExposure: (config?: Pick<Config, 'http'>) => HttpErrorExposure
   /** One central wire shape for every server error. */
   serializeError: (error: Error, exposure?: HttpErrorExposure) => SerializedHttpError
-  /** Apply safe response metadata carried by an error without coupling its package to Fastify. */
+  /**
+   * Apply safe response metadata carried by an error without coupling its package to Fastify:
+   * `Retry-After`, and `X-OwlMeans-Denial: access-denied` for an exact `AuthForbidden`,
+   * `AccessError` or `AuthRefused` (a refused sign-in) — never for their subclasses.
+   */
   applyErrorHeaders: (error: unknown, reply: FastifyReply) => void
   /**
    * Answer a thrown error: a status, and the marshalled `ResilientError` as the body.

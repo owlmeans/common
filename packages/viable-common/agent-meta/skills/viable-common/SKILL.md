@@ -173,7 +173,8 @@ full-scale screen after signing in (`/target-areas`). Two fields record it:
 `landingSentenceHelper.withLandingSentence` appends `LANDING_STORY_SENTENCE` to the chosen narrative — a note for people
 reading the board, never the authority. It is idempotent (`.hasLandingSentence`,
 whitespace-insensitive), joins with one space, and never pushes a title past `TITLE_MAX`: a
-narrative with no room is returned uncut.
+narrative with no room is returned uncut. Both take an optional `sentence` — the landing sentence in the
+project's language (translated by the platform); `hasLandingSentence` then finds either one.
 
 ### The tenancy decision on the card
 
@@ -297,6 +298,16 @@ Three rules hold for both; `tests/convert.spec.ts` walks the PACKAGE barrel for 
   Both kinds of caller send `null`: a provider's structured output for an unset optional, and a
   wire body where `null` MEANS something (`llmMode` — "inherit the profile's setting").
 - **`items` is never an array.** A draft-04 tuple is refused by providers and collection validators.
+
+**A NAME a model answers is English in ASCII.** Every schema field whose value code is built from — the
+scaffold plan's sections, screens and gate field keys, the UX screen and component lists, the interaction
+plan's entity, owner, host and keys, the runtime decision's job, queue and agent names — appends
+`ENGLISH_NAME_NOTE` (`dev/consts.ts`) to its description: only `A-Z a-z 0-9` and the field's separators,
+translated from the person's language, never transliterated. A field a person reads (a label, a title, a
+description) says it is written in the product's language. `@owlmeans/viable` checks the names and
+regenerates an answer that breaks it. The name registry's `RegistryAllocation` carries the labels beside
+the names: `label` (what a person reads for the allocation) and `sectionLabel` (its section's) — `section`
+itself is a name.
 
 **A model-answer property is never NAMED like a schema keyword** (`required`, `default`, `format`,
 `minimum`, …): a provider strips such a property from what the model is shown, so it can never be
