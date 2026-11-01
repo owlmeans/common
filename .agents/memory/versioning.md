@@ -9,8 +9,8 @@ updated: 2026-10
 ## Facts
 
 - Versions are per package and deliberately uneven (`versions`, `publishing` skills); internal
-  cross-package deps use the caret range carrying the prerelease suffix (`^0.1.18-rc.N`).
-  `@owlmeans/dep-config` is always `workspace:*` (config-only, no runtime code).
+  cross-package dependencies use explicit semver carets, including `@owlmeans/dep-config`.
+  An explicit stable promotion removes the prerelease suffix from active dependency floors.
 - Stale `build/` leftovers on npm: published tarballs carried compiled files of sources deleted
   earlier (`flow/build/advertise.js`, `postgres/build/health.js`, `agent-skills/build/llm/*`,
   `web-panel/build/hooks`) because `build/` was not cleaned — a "registry-only" file in a pack diff
