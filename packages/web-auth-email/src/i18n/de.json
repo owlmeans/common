@@ -1,0 +1,100 @@
+{
+  "captcha": {
+    "notice": "Diese Website ist durch reCAPTCHA geschützt, und es gelten die {{privacy}} und die {{terms}} von Google.",
+    "privacy": "Datenschutzerklärung",
+    "terms": "Nutzungsbedingungen"
+  },
+  "error": {
+    "captcha": "Wir konnten nicht bestätigen, dass Sie kein Roboter sind. Bitte versuchen Sie es erneut.",
+    "captcha-unavailable": "Die Sicherheitsprüfung konnte nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "code": "Dieser Code ist falsch oder abgelaufen. Prüfen Sie ihn oder fordern Sie einen neuen an.",
+    "credentials": "E-Mail-Adresse oder Passwort ist falsch.",
+    "email": "Geben Sie eine gültige E-Mail-Adresse ein.",
+    "failed": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "mismatch": "Die Passwörter stimmen nicht überein.",
+    "offer-expired": "Dieses Angebot ist abgelaufen. Sie können später in Ihren Kontoeinstellungen ein Passwort festlegen.",
+    "password-disabled": "Die Anmeldung mit Passwort ist hier nicht verfügbar. Verwenden Sie einen Code.",
+    "password-empty": "Geben Sie Ihr Passwort ein.",
+    "pin-format": "Geben Sie den Code aus der E-Mail ein: {{length}} Ziffern.",
+    "throttled": "Zu viele Versuche. Bitte warten Sie kurz und versuchen Sie es erneut.",
+    "throttled-in": "Zu viele Versuche. Bitte versuchen Sie es {{when}} erneut.",
+    "unavailable": "Die Anmeldung ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
+    "weak": "Verwenden Sie {{min}} bis {{max}} Zeichen und nicht Ihre E-Mail-Adresse."
+  },
+  "login": {
+    "change-email": "E-Mail-Adresse ändern",
+    "device": "Wir erkennen dieses Gerät nicht. Geben Sie den Code ein, den wir an Ihre E-Mail-Adresse gesendet haben.",
+    "done": "Sie werden angemeldet…",
+    "email-label": "E-Mail-Adresse",
+    "email-placeholder": "name@beispiel.de",
+    "hide-password": "Passwort verbergen",
+    "options-failed": "Die Anmeldeeinstellungen konnten nicht geladen werden.",
+    "other": "Andere Anmeldemöglichkeiten",
+    "password-label": "Passwort",
+    "password-submit": "Anmelden",
+    "password-subtitle": "Melden Sie sich mit E-Mail-Adresse und Passwort an.",
+    "pin-label": "Code aus der E-Mail",
+    "pin-subtitle": "Den Code finden Sie in Ihrem Posteingang.",
+    "powered": "Bereitgestellt von OwlMeans",
+    "resend": "Neuen Code senden",
+    "retry": "Erneut versuchen",
+    "send": "PIN-Code zur Anmeldung erhalten",
+    "sending": "Wird gesendet…",
+    "sent": "Wir haben einen Anmeldecode an {{email}} gesendet.",
+    "show-password": "Passwort anzeigen",
+    "subtitle": "Wir senden Ihnen einen Anmeldecode per E-Mail. Neu hier? Derselbe Code legt Ihr Konto an.",
+    "title": "Mit E-Mail anmelden",
+    "use-password": "Schon ein Passwort festgelegt? Verwenden Sie es",
+    "use-pin": "Stattdessen mit einem Code anmelden",
+    "verify": "Anmelden",
+    "verifying": "Anmeldung läuft…"
+  },
+  "offer": {
+    "description": "Melden Sie sich beim nächsten Mal mit E-Mail-Adresse und Passwort an, ohne auf einen Code zu warten.",
+    "hint": "{{min}} bis {{max}} Zeichen.",
+    "later": "Sie können jederzeit später in Ihren Kontoeinstellungen ein Passwort festlegen.",
+    "password-label": "Neues Passwort",
+    "repeat-label": "Passwort wiederholen",
+    "save": "Passwort speichern",
+    "saving": "Wird gespeichert…",
+    "skip": "Jetzt nicht",
+    "title": "Passwort für eine schnellere Anmeldung festlegen"
+  },
+  "password": {
+    "action": {
+      "change": "Passwort ändern",
+      "remove": "Passwort entfernen",
+      "set": "Passwort festlegen"
+    },
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "confirming": "Wird gespeichert…",
+    "description": "Melden Sie sich mit E-Mail-Adresse und Passwort statt mit einem Code an.",
+    "devices": "Auf anderen Geräten wird bei der nächsten Anmeldung ein Code benötigt.",
+    "done": {
+      "change": "Ihr Passwort wurde geändert.",
+      "remove": "Ihr Passwort wurde entfernt.",
+      "set": "Ihr Passwort wurde festgelegt."
+    },
+    "explain": {
+      "change": "Um Ihr Passwort zu ändern, bestätigen Sie mit einem Code, den wir Ihnen per E-Mail senden, dass Sie es sind.",
+      "remove": "Ohne Passwort melden Sie sich mit einem Code an, den Sie per E-Mail erhalten. Zur Bestätigung senden wir Ihnen einen Code.",
+      "set": "Um ein Passwort festzulegen, bestätigen Sie mit einem Code, den wir Ihnen per E-Mail senden, dass Sie es sind."
+    },
+    "loading": "Wird geladen…",
+    "new-label": "Neues Passwort",
+    "off": "Die Anmeldung mit Passwort ist hier nicht verfügbar. Sie melden sich mit einem Code an, den Sie per E-Mail erhalten.",
+    "pin-label": "Code aus der E-Mail",
+    "repeat-label": "Passwort wiederholen",
+    "resend": "Neuen Code senden",
+    "retry": "Erneut versuchen",
+    "send": "Code senden",
+    "sending": "Wird gesendet…",
+    "sent": "Wir haben Ihnen einen Code per E-Mail gesendet.",
+    "set": "Sie haben ein Passwort.",
+    "title": "Passwort",
+    "unreadable": "Ihre Passworteinstellungen konnten nicht geladen werden.",
+    "unset": "Sie haben noch kein Passwort. Sie melden sich mit einem Code an, den Sie per E-Mail erhalten.",
+    "updated": "Zuletzt geändert am {{date}}."
+  }
+}

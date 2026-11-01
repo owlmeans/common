@@ -74,9 +74,34 @@ sits behind auth without hand-rolling a token:
 | `makePageHelper(page).loginViaSupervisorForm(opts)` | Drive the real login form end-to-end — navigate, answer consent, fill user id + key, submit, wait for the landing, then answer marketing consent (see below). Options: `{ baseUrl, userId, pk, path?, expectPath?, timeout?, waitUntil?, consent?, screenshotDir?, marketingConsent? }`. |
 | `makePageHelper(page).answerMarketingConsent(opts?)` | Answer the `@owlmeans/web-marketing-consent` full-page step if it is shown right after login. Options: `{ accept?: 'all' \| 'none' \| 'skip', terms?: 'accept' \| 'leave', timeout? }`, default `accept: 'all'`, `terms: 'accept'`, `timeout: 30_000`. Returns whether the step was actually shown and answered — `false` means it never appeared. Throws if a Terms box could not be confirmed. |
 
+| `makePageHelper(page).loginViaEmailForm(opts)` | Drive the real e-mail card of `@owlmeans/web-auth-email` (below). Options: `{ baseUrl, email, rewritePin, password?, waiver?, start?: 'email' \| 'dispatcher', path?, dispatcherPath?, apiPath?, offer?: 'skip' \| 'ignore' \| { password }, marketingConsent?, expectPath?, landedSelector?, timeout?, waitUntil?, consent?, screenshotDir? }`. Resolves `{ mode, device, pins, offer, marketingConsent }`. |
+| `makePageHelper(page).routeEmailWaiver(waiver, opts?)` | Send a developer waiver in `x-owlmeans-email-waiver` on this page's `<apiPath>/` requests only (default `/auth/email/`); resolves the function that stops it. |
+| `makeEmailTechClient({ apiUrl, privateKey, credentialId?, path?, fetchImpl? })` | The e-mail developer routes, signed as a trusted record (`signBasicEd25519Request`): `.waiver()` and `.rewritePin(challenge, pin?)` → the PIN now valid (6 random digits by default). `credentialId` defaults to the key's address. |
+
 These need a project whose backend trusts the private key they sign with, so they belong to specs
 that run against a real app rather than a mounted component. See `[[supervisor-auth]]` for the
 server and web wiring they assume.
+
+### E-mail sign-in without a mailbox
+
+`loginViaEmailForm` opens the e-mail card (`/authentication/login/email`, or the chooser and its
+`[data-login-method="email"]` with `start: 'dispatcher'`, ticking a Terms box first when one is
+shown), answers the cookie dialog, types the address and sends for a PIN. It reads the challenge
+from the send-PIN ANSWER on the network and hands it to `rewritePin` for the PIN to type — normally
+`makeEmailTechClient(…).rewritePin`, which rewrites that pending PIN on the server. With `password`
+it tries the password first; a device answer (`reason: 'device'`) is finished with a PIN the same
+way. After the sign-in it answers, in whatever order they come, the password offer (`'skip'` by
+default) and the marketing-consent step, then waits for the landing (`expectPath`, else
+`landedSelector`, default `#app-prompt` — pass the app's own marker, or the wait costs the full
+timeout).
+
+- **The waiver rides on the e-mail routes only**, and only while the login runs: `routeEmailWaiver`
+  is a `page.route` with a path predicate. Routing turns Playwright's HTTP cache off for the page
+  while installed — never route every request, a vite-served app stalls on its unbundled modules.
+- The tech routes exist only where the deployment enabled them for the signing record; elsewhere
+  `waiver()` and `rewritePin()` throw. A spec that must prove the real captcha signs in without
+  `waiver`.
+- A refused step throws with the HTTP status and the card's `data-refusal`, never a bare timeout.
 
 ## Spec shape
 
@@ -286,7 +311,7 @@ selector it actually needs. That wait IS the assertion; the load event never was
 `waitUntil` explicitly for the rare case that wants otherwise.
 
 The rule is not `mountComponent`'s alone — **every** navigation helper here follows it, including
-`makePageHelper(page).loginViaSupervisorForm` and `.loginViaDispatcher`. A helper that navigates on playwright's default
+`makePageHelper(page).loginViaSupervisorForm`, `.loginViaEmailForm` and `.loginViaDispatcher`. A helper that navigates on playwright's default
 turns "someone added a tag manager" into "the whole login-driven suite times out", with the browser
 showing a working login form the entire time. Any new helper that calls `page.goto` passes
 `domcontentloaded` and takes a `waitUntil` override.
@@ -306,7 +331,7 @@ and then reports `click: Timeout … waiting for getByTestId('supervisor-submit'
 button. Nothing is wrong with the button; read the `subtree intercepts pointer events` line, which
 names `[data-consent-dialog]`.
 
-`makePageHelper(page).loginViaSupervisorForm` therefore calls `.acceptConsent()` after navigating. `.acceptConsent` is
+`makePageHelper(page).loginViaSupervisorForm` and `.loginViaEmailForm` therefore call `.acceptConsent()` after navigating. `.acceptConsent` is
 public for specs that drive their own login: it waits for the consent store to SETTLE — never while
 the visitor is still being located, when the transparent overlay is up and would take the click —
 then clicks `[data-consent-accept-all]` on whichever surface asks, waits for it to detach, and

@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { AuthenFailed } from '@owlmeans/auth'
 import { OtpThrottled } from '../src/errors.js'
-import { codeFrom, makeOtpTestContext } from './context.js'
+import { OTP_TTL_SECONDS } from '../src/consts.js'
+import { codeFrom, makeOtpTestContext, otherCode } from './context.js'
 
 const wrongFor = (code: string): string => code === '000000' ? '999999' : '000000'
 
@@ -84,5 +85,103 @@ describe('@owlmeans/server-auth-otp — issuance throttle', () => {
     const hour = await fixture.otp.issueChallenge('rate@example.com').catch(error => error)
     expect(hour).toBeInstanceOf(OtpThrottled)
     expect((hour as OtpThrottled).retryAfter).toBeGreaterThan(0)
+  })
+})
+
+describe('@owlmeans/server-auth-otp — login-code mail', () => {
+  test('the default mail stays the unchanged English text', async () => {
+    const { context, mailer, otp } = makeOtpTestContext()
+    await context.configure().init()
+    await otp.issueChallenge('default@example.com')
+    const code = codeFrom(mailer.captured[0].text)
+
+    expect(mailer.captured[0]).toEqual({
+      to: 'default@example.com',
+      subject: 'Your login code',
+      text: `Your one-time login code is: ${code}\n\nIt expires in 10 minutes.`,
+      html: `<p>Your one-time login code is: <strong>${code}</strong></p><p>It expires in 10 minutes.</p>`,
+    })
+  })
+
+  test('a message override fills {{code}} and {{minutes}} in every part', async () => {
+    const { context, mailer, otp } = makeOtpTestContext()
+    await context.configure().init()
+    const issuanceId = await otp.issueChallenge('custom@example.com', {
+      message: {
+        subject: 'Kod {{code}}',
+        text: 'Twój kod: {{code}} ({{minutes}} min) — {{code}}',
+        html: '<p><b>{{code}}</b> · {{minutes}}</p>',
+      },
+    })
+    const code = codeFrom(mailer.captured[0].text)
+    const minutes = String(OTP_TTL_SECONDS / 60)
+
+    expect(mailer.captured[0]).toEqual({
+      to: 'custom@example.com',
+      subject: `Kod ${code}`,
+      text: `Twój kod: ${code} (${minutes} min) — ${code}`,
+      html: `<p><b>${code}</b> · ${minutes}</p>`,
+    })
+    await expect(otp.verifyChallenge('custom@example.com', issuanceId, code)).resolves.toBeUndefined()
+  })
+})
+
+describe('@owlmeans/server-auth-otp — developer rewrite', () => {
+  test('a rewritten code verifies and the mailed one no longer does', async () => {
+    const { context, mailer, otp } = makeOtpTestContext()
+    await context.configure().init()
+    const issuanceId = await otp.issueChallenge('swap@example.com')
+    const mailed = codeFrom(mailer.captured[0].text)
+    const next = otherCode(mailed)
+
+    expect(await otp.rewriteChallenge!('SWAP@example.com', issuanceId, next)).toBe(true)
+    await expect(otp.verifyChallenge('swap@example.com', issuanceId, mailed)).rejects.toBeInstanceOf(AuthenFailed)
+    await expect(otp.verifyChallenge('swap@example.com', issuanceId, next)).resolves.toBeUndefined()
+  })
+
+  test('a rewrite resets the failed attempts', async () => {
+    const { context, mailer, otp } = makeOtpTestContext()
+    await context.configure().init()
+    const issuanceId = await otp.issueChallenge('reset@example.com')
+    const next = otherCode(codeFrom(mailer.captured[0].text))
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await expect(otp.verifyChallenge('reset@example.com', issuanceId, wrongFor(next)))
+        .rejects.toBeInstanceOf(AuthenFailed)
+    }
+    expect(await otp.rewriteChallenge!('reset@example.com', issuanceId, next)).toBe(true)
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await expect(otp.verifyChallenge('reset@example.com', issuanceId, wrongFor(next)))
+        .rejects.toBeInstanceOf(AuthenFailed)
+    }
+    await expect(otp.verifyChallenge('reset@example.com', issuanceId, next)).resolves.toBeUndefined()
+  })
+
+  test('a rewrite keeps the original lifetime', async () => {
+    let now = 0
+    const { context, mailer, otp } = makeOtpTestContext({ now: () => now })
+    await context.configure().init()
+    const issuanceId = await otp.issueChallenge('ttl@example.com')
+    const next = otherCode(codeFrom(mailer.captured[0].text))
+
+    now = (OTP_TTL_SECONDS - 100) * 1000
+    expect(await otp.rewriteChallenge!('ttl@example.com', issuanceId, next)).toBe(true)
+    now = OTP_TTL_SECONDS * 1000 + 1
+    await expect(otp.verifyChallenge('ttl@example.com', issuanceId, next)).rejects.toBeInstanceOf(AuthenFailed)
+  })
+
+  test('refuses another address, a malformed code and a missing issuance', async () => {
+    const { context, mailer, otp } = makeOtpTestContext()
+    await context.configure().init()
+    const issuanceId = await otp.issueChallenge('owner@example.com')
+    const mailed = codeFrom(mailer.captured[0].text)
+    const next = otherCode(mailed)
+
+    expect(await otp.rewriteChallenge!('intruder@example.com', issuanceId, next)).toBe(false)
+    for (const malformed of ['12345', '1234567', 'abcdef', ' 123456', '12345a']) {
+      expect(await otp.rewriteChallenge!('owner@example.com', issuanceId, malformed)).toBe(false)
+    }
+    expect(await otp.rewriteChallenge!('owner@example.com', 'no-such-issuance', next)).toBe(false)
+    await expect(otp.verifyChallenge('owner@example.com', issuanceId, mailed)).resolves.toBeUndefined()
   })
 })

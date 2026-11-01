@@ -55,6 +55,7 @@ import type {
 import type { ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams } from './session/types.js'
 import type { ConnectLlmBody, ConnectProfileSettingsView, ConnectProjectLlmBody, ConnectProjectSettings } from './settings/types.js'
 import type { ConnectSlotView } from './slot/types.js'
+import type { ConnectClientView } from './client/types.js'
 import type {
   ConnectIamGroupParams, ConnectIamMemberParams, ConnectIamOrganizationParams, ConnectIamUserParams,
 } from './iam/types.js'
@@ -549,6 +550,16 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     list: protocol(
       route(connect.slot.list, '/slot', { parent: base, method: RouteMethod.GET }),
       contract(typed<ConnectSlotView[]>()),
+    ),
+    },
+
+    // --- how the platform sees the caller ------------------------------------------------------
+    // The edition the `x-viable-client` header named, the door and whether it may infer. A new route
+    // rather than a field on an existing answer, which an older connector might refuse.
+    client: {
+    identify: protocol(
+      route(connect.client.identify, '/client', { parent: base, method: RouteMethod.GET }),
+      contract(typed<ConnectClientView>()),
     ),
     },
 

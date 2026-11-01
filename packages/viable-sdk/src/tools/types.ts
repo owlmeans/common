@@ -1,8 +1,9 @@
 import { z } from 'zod'
-import { type ConnectHarness, type ConnectLlm, type ConnectTarget, ConnectWaitReason, type ConnectProjectBrandingFields } from '@owlmeans/viable-common'
+import { type ConnectClient, type ConnectHarness, type ConnectLlm, type ConnectTarget, ConnectWaitReason, type ConnectProjectBrandingFields } from '@owlmeans/viable-common'
 import type { ConnectorApi, LocalExecutor, SessionRuntime } from '../types.js'
 import { ToolHostKind } from './consts.js'
 import type { InflightCalls } from './inflight/types.js'
+import type { ToolProfile } from './profile/types.js'
 
 export interface ToolHost {
   kind: ToolHostKind
@@ -17,6 +18,14 @@ export interface ToolHost {
    * registered exactly like the catalogue's own, so a host that passes none offers none of them.
    */
   extensions?: ToolDefinition[]
+  /** The edition this host is — what its requests name in `x-viable-client`. */
+  client?: ConnectClient
+  /**
+   * How this host presents the catalogue (a store listing, a vendor plugin): tools hidden or split,
+   * presentation overrides, declared structured output and its own instructions. Absent, the host
+   * offers the catalogue exactly as it always has.
+   */
+  profile?: ToolProfile
 }
 
 export interface ToolDeps {
@@ -113,7 +122,11 @@ export interface McpToolAnswer {
 export interface McpServerLike {
   registerTool: (
     name: string,
-    config: { title?: string, description?: string, inputSchema?: unknown, annotations?: ToolAnnotations },
+    config: {
+      title?: string, description?: string, inputSchema?: unknown, annotations?: ToolAnnotations,
+      /** The Zod raw shape of the tool's `structuredContent` — passed only where a profile declares one. */
+      outputSchema?: unknown
+    },
     cb: (args: Record<string, unknown>) => Promise<McpToolAnswer>
   ) => unknown
 }

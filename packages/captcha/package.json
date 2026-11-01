@@ -1,0 +1,40 @@
+{
+  "name": "@owlmeans/captcha",
+  "version": "0.1.18",
+  "license": "MIT",
+  "description": "Captcha verification for OwlMeans servers — the reCAPTCHA siteverify verifier, the policy of the re-captcha sign-in plugin, and a strict challenge-less check a route runs on a score-based token.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/auth": "^0.1.18",
+    "@owlmeans/config": "^0.1.18",
+    "@owlmeans/context": "^0.1.18",
+    "@owlmeans/log": "^0.1.18"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "^0.1.18",
+    "@types/bun": "^1.4.2",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

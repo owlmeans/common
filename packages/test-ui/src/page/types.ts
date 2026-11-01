@@ -72,6 +72,77 @@ export interface SupervisorFormLoginOptions {
   marketingConsent?: 'save' | 'ignore'
 }
 
+export interface EmailWaiverRouteOptions {
+  /** The e-mail routes' base path; default `EMAIL_AUTH_API_PATH` (`/auth/email`). */
+  apiPath?: string
+}
+
+export interface EmailFormLoginOptions {
+  baseUrl: string
+  /** The address to sign in (registered by its first PIN sign-in). */
+  email: string
+  /**
+   * Turns each mailed challenge into the PIN to type — normally `makeEmailTechClient(…).rewritePin`.
+   * Called once per challenge the form receives: the send-PIN answer, or a password sign-in's
+   * device answer.
+   */
+  rewritePin: (challenge: string) => Promise<string>
+  /**
+   * Sign in with this password instead of asking for a PIN. On a device the account does not know
+   * the server mails a PIN instead (`reason: 'device'`), which the helper then answers like any other.
+   */
+  password?: string
+  /**
+   * A developer waiver (`makeEmailTechClient(…).waiver()`): sent in `EMAIL_WAIVER_HEADER` on the
+   * e-mail routes only — never on any other request — while this login runs.
+   */
+  waiver?: string
+  /**
+   * `email` (default) opens the e-mail card at `path` directly; `dispatcher` opens the chooser at
+   * `dispatcherPath` and presses "Continue with email" (`[data-login-method="email"]`), ticking a
+   * Terms box first when the chooser shows one.
+   */
+  start?: 'email' | 'dispatcher'
+  /** The e-mail card's path; default `/authentication/login/email`. */
+  path?: string
+  /** The chooser's path; default `/dispatcher`. */
+  dispatcherPath?: string
+  /** The e-mail routes' base path, as their URLs end; default `/auth/email`. */
+  apiPath?: string
+  /**
+   * The post-sign-in password offer: `'skip'` (default) presses "Not now"; `{ password }` sets that
+   * password; `'ignore'` leaves the step on screen for the spec.
+   */
+  offer?: 'skip' | 'ignore' | { password: string }
+  /** Answer the marketing-consent step (`'save'`, default) or leave it to the spec (`'ignore'`). */
+  marketingConsent?: 'save' | 'ignore'
+  /** What counts as landed: a URL containing this. Default — the landed marker (`landedSelector`). */
+  expectPath?: string
+  /** The element a landed app shows; default `#app-prompt`. Without it and `expectPath` the wait costs the full timeout. */
+  landedSelector?: string
+  /** One budget for every wait; default 60s. */
+  timeout?: number
+  /** Default `domcontentloaded` — see `MountOptions.waitUntil`. */
+  waitUntil?: 'commit' | 'domcontentloaded' | 'load' | 'networkidle'
+  /** The cookie-consent dialog: `'accept'` (default) or `'ignore'`. */
+  consent?: 'accept' | 'ignore'
+  /** When set, capture the filled form (`email-login-form.png`) before it is submitted. */
+  screenshotDir?: string
+}
+
+/** What a {@link PageHelper.loginViaEmailForm} went through. */
+export interface EmailFormLoginResult {
+  mode: 'pin' | 'password'
+  /** A password sign-in met an unknown device and was finished with a PIN. */
+  device: boolean
+  /** PIN challenges answered. */
+  pins: number
+  /** The password offer: never shown, skipped, answered with a password, or left on screen. */
+  offer: 'none' | 'skipped' | 'set' | 'shown'
+  /** The marketing-consent step was shown and answered. */
+  marketingConsent: boolean
+}
+
 /** Driving one page of an OwlMeans app: consent dialogs, the login flows, screenshots. */
 export interface PageHelper {
   /**
@@ -141,4 +212,27 @@ export interface PageHelper {
    * the app to leave the login screen.
    */
   loginViaSupervisorForm: (opts: SupervisorFormLoginOptions) => Promise<void>
+  /**
+   * Send `waiver` in `EMAIL_WAIVER_HEADER` on every request of this page whose URL path contains
+   * `<apiPath>/` — and on nothing else. Resolves the function that stops it.
+   *
+   * It is a `page.route`, and routing turns Playwright's HTTP cache off for the page while it is
+   * installed; the predicate keeps every other request untouched otherwise.
+   */
+  routeEmailWaiver: (waiver: string, opts?: EmailWaiverRouteOptions) => Promise<() => Promise<void>>
+  /**
+   * Sign in through the real e-mail card (`@owlmeans/web-auth-email`): open it (or the chooser),
+   * answer the cookie dialog, type the address, send for a PIN — the challenge is read from the
+   * send-PIN answer and handed to `rewritePin` for the PIN to type — then submit it. With `password`
+   * the password is tried first, and a device answer is finished with a PIN. After the sign-in it
+   * answers the password offer and the marketing-consent step in whatever order they come, and
+   * waits for the landing (`expectPath`, else `landedSelector`).
+   */
+  loginViaEmailForm: (opts: EmailFormLoginOptions) => Promise<EmailFormLoginResult>
 }
+
+/** The e-mail half of {@link PageHelper}, built over the page and the helper's own consent answers. */
+export interface EmailLoginFlow extends Pick<PageHelper, 'routeEmailWaiver' | 'loginViaEmailForm'> {}
+
+/** What the e-mail flow borrows from the page helper. */
+export interface EmailLoginFlowDeps extends Pick<PageHelper, 'acceptConsent' | 'answerMarketingConsent' | 'saveScreenshot'> {}

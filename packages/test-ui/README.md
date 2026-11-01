@@ -11,7 +11,8 @@ These are **not** end-to-end UI tests — they exercise individual components in
 - `browserHelper.withPage(fn)` — convenience: lease a fresh context+page for the duration of `fn`, then dispose the context.
 - `mountComponent({ url, component?, props?, consentGeo? })` — opens a fresh context, navigates to a harness URL with the component / props encoded, returns `{ page, close }` so the spec can assert against `page.locator(...)` and dispose the context when done. `consentGeo` pins where the visitor is before the first navigation.
 - `consentGeoTestHelper.mockConsentGeo(pageOrContext, geo)` / `.traceCalls(page)` — answer the page's same-origin `/cdn-cgi/trace` from an init script (`'US'`, or `{ country?, fail?, delayMs?, gpc? }`), so a consent test does not depend on the runner's own country; count the trace requests.
-- `makePageHelper(page)` — drives one page of an OwlMeans app: `.acceptConsent(opts?)`, `.answerMarketingConsent(opts?)`, `.loginViaDispatcher(baseUrl, token, opts?)`, `.loginViaSupervisorForm(opts)`, `.saveScreenshot(dir, name)`.
+- `makePageHelper(page)` — drives one page of an OwlMeans app: `.acceptConsent(opts?)`, `.answerMarketingConsent(opts?)`, `.loginViaDispatcher(baseUrl, token, opts?)`, `.loginViaSupervisorForm(opts)`, `.loginViaEmailForm(opts)`, `.routeEmailWaiver(waiver, opts?)`, `.saveScreenshot(dir, name)`.
+- `makeEmailTechClient({ apiUrl, privateKey, credentialId?, path? })` — the developer routes of `@owlmeans/auth-email`, signed as a trusted record: `.waiver()` (a captcha/throttle waiver) and `.rewritePin(challenge, pin?)` (the PIN now valid for a mailed challenge; 6 random digits by default).
 - `supervisorAuthHelper` — bearers without a browser: `.pregenerateAuthToken(opts)` (signed offline) and `.authenticateViaSupervisorApi(opts)` (the live supervisor flow over the API).
 - `Browser`, `BrowserContext`, `Page`, `Locator` — re-exports of the Playwright types so consumers don't need a direct `playwright` import.
 
@@ -38,6 +39,31 @@ describe('LoginForm — acceptance', () => {
   })
 })
 ```
+
+## E-mail sign-in in an e2e suite
+
+`loginViaEmailForm` drives the real e-mail card of `@owlmeans/web-auth-email` end to end, reading
+every mailed challenge from the network and asking `rewritePin` for the PIN to type — no mailbox:
+
+```ts
+import { makeEmailTechClient, makePageHelper } from '@owlmeans/test-ui'
+
+const tech = makeEmailTechClient({ apiUrl: 'https://app.example/api', privateKey: process.env.SHARED_PK! })
+const result = await makePageHelper(page).loginViaEmailForm({
+  baseUrl: 'https://app.example',
+  email: 'person@example.test',
+  waiver: await tech.waiver(),          // sent only on `/auth/email/` requests
+  rewritePin: challenge => tech.rewritePin(challenge),
+  // password: '…',                     // try a password first; an unknown device finishes with a PIN
+  // offer: { password: '…' },          // set the offered password instead of "Not now"
+  expectPath: '/projects',
+})
+// result: { mode, device, pins, offer, marketingConsent }
+```
+
+`credentialId` defaults to the key's own address (`ed25519:<address>`), which is how OwlMeans
+deployments name their trusted records. The tech routes exist only where the deployment enabled
+them for that record.
 
 ## Component harness
 

@@ -1,8 +1,11 @@
-/** The service alias the reCAPTCHA plugin resolves its verifier by. */
-export const RECAPTCHA_VERIFIER = 're-captcha-verifier'
-
-/** Google's siteverify endpoint — always https. */
-export const RECAPTCHA_SITEVERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify'
-
-/** How long the default verifier waits for Google, in ms. */
-export const RECAPTCHA_VERIFY_TIMEOUT = 10_000
+/**
+ * The reCAPTCHA constants now live in `@owlmeans/captcha`; these are their names in this package.
+ *
+ * - `RECAPTCHA_VERIFIER` (= `CAPTCHA_VERIFIER`, `'re-captcha-verifier'`) — the service alias the
+ *   reCAPTCHA plugin resolves its verifier by.
+ * - `RECAPTCHA_SITEVERIFY_URL` — Google's siteverify endpoint, always https.
+ * - `RECAPTCHA_VERIFY_TIMEOUT` — how long the default verifier waits for Google, in ms.
+ */
+export {
+  CAPTCHA_VERIFIER as RECAPTCHA_VERIFIER, RECAPTCHA_SITEVERIFY_URL, RECAPTCHA_VERIFY_TIMEOUT,
+} from '@owlmeans/captcha'

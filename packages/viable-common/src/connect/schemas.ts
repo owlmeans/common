@@ -10,6 +10,7 @@ import {
   CONNECT_GITHUB_PAGE_MAX, CONNECT_GITHUB_SEARCH_MAX, CONNECT_DOMAIN_MAX, CONNECT_DOMAIN_MIN, CONNECT_DOMAIN_PATTERN,
   CONNECT_REDIRECT_URI_MAX, CONNECT_REDIRECTS_MAX,
   CONNECT_INQUIRY_MAX_TEXT, CONNECT_PRIVACY_KEY_MAX, CONNECT_PRIVACY_KEYS_MAX, CONNECT_TOKEN_ID_MAX, ConnectCallState, ConnectHarness, ConnectLlm, ConnectOpErrorKind,
+  CONNECT_CLIENT_RAW_MAX, CONNECT_CLIENT_VERSION_MAX, ConnectClientKind,
   ConnectSessionStatus, ConnectTarget, ConnectTransport, ModelTaskResultKind,
   CONNECT_FEED_CURSOR_MAX, CONNECT_FEED_CURSOR_PATTERN, CONNECT_FEED_LIMIT_MAX, CONNECT_FEED_WAIT_MAX_SEC, ConnectFeedDetail,
 } from './consts.js'
@@ -126,6 +127,18 @@ export const ConnectSessionSchema = {
     llm: { type: 'string', enum: Object.values(ConnectLlm) },
     harness: { type: 'string', enum: Object.values(ConnectHarness) },
     clientVersion: { type: 'string', maxLength: 64 },
+    // Optional: a record written before the client header existed has none.
+    client: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        kind: { type: 'string', enum: Object.values(ConnectClientKind) },
+        version: { type: 'string', maxLength: CONNECT_CLIENT_VERSION_MAX, nullable: true },
+        raw: { type: 'string', maxLength: CONNECT_CLIENT_RAW_MAX, nullable: true },
+      },
+      required: ['kind'],
+      additionalProperties: false,
+    },
     capabilities: ConnectCapabilitiesSchema,
     status: { type: 'string', enum: Object.values(ConnectSessionStatus) },
     transport: { type: 'string', enum: [...Object.values(ConnectTransport), null], nullable: true },

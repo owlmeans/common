@@ -1,0 +1,100 @@
+{
+  "captcha": {
+    "notice": "Ta strona jest chroniona przez reCAPTCHA i obowiązują w niej {{privacy}} oraz {{terms}} Google.",
+    "privacy": "Polityka prywatności",
+    "terms": "Warunki korzystania z usług"
+  },
+  "error": {
+    "captcha": "Nie udało się potwierdzić, że nie jesteś robotem. Spróbuj ponownie.",
+    "captcha-unavailable": "Nie udało się wczytać zabezpieczenia. Sprawdź połączenie i spróbuj ponownie.",
+    "code": "Ten kod jest nieprawidłowy lub wygasł. Sprawdź go albo poproś o nowy.",
+    "credentials": "Nieprawidłowy e-mail lub hasło.",
+    "email": "Wpisz prawidłowy adres e-mail.",
+    "failed": "Coś poszło nie tak. Spróbuj ponownie.",
+    "mismatch": "Hasła nie są takie same.",
+    "offer-expired": "Ta propozycja wygasła. Hasło możesz ustawić później w ustawieniach konta.",
+    "password-disabled": "Logowanie hasłem nie jest tu dostępne. Użyj kodu.",
+    "password-empty": "Wpisz hasło.",
+    "pin-format": "Wpisz kod z wiadomości: {{length}} cyfr.",
+    "throttled": "Zbyt wiele prób. Odczekaj chwilę i spróbuj ponownie.",
+    "throttled-in": "Zbyt wiele prób. Spróbuj ponownie {{when}}.",
+    "unavailable": "Logowanie jest chwilowo niedostępne. Spróbuj ponownie później.",
+    "weak": "Użyj od {{min}} do {{max}} znaków i nie wpisuj swojego adresu e-mail."
+  },
+  "login": {
+    "change-email": "Zmień e-mail",
+    "device": "Nie rozpoznajemy tego urządzenia. Wpisz kod, który wysłaliśmy na Twój e-mail.",
+    "done": "Logowanie…",
+    "email-label": "E-mail",
+    "email-placeholder": "ty@przyklad.pl",
+    "hide-password": "Ukryj hasło",
+    "options-failed": "Nie udało się wczytać ustawień logowania.",
+    "other": "Inne sposoby logowania",
+    "password-label": "Hasło",
+    "password-submit": "Zaloguj się",
+    "password-subtitle": "Zaloguj się adresem e-mail i hasłem.",
+    "pin-label": "Kod z wiadomości",
+    "pin-subtitle": "Kod czeka w Twojej skrzynce odbiorczej.",
+    "powered": "Działa dzięki OwlMeans",
+    "resend": "Wyślij nowy kod",
+    "retry": "Spróbuj ponownie",
+    "send": "Otrzymaj kod PIN do logowania",
+    "sending": "Wysyłanie…",
+    "sent": "Wysłaliśmy kod logowania na adres {{email}}.",
+    "show-password": "Pokaż hasło",
+    "subtitle": "Wyślemy Ci e-mailem kod do logowania. Jesteś tu pierwszy raz? Ten sam kod założy Twoje konto.",
+    "title": "Zaloguj się e-mailem",
+    "use-password": "Masz już hasło? Użyj go",
+    "use-pin": "Zaloguj się kodem",
+    "verify": "Zaloguj się",
+    "verifying": "Logowanie…"
+  },
+  "offer": {
+    "description": "Następnym razem zaloguj się e-mailem i hasłem, bez czekania na kod.",
+    "hint": "Od {{min}} do {{max}} znaków.",
+    "later": "Hasło zawsze możesz ustawić później w ustawieniach konta.",
+    "password-label": "Nowe hasło",
+    "repeat-label": "Powtórz hasło",
+    "save": "Zapisz hasło",
+    "saving": "Zapisywanie…",
+    "skip": "Nie teraz",
+    "title": "Ustaw hasło, aby logować się szybciej"
+  },
+  "password": {
+    "action": {
+      "change": "Zmień hasło",
+      "remove": "Usuń hasło",
+      "set": "Ustaw hasło"
+    },
+    "cancel": "Anuluj",
+    "confirm": "Potwierdź",
+    "confirming": "Zapisywanie…",
+    "description": "Loguj się adresem e-mail i hasłem zamiast kodem.",
+    "devices": "Na innych urządzeniach przy następnym logowaniu trzeba będzie podać kod.",
+    "done": {
+      "change": "Hasło zostało zmienione.",
+      "remove": "Hasło zostało usunięte.",
+      "set": "Hasło zostało ustawione."
+    },
+    "explain": {
+      "change": "Aby zmienić hasło, potwierdź, że to Ty, kodem, który wyślemy Ci e-mailem.",
+      "remove": "Bez hasła logujesz się kodem wysłanym na Twój e-mail. Wyślemy Ci kod, aby to potwierdzić.",
+      "set": "Aby ustawić hasło, potwierdź, że to Ty, kodem, który wyślemy Ci e-mailem."
+    },
+    "loading": "Wczytywanie…",
+    "new-label": "Nowe hasło",
+    "off": "Logowanie hasłem nie jest tu dostępne. Logujesz się kodem wysłanym na Twój e-mail.",
+    "pin-label": "Kod z wiadomości",
+    "repeat-label": "Powtórz hasło",
+    "resend": "Wyślij nowy kod",
+    "retry": "Spróbuj ponownie",
+    "send": "Wyślij kod",
+    "sending": "Wysyłanie…",
+    "sent": "Wysłaliśmy kod na Twój e-mail.",
+    "set": "Masz ustawione hasło.",
+    "title": "Hasło",
+    "unreadable": "Nie udało się wczytać ustawień hasła.",
+    "unset": "Nie masz jeszcze hasła. Logujesz się kodem wysłanym na Twój e-mail.",
+    "updated": "Ostatnia zmiana: {{date}}."
+  }
+}

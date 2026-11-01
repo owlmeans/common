@@ -88,8 +88,8 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 |---|---|
 | Tooling | `dep-config`, `agent-skills`, `create-app` |
 | Core | `context`, `log`, `error`, `auth`, `config`, `i18n`, `state`, `entrypoint`, `route`, `router`, `resource`, `socket`, `did`, `basic-*` |
-| Auth shared / API | `auth-common`, `api`, `api-config*` |
-| Server | `server-*` |
+| Auth shared / API | `auth-common`, `auth-email`, `api`, `api-config*` |
+| Server | `server-*`, `captcha` |
 | Client (platform-agnostic) | `client-*` (`client-iam` and `client-auth` pull in the web layer) |
 | Web | `web-*` (incl. `web-log`), `astro`; LEGACY `mui-panel`, `mui-oidc-rp` (maintain only) |
 | Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource` |
@@ -100,7 +100,7 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 
 ## Key Facts
 
-- 134 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
+- 139 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
 - ESM only, output in `build/`; TypeScript `^7.0.2` (`/tsconfig`, `/bun`).
 - Versions are per package and deliberately uneven — never resynchronise (`/versions`, `/publishing`).
 - React is a peer dependency; crypto via `@noble/*` + `@scure/*`; validation via AJV + ajv-formats.
@@ -140,6 +140,7 @@ topic or `/<name>`. Every package has its own skill `/<package-name>` (`owlmeans
 - `/login-plugins`, `/login-methods` — read both before touching a login dispatcher
 - `/consent` — cookie consent and tag managers (`/web-consent`, `/web-gtm`, `/astro`)
 - `/server-auth-otp` — email OTP login; mail transports `/mailer`, `/mailer-smtp`, `/server-mailer-mailgun`
+- `/auth-email` — e-mail PIN/password sign-in (`/server-auth-email`, `/web-auth-email`); captcha `/captcha`, `/web-captcha`
 - `/server-auth-session` — seven-day session registry and Redis authority
 - `/oidc-versions` — before upgrading any OIDC/OAuth dependency
 - `/router-plugins` — before wiring routing in an app

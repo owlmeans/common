@@ -28,6 +28,11 @@ export interface OtpChallengeStore extends InitializedService {
   verify: (
     id: string, emailKey: string, codeHash: string, maxFailedAttempts: number
   ) => Promise<OtpChallengeOutcome>
+  /**
+   * Replace the code of a live challenge whose address matches, resetting its failed attempts and
+   * keeping its expiry. `false` when the challenge is gone or names another address.
+   */
+  rewrite?: (id: string, emailKey: string, codeHash: string) => Promise<boolean>
 }
 
 export interface OtpConfig extends ServerConfig {

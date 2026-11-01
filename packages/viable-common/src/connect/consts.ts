@@ -307,6 +307,53 @@ export enum ConnectCallState {
 }
 
 /**
+ * Which connector edition is calling — read from {@link CONNECT_CLIENT_HEADER} on every request.
+ *
+ * A request WITHOUT the header is {@link ConnectClientKind.Legacy}: a published connector or SDK
+ * user from before the header existed, and it behaves exactly as it always did. A value this version
+ * does not know is {@link ConnectClientKind.Other} (the raw value kept for the log) and is treated
+ * like any connector that may infer — an unknown name fails open, never closed.
+ */
+export enum ConnectClientKind {
+  /** No header: a published connector (≤ 0.1.19-rc.0) or an older SDK user. Platform-side only. */
+  Legacy = 'legacy',
+  /** A `@owlmeans/viable-mcp` build that names itself. */
+  Mcp = 'viable-mcp',
+  /** The Claude Code plugin's stdio package. */
+  Claude = 'viable-claude',
+  /** The Codex plugin's stdio package. */
+  Codex = 'viable-codex',
+  /** The SDK used directly without naming itself — what `makeSdkContext` sends by default. */
+  Sdk = 'sdk',
+  /** The platform's own `POST /mcp` (unchanged). */
+  Hosted = 'hosted',
+  /** The Claude listing endpoint, `POST /mcp/claude`. */
+  HostedClaude = 'hosted-claude',
+  /** The OpenAI listing endpoint, `POST /mcp/openai`. */
+  HostedOpenai = 'hosted-openai',
+  /** A header value this version does not know. */
+  Other = 'other',
+}
+
+/** The header a connector names its edition with: `<kind>` or `<kind>/<version>`. */
+export const CONNECT_CLIENT_HEADER = 'x-viable-client'
+
+/** The longest version a client header may carry; a longer one is dropped, never cut. */
+export const CONNECT_CLIENT_VERSION_MAX = 64
+
+/** The longest raw header value kept for an {@link ConnectClientKind.Other} client (for the log). */
+export const CONNECT_CLIENT_RAW_MAX = 128
+
+/**
+ * Kinds that may NEVER act as the platform's inference: no delegated session, no `Model` executor,
+ * no model-task operations, no `local` preference writes. `hosted` is NOT here — `/mcp` stays as it
+ * is (its stateless host never delegates anyway).
+ */
+export const CONNECT_CLIENT_NO_INFERENCE: readonly ConnectClientKind[] = Object.freeze([
+  ConnectClientKind.Claude, ConnectClientKind.Codex, ConnectClientKind.HostedClaude, ConnectClientKind.HostedOpenai,
+])
+
+/**
  * The capability key that gates the local-LLM mode.
  *
  * The scoped parameter a route passes to `entitled(...)` is composed by the platform, which owns
@@ -707,6 +754,14 @@ export const connect = Object.freeze({
   /** The organization's workloads, every project and kind, as the connector's small projection. */
   slot: Object.freeze({
     list: 'viable:manager-api:connect:slot:list',
+  }),
+  /**
+   * How the platform sees the caller — the edition its `x-viable-client` header names, which door it
+   * came through and whether it may act as the platform's inference. A route of its own, because an
+   * existing answer never grows a field an older connector might refuse.
+   */
+  client: Object.freeze({
+    identify: 'viable:manager-api:connect:client:identify',
   }),
   /**
    * A cloud target's git repository — the web Git dialog's own calls: the status (with the project's

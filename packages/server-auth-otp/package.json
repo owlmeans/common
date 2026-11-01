@@ -37,6 +37,8 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/redis": "^0.1.18",
+    "@owlmeans/test-integration": "^0.1.18",
     "@types/bun": "^1.4.2",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

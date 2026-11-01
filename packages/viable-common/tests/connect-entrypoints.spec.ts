@@ -56,8 +56,9 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.project.stop.alias).toBe(connect.project.stop)
     expect(tree.project.steer.alias).toBe(connect.project.steer)
     expect(tree.project.batch.start.alias).toBe(connect.project.batch.start)
-    expect(protocols(tree)).toHaveLength(112)
-    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(112)
+    expect(tree.client.identify.alias).toBe(connect.client.identify)
+    expect(protocols(tree)).toHaveLength(113)
+    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(113)
   })
 
   test('declares exactly the routes a connector calls — every alias, reference and path, and no socket', () => {
@@ -67,7 +68,7 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
 
     expect(addresses).toEqual([
       'DELETE /project/:id', 'DELETE /project/:id/files/content',
-      'GET /access-tokens', 'GET /blueprints', 'GET /branding', 'GET /call/:callId', 'GET /convert/:id', 'GET /convert/:id/check',
+      'GET /access-tokens', 'GET /blueprints', 'GET /branding', 'GET /call/:callId', 'GET /client', 'GET /convert/:id', 'GET /convert/:id/check',
       'GET /iam/users', 'GET /llm', 'GET /notifications', 'GET /pipeline/:id/:runId',
       'GET /privacy', 'GET /project', 'GET /project/:id/activity', 'GET /project/:id/batch',
       'GET /project/:id/branding', 'GET /project/:id/config', 'GET /project/:id/files', 'GET /project/:id/files/changes',

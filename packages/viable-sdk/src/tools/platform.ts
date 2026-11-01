@@ -1,6 +1,7 @@
 import { ConnectLlm, ConnectTarget } from '@owlmeans/viable-common'
 
 import { catalogueHelper } from './catalogue.js'
+import { makeToolProfileModel } from './profile.js'
 import type { ToolHost, PlatformCapability, PlatformCatalogue } from './types.js'
 
 /**
@@ -17,6 +18,10 @@ import type { ToolHost, PlatformCapability, PlatformCatalogue } from './types.js
 export const renderPlatform = (catalogue: PlatformCatalogue, host: ToolHost): string => {
   const offered = new Set(catalogueHelper.visibleTools(host).map(tool => tool.name))
   const has = (tool: string): boolean => offered.has(tool)
+  // What a catalogue name stands for under the host's profile — itself where there is none — so a
+  // hidden tool is never named and a split tool is named by its variants.
+  const names = makeToolProfileModel(host.profile).namesOf
+  const offeredOf = (tools: readonly string[]): string[] => tools.flatMap(names).filter(has)
 
   const lines: string[] = [
     'THE OWLMEANS VIABLE PLATFORM',
@@ -47,14 +52,18 @@ export const renderPlatform = (catalogue: PlatformCatalogue, host: ToolHost): st
   ]
 
   for (const pipeline of catalogue.pipelines) {
-    const startable = pipeline.startedBy.filter(has)
+    const startable = offeredOf(pipeline.startedBy)
+    const starters = pipeline.startedBy.flatMap(names)
     lines.push(
       '',
       `  ${pipeline.title} · ${pipeline.id}`,
       `    ${pipeline.what}`,
       startable.length > 0
         ? `    start: ${startable.join(' or ')}`
-        : `    not startable in this session (${pipeline.startedBy.join(', ')} is not offered here)`,
+        : starters.length > 0 || host.profile == null
+          ? `    not startable in this session (${starters.join(', ')} is not offered here)`
+          // Every tool that starts it is hidden by the profile — and a hidden tool is never named.
+          : '    not startable in this session',
     )
     if (pipeline.stages != null) lines.push(`    steps: ${pipeline.stages.join(' → ')}`)
     lines.push(
@@ -70,14 +79,14 @@ export const renderPlatform = (catalogue: PlatformCatalogue, host: ToolHost): st
   lines.push('', 'WHAT A GENERATED APPLICATION CARRIES')
   for (const feature of catalogue.features) {
     lines.push('', `  ${feature.title}`, `    ${feature.what}`)
-    const tools = (feature.tools ?? []).filter(has)
+    const tools = offeredOf(feature.tools ?? [])
     if (tools.length > 0) lines.push(`    see: ${tools.join(', ')}`)
   }
 
   lines.push('', 'WHAT YOU CAN CALL')
   const hidden: PlatformCapability[] = []
   for (const capability of catalogue.capabilities) {
-    const available = capability.tools.filter(has)
+    const available = offeredOf(capability.tools)
     if (available.length < 1) {
       hidden.push(capability)
 

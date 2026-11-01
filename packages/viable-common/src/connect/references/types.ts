@@ -34,6 +34,7 @@ import type {
 } from '../production/types.js'
 import type { ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams, ConnectSessionView } from '../session/types.js'
 import type { ConnectSlotView } from '../slot/types.js'
+import type { ConnectClientView } from '../client/types.js'
 import type { ConnectLlmBody, ConnectProfileSettingsView, ConnectProjectLlmBody, ConnectProjectSettings } from '../settings/types.js'
 import type {
   ConnectIamGroupParams, ConnectIamMemberParams, ConnectIamOrganizationParams, ConnectIamUserParams,
@@ -146,6 +147,9 @@ export interface ConnectReferences {
     restart: ConnectReference<{ params: { id: string } }, ConnectSlotView>
     stop: ConnectReference<{ params: { id: string } }, ConnectSlotView>
     rebuild: ConnectReference<{ params: { id: string } }, ConnectSlotView>
+  }
+  client: {
+    identify: ConnectReference<{}, ConnectClientView>
   }
   slot: {
     list: ConnectReference<{}, ConnectSlotView[]>

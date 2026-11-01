@@ -1,6 +1,6 @@
 ---
 name: server-auth
-description: How to use @owlmeans/server-auth — the server side of OwlMeans authentication. Two halves in one package - appendAuthService/makeAuthService, which verify Ed25519 bearer tokens on an ordinary API server, and the ./manager subpath, which IS the auth manager service (challenge, plugin registry, credential envelope, rely). Also the reCAPTCHA guest path - the plugin's verifier and policy record, and makeReCaptchaGuard, which spends a guest token once. Auto-invoked when importing the server auth guard or the reCAPTCHA guard, registering an auth plugin, or building the auth manager.
+description: How to use @owlmeans/server-auth — the server side of OwlMeans authentication. Two halves in one package - appendAuthService/makeAuthService, which verify Ed25519 bearer tokens on an ordinary API server, and the ./manager subpath, which IS the auth manager service (challenge, plugin registry, credential envelope, rely). Also makeAuthModel with an exclusive private plugin list, and the reCAPTCHA guest path - the plugin's verifier and policy record (re-exported from @owlmeans/captcha), and makeReCaptchaGuard, which spends a guest token once. Auto-invoked when importing the server auth guard or the reCAPTCHA guard, registering an auth plugin, running private sign-in plugins, or building the auth manager.
 user-invocable: false
 ---
 
@@ -43,6 +43,7 @@ An ordinary service imports the root. Only the auth manager imports `./manager`.
 | `main(ctx)` | Register the manager entrypoints, configure, init and listen |
 | `entrypoints` | `AUTHEN`, `AUTHEN_INIT`, `AUTHEN_AUTHEN`, `AUTHEN_RELY` and the api-config entrypoints |
 | `authenticationInit`, `authenticate`, `rely` | Implementations bound to auth protocols: `init(request)` → challenge, `authenticate(credential)` → signed credential envelope, and the rely socket |
+| `makeAuthModel(ctx, opts?)`, `AuthModelOptions` | The model those handlers run: `init`, `authenticate`, `rely`. `opts.plugins` = an EXCLUSIVE plugin list — see "Private plugins" |
 | `plugins`, `registerPlugin(type, factory)` | The plugin registry (also on `./manager/plugins`) |
 | `appendSupervisorAuth(ctx, opts?)`, `setupInternalTokenCoguard(entrypoints, guard?)` | PK supervisor login — see the `supervisor-auth` skill |
 | `createRelyService(alias?)`, `DEFAULT_RELY`, `RELY_TUNNEL` | The rely guard service |
@@ -67,6 +68,12 @@ one import.
 | `makeReCaptchaPolicyModel(record)` | The `MOD_RECAPTCHA` record's policy: `hostnames()`, `minScore()`, `actions()`, `assert(answer)` |
 | `RECAPTCHA_VERIFIER`, `RECAPTCHA_SITEVERIFY_URL`, `RECAPTCHA_VERIFY_TIMEOUT` | `'re-captcha-verifier'`, `https://www.google.com/recaptcha/api/siteverify`, `10_000` |
 | `ReCaptchaResponse`, `ReCaptchaRequest`, `ReCaptchaVerifierService`, `ReCaptchaVerifierOptions`, `ReCaptchaFetch`, `ReCaptchaPluginConfig`, `ReCaptchaPolicyModel` | reCAPTCHA types |
+
+The reCAPTCHA verifier, policy, constants and types are `@owlmeans/captcha`'s
+(`createCaptchaVerifierService`, `makeCaptchaPolicyModel`, `CAPTCHA_VERIFIER`, `Captcha*`),
+re-exported here under these names — same alias, same refusals. New code imports `@owlmeans/captcha`;
+a route that must judge a score-based token itself uses its strict `makeCaptchaCheck`, not this
+plugin (`captcha` skill).
 | `RelyRecord`, `AuthRedisResource` | Types |
 
 ## Usage
@@ -97,6 +104,26 @@ registerPlugin('my-method', context => ({
   },
 }) as AuthPlugin)
 ```
+
+## Private plugins — `makeAuthModel(ctx, { plugins })`
+
+`registerPlugin` adds to a module-level registry every `/authentication/*` route of the process
+reads — the manager's generic sign-in is ungated, so a plugin registered there is reachable by
+anyone who can name its type. A sign-in method that must run ONLY behind its own routes (its own
+throttles, captcha and request checks) builds the model with an exclusive list instead:
+
+```typescript
+import { makeAuthModel } from '@owlmeans/server-auth/manager'
+
+const model = makeAuthModel(context, { plugins: { 'email-pin': pinPluginFor(request) } })
+const { challenge } = await model.init({ type: 'email-pin', userId: email })
+```
+
+With `opts.plugins`, `init` and `authenticate` resolve a type ONLY from that list — a type it lacks,
+a globally registered one included, is `AuthUnknown`; the envelope signing, the replay policy, the
+entity canonicalisation and the `auth.signed-in` / `auth.refused` events are the model's as always.
+Build the list per request when a factory must close over request data. Without `opts` the model
+reads the global registry. `@owlmeans/server-auth-email` is the shipped consumer.
 
 ## reCAPTCHA guests
 
@@ -160,6 +187,10 @@ method's token.
   register a Redis resource under the same alias before calling it in any scaled deployment.
 - A plugin's `init` must return a challenge that is unique per request. A challenge that repeats
   across independent attempts collides in `AUTH_CACHE` and surfaces as `AuthenFailed('challenge')`.
+- `authenticate`'s `{ token }` becomes the signed token's `challenge` (`''` keeps the issued wrapped
+  challenge). A token that a bearer exchange will take must fit the shared `AuthTokenSchema`
+  (1024 characters): a plugin whose wrapped challenge is long returns a short single-use digest of
+  it instead, which the exchange then spends in `AUTH_CACHE`.
 - Bearers issued by this service carry an absolute seven-day expiry and an opaque session id. In a
   context with `AUTH_SESSION_MANAGER`, the guard rejects an absent, expired, pending or revoked
   session and re-signs fresh profile claims after a registry revision. Registry or identity-store
@@ -182,5 +213,6 @@ method's token.
 - `@owlmeans/auth`, `@owlmeans/auth-common` — types, aliases, `trust()`, `extractAuthToken`
 - `@owlmeans/basic-envelope`, `@owlmeans/basic-keys` — envelope signing and Ed25519 verification
 - `@owlmeans/server-context`, `@owlmeans/server-entrypoint`, `@owlmeans/server-api`
+- `@owlmeans/captcha` — the reCAPTCHA verifier and policy this package re-exports
 - `@owlmeans/config` — the `TRUSTED` config resource
 - `@owlmeans/static-resource` — the default `AUTH_CACHE` backing

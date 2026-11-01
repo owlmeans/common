@@ -6,12 +6,13 @@ updated: 2026-10
 
 # Viable connector family (contracts + SDK + MCP server)
 
-Three packages that let something outside the OwlMeans Viable platform drive it:
-`viable-common` (runtime-free contracts), `viable-sdk` (the connector SDK, Node/Bun tooling), and
-`viable-mcp` (the `npx` stdio MCP server around the SDK). `viable-mcp` and the agent-setup tools
-(`@owlmeans/viable-harness`) moved on 2026-10-07 to the closed-source `closed` repo, which links this
-one; the SDK reaches them only through `ToolHost.extensions`, never by import. The platform lives in
-the `viable` product repo, which consumes all three. Related: [[llm]], [[agent]], [[versioning]].
+The public half of what lets something outside the OwlMeans Viable platform drive it:
+`viable-common` (runtime-free contracts) and `viable-sdk` (the connector SDK, Node/Bun tooling).
+The stdio servers (`viable-mcp-core` and its editions `viable-mcp`, `viable-claude`,
+`viable-codex`) and the agent-setup tools (`viable-harness`) are closed-source, in the `closed`
+repo, which links this one; the SDK reaches them only through seams (`ToolHost.extensions`,
+`ToolHost.profile`), never by import. The platform lives in the `viable` product repo.
+Related: [[llm]], [[agent]], [[versioning]].
 
 ## Facts
 
@@ -23,6 +24,10 @@ the `viable` product repo, which consumes all three. Related: [[llm]], [[agent]]
 - During prerelease, `viable-mcp` is distributed under `next` but install commands carry its
   compatible caret range (the skill's harness-written Install line). Version-skew tolerance against
   the separately deployed platform is a design constraint for this family and nothing else.
+- A connector names its edition only in `x-viable-client` (`<kind>/<version>`): an older platform
+  ignores an unknown header but refuses an unknown body field (`ConnectSessionOpenSchema` is closed),
+  and an older connector may validate a response. New data therefore crosses on new routes only
+  (`connect.client.identify`); a header-less request is `legacy` and keeps its exact behaviour.
 - The `viable-sdk` local executor is the publisher's dispatcher re-implemented for a laptop —
   same commands, same "error text or null" answers — so the platform cannot tell which side answered.
 - `AccessBlock.defaultEnabledPermissions` stays a MODEL-written key even though the IAM's
@@ -41,6 +46,11 @@ the `viable` product repo, which consumes all three. Related: [[llm]], [[agent]]
   violated: an answer accepted on the wire and silently halved further in.
 - A tool a host cannot serve is HIDDEN by `visibleTools`, never offered and refused; anything that
   can take minutes returns a job rather than holding the 45-second tool deadline.
+- With no `ToolHost.profile` every SDK output is byte-identical — `tools/list` (no `outputSchema`
+  key), instructions, `describe_platform`, results. Broke when violated: published `viable-mcp` and
+  the platform's `/mcp` change under existing manual setups; store presentation goes in a profile.
+- The `CONNECT_CLIENT_NO_INFERENCE` kinds never act as the platform's inference, and an unknown
+  kind fails OPEN (`other` may do what `legacy` may) — a typo'd header must not lock out a client.
 - A transient job long-poll failure falls back once to `wait=0`; a second long poll can overrun the
   tool ceiling. Story mutations attach the session before touching local file-backed state.
 - `delete_story` returns only after two observations prove the asynchronous scaffold cleanup left
@@ -56,11 +66,14 @@ the `viable` product repo, which consumes all three. Related: [[llm]], [[agent]]
 - A nullable enum written as `nullable: true` without `null` in `enum` compiles and passes every
   caller that omits the key, then refuses the one that sends `null` — fingerprint: a provider's
   structured answer (unset optional as `null`) retried to `llm:retry-exceeded`.
+- A tool registered with an `outputSchema` whose success carries no `structuredContent` is turned
+  into an MCP validation error by the server → the profile answers `present(structured ?? {})` on
+  every success and never a structure on a refusal.
 
 ## Pointers
 
-- Skills `viable-common` (contracts + the schema conventions), `viable-sdk` (tools, sessions,
-  envelopes, refusals, the local executor), `viable-mcp` (the stdio process), `inquiry`,
-  `agent-presentation`.
+- Skills `viable-common` (contracts, client kinds, the schema conventions), `viable-sdk` (tools,
+  sessions, envelopes, refusals, profiles, the local executor), closed's `viable-mcp-core` (the
+  stdio process) and its editions, `inquiry`, `agent-presentation`.
 - Product-side counterparts: `viable` repo skills `connect`, `viable-converter`, `intent-first`;
   tenancy and access policy: `viable-agent` skill `target-tenancy`.

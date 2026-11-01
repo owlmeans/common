@@ -1,6 +1,7 @@
 import type {
   ConnectExecutor, ConnectHarness, ConnectLlm, ConnectSessionStatus, ConnectTarget, ConnectTransport, ModelTier
 } from '../consts.js'
+import type { ConnectClient } from '../client/types.js'
 
 /**
  * What a parent agent can do, as it reports itself.
@@ -39,6 +40,11 @@ export interface ConnectSession {
   llm: ConnectLlm
   harness: ConnectHarness
   clientVersion: string
+  /**
+   * The edition that opened the session, read from its `x-viable-client` header — absent on a
+   * record written before the header existed. Never in the open body or the session view.
+   */
+  client?: ConnectClient
   capabilities: ConnectCapabilities
   status: ConnectSessionStatus
   /** How the connector is receiving operations right now. */

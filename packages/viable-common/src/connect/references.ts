@@ -47,6 +47,7 @@ import type {
 } from './production/types.js'
 import type { ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams, ConnectSessionView } from './session/types.js'
 import type { ConnectSlotView } from './slot/types.js'
+import type { ConnectClientView } from './client/types.js'
 import type { ConnectLlmBody, ConnectProfileSettingsView, ConnectProjectLlmBody, ConnectProjectSettings } from './settings/types.js'
 
 /**
@@ -188,6 +189,9 @@ export const connectRef: ConnectReferences = {
     restart: entrypointRef<{ params: { id: string } }, ConnectSlotView>(connect.sandbox.restart),
     stop: entrypointRef<{ params: { id: string } }, ConnectSlotView>(connect.sandbox.stop),
     rebuild: entrypointRef<{ params: { id: string } }, ConnectSlotView>(connect.sandbox.rebuild),
+  },
+  client: {
+    identify: entrypointRef<{}, ConnectClientView>(connect.client.identify),
   },
   slot: {
     list: entrypointRef<{}, ConnectSlotView[]>(connect.slot.list),

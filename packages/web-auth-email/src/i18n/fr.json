@@ -1,0 +1,100 @@
+{
+  "captcha": {
+    "notice": "Ce site est protégé par reCAPTCHA, et les {{privacy}} et les {{terms}} de Google s’appliquent.",
+    "privacy": "Règles de confidentialité",
+    "terms": "Conditions d’utilisation"
+  },
+  "error": {
+    "captcha": "Nous n’avons pas pu confirmer que vous n’êtes pas un robot. Réessayez.",
+    "captcha-unavailable": "Le contrôle de sécurité n’a pas pu se charger. Vérifiez votre connexion et réessayez.",
+    "code": "Ce code est incorrect ou a expiré. Vérifiez-le ou demandez-en un nouveau.",
+    "credentials": "Adresse e-mail ou mot de passe incorrect.",
+    "email": "Saisissez une adresse e-mail valide.",
+    "failed": "Un problème est survenu. Réessayez.",
+    "mismatch": "Les mots de passe ne correspondent pas.",
+    "offer-expired": "Cette proposition a expiré. Vous pourrez définir un mot de passe plus tard dans les paramètres de votre compte.",
+    "password-disabled": "La connexion par mot de passe n’est pas disponible ici. Utilisez un code.",
+    "password-empty": "Saisissez votre mot de passe.",
+    "pin-format": "Saisissez le code reçu par e-mail : {{length}} chiffres.",
+    "throttled": "Trop de tentatives. Patientez un instant, puis réessayez.",
+    "throttled-in": "Trop de tentatives. Réessayez {{when}}.",
+    "unavailable": "La connexion est momentanément indisponible. Réessayez plus tard.",
+    "weak": "Utilisez de {{min}} à {{max}} caractères, et pas votre adresse e-mail."
+  },
+  "login": {
+    "change-email": "Changer d’adresse e-mail",
+    "device": "Nous ne reconnaissons pas cet appareil. Saisissez le code que nous vous avons envoyé par e-mail.",
+    "done": "Connexion en cours…",
+    "email-label": "Adresse e-mail",
+    "email-placeholder": "vous@exemple.fr",
+    "hide-password": "Masquer le mot de passe",
+    "options-failed": "Impossible de charger les paramètres de connexion.",
+    "other": "Autres moyens de connexion",
+    "password-label": "Mot de passe",
+    "password-submit": "Se connecter",
+    "password-subtitle": "Connectez-vous avec votre adresse e-mail et votre mot de passe.",
+    "pin-label": "Code reçu par e-mail",
+    "pin-subtitle": "Le code vous attend dans votre boîte de réception.",
+    "powered": "Propulsé par OwlMeans",
+    "resend": "Envoyer un nouveau code",
+    "retry": "Réessayer",
+    "send": "Recevoir le code PIN de connexion",
+    "sending": "Envoi…",
+    "sent": "Nous avons envoyé un code de connexion à {{email}}.",
+    "show-password": "Afficher le mot de passe",
+    "subtitle": "Nous vous envoyons un code de connexion par e-mail. Nouveau ici ? Le même code crée votre compte.",
+    "title": "Se connecter par e-mail",
+    "use-password": "Vous avez déjà un mot de passe ? Utilisez-le",
+    "use-pin": "Se connecter avec un code",
+    "verify": "Se connecter",
+    "verifying": "Connexion…"
+  },
+  "offer": {
+    "description": "La prochaine fois, connectez-vous avec votre adresse e-mail et votre mot de passe, sans attendre de code.",
+    "hint": "De {{min}} à {{max}} caractères.",
+    "later": "Vous pourrez toujours définir un mot de passe plus tard dans les paramètres de votre compte.",
+    "password-label": "Nouveau mot de passe",
+    "repeat-label": "Confirmez le mot de passe",
+    "save": "Enregistrer le mot de passe",
+    "saving": "Enregistrement…",
+    "skip": "Pas maintenant",
+    "title": "Définissez un mot de passe pour vous connecter plus vite"
+  },
+  "password": {
+    "action": {
+      "change": "Changer le mot de passe",
+      "remove": "Supprimer le mot de passe",
+      "set": "Définir un mot de passe"
+    },
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "confirming": "Enregistrement…",
+    "description": "Connectez-vous avec votre adresse e-mail et un mot de passe plutôt qu’avec un code.",
+    "devices": "Sur vos autres appareils, un code sera demandé à la prochaine connexion.",
+    "done": {
+      "change": "Votre mot de passe a été modifié.",
+      "remove": "Votre mot de passe a été supprimé.",
+      "set": "Votre mot de passe a été défini."
+    },
+    "explain": {
+      "change": "Pour changer votre mot de passe, confirmez votre identité avec un code que nous vous enverrons par e-mail.",
+      "remove": "Sans mot de passe, vous vous connectez avec un code reçu par e-mail. Nous vous enverrons un code pour confirmer.",
+      "set": "Pour définir un mot de passe, confirmez votre identité avec un code que nous vous enverrons par e-mail."
+    },
+    "loading": "Chargement…",
+    "new-label": "Nouveau mot de passe",
+    "off": "La connexion par mot de passe n’est pas disponible ici. Vous vous connectez avec un code reçu par e-mail.",
+    "pin-label": "Code reçu par e-mail",
+    "repeat-label": "Confirmez le mot de passe",
+    "resend": "Envoyer un nouveau code",
+    "retry": "Réessayer",
+    "send": "Envoyer le code",
+    "sending": "Envoi…",
+    "sent": "Nous vous avons envoyé un code par e-mail.",
+    "set": "Vous avez un mot de passe.",
+    "title": "Mot de passe",
+    "unreadable": "Impossible de charger les paramètres de votre mot de passe.",
+    "unset": "Vous n’avez pas encore de mot de passe. Vous vous connectez avec un code reçu par e-mail.",
+    "updated": "Dernière modification : {{date}}."
+  }
+}

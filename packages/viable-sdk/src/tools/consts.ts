@@ -1,7 +1,7 @@
 import { ConnectLlm, ConnectTarget, ConnectWaitReason } from '@owlmeans/viable-common'
 import { NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, TOOL_DEADLINE_MS } from '../consts.js'
 import type { WorkcardQuery } from '@owlmeans/planning'
-import type { PlatformCatalogue, ProjectSetting } from './types.js'
+import type { PlatformCatalogue, ProjectSetting, ToolAnnotations } from './types.js'
 
 /**
  * What the platform can build, as data.
@@ -17,6 +17,26 @@ import type { PlatformCatalogue, ProjectSetting } from './types.js'
  * Named here so a group can list them and a host that lacks them renders the group as absent.
  */
 export const EXTENSION_TOOLS: readonly string[] = Object.freeze(['describe_harness', 'install_harness'])
+
+/** A tool that changes nothing — a read, a description, a status. */
+export const READ_ONLY: ToolAnnotations = Object.freeze({
+  readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false,
+})
+
+/** A tool that changes something, additively: a second call is a second change. */
+export const WRITE: ToolAnnotations = Object.freeze({
+  readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false,
+})
+
+/** A tool that sets something to a value: repeating it with the same arguments changes nothing more. */
+export const IDEMPOTENT_WRITE: ToolAnnotations = Object.freeze({
+  readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false,
+})
+
+/** A tool that deletes or irreversibly replaces something — the host should ask before it runs. */
+export const DESTRUCTIVE: ToolAnnotations = Object.freeze({
+  readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false,
+})
 
 export const PLATFORM_CATALOGUE: PlatformCatalogue = {
   pipelines: [

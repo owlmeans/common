@@ -1,6 +1,7 @@
-
-import { connectRef, type AgentSteerArgs, type AgentStopArgs, type StoryBatchStartArgs, type StoryBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload } from '@owlmeans/viable-common'
+import { apiStatusHelper } from '@owlmeans/api'
+import { connectRef, type ConnectClientView, type AgentSteerArgs, type AgentStopArgs, type StoryBatchStartArgs, type StoryBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
+import { NOT_FOUND } from './consts.local.js'
 import type { ConnectorApi, OpenSessionArgs, ProjectEdits } from '../types.js'
 import type { Ctx } from './types.local.js'
 import type { RemoteConnectorOptions } from './types.js'
@@ -227,6 +228,16 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
 
     slot: {
       list: async (): Promise<ConnectSlotView[]> => await context.entrypoint(connectRef.slot.list).call({ timeout }),
+    },
+
+    // A platform older than the route answers 404: it cannot say, which is not a failure.
+    client: async (): Promise<ConnectClientView | null> => {
+      try {
+        return (await context.entrypoint(connectRef.client.identify).call({ timeout })) ?? null
+      } catch (e) {
+        if (apiStatusHelper.httpStatusOf(e) === NOT_FOUND) return null
+        throw e
+      }
     },
 
     git: {

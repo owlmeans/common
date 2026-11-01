@@ -26,6 +26,7 @@ app must open can only be opened inside one.
 | `useLoginMethods` — the headless model | `@owlmeans/client-panel/auth` |
 | The rendered shadcn screen and `appendLoginScreen` | `@owlmeans/web-panel` |
 | `cfg.oidc.providers[]` → methods | `@owlmeans/web-oidc-rp` |
+| The `email` method and its own card | `@owlmeans/web-auth-email` (`appendEmailLogin`) |
 
 Two import directions are load-bearing:
 
@@ -97,6 +98,28 @@ a generic provider button whose flow can only end in a failed service lookup. It
 `ctx.context.hasService('oidc-rp')` — the relying-party service alias, which `appendOidcGuard`
 registers and nothing else does. Check the thing the flow will actually reach for — a registered
 service, an advertised provider list — not a proxy for it.
+
+## A method with its own card — e-mail
+
+`@owlmeans/web-auth-email` is the shape for a method that collects its credential on a screen of
+its own instead of leaving for a provider:
+
+- **Registered explicitly, never by a side-effect import.** `appendEmailLogin(ctx, { protocols, … })`
+  registers the plugin together with the client service its flow calls; `method.available` asks
+  `ctx.context.hasService(EMAIL_LOGIN_SERVICE)`, so a bundle that merely contains the package offers
+  nothing. `requiresRenderer: false` — it renders its own card.
+- **Its button is an ordinary method** (`order: 20`, `emphasis: 'secondary'`, icon `mail`,
+  `login.method.email` pushed into the `auth` resource): `overrides.email` and `methods` place,
+  relabel, hide or drop it exactly as for any other method.
+- **Its card mirrors the chooser card** at the typed route `/authentication/login/email`: it takes
+  the chooser's own customisation props (`Pick<LoginScreenProps, 'Logo' | 'title' | 'subtitle' |
+  'footer' | 'className' | 'containerClassName' | 'style' | 'locale' | 'translate'>`), centres itself
+  in an inline `100dvh` box, draws the same credit line (`resolveCredit`) as its default footer and
+  links back to the chooser ("Other sign-in options"). An app hands both cards the same `Logo` and
+  `footer`, so the two read as one sign-in.
+- **It ends like every self-contained plugin**: adopt the token, then
+  `loginLandingOf(ctx).landAfterLogin()` — the pending steps run (marketing consent first, then the
+  method's own optional "set a password" step), a parked flow resumes.
 
 ## Where methods come from
 

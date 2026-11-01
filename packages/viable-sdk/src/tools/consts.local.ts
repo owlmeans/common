@@ -1,5 +1,4 @@
 import { AgentStopScope, ConnectFeedDetail, IamGrantMode, ModerationCategory, StoryBatchOutcome, WorkloadKind } from '@owlmeans/viable-common'
-import type { ToolAnnotations } from './types.js'
 
 /** What a production body leaves of a confirmation or consent refusal (`@owlmeans/api` `ApiStatusError`). */
 export const BARE_428 = 'api:client:status:428'
@@ -98,25 +97,8 @@ export const STATUS_TOOL_OF: Readonly<Record<string, string>> = {
  */
 export const HANDOVER_SLICE_MS = 1_000
 
-/** A tool that changes nothing — a read, a description, a status. */
-export const READ_ONLY: ToolAnnotations = Object.freeze({
-  readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false,
-})
-
-/** A tool that changes something, additively: a second call is a second change. */
-export const WRITE: ToolAnnotations = Object.freeze({
-  readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false,
-})
-
-/** A tool that sets something to a value: repeating it with the same arguments changes nothing more. */
-export const IDEMPOTENT_WRITE: ToolAnnotations = Object.freeze({
-  readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false,
-})
-
-/** A tool that deletes or irreversibly replaces something — the host should ask before it runs. */
-export const DESTRUCTIVE: ToolAnnotations = Object.freeze({
-  readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false,
-})
+// The annotation presets are public (`./consts.js`); re-exported so the catalogue's imports stay as they are.
+export { DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE } from './consts.js'
 
 /** The edits `proceed_conversion` carries — flat in its input, nested in the call's `update`. */
 export const PROCEED_UPDATE_FIELDS = ['name', 'description', 'specification', 'vision', 'designSystem'] as const

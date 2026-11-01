@@ -359,7 +359,7 @@ describe('viable-sdk — the remote API addresses only routes the platform serve
     const api = makeRemoteConnectorApi(context)
 
     expect(Object.keys(api).sort()).toEqual([
-      'account', 'closeSession', 'config', 'convert', 'copyOrganizationBranding', 'files', 'git', 'github', 'iam', 'inquiry',
+      'account', 'client', 'closeSession', 'config', 'convert', 'copyOrganizationBranding', 'files', 'git', 'github', 'iam', 'inquiry',
       'openSession',
       'pipeline', 'planning', 'production', 'project', 'projectBranding', 'pullOps', 'sandbox', 'saveProjectBranding',
       'setPlatformCredit', 'slot', 'story', 'submitOp',

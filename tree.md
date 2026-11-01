@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All 118 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All 123 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -99,8 +99,11 @@ Sits between core and the server/client auth implementations. References both se
 - [`auth-common`](packages/auth-common) → `auth`, `basic-ids`, `basic-keys`, `client-entrypoint`, `context`, `entrypoint`, `resource`, `route`
 - [`auth-token`](packages/auth-token) → `auth`, `context`, `entrypoint`, `resource`, `route`
 - [`oauth`](packages/oauth) → `auth`, `entrypoint`, `error`, `flow`, `route`
+- [`auth-email`](packages/auth-email) → `auth`, `auth-common`, `context`, `entrypoint`, `error`, `route`
 
 > **Note.** `auth-common` references `client-entrypoint` for typed entrypoint helpers shared by both server and client auth flows. This is a deliberate cross-layer dependency — see [Cross-layer notes](#cross-layer-notes).
+>
+> **Note.** `auth-email` is the runtime-free contract of e-mail sign-in (PIN, optional password, remembered devices, captcha, developer tech routes): the `makeEmailAuthProtocols` tree, AJV schemas, views, constants and errors that `server-auth-email` serves and `web-auth-email` calls.
 
 ## 5. API & API config
 
@@ -144,11 +147,13 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-wl`](packages/server-wl) → `context`, `server-api`, `server-context`, `server-entrypoint`, `wled`
 - [`server-oidc-provider`](packages/server-oidc-provider) → `config`, `context`, `entrypoint`, `oidc`, `route`, `server-api`, `server-context`
 - [`server-socket`](packages/server-socket) → `auth`, `basic-envelope`, `context`, `entrypoint`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `socket`
-- [`server-auth`](packages/server-auth) → `api`, `api-config-server`, `auth`, `auth-common`, `basic-envelope`, `basic-ids`, `basic-keys`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `redis-resource`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `socket`, `static-resource`
+- [`captcha`](packages/captcha) → `auth`, `config`, `context`, `log`
+- [`server-auth`](packages/server-auth) → `api`, `api-config-server`, `auth`, `auth-common`, `basic-envelope`, `basic-ids`, `basic-keys`, `captcha`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `redis-resource`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `socket`, `static-resource`
 - [`server-auth-identity`](packages/server-auth-identity) → `auth`, `auth-common`, `basic-ids`, `context`, `mongo-resource`, `oidc`, `resource`, `server-context`
 - [`server-auth-token`](packages/server-auth-token) → `auth`, `auth-common`, `auth-token`, `context`, `entrypoint`, `mongo-resource`, `resource`, `server-api`, `server-auth-identity`, `server-context`
 - [`server-oauth`](packages/server-oauth) → `auth`, `auth-common`, `auth-token`, `config`, `context`, `entrypoint`, `error`, `mongo-resource`, `oauth`, `resource`, `route`, `server-api`, `server-auth-token`, `server-context`, `static-resource`
 - [`server-auth-otp`](packages/server-auth-otp) → `auth`, `auth-otp`, `basic-ids`, `context`, `mailer`, `oidc`, `redis-resource`, `resource`, `server-auth`, `server-auth-identity`, `server-context`
+- [`server-auth-email`](packages/server-auth-email) → `auth`, `auth-common`, `auth-email`, `auth-otp`, `basic-envelope`, `basic-keys`, `captcha`, `config`, `context`, `entrypoint`, `log`, `mongo-resource`, `oidc`, `redis-resource`, `resource`, `server-api`, `server-auth`, `server-auth-identity`, `server-auth-otp`, `server-context`, `server-entrypoint`
 - [`server-oidc-rp`](packages/server-oidc-rp) → `auth`, `auth-common`, `basic-envelope`, `client-entrypoint`, `config`, `context`, `did`, `entrypoint`, `oidc`, `resource`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`
 - [`server-iam`](packages/server-iam) → `auth`, `context`, `entrypoint`, `error`, `iam`, `oidc`, `server-context`, `server-oidc-rp`
 - [`server-job`](packages/server-job) → `auth`, `auth-common`, `context`, `entrypoint`, `queue`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-socket`, `socket`
@@ -159,6 +164,8 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-payment`](packages/server-payment) → `auth`, `config`, `context`, `entrypoint`, `iam`, `mongo-resource`, `payment`, `resource`, `route`, `server-api`, `server-app`, `server-context`, `server-entrypoint`
 
 > **Note.** Several server packages depend on `client-config` / `client-entrypoint` for the shared entrypoint/config types that the server uses to mirror the client surface — see [Cross-layer notes](#cross-layer-notes).
+>
+> **Note.** `captcha` is server-side despite the missing prefix: Google's siteverify verifier, the lenient policy of `server-auth`'s `re-captcha` plugin (which `server-auth` re-exports under its historical names) and the strict challenge-less `makeCaptchaCheck`. `server-auth-email` serves e-mail sign-in through private plugins run by `server-auth`'s `makeAuthModel` with an exclusive list, over `server-auth-otp`'s PIN store and `server-auth-identity`'s linking.
 
 ## 8. Client packages (platform-agnostic)
 
@@ -195,10 +202,12 @@ Browser-specific React (DOM, IndexedDB) plus the Astro integration. The panel an
 - [`web-gtm`](packages/web-gtm) → `consent`
 - [`web-log`](packages/web-log) → `consent`, `log`
 - [`web-inquiry`](packages/web-inquiry) → `common-inquiry`, `log`
+- [`web-captcha`](packages/web-captcha) → *(no `@owlmeans/*` deps)*
 - [`web-client`](packages/web-client) → `auth`, `auth-common`, `client`, `client-auth`, `client-context`, `client-entrypoint`, `client-i18n`, `client-resource`, `client-route`, `config`, `context`, `error`, `i18n`, `route`, `web-db`, `web-router`
 - [`web-flow`](packages/web-flow) → `client`, `client-context`, `client-entrypoint`, `client-flow`, `client-resource`, `context`, `error`, `flow`
 - [`web-auth`](packages/web-auth) → `auth`, `auth-common`, `basic-ids`, `basic-keys`, `client`, `client-auth`, `client-flow`, `config`, `context`, `web-client`
 - [`web-auth-token`](packages/web-auth-token) → `auth-token`, `client`, `client-entrypoint`, `client-i18n`, `context`, `entrypoint`, `error`, `i18n`
+- [`web-auth-email`](packages/web-auth-email) → `api`, `auth`, `auth-common`, `auth-email`, `client`, `client-auth`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `config`, `context`, `entrypoint`, `error`, `i18n`, `log`, `web-captcha`
 - [`web-bot`](packages/web-bot) → `bot`, `client`, `client-entrypoint`, `client-i18n`, `entrypoint`, `error`, `i18n`, `log`
 - [`web-oauth`](packages/web-oauth) → `auth-common`, `client`, `client-auth`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `error`, `flow`, `i18n`, `oauth`, `route`
 - [`web-oidc-provider`](packages/web-oidc-provider) → `auth`, `client-flow`, `oidc`, `resource`, `web-client`
@@ -235,6 +244,7 @@ A handful of dependencies cross the obvious layer boundaries. They are intention
 - **`client-iam` → `web-client`, `web-oidc-rp`.** `client-iam` wires the IAM login and consent surface onto a browser app, so despite the `client-` prefix it is browser-only and Native applications do not consume it. Anything in it that must reach React Native belongs in `iam` or `client-auth` instead.
 - **`viable-sdk` → `api`, `client-context`, `client-entrypoint`, `auth-token`.** The connector SDK builds an OwlMeans client context so an external process authenticates and calls entrypoints exactly as a browser does — with a long-lived access token instead of a session. It is Node/Bun and pulls in no React or DOM, so despite the `client-*` edges it is not a client-layer package; it is tooling, and the closed-source `@owlmeans/viable-mcp` is the npx CLI over it.
 - **OAuth sign-in: `oauth` ← `server-oauth`, `web-oauth`, `cli-auth`.** `oauth` is the shared layer — constants, schemas, the consent protocols, the `oauthFlow` definition and fetch-only client helpers usable in any runtime. `server-oauth` is the authorization server (raw Fastify routes, `server-auth-token` for issuance), `web-oauth` the consent, device-code and done screens, `cli-auth` the command-line credential holder; none of the three depends on another. `web-oauth → client-auth` is the same browser-only edge as `client-iam`: the consent screen signs a person in through the dispatcher and is returned by `client-flow`'s landing.
+- **E-mail sign-in: `auth-email` ← `server-auth-email`, `web-auth-email`; captcha: `captcha` (server) / `web-captcha` (browser).** The same contract-and-halves split as OAuth. `web-auth-email → client-auth` is the browser-only edge again (its method plugin, login step and landing); it does NOT depend on `web-panel` — it ships private shadcn primitives like `web-auth-token`. `web-captcha` has no `@owlmeans/*` deps on purpose, so an embedded widget bundle can carry it without an ajv-pulling package index. `server-auth → captcha` exists only for the re-exported reCAPTCHA verifier and policy. `test-ui → auth-email, auth-common` (the e-mail tech client and form driver) is a test-helper edge, out of scope here.
 - **`web-auth`, `web-oidc-rp`, `client-auth` → `client-flow`.** After sign-in the dispatcher, the supervisor plugin and the Google plugin resume a flow suspended in `client-flow` (`suspendFlow` / `resumeSuspendedFlow`) instead of always navigating home; `web-auth` gained the direct edge, `client-auth` and `web-oidc-rp` already had it.
 - **Tooling → domain (`create-app` → `agent-skills` → `agent`, `llm`).** The scaffolder and the skills installer are CLIs, not framework layers: they sit in [Configuration & tooling](#1-configuration--tooling) but build after the packages they drive. No runtime framework package depends on either.
 - **`astro` → `consent`, `web-gtm`.** The Astro integration composes the browser consent and tag-manager packages for static sites; it is a web-layer package that ships no React.
@@ -246,18 +256,18 @@ If you add a new cross-layer dependency, document it here and explain why.
 
 Lower levels are compiled before higher ones. `bun run build` orchestrates this via workspace dependency resolution; you usually do not need to think about it. Useful when you suspect a build cycle or are reasoning about partial builds. SCCs (see [Cross-layer notes](#cross-layer-notes)) are listed as a single `{a | b | …}` group.
 
-- **L0** (no `@owlmeans/*` deps): `basic-ids`, `client-wl`, `common-inquiry`, `consent`, `context`, `dep-config`, `i18n`, `llm-common`
+- **L0** (no `@owlmeans/*` deps): `basic-ids`, `client-wl`, `common-inquiry`, `consent`, `context`, `dep-config`, `i18n`, `llm-common`, `web-captcha`
 - **L1**: `error`, `log`, `route`, `router`, `web-consent`, `web-gtm`
 - **L2**: `astro`, `auth`, `auth-otp`, `llm`, `mailer`, `resource`, `server-route`, `web-inquiry`, `web-router`, `web-router-react-router`
 - **L3**: `basic-keys`, `config`, `entrypoint`, `server-mailer-mailgun`, `socket`, `state`, `static-resource`, `storage-common`
-- **L4**: `api-config`, `auth-token`, `basic-envelope`, `bot`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
+- **L4**: `api-config`, `auth-token`, `basic-envelope`, `bot`, `captcha`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
 - **L5**: `agent-common`, `oauth`, `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
-- **L6**: `agent`, `api-config-client`, `cli-auth`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`
+- **L6**: `agent`, `api-config-client`, `auth-email`, `cli-auth`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`
 - **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-bot`, `server-oidc-provider`, `server-wl`, `web-db`
 - **L8**: `bot-agent`, `bot-postgres`, `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-common`, `web-wl`, `{server-auth | server-socket}`
 - **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oauth`, `server-oidc-rp`, `viable-sdk`, `web-auth-token`, `web-bot`, `web-flow`
-- **L10**: `client-auth`, `server-iam`, `server-payment`
-- **L11**: `client-job`, `client-panel`, `client-payment`, `web-client`, `web-oauth`
+- **L10**: `client-auth`, `server-auth-email`, `server-iam`, `server-payment`
+- **L11**: `client-job`, `client-panel`, `client-payment`, `web-auth-email`, `web-client`, `web-oauth`
 - **L12**: `mui-oidc-rp`, `mui-panel`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `web-panel`, `web-payment`
 - **L13**: `client-iam`
 
@@ -273,12 +283,13 @@ Dependencies flow downward: every package can only import from the layers below 
 
 ```
  ╔══════════════════════════════════════════════════════════════════════════════╗
- ║  WEB  (browser-specific React / DOM / shadcn / MUI / Astro)      L1–L12      ║
+ ║  WEB  (browser-specific React / DOM / shadcn / MUI / Astro)      L0–L12      ║
  ║                                                                              ║
  ║  web-panel        web-client      web-flow        web-router                 ║
  ║  web-oidc-rp      web-oidc-provider  web-auth     web-wl        web-db       ║
  ║  mui-panel        mui-oidc-rp     web-payment     web-consent    web-gtm      ║
  ║  astro            web-inquiry     web-bot                                    ║
+ ║  web-auth-email   web-captcha (no @owlmeans deps)                            ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  CLIENT  (platform-agnostic React — web + React Native)          L0–L13      ║
  ║                                                                              ║
@@ -297,6 +308,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  server-auth-identity  server-auth-otp  server-iam   server-job              ║
  ║  server-entrypoint  server-route  server-context   server-config             ║
  ║  server-wl        server-payment  server-bot       bot-agent                 ║
+ ║  server-auth-email  captcha (server-side, no prefix)                         ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  STORAGE & INFRASTRUCTURE                                         L3–L8      ║
  ║                                                                              ║
@@ -310,9 +322,10 @@ Dependencies flow downward: every package can only import from the layers below 
  ║                                                                              ║
  ║  api              api-config      api-config-client  api-config-server       ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
- ║  AUTH SHARED                                                          L5     ║
+ ║  AUTH SHARED                                                      L5–L6      ║
  ║                                                                              ║
  ║  auth-common  (bridges core auth ↔ server + client entrypoint surfaces)      ║
+ ║  auth-email   (e-mail sign-in contracts: tree, schemas, errors)              ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  CROSS-CUTTING DOMAIN  (environment-agnostic domain logic)        L0–L7      ║
  ║                                                                              ║
@@ -339,8 +352,9 @@ Dependencies flow downward: every package can only import from the layers below 
   L13  █ client-iam
   L12  ███████ mui-oidc-rp  mui-panel  web-auth  web-oidc-provider
                web-oidc-rp  web-panel  web-payment
-  L11  █████ client-job  client-panel  client-payment  web-client  web-oauth
-  L10  ███ client-auth  server-iam  server-payment
+  L11  ██████ client-job  client-panel  client-payment  web-auth-email  web-client
+               web-oauth
+  L10  ████ client-auth  server-auth-email  server-iam  server-payment
    L9  ██████ server-app  server-auth-otp  server-job  server-oauth  server-oidc-rp
                web-auth-token  web-bot  web-flow
    L8  █████████ bot-agent  bot-postgres  client-did  client-flow  client-i18n  client-socket
@@ -349,20 +363,20 @@ Dependencies flow downward: every package can only import from the layers below 
    L7  █████████████ agent-skills  api-config-server  client  iam  image-resource
                 mongo  postgres  redis  server-auth-identity  server-bot
                 server-oidc-provider  server-wl  web-db
-   L6  ████████████ agent  api-config-client  cli-auth  client-resource  kluster  mailer-smtp
-                mongo-resource  oidc  postgres-resource  queue  redis-resource
+   L6  █████████████ agent  api-config-client  auth-email  cli-auth  client-resource  kluster
+                mailer-smtp  mongo-resource  oidc  postgres-resource  queue  redis-resource
                 server-api  storage-resource
    L5  ████ agent-common  oauth  payment  server-context
         █████████████ {api ↔ auth-common ↔ client-context ↔ client-entrypoint ↔ client-route}
-   L4  █████████ api-config  basic-envelope  bot  client-config  did  flow
+   L4  ██████████ api-config  basic-envelope  bot  captcha  client-config  did  flow
                 server-config  server-entrypoint  wled
    L3  ████████ basic-keys  config  entrypoint  server-mailer-mailgun  socket
                 state  static-resource  storage-common
    L2  ██████████ astro  auth  auth-otp  llm  mailer  resource  server-route
                 web-inquiry  web-router  web-router-react-router
    L1  █████ error  route  router  web-consent  web-gtm
-   L0  ████████ basic-ids  client-wl  common-inquiry  consent  context  dep-config
-               i18n  llm-common
+   L0  █████████ basic-ids  client-wl  common-inquiry  consent  context  dep-config
+               i18n  llm-common  web-captcha
         ▲
         └── no @owlmeans/* deps — compile first
 ```

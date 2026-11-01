@@ -101,6 +101,13 @@ advertising it.
 - `supervisorAuthHelper.pregenerateAuthToken({ userId, pk, scopes?, role?, profileId?, source?, ... })` — offline mint via
   `@owlmeans/test-auth`'s `makeBearer`, using the project's **own** trusted signing key (lowest-level
   primitive). No plugin, no registration.
+- `makeEmailTechClient({ apiUrl, privateKey })` + `makePageHelper(page).loginViaEmailForm({ baseUrl,
+  email, rewritePin, waiver })` — the browser sign-in of an app that offers e-mail sign-in
+  (`@owlmeans/web-auth-email`): the same supervisor private key signs that package's developer
+  routes (`GUARD_ED25519`, the record named in the server's `tech.signers`), which rewrite the
+  mailed PIN and waive the captcha — no mailbox. Provision first with
+  `authenticateViaSupervisorApi` (registration, plan, credits): the identity store keeps one account
+  per address, so the e-mail sign-in lands on the account the supervisor login provisioned.
 
 `makePageHelper(page).loginViaSupervisorForm` answers a cookie-consent dialog by default (`consent: 'accept'`): an
 OwlMeans app refuses to start an authentication flow until consent is answered, and the modal

@@ -1,7 +1,7 @@
 ---
 node: auth
 scope: "packages/auth/**, packages/client-auth/**, packages/server-auth/**, packages/server-auth-identity/**, packages/web-client/src/login/**"
-updated: 2026-10
+updated: 2026-11
 ---
 
 # Auth (common auth packages, and product-viable's use of them)
@@ -19,9 +19,12 @@ updated: 2026-10
 ## Facts
 
 - product-viable consumes `auth`, `auth-common`, `client-auth`, `oidc`, `server-auth`,
-  `server-auth-identity`, `server-oidc-rp`, `web-oidc-rp`; its targets use `client-iam` / `server-iam`.
+  `server-auth-identity`, `server-oidc-rp`, `web-oidc-rp`, and for the manager's e-mail sign-in
+  `auth-email`, `server-auth-email`, `web-auth-email`, `captcha`, `web-captcha`; its targets use
+  `client-iam` / `server-iam`.
 - Browser login: `client-auth` + side-effect import `@owlmeans/web-oidc-rp/auth/plugins`;
-  Google uses `GOOGLE_CLIENT_AUTH` and `GOOGLE_SERVICE = 'google'`.
+  Google uses `GOOGLE_CLIENT_AUTH` and `GOOGLE_SERVICE = 'google'`. E-mail sign-in is explicit
+  (`appendEmailLogin`), never a side-effect import.
 - **Two plugin registries.** `client-auth/manager/plugins` (`AuthenticationPlugin`) = *how* identity
   is proven; `client-auth/login` (`LoginPlugin`, `context.login()`, cascade over `LoginEnv`) = *where*
   the round trip runs — redirect (0) and surrogate-window (100). Rules: `login-plugins` skill.
@@ -43,6 +46,10 @@ updated: 2026-10
 
 - `Resource.take()` is delete-and-return — never in an auth gate or a read-only identity check;
   `load(where)` answers a multi-field lookup in one call ([[resources]]).
+- A freshly signed sign-in token is refused by the bearer exchange's body schema (`/authenticate`)
+  → the plugin returned `token: ''`, so the signed token carried the whole wrapped challenge and
+  outgrew the shared 1024-char `AuthTokenSchema` (the e-mail PIN challenge does) → return a short
+  single-use digest as `token` (`server-auth-email`'s `spendKey`; rule in `server-auth` → Rules).
 - `makeAuthModel().authenticate()` burns the DECODED challenge into `AUTH_CACHE` (create-once) before
   the plugin's check: a challenge not unique per request makes the second attempt 500 with
   `AuthenFailed` wrapping `RecordExists`, not the plugin's error (`server-auth-otp` skill).
