@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/dep-config",
-  "version": "0.1.19-rc.0",
+  "version": "0.1.19",
   "description": "Shared TypeScript configuration and build-time license notices for @owlmeans packages",
   "license": "MIT",
   "type": "module",

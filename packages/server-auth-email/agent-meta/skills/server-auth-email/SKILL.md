@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-auth-email
 
 **Layer:** Server (L10)
-**Install:** `"@owlmeans/server-auth-email": "^0.1.19-rc.0"` in `dependencies` (`mongodb` peer)
+**Install:** `"@owlmeans/server-auth-email": "^0.1.19"` in `dependencies` (`mongodb` peer)
 **Contracts:** `@owlmeans/auth-email` (tree, schemas, constants) · **Browser:** `@owlmeans/web-auth-email`
 
 ## Wiring

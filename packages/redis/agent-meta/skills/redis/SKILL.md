@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/redis
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis": "^0.1.19-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/redis": "^0.1.19"` in `dependencies`
 
 The connection half. The `Resource` contract over those connections is `@owlmeans/redis-resource`;
 queues on them are `@owlmeans/redis-queue`.

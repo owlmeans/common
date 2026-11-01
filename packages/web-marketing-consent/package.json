@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-marketing-consent",
-  "version": "0.1.19-rc.0",
+  "version": "0.1.19",
   "license": "MIT",
   "description": "The browser half of @owlmeans/marketing-consent — the post-sign-in privacy-choices screen, a reusable settings-card body, the login step and terms landing hook that wire it into @owlmeans/client-auth.",
   "type": "module",
@@ -23,19 +23,19 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.19-rc.0",
-    "@owlmeans/auth-common": "^0.1.19-rc.0",
-    "@owlmeans/client": "^0.1.19-rc.0",
-    "@owlmeans/client-auth": "^0.1.19-rc.0",
-    "@owlmeans/client-context": "^0.1.19-rc.0",
-    "@owlmeans/client-entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/client-i18n": "^0.1.19-rc.0",
-    "@owlmeans/config": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.19-rc.0",
-    "@owlmeans/entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/i18n": "^0.1.19-rc.0",
-    "@owlmeans/marketing-consent": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.19-rc.0"
+    "@owlmeans/auth": "^0.1.19",
+    "@owlmeans/auth-common": "^0.1.19",
+    "@owlmeans/client": "^0.1.19",
+    "@owlmeans/client-auth": "^0.1.19",
+    "@owlmeans/client-context": "^0.1.19",
+    "@owlmeans/client-entrypoint": "^0.1.19",
+    "@owlmeans/client-i18n": "^0.1.19",
+    "@owlmeans/config": "^0.1.19",
+    "@owlmeans/context": "^0.1.19",
+    "@owlmeans/entrypoint": "^0.1.19",
+    "@owlmeans/i18n": "^0.1.19",
+    "@owlmeans/marketing-consent": "^0.1.19",
+    "@owlmeans/route": "^0.1.19"
   },
   "peerDependencies": {
     "@radix-ui/react-label": "*",
@@ -48,11 +48,11 @@
     "tailwindcss": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19-rc.0",
-    "@owlmeans/test-auth": "^0.1.19-rc.0",
-    "@owlmeans/test-ui": "^0.1.19-rc.0",
-    "@owlmeans/web-client": "^0.1.19-rc.0",
-    "@owlmeans/web-flow": "^0.1.19-rc.0",
+    "@owlmeans/dep-config": "^0.1.19",
+    "@owlmeans/test-auth": "^0.1.19",
+    "@owlmeans/test-ui": "^0.1.19",
+    "@owlmeans/web-client": "^0.1.19",
+    "@owlmeans/web-flow": "^0.1.19",
     "@radix-ui/react-label": "^2.1.17",
     "@radix-ui/react-slot": "^1.5.0",
     "@tailwindcss/vite": "^4.3.3",

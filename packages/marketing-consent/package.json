@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/marketing-consent",
-  "version": "0.1.19-rc.0",
+  "version": "0.1.19",
   "license": "MIT",
   "description": "Shared marketing-consent contracts — the standard opt-in/opt-out consent catalogue, revision-aware status resolution, terms acceptance and the guarded consent-surface protocol tree.",
   "type": "module",
@@ -23,19 +23,19 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.19-rc.0",
-    "@owlmeans/entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.19-rc.0",
-    "@owlmeans/error": "^0.1.19-rc.0",
-    "@owlmeans/i18n": "^0.1.19-rc.0"
+    "@owlmeans/context": "^0.1.19",
+    "@owlmeans/entrypoint": "^0.1.19",
+    "@owlmeans/route": "^0.1.19",
+    "@owlmeans/error": "^0.1.19",
+    "@owlmeans/i18n": "^0.1.19"
   },
   "peerDependencies": {
     "ajv": "*",
     "ajv-formats": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19-rc.0",
-    "@owlmeans/test": "^0.1.19-rc.0",
+    "@owlmeans/dep-config": "^0.1.19",
+    "@owlmeans/test": "^0.1.19",
     "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",

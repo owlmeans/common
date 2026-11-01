@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/basic-keys",
-  "version": "0.1.19-rc.0",
-  "generatedAt": "2026-10-31T12:13:02.350Z",
+  "version": "0.1.19",
+  "generatedAt": "2026-11-01T22:22:22.267Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

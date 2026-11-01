@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/oidc",
-  "version": "0.1.19-rc.0",
+  "version": "0.1.19",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,20 +21,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.19-rc.0",
-    "@owlmeans/auth-common": "^0.1.19-rc.0",
-    "@owlmeans/basic-envelope": "^0.1.19-rc.0",
-    "@owlmeans/config": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.19-rc.0",
-    "@owlmeans/entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/resource": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.19-rc.0"
+    "@owlmeans/auth": "^0.1.19",
+    "@owlmeans/auth-common": "^0.1.19",
+    "@owlmeans/basic-envelope": "^0.1.19",
+    "@owlmeans/config": "^0.1.19",
+    "@owlmeans/context": "^0.1.19",
+    "@owlmeans/entrypoint": "^0.1.19",
+    "@owlmeans/resource": "^0.1.19",
+    "@owlmeans/route": "^0.1.19"
   },
   "peerDependencies": {
     "ajv": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19-rc.0",
+    "@owlmeans/dep-config": "^0.1.19",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

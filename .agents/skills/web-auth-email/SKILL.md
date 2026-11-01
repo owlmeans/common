@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-auth-email
 
 **Layer:** Web (L11 — `client-auth`, `client-entrypoint`, `client-i18n`, `web-captcha`, `auth-email`; NOT `web-panel`)
-**Install:** `"@owlmeans/web-auth-email": "^0.1.19-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/web-auth-email": "^0.1.19"` in `dependencies`
 **Peers:** React, `react-dom`, `@radix-ui/react-{label,slot}`, `class-variance-authority`, `clsx`,
 `lucide-react`, `tailwind-merge`, `tailwindcss`
 

@@ -34,8 +34,7 @@ updated: 2026-10
   breaks every browser spec since React demands exact-equal `react`/`react-dom`). Keep each
   package's `devDependencies` inside its own `peerDependencies` range; Dependabot's dev-dependency
   group bumps ignore that pairing. Full diagnosis recipe in the `bun` skill.
-- `bun.lock` is gitignored — dependency-bump merges never conflict on it, and every `bun install`
-  silently re-resolves floating ranges.
+- `bun.lock` is tracked. Release sweeps update its workspace metadata and verify frozen installs.
 - **A lockfile's `workspaces` entries keep the ranges they were first written with.** Bun 1.4 never
   rewrites a workspace entry's declared range when only the manifest's range moves — `bun install`,
   `--lockfile-only` and `--frozen-lockfile` all answer "no changes" — so after a release sweep the

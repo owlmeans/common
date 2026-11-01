@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/web-captcha",
-  "version": "0.1.19-rc.0",
-  "generatedAt": "2026-11-01T17:08:08.485Z",
+  "version": "0.1.19",
+  "generatedAt": "2026-11-01T22:22:22.310Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

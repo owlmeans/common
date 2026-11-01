@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/redis-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis-resource": "^0.1.19-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/redis-resource": "^0.1.19"` in `dependencies`
 
 ## Key Exports
 

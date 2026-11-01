@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/storage-common",
   "type": "module",
-  "version": "0.1.19-rc.0",
+  "version": "0.1.19",
   "license": "MIT",
   "scripts": {
     "build": "tsc -b",
@@ -24,11 +24,11 @@
     "ajv": "*"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.19-rc.0",
-    "@owlmeans/error": "^0.1.19-rc.0"
+    "@owlmeans/auth": "^0.1.19",
+    "@owlmeans/error": "^0.1.19"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19-rc.0",
+    "@owlmeans/dep-config": "^0.1.19",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

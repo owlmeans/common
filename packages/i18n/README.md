@@ -11,7 +11,7 @@ Multi-level translation resource registration for OwlMeans applications.
 ## Installation
 
 ```bash
-bun add @owlmeans/i18n@^0.1.19-rc.0
+bun add @owlmeans/i18n@^0.1.19
 ```
 
 ## Usage
@@ -72,7 +72,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.19-rc.0
+npx @owlmeans/agent-skills@^0.1.19
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

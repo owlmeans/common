@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/viable-common",
-  "version": "0.1.19-rc.1",
+  "version": "0.1.19",
   "license": "MIT",
   "description": "Runtime-free contracts of the OwlMeans Viable platform — the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary, the connector protocol, the owner console's IAM contract and the conversion vocabulary, and the intent-first hand-off from the public site to the platform.",
   "type": "module",
@@ -73,26 +73,26 @@
   },
   "devDependencies": {
     "@langchain/core": "^1.3.1",
-    "@owlmeans/dep-config": "^0.1.19-rc.0",
+    "@owlmeans/dep-config": "^0.1.19",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/agent-common": "^0.1.19-rc.0",
-    "@owlmeans/auth": "^0.1.19-rc.0",
-    "@owlmeans/auth-common": "^0.1.19-rc.0",
-    "@owlmeans/bot": "^0.1.19-rc.0",
-    "@owlmeans/context": "^0.1.19-rc.0",
-    "@owlmeans/entrypoint": "^0.1.19-rc.0",
-    "@owlmeans/error": "^0.1.19-rc.0",
-    "@owlmeans/flow": "^0.1.19-rc.0",
-    "@owlmeans/iam": "^0.1.19-rc.0",
-    "@owlmeans/llm-common": "^0.1.19-rc.0",
-    "@owlmeans/planning": "^0.1.19-rc.0",
-    "@owlmeans/resource": "^0.1.19-rc.0",
-    "@owlmeans/route": "^0.1.19-rc.0"
+    "@owlmeans/agent-common": "^0.1.19",
+    "@owlmeans/auth": "^0.1.19",
+    "@owlmeans/auth-common": "^0.1.19",
+    "@owlmeans/bot": "^0.1.19",
+    "@owlmeans/context": "^0.1.19",
+    "@owlmeans/entrypoint": "^0.1.19",
+    "@owlmeans/error": "^0.1.19",
+    "@owlmeans/flow": "^0.1.19",
+    "@owlmeans/iam": "^0.1.19",
+    "@owlmeans/llm-common": "^0.1.19",
+    "@owlmeans/planning": "^0.1.19",
+    "@owlmeans/resource": "^0.1.19",
+    "@owlmeans/route": "^0.1.19"
   },
   "publishConfig": {
     "access": "public"
