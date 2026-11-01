@@ -13,6 +13,10 @@
     "file": "licenses/drizzle-orm-0.45.3.txt",
     "source": "https://raw.githubusercontent.com/drizzle-team/drizzle-orm/0.45.3/LICENSE"
   },
+  "drizzle-orm@0.45.4": {
+    "file": "licenses/drizzle-orm-0.45.3.txt",
+    "source": "https://raw.githubusercontent.com/drizzle-team/drizzle-orm/0.45.4/LICENSE"
+  },
   "embla-carousel-react@8.6.0": {
     "file": "licenses/embla-carousel-8.6.0.txt",
     "source": "https://raw.githubusercontent.com/davidjerleke/embla-carousel/0fe65834136f1aa35e4c1a4a477e5ccb4bb5ee54/LICENSE"
