@@ -71,6 +71,8 @@ export const EmailLoginScreen: FC<EmailLoginScreenProps> = props => {
   </div>
 
   const link = 'h-11 px-2 text-sm'
+  // A tertiary button: no fill and no visible border until hovered, the primary text colour kept.
+  const tertiary = 'h-11 px-3 text-sm text-primary border border-transparent hover:border-border hover:text-primary'
 
   const step = (() => {
     switch (state.step) {
@@ -176,9 +178,9 @@ export const EmailLoginScreen: FC<EmailLoginScreenProps> = props => {
           </SubmitButton>
           {model.passwordOffered && <Button
             type="button"
-            variant="link"
+            variant="ghost"
             data-email-login-use-password
-            className={link}
+            className={tertiary}
             onClick={model.choosePassword}
           >
             {t('login.use-password', 'Already set a password? Use it')}
