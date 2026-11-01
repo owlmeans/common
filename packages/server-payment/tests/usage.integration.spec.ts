@@ -6,6 +6,8 @@ import type { Booted } from './context.js'
 import { CREDITS_PRODUCT, eventOf, makeFakeStripe, PRO, subscriptionOf, TEAM } from './fake-stripe.js'
 import { paymentAccessOf } from '../src/access.js'
 import { webhookOf } from '../src/plugins/webhook-manager.js'
+import { EntitlementGrantKind, EntitlementGrantStatus } from '../src/consts.js'
+import type { LimitOutcome } from '../src/types.js'
 
 const suite = makeSuite('payusage')
 const it = gate.skip ? test.skip : test
@@ -79,6 +81,36 @@ describe('@owlmeans/server-payment — usage ledger on Mongo', () => {
     expect(await paymentAccessOf(ctx).usageEvents().count({ entityId: 'dup-1', limitKey: 'exports' })).toBe(1)
     expect((await paymentAccessOf(ctx).usageCounters().load({ entityId: 'dup-1', limitKey: 'exports' }))?.used).toBe(1)
     expect((await paymentAccessOf(ctx).entitlements().consumptionByRef('dup-1', 'exports', 'same'))?.eventKey).toBe('export:same')
+  }, 60_000)
+
+  it('admits a grant\'s units after the plan, exactly, under concurrency — through the grant validator', async () => {
+    const { ctx } = booted
+    const access = paymentAccessOf(ctx)
+    await access.gateway().grantInternalPlan(ctx, 'grant-1', BURST_PLAN, { force: true })
+    const grant = await access.grants().grant('grant-1', {
+      kind: EntitlementGrantKind.Units, limitKey: 'burst', amount: 3, ref: 'op-1',
+    })
+    const results = await Promise.allSettled(Array.from({ length: 20 }, async (_, index) =>
+      await access.entitlements().consume({ entityId: 'grant-1', limitKey: 'burst', eventKey: `burst:${index}` })))
+
+    const admitted = results.filter((result): result is PromiseFulfilledResult<LimitOutcome> => result.status === 'fulfilled')
+    expect(admitted).toHaveLength(8)
+    expect(admitted.filter(result => result.value.window === `grant:${grant.id}`)).toHaveLength(3)
+    const refused = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    expect(refused.every(result => result.reason instanceof LimitExhausted)).toBe(true)
+    expect((await access.grants().get(grant.id!))?.used).toBe(3)
+    expect((await access.usageCounters().load({ entityId: 'grant-1', limitKey: 'burst' }))?.used).toBe(5)
+    expect(await access.usageEvents().count({ entityId: 'grant-1', limitKey: 'burst' })).toBe(8)
+    expect(await access.entitlements().limitState('grant-1', 'burst')).toMatchObject({ limit: 8, used: 8, remaining: 0 })
+
+    await access.grantRecords().collection.updateOne({ entityId: 'grant-1' }, { $set: { used: 9 } })
+    await access.entitlements().reconcileCounters('grant-1')
+    expect((await access.grants().get(grant.id!))?.used).toBe(3)
+    expect(await access.usageCounters().count({ entityId: 'grant-1', window: `grant:${grant.id}` })).toBe(0)
+
+    const revoked = await access.grants().revoke(grant.id!)
+    expect(revoked).toMatchObject({ changed: true, grant: { status: EntitlementGrantStatus.Revoked, used: 3 } })
+    expect(await access.entitlements().limitState('grant-1', 'burst')).toMatchObject({ limit: 5, used: 5, remaining: 0 })
   }, 60_000)
 
   it('recomputes counters to the ledger sum and reconciles occupancy', async () => {

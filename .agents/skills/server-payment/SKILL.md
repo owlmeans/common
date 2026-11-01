@@ -1,6 +1,6 @@
 ---
 name: server-payment
-description: Public in-process Stripe gateway for OwlMeans backends — amount and quantity checkout, subscriptions, the checkout plugin seam (per-entity narrowing, admission, holds), protocol-bound webhook routes, product sync with per-currency prices, fulfillment observers, entitlement gates, and the EU consumer-rights service (country lock, purchases and withdrawal windows, spend consent, subscription start requests, the withdrawal and cancellation functions with automatic refunds and credit notes, durable-medium mails, reconcile). Use when wiring @owlmeans/server-payment or changing Stripe payment behavior.
+description: Public in-process Stripe gateway for OwlMeans backends — amount and quantity checkout, subscriptions, the checkout plugin seam (per-entity narrowing, admission, holds), protocol-bound webhook routes, product sync with per-currency prices, fulfillment observers, entitlement gates, internal plan grants and revokes, entitlement grants (payment-grant units and capabilities beside the plan), and the EU consumer-rights service (country lock, purchases and withdrawal windows, spend consent, subscription start requests, the withdrawal and cancellation functions with automatic refunds and credit notes, durable-medium mails, reconcile). Use when wiring @owlmeans/server-payment or changing Stripe payment behavior.
 user-invocable: false
 ---
 
@@ -85,7 +85,8 @@ paymentAccessOf(context).observer().onSubscription(async event => { /* keyed by 
   `.use(plugin)`) needs the initialized context.
 - **`manage: false`** registers the same surface with no Stripe client: no bootstrap at init, and
   `createLink`, `portalLink`, `resyncSubscription`, `resyncAll`, the webhook route, `withdraw` and
-  `cancel` throw `PaygateError('unmanaged')`. `grantInternalPlan`, the entitlement service,
+  `cancel` throw `PaygateError('unmanaged')`. `grantInternalPlan`, `revokeInternalPlan`, the
+  entitlement grants, the entitlement service,
   `amountPolicy`, `planPrices` and the consumer-rights reads, `recordConsent`,
   `recordStartRequest` and `assertConsent` work, because they are Mongo only.
 - **Three keys of a deployment's Stripe state**, each a `PaymentGatewayOptions` field, each read
@@ -152,6 +153,7 @@ None declares an ObjectId reference: `entityId` is an organization key and every
 | `payment-webhook` | managed webhook endpoint of an owner (`service` = the gateway's `owner`; `secret` is `secure: true`) | `{paygate, service, url}` unique |
 | `payment-usage` | usage event — the ledger | `{entityId, limitKey, eventKey}` unique · `{entityId, limitKey, window}` · `{entityId, limitKey, ref}` sparse · `{entityId, createdAt:-1}` |
 | `payment-usage-counter` | (entity, limit, window) projection | `{entityId, limitKey, window}` unique |
+| `payment-grant` | entitlement grant beside the plan: `kind` (`units` / `capability`), `limitKey`, `capability`, `amount`, `used`, `startsAt`, `endsAt?`, `status` (`active` / `revoked`), `ref`, `note`, `revokedAt` | (§ Entitlement grants) |
 | `payment-fingerprint` | synchronized product (`<productSku>`, with `prices[]`) or portal (`portal:<owner>`) | `{sku}` unique |
 | `payment-billing-profile` | organization: the billing country fixed at the first purchase | `{entityId}` unique · `{paygate, customerId}` sparse |
 | `payment-purchase` | purchase = contract + withdrawal window (a paid one-time checkout, a subscription's first invoice) | `{purchaseId}` unique · `{contractRef}` unique · `{entityId, deadline:-1}` · `{entityId, purchasedAt:-1}` · `{sessionId}` unique sparse · `{paygate, subscriptionId}` · `{invoiceId}` · `{invoiceNumber}` · `{paygate, paymentIntentId}` |
@@ -357,8 +359,17 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
   `downgraded` · `cancel-scheduled` · `cancel-undone` · `renewed` (once per invoice) · `past-due` ·
   `suspended` · `trial-ending`.
 - A repeated delivery (`lastEventId`) is ignored; an older payload than the stored state is not
-  applied. `grantInternalPlan(ctx, entityId, planSku, { force?, periodEnd? })` upserts an internal
-  row; `resyncSubscription` / `resyncAll` re-read and apply as a webhook would.
+  applied. `resyncSubscription` / `resyncAll` re-read and apply as a webhook would.
+- **Internal plans** (`paygate: INTERNAL_PAYGATE`, row `internal:<planSku>:<entityId>`; Mongo only,
+  so they work unmanaged): `gateway.grantInternalPlan(ctx, entityId, planSku, { force?, periodEnd? })`
+  upserts the row — the free plan, or any plan with `force: true` (else `ProductError`); `periodEnd`
+  is when it stops entitling (absent: never). A re-grant of a row that stopped entitling (revoked,
+  or past its period end) RE-ACTIVATES the same row: `createdAt` stays the first grant's (subscription
+  windows, credit frames and grandfathered promos keep their anchor), `restartedAt` is stamped, and
+  observers hear `created` again under a key carrying `restartedAt`; a restart whose observers
+  failed is told again by the next grant. `gateway.revokeInternalPlan(ctx, entityId, planSku)` ends it
+  now — `status: canceled`, `canceledAt` = now, `periodEnd` = `endedAt` = now (or the period end
+  already past) — observers hear `canceled`; idempotent, answers whether anything changed.
 
 ## The usage ledger
 
@@ -368,6 +379,36 @@ admission reads. `consume` increments the counter FIRST by one conditional upser
 key is idempotent; `release` appends `release:<eventKey>` first. `reconcileCounters`,
 `reconcileOccupancy`, `reconcileOf(ctx).reconcileEntity` and `.reconcileAll` repair it (details: the `entitlements`
 skill).
+
+## Entitlement grants
+
+`entitlementGrantsOf(ctx)` (also `paymentAccessOf(ctx).grants()`; resource `payment-grant`,
+`RES_PAYMENT_GRANT`, registered with the other payment resources; Mongo only) gives ONE organization
+units or a capability beside its plan:
+
+- `grant(entityId, { kind, limitKey?, amount?, capability?, startsAt?, endsAt?, ref?, note? })` —
+  `units` needs a limit key some declared plan has (`LimitUnknown`) and a positive safe integer
+  `amount`; `capability` (required for `capability`, optional on `units` — the capability those
+  units need) is `scope:permission[>=n]`, never under the `limit` scope. `revoke(grantId,
+  { entityId? })` (idempotent; `entityId` refuses another organization's), `get`, `list(entityId,
+  { active?, at?, kind?, limitKey? })` (newest first), `inForce(entityId, at?)`.
+- In force while `active` from `startsAt` until `endsAt` (exclusive); revoked or ended → ignored at
+  read time: its used units stay consumed, its unused ones are gone.
+- **Units are consumed AFTER the plan's allowance**: `consumeLimit` takes from the plan counter while
+  it has room, else from the first units grant in force with room (earliest end first, then oldest),
+  the event written in the grant's window `grant:<grantId>` (`GRANT_WINDOW_PREFIX`,
+  `grantFoldHelper.windowOf`); `releaseLimit` gives a unit back to where it came from.
+  `reconcileCounters` (and `reconcileOf(ctx).reconcileEntity` / `.reconcileAll`) rebuilds each units
+  grant's `used` from its `grant:<id>` events; `reconcileOccupancy` holds what the grants say and brings the plan counter to the rest, so a unit
+  of a revoked grant falls back on the plan (over-limit → the application's grace).
+- **Folded, never a new field**: `limitState`, the consume outcome and the entitlement view read
+  `limit + Σ amount`, `used + Σ used`, `remaining` (`grantFoldHelper.foldLimitView`); capability
+  grants (and a units grant's capability) are merged into the effective plan by
+  `resolveEffectivePlan` (`grantFoldHelper.withCapabilities`: the grant's row replaces a promo's or a
+  smaller one, a plan that already covers it is left alone).
+- Every grant and revoke tells `onEntitlementGrant` (`EntitlementGrantEvent`: `grant`, `change`
+  `granted` / `revoked`, key `grant:<id>:<change>`) in the process that wrote it; a throw is logged
+  and never undoes the grant — an application that provisions on it also reconciles nightly.
 
 ## Entitlements and gates
 
@@ -582,6 +623,7 @@ refund touches the purchase only when it is of the purchase's own (first) invoic
 | `onConsent` | `ConsentEvent` (`kind`, `consentId`, `purchaseIds`, `planSku`) | `consent:<id>` | recorded; `reconcile` retries |
 | `onWithdrawal` | `WithdrawalEvent` (`status`, `purchase: PurchaseRef`, `refund`, `units`, `subscriptionCanceled`) | `withdrawal:<id>` | recorded; `reconcile` retries |
 | `onCancellation` | `CancellationEvent` (`matched`, `kind`, `status`, `effectiveAt`) | `cancellation:<id>` | recorded; `reconcile` retries |
+| `onEntitlementGrant` | `EntitlementGrantEvent` (`grant`, `change`) | `grant:<id>:<granted\|revoked>` | logged; the grant stands |
 
 Every callback must be idempotent by its key. A proportional claw-back of an ordinary top-up
 refund uses `netAmountMinor * refundedTotalMinor / paidMinor`.

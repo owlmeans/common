@@ -6,8 +6,9 @@ import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import type { ServiceRoute } from '@owlmeans/server-route'
 import type { Connection } from '@owlmeans/socket'
 import type { StaticResourceAppend } from '@owlmeans/static-resource'
+import type { AuthServiceConfig } from '../types.js'
 
-export interface AppConfig extends ServerConfig, KlusterConfig {
+export interface AppConfig extends ServerConfig, KlusterConfig, AuthServiceConfig {
   services: Record<string, ServiceRoute>
 }
 

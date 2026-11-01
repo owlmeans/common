@@ -6,7 +6,8 @@ export interface SubscriptionHelper {
   propagatedStateOf: (record: PaymentSubscriptionRecord, renewedInvoiceId?: string) => PropagatedState
   /**
    * What one subscription change means — the first rule that matches:
-   * `created` (first entitling state ever propagated), `canceled`, `paused`, `resumed`,
+   * `created` (first entitling state ever propagated, or an entitling state under `opts.restart`),
+   * `canceled`, `paused`, `resumed`,
    * `upgraded`/`downgraded` (plan change by rank; equal rank reads as an upgrade),
    * `cancel-scheduled`, `cancel-undone`, `renewed` (once per invoice), `past-due`, `suspended`,
    * `trial-ending`; otherwise nothing an observer is told about.
@@ -14,10 +15,19 @@ export interface SubscriptionHelper {
   classifySubscriptionChange: (
     previous: PropagatedState | null, current: PaymentSubscriptionRecord, opts?: CommitOptions,
   ) => SubscriptionChange | null
-  /** The idempotency key a consumer keys the side effect of a change by. */
+  /**
+   * The idempotency key a consumer keys the side effect of a change by. A `created` key is
+   * `subscription:<id>:created:<createdAt ISO>`, plus `:<restartedAt ISO>` for a row that began
+   * entitling again after it ended.
+   */
   subscriptionEventKey: (record: PaymentSubscriptionRecord, change: SubscriptionChange, opts?: CommitOptions) => string
   /** Whether a row's stored state changed in a field that matters. */
   materiallyDiffers: (previous: PaymentSubscriptionRecord, next: PaymentSubscriptionRecord) => boolean
+  /**
+   * Whether a row entitles at `at`: an entitling status and, for an internal grant, a period end
+   * still ahead (a paygate row's period end never stops it — its paygate does).
+   */
+  entitlesAt: (record: PaymentSubscriptionRecord, at: Date) => boolean
   /** Whether a row's classification inputs differ from what was last propagated. */
   stateDiffers: (state: PropagatedState, record: PaymentSubscriptionRecord) => boolean
 }

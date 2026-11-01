@@ -1,6 +1,6 @@
 ---
 name: server-auth-identity
-description: How to use @owlmeans/server-auth-identity — the Mongo-backed identity store shared by a deployment's own sign-in and the apps it hosts. One account per e-mail (every sign-in method a credential on it), a personal organization per account, profile rows per (account, app, organization) with a computed profileId, organization groups, the IdentityLinkingService for the deployment's own app, the identityOf(ctx) ensureAccount / ensureProfile primitives, the EntityResolverService with field-level rename/mintName, and the identity-events seam (entity created, profile created). Auto-invoked when importing appendAuthIdentityResources, an identity resource alias, IdentityLinkingService, identityOf/identityKeyHelper, the org group helpers (orgGroupsOf), the entity resolver or identityEvents.
+description: How to use @owlmeans/server-auth-identity — the Mongo-backed identity store shared by a deployment's own sign-in and the apps it hosts. One account per e-mail (every sign-in method a credential on it), a personal organization per account, profile rows per (account, app, organization) with a computed profileId, organization groups, the IdentityLinkingService for the deployment's own app, the identityOf(ctx) ensureAccount / ensureProfile primitives, the EntityResolverService with field-level rename/mintName, the identity-events seam (entity created, profile created), and the account state (accountStateOf — the ban, an app's primary-row block, signedInAt, the account:disabled / profile:disabled refusals). Auto-invoked when importing appendAuthIdentityResources, an identity resource alias, IdentityLinkingService, identityOf/identityKeyHelper, the org group helpers (orgGroupsOf), the entity resolver, identityEvents or accountStateOf.
 user-invocable: false
 ---
 
@@ -29,6 +29,8 @@ serves the deployment's own app and every app it hosts (a platform's generated t
 | `makeIdentityLinkingService({ service? })` | The `IdentityLinkingService` for one app |
 | `makeEntityResolverService(alias?)` | The `EntityResolverService`, cached 30 s per resolved value (slim references only) |
 | `makeIdentityEventsService(alias?)`, `identityEvents(ctx, alias?)` | The lazy events service; the registered one or `null` |
+| `accountStateOf(ctx)` — `.setDisabled(accountId, disabled)`, `.isDisabled(accountId)`, `.touchSignIn({ accountId, profileId, entityId })`, `.refusalOf(row, account?)` | The ban, the last sign-in and the refusal they imply (§ Account state) |
+| `IDENTITY_ACCOUNT_DISABLED`, `IDENTITY_PROFILE_DISABLED`, `IdentityRefusal` | `'account:disabled'` (a banned account), `'profile:disabled'` (the app's PRIMARY row disabled) — the refusal codes |
 | `AUTH_IDENTITY_ORG_ENTITY` / `_ACCOUNT` / `_PROFILE` / `_CREDENTIALS` | Resource aliases `'auth-identity:…'` (lookup keys, not collection names) |
 | `AUTH_IDENTITY_LINKING`, `AUTH_IDENTITY_EVENTS` | Service aliases |
 | `AUTH_IDENTITY_DB_ALIAS` | `'auth-identity'` — the suggested db-config alias whose `resourcePrefix` scopes the identity collections |
@@ -41,9 +43,9 @@ serves the deployment's own app and every app it hosts (a platform's generated t
 
 | Record | Fields | Rules |
 |---|---|---|
-| `IdentityAccount` | `credential` (random unique key), `email`, `name`, `entityId`, `scopes` | ONE per e-mail (unique index, trimmed lower-case). `entityId` = the main (personal) organization, a declared reference. `scopes` is never a wildcard |
+| `IdentityAccount` | `credential` (random unique key), `email`, `name`, `entityId`, `scopes`, `disabled?`, `disabledAt?`, `signedInAt?`, `createdAt?` | ONE per e-mail (unique index, trimmed lower-case). `entityId` = the main (personal) organization, a declared reference. `scopes` is never a wildcard. `disabled` is the BAN (every app, every organization); `disabledAt` exists only while banned. `createdAt` is written when the account is registered — an account registered before the field has none |
 | `IdentityCredentials` | `type`, `userId` = `"{type}:{service}:{providerSub}"`, `credential` = `"service:{type}:{service}"`, `accountId` | One row per sign-in method, unique on (`type`, `userId`, `credential`); `accountId` is a declared reference. `profileId?` is reserved, never written |
-| `IdentityProfile` | `profileId`, `userId`, `service`, `entityId`, `owner?`, `role`, `scopes`, `permissions`, `groups?`, `home?`, `disabled?`, `managed?`, `name`, `createdAt` | One row per (account, app, organization): unique (`profileId`, `entityId`). `userId`, `entityId`, `home` are declared references. `scopes: ['*']` only on rows of a deployment's OWN app, `[]` on a hosted app's rows. `home` / `disabled` live on the PRIMARY row only |
+| `IdentityProfile` | `profileId`, `userId`, `service`, `entityId`, `owner?`, `role`, `scopes`, `permissions`, `groups?`, `home?`, `disabled?`, `managed?`, `name`, `createdAt`, `signedInAt?` | One row per (account, app, organization): unique (`profileId`, `entityId`). `userId`, `entityId`, `home` are declared references. `scopes: ['*']` only on rows of a deployment's OWN app, `[]` on a hosted app's rows. `home` / `disabled` live on the PRIMARY row only |
 | `OrgEntity` | `slug`, `formerSlugs`, `iamKey`, `title?`, `names`, `groups?`, `createdAt`, `updatedAt?` | `slug` and `iamKey` unique; `iamKey` frozen at birth. `groups` unique per (`service`, `key`) inside the organization |
 | `OrgGroup` | `service`, `key`, `title?`, `managed?`, `permissions`, `bundles?` (`{ filter?, permissions? }`) | Members are the rows naming `key` in `groups`; one app never writes another app's group |
 
@@ -58,6 +60,27 @@ it.
 
 Declared references refuse a value that is not a 24-hex record id on write (`MisshapedRecord`), so
 fixtures and callers use record ids, never slugs, in `entityId` / `userId` / `accountId` / `home`.
+
+## Account state — ban, block, last sign-in
+
+| State | Where | Refusal |
+|---|---|---|
+| ban | `IdentityAccount.disabled` (+ `disabledAt`) | `account:disabled` — the person signs in to no app of the store and keeps no session |
+| block of one app | the PRIMARY row's `disabled` of that (account, app) | `profile:disabled` — that app only, in every organization the person acts in |
+| last sign-in | `signedInAt` on the account and on the row signed into | none |
+
+- `accountStateOf(ctx).refusalOf(row, account?)` is the ONE reading of both refusals: the ban first,
+  then the primary row (the row itself when it is in the account's main organization, else that
+  organization's row of the same `profileId`). A missing account or primary row refuses nothing.
+  A gate, a socket and a session refresh call it; never re-derive it from `row.disabled` alone.
+- `setDisabled(accountId, true)` sets `disabled` + `disabledAt` (a repeated ban keeps the first
+  `disabledAt`); `false` sets `disabled: false` and unsets `disabledAt`. Field writes only. Sessions
+  are the caller's to revoke — the ban only stops every future sign-in and refresh.
+- `touchSignIn({ accountId, profileId, entityId })` stamps `signedInAt` on the account and on the row
+  matched by `profileId` + `entityId` + `userId` (another account's row under the same pair is never
+  stamped); a missing key throws `SyntaxError('identity:sign-in-touch')`, a failed write propagates.
+  Call it after a sign-in became a session (e.g. from `@owlmeans/server-auth`'s `onAuthenticated`
+  listener), never on a refresh; the caller decides it is best-effort.
 
 ## The organization entity
 
@@ -112,6 +135,10 @@ payload ??= await linking.linkProfile(details, { username: verifiedEmail })
 // { type, role, userId: accountId, profileId, entitySlug, scopes }
 ```
 
+- **Every sign-in member refuses through `AuthRefused`** (`@owlmeans/auth`, 403 + the
+  access-denied marker): a banned account `AuthRefused('account:disabled')` before its row is read or
+  written, a disabled PRIMARY row of the own app `AuthRefused('profile:disabled')`. A method not
+  linked yet is still attached to the banned account (the same verified person) before the refusal.
 - `getLinkedProfile` — credential → account → the own app's row in the main organization. A method
   that is linked but has no row of THIS app answers `null`, and the caller's `linkProfile` writes it.
 - `linkProfile(details, { username })` — `identityOf(ctx).ensureAccount` with `username` as the e-mail (the login
@@ -145,10 +172,13 @@ returns an existing row unchanged: it never rewrites owner, groups or grants.
 const profile = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
   .load({ entityId: makeEntityScope(req).requireEntityKey(), profileId: req.auth.profileId })
 if (profile == null || profile.service !== MY_APP) throw new AuthForbidden('profile')
+const refusal = await accountStateOf(ctx).refusalOf(profile)
+if (refusal != null) throw new AuthForbidden(refusal)
 ```
 
 A gate of the deployment's own app must require its own `service`: the same organization holds
-hosted apps' rows. Organization-wide reads pass `{ size: 0 }` — an omitted size is one page of 100.
+hosted apps' rows. It must also read the ban and the primary row's block (`refusalOf`) — a bearer
+issued before a ban stays valid until its session is revoked or refreshed. Organization-wide reads pass `{ size: 0 }` — an omitted size is one page of 100.
 
 ## Identity events
 

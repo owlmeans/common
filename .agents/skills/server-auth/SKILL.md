@@ -34,6 +34,10 @@ An ordinary service imports the root. Only the auth manager imports `./manager`.
 | `makeReCaptchaGuard(alias = RECAPTCHA_GUARD)` | The guard of a route a reCAPTCHA guest calls once — see "reCAPTCHA guests" |
 | `makeReCaptchaTokenHelper(ctx)`, `reCaptchaTokenOf(ctx)` | `inspect(req)` / `verify(token)` → `ReCaptchaGuest \| null` without spending; `spend(guest)` → `false` when spent before |
 | `ReCaptchaGuest`, `ReCaptchaCarrier`, `ReCaptchaTokenHelper` | Types: `{ credential, challenge, expiresAt }`, `{ headers? }`, the helper |
+| `authSettingsOf(ctx)` / `makeAuthSettings` | The effective `cfg.auth` (§ Per-deployment keys and lifetime): `tokenKey()`, `authKey()`, `sessionTtl()`, defaults applied at each call |
+| `appendAuthEventsService(ctx, alias?)`, `makeAuthEventsService`, `authEvents(ctx)` | The sign-in events seam (§ Sign-in events); `authEvents(ctx)` is `null` in a context without it |
+| `AUTH_EVENTS` | `'auth-events'` — the events service alias |
+| `AuthServiceSettings`, `AuthServiceConfig`, `AuthSettings`, `AuthEventsService`, `AuthenticatedListener` | Types |
 
 ## Key Exports — `./manager`
 
@@ -149,6 +153,29 @@ service that judges manager tokens itself (a finalizer) must check the method it
 token's type and its challenge's envelope type — not just the signature, since one key signs every
 method's token.
 
+## Per-deployment keys and lifetime (`cfg.auth`)
+
+| Key | Default | What it names |
+|---|---|---|
+| `tokenKey` | `cfg.alias ?? cfg.service` | the `TRUSTED` record that signs this service's bearers and that the guard (`handle`, `unpack`) verifies them with; the service's own service-to-service identity stays `cfg.alias ?? cfg.service` |
+| `authKey` | `AUTH_SRV_KEY` (`'auth-service'`) | the auth manager's record: signs the sign-in challenges, the credential envelopes and reCAPTCHA guest tokens; the bearer exchange and the reCAPTCHA guard verify with it |
+| `sessionTtl` | `AUTH_SESSION_TTL` (7 days) | a bearer session's absolute lifetime in ms; the session registry clamps anything longer; a non-positive or non-number value throws `SyntaxError('auth:session-ttl')` |
+
+Without `cfg.auth` every value is the default, byte-identical to a deployment that never set it. A
+staff area that must not share tokens with the customer area gives both keys a record of its own
+(e.g. `{ tokenKey: 'viable-operator', authKey: 'viable-operator', sessionTtl: 12 h }`): nothing one
+area signs verifies at the other, while `cfg.alias` keeps the service's signed hops to its peers.
+
+## Sign-in events
+
+`appendAuthService` registers the events service (`AUTH_EVENTS`) unless the context holds one.
+`authEvents(ctx)?.onAuthenticated(async (auth, ctx) => …)` is called once per session exchange
+(`AuthService.authenticate`), AFTER the session registered and its bearer was signed — never on a
+token refresh. Each listener gets a copy of the `Auth` (`userId`, `profileId`, `entitySlug`,
+`sessionId`, `expiresAt`), runs in registration order and is awaited; a listener that throws is
+logged (`auth.listener-failed`) and the rest still run — a listener never fails the sign-in. Hang
+sign-in side effects (a last-sign-in stamp, an audit line) here, never by wrapping the service.
+
 ## Rules
 
 - The guard verifies a bearer token and populates `req.auth`. It decides nothing about ownership or
@@ -160,10 +187,14 @@ method's token.
   register a Redis resource under the same alias before calling it in any scaled deployment.
 - A plugin's `init` must return a challenge that is unique per request. A challenge that repeats
   across independent attempts collides in `AUTH_CACHE` and surfaces as `AuthenFailed('challenge')`.
-- Bearers issued by this service carry an absolute seven-day expiry and an opaque session id. In a
-  context with `AUTH_SESSION_MANAGER`, the guard rejects an absent, expired, pending or revoked
-  session and re-signs fresh profile claims after a registry revision. Registry or identity-store
-  failure is `AuthUnavailable` (503), never a false 401/logout.
+- Bearers issued by this service carry an absolute `cfg.auth.sessionTtl` expiry (seven days by
+  default) and an opaque session id. In a context with `AUTH_SESSION_MANAGER`, the guard rejects an
+  absent, expired, pending or revoked session and re-signs fresh profile claims after a registry
+  revision. Registry or identity-store failure is `AuthUnavailable` (503), never a false 401/logout.
+- A session refresh re-reads the profile row and, where the context holds the identity account
+  store, `accountStateOf(ctx).refusalOf(row)` (`@owlmeans/server-auth-identity`): a banned account
+  or the app's PRIMARY row disabled since the session began ends the session (no re-signed token) —
+  the same refusal the sign-in gives. A failing account store is `AuthUnavailable`.
 - The session registry (`AUTH_SESSION_MANAGER`) is `@owlmeans/server-auth-session`'s, not exported
   here; `appendAuthService` installs its memory manager only as a single-process default. A
   central or multi-replica issuer registers `appendRedisAuthSessionManager(context)` before it;

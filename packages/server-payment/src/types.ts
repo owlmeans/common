@@ -17,6 +17,7 @@ import type {
   QuantityCheckoutPolicy, SubscriptionStartBody, SubscriptionStartResponse, SubscriptionStartView,
   SubscriptionStatus, WithdrawalBody, WithdrawalCandidateList, WithdrawalReceipt, WithdrawalStatus,
 } from '@owlmeans/payment'
+import type { EntitlementGrantKind, EntitlementGrantStatus } from './consts.js'
 
 
 export interface Config extends ApiConfig {}
@@ -366,9 +367,21 @@ export interface GatewayService extends InitializedService {
   portalLink: (ctx: ApiContext, entityId: string, opts: PortalLinkOptions) => Promise<string>
   /** @throws PaygateError('unmanaged') when `managed` is `false`. */
   estimatePrice: (ctx: ApiContext, params: PriceEstimateParams) => Promise<PriceEstimate>
+  /**
+   * Grant a plan without a paygate (`subscriptionCommitOf(ctx).grantInternalPlan`): the free plan, or
+   * any plan with `force`. A re-grant after a revoke or a lapse re-activates the row and observers
+   * hear `created` again; the row keeps its first `createdAt`.
+   */
   grantInternalPlan: (
     ctx: ApiContext, entityId: string, planSku: string, opts?: GrantInternalPlanOptions,
   ) => Promise<PaymentSubscriptionRecord>
+  /**
+   * End an internal grant now (`subscriptionCommitOf(ctx).revokeInternalPlan`): observers hear
+   * `canceled`. Idempotent. Mongo only — works unmanaged.
+   *
+   * @returns whether anything changed (`false`: no such row, or it had ended already)
+   */
+  revokeInternalPlan: (ctx: ApiContext, entityId: string, planSku: string) => Promise<boolean>
   /** @returns how many subscription rows changed */
   resyncSubscription: (ctx: ApiContext, ref: SubscriptionRef) => Promise<number>
   resyncAll: (ctx: ApiContext) => Promise<{ scanned: number; updated: number }>
@@ -619,6 +632,19 @@ export interface CancellationEvent {
   declaredAt: Date
 }
 
+/** What happened to an entitlement grant. */
+export type EntitlementGrantChange = 'granted' | 'revoked'
+
+/** An entitlement grant given or revoked — `onEntitlementGrant`. */
+export interface EntitlementGrantEvent {
+  entityId: string
+  /** The grant as stored after the change. */
+  grant: PaymentGrantRecord
+  change: EntitlementGrantChange
+  /** `grant:<grantId>:<change>`. */
+  eventKey: string
+}
+
 export interface TopUpCallback { (completion: TopUpCompletion, ctx: ApiContext): Promise<void> }
 export interface SubscriptionCallback { (event: SubscriptionEvent, ctx: ApiContext): Promise<void> }
 export interface RefundCallback { (event: RefundEvent, ctx: ApiContext): Promise<void> }
@@ -627,6 +653,7 @@ export interface PaymentFailedCallback { (event: PaymentFailedEvent, ctx: ApiCon
 export interface ConsentCallback { (event: ConsentEvent, ctx: ApiContext): Promise<void> }
 export interface WithdrawalCallback { (event: WithdrawalEvent, ctx: ApiContext): Promise<void> }
 export interface CancellationCallback { (event: CancellationEvent, ctx: ApiContext): Promise<void> }
+export interface EntitlementGrantCallback { (event: EntitlementGrantEvent, ctx: ApiContext): Promise<void> }
 
 /**
  * Callbacks run sequentially and are awaited. A paygate callback's throw escapes so the paygate
@@ -642,6 +669,12 @@ export interface CompletionObserver extends LazyService {
   onConsent: (cb: ConsentCallback) => void
   onWithdrawal: (cb: WithdrawalCallback) => void
   onCancellation: (cb: CancellationCallback) => void
+  /**
+   * An entitlement grant was given or revoked (`paymentAccessOf(ctx).grants()`). Runs in the process
+   * that wrote it, after the write; a throw is logged and never undoes the grant — the application's
+   * periodic reconciliation is the backstop. Idempotent by `eventKey`.
+   */
+  onEntitlementGrant: (cb: EntitlementGrantCallback) => void
   propagateTopUp: (completion: TopUpCompletion, ctx: ApiContext) => Promise<void>
   propagateSubscription: (event: SubscriptionEvent, ctx: ApiContext) => Promise<void>
   propagateRefund: (event: RefundEvent, ctx: ApiContext) => Promise<void>
@@ -650,6 +683,7 @@ export interface CompletionObserver extends LazyService {
   propagateConsent: (event: ConsentEvent, ctx: ApiContext) => Promise<void>
   propagateWithdrawal: (event: WithdrawalEvent, ctx: ApiContext) => Promise<void>
   propagateCancellation: (event: CancellationEvent, ctx: ApiContext) => Promise<void>
+  propagateEntitlementGrant: (event: EntitlementGrantEvent, ctx: ApiContext) => Promise<void>
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -684,6 +718,8 @@ export interface PropagatedState {
   pausedAt?: Date
   /** The renewal invoice last reported as `renewed` — a renewal is reported once per invoice. */
   renewedInvoiceId?: string
+  /** The row's `restartedAt` when observers were last told — a restart they never heard is told again. */
+  restartedAt?: Date
 }
 
 /**
@@ -725,6 +761,11 @@ export interface PaymentSubscriptionRecord extends ResourceRecord {
   syncedAt?: Date
   lastEventId?: string
   initialPropagatedAt?: Date
+  /**
+   * When an internal grant last began entitling again after it had ended (a re-grant after a revoke
+   * or a lapse). It keys that `created` event apart from the first one; `createdAt` stays the first grant's.
+   */
+  restartedAt?: Date
   propagated?: PropagatedState
   /** The subscription's currency (lowercase). */
   currency?: string
@@ -833,6 +874,82 @@ export interface PaymentUsageCounterRecord extends ResourceRecord {
 }
 export interface PaymentUsageCounterResource extends MongoResource<PaymentUsageCounterRecord> {}
 
+/**
+ * An organization's entitlement grant: extra units of one limit (`units`) or one capability
+ * (`capability`), beside whatever its plan grants. In force while `active`, from `startsAt`, until
+ * `endsAt` (absent: no end); a revoked or ended grant is ignored at read time.
+ */
+export interface PaymentGrantRecord extends ResourceRecord {
+  entityId: string
+  kind: EntitlementGrantKind
+  /** `units`: the limit key whose ceiling it raises. */
+  limitKey?: string
+  /**
+   * The parameter it grants, exactly as the capability gate takes it (`feature:x`, `scope:x>=n`):
+   * what a `capability` grant is; on a `units` grant, the capability those units need (published
+   * sites need `feature:production--publish`), merged while the grant is in force.
+   */
+  capability?: string
+  /** `units`: how many units it adds. */
+  amount?: number
+  /**
+   * `units`: how many of them are held now — admitted by a conditional increment, returned by a
+   * release, rebuilt from the grant's usage events (`grant:<id>` window) by `reconcileCounters`.
+   */
+  used?: number
+  startsAt: Date
+  /** Exclusive; absent: the grant never ends. */
+  endsAt?: Date
+  status: EntitlementGrantStatus
+  /** The application's own reference (the operator action, a support ticket). */
+  ref?: string
+  note?: string
+  createdAt: Date
+  revokedAt?: Date
+}
+export interface PaymentGrantResource extends MongoResource<PaymentGrantRecord> {}
+
+/** What `grants().grant` writes. */
+export interface EntitlementGrantSpec {
+  kind: EntitlementGrantKind
+  /** Required for `units`: a limit key some declared plan has. */
+  limitKey?: string
+  /** Required for `units`: a positive safe integer. */
+  amount?: number
+  /**
+   * Required for `capability`, optional on `units` (the capability its units need):
+   * `scope:permission` or `scope:permission>=n`, never under the `limit` scope.
+   */
+  capability?: string
+  /** Default: now. */
+  startsAt?: Date
+  /** Exclusive, after `startsAt`; `null` or absent: never ends. */
+  endsAt?: Date | null
+  ref?: string
+  note?: string
+}
+
+export interface EntitlementGrantListOptions {
+  /** `true`: only the grants in force at `at`; `false`: only those that are not; absent: all. */
+  active?: boolean
+  /** Default: now. */
+  at?: Date
+  kind?: EntitlementGrantKind
+  limitKey?: string
+}
+
+export interface EntitlementGrantRevokeOptions {
+  /** Refuse (answer `null`) a grant of another organization. */
+  entityId?: string
+}
+
+export interface EntitlementGrantRevocation {
+  /** The grant as stored now; `null` when no grant has that id (for that organization). */
+  grant: PaymentGrantRecord | null
+  /** This call revoked it. */
+  changed: boolean
+}
+
 /** One currency option of a synced price. */
 export interface SyncedPriceOption {
   currency: string
@@ -876,11 +993,18 @@ export interface FingerprintResource extends MongoResource<FingerprintRecord> {
 // ---------------------------------------------------------------------------------------------
 
 export interface EffectivePlan {
+  /** The plan, with the row's `overrides` applied and the capability grants in force merged in. */
   plan: PaymentPlan
   /** The entitling row behind the plan; `null` when the entity falls back to the free plan. */
   subscription: PaymentSubscriptionRecord | null
   /** The declared free plan, when one exists. */
   fallback: PaymentPlan | null
+  /**
+   * The entity's entitlement grants in force at resolution (both kinds); absent or empty without
+   * any. Units grants are NOT folded into `plan.limits`: the plan's own ceiling stays what its
+   * counter admits against, the grants are consumed after it.
+   */
+  grants?: PaymentGrantRecord[]
 }
 
 export interface ConsumeRequest {
@@ -1480,6 +1604,11 @@ export interface CommitOptions {
    * observers are not told and the paygate retries.
    */
   beforePropagate?: (record: PaymentSubscriptionRecord, change: SubscriptionChange) => Promise<void>
+  /**
+   * The row starts entitling anew after it had ended — an internal re-grant after a revoke or a
+   * lapse: classified `created` whatever was last propagated, with `previous: null`.
+   */
+  restart?: boolean
 }
 
 export interface CommitResult {

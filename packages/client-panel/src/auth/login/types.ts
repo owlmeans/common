@@ -1,4 +1,4 @@
-import type { LoginMethod, LoginOutcome, ResolvedTermsDocument } from '@owlmeans/client-auth/login'
+import type { LoginFailure, LoginMethod, LoginOutcome, ResolvedTermsDocument } from '@owlmeans/client-auth/login'
 import type { BrandSettings, LoginScreenConfig, LoginTermsConfig } from '@owlmeans/config'
 
 export interface UseLoginMethodsOptions {
@@ -99,7 +99,14 @@ export interface LoginMethodsModel {
   /** Id of the method currently starting. */
   busy: string | null
   outcome: LoginOutcome | null
+  /**
+   * The sentence a renderer shows for a start that rejected — phrased through the `auth` library
+   * keys (`login.error.refused`, `…account-disabled`, `…profile-disabled`, `…failed` plus its
+   * reference), never the raw message. Null while nothing failed.
+   */
   error: string | null
+  /** What that rejection meant (`loginFailureHelper.failureOf`), for a renderer that styles it. */
+  failure: LoginFailure | null
   /**
    * Start a method.
    *

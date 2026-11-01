@@ -58,9 +58,12 @@ const setPath = (doc: Rec, path: string, value: unknown): void => {
 
 /**
  * `$set` (dotted, and the positional `array.$` / `array.$.field` of the element the filter's
- * `$elemMatch` selects), `$push`, `$pull`.
+ * `$elemMatch` selects), `$unset` (top-level fields), `$push`, `$pull`.
  */
 const applyUpdate = (doc: Rec, update: Rec, filter: Rec): void => {
+  for (const field of Object.keys(update.$unset ?? {})) {
+    delete doc[field]
+  }
   for (const [path, value] of Object.entries(update.$set ?? {})) {
     const positional = path.match(/^([^$]+)\.\$(?:\.(.+))?$/)
     if (positional != null) {

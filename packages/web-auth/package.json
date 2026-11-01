@@ -38,16 +38,20 @@
     "@owlmeans/client-flow": "^0.1.18",
     "@owlmeans/config": "^0.1.18",
     "@owlmeans/context": "^0.1.18",
+    "@owlmeans/log": "^0.1.18",
     "@owlmeans/web-client": "^0.1.18"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
+    "@owlmeans/api": "^0.1.18",
     "@owlmeans/dep-config": "^0.1.18",
+    "@owlmeans/error": "^0.1.18",
     "@types/bun": "^1.4.2",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
+    "react-dom": "^19.3.0",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

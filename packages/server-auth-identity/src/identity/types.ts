@@ -23,6 +23,9 @@ export interface IdentityHelper {
    *
    * Every caller must have established the address — a verified provider claim, a proven code, a
    * full-trust key — because whoever names an address here is handed that person's account.
+   *
+   * A new account carries `createdAt`. A banned account is returned like any other: the ban is a
+   * sign-in refusal, decided by the linking service (and the IAM's own sign-in), not by this primitive.
    */
   ensureAccount: (args: EnsureAccountArgs, details?: ProviderProfileDetails) => Promise<EnsuredAccount>
   /**
@@ -33,6 +36,9 @@ export interface IdentityHelper {
    * with it — created first, as the owner of the personal organization — because the primary row is
    * what says whether the person may use the app at all; a crash between the two must never leave a
    * membership without it.
+   *
+   * Refuses nothing: an invitation writes rows for a person who may be banned or blocked, and that
+   * person's sign-in is what refuses them.
    */
   ensureProfile: (args: EnsureProfileArgs) => Promise<IdentityProfile>
 }

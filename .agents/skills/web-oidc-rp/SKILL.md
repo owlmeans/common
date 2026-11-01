@@ -105,6 +105,15 @@ The exchange is also guarded against re-entry, because it is not repeatable: the
 deleted on its first successful read and the authorization code is single-use at the provider, so a
 second run of the same effect fails with `resource:unknown-record` even though the first succeeded.
 
+The exchange (`oidc.dispatch(params)`) ends in a `catch`: the error is classified by
+`loginFailureHelper.failureOf` (`@owlmeans/client-auth/login`) and the dispatcher renders
+`LoginFailureView` — a refusal of the account (`AuthRefused`, or a 403 with the access-denied
+marker: a banned account, blocked access, a deployment's own refusal) offers "Back to sign-in" and
+is logged at `warn` (`auth.refused`); any other failure offers a restart and its incident reference
+and is logged at `error`. In a surrogate window the phrased message is the failed stage's text. The
+Google callback plugin (`googleClientPlugin`) reads its own callback's failure the same way and ends
+on the same view (`makeAuthTranslate(context.cfg)`, no i18n provider needed).
+
 ## Where the round trip runs is not this package's decision
 
 The relying party knows about `code`, `state` and token exchange. *Which browsing context the
@@ -171,6 +180,6 @@ caller that branches on it.
 - `@owlmeans/oidc`, `@owlmeans/web-client`, `@owlmeans/client`, `@owlmeans/client-auth`,
   `@owlmeans/client-flow`, `@owlmeans/web-flow`, `@owlmeans/flow`, `@owlmeans/client-i18n`,
   `@owlmeans/auth`, `@owlmeans/basic-envelope`, `@owlmeans/context`, `@owlmeans/entrypoint`,
-  `@owlmeans/resource`
+  `@owlmeans/resource`, `@owlmeans/log`
 - `oidc-client-ts@3.5.0` (exact) — see [[oidc-versions]]
 - `react`, `lucide-react`, `tailwindcss` and the shadcn peer set (peer)

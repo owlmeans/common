@@ -144,7 +144,7 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-wl`](packages/server-wl) → `context`, `server-api`, `server-context`, `server-entrypoint`, `wled`
 - [`server-oidc-provider`](packages/server-oidc-provider) → `config`, `context`, `entrypoint`, `oidc`, `route`, `server-api`, `server-context`
 - [`server-socket`](packages/server-socket) → `auth`, `basic-envelope`, `context`, `entrypoint`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `socket`
-- [`server-auth`](packages/server-auth) → `api`, `api-config-server`, `auth`, `auth-common`, `basic-envelope`, `basic-ids`, `basic-keys`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `redis-resource`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `socket`, `static-resource`
+- [`server-auth`](packages/server-auth) → `api`, `api-config-server`, `auth`, `auth-common`, `basic-envelope`, `basic-ids`, `basic-keys`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `redis-resource`, `resource`, `route`, `server-api`, `server-auth-identity`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `socket`, `static-resource`
 - [`server-auth-identity`](packages/server-auth-identity) → `auth`, `auth-common`, `basic-ids`, `context`, `mongo-resource`, `oidc`, `resource`, `server-context`
 - [`server-auth-token`](packages/server-auth-token) → `auth`, `auth-common`, `auth-token`, `context`, `entrypoint`, `mongo-resource`, `resource`, `server-api`, `server-auth-identity`, `server-context`
 - [`server-oauth`](packages/server-oauth) → `auth`, `auth-common`, `auth-token`, `config`, `context`, `entrypoint`, `error`, `mongo-resource`, `oauth`, `resource`, `route`, `server-api`, `server-auth-token`, `server-context`, `static-resource`
@@ -177,7 +177,7 @@ React-based, but no DOM or React Native specifics. Web and Native packages consu
 - [`client-socket`](packages/client-socket) → `auth`, `basic-envelope`, `client`, `client-context`, `client-entrypoint`, `context`, `entrypoint`, `socket`
 - [`client-payment`](packages/client-payment) → `client-auth`, `context`, `payment`
 - [`client-panel`](packages/client-panel) → `auth`, `client`, `client-auth`, `client-entrypoint`, `client-i18n`, `client-route`, `config`, `entrypoint`, `error`, `i18n`, `router`
-- [`client-auth`](packages/client-auth) → `auth`, `auth-common`, `basic-envelope`, `basic-keys`, `client`, `client-context`, `client-entrypoint`, `client-flow`, `client-resource`, `client-socket`, `config`, `context`, `did`, `entrypoint`, `error`, `flow`, `i18n`, `resource`, `socket`, `web-flow`
+- [`client-auth`](packages/client-auth) → `api`, `auth`, `auth-common`, `basic-envelope`, `basic-keys`, `client`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `client-resource`, `client-socket`, `config`, `context`, `did`, `entrypoint`, `error`, `flow`, `i18n`, `log`, `resource`, `socket`, `web-flow`
 - [`client-job`](packages/client-job) → `client`, `client-auth`, `client-context`, `client-entrypoint`, `context`, `queue`, `resource`, `socket`, `state`
 - [`client-planning`](packages/client-planning) → `auth`, `client-context`, `client-entrypoint`, `context`, `entrypoint`, `error`, `planning`, `resource`, `route`, `socket`, `state`
 - [`client-iam`](packages/client-iam) → `client-auth`, `consent`, `context`, `entrypoint`, `iam`, `oidc`, `web-client`, `web-oidc-rp`
@@ -197,12 +197,12 @@ Browser-specific React (DOM, IndexedDB) plus the Astro integration. The panel an
 - [`web-inquiry`](packages/web-inquiry) → `common-inquiry`, `log`
 - [`web-client`](packages/web-client) → `auth`, `auth-common`, `client`, `client-auth`, `client-context`, `client-entrypoint`, `client-i18n`, `client-resource`, `client-route`, `config`, `context`, `error`, `i18n`, `route`, `web-db`, `web-router`
 - [`web-flow`](packages/web-flow) → `client`, `client-context`, `client-entrypoint`, `client-flow`, `client-resource`, `context`, `error`, `flow`
-- [`web-auth`](packages/web-auth) → `auth`, `auth-common`, `basic-ids`, `basic-keys`, `client`, `client-auth`, `client-flow`, `config`, `context`, `web-client`
+- [`web-auth`](packages/web-auth) → `auth`, `auth-common`, `basic-ids`, `basic-keys`, `client`, `client-auth`, `client-flow`, `config`, `context`, `log`, `web-client`
 - [`web-auth-token`](packages/web-auth-token) → `auth-token`, `client`, `client-entrypoint`, `client-i18n`, `context`, `entrypoint`, `error`, `i18n`
 - [`web-bot`](packages/web-bot) → `bot`, `client`, `client-entrypoint`, `client-i18n`, `entrypoint`, `error`, `i18n`, `log`
 - [`web-oauth`](packages/web-oauth) → `auth-common`, `client`, `client-auth`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `error`, `flow`, `i18n`, `oauth`, `route`
 - [`web-oidc-provider`](packages/web-oidc-provider) → `auth`, `client-flow`, `oidc`, `resource`, `web-client`
-- [`web-oidc-rp`](packages/web-oidc-rp) → `auth`, `basic-envelope`, `client`, `client-auth`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `flow`, `oidc`, `resource`, `web-client`, `web-flow`
+- [`web-oidc-rp`](packages/web-oidc-rp) → `auth`, `basic-envelope`, `client`, `client-auth`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `flow`, `log`, `oidc`, `resource`, `web-client`, `web-flow`
 - [`web-wl`](packages/web-wl) → `client`, `client-entrypoint`, `context`, `wled`
 - [`web-panel`](packages/web-panel) → `api-config-client`, `auth`, `auth-common`, `basic-envelope`, `client`, `client-auth`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `client-panel`, `client-route`, `client-socket`, `config`, `context`, `entrypoint`, `error`, `flow`, `i18n`, `route`, `state`, `web-client`, `web-consent`, `web-db`, `web-flow`, `web-router`
 - [`web-payment`](packages/web-payment) → `client-i18n`, `client-payment`, `entrypoint`, `i18n`, `payment`

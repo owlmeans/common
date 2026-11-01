@@ -2,7 +2,8 @@ import { createLazyService } from '@owlmeans/context'
 import { PAYMENT_OBSERVER } from './consts.js'
 import type {
   CancellationCallback, CompletionObserver, Config, ConsentCallback, Context, DisputeCallback,
-  PaymentFailedCallback, RefundCallback, SubscriptionCallback, TopUpCallback, WithdrawalCallback,
+  EntitlementGrantCallback, PaymentFailedCallback, RefundCallback, SubscriptionCallback, TopUpCallback,
+  WithdrawalCallback,
 } from './types.js'
 
 /**
@@ -13,6 +14,9 @@ import type {
  * The consumer-rights callbacks (`onConsent`, `onWithdrawal`, `onCancellation`) run after the
  * records and the paygate steps of their act; a throw is recorded as an `observers` event and
  * retried by the consumer-rights `reconcile()` — they, too, are idempotent by `eventKey`.
+ *
+ * `onEntitlementGrant` runs in the process that gave or revoked the grant, right after the write;
+ * a throw is logged by the grant helper and never undoes the grant.
  */
 export const makeCompletionObserverService = (
   alias: string = PAYMENT_OBSERVER,
@@ -25,6 +29,7 @@ export const makeCompletionObserverService = (
   const consent: ConsentCallback[] = []
   const withdrawal: WithdrawalCallback[] = []
   const cancellation: CancellationCallback[] = []
+  const entitlementGrant: EntitlementGrantCallback[] = []
 
   const run = async <E>(callbacks: Array<(event: E, ctx: never) => Promise<void>>, event: E, ctx: unknown) => {
     for (const callback of callbacks) {
@@ -41,6 +46,7 @@ export const makeCompletionObserverService = (
     onConsent: cb => { consent.push(cb) },
     onWithdrawal: cb => { withdrawal.push(cb) },
     onCancellation: cb => { cancellation.push(cb) },
+    onEntitlementGrant: cb => { entitlementGrant.push(cb) },
     propagateTopUp: async (completion, ctx) => { await run(topUp, completion, ctx) },
     propagateSubscription: async (event, ctx) => { await run(subscription, event, ctx) },
     propagateRefund: async (event, ctx) => { await run(refund, event, ctx) },
@@ -49,6 +55,7 @@ export const makeCompletionObserverService = (
     propagateConsent: async (event, ctx) => { await run(consent, event, ctx) },
     propagateWithdrawal: async (event, ctx) => { await run(withdrawal, event, ctx) },
     propagateCancellation: async (event, ctx) => { await run(cancellation, event, ctx) },
+    propagateEntitlementGrant: async (event, ctx) => { await run(entitlementGrant, event, ctx) },
   }, service => async () => { service.initialized = true })
 }
 

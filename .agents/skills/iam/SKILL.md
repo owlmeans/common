@@ -56,7 +56,7 @@ the browser.
 | `IamMembershipInfo` | type | `{ entitySlug, title?, owner, groups, home? }` — one organization of an `IamUser` |
 | `IamUserInvite` | type | `{ email, name?, role? }` — find-or-create args |
 | `IamUserUpdate` | type | `{ name?, role?, disabled? }` — `disabled` lands on the primary row |
-| `IamOrganization`, `IamOrganizationArgs`, `IamOrganizationUpdate` | type | `{ entitySlug, title?, members? }`; create `{ title?, profileId? }` (the new owner); update `{ title }` |
+| `IamOrganization`, `IamOrganizationArgs`, `IamOrganizationUpdate` | type | `{ entitySlug, title?, members? }`; create `{ title?, profileId? }` (the new owner); update `{ title, actor? }` (`actor` = the asking account: a personal organization is renamed only by its own person; a per-app backend ignores it) |
 | `IamMember`, `IamMemberInvite`, `IamMemberUpdate` | type | `{ profileId, email?, name?, owner, groups, managed? }`; `{ email, name?, owner? }`; `{ owner?, groups? }` |
 | `IamGroup`, `IamGroupArgs`, `IamGroupBundle` | type | `{ entitySlug, key, title?, managed?, members?, bundles }`; `{ title?, bundles? }`; `{ filter?, permissions? }` |
 | `IamStaffSyncArgs`, `IamStaffSyncReport` | type | `{ bundles }` and `{ added, removed }` (profile ids) of `syncStaff` |
@@ -76,11 +76,11 @@ the browser.
 | `IAM_MODE_INTEGRATED` | const | `'integrated'` |
 | `IamMode` | type | `'keycloak' \| 'integrated'` |
 | `IamError` | class | Base IAM error |
-| `IamClientError` | class | An OIDC client is invalid or unusable — missing `secret`, unusable `redirect_uris`, `client:entity-mismatch`, an unconfigured provider route |
+| `IamClientError` | class | An OIDC client is invalid or unusable — missing `secret`, unusable `redirect_uris`, `client:entity-mismatch`, an unconfigured provider route, a protected id an adapter never releases (`protected:<id>`) |
 | `IamResourceError` | class | A provider resource returned with no name |
 | `IamGrantError` | class | Grant subject missing or entity mismatch |
 | `IamPermissionError` | class | A refusal about a DEFINITION: `permission:held:<name>`, `permission:managed:<name>` |
-| `IamUserError` | class | An end-user operation was refused |
+| `IamUserError` | class | An end-user operation was refused (`account:disabled` — a banned account's sign-in) |
 | `IamOrganizationError` | class | An organization or membership refusal — unknown organization, last owner, membership cap |
 | `IamGroupError` | class | A group refusal — unknown key, an operator writing a managed group's structure, another app's group |
 | `IamUnsupported` | class | Operation not supported by the active backend (e.g. `resource-scoped-grant`, `user-management`) |

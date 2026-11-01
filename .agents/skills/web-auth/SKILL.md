@@ -56,9 +56,16 @@ On submit the form requests a fresh allowance, signs `buildSupervisorPayload(cha
 salt)` with the entered private key, packs `{ salt, signature }` as the credential, exchanges the
 resulting token through the client `AuthService`, and navigates via `landAfterLogin` +
 `landingUrl` (`@owlmeans/client-auth/login`) — a pending post-login step, then a screen suspended
-in `@owlmeans/client-flow` (an OAuth consent screen reached signed out, say), else `HOME`. It no
-longer imports `@owlmeans/client-flow` or `@owlmeans/web-client` directly; `landAfterLogin` is the
+in `@owlmeans/client-flow` (an OAuth consent screen reached signed out, say), else `HOME`. The form
+imports neither `@owlmeans/client-flow` nor `@owlmeans/web-client` for that; `landAfterLogin` is the
 whole decision.
+
+A failed submit is the control's Error stage (`control.setError(e)`), rendered phrased at
+`supervisor-error` through `loginFailureHelper` + `makeAuthTranslate` (`@owlmeans/client-auth/login`,
+context-free — no i18n provider needed): a refusal of the account (an `AuthRefused` such as an
+unknown or banned account, or a 403 with the access-denied marker) reads as a refusal and is logged
+at `warn` (`auth.refused`), anything else as a failure with its incident reference, logged at
+`error`. The next submit asks for a fresh allowance, which clears the stage.
 
 See the **supervisor-auth** skill for the whole feature — the server append, its options, the
 security boundary and the `@owlmeans/test-ui` helpers.
@@ -68,3 +75,4 @@ security boundary and the `@owlmeans/test-ui` helpers.
 - `@owlmeans/auth` — `AuthenticationType.Supervisor`, `buildSupervisorPayload`
 - `@owlmeans/auth-common` — the client `AuthService` type
 - `@owlmeans/basic-keys` (signing), `@owlmeans/basic-ids` (the salt), `@owlmeans/config`
+- `@owlmeans/log` — the refused/failed sign-in lines

@@ -1,20 +1,19 @@
 import type { PermissionSet } from '@owlmeans/auth'
-import { ENTITLING_STATUSES, INTERNAL_PAYGATE, PlanRequired, ProductError, promoHelper } from '@owlmeans/payment'
+import { ENTITLING_STATUSES, PlanRequired, ProductError, promoHelper } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
 import { STRIPE_PAYGATE_ALIAS } from './consts.js'
 import { paymentAccessOf } from './access.js'
 import { planHelper } from './plan.js'
+import { subscriptionHelper } from './subscription.js'
+import { grantFoldHelper } from './grant-fold.js'
+import { entitlementGrantsOf } from './grants.js'
 import type { EffectivePlan, PaymentPlan, PaymentProduct, PaymentSubscriptionRecord } from './types.js'
 import { log } from './log.js'
 import type { CatalogueHelper } from './catalogue/types.js'
 
 /** The plan skus already reported unknown — process-wide, so each is warned about once. */
 const unknownPlans = new Set<string>()
-
-/** An internal grant with a period end stops entitling at that instant; a paygate row never does. */
-const stillEntitles = (row: PaymentSubscriptionRecord, at: Date): boolean =>
-  row.paygate !== INTERNAL_PAYGATE || row.periodEnd == null || new Date(row.periodEnd).getTime() > at.getTime()
 
 export const makeCatalogueHelper = (ctx: ApiContext): CatalogueHelper => {
   const access = paymentAccessOf(ctx)
@@ -56,7 +55,8 @@ export const makeCatalogueHelper = (ctx: ApiContext): CatalogueHelper => {
       { entityId, status: [...ENTITLING_STATUSES] }, { size: 0 },
     )
     const candidates: Array<{ plan: PaymentPlan, row: PaymentSubscriptionRecord, rank: number }> = []
-    for (const row of items.filter(item => stillEntitles(item, at))) {
+    // An internal grant with a period end stops entitling at that instant; a paygate row never does.
+    for (const row of items.filter(item => subscriptionHelper.entitlesAt(item, at))) {
       const plan = await findPlan(row.planSku)
       if (plan == null) {
         if (!unknownPlans.has(row.planSku)) {
@@ -71,14 +71,18 @@ export const makeCatalogueHelper = (ctx: ApiContext): CatalogueHelper => {
       || new Date(b.row.createdAt).getTime() - new Date(a.row.createdAt).getTime())
 
     const best = candidates[0]
-    if (best != null) {
-      return { plan: planHelper.overriddenPlan(best.plan, best.row), subscription: best.row, fallback }
+    if (best == null && fallback == null) {
+      throw new PlanRequired(entityId)
     }
-    if (fallback != null) {
-      return { plan: fallback, subscription: null, fallback }
-    }
+    const grants = await entitlementGrantsOf(ctx).inForce(entityId, at)
+    const effective = (plan: PaymentPlan, subscription: PaymentSubscriptionRecord | null): EffectivePlan =>
+      grants.length === 0
+        ? { plan, subscription, fallback }
+        : { plan: grantFoldHelper.withCapabilities(plan, grants), subscription, fallback, grants }
 
-    throw new PlanRequired(entityId)
+    return best != null
+      ? effective(planHelper.overriddenPlan(best.plan, best.row), best.row)
+      : effective(fallback!, null)
   }
 
   const entitlementsOf = async (entityId: string, productSkus?: string[]): Promise<PermissionSet[]> => {
