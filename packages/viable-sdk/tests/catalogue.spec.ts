@@ -1456,6 +1456,8 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
     expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:reserved-name:Shopify'))).toContain('"Shopify"')
     expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:content-refused:abuse-tooling')))
       .toContain('unsolicited bulk messaging')
+    expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:content-refused:brand-impersonation')))
+      .toContain('passing itself off as an existing brand')
     expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:target-integrity:package.json missing')))
       .toContain('package.json missing')
   })

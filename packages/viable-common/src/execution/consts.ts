@@ -34,4 +34,8 @@ export enum ModelRole {
   DevOrchestrator = 'dev-orchestrator',
   Utility = 'utility',
   Picker = 'picker',
+  /** The content gate's senior reviewer: judges what a person wrote, rewrites a refused text. */
+  SecurityExpert = 'security-expert',
+  /** The content gate's cheaper screen over text the platform drafted from a person's material. */
+  JuniorSecurityExpert = 'junior-security-expert',
 }

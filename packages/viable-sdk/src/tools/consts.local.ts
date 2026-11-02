@@ -25,7 +25,8 @@ export const MODERATION: Record<string, string> = {
   [ModerationCategory.CredentialHarvesting]:
     'collecting other people\'s passwords, one-time codes or card details',
   [ModerationCategory.BrandImpersonation]:
-    'presenting itself as another company or as a real person',
+    'passing itself off as an existing brand — by that brand\'s name or its look — or as a real bank;'
+    + ' a name and a look of its own fix it, and a product similar to that brand is fine',
   [ModerationCategory.PaymentCapture]:
     'taking payment details on behalf of a merchant the requester does not run',
   [ModerationCategory.AbuseTooling]:
