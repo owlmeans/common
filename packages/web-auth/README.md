@@ -13,7 +13,7 @@ package by the `web-auth` skill.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-auth@^0.1.19
+bun add @owlmeans/web-auth@^0.1.20-rc.0
 ```
 
 `react` is a peer dependency.

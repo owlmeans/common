@@ -12,7 +12,7 @@ tools the in-memory store of `@owlmeans/server-planning`.
 ## Installation
 
 ```sh
-bun add @owlmeans/planning-postgres@^0.1.19
+bun add @owlmeans/planning-postgres@^0.1.20-rc.0
 ```
 
 Peers: `pg`, `ajv`, `ajv-formats`.

@@ -14,7 +14,7 @@ imports everything from here. Server code never uses this package; its equivalen
 ## Installation
 
 ```bash
-bun add @owlmeans/client@^0.1.19
+bun add @owlmeans/client@^0.1.20-rc.0
 ```
 
 `react` and `@remix-run/router` are peer dependencies.

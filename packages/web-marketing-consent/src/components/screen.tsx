@@ -66,6 +66,8 @@ export const MarketingConsentBody: FC<MarketingConsentBodyProps> = ({ className 
   // `continueLogin`'s own async work is still in flight).
   const done = !model.loading && !model.unreadable && !model.terms.needed && !pending
   const advanced = useRef(false)
+  // The buttons the list's "Select all" brings into view.
+  const actions = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (done && !advanced.current) {
@@ -119,7 +121,7 @@ export const MarketingConsentBody: FC<MarketingConsentBodyProps> = ({ className 
           {showPrivacy && <ConsentPrivacyNotice t={tAuth} model={model.terms} locale={locale} />}
 
           {(pending || model.terms.needed) && (
-            <ConsentFields t={t} termsT={tAuth} model={model} locale={locale} />
+            <ConsentFields t={t} termsT={tAuth} model={model} locale={locale} actions={actions} />
           )}
 
           {/* Two different moments, one sentence: an initial read that never came back
@@ -144,7 +146,7 @@ export const MarketingConsentBody: FC<MarketingConsentBodyProps> = ({ className 
             </p>
           )}
 
-          <div className="flex flex-col gap-2">
+          <div ref={actions} data-marketing-consent-actions className="flex flex-col gap-2">
             <Button
               type="button"
               variant={termsBlocked || showHint ? 'outline' : 'default'}

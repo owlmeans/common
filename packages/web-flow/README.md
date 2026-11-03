@@ -12,7 +12,7 @@ Web-specific flow service — extends `@owlmeans/client-flow` with URL query par
 ## Installation
 
 ```bash
-bun add @owlmeans/web-flow@^0.1.19
+bun add @owlmeans/web-flow@^0.1.20-rc.0
 ```
 
 ## Usage

@@ -12,7 +12,7 @@ nothing: permissions are enforced by the app's server (`@owlmeans/server-iam`). 
 ## Installation
 
 ```bash
-bun add @owlmeans/client-iam@^0.1.19
+bun add @owlmeans/client-iam@^0.1.20-rc.0
 ```
 
 ## Concepts

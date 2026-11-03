@@ -13,7 +13,7 @@ component. The `mui-panel` skill covers this package.
 ## Installation
 
 ```bash
-bun add @owlmeans/mui-panel@^0.1.19
+bun add @owlmeans/mui-panel@^0.1.20-rc.0
 ```
 
 Peer dependencies the app provides: `@mui/material`, `@mui/icons-material`, `@emotion/react`,

@@ -11,7 +11,7 @@ in a queue (`@owlmeans/server-job`).
 ## Installation
 
 ```bash
-bun add @owlmeans/server-socket@^0.1.19
+bun add @owlmeans/server-socket@^0.1.20-rc.0
 ```
 
 ## Concepts

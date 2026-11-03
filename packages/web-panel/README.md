@@ -11,7 +11,7 @@ but never started.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-panel@^0.1.19
+bun add @owlmeans/web-panel@^0.1.20-rc.0
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,

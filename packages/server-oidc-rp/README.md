@@ -13,7 +13,7 @@ registrations with the IAM gate.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-oidc-rp@^0.1.19
+bun add @owlmeans/server-oidc-rp@^0.1.20-rc.0
 ```
 
 ## Concepts

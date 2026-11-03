@@ -13,7 +13,7 @@ Browser-side OIDC relying party — guard, auth service, and React components fo
 ## Installation
 
 ```bash
-bun add @owlmeans/mui-oidc-rp@^0.1.19
+bun add @owlmeans/mui-oidc-rp@^0.1.20-rc.0
 ```
 
 ## Usage

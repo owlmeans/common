@@ -1,6 +1,6 @@
 
 import type { UseMarketingConsentModel, MarketingConsentTermsModel } from '../hooks/types.js'
-import type { ReactNode } from 'react'
+import type { ReactNode, RefObject } from 'react'
 
 /** `(key, defaultValue) => string` — the package's own translator, or an app's. */
 export interface Translate { (key: string, defaultValue: string): string }
@@ -14,6 +14,21 @@ export interface ConsentFieldsProps {
    */
   termsT?: Translate
   locale?: string
+  /**
+   * The action buttons below the list, given only by the step. With it the list closes with a
+   * second "Select all" right above them, and ticking the TOP one brings them into view — the
+   * settings card has neither, so it stays exactly as it was.
+   */
+  actions?: RefObject<HTMLElement | null>
+}
+
+export interface SelectAllProps {
+  t: Translate
+  model: UseMarketingConsentModel
+  /** `top` opens the list (the long-standing `data-marketing-consent-all*` hooks); `end` closes it. */
+  placement: 'top' | 'end'
+  /** Called after the box is TICKED (never when it is cleared) — the top one scrolls to the buttons. */
+  onTicked?: () => void
 }
 
 export interface InlineLink {

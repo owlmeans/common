@@ -22,8 +22,9 @@ the caller. One surface at a time:
   the corner button (`'reopen'`), the sign-in gate (`'login'`) — and the first ask in `window`
   mode: the preferences window.
 
-`[data-consent-dialog]` (with `role="dialog"`, `aria-modal`) and `[data-consent-accept-all]` sit on
-whichever surface is up, so a test or a host keys on them without knowing the mode;
+`[data-consent-dialog]` (with `role="dialog"`; `aria-modal` only on the window — the bar is non-modal)
+and `[data-consent-accept-all]` sit on whichever surface is up, so a test or a host keys on them
+without knowing the mode;
 `data-consent-mode="bar|window"` and `[data-consent-bar]` tell them apart. "Cookie preferences"
 REPLACES the bar with the window — exactly one of each exists at a time.
 
@@ -84,16 +85,19 @@ required category is disclosure, not a question.
 
 ## The bar
 
-A tall bar across the bottom of a **dimmed** overlay (`[data-consent-overlay]`,
-`fixed inset-0 bg-black/70`): the page stays in sight and scrolls, but nothing on it can be
-pressed until the visitor answers. The bar (`fixed inset-x-0 bottom-0 max-h-[85vh] border-t
-bg-background`) holds, left to right on a wide screen and stacked on a phone:
+A short bar floating across the bottom of the page (`fixed inset-x-0 bottom-0 max-h-[60vh]
+border-t bg-background`). **It blocks nothing**: no overlay, no focus trap, no `aria-modal`, no
+focus on open — the visitor may read, scroll and press anything and leave the question unanswered,
+and the bar simply stays. Only the preferences window (and the locating overlay) is modal; the
+bar's own "Cookie preferences" and the sign-in gate (`consentStore.open('login')`) REPLACE the bar
+with it. The bar holds, left to right on a wide screen and stacked on a phone:
 
 - the cookie icon and `barTitle`;
-- `barDescription` — what the essential cookies do, the optional categories in force as a list
-  after a colon (`{{categories}}`, so no language has to decline a label), that they stay off until
-  allowed, and that the choice can be changed or withdrawn at any time; `barDescriptionEssential`
-  when nothing is optional;
+- `barDescription` — two short sentences (about half of the original length in every language):
+  essential cookies run the site, the optional categories in force follow after a colon
+  (`{{categories}}`, so no language has to decline a label) and are used only with consent, which can
+  be changed or withdrawn at any time; `barDescriptionEssential` when nothing is optional. Keep it
+  short: `tests/consent.spec.ts` caps both strings, and a longer copy is a regression;
 - the cross-domain line (`[data-consent-domains]`) when `linker` names more than this host;
 - the links row (`[data-consent-links]`: `policyHref` then `links`, 44px targets, new tab);
 - three answers: `[data-consent-preferences]` "Cookie preferences" (outlined), then
@@ -103,7 +107,20 @@ bg-background`) holds, left to right on a wide screen and stacked on a phone:
 
 `barClassName` styles the bar; `className` still styles the window's card.
 
-**Focus.** On open, focus moves to the surface itself (`tabIndex={-1}`) — never to an answer, which
-would be a nudge; Tab and Shift+Tab cycle inside it; on close focus returns where it was. Nothing
-pulls focus back on `focusin` (a script focusing a field is not a keyboard user escaping). The
-spinner overlay takes no focus.
+**The page stays reachable behind it** (`useBarClearance`): while the bar is up the body gets as much
+bottom padding as the bar is tall (kept exact by a `ResizeObserver`, on top of whatever padding the
+page had), so the end of a short page — a sign-in screen on a phone — can always be scrolled out from
+under the bar. The padding is removed with the bar (answered, or replaced by the window); the window
+reserves nothing.
+
+Because nothing is gated by it, a host that must have an answer before something happens asks for
+it itself: the sign-in precondition (`@owlmeans/client-iam`) raises the window on a click, and a
+host's own gate calls `consentStore.open('login')`. A test that has to see the page "blocked" now
+looks at the window, never at the bar.
+
+**Focus.** The bar takes no focus and Tab passes through it into the rest of the page (a trap on a
+surface that blocks nothing would be a WCAG 2.1.2 keyboard trap). The WINDOW is modal: on open,
+focus moves to the surface itself (`tabIndex={-1}`) — never to an answer, which would be a nudge;
+Tab and Shift+Tab cycle inside it; on close focus returns where it was. Nothing pulls focus back on
+`focusin` (a script focusing a field is not a keyboard user escaping). The spinner overlay takes
+no focus.

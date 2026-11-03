@@ -58,7 +58,7 @@ describe('@owlmeans/web-marketing-consent — translations', () => {
 
   test('every literal screen.*/preferences.* key used by the components has an English entry', () => {
     const componentsDir = join(import.meta.dir, '../src/components')
-    const sources = ['screen.tsx', 'preferences.tsx', 'fields.tsx', 'terms.tsx', 'row.tsx', 'inline.tsx']
+    const sources = ['screen.tsx', 'preferences.tsx', 'fields.tsx', 'select-all.tsx', 'terms.tsx', 'row.tsx', 'inline.tsx']
       .map(file => readFileSync(join(componentsDir, file), 'utf8'))
 
     const used = new Set<string>()

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-auth",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -55,13 +55,13 @@
     "@owlmeans/auth-common": "^0.1.19",
     "@owlmeans/basic-envelope": "^0.1.19",
     "@owlmeans/basic-keys": "^0.1.19",
-    "@owlmeans/client": "^0.1.19",
+    "@owlmeans/client": "^0.1.20-rc.0",
     "@owlmeans/client-context": "^0.1.19",
     "@owlmeans/client-entrypoint": "^0.1.19",
-    "@owlmeans/client-flow": "^0.1.19",
-    "@owlmeans/client-i18n": "^0.1.19",
+    "@owlmeans/client-flow": "^0.1.20-rc.0",
+    "@owlmeans/client-i18n": "^0.1.20-rc.0",
     "@owlmeans/client-resource": "^0.1.19",
-    "@owlmeans/client-socket": "^0.1.19",
+    "@owlmeans/client-socket": "^0.1.20-rc.0",
     "@owlmeans/config": "^0.1.19",
     "@owlmeans/context": "^0.1.19",
     "@owlmeans/did": "^0.1.19",
@@ -72,7 +72,7 @@
     "@owlmeans/log": "^0.1.19",
     "@owlmeans/resource": "^0.1.19",
     "@owlmeans/socket": "^0.1.19",
-    "@owlmeans/web-flow": "^0.1.19",
+    "@owlmeans/web-flow": "^0.1.20-rc.0",
     "@scure/base": "^2.4.0"
   },
   "peerDependencies": {

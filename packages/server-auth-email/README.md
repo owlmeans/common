@@ -11,7 +11,7 @@ in. The browser half is `@owlmeans/web-auth-email`.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-email@^0.1.19
+bun add @owlmeans/server-auth-email@^0.1.20-rc.0
 ```
 
 ## Wiring

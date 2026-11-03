@@ -12,7 +12,7 @@ Web whitelabel — service factory, local protocol bindings, and React component
 ## Installation
 
 ```bash
-bun add @owlmeans/web-wl@^0.1.19
+bun add @owlmeans/web-wl@^0.1.20-rc.0
 ```
 
 ## Usage

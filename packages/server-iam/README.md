@@ -14,7 +14,7 @@ One-call OIDC RP wiring and IAM gate for OwlMeans servers — `appendIam()` and 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-iam@^0.1.19
+bun add @owlmeans/server-iam@^0.1.20-rc.0
 ```
 
 ## Usage
