@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/web-inquiry",
-  "version": "0.1.19",
-  "generatedAt": "2026-11-01T22:22:22.302Z",
+  "version": "0.1.20-alpha.0",
+  "generatedAt": "2026-11-03T05:44:27.329Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

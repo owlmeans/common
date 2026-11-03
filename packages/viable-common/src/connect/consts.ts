@@ -131,7 +131,7 @@ export enum ModelTaskResultKind {
 /**
  * The power classes a parent agent offers, and the platform asks for.
  *
- * Three, because a parent has at most a few models and the platform has seventeen roles. The
+ * Three, because a parent has at most a few models and the platform has nineteen roles. The
  * mapping is data ({@link MODEL_TIER_ROLES}) rather than a per-role negotiation: a parent says
  * which of its models is strong, standard and cheap, and the platform stamps each role's tier onto
  * the task it hands out. A parent offering fewer tiers gets its best available one — never a
@@ -168,6 +168,8 @@ export const MODEL_TIER_ROLES: Record<string, ModelTier> = {
   'product-manager': ModelTier.Standard,
   'utility': ModelTier.Cheap,
   'picker': ModelTier.Cheap,
+  'security-expert': ModelTier.Strong,
+  'junior-security-expert': ModelTier.Standard,
 }
 
 /** What the model task asks the parent's subagent to produce. */

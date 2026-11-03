@@ -100,8 +100,10 @@ describe('create-app — bare scaffolding', () => {
     expect(read('sources/web/src/vite-env.d.ts')).toContain('readonly VITE_LOG_LEVEL?: string')
     expect(read('sources/api/src/index.ts')).toContain("log.error('Start failed', error)")
 
+    const logVersion = JSON.parse(readFileSync(new URL('../../log/package.json', import.meta.url), 'utf8')).version as string
+    const logRange = logVersion.includes('-alpha.') ? logVersion : '^' + logVersion
     for (const pkg of ['sources/api/package.json', 'sources/web/package.json']) {
-      expect(JSON.parse(read(pkg)).dependencies['@owlmeans/log']).toBe('^' + JSON.parse(readFileSync(new URL('../../log/package.json', import.meta.url), 'utf8')).version)
+      expect(JSON.parse(read(pkg)).dependencies['@owlmeans/log']).toBe(logRange)
     }
     expect(read('.gitignore').split('\n')).toContain('.env')
     expect(read('AGENTS.md')).toContain('## Logging (mandatory)')

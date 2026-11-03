@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/test-integration",
-  "version": "0.1.19",
+  "version": "0.1.20-alpha.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/log": "^0.1.19",
+    "@owlmeans/log": "0.1.20-alpha.0",
     "@owlmeans/test": "^0.1.19"
   },
   "devDependencies": {

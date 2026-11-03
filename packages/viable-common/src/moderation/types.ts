@@ -1,4 +1,4 @@
-import type { ModerationCategory, ModerationSubject } from './consts.js'
+import type { ModerationCategory, ModerationReviewer, ModerationSubject } from './consts.js'
 
 /**
  * What the moderation classifier returns.
@@ -62,7 +62,47 @@ export interface ModerationInput {
   entityId?: string
   /**
    * Extra framing appended to the subject's own, for a subject whose meaning depends on where
-   * the text came from — a file's path, for instance.
+   * the text came from — a file's path, or the product's own description behind a story. Read to
+   * understand the text, never judged itself.
    */
   context?: string
+  /** Who judges — {@link ModerationReviewer.Senior} when absent. */
+  reviewer?: ModerationReviewer
+}
+
+/** One text's verdict inside a screen. */
+export interface ModerationScreenItem {
+  /** The number the text was shown under — 1-based, as in its `--- n ---` header. */
+  index: number
+  allowed: boolean
+  /** Free string on the wire, narrowed like {@link ModerationVerdict.category}. */
+  category?: string
+  /** Diagnostic only. */
+  evidence?: string
+}
+
+/** What the classifier returns for several texts judged in one call, each on its own. */
+export interface ModerationScreen {
+  items: ModerationScreenItem[]
+}
+
+/** One request to reword a refused text so it can be built. */
+export interface ModerationRewriteInput {
+  subject: ModerationSubject
+  /** The refused text. */
+  text: string
+  /** Why it was refused. */
+  category?: ModerationCategory
+  /** What the refusal reacted to — the brand and the phrase. */
+  evidence?: string
+  /** As {@link ModerationInput.context}. */
+  context?: string
+  entityId?: string
+  /** Who rewrites — {@link ModerationReviewer.Senior} when absent. */
+  reviewer?: ModerationReviewer
+}
+
+/** What the classifier returns for a rewrite: the reworded text, or an empty one when it cannot. */
+export interface ModerationRewrite {
+  text: string
 }

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/captcha
 
 **Layer:** Server-side (no Fastify, no context of its own — `auth`, `config`, `context`, `log`)
-**Install:** `"@owlmeans/captcha": "^0.1.19"` in `dependencies`
+**Install:** `"@owlmeans/captcha": "0.1.20-alpha.0"` in `dependencies`
 **Browser half:** `@owlmeans/web-captcha` (the reCAPTCHA v3 loader and `useCaptcha`)
 
 Three things, one per need:

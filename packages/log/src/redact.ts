@@ -1,19 +1,39 @@
 import { MAX_DEPTH, MAX_STRING, REDACTED, SECRET_KEY } from './consts.js'
-import { MAX_ITEMS } from './consts.local.js'
+import { MAX_ERROR_CAUSE_DEPTH, MAX_ERROR_CAUSE_MESSAGE, MAX_ERROR_CAUSE_STACK, MAX_ITEMS } from './consts.local.js'
 import type { RedactHelper } from './redact/types.js'
 
 const clip = (value: string): string =>
   value.length > MAX_STRING ? `${value.slice(0, MAX_STRING)}… (${value.length - MAX_STRING} more)` : value
 
 export const createRedactHelper = (): RedactHelper => {
-  const errorData = (error: Error): Record<string, unknown> => {
-    const data: Record<string, unknown> = { name: error.name, message: clip(error.message) }
-    const extra = error as Error & { code?: unknown, incidentId?: unknown, type?: unknown }
-    if (extra.code != null) data.code = extra.code
-    if (extra.type != null) data.type = extra.type
-    if (extra.incidentId != null) data.incidentId = extra.incidentId
-    if (error.stack != null) data.stack = clip(error.stack)
-    return data
+  const errorText = (value: string, limit: number): string => {
+    const safe = value.replace(/\bsk-[A-Za-z0-9_*.-]+/g, '[redacted-key]')
+      .replace(/\bBearer\s+[A-Za-z0-9._~-]+/gi, 'Bearer [redacted]')
+      .replace(/((?:authorization|cookie|password|api[_-]?key|access[_-]?token)\s*[:=]\s*)[^\r\n]+/gi, '$1[redacted]')
+    return safe.length > limit ? `${safe.slice(0, limit)}… (${safe.length - limit} more)` : safe
+  }
+  const errorData: RedactHelper['errorData'] = (error, options = {}) => {
+    const seen = new WeakSet<Error>()
+    const visit = (current: Error, depth: number): Record<string, unknown> => {
+      seen.add(current)
+      const data: Record<string, unknown> = { name: errorText(current.name, 100),
+        message: errorText(current.message, depth === 0 ? MAX_STRING : MAX_ERROR_CAUSE_MESSAGE) }
+      const extra = current as Error & { code?: unknown, incidentId?: unknown, type?: unknown, status?: unknown }
+      for (const key of ['code', 'type', 'incidentId'] as const) {
+        if (typeof extra[key] === 'string') data[key] = errorText(extra[key], 100)
+        else if (typeof extra[key] === 'number' && Number.isFinite(extra[key])) data[key] = extra[key]
+      }
+      if (typeof extra.status === 'number' && Number.isFinite(extra.status)) data.status = extra.status
+      if (current.stack != null && (depth === 0 || options.causeStacks !== false)) {
+        data.stack = errorText(current.stack, depth === 0 ? MAX_STRING : MAX_ERROR_CAUSE_STACK)
+      }
+      if (current.cause instanceof Error) {
+        if (depth >= MAX_ERROR_CAUSE_DEPTH || seen.has(current.cause)) data.causeTruncated = true
+        else data.cause = visit(current.cause, depth + 1)
+      }
+      return data
+    }
+    return visit(error, 0)
   }
 
   const redact = (value: unknown, depth = 0, seen: WeakSet<object> = new WeakSet()): unknown => {

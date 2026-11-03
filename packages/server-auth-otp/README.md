@@ -12,7 +12,7 @@ types the service, and on this package only where the server wires itself up.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-otp@^0.1.19
+bun add @owlmeans/server-auth-otp@0.1.20-alpha.0
 ```
 
 ## Concepts
@@ -187,7 +187,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.19
+npx @owlmeans/agent-skills@0.1.20-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/storage-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/storage-resource": "^0.1.19"` in `dependencies`
+**Install:** `"@owlmeans/storage-resource": "0.1.20-alpha.0"` in `dependencies`
 
 ## Key Exports
 

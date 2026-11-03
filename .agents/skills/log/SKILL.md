@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/log
 
 **Layer:** Core (depends on `@owlmeans/context` only; isomorphic — server, browser, worker)
-**Install:** `"@owlmeans/log": "^0.1.19"` in `dependencies`
+**Install:** `"@owlmeans/log": "0.1.20-alpha.0"` in `dependencies`
 
 Everything a process says about itself goes through this package. It owns four decisions that a bare
 `console.*` leaves to chance: **how much** is written (the level), **in what form** (text or JSON on a
@@ -31,6 +31,14 @@ const worker = log.child('worker', { queue })           // scope `billing:worker
 
 `logger(scope)` is cheap — keep one per module. A scope is lowercase and colon-separated
 (`agent:slot`, `publisher:build`); it is what `cfg.log.debug` selects by.
+
+Native errors retain bounded actual `Error.cause` chains, never string/object lookalikes or SDK
+headers, request/config objects and arbitrary own fields. JSON uses `err.cause`; text binds a
+compact JSON cause to its parent error with the reserved `errorCause` header field, separately
+from free-form stack text. Names, messages, scalar codes/types/status and bounded stacks are
+allowlisted; key/token/header text is redacted. Cycles/depth and oversized text relations are
+marked unavailable, so a diagnostic must not infer a missing cause. Direct errors and browser
+Error objects keep their existing behavior.
 
 ### Levels — what belongs where
 

@@ -1,5 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
-import type { ModerationVerdict } from './types.js'
+import type { ModerationRewrite, ModerationScreen, ModerationVerdict } from './types.js'
 
 /**
  * What the classifier must answer with.
@@ -26,3 +26,40 @@ export const ModerationVerdictSchema: JSONSchemaType<ModerationVerdict> = {
   required: ['allowed'],
   additionalProperties: false,
 } as unknown as JSONSchemaType<ModerationVerdict>
+
+/**
+ * What the classifier answers when it screens several texts in one call: one item per text, keyed
+ * by the number it was shown under. `category` stays a free string for the reason above; a
+ * missing item reads as allowed.
+ */
+export const ModerationScreenSchema: JSONSchemaType<ModerationScreen> = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          index: { type: 'integer' },
+          allowed: { type: 'boolean' },
+          category: { type: 'string', maxLength: 64, nullable: true },
+          evidence: { type: 'string', maxLength: 500, nullable: true },
+        },
+        required: ['index', 'allowed'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['items'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ModerationScreen>
+
+/** What the classifier answers when it rewrites a refused text: the text, empty when it cannot. */
+export const ModerationRewriteSchema: JSONSchemaType<ModerationRewrite> = {
+  type: 'object',
+  properties: {
+    text: { type: 'string' },
+  },
+  required: ['text'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ModerationRewrite>

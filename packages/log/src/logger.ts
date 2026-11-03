@@ -1,4 +1,5 @@
 import { CONSOLE_SCOPE } from './consts.js'
+import { MAX_TEXT_ERROR_CAUSE } from './consts.local.js'
 import { logLevelHelper } from './level.js'
 import { redactHelper } from './redact.js'
 import { logStateHelper } from './state.js'
@@ -174,6 +175,16 @@ const write = (record: LogRecord): void => {
   let line = `${iso} ${record.level.toUpperCase().padEnd(5)} [${record.scope}] ${record.message}`
   if (record.event != null) line += ` event=${record.event}`
   if (record.data !== undefined) line += ` ${flat(record.data)}`
+  if (record.error != null) {
+    const cause = redactHelper.errorData(record.error, { causeStacks: false }).cause
+    if (cause != null) {
+      const encoded = JSON.stringify(cause)
+      // A reserved header field binds this actual Error.cause to its parent error. Free-form
+      // stack text is never a structured cause; oversized relations are explicitly unavailable.
+      line += encoded.length <= MAX_TEXT_ERROR_CAUSE
+        ? ` errorCause=${JSON.stringify(encoded)}` : ' errorCauseTruncated=true'
+    }
+  }
   if (record.error?.stack != null) line += `\n${record.error.stack}`
   out(line)
 }

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-bot",
-  "version": "0.1.19",
+  "version": "0.1.20-alpha.0",
   "license": "MIT",
   "description": "The server runtime of OwlMeans chat bots — connections with sealed credentials, the signed inbound hook and its inbox, the worker's dispatcher and receivers, never-throwing bot actions recorded as activity, the platform plugin interface with the Telegram, WhatsApp, Discord and Slack plugins, and an API-faithful mock transport.",
   "type": "module",
@@ -41,9 +41,9 @@
     "@owlmeans/context": "^0.1.19",
     "@owlmeans/entrypoint": "^0.1.19",
     "@owlmeans/error": "^0.1.19",
-    "@owlmeans/log": "^0.1.19",
+    "@owlmeans/log": "0.1.20-alpha.0",
     "@owlmeans/resource": "^0.1.19",
-    "@owlmeans/server-api": "^0.1.19",
+    "@owlmeans/server-api": "0.1.20-alpha.0",
     "@owlmeans/server-entrypoint": "^0.1.19"
   },
   "peerDependencies": {
