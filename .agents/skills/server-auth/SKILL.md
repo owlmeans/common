@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth": "0.1.20-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/server-auth": "^0.1.20-rc.0"` in `dependencies`
 
 Two halves, deliberately split by subpath:
 
@@ -238,6 +238,14 @@ sign-in side effects (a last-sign-in stamp, an audit line) here, never by wrappi
   email OTP) must map onto local account/profile/credential records.
 - A reCAPTCHA token is a guest token: only `makeReCaptchaGuard` accepts it, once; the bearer
   exchange refuses it (see "reCAPTCHA guests").
+- The manager signs whatever credential fields a plugin leaves, so a plugin that proves no identity
+  resets the credential to a guest before it returns. `makeBasicRelyPlugin` does: it awaits both
+  envelope checks (the peer's tunnel record and the caller's own challenge) and keeps only `type`,
+  `role`, `userId`, `scopes`, `challenge` and `credential`, set to `GUEST_ID`, `AuthRole.Guest` and
+  `[AUTH_SCOPE]`. A rely connection's real identity comes from the rely flow's linker (the provider
+  side's peer nonce), never from what the caller posted.
+- Every envelope `verify` is async: a check written without `await` tests a Promise, which is always
+  truthy, so it never fails.
 
 ## Depends On
 

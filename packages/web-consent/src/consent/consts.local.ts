@@ -8,7 +8,7 @@
  *
  * Flat by rule, because it is the first thing every new visitor of a generated app sees: the
  * surface and every colour come from the host's theme tokens (ground, ink, muted, hairline, one
- * accent), depth comes from a hairline border and the overlay alone, and nothing paints a
+ * accent), depth comes from a hairline border and the window's overlay alone, and nothing paints a
  * gradient, a shadow, a glow or a `backdrop-filter`. The accept action is the one accent pill,
  * the others are outlined pills; every control is at least 44px tall and shows a 3px focus ring.
  */

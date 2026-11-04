@@ -5,7 +5,7 @@ description: Category-D component-level acceptance tests for OwlMeans Common UI 
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
 
-**Install:** `"@owlmeans/test-ui": "0.1.20-alpha.0"` in `devDependencies`
+**Install:** `"@owlmeans/test-ui": "^0.1.20-rc.0"` in `devDependencies`
 
 `@owlmeans/test-ui` depends on `playwright`, so the browser library arrives with it; add
 `playwright` to `devDependencies` as well when a spec imports a launcher itself. The Vite harness
@@ -320,16 +320,19 @@ showing a working login form the entire time. Any new helper that calls `page.go
 screen when an assertion timed out; `.loginViaSupervisorForm` takes a `screenshotDir` that captures
 the filled form just before submit.
 
-## The consent dialog blocks the login form, and the failure blames the button
+## An unanswered consent gates the login form, and the failure blames the button
 
-An OwlMeans app asks for cookie consent **before** it will start an authentication flow, and the
-surface — the bar on its transparent overlay, or the preferences window — offers no dismissal: a
-decision is what the gate is waiting for. Until it is
-answered the overlay intercepts pointer events, so a login form renders, resolves, reports itself
-`visible, enabled and stable`, and still cannot be clicked. Playwright retries for the full timeout
-and then reports `click: Timeout … waiting for getByTestId('supervisor-submit')`, naming the
-button. Nothing is wrong with the button; read the `subtree intercepts pointer events` line, which
-names `[data-consent-dialog]`.
+An OwlMeans app asks for cookie consent **before** it will start an authentication flow. The first
+ask is the bar, which blocks nothing — the page is usable and the bar simply stays — so a spec that
+never answers it clicks a login control and meets the gate instead: the sign-in precondition
+(`@owlmeans/client-iam`) refuses the click and raises the preferences WINDOW, a modal over a
+dimmed overlay that offers no dismissal. From then on the overlay intercepts pointer events, so a
+login form renders, resolves, reports itself `visible, enabled and stable`, and still cannot be
+clicked. Playwright retries for the full timeout and then reports `click: Timeout … waiting for
+getByTestId('supervisor-submit')`, naming the button. Nothing is wrong with the button; read the
+`subtree intercepts pointer events` line, which names `[data-consent-dialog]`. (A bar that is still
+up is not in the way of anything — and a window that was not asked for is a sign the spec skipped
+the answer.)
 
 `makePageHelper(page).loginViaSupervisorForm` and `.loginViaEmailForm` therefore call `.acceptConsent()` after navigating. `.acceptConsent` is
 public for specs that drive their own login: it waits for the consent store to SETTLE — never while
@@ -365,7 +368,9 @@ pick. Both also default `marketingConsent` (their own option, not `.answerMarket
 (root, carrying `data-state="loading"` while its status read is outstanding and `"ready"` once it can
 render), `[data-marketing-consent-terms]` (the Terms checkbox, Terms mode only, with `data-version`),
 `[data-marketing-consent-terms-error]` (Terms record failed — the person stays and retries),
-`[data-marketing-consent-all]` (select-all, never ticks Terms), `[data-marketing-consent-item="<key>"]`
+`[data-marketing-consent-all]` (select-all — exactly one per page; the step's closing copy above the
+buttons is `[data-marketing-consent-all-end]` — and in Terms mode it ticks the Terms box with the
+consents, in required-only mode only the Terms box), `[data-marketing-consent-item="<key>"]`
 (per-consent), `[data-marketing-consent-save]`, `[data-marketing-consent-skip]` (shown whenever the
 step is optional-only — i.e. `!loading && !terms.needed` — not only after a failed save),
 `[data-marketing-consent-skip-note]`, `[data-marketing-consent-signout]` (shown while a Terms box or

@@ -239,6 +239,17 @@ describe('the built-in translations', () => {
     }
   })
 
+  test('the bar copy stays short in every locale', () => {
+    // The bar sits over the page the visitor came to read, so its description is held to about
+    // half of what it once was (298 / 143 characters in English before it was halved) — a
+    // translation that grows back is a regression a reader feels, never one a type catches.
+    for (const lng of CONSENT_LOCALES) {
+      const bundle = DEFAULT_CONSENT_MESSAGES[lng]
+      expect({ lng, long: bundle.barDescription.length > 200 }).toEqual({ lng, long: false })
+      expect({ lng, long: bundle.barDescriptionEssential.length > 100 }).toEqual({ lng, long: false })
+    }
+  })
+
   test('an unknown locale falls back to English rather than to a raw key', () => {
     expect(consentI18nHelper.normalizeLocale('kl')).toBe('en')
     expect(consentI18nHelper.defaultConsentTranslate('kl')('title', 'fallback')).toBe('Cookie Preferences')

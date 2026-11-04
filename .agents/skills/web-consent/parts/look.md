@@ -16,9 +16,9 @@ follow the flat rule those apps are held to: **no gradient, shadow, glow, glass 
 
 | Part | Classes |
 |---|---|
-| Bar overlay | `bg-black/70`, matching the preferences window — the page is dimmed beneath the opaque bar |
+| Bar overlay | none — the bar floats over a page that stays usable and dims nothing |
 | Locating overlay | `bg-transparent` — a quick region lookup flashes no backdrop |
-| Bar | `border-t border-border bg-background text-foreground`, no shadow |
+| Bar | `fixed inset-x-0 bottom-0 max-h-[60vh] border-t border-border bg-background text-foreground`, no shadow |
 | Bar answers | "Accept only mandatory" and "Accept All" both the accent pill; "Cookie preferences" outlined |
 | Spinner | `text-muted-foreground motion-safe:animate-spin` |
 | Window overlay | `bg-black/70`, flat — no blur |

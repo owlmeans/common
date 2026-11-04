@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth-email
 
 **Layer:** Auth shared (L6 — `auth`, `auth-common`, `context`, `entrypoint`, `error`, `route`; `ajv` + `ajv-formats` peers)
-**Install:** `"@owlmeans/auth-email": "0.1.20-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/auth-email": "^0.1.20-rc.0"` in `dependencies`
 **Halves:** `@owlmeans/server-auth-email` serves the routes, `@owlmeans/web-auth-email` signs a
 person in. This package holds no behaviour — the tree, schemas, views, constants and errors both
 sides must agree on.

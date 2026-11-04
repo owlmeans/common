@@ -1,6 +1,8 @@
-import { useEffect, useRef, type FC } from 'react'
+import type { FC } from 'react'
 import { ConsentRow, RevisedLine } from './row.js'
+import { SelectAll } from './select-all.js'
 import { ConsentTerms } from './terms.js'
+import { BAR_AIR, COOKIE_BAR, REDUCED_MOTION } from './consts.local.js'
 import type { ConsentFieldsProps } from './types.js'
 import { inlineHelper } from './inline.js'
 
@@ -11,7 +13,9 @@ import { inlineHelper } from './inline.js'
  * Select-all is a framed box of its own and the first thing on screen; below it ONE list, in which
  * the Terms confirmation (when the screen owes one) is the first row, drawn like every consent row
  * and marked mandatory, followed by the consents in their catalogue order — no group headings, one
- * continuous list.
+ * continuous list. In the step (`actions` given) the list closes with the same box again, right above
+ * the buttons, and ticking the first one scrolls the buttons into view: after a long list a person
+ * who has chosen "all" should not have to hunt for what to press next.
  *
  * `data-marketing-consent-item`/`data-marketing-consent-all` are the SAME testids in both hosts;
  * the two are never mounted on the same page at once. Checkboxes are bare
@@ -19,43 +23,37 @@ import { inlineHelper } from './inline.js'
  * `LoginTerms` makes for a sign-in screen — no checkbox primitive (and its Radix peer) is vendored
  * just to render one.
  */
-export const ConsentFields: FC<ConsentFieldsProps> = ({ t, model, termsT, locale }) => {
-  const allRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (allRef.current != null) {
-      allRef.current.indeterminate = model.allIndeterminate
+export const ConsentFields: FC<ConsentFieldsProps> = ({ t, model, termsT, locale, actions }) => {
+  /**
+   * Bring the buttons into view — the least scroll that does it, so a screen that already shows them
+   * does not move — instantly for a person who asked their system for less motion, and clear of a
+   * cookie bar floating over the bottom of the page. Focus stays where it is: moving it on a checkbox
+   * change would be a surprise for a keyboard or screen-reader user.
+   */
+  const reveal = (): void => {
+    const target = actions?.current
+    if (target == null || typeof target.scrollIntoView !== 'function') {
+      return
     }
-  }, [model.allIndeterminate])
+    const still = typeof window !== 'undefined' && window.matchMedia?.(REDUCED_MOTION).matches === true
+    // A cookie bar still floating over the bottom of the page (the person signed in without answering
+    // it) must not end up on top of the buttons: leave its height free beneath them.
+    const covered = document.querySelector(COOKIE_BAR)?.getBoundingClientRect().height ?? 0
+    target.style.scrollMarginBottom = covered > 0 ? `${Math.ceil(covered) + BAR_AIR}px` : ''
+    target.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'nearest' })
+  }
 
   const showTerms = termsT != null && model.terms.needed
   const rows = model.groups.reduce((count, group) => count + group.items.length, 0) + (showTerms ? 1 : 0)
   const requiredOnly = model.bulkSelection === 'required'
   const note = t('screen.required-note', '* Required')
   const marked = note.startsWith('*')
+  // Required-only mode never offers a bulk optional-purpose choice, including in settings.
+  const showAll = requiredOnly ? showTerms : rows > 1
 
   return (
     <div className="flex flex-col gap-5" data-marketing-consent-fields="">
-      {/* Required-only mode never offers a bulk optional-purpose choice, including in settings. */}
-      {(requiredOnly ? showTerms : rows > 1) && (
-        <label
-          data-marketing-consent-all-frame=""
-          className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-3 text-sm font-medium cursor-pointer"
-          // The frame reaches outward by its own border and padding, so the checkbox inside it stands
-          // on the same vertical line as the checkbox of every row below.
-          style={{ marginInline: 'calc(-0.75rem - 1px)' }}
-        >
-          <input
-            ref={allRef}
-            type="checkbox"
-            data-marketing-consent-all
-            className="size-4 shrink-0 accent-primary"
-            checked={model.allChecked}
-            onChange={event => model.toggleAll(event.target.checked)}
-          />
-          {requiredOnly ? t('screen.all-required', 'Select required agreements') : t('screen.all', 'Select all')}
-        </label>
-      )}
+      {showAll && <SelectAll t={t} model={model} placement="top" onTicked={actions != null ? reveal : undefined} />}
 
       <div className="flex flex-col gap-5">
         {showTerms && <ConsentTerms termsT={termsT} t={t} model={model.terms} locale={locale} />}
@@ -110,6 +108,8 @@ export const ConsentFields: FC<ConsentFieldsProps> = ({ t, model, termsT, locale
           {marked ? note.slice(1) : note}
         </p>
       )}
+
+      {actions != null && showAll && <SelectAll t={t} model={model} placement="end" />}
     </div>
   )
 }

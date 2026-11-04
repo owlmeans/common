@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-gtm
 
 **Layer:** Web
-**Install:** `"@owlmeans/web-gtm": "^0.1.19"` in `dependencies`
+**Install:** `"@owlmeans/web-gtm": "^0.1.20-rc.0"` in `dependencies`
 
 The tag half of the consent set. It emits **strings and data**, not components, and it holds no
 state — the decision lives in `@owlmeans/consent`, which this package reads through

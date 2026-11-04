@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-oauth
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-oauth": "0.1.20-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/web-oauth": "^0.1.20-rc.0"` in `dependencies`
 **Contracts:** `@owlmeans/oauth` — aliases, `makeOAuthProtocols`, `oauthFlow`, `ConsentView`
 **Server half:** `@owlmeans/server-oauth` (its `consentUrl`/`deviceUrl` must point at these screens)
 

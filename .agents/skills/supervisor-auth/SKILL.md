@@ -131,7 +131,8 @@ app keeps the development-only default.
   per address, so the e-mail sign-in lands on the account the supervisor login provisioned.
 
 `makePageHelper(page).loginViaSupervisorForm` answers a cookie-consent dialog by default (`consent: 'accept'`): an
-OwlMeans app refuses to start an authentication flow until consent is answered, and the modal
+OwlMeans app refuses to start an authentication flow until consent is answered — the cookie bar
+itself blocks nothing, but the first login click raises the preferences window, a modal that
 intercepts every click at the form underneath. Both browser helpers navigate with
 `waitUntil: 'domcontentloaded'` rather than Playwright's `load`, because `load` waits for every
 subresource and a tag manager or analytics beacon that never settles holds it open until timeout.

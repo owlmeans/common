@@ -14,7 +14,7 @@ The `web-consent` skill covers the components, the `consent` skill the model beh
 ## Installation
 
 ```bash
-bun add @owlmeans/web-consent@0.1.20-alpha.0
+bun add @owlmeans/web-consent@^0.1.20-rc.0
 ```
 
 Peer dependencies the app provides: `react`, `tailwindcss`, `tailwind-merge`, `clsx`, `lucide-react`.
@@ -48,9 +48,10 @@ Tailwind entry must scan the package's `src`:
 ### 1. Mount it once
 
 At the application root or layout. It opens itself when no decision is stored and renders only the
-re-open button once one is. A first-time visitor is asked with a tall bar across the bottom of a
-dimmed overlay — "Cookie preferences", "Accept only mandatory", "Accept all" — and every later
-opening is the preferences window; `mode="window"` asks with the window straight away.
+re-open button once one is. A first-time visitor is asked with a short bar floating across the bottom
+of the page — "Cookie preferences", "Accept only mandatory", "Accept all" — which does not block the
+page (the visitor may leave it unanswered); every later opening is the modal preferences window, and
+`mode="window"` asks with the window straight away.
 
 ```tsx
 import { CookieConsent } from '@owlmeans/web-consent'
@@ -186,10 +187,10 @@ re-exported; import them from `@owlmeans/consent`.
 | Selector | Element |
 |---|---|
 | `[data-consent-dialog]` | whichever surface asks — the bar or the window (`data-consent-mode="bar\|window"`) |
-| `[data-consent-bar]`, `[data-consent-overlay]` | the bar, and the dimmed overlay it sits on |
+| `[data-consent-bar]` | the bar (it has no overlay — the page behind it stays usable) |
 | `[data-consent-preferences]`, `[data-consent-mandatory]`, `[data-consent-accept-all]` | the bar's three answers |
 | `[data-consent-save]`, `[data-consent-accept-all]` | the window's two actions |
-| `[data-consent-locating="first"]`, `[data-consent-spinner]` | the locating overlay and its spinner |
+| `[data-consent-locating="first"]`, `[data-consent-spinner]`, `[data-consent-overlay]` | the locating overlay (the only `data-consent-overlay`) and its spinner |
 | `[data-consent-links]`, `[data-consent-auto]` | the legal links row; the "applied automatically" line |
 | `html[data-consent]` | the phase: `locating`, `open`, `decided`, `idle` |
 | `[data-consent-reopen]` | the floating re-open button |
@@ -230,7 +231,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@0.1.20-alpha.0
+npx @owlmeans/agent-skills@^0.1.20-rc.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

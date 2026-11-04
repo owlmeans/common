@@ -7,7 +7,7 @@ metadata:
 
 # Using `@owlmeans/mailer-smtp`
 
-**Install:** `"@owlmeans/mailer-smtp": "0.1.20-alpha.0"` in `dependencies` — it depends on
+**Install:** `"@owlmeans/mailer-smtp": "^0.1.20-rc.0"` in `dependencies` — it depends on
 `nodemailer` itself, so a consumer declares nothing extra
 
 SMTP transport implementing `@owlmeans/mailer`'s `MailerService`, built on `nodemailer` (the

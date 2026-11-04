@@ -12,7 +12,7 @@ legacy). The server-side counterpart is `@owlmeans/server-auth`.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-auth@0.1.20-alpha.0
+bun add @owlmeans/client-auth@^0.1.20-rc.0
 ```
 
 ## Concepts
@@ -322,7 +322,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@0.1.20-alpha.0
+npx @owlmeans/agent-skills@^0.1.20-rc.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them
