@@ -13,7 +13,7 @@ Browser-side state for an embedded OIDC provider's interaction screens (login, c
 ## Installation
 
 ```bash
-bun add @owlmeans/web-oidc-provider@^0.1.19
+bun add @owlmeans/web-oidc-provider@^0.1.20-rc.0
 ```
 
 ## Usage

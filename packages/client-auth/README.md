@@ -12,7 +12,7 @@ legacy). The server-side counterpart is `@owlmeans/server-auth`.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-auth@^0.1.19
+bun add @owlmeans/client-auth@^0.1.20-rc.0
 ```
 
 ## Concepts

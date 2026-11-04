@@ -13,7 +13,7 @@ account/profile records `@owlmeans/server-auth-identity`, and the browser side `
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth@^0.1.19
+bun add @owlmeans/server-auth@^0.1.20-rc.0
 ```
 
 ## Concepts

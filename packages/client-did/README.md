@@ -11,7 +11,7 @@ Client-side DID wallet service for managing decentralized identity keys in brows
 ## Installation
 
 ```bash
-bun add @owlmeans/client-did@^0.1.19
+bun add @owlmeans/client-did@^0.1.20-rc.0
 ```
 
 ## Usage

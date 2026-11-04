@@ -12,7 +12,7 @@ React i18next adapter that loads translations registered via `@owlmeans/i18n` in
 ## Installation
 
 ```bash
-bun add @owlmeans/client-i18n@^0.1.19
+bun add @owlmeans/client-i18n@^0.1.20-rc.0
 ```
 
 ## Usage

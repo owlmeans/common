@@ -22,7 +22,7 @@ and the password panel for a settings screen — in eight languages. The contrac
 ## Installation
 
 ```bash
-bun add @owlmeans/web-auth-email@^0.1.19
+bun add @owlmeans/web-auth-email@^0.1.20-rc.0
 ```
 
 The package ships its own private shadcn primitives (`alert`, `button`, `card`, `input`, `label`)

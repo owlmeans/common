@@ -11,7 +11,7 @@ is the legacy MUI layer — start nothing new there. React Native apps use the `
 ## Installation
 
 ```bash
-bun add @owlmeans/web-client@^0.1.19
+bun add @owlmeans/web-client@^0.1.20-rc.0
 ```
 
 ## Concepts

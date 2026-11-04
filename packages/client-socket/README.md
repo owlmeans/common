@@ -12,7 +12,7 @@ React hook and factory for WebSocket connections via OwlMeans entrypoint routing
 ## Installation
 
 ```bash
-bun add @owlmeans/client-socket@^0.1.19
+bun add @owlmeans/client-socket@^0.1.20-rc.0
 ```
 
 ## Usage

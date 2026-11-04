@@ -13,7 +13,7 @@ Browser-side OIDC relying party — guard, auth service, and React components fo
 ## Installation
 
 ```bash
-bun add @owlmeans/web-oidc-rp@^0.1.19
+bun add @owlmeans/web-oidc-rp@^0.1.20-rc.0
 ```
 
 The package owns its private shadcn progress primitive and imports it through relative specifiers;

@@ -13,7 +13,7 @@ target. Do not use it in a shared `common` package that only declares protocols 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-app@^0.1.19
+bun add @owlmeans/server-app@^0.1.20-rc.0
 ```
 
 ## Concepts

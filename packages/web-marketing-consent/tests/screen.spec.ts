@@ -288,6 +288,175 @@ describe('marketing-consent screen — signed in', () => {
     }
   }, TIMEOUT)
 
+  test('the list closes with a second Select all, right above the buttons', async () => {
+    const { page, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
+      signedIn: true, stubs: { status: { json: statusView() } },
+    })
+    try {
+      await page.locator('[data-marketing-consent-all]').waitFor({ state: 'visible', timeout: 45_000 })
+
+      // One of each: the helper that clicks `-all` needs exactly one match.
+      expect(await page.locator('[data-marketing-consent-all]').count()).toBe(1)
+      expect(await page.locator('[data-marketing-consent-all-end]').count()).toBe(1)
+      const end = page.locator('[data-marketing-consent-all-end-frame]')
+      expect(await end.count()).toBe(1)
+      expect(await end.evaluate(node => getComputedStyle(node).borderTopWidth)).not.toBe('0px')
+      expect(await end.innerText()).toBe(await page.locator('[data-marketing-consent-all-frame]').innerText())
+
+      // Document order: first box, every row, the closing box, then the buttons holding Save.
+      const order = await page.evaluate(() => {
+        const at = (selector: string) => document.querySelector(selector)!
+        const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+        const rows = Array.from(document.querySelectorAll('[data-marketing-consent-item]'))
+        const actions = at('[data-marketing-consent-actions]')
+
+        return {
+          rowsBeforeEnd: rows.every(row => follows(row, at('[data-marketing-consent-all-end-frame]'))),
+          endBeforeActions: follows(at('[data-marketing-consent-all-end-frame]'), actions),
+          saveInActions: actions.contains(at('[data-marketing-consent-save]')),
+          endOutsideActions: !actions.contains(at('[data-marketing-consent-all-end-frame]')),
+        }
+      })
+      expect(order).toEqual({ rowsBeforeEnd: true, endBeforeActions: true, saveInActions: true, endOutsideActions: true })
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the two Select all boxes always agree', async () => {
+    const { page, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
+      signedIn: true, stubs: { status: { json: statusView() } },
+    })
+    try {
+      const top = page.locator('[data-marketing-consent-all]')
+      const end = page.locator('[data-marketing-consent-all-end]')
+      await top.waitFor({ state: 'visible', timeout: 45_000 })
+      const state = async () => await page.evaluate(() => ['[data-marketing-consent-all]', '[data-marketing-consent-all-end]']
+        .map(selector => {
+          const box = document.querySelector(selector) as HTMLInputElement
+
+          return [box.checked, box.indeterminate]
+        }))
+
+      // The closing box selects everything, exactly as the first one does.
+      await end.check()
+      for (const key of keys) {
+        expect(await page.locator(`[data-marketing-consent-item="${key}"]`).isChecked()).toBe(true)
+      }
+      expect(await state()).toEqual([[true, false], [true, false]])
+
+      await page.locator(`[data-marketing-consent-item="${keys[0]}"]`).uncheck()
+      expect(await state()).toEqual([[false, true], [false, true]])
+
+      // A partial selection is unchecked, so a click completes it; the next one clears it.
+      await end.click()
+      expect(await state()).toEqual([[true, false], [true, false]])
+      await end.click()
+      for (const key of keys) {
+        expect(await page.locator(`[data-marketing-consent-item="${key}"]`).isChecked()).toBe(false)
+      }
+      expect(await state()).toEqual([[false, false], [false, false]])
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('ticking the first Select all brings the buttons into view; clearing it does not; focus stays', async () => {
+    const { page, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
+      signedIn: true, stubs: { status: { json: statusView() } },
+    })
+    try {
+      // A phone: the list is longer than the screen, so the buttons start below the fold.
+      await page.setViewportSize({ width: 390, height: 600 })
+      const top = page.locator('[data-marketing-consent-all]')
+      await top.waitFor({ state: 'visible', timeout: 45_000 })
+      const buttonsInView = async () => await page.evaluate(() => {
+        const box = document.querySelector('[data-marketing-consent-save]')!.getBoundingClientRect()
+
+        return box.top >= 0 && box.bottom <= window.innerHeight
+      })
+      expect(await buttonsInView()).toBe(false)
+
+      await top.check()
+      await page.waitForFunction(() => {
+        const box = document.querySelector('[data-marketing-consent-save]')!.getBoundingClientRect()
+
+        return box.top >= 0 && box.bottom <= window.innerHeight
+      })
+      // Focus never moves on a checkbox change.
+      expect(await page.evaluate(() => document.activeElement?.hasAttribute('data-marketing-consent-all'))).toBe(true)
+      expect(await page.locator('[data-marketing-consent-all-end]').isChecked()).toBe(true)
+
+      // Back to the top, then clear it: the person is choosing row by row now, so the page stays.
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await top.uncheck()
+      await page.waitForTimeout(700)
+      expect(await page.evaluate(() => window.scrollY)).toBeLessThan(40)
+      expect(await buttonsInView()).toBe(false)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the buttons land above a cookie bar still floating over the bottom of the page', async () => {
+    const { page, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
+      signedIn: true, stubs: { status: { json: statusView() } },
+    })
+    try {
+      await page.setViewportSize({ width: 390, height: 600 })
+      await page.locator('[data-marketing-consent-all]').waitFor({ state: 'visible', timeout: 45_000 })
+      // A stand-in for web-consent's bar — this package knows it only by its public DOM hook.
+      await page.evaluate(() => {
+        const bar = document.createElement('div')
+        bar.setAttribute('data-consent-bar', '')
+        bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:200px;background:#ccc;z-index:10'
+        document.body.append(bar)
+        document.body.style.paddingBottom = '200px'
+      })
+
+      await page.locator('[data-marketing-consent-all]').check()
+      await page.waitForFunction(() => {
+        const box = document.querySelector('[data-marketing-consent-save]')!.getBoundingClientRect()
+
+        return box.top >= 0 && box.bottom <= window.innerHeight - 200
+      }, undefined, { timeout: 15_000 })
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the scroll is smooth, and an instant jump for a person who reduced motion', async () => {
+    for (const [reducedMotion, behavior] of [['no-preference', 'smooth'], ['reduce', 'auto']] as const) {
+      const { page, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
+        signedIn: true, stubs: { status: { json: statusView() } },
+      })
+      try {
+        await page.emulateMedia({ reducedMotion })
+        await page.setViewportSize({ width: 390, height: 600 })
+        await page.locator('[data-marketing-consent-all]').waitFor({ state: 'visible', timeout: 45_000 })
+        // Record what the page asks of the browser, then let the real call through.
+        await page.evaluate(() => {
+          const win = window as unknown as { __scrolls: unknown[] }
+          win.__scrolls = []
+          const original = Element.prototype.scrollIntoView
+          Element.prototype.scrollIntoView = function (this: Element, arg?: boolean | ScrollIntoViewOptions) {
+            win.__scrolls.push({ target: this.hasAttribute('data-marketing-consent-actions'), arg })
+
+            return original.call(this, arg as ScrollIntoViewOptions)
+          }
+        })
+
+        await page.locator('[data-marketing-consent-all]').check()
+
+        expect(await page.evaluate(() => (window as unknown as { __scrolls: unknown[] }).__scrolls)).toEqual([
+          { target: true, arg: { behavior, block: 'nearest' } },
+        ])
+      } finally {
+        await close()
+      }
+    }
+  }, TIMEOUT)
+
   test('the Select-all checkbox stands on the same vertical line as every row\'s checkbox', async () => {
     const { page, close } = await open(MARKETING_CONSENT_SCREEN_PATH, {
       signedIn: true, stubs: { status: { json: statusView() } },
@@ -464,6 +633,7 @@ describe('marketing-consent screen — signed in', () => {
       await page.locator('[data-marketing-consent-item="custom.only"]').waitFor({ state: 'visible', timeout: 45_000 })
 
       expect(await page.locator('[data-marketing-consent-all]').count()).toBe(0)
+      expect(await page.locator('[data-marketing-consent-all-end]').count()).toBe(0)
     } finally {
       await close()
     }
@@ -486,8 +656,11 @@ describe('marketing-consent screen — Terms mode (appendMarketingConsent({ term
       await page.evaluate(async () => await (window as unknown as {
         __mc: { language: (value: string) => Promise<void> },
       }).__mc.language('pl'))
-      await page.getByText('Zaznacz wymagane umowy', { exact: true }).waitFor({ state: 'visible' })
+      await page.locator('[data-marketing-consent-all-frame]')
+        .getByText('Zaznacz wymagane umowy', { exact: true }).waitFor({ state: 'visible' })
       expect(await page.locator('[data-marketing-consent-all-frame]').innerText()).toContain('Zaznacz wymagane umowy')
+      // The closing box says the same, in the same language, for the same scope.
+      expect(await page.locator('[data-marketing-consent-all-end-frame]').innerText()).toContain('Zaznacz wymagane umowy')
       for (const key of ['terms', 'billing', 'privacy', 'cookies']) {
         expect(await page.locator(`[data-login-document="${key}"]`).getAttribute('href'))
           .toBe(`https://example.test/pl/${key}`)
@@ -590,6 +763,7 @@ describe('marketing-consent screen — Terms mode (appendMarketingConsent({ term
       expect(await page.locator('[data-marketing-consent-item]').count()).toBe(keys.length)
       expect(await page.locator('[data-marketing-consent-terms]').count()).toBe(0)
       expect(await page.locator('[data-marketing-consent-all]').count()).toBe(0)
+      expect(await page.locator('[data-marketing-consent-all-end]').count()).toBe(0)
     } finally {
       await close()
     }

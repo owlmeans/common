@@ -51,13 +51,23 @@ Terms mode — the one way out for someone who will not accept, or who is stuck 
 **The list (`ConsentFields`, shared by the step and the settings card).** In order:
 
 1. **Bulk selection** — a framed box of its own (`[data-marketing-consent-all-frame]`), first on
-   screen, ABOVE the Terms row. Default `bulkSelection: 'all'` draws it only when there is more than
+   screen, ABOVE the Terms row (the step repeats it after the list — see below). Default `bulkSelection: 'all'` draws it only when there is more than
    one row and selects all shown rows. Opt-in `'required'` labels it "Select required agreements",
    shows it only while the Terms row is needed, and ticks/unticks only Terms. Optional choices never
    contribute to that control's checked/indeterminate state and remain untouched by either action;
    a settings card or optional-only step has no bulk control in this mode. The frame
    reaches outward by its own border and padding (a negative inline margin), so its checkbox stands
-   on the same vertical line as every row's checkbox — keep the two in step if either padding moves. It speaks for
+   on the same vertical line as every row's checkbox — keep the two in step if either padding moves.
+   **In the step (not the settings card) the box appears twice and the first one scrolls.** The list
+   closes with the SAME box again — `[data-marketing-consent-all-end-frame]` /
+   `[data-marketing-consent-all-end]` (`SelectAll`, `placement="end"`, the same label, scope and
+   state) — right above the buttons, so a person who has read a long list does not have to scroll
+   back up to choose "all". Ticking the TOP box scrolls the buttons (`[data-marketing-consent-actions]`,
+   given to `ConsentFields` as `actions`) into view with `scrollIntoView({ block: 'nearest' })` —
+   smooth, or instant under `prefers-reduced-motion`, and clear of a cookie bar still floating over the page (found by its public `[data-consent-bar]` hook, never imported: `scroll-margin-bottom` = the bar's height + 16px) — only when it TICKS (clearing it keeps the
+   person at the list) and never moves focus. The settings card passes no `actions`, so it keeps
+   its single box and does not scroll. The closing box has its own attribute NAME because test
+   helpers click `[data-marketing-consent-all]` and need exactly one match. It speaks for
    every row within its configured scope, the Terms row included while it is up: ticking it ticks Terms, and a
    partial selection (Terms alone, or some consents) reads as indeterminate. That counts as a change
    (`pristine` turns false). The Terms row stays independently tickable, and a save with it

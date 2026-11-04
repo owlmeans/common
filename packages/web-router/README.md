@@ -12,7 +12,7 @@ cascade); an SSR or React Native host is a plugin of its own.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-router@^0.1.19
+bun add @owlmeans/web-router@^0.1.20-rc.0
 ```
 
 `react` is a peer dependency.

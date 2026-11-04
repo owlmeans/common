@@ -3,7 +3,7 @@
 Optional authentication identity and group links for OwlMeans planning.
 
 ```sh
-bun add @owlmeans/planning-auth@^0.1.19
+bun add @owlmeans/planning-auth@^0.1.20-rc.0
 ```
 
 Register `makePlanningAuthPlugin()` for the human/non-human schemas. On a trusted server,

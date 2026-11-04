@@ -12,7 +12,7 @@ Client-side flow orchestration service for managing multi-step workflows in brow
 ## Installation
 
 ```bash
-bun add @owlmeans/client-flow@^0.1.19
+bun add @owlmeans/client-flow@^0.1.20-rc.0
 ```
 
 ## Usage

@@ -16,7 +16,7 @@ headless navigation model.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-panel@^0.1.19
+bun add @owlmeans/client-panel@^0.1.20-rc.0
 ```
 
 ## Usage

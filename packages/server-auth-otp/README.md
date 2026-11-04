@@ -12,7 +12,7 @@ types the service, and on this package only where the server wires itself up.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-otp@^0.1.19
+bun add @owlmeans/server-auth-otp@^0.1.20-rc.0
 ```
 
 ## Concepts

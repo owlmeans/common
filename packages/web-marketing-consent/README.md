@@ -11,7 +11,7 @@ terms-recording landing hook in one call. A web app uses it when its server runs
 ## Installation
 
 ```bash
-bun add @owlmeans/web-marketing-consent@^0.1.19
+bun add @owlmeans/web-marketing-consent@^0.1.20-rc.0
 ```
 
 Peer dependencies: `react`, `react-dom`, `tailwindcss`, `@radix-ui/react-label`,

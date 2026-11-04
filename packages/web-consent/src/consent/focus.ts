@@ -2,8 +2,9 @@ import { useEffect, type RefObject } from 'react'
 import { FOCUSABLE } from './consts.local.js'
 
 /**
- * Keep keyboard focus inside an open consent surface, the way its overlay keeps the pointer out of
- * the page behind it.
+ * Keep keyboard focus inside the open preferences window, the way its overlay keeps the pointer out
+ * of the page behind it. Only a MODAL surface uses it: the bar floats over a page that stays usable,
+ * so it neither takes focus nor traps Tab (WCAG 2.1.2).
  *
  * On open, focus goes to the surface ITSELF (`tabIndex={-1}`), never to a button: landing on
  * "Accept all" would be a nudge. Tab and Shift+Tab cycle through the surface's own controls; on
