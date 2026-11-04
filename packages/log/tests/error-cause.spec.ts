@@ -53,7 +53,7 @@ test('cause fields are clipped/redacted and never carry SDK headers, request, co
   expect(text.length).toBeLessThan(4000)
 })
 
-test('direct Error text behavior is unchanged and free-form stack text never becomes cause metadata', () => {
+test('a direct Error keeps its (redacted) stack in text and free-form stack text never becomes cause metadata', () => {
   const error = new Error('direct'); error.stack = 'Error: direct\nCaused by[1]: AuthenticationError401'
   logger('direct').error('Failed', error)
   expect(written[0]).toEndWith('\n' + error.stack)

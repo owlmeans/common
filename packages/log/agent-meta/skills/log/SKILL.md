@@ -38,8 +38,22 @@ headers, request/config objects and arbitrary own fields. JSON uses `err.cause`;
 compact JSON cause to its parent error with the reserved `errorCause` header field, separately
 from free-form stack text. Names, messages, scalar codes/types/status and bounded stacks are
 allowlisted; key/token/header text is redacted. Cycles/depth and oversized text relations are
-marked unavailable, so a diagnostic must not infer a missing cause. Direct errors and browser
-Error objects keep their existing behavior.
+marked unavailable, so a diagnostic must not infer a missing cause.
+
+Both server sinks write the same `errorData`: JSON as `err`, text as the `errorCause` header plus the
+redacted, clipped stack — never the raw one; only a browser receives the original `Error` object.
+`errorData` never throws: a missing, array or throwing `message`/`name` reads as text (the name falls
+back to the constructor's, then `Error`), a non-string stack is left out, and an error that cannot be
+read at all is `{ name: 'Error', message: '[unserializable]' }`.
+
+Redaction inside error text is narrow on purpose, so prose survives: an `sk-` key needs 12+
+characters after `sk-` and no hyphenated prefix (`task-sk-12` stays); `Bearer` needs an 8+-character
+token; a secret-named key (`authorization`, `cookie`, `password`/`passwd`, `api_key`, `access_token`,
+`refresh_token`, `client_secret`; bare or JSON-quoted) loses only a token-like value of 8+ characters
+without spaces (`Invalid password: must contain 8 characters`, `device-authorization:503` and
+`Cookie: header too large` stay); a value behind an auth scheme (`Authorization: Basic …`,
+`Digest`, `Token`, `Negotiate`) goes too, the scheme word stays. A secret in plain prose is not recognized — keeping it
+out of an error message is the call site's job.
 
 ### Levels — what belongs where
 

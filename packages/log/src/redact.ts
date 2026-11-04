@@ -1,39 +1,76 @@
 import { MAX_DEPTH, MAX_STRING, REDACTED, SECRET_KEY } from './consts.js'
-import { MAX_ERROR_CAUSE_DEPTH, MAX_ERROR_CAUSE_MESSAGE, MAX_ERROR_CAUSE_STACK, MAX_ITEMS } from './consts.local.js'
+import {
+  BEARER, KEY_TOKEN, KEYED_SECRET, MAX_ERROR_CAUSE_DEPTH, MAX_ERROR_CAUSE_MESSAGE, MAX_ERROR_CAUSE_STACK, MAX_ITEMS,
+  REDACTED_BEARER, REDACTED_KEY, UNSERIALIZABLE,
+} from './consts.local.js'
 import type { RedactHelper } from './redact/types.js'
 
 const clip = (value: string): string =>
   value.length > MAX_STRING ? `${value.slice(0, MAX_STRING)}… (${value.length - MAX_STRING} more)` : value
 
 export const createRedactHelper = (): RedactHelper => {
-  const errorText = (value: string, limit: number): string => {
-    const safe = value.replace(/\bsk-[A-Za-z0-9_*.-]+/g, '[redacted-key]')
-      .replace(/\bBearer\s+[A-Za-z0-9._~-]+/gi, 'Bearer [redacted]')
-      .replace(/((?:authorization|cookie|password|api[_-]?key|access[_-]?token)\s*[:=]\s*)[^\r\n]+/gi, '$1[redacted]')
+  const textOf: RedactHelper['textOf'] = value => {
+    try {
+      if (typeof value === 'string') return value
+      if (value == null) return ''
+      if (Array.isArray(value)) return value.join('; ')
+      return String(value)
+    } catch {
+      return UNSERIALIZABLE
+    }
+  }
+  /** A field of an SDK error may be a getter that throws; it reads as absent. */
+  const read = (target: object, key: string): unknown => {
+    try {
+      return (target as Record<string, unknown>)[key]
+    } catch {
+      return undefined
+    }
+  }
+  const messageOf: RedactHelper['messageOf'] = error => textOf(read(error, 'message'))
+  // The keyed form runs first: its whole value goes, a key inside it included.
+  const errorText = (value: unknown, limit: number): string => {
+    const safe = textOf(value).replace(KEYED_SECRET, `$1${REDACTED}`)
+      .replace(KEY_TOKEN, REDACTED_KEY)
+      .replace(BEARER, REDACTED_BEARER)
     return safe.length > limit ? `${safe.slice(0, limit)}… (${safe.length - limit} more)` : safe
+  }
+  const nameOf = (error: Error): string => {
+    const name = textOf(read(error, 'name'))
+    if (name !== '') return name
+    const constructor = read(error, 'constructor')
+    const constructorName = typeof constructor === 'function' ? textOf(read(constructor, 'name')) : ''
+    return constructorName !== '' ? constructorName : 'Error'
   }
   const errorData: RedactHelper['errorData'] = (error, options = {}) => {
     const seen = new WeakSet<Error>()
     const visit = (current: Error, depth: number): Record<string, unknown> => {
       seen.add(current)
-      const data: Record<string, unknown> = { name: errorText(current.name, 100),
-        message: errorText(current.message, depth === 0 ? MAX_STRING : MAX_ERROR_CAUSE_MESSAGE) }
-      const extra = current as Error & { code?: unknown, incidentId?: unknown, type?: unknown, status?: unknown }
+      const data: Record<string, unknown> = { name: errorText(nameOf(current), 100),
+        message: errorText(read(current, 'message'), depth === 0 ? MAX_STRING : MAX_ERROR_CAUSE_MESSAGE) }
       for (const key of ['code', 'type', 'incidentId'] as const) {
-        if (typeof extra[key] === 'string') data[key] = errorText(extra[key], 100)
-        else if (typeof extra[key] === 'number' && Number.isFinite(extra[key])) data[key] = extra[key]
+        const value = read(current, key)
+        if (typeof value === 'string') data[key] = errorText(value, 100)
+        else if (typeof value === 'number' && Number.isFinite(value)) data[key] = value
       }
-      if (typeof extra.status === 'number' && Number.isFinite(extra.status)) data.status = extra.status
-      if (current.stack != null && (depth === 0 || options.causeStacks !== false)) {
-        data.stack = errorText(current.stack, depth === 0 ? MAX_STRING : MAX_ERROR_CAUSE_STACK)
+      const status = read(current, 'status')
+      if (typeof status === 'number' && Number.isFinite(status)) data.status = status
+      const stack = read(current, 'stack')
+      if (typeof stack === 'string' && (depth === 0 || options.causeStacks !== false)) {
+        data.stack = errorText(stack, depth === 0 ? MAX_STRING : MAX_ERROR_CAUSE_STACK)
       }
-      if (current.cause instanceof Error) {
-        if (depth >= MAX_ERROR_CAUSE_DEPTH || seen.has(current.cause)) data.causeTruncated = true
-        else data.cause = visit(current.cause, depth + 1)
+      const cause = read(current, 'cause')
+      if (cause instanceof Error) {
+        if (depth >= MAX_ERROR_CAUSE_DEPTH || seen.has(cause)) data.causeTruncated = true
+        else data.cause = visit(cause, depth + 1)
       }
       return data
     }
-    return visit(error, 0)
+    try {
+      return visit(error, 0)
+    } catch {
+      return { name: 'Error', message: UNSERIALIZABLE }
+    }
   }
 
   const redact = (value: unknown, depth = 0, seen: WeakSet<object> = new WeakSet()): unknown => {
@@ -85,11 +122,11 @@ export const createRedactHelper = (): RedactHelper => {
       }
       return out
     } catch {
-      return '[unserializable]'
+      return UNSERIALIZABLE
     }
   }
 
-  return { errorData, redact }
+  return { errorData, redact, textOf, messageOf }
 }
 
 export const redactHelper = createRedactHelper()
