@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/client",
-  "version": "0.1.20-rc.0",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/client"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -29,17 +39,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.19",
-    "@owlmeans/client-context": "^0.1.19",
-    "@owlmeans/client-entrypoint": "^0.1.19",
-    "@owlmeans/client-resource": "^0.1.19",
-    "@owlmeans/config": "^0.1.19",
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/error": "^0.1.19",
-    "@owlmeans/entrypoint": "^0.1.19",
-    "@owlmeans/resource": "^0.1.19",
-    "@owlmeans/router": "^0.1.19",
-    "@owlmeans/state": "^0.1.19"
+    "@owlmeans/auth": "^0.1.20-rc.1",
+    "@owlmeans/client-context": "^0.1.20-rc.1",
+    "@owlmeans/client-entrypoint": "^0.1.20-rc.1",
+    "@owlmeans/client-resource": "^0.1.20-rc.1",
+    "@owlmeans/config": "^0.1.20-rc.1",
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/error": "^0.1.20-rc.1",
+    "@owlmeans/entrypoint": "^0.1.20-rc.1",
+    "@owlmeans/resource": "^0.1.20-rc.1",
+    "@owlmeans/router": "^0.1.20-rc.1",
+    "@owlmeans/state": "^0.1.20-rc.1"
   },
   "peerDependencies": {
     "@remix-run/router": "*",
@@ -51,8 +61,8 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
-    "@owlmeans/test-ui": "^0.1.20-rc.0",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/test-ui": "^0.1.20-rc.1",
     "@types/react": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "nodemon": "^3.1.14",

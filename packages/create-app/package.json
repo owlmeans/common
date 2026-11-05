@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/create-app",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
   "description": "Scaffold a fullstack OwlMeans Common app — common + api + web workspaces, shadcn UI navigation/layout, no auth, and a session-scoped in-memory resource, or --bare for the demo-free shell. Also usable programmatically via scaffold(). Deploys agent skills via @owlmeans/agent-skills by default.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/create-app"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -31,10 +41,10 @@
     "THIRD-PARTY-NOTICES.txt"
   ],
   "dependencies": {
-    "@owlmeans/agent-skills": "^0.1.19"
+    "@owlmeans/agent-skills": "^0.1.20-rc.1"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

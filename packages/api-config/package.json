@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/api-config",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/api-config"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -22,13 +32,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/config": "^0.1.19",
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/entrypoint": "^0.1.19",
-    "@owlmeans/route": "^0.1.19"
+    "@owlmeans/config": "^0.1.20-rc.1",
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/entrypoint": "^0.1.20-rc.1",
+    "@owlmeans/route": "^0.1.20-rc.1"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

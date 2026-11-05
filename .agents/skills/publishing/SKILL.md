@@ -214,6 +214,20 @@ Consequences worth knowing:
 - `build/` still ships, so **build before publishing** — a stale `build/` ships stale code even
   though the plan (which compares sources) calls the package right.
 
+## npm page metadata
+
+Every `packages/*/package.json` carries the fields npm shows in its sidebar, right after
+`license` (or `description` when that comes later):
+
+```json
+"homepage": "https://owlmeans.com/docs/",
+"repository": { "type": "git", "url": "git+https://github.com/owlmeans/common.git", "directory": "packages/<dir>" },
+"bugs": { "url": "https://github.com/owlmeans/common/issues" },
+"author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)"
+```
+
+A new package copies them with its own `directory`. closed uses the same values without `directory`.
+
 ## Versions and dist-tags
 
 An affected package whose declared version is **already on npm** cannot ship as it stands. A real

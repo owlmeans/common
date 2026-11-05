@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/mailer-smtp",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/mailer-smtp"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -22,15 +32,15 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/mailer": "^0.1.19",
-    "@owlmeans/server-context": "^0.1.19",
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/mailer": "^0.1.20-rc.1",
+    "@owlmeans/server-context": "^0.1.20-rc.1",
     "nodemailer": "^10.2.1"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
-    "@owlmeans/test": "^0.1.19",
-    "@owlmeans/test-integration": "^0.1.19",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/test": "^0.1.20-rc.1",
+    "@owlmeans/test-integration": "^0.1.20-rc.1",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",

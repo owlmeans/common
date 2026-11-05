@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/server-oauth",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
   "description": "The server half of @owlmeans/oauth — a standards-facing OAuth 2.1 authorization server (device authorization + authorization code with PKCE, RFC 9728/8414 metadata, Client ID Metadata Documents, Dynamic Client Registration) that mints ordinary @owlmeans/auth-token access tokens on approval.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/server-oauth"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -23,29 +33,29 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.19",
-    "@owlmeans/auth-common": "^0.1.19",
-    "@owlmeans/auth-token": "^0.1.19",
-    "@owlmeans/config": "^0.1.19",
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/entrypoint": "^0.1.19",
-    "@owlmeans/error": "^0.1.19",
-    "@owlmeans/mongo-resource": "^0.1.19",
-    "@owlmeans/oauth": "^0.1.19",
-    "@owlmeans/resource": "^0.1.19",
-    "@owlmeans/route": "^0.1.19",
-    "@owlmeans/server-api": "^0.1.19",
-    "@owlmeans/server-auth-token": "^0.1.19",
-    "@owlmeans/server-context": "^0.1.19",
-    "@owlmeans/static-resource": "^0.1.19"
+    "@owlmeans/auth": "^0.1.20-rc.1",
+    "@owlmeans/auth-common": "^0.1.20-rc.1",
+    "@owlmeans/auth-token": "^0.1.20-rc.1",
+    "@owlmeans/config": "^0.1.20-rc.1",
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/entrypoint": "^0.1.20-rc.1",
+    "@owlmeans/error": "^0.1.20-rc.1",
+    "@owlmeans/mongo-resource": "^0.1.20-rc.1",
+    "@owlmeans/oauth": "^0.1.20-rc.1",
+    "@owlmeans/resource": "^0.1.20-rc.1",
+    "@owlmeans/route": "^0.1.20-rc.1",
+    "@owlmeans/server-api": "^0.1.20-rc.1",
+    "@owlmeans/server-auth-token": "^0.1.20-rc.1",
+    "@owlmeans/server-context": "^0.1.20-rc.1",
+    "@owlmeans/static-resource": "^0.1.20-rc.1"
   },
   "peerDependencies": {
     "fastify": "^5.12.7"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
-    "@owlmeans/redis-resource": "^0.1.19",
-    "@owlmeans/server-auth-identity": "^0.1.19",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/redis-resource": "^0.1.20-rc.1",
+    "@owlmeans/server-auth-identity": "^0.1.20-rc.1",
     "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "fastify": "^5.12.7",

@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/web-flow",
-  "version": "0.1.20-rc.0",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/web-flow"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -21,20 +31,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.20-rc.0",
-    "@owlmeans/client-context": "^0.1.19",
-    "@owlmeans/client-flow": "^0.1.20-rc.0",
-    "@owlmeans/client-entrypoint": "^0.1.19",
-    "@owlmeans/client-resource": "^0.1.19",
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/error": "^0.1.19",
-    "@owlmeans/flow": "^0.1.19"
+    "@owlmeans/client": "^0.1.20-rc.1",
+    "@owlmeans/client-context": "^0.1.20-rc.1",
+    "@owlmeans/client-flow": "^0.1.20-rc.1",
+    "@owlmeans/client-entrypoint": "^0.1.20-rc.1",
+    "@owlmeans/client-resource": "^0.1.20-rc.1",
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/error": "^0.1.20-rc.1",
+    "@owlmeans/flow": "^0.1.20-rc.1"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

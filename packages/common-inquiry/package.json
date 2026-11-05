@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/common-inquiry",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
   "description": "Runtime-free contract of the OwlMeans customer inquiry widget — the window runtime, the widget config, the multipart submission and its limits, schemas and the config helper.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/common-inquiry"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -35,7 +45,7 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
     "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",

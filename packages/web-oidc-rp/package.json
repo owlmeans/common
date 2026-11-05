@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/web-oidc-rp",
-  "version": "0.1.20-rc.0",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/web-oidc-rp"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -29,20 +39,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.19",
-    "@owlmeans/basic-envelope": "^0.1.19",
-    "@owlmeans/client": "^0.1.20-rc.0",
-    "@owlmeans/client-auth": "^0.1.20-rc.0",
-    "@owlmeans/client-flow": "^0.1.20-rc.0",
-    "@owlmeans/client-i18n": "^0.1.20-rc.0",
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/flow": "^0.1.19",
-    "@owlmeans/log": "^0.1.19",
-    "@owlmeans/entrypoint": "^0.1.19",
-    "@owlmeans/oidc": "^0.1.19",
-    "@owlmeans/resource": "^0.1.19",
-    "@owlmeans/web-client": "^0.1.20-rc.0",
-    "@owlmeans/web-flow": "^0.1.20-rc.0",
+    "@owlmeans/auth": "^0.1.20-rc.1",
+    "@owlmeans/basic-envelope": "^0.1.20-rc.1",
+    "@owlmeans/client": "^0.1.20-rc.1",
+    "@owlmeans/client-auth": "^0.1.20-rc.1",
+    "@owlmeans/client-flow": "^0.1.20-rc.1",
+    "@owlmeans/client-i18n": "^0.1.20-rc.1",
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/flow": "^0.1.20-rc.1",
+    "@owlmeans/log": "^0.1.20-rc.1",
+    "@owlmeans/entrypoint": "^0.1.20-rc.1",
+    "@owlmeans/oidc": "^0.1.20-rc.1",
+    "@owlmeans/resource": "^0.1.20-rc.1",
+    "@owlmeans/web-client": "^0.1.20-rc.1",
+    "@owlmeans/web-flow": "^0.1.20-rc.1",
     "oidc-client-ts": "3.5.0"
   },
   "peerDependencies": {
@@ -55,11 +65,11 @@
     "tailwindcss": "^4.*"
   },
   "devDependencies": {
-    "@owlmeans/api": "^0.1.19",
-    "@owlmeans/dep-config": "^0.1.19",
-    "@owlmeans/error": "^0.1.19",
-    "@owlmeans/test-auth": "^0.1.19",
-    "@owlmeans/test-ui": "^0.1.20-rc.0",
+    "@owlmeans/api": "^0.1.20-rc.1",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/error": "^0.1.20-rc.1",
+    "@owlmeans/test-auth": "^0.1.20-rc.1",
+    "@owlmeans/test-ui": "^0.1.20-rc.1",
     "@radix-ui/react-progress": "^1.2.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.4.4",
@@ -70,7 +80,7 @@
     "lucide-react": "^1.63.0",
     "nodemon": "^3.1.14",
     "playwright": "^1.64.1",
-    "react-dom": "^19.3.0",
+    "react-dom": "^19.3.1",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",

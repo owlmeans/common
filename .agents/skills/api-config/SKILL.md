@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/api-config
 
 **Layer:** Core
-**Install:** `"@owlmeans/api-config": "^0.1.19"` in `dependencies`
+**Install:** `"@owlmeans/api-config": "^0.1.20-rc.1"` in `dependencies`
 
 The contract package of a three-package flow: this one declares the endpoint and what may cross it,
 `@owlmeans/api-config-server` answers it, `@owlmeans/api-config-client` fetches it and merges the

@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/bot-postgres",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
   "description": "Postgres-backed resources for @owlmeans/server-bot — the connection, inbox and activity tables of a generated target project, compiled from the shared AJV schemas, with the unique inbox dedupe key.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/bot-postgres"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -23,23 +33,23 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/postgres-resource": "^0.1.19",
-    "@owlmeans/resource": "^0.1.19",
-    "@owlmeans/server-bot": "^0.1.19"
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/postgres-resource": "^0.1.20-rc.1",
+    "@owlmeans/resource": "^0.1.20-rc.1",
+    "@owlmeans/server-bot": "^0.1.20-rc.1"
   },
   "peerDependencies": {
     "ajv": "*",
     "pg": "*"
   },
   "devDependencies": {
-    "@owlmeans/bot": "^0.1.19",
-    "@owlmeans/dep-config": "^0.1.19",
-    "@owlmeans/log": "^0.1.19",
-    "@owlmeans/postgres": "^0.1.19",
-    "@owlmeans/server-context": "^0.1.19",
-    "@owlmeans/test": "^0.1.19",
-    "@owlmeans/test-integration": "^0.1.19",
+    "@owlmeans/bot": "^0.1.20-rc.1",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/log": "^0.1.20-rc.1",
+    "@owlmeans/postgres": "^0.1.20-rc.1",
+    "@owlmeans/server-context": "^0.1.20-rc.1",
+    "@owlmeans/test": "^0.1.20-rc.1",
+    "@owlmeans/test-integration": "^0.1.20-rc.1",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",

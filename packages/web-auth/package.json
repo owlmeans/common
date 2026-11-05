@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/web-auth",
-  "version": "0.1.20-rc.0",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/web-auth"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -29,29 +39,29 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.19",
-    "@owlmeans/auth-common": "^0.1.19",
-    "@owlmeans/basic-ids": "^0.1.19",
-    "@owlmeans/basic-keys": "^0.1.19",
-    "@owlmeans/client": "^0.1.20-rc.0",
-    "@owlmeans/client-auth": "^0.1.20-rc.0",
-    "@owlmeans/client-flow": "^0.1.20-rc.0",
-    "@owlmeans/config": "^0.1.19",
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/log": "^0.1.19",
-    "@owlmeans/web-client": "^0.1.20-rc.0"
+    "@owlmeans/auth": "^0.1.20-rc.1",
+    "@owlmeans/auth-common": "^0.1.20-rc.1",
+    "@owlmeans/basic-ids": "^0.1.20-rc.1",
+    "@owlmeans/basic-keys": "^0.1.20-rc.1",
+    "@owlmeans/client": "^0.1.20-rc.1",
+    "@owlmeans/client-auth": "^0.1.20-rc.1",
+    "@owlmeans/client-flow": "^0.1.20-rc.1",
+    "@owlmeans/config": "^0.1.20-rc.1",
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/log": "^0.1.20-rc.1",
+    "@owlmeans/web-client": "^0.1.20-rc.1"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
-    "@owlmeans/api": "^0.1.19",
-    "@owlmeans/dep-config": "^0.1.19",
-    "@owlmeans/error": "^0.1.19",
+    "@owlmeans/api": "^0.1.20-rc.1",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/error": "^0.1.20-rc.1",
     "@types/bun": "^1.4.4",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
-    "react-dom": "^19.3.0",
+    "react-dom": "^19.3.1",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

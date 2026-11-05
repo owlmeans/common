@@ -15,13 +15,13 @@ touching any OIDC package implementation.
 
 | Library | Owner package(s) | Policy | Current pin |
 |---------|-----------------|--------|-------------|
-| `oidc-provider` | `@owlmeans/server-oidc-provider` | **exact** | `9.13.1` |
-| `jose` | `@owlmeans/server-oidc-provider`, `@owlmeans/server-oidc-rp` (and internal's `keycloak`) | **exact** | `6.2.13` |
+| `oidc-provider` | `@owlmeans/server-oidc-provider` | **exact** | `9.13.3` |
+| `jose` | `@owlmeans/server-oidc-provider`, `@owlmeans/server-oidc-rp` (and internal's `keycloak`) | **exact** | `6.2.14` |
 | `openid-client` | `@owlmeans/server-oidc-rp` | **exact** | `6.8.8` |
 | `oidc-client-ts` | `@owlmeans/web-oidc-rp`, `@owlmeans/mui-oidc-rp` | **exact** | `3.5.0` |
 
 `@types/oidc-provider` is a dev dependency of `@owlmeans/server-oidc-provider` and tracks the
-oidc-provider minor: `9.13.0` (v9 ships no bundled types).
+oidc-provider minor: `9.13.1` (v9 ships no bundled types).
 
 All four are authored by panva or authts and follow semantic versioning. They are the SECURITY pins
 of the external-version policy — every other third-party range is a caret — and are listed in

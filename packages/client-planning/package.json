@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/client-planning",
-  "version": "0.1.20-rc.0",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
   "description": "The client half of OwlMeans planning — the remote planning facade, the state mirror and its commit fold, and the subscribe-then-poll commit wait. React-free: it runs in a browser and in a Node client alike.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/client-planning"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -24,27 +34,27 @@
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
-    "@owlmeans/auth": "^0.1.19",
-    "@owlmeans/client-context": "^0.1.19",
-    "@owlmeans/client-entrypoint": "^0.1.19",
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/entrypoint": "^0.1.19",
-    "@owlmeans/error": "^0.1.19",
-    "@owlmeans/planning": "^0.1.19",
-    "@owlmeans/resource": "^0.1.19",
-    "@owlmeans/log": "^0.1.19",
-    "@owlmeans/route": "^0.1.19",
-    "@owlmeans/socket": "^0.1.19",
-    "@owlmeans/state": "^0.1.19"
+    "@owlmeans/auth": "^0.1.20-rc.1",
+    "@owlmeans/client-context": "^0.1.20-rc.1",
+    "@owlmeans/client-entrypoint": "^0.1.20-rc.1",
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/entrypoint": "^0.1.20-rc.1",
+    "@owlmeans/error": "^0.1.20-rc.1",
+    "@owlmeans/planning": "^0.1.20-rc.1",
+    "@owlmeans/resource": "^0.1.20-rc.1",
+    "@owlmeans/log": "^0.1.20-rc.1",
+    "@owlmeans/route": "^0.1.20-rc.1",
+    "@owlmeans/socket": "^0.1.20-rc.1",
+    "@owlmeans/state": "^0.1.20-rc.1"
   },
   "peerDependencies": {
     "ajv": "*",
     "ajv-formats": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
-    "@owlmeans/server-planning": "^0.1.20-rc.0",
-    "@owlmeans/test": "^0.1.19",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/server-planning": "^0.1.20-rc.1",
+    "@owlmeans/test": "^0.1.20-rc.1",
     "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",

@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/client-entrypoint",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/client-entrypoint"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -28,16 +38,16 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api": "^0.1.19",
-    "@owlmeans/client-config": "^0.1.19",
-    "@owlmeans/client-context": "^0.1.19",
-    "@owlmeans/client-route": "^0.1.19",
-    "@owlmeans/config": "^0.1.19",
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/entrypoint": "^0.1.19",
-    "@owlmeans/error": "^0.1.19",
-    "@owlmeans/log": "^0.1.19",
-    "@owlmeans/route": "^0.1.19",
+    "@owlmeans/api": "^0.1.20-rc.1",
+    "@owlmeans/client-config": "^0.1.20-rc.1",
+    "@owlmeans/client-context": "^0.1.20-rc.1",
+    "@owlmeans/client-route": "^0.1.20-rc.1",
+    "@owlmeans/config": "^0.1.20-rc.1",
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/entrypoint": "^0.1.20-rc.1",
+    "@owlmeans/error": "^0.1.20-rc.1",
+    "@owlmeans/log": "^0.1.20-rc.1",
+    "@owlmeans/route": "^0.1.20-rc.1",
     "ajv-formats": "^3.0.1",
     "qs": "^6.17.0"
   },
@@ -45,7 +55,7 @@
     "ajv": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
     "@types/qs": "^6.15.1",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

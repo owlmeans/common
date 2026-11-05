@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/cli-auth",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
   "description": "OAuth device-authorization sign-in for a command-line tool: a dotenv-style ~/.owlmeans credentials file (overridable, environment always wins), a cross-process sign-in lock so several invocations converge on one browser round trip, a browser opener, and a small credential holder a CLI wraps its API calls with.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/cli-auth"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -23,11 +33,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/error": "^0.1.19",
-    "@owlmeans/oauth": "^0.1.19"
+    "@owlmeans/error": "^0.1.20-rc.1",
+    "@owlmeans/oauth": "^0.1.20-rc.1"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
     "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

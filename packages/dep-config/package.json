@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/dep-config",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.1",
   "description": "Shared TypeScript configuration and build-time license notices for @owlmeans packages",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/dep-config"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "exports": {
     "./tsconfig.base.json": "./tsconfig.base.json",

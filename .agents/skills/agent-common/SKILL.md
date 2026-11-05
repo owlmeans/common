@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/agent-common
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent-common": "^0.1.19"` in `dependencies`
+**Install:** `"@owlmeans/agent-common": "^0.1.20-rc.1"` in `dependencies`
 
 Serializable contracts for the agent family. No LangChain, no LangGraph, no storage driver — a
 backend or a browser bundle imports these to read what an agent wrote without pulling the runtime.

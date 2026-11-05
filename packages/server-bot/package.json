@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/server-bot",
-  "version": "0.1.19",
+  "version": "0.1.20-rc.1",
   "license": "MIT",
   "description": "The server runtime of OwlMeans chat bots — connections with sealed credentials, the signed inbound hook and its inbox, the worker's dispatcher and receivers, never-throwing bot actions recorded as activity, the platform plugin interface with the Telegram, WhatsApp, Discord and Slack plugins, and an API-faithful mock transport.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/server-bot"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -37,22 +47,22 @@
     }
   },
   "dependencies": {
-    "@owlmeans/bot": "^0.1.19",
-    "@owlmeans/context": "^0.1.19",
-    "@owlmeans/entrypoint": "^0.1.19",
-    "@owlmeans/error": "^0.1.19",
-    "@owlmeans/log": "^0.1.19",
-    "@owlmeans/resource": "^0.1.19",
-    "@owlmeans/server-api": "^0.1.19",
-    "@owlmeans/server-entrypoint": "^0.1.19"
+    "@owlmeans/bot": "^0.1.20-rc.1",
+    "@owlmeans/context": "^0.1.20-rc.1",
+    "@owlmeans/entrypoint": "^0.1.20-rc.1",
+    "@owlmeans/error": "^0.1.20-rc.1",
+    "@owlmeans/log": "^0.1.20-rc.1",
+    "@owlmeans/resource": "^0.1.20-rc.1",
+    "@owlmeans/server-api": "^0.1.20-rc.1",
+    "@owlmeans/server-entrypoint": "^0.1.20-rc.1"
   },
   "peerDependencies": {
     "ajv": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.19",
-    "@owlmeans/static-resource": "^0.1.19",
-    "@owlmeans/test": "^0.1.19",
+    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/static-resource": "^0.1.20-rc.1",
+    "@owlmeans/test": "^0.1.20-rc.1",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "ajv": "^8.20.0",
