@@ -1,8 +1,8 @@
 import type { MouseEvent } from 'react'
-import type { EmailPasswordPurpose, EmailPasswordStatusView } from '@owlmeans/auth-email'
 import type { EmailLoginState } from '../state/types.js'
 import type { EmailRefusal } from '../refusal/types.js'
-import type { EmailPasswordAction } from '../password/types.js'
+import type { EmailPasswordStatusView } from '@owlmeans/auth-email'
+import type { EmailPanelPurpose, EmailPasswordAction } from '../password/types.js'
 
 export interface UseEmailLoginOptions {
   /** The interface language; its base language travels with send-PIN and sign-in, for the mail. */
@@ -65,13 +65,16 @@ export interface UsePassword {
   /** A PIN request or a confirmation is in flight. */
   busy: boolean
   /** The purpose a confirmation PIN was mailed for; null while none waits. */
-  pending: EmailPasswordPurpose | null
+  pending: EmailPanelPurpose | null
   refusal: EmailRefusal | null
   /** The last action that went through, for a short confirmation. */
   done: EmailPasswordAction | null
   reload: () => Promise<void>
-  /** Mail a confirmation PIN to the account's own address. Resolves whether it was sent. */
-  sendPin: (purpose: EmailPasswordPurpose) => Promise<boolean>
+  /**
+   * Mail a confirmation PIN to the account's own address — for the new-device PIN switch, through the
+   * switch itself, asking for the opposite of the state in effect. Resolves whether it was sent.
+   */
+  sendPin: (purpose: EmailPanelPurpose) => Promise<boolean>
   /** Confirm an action with the mailed PIN (and the new password for set/change). Resolves whether it went through. */
   confirm: (action: EmailPasswordAction, input: { pin: string, password?: string }) => Promise<boolean>
   /** Abandon a pending confirmation. */

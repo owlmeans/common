@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth-email
 
 **Layer:** Auth shared (L6 — `auth`, `auth-common`, `context`, `entrypoint`, `error`, `route`; `ajv` + `ajv-formats` peers)
-**Install:** `"@owlmeans/auth-email": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/auth-email": "^0.1.22-rc.0"` in `dependencies`
 **Halves:** `@owlmeans/server-auth-email` serves the routes, `@owlmeans/web-auth-email` signs a
 person in. This package holds no behaviour — the tree, schemas, views, constants and errors both
 sides must agree on.
@@ -18,8 +18,10 @@ sides must agree on.
 `pin` mails a 6-digit PIN and answers a signed `challenge`, identically for a known and a new
 address; `signIn` with `challenge` + `pin` signs the person in, registering the account on first
 use, and remembers the device. `signIn` with `password` answers a token on a REMEMBERED device; on
-any other device the password is NOT checked — a PIN is mailed and the answer is
-`{ challenge, reason: 'device' }`, the same for a wrong password, a right one and no account. A PIN
+any other device the new-device PIN decides (the server's `devicePin`, or the account's own choice
+behind its correct password): while on, the password is NOT checked — a PIN is mailed and the answer
+is `{ challenge, reason: 'device' }`, the same for a wrong password, a right one and no account;
+while off, the password alone answers a token. A PIN
 sign-in of a person without a password who has not declined one also answers a one-use `offer`
 ticket; `password.set` with it needs no second PIN. Later set/change/remove are confirmed by a PIN
 from `password.pin`. No body carries `entitySlug` or `source`: the address alone decides the account.
@@ -33,11 +35,12 @@ Default base `/auth/email` (`EMAIL_AUTH_API_PATH`):
 | `options` | GET `/options` | none | → `{ password, captcha: { provider, siteKey } \| null, pinLength }` |
 | `pin` | POST `/pin` | none | `{ email, locale?, captcha? }` → `{ challenge }` |
 | `signIn` | POST `/sign-in` | none | PIN `{ email, device, challenge, pin }` or password `{ email, device, password, captcha? }` → `{ token?, offer?, challenge?, reason? }` |
-| `password.status` | GET `/password` | `opts.guards` + `opts.gate` | → `{ enabled, set, declined, updatedAt? }` |
+| `password.status` | GET `/password` | `opts.guards` + `opts.gate` | → `{ enabled, set, declined, updatedAt?, devicePin? }` |
 | `password.pin` | POST `/password/pin` | same | `{ purpose: set\|change\|remove, locale? }` → `{ challenge }` |
 | `password.set` | POST `/password/set` | same | `{ password, offer }` or `{ password, challenge, pin }` (+ `device?`) → status |
 | `password.remove` | POST `/password/remove` | same | `{ challenge, pin, device? }` → status |
 | `password.decline` | POST `/password/decline` | same | `{}` → status |
+| `password.devicePin` | POST `/password/device-pin` | same | `{ enabled, locale? }` → `{ challenge }` (a confirmation PIN, purpose `EMAIL_DEVICE_PIN_PURPOSE`, mailed by the switch itself); `{ enabled, challenge, pin }` → `{ status }` |
 | `tech.pin` | POST `/tech/pin` | `opts.techGuards` + `opts.techGate` | `{ challenge, pin }` → `{ ok }` |
 | `tech.waiver` | POST `/tech/waiver` | same | `{}` → `{ waiver, expiresAt }` |
 | `offer` | screen `/login/password` | — | frontend, sticky: the post-sign-in "set a password" step |

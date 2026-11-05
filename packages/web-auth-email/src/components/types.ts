@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react'
-import type { EmailPasswordPurpose, EmailPasswordStatusView } from '@owlmeans/auth-email'
 import type { EmailRefusal } from '../refusal/types.js'
-import type { EmailPasswordAction } from '../password/types.js'
+import type { EmailPanelPurpose, EmailPasswordAction } from '../password/types.js'
+import type { EmailPasswordStatusView } from '@owlmeans/auth-email'
 import type { EmailPasswordAliases, Translate } from '../types.js'
 
 /** A password field with a show/hide toggle; every other prop goes to the `<input>`. */
@@ -57,12 +57,12 @@ export interface PasswordPanelProps {
   /** A PIN request or a confirmation is in flight. */
   busy?: boolean
   /** The purpose a confirmation PIN was mailed for; the panel shows the PIN step while it is set. */
-  pending?: EmailPasswordPurpose | null
+  pending?: EmailPanelPurpose | null
   refusal?: EmailRefusal | null
   /** The last action that went through. */
   done?: EmailPasswordAction | null
   /** Mail a confirmation PIN. Resolves whether it was sent. */
-  onSendPin: (purpose: EmailPasswordPurpose) => Promise<boolean>
+  onSendPin: (purpose: EmailPanelPurpose) => Promise<boolean>
   /** Confirm the open action. Resolves whether it went through; the panel closes the action then. */
   onConfirm: (action: EmailPasswordAction, input: { pin: string, password?: string }) => Promise<boolean>
   /** The open action was abandoned. */

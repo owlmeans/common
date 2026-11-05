@@ -33,8 +33,10 @@ const dateOf = (value: string | undefined, locale?: string): string | null => {
 
 /**
  * The account's password: off on this deployment (a short notice), none yet (Set), or one (Change,
- * Remove). Every action is confirmed by a PIN mailed to the account's own address: "Send code",
- * then the code (and the new password, twice, for set and change), then Confirm.
+ * Remove, and — when the server reports it — the switch of the new-device PIN, which turns the code
+ * a password sign-in on a new device asks for off or back on). Every action is confirmed by a PIN
+ * mailed to the account's own address: "Send code", then the code (and the new password, twice, for
+ * set and change), then Confirm.
  *
  * Presentational by contract — it performs no I/O, renders what it is given and reports what was
  * pressed. `ConnectedPasswordPanel` is this panel wired to `usePassword`.
@@ -141,6 +143,11 @@ export const PasswordPanel: FC<PasswordPanelProps> = ({
         return <p className="text-sm">
           {t('password.set', 'You have a password.')}
           {updated != null && <> {textUtils.fill(t('password.updated', 'Last changed {{date}}.'), { date: updated })}</>}
+          {status?.devicePin != null && <> <span data-email-password-device-pin={status.devicePin ? 'on' : 'off'}>
+            {status.devicePin
+              ? t('password.device-pin.on', 'A new device also needs a code from your email.')
+              : t('password.device-pin.off', 'Your password alone signs you in on a new device.')}
+          </span></>}
         </p>
     }
   })()
@@ -157,16 +164,22 @@ export const PasswordPanel: FC<PasswordPanelProps> = ({
       {summary}
 
       {done != null && action == null && <p role="status" data-email-password-success={done} className="text-sm">
-        {done === 'remove'
-          ? t('password.done.remove', 'Your password has been removed.')
-          : done === 'change'
-            ? t('password.done.change', 'Your password has been changed.')
-            : t('password.done.set', 'Your password has been set.')}
-        {' '}
-        {t('password.devices', 'Other devices will need a code the next time they sign in.')}
+        {done === 'device-pin'
+          ? status?.devicePin === true
+            ? t('password.done.device-pin-on', 'New devices now also need a code from your email.')
+            : t('password.done.device-pin-off', 'Your password alone now signs you in on new devices.')
+          : done === 'remove'
+            ? t('password.done.remove', 'Your password has been removed.')
+            : done === 'change'
+              ? t('password.done.change', 'Your password has been changed.')
+              : t('password.done.set', 'Your password has been set.')}
+        {done !== 'device-pin' && status?.devicePin !== false && <>
+          {' '}
+          {t('password.devices', 'Other devices will need a code the next time they sign in.')}
+        </>}
       </p>}
 
-      {action == null && actions.length > 0 && <div className="flex flex-col gap-2 sm:flex-row">
+      {action == null && actions.length > 0 && <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {actions.map(next => <Button
           key={next}
           type="button"
@@ -175,11 +188,15 @@ export const PasswordPanel: FC<PasswordPanelProps> = ({
           className={cn(control, next === 'remove' && 'text-destructive hover:text-destructive')}
           onClick={() => open(next)}
         >
-          {next === 'remove'
-            ? t('password.action.remove', 'Remove password')
-            : next === 'change'
-              ? t('password.action.change', 'Change password')
-              : t('password.action.set', 'Set a password')}
+          {next === 'device-pin'
+            ? status?.devicePin === true
+              ? t('password.action.device-pin-off', 'Stop asking for a code on new devices')
+              : t('password.action.device-pin-on', 'Ask for a code on new devices')
+            : next === 'remove'
+              ? t('password.action.remove', 'Remove password')
+              : next === 'change'
+                ? t('password.action.change', 'Change password')
+                : t('password.action.set', 'Set a password')}
         </Button>)}
       </div>}
 
@@ -191,11 +208,15 @@ export const PasswordPanel: FC<PasswordPanelProps> = ({
         onSubmit={event => void submit(event)}
       >
         <p className="text-sm text-muted-foreground">
-          {action === 'remove'
-            ? t('password.explain.remove', "Without a password you sign in with a code sent to your email. We'll email you a code to confirm.")
-            : action === 'change'
-              ? t('password.explain.change', "To change your password, confirm it's you with a code we'll email you.")
-              : t('password.explain.set', "To set a password, confirm it's you with a code we'll email you.")}
+          {action === 'device-pin'
+            ? status?.devicePin === true
+              ? t('password.explain.device-pin-off', "Your password alone will sign you in on a new device. Confirm it's you with a code we'll email you.")
+              : t('password.explain.device-pin-on', "A new device will also need a code from your email. Confirm it's you with a code we'll email you.")
+            : action === 'remove'
+              ? t('password.explain.remove', "Without a password you sign in with a code sent to your email. We'll email you a code to confirm.")
+              : action === 'change'
+                ? t('password.explain.change', "To change your password, confirm it's you with a code we'll email you.")
+                : t('password.explain.set', "To set a password, confirm it's you with a code we'll email you.")}
         </p>
 
         {sent && <>

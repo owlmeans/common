@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/auth-email",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "description": "Contracts of OwlMeans e-mail sign-in — PIN, optional password, remembered devices, captcha: the protocol factory, schemas, views, constants and errors.",
   "homepage": "https://owlmeans.com/docs/",

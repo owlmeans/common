@@ -1,5 +1,8 @@
 import { randomBytes } from 'node:crypto'
-import { EMAIL_CONFIRM_ENVELOPE, EMAIL_PIN_AUTH_TYPE, EMAIL_WAIVER_ENVELOPE, EMAIL_WAIVER_TTL_SECONDS, EmailPasswordPurpose } from '@owlmeans/auth-email'
+import {
+  EMAIL_CONFIRM_ENVELOPE, EMAIL_DEVICE_PIN_PURPOSE, EMAIL_PIN_AUTH_TYPE, EMAIL_WAIVER_ENVELOPE, EMAIL_WAIVER_TTL_SECONDS,
+  EmailPasswordPurpose,
+} from '@owlmeans/auth-email'
 import { OTP_TTL_SECONDS } from '@owlmeans/auth-otp'
 import { trust } from '@owlmeans/auth-common/utils'
 import type { Config as TrustConfig, Context as TrustContext } from '@owlmeans/auth-common/utils'
@@ -10,13 +13,13 @@ import { TRUSTED } from '@owlmeans/config'
 import { memoHelper } from '@owlmeans/context'
 import { AUTH_SRV_KEY, AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 import { CHALLENGE_DELIMITER, WAIVER_MESSAGE_PREFIX } from './consts.local.js'
-import type { EmailAuthContext } from './types.js'
+import type { EmailAuthContext, EmailConfirmPurpose } from './types.js'
 import type { EmailConfirmClaim, EmailEnvelopes, EmailPendingClaim } from './envelopes/types.js'
 
 export const makeEmailEnvelopes = (ctx: EmailAuthContext): EmailEnvelopes => {
   const CONFIRM_TTL = OTP_TTL_SECONDS * 1000
   const WAIVER_TTL = EMAIL_WAIVER_TTL_SECONDS * 1000
-  const PURPOSES = new Set<string>(Object.values(EmailPasswordPurpose))
+  const PURPOSES = new Set<string>([...Object.values(EmailPasswordPurpose), EMAIL_DEVICE_PIN_PURPOSE])
 
   const keyOf = async (): Promise<KeyPairModel> =>
     (await trust<TrustConfig, TrustContext>(ctx as unknown as TrustContext, TRUSTED, AUTH_SRV_KEY)).key
@@ -76,7 +79,7 @@ export const makeEmailEnvelopes = (ctx: EmailAuthContext): EmailEnvelopes => {
       return null
     }
 
-    return { purpose: purpose as EmailPasswordPurpose, accountId, ...pending }
+    return { purpose: purpose as EmailConfirmPurpose, accountId, ...pending }
   }
 
   const signConfirm: EmailEnvelopes['signConfirm'] = async claim => {

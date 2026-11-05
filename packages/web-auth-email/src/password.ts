@@ -1,10 +1,10 @@
 import {
-  EMAIL_PASSWORD_MAX_LENGTH, EMAIL_PASSWORD_MIN_LENGTH, EMAIL_PIN_LENGTH, EmailPasswordPurpose,
+  EMAIL_DEVICE_PIN_PURPOSE, EMAIL_PASSWORD_MAX_LENGTH, EMAIL_PASSWORD_MIN_LENGTH, EMAIL_PIN_LENGTH, EmailPasswordPurpose,
 } from '@owlmeans/auth-email'
 import type { EmailPasswordStatusView } from '@owlmeans/auth-email'
 import type { EmailRefusal } from './refusal/types.js'
 import type {
-  EmailPasswordAction, PasswordPanelForm, PasswordPanelHelper, PasswordPanelState, PasswordPolicy,
+  EmailPanelPurpose, EmailPasswordAction, PasswordPanelForm, PasswordPanelHelper, PasswordPanelState, PasswordPolicy,
 } from './password/types.js'
 
 export const createPasswordPanelHelper = (): PasswordPanelHelper => {
@@ -22,7 +22,7 @@ export const createPasswordPanelHelper = (): PasswordPanelHelper => {
   const actionsOf = (status: EmailPasswordStatusView | null): EmailPasswordAction[] => {
     switch (stateOf(status, false)) {
       case 'set':
-        return ['change', 'remove']
+        return status?.devicePin != null ? ['change', 'remove', 'device-pin'] : ['change', 'remove']
       case 'unset':
         return ['set']
       default:
@@ -30,11 +30,12 @@ export const createPasswordPanelHelper = (): PasswordPanelHelper => {
     }
   }
 
-  const purposeOf = (action: EmailPasswordAction): EmailPasswordPurpose =>
+  const purposeOf = (action: EmailPasswordAction): EmailPanelPurpose =>
     action === 'set' ? EmailPasswordPurpose.Set
-      : action === 'change' ? EmailPasswordPurpose.Change : EmailPasswordPurpose.Remove
+      : action === 'change' ? EmailPasswordPurpose.Change
+        : action === 'remove' ? EmailPasswordPurpose.Remove : EMAIL_DEVICE_PIN_PURPOSE
 
-  const needsPassword = (action: EmailPasswordAction): boolean => action !== 'remove'
+  const needsPassword = (action: EmailPasswordAction): boolean => action === 'set' || action === 'change'
 
   const passwordBlock = (password: string, repeat: string, policy?: PasswordPolicy): EmailRefusal | null => {
     if (password === '') {

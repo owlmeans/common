@@ -174,3 +174,90 @@ describe('@owlmeans/server-auth-email — change, remove, decline', () => {
   })
 })
 
+
+describe('@owlmeans/server-auth-email — the new-device PIN switch', () => {
+  const withPassword = async (opts: { devicePin?: boolean } = {}, email = 'switch@example.org') => {
+    const env = await makeEmailAuthFixture(opts)
+    const { accountId, offer } = await env.pinSignIn(email, DEVICE_A)
+    await env.service.setPassword({ password: PASSWORD, offer, device: DEVICE_A }, env.session(accountId))
+
+    return { env, accountId, session: env.session(accountId) }
+  }
+
+  test('status reports the PIN in effect; the switch mails a confirmation, then stores the choice once confirmed', async () => {
+    const { env, accountId, session } = await withPassword()
+    expect((await env.service.status(session)).devicePin).toBe(true)
+
+    const first = await env.service.setDevicePin({ enabled: false, locale: 'de' }, session)
+    expect(Object.keys(first)).toEqual(['challenge'])
+    expect(env.mailer.captured.at(-1)!.subject).toBe('Bestätigen Sie die Einstellung für neue Geräte')
+    expect(env.mailer.captured.at(-1)!.to).toBe('switch@example.org')
+    expect((await env.service.status(session)).devicePin).toBe(true)
+
+    const confirmed = await env.service.setDevicePin({ enabled: false, challenge: first.challenge, pin: env.codeOf() }, session)
+    expect(confirmed.status).toMatchObject({ enabled: true, set: true, devicePin: false })
+    expect((await env.passwords().load({ accountId }))!.devicePin).toBe(false)
+    expect((await env.service.status(session)).devicePin).toBe(false)
+
+    const off = await withPassword({ devicePin: false }, 'deployment@example.org')
+    expect((await off.env.service.status(off.session)).devicePin).toBe(false)
+  })
+
+  test('the switch takes only its own confirmation, of its own account; a wrong PIN is a 403', async () => {
+    const { env, session } = await withPassword()
+    const other = await env.pinSignIn('other@example.org')
+
+    const change = await env.service.confirmPin({ purpose: EmailPasswordPurpose.Change }, session)
+    const purpose = await failure(env.service.setDevicePin({ enabled: false, challenge: change.challenge, pin: env.codeOf() }, session))
+    expect(purpose.message).toBe('auth:manager:authen:email:purpose')
+    expect(statusOf(purpose)).toBe(403)
+
+    const own = await env.service.setDevicePin({ enabled: false }, session)
+    const asPassword = await failure(env.service.setPassword({ password: 'a new password', challenge: own.challenge, pin: env.codeOf() }, session))
+    expect(asPassword.message).toBe('auth:manager:authen:email:purpose')
+
+    await env.service.setPassword({ password: PASSWORD, offer: other.offer, device: DEVICE_A }, env.session(other.accountId))
+    const others = await env.service.setDevicePin({ enabled: false }, env.session(other.accountId))
+    const foreign = await failure(env.service.setDevicePin({ enabled: false, challenge: others.challenge, pin: env.codeOf() }, session))
+    expect(foreign.message).toBe('auth:manager:authen:email:account')
+
+    const fresh = await env.service.setDevicePin({ enabled: false }, session)
+    const wrong = await failure(env.service.setDevicePin({ enabled: false, challenge: fresh.challenge, pin: otherCode(env.codeOf()) }, session))
+    expect(wrong).toBeInstanceOf(AuthenFailed)
+    expect(statusOf(wrong)).toBe(403)
+    expect((await env.service.status(session)).devicePin).toBe(true)
+  })
+
+  test('the switch needs a password, the challenge together with the PIN, and passwords on', async () => {
+    const env = await makeEmailAuthFixture()
+    const bare = await env.pinSignIn('bare@example.org')
+    const unset = await failure(env.service.setDevicePin({ enabled: false }, env.session(bare.accountId)))
+    expect(unset).toBeInstanceOf(AuthUnknown)
+    expect(statusOf(unset)).toBe(400)
+
+    const { env: set, session } = await withPassword()
+    const { challenge } = await set.service.setDevicePin({ enabled: false }, session)
+    expect(await failure(set.service.setDevicePin({ enabled: false, challenge }, session))).toBeInstanceOf(AuthUnknown)
+
+    const off = await makeEmailAuthFixture({ password: false })
+    const offAccount = await off.pinSignIn('off-switch@example.org')
+    expect(await failure(off.service.setDevicePin({ enabled: false }, off.session(offAccount.accountId))))
+      .toBeInstanceOf(EmailPasswordDisabled)
+  })
+
+  test('a password change keeps the choice; removing the password drops it', async () => {
+    const { env, accountId, session } = await withPassword()
+    const { challenge } = await env.service.setDevicePin({ enabled: false }, session)
+    await env.service.setDevicePin({ enabled: false, challenge, pin: env.codeOf() }, session)
+
+    const change = await env.service.confirmPin({ purpose: EmailPasswordPurpose.Change }, session)
+    const changed = await env.service.setPassword({ password: 'a new password', challenge: change.challenge, pin: env.codeOf() }, session)
+    expect(changed.devicePin).toBe(false)
+    expect(await env.service.decline(session)).toMatchObject({ set: true, devicePin: false })
+
+    const remove = await env.service.confirmPin({ purpose: EmailPasswordPurpose.Remove }, session)
+    const removed = await env.service.removePassword({ challenge: remove.challenge, pin: env.codeOf() }, session)
+    expect(removed).toMatchObject({ set: false, devicePin: true })
+    expect((await env.passwords().load({ accountId }))!.devicePin).toBeUndefined()
+  })
+})

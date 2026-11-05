@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-auth-email",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "description": "Browser half of OwlMeans e-mail sign-in — the e-mail login method and screen, the password offer step and the password management panel, in eight languages.",
   "homepage": "https://owlmeans.com/docs/",
@@ -36,7 +36,7 @@
     "@owlmeans/api": "^0.1.21",
     "@owlmeans/auth": "^0.1.21",
     "@owlmeans/auth-common": "^0.1.21",
-    "@owlmeans/auth-email": "^0.1.21",
+    "@owlmeans/auth-email": "^0.1.22-rc.0",
     "@owlmeans/client": "^0.1.21",
     "@owlmeans/client-auth": "^0.1.21",
     "@owlmeans/client-context": "^0.1.21",

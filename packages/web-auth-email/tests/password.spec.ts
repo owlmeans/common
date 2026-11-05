@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { EMAIL_PASSWORD_MAX_LENGTH, EMAIL_PASSWORD_MIN_LENGTH, EmailPasswordPurpose } from '@owlmeans/auth-email'
+import {
+  EMAIL_DEVICE_PIN_PURPOSE, EMAIL_PASSWORD_MAX_LENGTH, EMAIL_PASSWORD_MIN_LENGTH, EmailPasswordPurpose,
+} from '@owlmeans/auth-email'
 import { passwordPanelHelper as helper } from '../src/password.js'
 
 describe('passwordPanelHelper — state and actions', () => {
@@ -16,6 +18,15 @@ describe('passwordPanelHelper — state and actions', () => {
     expect(helper.actionsOf({ enabled: true, set: true, declined: false })).toEqual(['change', 'remove'])
     expect(helper.actionsOf({ enabled: false, set: true, declined: false })).toEqual([])
     expect(helper.actionsOf(null)).toEqual([])
+  })
+
+  test('the new-device PIN switch is offered beside a password only when the server reports the PIN', () => {
+    expect(helper.actionsOf({ enabled: true, set: true, declined: false, devicePin: true })).toEqual(['change', 'remove', 'device-pin'])
+    expect(helper.actionsOf({ enabled: true, set: true, declined: false, devicePin: false })).toEqual(['change', 'remove', 'device-pin'])
+    expect(helper.actionsOf({ enabled: true, set: false, declined: false, devicePin: true })).toEqual(['set'])
+    expect(helper.purposeOf('device-pin')).toBe(EMAIL_DEVICE_PIN_PURPOSE)
+    expect(helper.needsPassword('device-pin')).toBe(false)
+    expect(helper.confirmBlock('device-pin', { pin: '123456', password: '', repeat: '' })).toBeNull()
   })
 
   test('each action asks for its own confirmation purpose', () => {

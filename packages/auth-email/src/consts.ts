@@ -70,6 +70,12 @@ export enum EmailPasswordPurpose {
   Remove = 'remove',
 }
 
+/**
+ * The purpose a confirmation PIN of the new-device PIN switch (`password/device-pin`) is bound to.
+ * The switch mails that PIN itself — `password/pin` never asks for it.
+ */
+export const EMAIL_DEVICE_PIN_PURPOSE = 'device-pin'
+
 export enum EmailSignInReason {
   /** The password was not checked: the device is unknown, so a PIN was mailed instead. */
   Device = 'device',
@@ -101,6 +107,7 @@ export const EMAIL_AUTH_PASSWORD_PIN = 'auth-email:password:pin'
 export const EMAIL_AUTH_PASSWORD_SET = 'auth-email:password:set'
 export const EMAIL_AUTH_PASSWORD_REMOVE = 'auth-email:password:remove'
 export const EMAIL_AUTH_PASSWORD_DECLINE = 'auth-email:password:decline'
+export const EMAIL_AUTH_PASSWORD_DEVICE_PIN = 'auth-email:password:device-pin'
 export const EMAIL_AUTH_TECH = 'auth-email:tech'
 export const EMAIL_AUTH_TECH_PIN = 'auth-email:tech:pin'
 export const EMAIL_AUTH_TECH_WAIVER = 'auth-email:tech:waiver'

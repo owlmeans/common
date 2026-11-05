@@ -108,4 +108,6 @@ export interface EmailPasswordAliases {
   pin: string
   set: string
   remove: string
+  /** The new-device PIN switch; default the tree's `password.devicePin` (`EMAIL_AUTH_PASSWORD_DEVICE_PIN`). */
+  devicePin?: string
 }

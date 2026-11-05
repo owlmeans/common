@@ -49,6 +49,17 @@ export interface EmailPasswordStatusView {
   declined: boolean
   /** ISO time of the last set/change/remove. */
   updatedAt?: string
+  /**
+   * While passwords are on: a password sign-in on a device the account does not remember asks for a
+   * mailed PIN — the account's own choice, else the deployment's.
+   */
+  devicePin?: boolean
+}
+
+/** The confirmation challenge of the switch's first call, or the status after the confirmed one. */
+export interface EmailDevicePinView {
+  challenge?: string
+  status?: EmailPasswordStatusView
 }
 
 export interface EmailTechPinView {
@@ -114,6 +125,18 @@ export interface EmailPasswordRemoveRequest {
   device?: string
 }
 
+/**
+ * `POST password/device-pin` — the account's new-device PIN. Without `challenge` + `pin` it mails a
+ * confirmation PIN (purpose `EMAIL_DEVICE_PIN_PURPOSE`) to the account's own address; with them it
+ * turns the PIN on (`enabled`) or off.
+ */
+export interface EmailDevicePinRequest {
+  enabled: boolean
+  challenge?: string
+  pin?: string
+  locale?: string
+}
+
 /** `POST tech/pin` — a developer replaces the PIN of a pending challenge. */
 export interface EmailTechPinRequest {
   challenge: string
@@ -159,6 +182,7 @@ export interface EmailPasswordEntrypoints {
   set: EntrypointProtocol<{ body: EmailPasswordSetRequest }, EmailPasswordStatusView>
   remove: EntrypointProtocol<{ body: EmailPasswordRemoveRequest }, EmailPasswordStatusView>
   decline: EntrypointProtocol<{ body: EmailEmptyRequest }, EmailPasswordStatusView>
+  devicePin: EntrypointProtocol<{ body: EmailDevicePinRequest }, EmailDevicePinView>
 }
 
 export interface EmailTechEntrypoints {

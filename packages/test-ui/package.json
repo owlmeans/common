@@ -35,7 +35,7 @@
   "dependencies": {
     "@owlmeans/auth": "^0.1.21",
     "@owlmeans/auth-common": "^0.1.21",
-    "@owlmeans/auth-email": "^0.1.21",
+    "@owlmeans/auth-email": "^0.1.22-rc.0",
     "@owlmeans/basic-envelope": "^0.1.21",
     "@owlmeans/basic-ids": "^0.1.21",
     "@owlmeans/basic-keys": "^0.1.21",

@@ -64,7 +64,9 @@
     "action": {
       "change": "Passwort ändern",
       "remove": "Passwort entfernen",
-      "set": "Passwort festlegen"
+      "set": "Passwort festlegen",
+      "device-pin-off": "Auf neuen Geräten keinen Code verlangen",
+      "device-pin-on": "Auf neuen Geräten einen Code verlangen"
     },
     "cancel": "Abbrechen",
     "confirm": "Bestätigen",
@@ -74,12 +76,16 @@
     "done": {
       "change": "Ihr Passwort wurde geändert.",
       "remove": "Ihr Passwort wurde entfernt.",
-      "set": "Ihr Passwort wurde festgelegt."
+      "set": "Ihr Passwort wurde festgelegt.",
+      "device-pin-off": "Auf neuen Geräten melden Sie sich jetzt nur mit Ihrem Passwort an.",
+      "device-pin-on": "Auf neuen Geräten wird jetzt zusätzlich ein Code aus Ihrer E-Mail benötigt."
     },
     "explain": {
       "change": "Um Ihr Passwort zu ändern, bestätigen Sie mit einem Code, den wir Ihnen per E-Mail senden, dass Sie es sind.",
       "remove": "Ohne Passwort melden Sie sich mit einem Code an, den Sie per E-Mail erhalten. Zur Bestätigung senden wir Ihnen einen Code.",
-      "set": "Um ein Passwort festzulegen, bestätigen Sie mit einem Code, den wir Ihnen per E-Mail senden, dass Sie es sind."
+      "set": "Um ein Passwort festzulegen, bestätigen Sie mit einem Code, den wir Ihnen per E-Mail senden, dass Sie es sind.",
+      "device-pin-off": "Auf einem neuen Gerät melden Sie sich dann nur mit Ihrem Passwort an. Bestätigen Sie mit einem Code, den wir Ihnen per E-Mail senden, dass Sie es sind.",
+      "device-pin-on": "Auf einem neuen Gerät wird dann zusätzlich ein Code aus Ihrer E-Mail benötigt. Bestätigen Sie mit einem Code, den wir Ihnen per E-Mail senden, dass Sie es sind."
     },
     "loading": "Wird geladen…",
     "new-label": "Neues Passwort",
@@ -95,6 +101,10 @@
     "title": "Passwort",
     "unreadable": "Ihre Passworteinstellungen konnten nicht geladen werden.",
     "unset": "Sie haben noch kein Passwort. Sie melden sich mit einem Code an, den Sie per E-Mail erhalten.",
-    "updated": "Zuletzt geändert am {{date}}."
+    "updated": "Zuletzt geändert am {{date}}.",
+    "device-pin": {
+      "on": "Auf einem neuen Gerät wird zusätzlich ein Code aus Ihrer E-Mail benötigt.",
+      "off": "Auf einem neuen Gerät melden Sie sich nur mit Ihrem Passwort an."
+    }
   }
 }

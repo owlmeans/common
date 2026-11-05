@@ -2,8 +2,9 @@
 
 The server half of OwlMeans e-mail sign-in, serving the routes of `@owlmeans/auth-email`'s
 `makeEmailAuthProtocols`. A person signs in (or registers) with a PIN mailed to their address, may
-add a password, and uses it on devices they signed in on during the last 30 days. Everything else
-gets a PIN. An optional reCAPTCHA v3 check (`@owlmeans/captcha`) guards send-PIN and password sign-in,
+add a password, and uses it on devices they signed in on during the last 30 days. A password
+sign-in on any other device gets a PIN as well — unless the deployment (`devicePin: false`) or the
+account itself, from its password panel, turned that new-device PIN off. An optional reCAPTCHA v3 check (`@owlmeans/captcha`) guards send-PIN and password sign-in,
 and throttles count requests per address, client IP, account and in total. Developer routes rewrite a
 pending PIN and sign a waiver that skips the captcha and the throttles, so end-to-end tests can sign
 in. The browser half is `@owlmeans/web-auth-email`.
@@ -68,7 +69,8 @@ under a valid waiver too.
 | `throttle` | `EMAIL_AUTH_THROTTLE_RULES` | replaces single rules: `pinEmail` 1/60 s + 10/h, `pinIp` 20/600 s, `pinGlobal` 600/60 s, `passwordEmail` 10/900 s, `passwordIp` 50/900 s, `confirmAccount` 1/60 s + 10/h |
 | `ticketResourceAlias` | in-process store | a Redis resource for the offer tickets (needed with more than one replica) |
 | `devices` | 30 days, 10 | `{ ttlDays?, limit? }` — how long and how many devices stay remembered |
-| `mail` | built-in | `{ [purpose]: { [locale]: OtpMessage } }` — replaces a mail; purposes `sign-in`, `confirm-set`, `confirm-change`, `confirm-remove` |
+| `devicePin` | `true` | a password sign-in on a device the account does not remember gets a mailed PIN; `false` lets the password alone sign it in. Each account may choose otherwise from its password panel |
+| `mail` | built-in | `{ [purpose]: { [locale]: OtpMessage } }` — replaces a mail; purposes `sign-in`, `confirm-set`, `confirm-change`, `confirm-remove`, `confirm-device-pin` |
 
 ## Routes
 
@@ -76,12 +78,13 @@ under a valid waiver too.
 |---|---|---|
 | `GET options` | `options` | `{ password, captcha: { provider, siteKey } \| null, pinLength }`; `captcha` is `null` under a valid waiver |
 | `POST pin` | `sendPin` | `{ challenge }` — the same answer for a known and an unknown address |
-| `POST sign-in` | `signIn` | PIN mode → `{ token, offer? }`; password mode → `{ token }` on a remembered device, otherwise `{ challenge, reason: 'device' }` |
-| `GET password` | `status` | `{ enabled, set, declined, updatedAt? }` (`enabled: false` while passwords are off) |
+| `POST sign-in` | `signIn` | PIN mode → `{ token, offer? }`; password mode → `{ token }` on a remembered device or while the new-device PIN is off, otherwise `{ challenge, reason: 'device' }` |
+| `GET password` | `status` | `{ enabled, set, declined, updatedAt?, devicePin? }` (`enabled: false` while passwords are off; `devicePin`, the new-device PIN in effect, while they are on) |
 | `POST password/pin` | `confirmPin` | `{ challenge }` — mails a confirmation PIN to the account's own address |
 | `POST password/set` | `setPassword` | status — confirmed by `offer` (no password yet) or `challenge` + `pin` (purpose `set` / `change`) |
 | `POST password/remove` | `removePassword` | status — confirmed by `challenge` + `pin` (purpose `remove`); counts as declined |
 | `POST password/decline` | `decline` | status |
+| `POST password/device-pin` | `setDevicePin` | `{ enabled }` → `{ challenge }` (a confirmation PIN mailed); `{ enabled, challenge, pin }` → `{ status }`. Needs a set password |
 | `POST tech/pin` | `techPin` | `{ ok }` — rewrites the PIN of a pending sign-in or confirmation challenge |
 | `POST tech/waiver` | `techWaiver` | `{ waiver, expiresAt }` — send it in `x-owlmeans-email-waiver` for two hours |
 
@@ -100,7 +103,7 @@ identity store's db config:
 
 | Alias | Collection | Record | Indexes |
 |---|---|---|---|
-| `auth-email:password` | `email-password` | `{ accountId, hash?, declined, createdAt, updatedAt }` | `accountId` unique |
+| `auth-email:password` | `email-password` | `{ accountId, hash?, declined, devicePin?, createdAt, updatedAt }` | `accountId` unique |
 | `auth-email:device` | `email-device` | `{ accountId, key, createdAt, lastSeenAt, expiresAt }` | `(accountId, key)` unique; TTL on `expiresAt` |
 
 `accountId` is the identity store's account id (the token's `userId`). A device `key` is
@@ -118,17 +121,22 @@ the 10 most recently seen devices. A hash is `scrypt$32768$8$1$<salt>$<key>` (`n
 - **Token types.** Tokens are stamped `email-pin` or `email-password`, never `email-otp` or
   `one-time-token`, so the integrated IAM's finalizer keeps refusing them. The identity credential
   is still type `email-otp`, so OTP and e-mail sign-in land on one account per address.
-- **No oracle.** Send-PIN answers the same for every address. A password sign-in on an unknown
-  device, with a wrong password or for a missing account gets the same `{ challenge, reason: 'device' }`.
-  The password is not checked there. On a known device, "no password" and "wrong password" are the
+- **No oracle.** Send-PIN answers the same for every address. A wrong password and an address
+  with no account always get the answer of the deployment's `devicePin`: while it is on,
+  `{ challenge, reason: 'device' }` on an unknown device, the password unchecked; while it is off,
+  `AuthenFailed('email:password')`. On a known device, "no password" and "wrong password" are the
   same `AuthenFailed('email:password')` after the same scrypt work. Password sign-in never registers
   an account.
+- **New-device PIN.** An account's own choice (`devicePin` on its password record, set through
+  `password/device-pin` and confirmed by a mailed PIN) overrides the deployment's, and counts only
+  behind the account's correct password. It survives a password change and is dropped with the
+  password.
 - **Order.** IP and global throttles run first, then the captcha, then the per-address throttle,
   then the account and device lookup, then scrypt. A failed captcha never spends a person's
   per-address budget.
 - **Confirmations.** A confirmation challenge is an `email-confirm` envelope signed with
-  `AUTH_SRV_KEY`. It binds the purpose, the account, the address and the mailed PIN, and lives as
-  long as the PIN. A sign-in challenge is no confirmation, and a confirmation is no sign-in
+  `AUTH_SRV_KEY`. It binds the purpose (`set`, `change`, `remove`, or `device-pin` for the switch),
+  the account, the address and the mailed PIN, and lives as long as the PIN. A sign-in challenge is no confirmation, and a confirmation is no sign-in
   challenge.
 - **Offer tickets.** A ticket is 32 random bytes, stored as a digest and bound to its account for
   15 minutes. It is spent once and only by that account, and only while the account has no

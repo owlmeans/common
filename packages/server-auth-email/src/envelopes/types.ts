@@ -1,8 +1,9 @@
-import type { EmailPasswordPurpose, EmailTechWaiverView } from '@owlmeans/auth-email'
+import type { EmailTechWaiverView } from '@owlmeans/auth-email'
+import type { EmailConfirmPurpose } from '../types.js'
 
 /** What a confirmation challenge binds: one purpose, one account, one address, one mailed PIN. */
 export interface EmailConfirmClaim {
-  purpose: EmailPasswordPurpose
+  purpose: EmailConfirmPurpose
   accountId: string
   email: string
   issuanceId: string

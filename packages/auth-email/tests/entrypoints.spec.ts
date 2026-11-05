@@ -44,11 +44,12 @@ describe('@owlmeans/auth-email — makeEmailAuthProtocols', () => {
       ['auth-email:password:set', RouteMethod.POST, '/auth/email/password/set'],
       ['auth-email:password:remove', RouteMethod.POST, '/auth/email/password/remove'],
       ['auth-email:password:decline', RouteMethod.POST, '/auth/email/password/decline'],
+      ['auth-email:password:device-pin', RouteMethod.POST, '/auth/email/password/device-pin'],
       ['auth-email:tech', RouteMethod.GET, '/auth/email/tech'],
       ['auth-email:tech:pin', RouteMethod.POST, '/auth/email/tech/pin'],
       ['auth-email:tech:waiver', RouteMethod.POST, '/auth/email/tech/waiver'],
     ])
-    expect(new Set(declarations(tree).map(entry => entry.alias)).size).toBe(14)
+    expect(new Set(declarations(tree).map(entry => entry.alias)).size).toBe(15)
   })
 
   test('the guest routes carry no guards; password and tech carry theirs for their children', () => {

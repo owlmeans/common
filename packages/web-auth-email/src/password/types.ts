@@ -1,8 +1,11 @@
-import type { EmailPasswordPurpose, EmailPasswordStatusView } from '@owlmeans/auth-email'
+import type { EMAIL_DEVICE_PIN_PURPOSE, EmailPasswordPurpose, EmailPasswordStatusView } from '@owlmeans/auth-email'
 import type { EmailRefusal } from '../refusal/types.js'
 
-/** What a person can do with their password from the panel. */
-export type EmailPasswordAction = 'set' | 'change' | 'remove'
+/** What a person can do with their password from the panel, the new-device PIN switch included. */
+export type EmailPasswordAction = 'set' | 'change' | 'remove' | 'device-pin'
+
+/** What a confirmation PIN of the panel is mailed for: a password action or the new-device PIN switch. */
+export type EmailPanelPurpose = EmailPasswordPurpose | typeof EMAIL_DEVICE_PIN_PURPOSE
 
 /**
  * What the panel shows: the status is still loading, could not be read, passwords are off on this
@@ -27,11 +30,14 @@ export interface PasswordPolicy {
 /** The password panel and the offer step as pure decisions — no React, no I/O. */
 export interface PasswordPanelHelper {
   stateOf: (status: EmailPasswordStatusView | null, loading: boolean) => PasswordPanelState
-  /** The actions offered for a status: `set` without a password, `change` + `remove` with one. */
+  /**
+   * The actions offered for a status: `set` without a password; `change` + `remove` with one, and
+   * `device-pin` too when the server reports the new-device PIN.
+   */
   actionsOf: (status: EmailPasswordStatusView | null) => EmailPasswordAction[]
-  /** The confirmation PIN's purpose for an action — what `password/pin` is asked for. */
-  purposeOf: (action: EmailPasswordAction) => EmailPasswordPurpose
-  /** Whether the action asks for a new password (set, change) or only a PIN (remove). */
+  /** The confirmation PIN's purpose for an action — what `password/pin` (or the switch) is asked for. */
+  purposeOf: (action: EmailPasswordAction) => EmailPanelPurpose
+  /** Whether the action asks for a new password (set, change) or only a PIN (remove, device-pin). */
   needsPassword: (action: EmailPasswordAction) => boolean
   /**
    * What stops a new password from being sent: empty, outside the length bounds (NFKC, as the

@@ -1,6 +1,6 @@
 ---
 name: web-auth-email
-description: How to use @owlmeans/web-auth-email — the browser half of OwlMeans e-mail sign-in. appendEmailLogin (explicit, never a side-effect import) registers the client service, the "Continue with email" login method, its own card at /authentication/login/email that mirrors the chooser card and shares its customisation levers, the post-sign-in "set a password" offer step and the eight-language strings; emailAuthEntrypoints binds the offer screen; useEmailLogin is the headless model; PasswordPanel / usePassword / ConnectedPasswordPanel manage a password from a settings screen. Covers the device id and offer ticket storage, captcha use, refusal phrasing, the @source line and the data-email-* hooks. Auto-invoked when adding e-mail sign-in to a web app, customising or replacing the e-mail card, rendering the password panel, or writing an e2e against the e-mail card.
+description: How to use @owlmeans/web-auth-email — the browser half of OwlMeans e-mail sign-in. appendEmailLogin (explicit, never a side-effect import) registers the client service, the "Continue with email" login method, its own card at /authentication/login/email that mirrors the chooser card and shares its customisation levers, the post-sign-in "set a password" offer step and the eight-language strings; emailAuthEntrypoints binds the offer screen; useEmailLogin is the headless model; PasswordPanel / usePassword / ConnectedPasswordPanel manage a password and the new-device PIN switch from a settings screen. Covers the device id and offer ticket storage, captcha use, refusal phrasing, the @source line and the data-email-* hooks. Auto-invoked when adding e-mail sign-in to a web app, customising or replacing the e-mail card, rendering the password panel, or writing an e2e against the e-mail card.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-auth-email
 
 **Layer:** Web (L11 — `client-auth`, `client-entrypoint`, `client-i18n`, `web-captcha`, `auth-email`; NOT `web-panel`)
-**Install:** `"@owlmeans/web-auth-email": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/web-auth-email": "^0.1.22-rc.0"` in `dependencies`
 **Peers:** React, `react-dom`, `@radix-ui/react-{label,slot}`, `class-variance-authority`, `clsx`,
 `lucide-react`, `tailwind-merge`, `tailwindcss`
 
@@ -86,9 +86,15 @@ offer), a parked flow, else home.
 
 `PasswordPanel` is pure (props in, callbacks out); `usePassword(aliases?, { locale })` does the I/O
 over injectable entrypoint aliases; `ConnectedPasswordPanel` joins them and sends the interface
-language. States: feature off (a notice), no password (Set), password set (Change, Remove); each
-action is "send code" → PIN (+ new password fields) → confirm, the PIN mailed to the account's own
-address. The panel renders a complete `Card` — a host that puts it inside its own card flattens it
+language. States: feature off (a notice), no password (Set), password set (Change, Remove, and the
+new-device PIN switch when the status carries `devicePin`); each action is "send code" → PIN (+ new
+password fields for Set and Change) → confirm, the PIN mailed to the account's own address. The
+switch (`device-pin` action, purpose `device-pin`) asks for the opposite of the state in effect and
+talks to its own route — the tree's `password.devicePin` (`EmailPasswordAliases.devicePin`), which
+mails its confirmation PIN and then takes it; an app that binds the password routes by hand lists
+it there too. Without the field (an
+older server) the switch stays hidden; while the account's PIN is off, the "other devices will need
+a code" note after a password change is left out. The panel renders a complete `Card` — a host that puts it inside its own card flattens it
 with direct-child `data-slot` selectors rather than nesting cards.
 
 ## Rules
@@ -109,7 +115,8 @@ with direct-child `data-slot` selectors rather than nesting cards.
 `data-email-login-screen` / `-card` / `-form` (`email` \| `pin` \| `password`) / `-email` /
 `-send` / `-pin` / `-submit` / `-resend` / `-change` / `-use-password` / `-use-pin` / `-password` /
 `-captcha` / `-error` (`data-refusal`) / `-other` / `-done`; `data-email-offer` (`data-state="leaving"` when nothing is left to offer) / `-password` /
-`-repeat` / `-save` / `-skip` / `-error`; `data-email-password-*` on the panel. `@owlmeans/test-ui`'s
+`-repeat` / `-save` / `-skip` / `-error`; `data-email-password-*` on the panel (`-action` =
+`set` \| `change` \| `remove` \| `device-pin`, `-device-pin` = `on` \| `off` on the status line). `@owlmeans/test-ui`'s
 `loginViaEmailForm` drives them.
 
 ## Related

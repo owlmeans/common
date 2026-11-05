@@ -66,6 +66,10 @@ A settings screen renders the password panel:
 <ConnectedPasswordPanel aliases={myAliases} />   // routes mounted under the app's own aliases
 ```
 
+With a password set, the panel also offers the new-device PIN switch when the server reports
+`devicePin` in the status: "Stop asking for a code on new devices" / "Ask for a code on new
+devices", confirmed by a mailed code like every other action.
+
 ## Customising
 
 | What | How |

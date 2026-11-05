@@ -64,7 +64,9 @@
     "action": {
       "change": "Change password",
       "remove": "Remove password",
-      "set": "Set a password"
+      "set": "Set a password",
+      "device-pin-off": "Stop asking for a code on new devices",
+      "device-pin-on": "Ask for a code on new devices"
     },
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -74,12 +76,16 @@
     "done": {
       "change": "Your password has been changed.",
       "remove": "Your password has been removed.",
-      "set": "Your password has been set."
+      "set": "Your password has been set.",
+      "device-pin-off": "Your password alone now signs you in on new devices.",
+      "device-pin-on": "New devices now also need a code from your email."
     },
     "explain": {
       "change": "To change your password, confirm it's you with a code we'll email you.",
       "remove": "Without a password you sign in with a code sent to your email. We'll email you a code to confirm.",
-      "set": "To set a password, confirm it's you with a code we'll email you."
+      "set": "To set a password, confirm it's you with a code we'll email you.",
+      "device-pin-off": "Your password alone will sign you in on a new device. Confirm it's you with a code we'll email you.",
+      "device-pin-on": "A new device will also need a code from your email. Confirm it's you with a code we'll email you."
     },
     "loading": "Loading…",
     "new-label": "New password",
@@ -95,6 +101,10 @@
     "title": "Password",
     "unreadable": "We couldn't load your password settings.",
     "unset": "You don't have a password yet. You sign in with a code sent to your email.",
-    "updated": "Last changed {{date}}."
+    "updated": "Last changed {{date}}.",
+    "device-pin": {
+      "on": "A new device also needs a code from your email.",
+      "off": "Your password alone signs you in on a new device."
+    }
   }
 }

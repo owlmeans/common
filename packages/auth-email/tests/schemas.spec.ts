@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import formatsPlugin from 'ajv-formats'
 import {
-  EmailEmptyRequestSchema, EmailPasswordPinRequestSchema, EmailPasswordRemoveRequestSchema,
+  EmailDevicePinRequestSchema, EmailEmptyRequestSchema, EmailPasswordPinRequestSchema, EmailPasswordRemoveRequestSchema,
   EmailPasswordSetRequestSchema, EmailPinRequestSchema, EmailSignInRequestSchema, EmailTechPinRequestSchema,
   EmailPasswordPurpose,
 } from '@owlmeans/auth-email'
@@ -17,6 +17,7 @@ const passwordSet = ajv.compile(EmailPasswordSetRequestSchema)
 const passwordRemove = ajv.compile(EmailPasswordRemoveRequestSchema)
 const techPin = ajv.compile(EmailTechPinRequestSchema)
 const empty = ajv.compile(EmailEmptyRequestSchema)
+const devicePin = ajv.compile(EmailDevicePinRequestSchema)
 
 /** 22 base64url characters — 16 random bytes, the way the browser makes a device id. */
 const DEVICE = 'AbCdEfGhIjKlMnOpQrSt_-'
@@ -91,5 +92,17 @@ describe('@owlmeans/auth-email — password route schemas', () => {
     expect(empty({ entitySlug: 'acme' })).toBe(false)
     expect(techPin({ challenge: 'signed', pin: '123456' })).toBe(true)
     expect(techPin({ challenge: 'signed', pin: '12345' })).toBe(false)
+  })
+})
+
+describe('@owlmeans/auth-email — EmailDevicePinRequestSchema', () => {
+  test('the switch takes enabled alone, or with the challenge and the PIN; nothing else', () => {
+    expect(devicePin({ enabled: false })).toBe(true)
+    expect(devicePin({ enabled: true, locale: 'pl' })).toBe(true)
+    expect(devicePin({ enabled: true, challenge: 'challenge', pin: '123456' })).toBe(true)
+    expect(devicePin({})).toBe(false)
+    expect(devicePin({ enabled: 'yes' })).toBe(false)
+    expect(devicePin({ enabled: true, pin: '12345' })).toBe(false)
+    expect(devicePin({ enabled: true, password: 'not here' })).toBe(false)
   })
 })

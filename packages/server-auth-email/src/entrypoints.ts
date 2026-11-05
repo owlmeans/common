@@ -30,6 +30,8 @@ export const serveEmailAuthEntrypoints = (
     bind(password.remove, api.body(password.remove, async (body, context, req) =>
       await serviceOf(context).removePassword(body, req))),
     bind(password.decline, api.body(password.decline, async (_body, context, req) => await serviceOf(context).decline(req))),
+    bind(password.devicePin, api.body(password.devicePin, async (body, context, req) =>
+      await serviceOf(context).setDevicePin(body, req))),
     bind(tech.base),
     bind(tech.pin, api.body(tech.pin, async (body, context, req) => await serviceOf(context).techPin(body, req))),
     bind(tech.waiver, api.body(tech.waiver, async (_body, context, req) => await serviceOf(context).techWaiver(req))),

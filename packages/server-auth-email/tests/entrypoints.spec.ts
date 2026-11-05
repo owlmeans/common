@@ -22,9 +22,10 @@ describe('@owlmeans/server-auth-email — serveEmailAuthEntrypoints', () => {
     const bindings = serveEmailAuthEntrypoints(protocols)
     const bound = bindings.map(binding => binding.protocol)
 
-    expect(bindings).toHaveLength(13)
+    expect(bindings).toHaveLength(14)
     expect(bound).toContain(protocols.base)
     expect(bound).toContain(protocols.password.base)
+    expect(bound).toContain(protocols.password.devicePin)
     expect(bound).toContain(protocols.tech.base)
     expect(bound).not.toContain(protocols.offer)
     // The developer routes keep their declared guard; the guest routes have none.

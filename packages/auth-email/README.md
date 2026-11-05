@@ -20,8 +20,10 @@ bun add @owlmeans/auth-email@^0.1.21
   known and a new address; `signIn` with `challenge` + `pin` signs the person in (registering the
   account on first use) and remembers the device.
 - **Password sign-in** — `signIn` with `password` (+ `captcha`). On a remembered device it answers a
-  `token`; on an unknown one the password is NOT checked: a PIN is mailed and the answer is
-  `{ challenge, reason: 'device' }`, the same for a wrong password, a right one and no account.
+  `token`. On an unknown one the new-device PIN decides — the server's default, or the account's own
+  choice (`password.devicePin`) behind its correct password: while on, the password is NOT checked,
+  a PIN is mailed and the answer is `{ challenge, reason: 'device' }`, the same for a wrong password,
+  a right one and no account; while off, the password alone answers a `token`.
 - **One sign-in body** — `EmailSignInRequest` carries both modes' optional fields; the server
   accepts exactly one mode (`challenge` + `pin`, or `password`) and refuses anything else.
 - **Device** — a random id the browser keeps (`EMAIL_DEVICE_ID_PATTERN`); remembered for
@@ -48,6 +50,7 @@ bun add @owlmeans/auth-email@^0.1.21
 | `password.set` | `auth-email:password:set` | POST `/password/set` | same | `EmailPasswordSetRequest` → `EmailPasswordStatusView` |
 | `password.remove` | `auth-email:password:remove` | POST `/password/remove` | same | `EmailPasswordRemoveRequest` → `EmailPasswordStatusView` |
 | `password.decline` | `auth-email:password:decline` | POST `/password/decline` | same | `{}` → `EmailPasswordStatusView` |
+| `password.devicePin` | `auth-email:password:device-pin` | POST `/password/device-pin` | same | `EmailDevicePinRequest` → `EmailDevicePinView` (`{ challenge }` until confirmed, then `{ status }`) |
 | `tech.pin` | `auth-email:tech:pin` | POST `/tech/pin` | `GUARD_ED25519` + tech gate | `EmailTechPinRequest` → `EmailTechPinView` |
 | `tech.waiver` | `auth-email:tech:waiver` | POST `/tech/waiver` | same | `{}` → `EmailTechWaiverView` |
 | `offer` | `auth-email:offer` | screen `/login/password` | — | frontend, sticky |

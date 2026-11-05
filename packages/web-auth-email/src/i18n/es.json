@@ -64,7 +64,9 @@
     "action": {
       "change": "Cambiar contraseña",
       "remove": "Eliminar contraseña",
-      "set": "Crear una contraseña"
+      "set": "Crear una contraseña",
+      "device-pin-off": "No pedir código en dispositivos nuevos",
+      "device-pin-on": "Pedir código en dispositivos nuevos"
     },
     "cancel": "Cancelar",
     "confirm": "Confirmar",
@@ -74,12 +76,16 @@
     "done": {
       "change": "Tu contraseña se ha cambiado.",
       "remove": "Tu contraseña se ha eliminado.",
-      "set": "Tu contraseña se ha creado."
+      "set": "Tu contraseña se ha creado.",
+      "device-pin-off": "Ahora inicias sesión en dispositivos nuevos solo con tu contraseña.",
+      "device-pin-on": "Ahora en dispositivos nuevos también se pide un código de tu correo."
     },
     "explain": {
       "change": "Para cambiar tu contraseña, confirma que eres tú con un código que te enviaremos por correo.",
       "remove": "Sin contraseña, inicias sesión con un código que llega a tu correo. Te enviaremos un código para confirmarlo.",
-      "set": "Para crear una contraseña, confirma que eres tú con un código que te enviaremos por correo."
+      "set": "Para crear una contraseña, confirma que eres tú con un código que te enviaremos por correo.",
+      "device-pin-off": "En un dispositivo nuevo iniciarás sesión solo con tu contraseña. Confirma que eres tú con un código que te enviaremos por correo.",
+      "device-pin-on": "En un dispositivo nuevo también se pedirá un código de tu correo. Confirma que eres tú con un código que te enviaremos por correo."
     },
     "loading": "Cargando…",
     "new-label": "Nueva contraseña",
@@ -95,6 +101,10 @@
     "title": "Contraseña",
     "unreadable": "No pudimos cargar la configuración de tu contraseña.",
     "unset": "Aún no tienes contraseña. Inicias sesión con un código que llega a tu correo.",
-    "updated": "Último cambio: {{date}}."
+    "updated": "Último cambio: {{date}}.",
+    "device-pin": {
+      "on": "En un dispositivo nuevo también se pide un código de tu correo.",
+      "off": "En un dispositivo nuevo inicias sesión solo con tu contraseña."
+    }
   }
 }

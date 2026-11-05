@@ -4,7 +4,7 @@ import {
   EMAIL_PIN_PATTERN, EMAIL_TOKEN_MAX_LENGTH, EmailPasswordPurpose,
 } from './consts.js'
 import type {
-  EmailEmptyRequest, EmailPasswordPinRequest, EmailPasswordRemoveRequest, EmailPasswordSetRequest,
+  EmailDevicePinRequest, EmailEmptyRequest, EmailPasswordPinRequest, EmailPasswordRemoveRequest, EmailPasswordSetRequest,
   EmailPinRequest, EmailSignInRequest, EmailTechPinRequest,
 } from './types.js'
 
@@ -76,6 +76,19 @@ export const EmailPasswordRemoveRequestSchema: JSONSchemaType<EmailPasswordRemov
     device: { ...device, nullable: true },
   },
   required: ['challenge', 'pin'],
+  additionalProperties: false,
+}
+
+/** `password/device-pin`: `enabled`, plus `challenge` + `pin` on the confirming call. */
+export const EmailDevicePinRequestSchema: JSONSchemaType<EmailDevicePinRequest> = {
+  type: 'object',
+  properties: {
+    enabled: { type: 'boolean' },
+    challenge: { ...token, nullable: true },
+    pin: { ...pin, nullable: true },
+    locale: { ...locale, nullable: true },
+  },
+  required: ['enabled'],
   additionalProperties: false,
 }
 

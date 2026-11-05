@@ -7,7 +7,7 @@ import { OTP_AUTH_TYPE } from '@owlmeans/auth-otp'
 import { makeAuthModel } from '@owlmeans/server-auth/manager'
 import { appendOtpPlugin } from '@owlmeans/server-auth-otp'
 import { passwordHasher } from '../src/hasher.js'
-import { DEVICE_A, DEVICE_B, failure, makeEmailAuthFixture, otherCode, statusOf, tokenOf } from './context.js'
+import { DEVICE_A, DEVICE_B, DEVICE_C, failure, makeEmailAuthFixture, otherCode, statusOf, tokenOf } from './context.js'
 
 describe('@owlmeans/server-auth-email — PIN sign-in', () => {
   test('send-PIN answers the same for a known and an unknown address, and mails each a PIN', async () => {
@@ -187,5 +187,92 @@ describe('@owlmeans/server-auth-email — exclusive plugins', () => {
       expect(error).toBeInstanceOf(AuthUnknown)
       expect(statusOf(error)).toBe(400)
     }
+  })
+})
+
+describe('@owlmeans/server-auth-email — the new-device PIN', () => {
+  const PASSWORD = 'correct horse battery'
+
+  const setUp = async (opts: { devicePin?: boolean } = {}) => {
+    const env = await makeEmailAuthFixture(opts)
+    const { accountId, offer } = await env.pinSignIn('device@example.org', DEVICE_A)
+    await env.service.setPassword({ password: PASSWORD, offer, device: DEVICE_A }, env.session(accountId))
+
+    return { env, accountId }
+  }
+
+  /** The account's own choice, through the switch and its mailed confirmation. */
+  const choose = async (env: Awaited<ReturnType<typeof setUp>>['env'], accountId: string, enabled: boolean) => {
+    const { challenge } = await env.service.setDevicePin({ enabled }, env.session(accountId))
+    await env.service.setDevicePin({ enabled, challenge, pin: env.codeOf() }, env.session(accountId))
+  }
+
+  test('off for the deployment: the right password signs a new device in, mails nothing and remembers it', async () => {
+    const { env, accountId } = await setUp({ devicePin: false })
+    const mails = env.mailer.captured.length
+
+    const answer = await env.service.signIn({ email: 'device@example.org', device: DEVICE_B, password: PASSWORD }, env.guest())
+
+    expect(Object.keys(answer)).toEqual(['token'])
+    expect(tokenOf(answer.token!).type).toBe(EMAIL_PASSWORD_AUTH_TYPE)
+    expect(tokenOf(answer.token!).userId).toBe(accountId)
+    expect(env.mailer.captured.length).toBe(mails)
+    expect((await env.devices().list({ accountId })).items).toHaveLength(2)
+  })
+
+  test('off for the deployment: a wrong password and an address with no account are the same 401', async () => {
+    const { env } = await setUp({ devicePin: false })
+    const mails = env.mailer.captured.length
+
+    const errors = [
+      await failure(env.service.signIn({ email: 'device@example.org', device: DEVICE_B, password: 'wrong password!' }, env.guest())),
+      await failure(env.service.signIn({ email: 'missing@example.org', device: DEVICE_B, password: PASSWORD }, env.guest())),
+    ]
+
+    for (const error of errors) {
+      expect(error).toBeInstanceOf(AuthenFailed)
+      expect(error.message).toBe('auth:manager:authen:email:password')
+      expect(statusOf(error)).toBe(401)
+    }
+    expect(env.mailer.captured.length).toBe(mails)
+    expect(await env.accountOf('missing@example.org')).toBeNull()
+  })
+
+  test('on for the deployment, off for the account: its right password skips the PIN, a wrong one gets a PIN like any address', async () => {
+    const { env, accountId } = await setUp()
+    await choose(env, accountId, false)
+
+    const right = await env.service.signIn({ email: 'device@example.org', device: DEVICE_B, password: PASSWORD }, env.guest())
+    expect(tokenOf(right.token!).type).toBe(EMAIL_PASSWORD_AUTH_TYPE)
+
+    for (const body of [
+      { email: 'device@example.org', device: DEVICE_C, password: 'wrong password!' },
+      { email: 'missing@example.org', device: DEVICE_C, password: PASSWORD },
+    ]) {
+      const answer = await env.service.signIn(body, env.guest())
+      expect(Object.keys(answer).sort()).toEqual(['challenge', 'reason'])
+      expect(answer.reason).toBe(EmailSignInReason.Device)
+    }
+  })
+
+  test('off for the deployment, on for the account: a PIN after its right password; a wrong one is the same 401', async () => {
+    const { env, accountId } = await setUp({ devicePin: false })
+    await choose(env, accountId, true)
+    const mails = env.mailer.captured.length
+
+    const answer = await env.service.signIn({ email: 'device@example.org', device: DEVICE_B, password: PASSWORD }, env.guest())
+    expect(Object.keys(answer).sort()).toEqual(['challenge', 'reason'])
+    expect(env.mailer.captured.length).toBe(mails + 1)
+    const signedIn = await env.service.signIn({
+      email: 'device@example.org', device: DEVICE_B, challenge: answer.challenge, pin: env.codeOf(),
+    }, env.guest())
+    expect(tokenOf(signedIn.token!).type).toBe(EMAIL_PIN_AUTH_TYPE)
+
+    const wrong = await failure(env.service.signIn({ email: 'device@example.org', device: DEVICE_C, password: 'wrong password!' }, env.guest()))
+    expect(wrong.message).toBe('auth:manager:authen:email:password')
+    expect(statusOf(wrong)).toBe(401)
+    // A device the account remembers needs no PIN whatever the choice.
+    const known = await env.service.signIn({ email: 'device@example.org', device: DEVICE_A, password: PASSWORD }, env.guest())
+    expect(tokenOf(known.token!).type).toBe(EMAIL_PASSWORD_AUTH_TYPE)
   })
 })

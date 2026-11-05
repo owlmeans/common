@@ -30,11 +30,15 @@ export const makeEmailPasswordStore = (ctx: EmailAuthContext): EmailPasswordStor
     }
   }
 
+  /** The account's own new-device PIN choice, carried over by every write but a removal. */
+  const devicePinOf = (existing: EmailPasswordRecord | null): Pick<EmailPasswordRecord, 'devicePin'> =>
+    existing?.devicePin != null ? { devicePin: existing.devicePin } : {}
+
   const load: EmailPasswordStore['load'] = async accountId => await passwords().load(whereOf(accountId))
 
   const setHash: EmailPasswordStore['setHash'] = async (accountId, hash) =>
     await write(accountId, (existing, now) => ({
-      accountId, hash, declined: false, createdAt: existing?.createdAt ?? now, updatedAt: now,
+      accountId, hash, declined: false, ...devicePinOf(existing), createdAt: existing?.createdAt ?? now, updatedAt: now,
     }))
 
   const removeHash: EmailPasswordStore['removeHash'] = async accountId =>
@@ -47,9 +51,20 @@ export const makeEmailPasswordStore = (ctx: EmailAuthContext): EmailPasswordStor
       accountId,
       ...(existing?.hash != null ? { hash: existing.hash } : {}),
       declined: true,
+      ...devicePinOf(existing),
       createdAt: existing?.createdAt ?? now,
       updatedAt: existing?.updatedAt ?? now,
     }))
 
-  return { load, setHash, removeHash, decline }
+  const setDevicePin: EmailPasswordStore['setDevicePin'] = async (accountId, enabled) =>
+    await write(accountId, (existing, now) => ({
+      accountId,
+      ...(existing?.hash != null ? { hash: existing.hash } : {}),
+      declined: existing?.declined ?? false,
+      devicePin: enabled,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: existing?.updatedAt ?? now,
+    }))
+
+  return { load, setHash, removeHash, decline, setDevicePin }
 }

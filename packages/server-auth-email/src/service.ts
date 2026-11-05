@@ -2,8 +2,8 @@ import { ALL_SCOPES, AuthenFailed, AuthForbidden, AuthRole, AuthUnknown } from '
 import type { AuthCredentials, AuthPayload } from '@owlmeans/auth'
 import {
   EMAIL_AUTH_SERVICE, EMAIL_CAPTCHA_ACTION_PASSWORD, EMAIL_CAPTCHA_ACTION_PIN, EMAIL_CAPTCHA_PROVIDER,
-  EMAIL_PASSWORD_AUTH_TYPE, EMAIL_PIN_AUTH_TYPE, EMAIL_PIN_LENGTH, EMAIL_WAIVER_HEADER, EmailOfferExpired,
-  EmailPasswordDisabled, EmailPasswordPurpose, EmailSignInReason,
+  EMAIL_DEVICE_PIN_PURPOSE, EMAIL_PASSWORD_AUTH_TYPE, EMAIL_PIN_AUTH_TYPE, EMAIL_PIN_LENGTH, EMAIL_WAIVER_HEADER,
+  EmailOfferExpired, EmailPasswordDisabled, EmailPasswordPurpose, EmailSignInReason,
 } from '@owlmeans/auth-email'
 import type { EmailPasswordStatusView } from '@owlmeans/auth-email'
 import { OTP_SERVICE } from '@owlmeans/auth-otp'
@@ -16,7 +16,7 @@ import { makeAuthModel } from '@owlmeans/server-auth/manager'
 import type { AppConfig, AppContext, AuthModel } from '@owlmeans/server-auth/manager'
 import { AUTH_IDENTITY_ACCOUNT, AUTH_IDENTITY_LINKING } from '@owlmeans/server-auth-identity'
 import type { IdentityAccount, IdentityAccountResource } from '@owlmeans/server-auth-identity'
-import { AUTHEN_FAILED_PREFIX } from './consts.local.js'
+import { ABSENT_PASSWORD_HASH, AUTHEN_FAILED_PREFIX } from './consts.local.js'
 import { makeEmailDeviceStore } from './devices.js'
 import { emailEnvelopesOf } from './envelopes.js'
 import { EmailCredentialRefused, EmailVerificationRefused } from './errors.js'
@@ -31,7 +31,7 @@ import { createEmailMailTemplates } from './templates.js'
 import { makeEmailAuthThrottle } from './throttle.js'
 import { makeMemoryOfferTickets, makeRedisOfferTickets } from './tickets.js'
 import type {
-  EmailAuthConfig, EmailAuthContext, EmailAuthServerOptions, EmailAuthService, EmailPasswordRecord,
+  EmailAuthConfig, EmailAuthContext, EmailAuthServerOptions, EmailAuthService, EmailConfirmPurpose, EmailPasswordRecord,
 } from './types.js'
 import type { EmailPluginScope } from './plugins/types.js'
 
@@ -50,6 +50,8 @@ export const makeEmailAuthService = (
   const tech = createEmailTechPolicy(opts.tech)
   const templates = createEmailMailTemplates(opts.mail)
   const otpAlias = opts.otpAlias ?? OTP_SERVICE
+  /** The deployment's new-device PIN; an account may choose otherwise behind its correct password. */
+  const devicePin = opts.devicePin ?? true
   const { normalizeEmail, emailDomain } = emailAuthKeyHelper
 
   const ctx = (): EmailAuthContext => service.assertCtx<EmailAuthConfig, EmailAuthContext>(alias)
@@ -165,7 +167,24 @@ export const makeEmailAuthService = (
     set: record?.hash != null,
     declined: record?.declined === true,
     ...(record?.updatedAt != null ? { updatedAt: new Date(record.updatedAt).toISOString() } : {}),
+    ...(policy.enabled() ? { devicePin: record?.devicePin ?? devicePin } : {}),
   })
+
+  /**
+   * Whether a password sign-in on a device the account does not remember is answered with a PIN.
+   * The account's own choice counts only behind its correct password, so a wrong password — and an
+   * address with no account — always gets the deployment default's answer and nothing tells
+   * accounts apart. The hash is computed only when the account's choice differs from the default.
+   */
+  const pinWanted = async (record: EmailPasswordRecord | null, password: string): Promise<boolean> => {
+    const own = record?.devicePin
+    if (own == null || own === devicePin) {
+      return devicePin
+    }
+    const verified = await passwordHasher.verify(policy.normalize(password), record?.hash ?? ABSENT_PASSWORD_HASH)
+
+    return verified ? own : devicePin
+  }
 
   /** Mail a sign-in PIN through the PIN plugin: the same work for a known and an unknown address. */
   const issuePin = async (email: string, locale?: string): Promise<string> => {
@@ -191,9 +210,27 @@ export const makeEmailAuthService = (
     return offer
   }
 
+  /** Mail a confirmation PIN for `purpose` to the account's own address; the challenge binds both. */
+  const mailConfirm = async (
+    account: IdentityAccount, purpose: EmailConfirmPurpose, locale: string | undefined, req: AbstractRequest
+  ): Promise<string> => {
+    if (!await waived(req)) {
+      await parts().throttle.consume('confirmAccount', account.id)
+    }
+    const email = normalizeEmail(account.email)
+    const issuanceId = await otp().issueChallenge(email, {
+      message: templates.messageOf(`confirm-${purpose}`, locale),
+    })
+    log.debug('Confirmation PIN mailed', {
+      purpose, accountId: account.id,
+    }, { event: 'auth.email.confirm-sent' })
+
+    return await parts().envelopes.signConfirm({ purpose, accountId: account.id, email, issuanceId })
+  }
+
   /** A confirmation challenge + PIN for `purpose` of exactly this account; consumes the PIN. */
   const confirm = async (
-    challenge: string, pin: string, purpose: EmailPasswordPurpose, account: IdentityAccount
+    challenge: string, pin: string, purpose: EmailConfirmPurpose, account: IdentityAccount
   ): Promise<void> => {
     const claim = await parts().envelopes.openConfirm(challenge)
     if (claim == null) {
@@ -267,7 +304,8 @@ export const makeEmailAuthService = (
 
       const account = await ctx().resource<IdentityAccountResource>(AUTH_IDENTITY_ACCOUNT).load({ email })
       const known = account != null && await parts().devices.known(account.id, body.device)
-      if (account == null || !known) {
+      const record = account != null ? await parts().passwords.load(account.id) : null
+      if (!known && await pinWanted(record, body.password!)) {
         // The password is NOT checked: a missing account, a wrong and a right password all get a PIN.
         if (!waiver) {
           await parts().throttle.consume('pinEmail', email)
@@ -280,16 +318,26 @@ export const makeEmailAuthService = (
         return { challenge, reason: EmailSignInReason.Device }
       }
 
-      const record = await parts().passwords.load(account.id)
+      // A remembered device, or an unknown one without the new-device PIN: the password decides. An
+      // address with no account is checked against a hash nobody knows and refused alike.
       const model = modelOf({
-        message: templates.messageOf('sign-in', body.locale), account: { id: account.id, hash: record?.hash ?? null },
+        message: templates.messageOf('sign-in', body.locale),
+        ...(account != null ? { account: { id: account.id, hash: record?.hash ?? null } } : {}),
       })
       const { challenge } = await model.init({ type: EMAIL_PASSWORD_AUTH_TYPE, userId: email })
       const { token } = await model.authenticate({
         type: EMAIL_PASSWORD_AUTH_TYPE, challenge, userId: email, credential: body.password!,
         role: AuthRole.User, scopes: [ALL_SCOPES],
       } as AuthCredentials)
+      if (account == null) {
+        throw new AuthenFailed('email:password')
+      }
       await parts().devices.remember(account.id, body.device)
+      if (!known) {
+        log.debug('Password sign-in on an unknown device without a PIN', {
+          accountId: account.id,
+        }, { event: 'auth.email.device-trusted' })
+      }
 
       return { token }
     }),
@@ -303,20 +351,8 @@ export const makeEmailAuthService = (
     confirmPin: async (body, req) => await confirmed(async () => {
       assertPassword()
       const account = await sessionAccount(req)
-      if (!await waived(req)) {
-        await parts().throttle.consume('confirmAccount', account.id)
-      }
-      const email = normalizeEmail(account.email)
-      const issuanceId = await otp().issueChallenge(email, {
-        message: templates.messageOf(`confirm-${body.purpose}`, body.locale),
-      })
-      log.debug('Confirmation PIN mailed', {
-        purpose: body.purpose, accountId: account.id,
-      }, { event: 'auth.email.confirm-sent' })
 
-      return {
-        challenge: await parts().envelopes.signConfirm({ purpose: body.purpose, accountId: account.id, email, issuanceId }),
-      }
+      return { challenge: await mailConfirm(account, body.purpose, body.locale, req) }
     }),
 
     setPassword: async (body, req) => await confirmed(async () => {
@@ -355,6 +391,28 @@ export const makeEmailAuthService = (
       log.info('Password removed', { accountId: account.id, forgotten }, { event: 'auth.email.password-removed' })
 
       return statusOf(saved)
+    }),
+
+    setDevicePin: async (body, req) => await confirmed(async () => {
+      assertPassword()
+      const account = await sessionAccount(req)
+      if ((await parts().passwords.load(account.id))?.hash == null) {
+        // Without a password there is no password sign-in for the switch to guard.
+        throw new AuthUnknown('email:unset')
+      }
+      if (body.challenge == null && body.pin == null) {
+        return { challenge: await mailConfirm(account, EMAIL_DEVICE_PIN_PURPOSE, body.locale, req) }
+      }
+      if (body.challenge == null || body.pin == null) {
+        throw new AuthUnknown('email:mode')
+      }
+      await confirm(body.challenge, body.pin, EMAIL_DEVICE_PIN_PURPOSE, account)
+      const saved = await parts().passwords.setDevicePin(account.id, body.enabled)
+      log.info(body.enabled ? 'New-device PIN turned on' : 'New-device PIN turned off', {
+        accountId: account.id,
+      }, { event: body.enabled ? 'auth.email.device-pin-on' : 'auth.email.device-pin-off' })
+
+      return { status: statusOf(saved) }
     }),
 
     decline: async req => {

@@ -6,13 +6,20 @@ import type { OtpConfig, ThrottleRule } from '@owlmeans/server-auth-otp'
 import type { Resource, ResourceRecord } from '@owlmeans/resource'
 import type { ServerContext } from '@owlmeans/server-context'
 import type {
-  EmailAuthEntrypoints, EmailAuthOptionsView, EmailChallengeView, EmailPasswordPinRequest,
-  EmailPasswordRemoveRequest, EmailPasswordSetRequest, EmailPasswordStatusView, EmailPinRequest,
-  EmailSignInRequest, EmailSignInView, EmailTechPinRequest, EmailTechPinView, EmailTechWaiverView,
+  EMAIL_DEVICE_PIN_PURPOSE, EmailAuthEntrypoints, EmailAuthOptionsView, EmailChallengeView, EmailDevicePinRequest,
+  EmailDevicePinView, EmailPasswordPinRequest, EmailPasswordPurpose, EmailPasswordRemoveRequest, EmailPasswordSetRequest,
+  EmailPasswordStatusView, EmailPinRequest, EmailSignInRequest, EmailSignInView, EmailTechPinRequest, EmailTechPinView,
+  EmailTechWaiverView,
 } from '@owlmeans/auth-email'
 
-/** What a sign-in mail is sent for: a sign-in PIN, or the confirmation of a password action. */
-export type EmailMailPurpose = 'sign-in' | 'confirm-set' | 'confirm-change' | 'confirm-remove'
+/**
+ * What a sign-in mail is sent for: a sign-in PIN, or the confirmation of a password action or of
+ * the new-device PIN switch.
+ */
+export type EmailMailPurpose = 'sign-in' | 'confirm-set' | 'confirm-change' | 'confirm-remove' | 'confirm-device-pin'
+
+/** What a confirmation challenge may be bound to: a password action, or the new-device PIN switch. */
+export type EmailConfirmPurpose = EmailPasswordPurpose | typeof EMAIL_DEVICE_PIN_PURPOSE
 
 /**
  * An application's own mails, per purpose and per locale (`en`, `pl`, … or any other language an
@@ -33,7 +40,7 @@ export interface EmailAuthThrottleRules {
   passwordEmail: readonly ThrottleRule[]
   /** Password sign-ins from one client address. */
   passwordIp: readonly ThrottleRule[]
-  /** Confirmation PINs (set, change, remove a password) mailed for one account. */
+  /** Confirmation PINs (set, change, remove a password; the new-device PIN switch) mailed for one account. */
   confirmAccount: readonly ThrottleRule[]
 }
 
@@ -69,6 +76,13 @@ export interface EmailIpResolver {
 export interface EmailAuthServerOptions {
   /** Password sign-in and the password routes; `true` or bounds turn them on. Default off. */
   password?: boolean | EmailPasswordPolicyOptions
+  /**
+   * A password sign-in from a device the account does not remember is answered with a mailed PIN
+   * (`reason: device`) instead of a token. Default `true`. Each account may turn it the other way
+   * from its password panel (`setDevicePin`); that choice counts only behind the account's correct
+   * password — a wrong password, or an address with no account, always gets this default's answer.
+   */
+  devicePin?: boolean
   /** The score-based captcha in front of send-PIN and password sign-in; `null`/absent = off. */
   captcha?: CaptchaSettings | null
   /** The developer routes; absent = off. */
@@ -102,6 +116,11 @@ export interface EmailPasswordRecord extends ResourceRecord {
   hash?: string
   /** The person declined the post-sign-in offer or removed their password. */
   declined: boolean
+  /**
+   * The account's own choice over `EmailAuthServerOptions.devicePin`; absent = the deployment's.
+   * A password set or change keeps it, a removal drops it.
+   */
+  devicePin?: boolean
   createdAt: Date
   /** The last set, change or removal. */
   updatedAt: Date
@@ -138,8 +157,10 @@ export interface EmailAuthService extends InitializedService {
   sendPin: (body: EmailPinRequest, req: AbstractRequest) => Promise<EmailChallengeView>
   /**
    * PIN mode (`challenge` + `pin`) signs in or registers; password mode (`password`) signs an
-   * existing account in on a remembered device, and on any other device (or for no account at all)
-   * mails a PIN without checking the password: `{ challenge, reason: 'device' }`.
+   * existing account in on a remembered device. On any other device (or for no account at all) the
+   * new-device PIN decides: while it is on, a PIN is mailed without checking the password —
+   * `{ challenge, reason: 'device' }`; while it is off, the password is checked as on a remembered
+   * device. An account's own choice (`setDevicePin`) counts only behind its correct password.
    *
    * @throws {EmailCredentialRefused} 401 — a wrong PIN or password, a bad challenge.
    * @throws {AuthUnknown} 400 — not exactly one mode, or a challenge of another sign-in method.
@@ -153,6 +174,15 @@ export interface EmailAuthService extends InitializedService {
   /** Remove the password (confirmation PIN); the person counts as having declined one. */
   removePassword: (body: EmailPasswordRemoveRequest, req: AbstractRequest) => Promise<EmailPasswordStatusView>
   decline: (req: AbstractRequest) => Promise<EmailPasswordStatusView>
+  /**
+   * The account's new-device PIN, for an account with a password: the first call mails a
+   * confirmation PIN (`{ challenge }`), the call with `challenge` + `pin` stores `enabled`
+   * (`{ status }`).
+   *
+   * @throws {AuthUnknown} 400 — no password is set, or only one of `challenge` and `pin`.
+   * @throws {EmailVerificationRefused} 403 — a wrong PIN, or a challenge of another purpose or account.
+   */
+  setDevicePin: (body: EmailDevicePinRequest, req: AbstractRequest) => Promise<EmailDevicePinView>
   /** Developer seam: replace the PIN of a pending challenge. */
   techPin: (body: EmailTechPinRequest, req: AbstractRequest) => Promise<EmailTechPinView>
   /** Developer seam: a signed waiver of captcha and throttles. */

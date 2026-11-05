@@ -64,7 +64,9 @@
     "action": {
       "change": "Zmień hasło",
       "remove": "Usuń hasło",
-      "set": "Ustaw hasło"
+      "set": "Ustaw hasło",
+      "device-pin-off": "Nie pytaj o kod na nowych urządzeniach",
+      "device-pin-on": "Pytaj o kod na nowych urządzeniach"
     },
     "cancel": "Anuluj",
     "confirm": "Potwierdź",
@@ -74,12 +76,16 @@
     "done": {
       "change": "Hasło zostało zmienione.",
       "remove": "Hasło zostało usunięte.",
-      "set": "Hasło zostało ustawione."
+      "set": "Hasło zostało ustawione.",
+      "device-pin-off": "Na nowych urządzeniach logujesz się teraz samym hasłem.",
+      "device-pin-on": "Na nowych urządzeniach potrzebny jest teraz też kod z e-maila."
     },
     "explain": {
       "change": "Aby zmienić hasło, potwierdź, że to Ty, kodem, który wyślemy Ci e-mailem.",
       "remove": "Bez hasła logujesz się kodem wysłanym na Twój e-mail. Wyślemy Ci kod, aby to potwierdzić.",
-      "set": "Aby ustawić hasło, potwierdź, że to Ty, kodem, który wyślemy Ci e-mailem."
+      "set": "Aby ustawić hasło, potwierdź, że to Ty, kodem, który wyślemy Ci e-mailem.",
+      "device-pin-off": "Na nowym urządzeniu zalogujesz się samym hasłem. Potwierdź, że to Ty, kodem, który wyślemy Ci e-mailem.",
+      "device-pin-on": "Na nowym urządzeniu potrzebny będzie też kod z e-maila. Potwierdź, że to Ty, kodem, który wyślemy Ci e-mailem."
     },
     "loading": "Wczytywanie…",
     "new-label": "Nowe hasło",
@@ -95,6 +101,10 @@
     "title": "Hasło",
     "unreadable": "Nie udało się wczytać ustawień hasła.",
     "unset": "Nie masz jeszcze hasła. Logujesz się kodem wysłanym na Twój e-mail.",
-    "updated": "Ostatnia zmiana: {{date}}."
+    "updated": "Ostatnia zmiana: {{date}}.",
+    "device-pin": {
+      "on": "Na nowym urządzeniu potrzebny jest też kod z e-maila.",
+      "off": "Na nowym urządzeniu logujesz się samym hasłem."
+    }
   }
 }

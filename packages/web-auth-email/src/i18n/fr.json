@@ -64,7 +64,9 @@
     "action": {
       "change": "Changer le mot de passe",
       "remove": "Supprimer le mot de passe",
-      "set": "Définir un mot de passe"
+      "set": "Définir un mot de passe",
+      "device-pin-off": "Ne plus demander de code sur les nouveaux appareils",
+      "device-pin-on": "Demander un code sur les nouveaux appareils"
     },
     "cancel": "Annuler",
     "confirm": "Confirmer",
@@ -74,12 +76,16 @@
     "done": {
       "change": "Votre mot de passe a été modifié.",
       "remove": "Votre mot de passe a été supprimé.",
-      "set": "Votre mot de passe a été défini."
+      "set": "Votre mot de passe a été défini.",
+      "device-pin-off": "Votre mot de passe suffit désormais pour vous connecter sur un nouvel appareil.",
+      "device-pin-on": "Un code reçu par e-mail est désormais aussi demandé sur les nouveaux appareils."
     },
     "explain": {
       "change": "Pour changer votre mot de passe, confirmez votre identité avec un code que nous vous enverrons par e-mail.",
       "remove": "Sans mot de passe, vous vous connectez avec un code reçu par e-mail. Nous vous enverrons un code pour confirmer.",
-      "set": "Pour définir un mot de passe, confirmez votre identité avec un code que nous vous enverrons par e-mail."
+      "set": "Pour définir un mot de passe, confirmez votre identité avec un code que nous vous enverrons par e-mail.",
+      "device-pin-off": "Sur un nouvel appareil, votre mot de passe suffira pour vous connecter. Confirmez votre identité avec un code que nous vous enverrons par e-mail.",
+      "device-pin-on": "Sur un nouvel appareil, un code reçu par e-mail sera aussi demandé. Confirmez votre identité avec un code que nous vous enverrons par e-mail."
     },
     "loading": "Chargement…",
     "new-label": "Nouveau mot de passe",
@@ -95,6 +101,10 @@
     "title": "Mot de passe",
     "unreadable": "Impossible de charger les paramètres de votre mot de passe.",
     "unset": "Vous n’avez pas encore de mot de passe. Vous vous connectez avec un code reçu par e-mail.",
-    "updated": "Dernière modification : {{date}}."
+    "updated": "Dernière modification : {{date}}.",
+    "device-pin": {
+      "on": "Sur un nouvel appareil, un code reçu par e-mail est aussi demandé.",
+      "off": "Sur un nouvel appareil, votre mot de passe suffit pour vous connecter."
+    }
   }
 }

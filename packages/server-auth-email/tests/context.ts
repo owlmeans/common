@@ -63,6 +63,8 @@ export interface FixtureOptions {
   throttle?: boolean
   ipOf?: EmailAuthServerOptions['ipOf']
   devices?: EmailAuthServerOptions['devices']
+  /** The deployment's new-device PIN; absent = the service default (on). */
+  devicePin?: boolean
 }
 
 export interface EmailAuthFixture {
@@ -172,6 +174,7 @@ export const makeEmailAuthFixture = async (
     ...(opts.throttle === true ? { throttleAlias: OTP_THROTTLE_SERVICE } : {}),
     ...(opts.ipOf != null ? { ipOf: opts.ipOf } : {}),
     ...(opts.devices != null ? { devices: opts.devices } : {}),
+    ...(opts.devicePin != null ? { devicePin: opts.devicePin } : {}),
   })
 
   context.configure()

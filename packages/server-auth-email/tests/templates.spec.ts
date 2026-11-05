@@ -4,7 +4,7 @@ import { createEmailMailTemplates } from '../src/templates.js'
 import { EMAIL_MAIL_LANGUAGES } from '../src/templates/consts.js'
 import type { EmailMailPurpose } from '../src/types.js'
 
-const PURPOSES: EmailMailPurpose[] = ['sign-in', 'confirm-set', 'confirm-change', 'confirm-remove']
+const PURPOSES: EmailMailPurpose[] = ['sign-in', 'confirm-set', 'confirm-change', 'confirm-remove', 'confirm-device-pin']
 
 describe('@owlmeans/server-auth-email — mail templates', () => {
   test('every purpose in all eight languages: {{code}} and {{minutes}} in text and html, the code never in the subject', () => {
@@ -23,7 +23,7 @@ describe('@owlmeans/server-auth-email — mail templates', () => {
         expect(message.subject.trim()).not.toBe('')
         subjects.add(message.subject)
       }
-      // Four purposes, four different subjects in every language.
+      // One subject per purpose, all different, in every language.
       expect(subjects.size).toBe(PURPOSES.length)
     }
     // The languages are really translated, not copies of the English text.

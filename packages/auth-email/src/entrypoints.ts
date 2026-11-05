@@ -4,16 +4,18 @@ import { backend, frontend, route, RouteMethod } from '@owlmeans/route'
 import { GUARD_ED25519 } from '@owlmeans/auth-common'
 import {
   EMAIL_AUTH_API_PATH, EMAIL_AUTH_BASE, EMAIL_AUTH_OFFER, EMAIL_AUTH_OFFER_PATH, EMAIL_AUTH_OPTIONS,
-  EMAIL_AUTH_PASSWORD, EMAIL_AUTH_PASSWORD_DECLINE, EMAIL_AUTH_PASSWORD_PIN, EMAIL_AUTH_PASSWORD_REMOVE,
+  EMAIL_AUTH_PASSWORD, EMAIL_AUTH_PASSWORD_DECLINE, EMAIL_AUTH_PASSWORD_DEVICE_PIN, EMAIL_AUTH_PASSWORD_PIN,
+  EMAIL_AUTH_PASSWORD_REMOVE,
   EMAIL_AUTH_PASSWORD_SET, EMAIL_AUTH_PASSWORD_STATUS, EMAIL_AUTH_PIN, EMAIL_AUTH_SIGN_IN, EMAIL_AUTH_TECH,
   EMAIL_AUTH_TECH_GATE, EMAIL_AUTH_TECH_PIN, EMAIL_AUTH_TECH_WAIVER,
 } from './consts.js'
 import {
-  EmailEmptyRequestSchema, EmailPasswordPinRequestSchema, EmailPasswordRemoveRequestSchema,
+  EmailDevicePinRequestSchema, EmailEmptyRequestSchema, EmailPasswordPinRequestSchema, EmailPasswordRemoveRequestSchema,
   EmailPasswordSetRequestSchema, EmailPinRequestSchema, EmailSignInRequestSchema, EmailTechPinRequestSchema,
 } from './schemas.js'
 import type {
-  EmailAuthEntrypointOptions, EmailAuthEntrypoints, EmailAuthOptionsView, EmailChallengeView, EmailEmptyRequest,
+  EmailAuthEntrypointOptions, EmailAuthEntrypoints, EmailAuthOptionsView, EmailChallengeView, EmailDevicePinRequest,
+  EmailDevicePinView, EmailEmptyRequest,
   EmailPasswordPinRequest, EmailPasswordRemoveRequest, EmailPasswordSetRequest, EmailPasswordStatusView,
   EmailPinRequest, EmailSignInRequest, EmailSignInView, EmailTechPinRequest, EmailTechPinView, EmailTechWaiverView,
 } from './types.js'
@@ -26,7 +28,8 @@ import type {
  * - `password` (`/password`, under the guest base or `opts.passwordParent`) acts on the caller's own
  *   account, so it needs the application's session: `opts.guards` (+ `opts.gate`) or a guarded
  *   `opts.passwordParent` — neither is a declaration error, not a runtime one. `status` GET `/`,
- *   `pin` POST `/pin`, `set` POST `/set`, `remove` POST `/remove`, `decline` POST `/decline`;
+ *   `pin` POST `/pin`, `set` POST `/set`, `remove` POST `/remove`, `decline` POST `/decline`,
+ *   `devicePin` POST `/device-pin` (the new-device PIN switch, which mails its own confirmation);
  * - `tech` (`/tech`, developer tooling) defaults to `GUARD_ED25519` + the `EMAIL_AUTH_TECH_GATE`
  *   gate: `pin` POST `/pin`, `waiver` POST `/waiver`;
  * - `offer`, the top-level sticky frontend screen of the post-sign-in password offer.
@@ -94,6 +97,12 @@ export const makeEmailAuthProtocols = (opts: EmailAuthEntrypointOptions = {}): E
       decline: protocol(
         post(EMAIL_AUTH_PASSWORD_DECLINE, '/decline', passwordBase),
         contract.request({ body: typed<EmailEmptyRequest>(EmailEmptyRequestSchema) }, typed<EmailPasswordStatusView>())
+      ),
+      devicePin: protocol(
+        post(EMAIL_AUTH_PASSWORD_DEVICE_PIN, '/device-pin', passwordBase),
+        contract.request(
+          { body: typed<EmailDevicePinRequest>(EmailDevicePinRequestSchema) }, typed<EmailDevicePinView>()
+        )
       ),
     },
     tech: {
