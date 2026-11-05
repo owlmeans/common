@@ -152,7 +152,7 @@ linking the local package and fetches an old published tarball into
 
 ## dep-config dependency range
 
-`@owlmeans/dep-config` uses the current stable caret (`^0.1.19`), including inside common.
+`@owlmeans/dep-config` uses the current stable caret (`^0.1.21`), including inside common.
 The explicit workspace entries still resolve it locally. Standalone consumers and templates use
 the same published range; no workspace-only exception is needed.
 

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/api-config-server
 
 **Layer:** Server
-**Install:** `"@owlmeans/api-config-server": "^0.1.20-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/api-config-server": "^0.1.21"` in `dependencies`
 
 Answers the declaration shared by `@owlmeans/api-config`; the browser side that consumes it is
 `@owlmeans/api-config-client`.

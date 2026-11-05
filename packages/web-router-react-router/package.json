@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-router-react-router",
-  "version": "0.1.20-rc.1",
+  "version": "0.1.21",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -35,7 +35,7 @@
     "react-router": "^8.5.1"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/dep-config": "^0.1.21",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
@@ -43,8 +43,8 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.20-rc.1",
-    "@owlmeans/router": "^0.1.20-rc.1"
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/router": "^0.1.21"
   },
   "publishConfig": {
     "access": "public"

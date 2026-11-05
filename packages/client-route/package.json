@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-route",
-  "version": "0.1.20-rc.1",
+  "version": "0.1.21",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,11 +31,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-context": "^0.1.20-rc.1",
-    "@owlmeans/route": "^0.1.20-rc.1"
+    "@owlmeans/client-context": "^0.1.21",
+    "@owlmeans/route": "^0.1.21"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/dep-config": "^0.1.21",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

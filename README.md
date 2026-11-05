@@ -89,7 +89,7 @@ bun run test
 | **State store** | The browser's in-memory resource with live subscriptions, registered with `appendStateResource`. React reads it through `useStoreList` and `useStoreModel`. | [`state`](packages/state), [`client`](packages/client) |
 | **Flow** | A serializable step/transition state machine whose whole state is one string, so a multi-step process survives redirects and reloads. | [`flow`](packages/flow), [`client-flow`](packages/client-flow) |
 | **Resilient error** | A registered error class that marshals across a service boundary and is restored as the same class on the other side, with i18n-aware messages. | [`error`](packages/error) |
-| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.20-rc.1` installs it. | [`agent-skills`](packages/agent-skills) |
+| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.21` installs it. | [`agent-skills`](packages/agent-skills) |
 
 ## How an application is shaped
 
@@ -238,6 +238,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`basic-keys`](packages/basic-keys) | Ed25519 key pairs, signing and verification, the key model and its auth plugins |
 |  | [`did`](packages/did) | The derivable owlmk key type, DID key models and a wallet over a three-resource store |
 |  | [`i18n`](packages/i18n) | The core localization registry packages register their strings in (no runtime dependencies) |
+|  | [`log`](packages/log) | The one logging system of a process: levels and per-scope debug, text or JSON lines, redaction, `logger(scope)` and the plugin seam for analytics and other sinks |
 |  | [`router`](packages/router) | The UI routing plugin host: the router service, cascade selection, the route IR and the matcher |
 |  | [`socket`](packages/socket) | The transport-agnostic Connection model, its message types and the socket errors |
 | Cross-cutting domain | [`agent`](packages/agent) | Context-aware LLM agents over LangGraph's functional API, and resumable checkpointed pipelines |
@@ -258,8 +259,10 @@ application packages above, or add one when they need that specific feature.
 |  | [`planning-auth`](packages/planning-auth) | Optional authentication identity and external group links for planning |
 |  | [`planning`](packages/planning) | Runtime-free planning contracts: workcards, projects, specifications, status flows, the transition fold, scoped schemas and the protocol tree |
 |  | [`viable-common`](packages/viable-common) | Runtime-free contracts of the OwlMeans Viable platform |
+|  | [`viable-log`](packages/viable-log) | A generated application's link to the Viable platform: the preview and slot `log` plugins and the wire contract the platform parses |
 |  | [`wled`](packages/wled) | The shared white-label contract: company info, styles, brand media and DNS shapes |
 | Auth shared | [`auth-common`](packages/auth-common) | The auth vocabulary both sides share: guard aliases, the auth protocol trees, the Ed25519 guard and the organization-entity helpers |
+|  | [`auth-email`](packages/auth-email) | E-mail sign-in contracts: the protocol factory, request schemas, views, constants and errors for PIN, password, remembered devices and captcha |
 |  | [`auth-token`](packages/auth-token) | Long-lived access tokens (API keys): the record, the token format, the management entrypoints and the carrier guard |
 |  | [`oauth`](packages/oauth) | Shared OAuth 2.1 contracts: device authorization, authorization code with PKCE, the metadata documents and the consent flow |
 | API and runtime config | [`api`](packages/api) | The HTTP client service that carries entrypoint calls between services, with typed transport errors |
@@ -282,6 +285,8 @@ application packages above, or add one when they need that specific feature.
 |  | [`storage-common`](packages/storage-common) | Shared object and file storage types, errors and model |
 |  | [`storage-resource`](packages/storage-resource) | An upload-only S3-compatible object storage resource with MIME sniffing |
 | Server | [`bot-agent`](packages/bot-agent) | Lets an `@owlmeans/agent` agent act on a chat-bot message: the message and the instructions its handler passes as context, the bot's supported actions as never-throwing tools |
+|  | [`captcha`](packages/captcha) | Server-side reCAPTCHA verification: the siteverify verifier, the sign-in plugin policy and a strict challenge-less check for score-based tokens |
+|  | [`server-auth-email`](packages/server-auth-email) | The server half of e-mail sign-in: PIN and password through private auth plugins, remembered devices, captcha, throttles and developer routes |
 |  | [`server-auth-otp`](packages/server-auth-otp) | The email-OTP auth plugin and OtpService for passwordless sign-in |
 |  | [`server-auth-session`](packages/server-auth-session) | The seven-day session registry, with memory and Redis implementations |
 |  | [`server-auth-token`](packages/server-auth-token) | The server half of access tokens: the store, the verifying guard, the management handlers and the coguard |
@@ -315,13 +320,16 @@ application packages above, or add one when they need that specific feature.
 |  | [`mui-oidc-rp`](packages/mui-oidc-rp) | The legacy MUI browser OIDC relying party |
 |  | [`mui-panel`](packages/mui-panel) | The legacy MUI v7 browser layer |
 |  | [`web-auth`](packages/web-auth) | Web authentication plugins for the shared client-auth registry, including the development supervisor login |
+|  | [`web-auth-email`](packages/web-auth-email) | The browser half of e-mail sign-in: the login method and screen, the password offer step and the password panel, in eight languages |
 |  | [`web-auth-token`](packages/web-auth-token) | The browser half of access tokens: the management panel and its hook |
 |  | [`web-bot`](packages/web-bot) | The browser half of chat bots: the connections and activity panels and their hooks over a bound bot surface |
+|  | [`web-captcha`](packages/web-captcha) | The invisible score-based reCAPTCHA v3 loader and its React hook, with no `@owlmeans/*` dependencies |
 |  | [`web-consent`](packages/web-consent) | The React cookie-consent dialog, its re-open button, the cookie-policy page and the consent hooks |
 |  | [`web-db`](packages/web-db) | IndexedDB-backed browser storage |
 |  | [`web-flow`](packages/web-flow) | The browser flow service that rehydrates a flow from the URL, and `useFlow()` |
 |  | [`web-gtm`](packages/web-gtm) | The Google tag head snippet with Consent Mode defaults, the id validator and the CSP host lists |
 |  | [`web-inquiry`](packages/web-inquiry) | The browser SDK of the inquiry widget: one runtime injection, open/bind/button triggers with link fallback, the open analytics event |
+|  | [`web-log`](packages/web-log) | Consent-gated analytics plugins for `log`: the tag-manager `dataLayer` sender and a sender of your own |
 |  | [`web-marketing-consent`](packages/web-marketing-consent) | The browser half of marketing consent: the privacy-choices screen, the settings card and the login step |
 |  | [`web-oauth`](packages/web-oauth) | The consent, device-code and done screens an OAuth 2.1 sign-in ends on |
 |  | [`web-oidc-provider`](packages/web-oidc-provider) | The browser state behind an embedded OIDC provider's interaction screens |
@@ -344,7 +352,7 @@ Published packages include generated, version-matched guidance in `agent-meta/`.
 installing OwlMeans packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.20-rc.1
+npx @owlmeans/agent-skills@^0.1.21
 ```
 
 The installer copies applicable skills to `.agents/skills/`; `AGENTS.md` documents the generated

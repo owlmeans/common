@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-i18n",
-  "version": "0.1.20-rc.1",
+  "version": "0.1.21",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -41,16 +41,16 @@
     "react": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/dep-config": "^0.1.21",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.20-rc.1",
-    "@owlmeans/client-context": "^0.1.20-rc.1",
-    "@owlmeans/i18n": "^0.1.20-rc.1",
-    "@owlmeans/log": "^0.1.20-rc.1",
+    "@owlmeans/client": "^0.1.21",
+    "@owlmeans/client-context": "^0.1.21",
+    "@owlmeans/i18n": "^0.1.21",
+    "@owlmeans/log": "^0.1.21",
     "i18next": "^26.5.11",
     "react-i18next": "^17.1.9"
   },

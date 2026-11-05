@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/oidc",
-  "version": "0.1.20-rc.1",
+  "version": "0.1.21",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,20 +31,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.20-rc.1",
-    "@owlmeans/auth-common": "^0.1.20-rc.1",
-    "@owlmeans/basic-envelope": "^0.1.20-rc.1",
-    "@owlmeans/config": "^0.1.20-rc.1",
-    "@owlmeans/context": "^0.1.20-rc.1",
-    "@owlmeans/entrypoint": "^0.1.20-rc.1",
-    "@owlmeans/resource": "^0.1.20-rc.1",
-    "@owlmeans/route": "^0.1.20-rc.1"
+    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/auth-common": "^0.1.21",
+    "@owlmeans/basic-envelope": "^0.1.21",
+    "@owlmeans/config": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/resource": "^0.1.21",
+    "@owlmeans/route": "^0.1.21"
   },
   "peerDependencies": {
     "ajv": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/dep-config": "^0.1.21",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

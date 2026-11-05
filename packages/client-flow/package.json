@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-flow",
-  "version": "0.1.20-rc.1",
+  "version": "0.1.21",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,25 +32,25 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth-common": "^0.1.20-rc.1",
-    "@owlmeans/client": "^0.1.20-rc.1",
-    "@owlmeans/client-context": "^0.1.20-rc.1",
-    "@owlmeans/client-entrypoint": "^0.1.20-rc.1",
-    "@owlmeans/client-resource": "^0.1.20-rc.1",
-    "@owlmeans/config": "^0.1.20-rc.1",
-    "@owlmeans/context": "^0.1.20-rc.1",
-    "@owlmeans/error": "^0.1.20-rc.1",
-    "@owlmeans/flow": "^0.1.20-rc.1",
-    "@owlmeans/entrypoint": "^0.1.20-rc.1",
-    "@owlmeans/resource": "^0.1.20-rc.1",
-    "@owlmeans/route": "^0.1.20-rc.1"
+    "@owlmeans/auth-common": "^0.1.21",
+    "@owlmeans/client": "^0.1.21",
+    "@owlmeans/client-context": "^0.1.21",
+    "@owlmeans/client-entrypoint": "^0.1.21",
+    "@owlmeans/client-resource": "^0.1.21",
+    "@owlmeans/config": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/flow": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/resource": "^0.1.21",
+    "@owlmeans/route": "^0.1.21"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.20-rc.1",
-    "@owlmeans/static-resource": "^0.1.20-rc.1",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/static-resource": "^0.1.21",
     "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

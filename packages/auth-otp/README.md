@@ -11,7 +11,7 @@ stores, throttles and the auth plugin.
 ## Installation
 
 ```bash
-bun add @owlmeans/auth-otp@^0.1.20-rc.1
+bun add @owlmeans/auth-otp@^0.1.21
 ```
 
 ## Concepts

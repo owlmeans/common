@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-entrypoint",
-  "version": "0.1.20-rc.1",
+  "version": "0.1.21",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -38,16 +38,16 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api": "^0.1.20-rc.1",
-    "@owlmeans/client-config": "^0.1.20-rc.1",
-    "@owlmeans/client-context": "^0.1.20-rc.1",
-    "@owlmeans/client-route": "^0.1.20-rc.1",
-    "@owlmeans/config": "^0.1.20-rc.1",
-    "@owlmeans/context": "^0.1.20-rc.1",
-    "@owlmeans/entrypoint": "^0.1.20-rc.1",
-    "@owlmeans/error": "^0.1.20-rc.1",
-    "@owlmeans/log": "^0.1.20-rc.1",
-    "@owlmeans/route": "^0.1.20-rc.1",
+    "@owlmeans/api": "^0.1.21",
+    "@owlmeans/client-config": "^0.1.21",
+    "@owlmeans/client-context": "^0.1.21",
+    "@owlmeans/client-route": "^0.1.21",
+    "@owlmeans/config": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/log": "^0.1.21",
+    "@owlmeans/route": "^0.1.21",
     "ajv-formats": "^3.0.1",
     "qs": "^6.17.0"
   },
@@ -55,7 +55,7 @@
     "ajv": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/dep-config": "^0.1.21",
     "@types/qs": "^6.15.1",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

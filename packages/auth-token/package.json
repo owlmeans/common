@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/auth-token",
-  "version": "0.1.20-rc.1",
+  "version": "0.1.21",
   "license": "MIT",
   "description": "Long-lived access tokens (API keys) on the OwlMeans auth rails — the record shape, the token format, the management entrypoints and the client-side carrier guard.",
   "homepage": "https://owlmeans.com/docs/",
@@ -33,14 +33,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.20-rc.1",
-    "@owlmeans/context": "^0.1.20-rc.1",
-    "@owlmeans/entrypoint": "^0.1.20-rc.1",
-    "@owlmeans/resource": "^0.1.20-rc.1",
-    "@owlmeans/route": "^0.1.20-rc.1"
+    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/resource": "^0.1.21",
+    "@owlmeans/route": "^0.1.21"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.20-rc.1",
+    "@owlmeans/dep-config": "^0.1.21",
     "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "nodemon": "^3.1.14",

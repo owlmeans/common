@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/resource
 
 **Layer:** Core
-**Install:** `"@owlmeans/resource": "^0.1.20-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/resource": "^0.1.21"` in `dependencies`
 
 ## Key Exports
 

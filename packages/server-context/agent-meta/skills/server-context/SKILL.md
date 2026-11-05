@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-context
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-context": "^0.1.20-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/server-context": "^0.1.21"` in `dependencies`
 
 ## Key Exports
 

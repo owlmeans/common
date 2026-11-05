@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-config
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-config": "^0.1.20-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/server-config": "^0.1.21"` in `dependencies`
 
 The server-side half of `@owlmeans/config`. Small on purpose: it declares backend services and it
 reads file-backed values. Everything else about config lives in `@owlmeans/config`, and the context

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/mui-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/mui-oidc-rp": "^0.1.20-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/mui-oidc-rp": "^0.1.21"` in `dependencies`
 
 ## This is the legacy relying party
 
