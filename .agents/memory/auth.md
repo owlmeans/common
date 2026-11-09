@@ -1,7 +1,7 @@
 ---
 node: auth
 scope: "packages/auth/**, packages/client-auth/**, packages/server-auth/**, packages/server-auth-identity/**, packages/web-client/src/login/**"
-updated: 2026-10
+updated: 2026-11
 ---
 
 # Auth (common auth packages, and product-viable's use of them)
@@ -12,21 +12,31 @@ updated: 2026-10
   (account, app, organization), field-level org writes) and `server-oidc-rp` → "Organizations"
   (acting organization = session state, `entityKey` as tenant key). Viable-side facts:
 - A gate MUST require its own `service` — one organization holds hosted apps' rows too (viable:
-  `VIABLE_AUTH_GATE` + `VIABLE_APP`). Every registration creates a personal organization, a hosted
-  app's end user's too; viable's free plan hangs on `onProfileCreated` filtered by `service`.
+  `VIABLE_AUTH_GATE` + `VIABLE_APP`, read through `viableAdmissionOf`). Every registration creates
+  a personal organization, a hosted app's end user's too; viable's free plan hangs on
+  `onProfileCreated` filtered by `service`.
+- Ban = `IdentityAccount.disabled` (every app); block = one app's PRIMARY row `disabled`. Sign-in
+  refuses both with `AuthRefused` (403 + access-denied marker); an open session ends at its next
+  refresh, gate or socket re-check (`accountStateOf(ctx).refusalOf`) — the bearer itself stays
+  verifiable until its session is revoked.
 - Fixtures use record ids, never slugs, in declared references (`MisshapedRecord` otherwise).
 
 ## Facts
 
 - product-viable consumes `auth`, `auth-common`, `client-auth`, `oidc`, `server-auth`,
-  `server-auth-identity`, `server-oidc-rp`, `web-oidc-rp`; its targets use `client-iam` / `server-iam`.
+  `server-auth-identity`, `server-oidc-rp`, `web-oidc-rp`, and for the manager's e-mail sign-in
+  `auth-email`, `server-auth-email`, `web-auth-email`, `captcha`, `web-captcha`; its targets use
+  `client-iam` / `server-iam`.
 - Browser login: `client-auth` + side-effect import `@owlmeans/web-oidc-rp/auth/plugins`;
-  Google uses `GOOGLE_CLIENT_AUTH` and `GOOGLE_SERVICE = 'google'`.
+  Google uses `GOOGLE_CLIENT_AUTH` and `GOOGLE_SERVICE = 'google'`. E-mail sign-in is explicit
+  (`appendEmailLogin`), never a side-effect import.
 - **Two plugin registries.** `client-auth/manager/plugins` (`AuthenticationPlugin`) = *how* identity
   is proven; `client-auth/login` (`LoginPlugin`, `context.login()`, cascade over `LoginEnv`) = *where*
   the round trip runs — redirect (0) and surrogate-window (100). Rules: `login-plugins` skill.
 - Backend: `server-auth` verifies bearer tokens and populates `req.auth`; `AUTH_CACHE` is
-  registered explicitly in custom contexts.
+  registered explicitly in custom contexts. `cfg.auth.{tokenKey,authKey,sessionTtl}` separate a
+  staff area's tokens/challenges from the customer area's (viable's operator-api); `onAuthenticated`
+  carries the last-sign-in stamp.
 - OIDC server client: `server-oidc-rp` reads `cfg.oidc.providers`; lookup via `findProvider`,
   `hasProvider`, `entityToClientId`.
 
@@ -41,8 +51,15 @@ updated: 2026-10
 
 ## Gotchas
 
+- A session-registry `revoke` also refuses the subject's NEXT sign-in until a `refresh` or the
+  subject's expiry (≤ 7 d): symptom "signed out, and now cannot sign in again". Use it for bans and
+  disablements only, never for a logout (`server-auth-session` skill).
 - `Resource.take()` is delete-and-return — never in an auth gate or a read-only identity check;
   `load(where)` answers a multi-field lookup in one call ([[resources]]).
+- A freshly signed sign-in token is refused by the bearer exchange's body schema (`/authenticate`)
+  → the plugin returned `token: ''`, so the signed token carried the whole wrapped challenge and
+  outgrew the shared 1024-char `AuthTokenSchema` (the e-mail PIN challenge does) → return a short
+  single-use digest as `token` (`server-auth-email`'s `spendKey`; rule in `server-auth` → Rules).
 - `makeAuthModel().authenticate()` burns the DECODED challenge into `AUTH_CACHE` (create-once) before
   the plugin's check: a challenge not unique per request makes the second attempt 500 with
   `AuthenFailed` wrapping `RecordExists`, not the plugin's error (`server-auth-otp` skill).

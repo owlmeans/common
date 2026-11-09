@@ -1,4 +1,5 @@
 import { CONSOLE_SCOPE } from './consts.js'
+import { MAX_TEXT_ERROR_CAUSE } from './consts.local.js'
 import { logLevelHelper } from './level.js'
 import { redactHelper } from './redact.js'
 import { logStateHelper } from './state.js'
@@ -70,13 +71,17 @@ export const removeLogPlugin = (name: string): void => {
 
 export const logPlugins = (): readonly LogPlugin[] => [...logStateHelper.state().plugins]
 
+/** A message as text, never throwing: an `Error` gives its message, anything else `textOf`. */
+const textOf = (message: unknown): string =>
+  message instanceof Error ? redactHelper.messageOf(message) : redactHelper.textOf(message)
+
 /** A plugin may be broken; the work that logged must not be. Reported once per minute per plugin. */
 const guarded = (plugin: LogPlugin, run: () => void): void => {
   try {
     run()
   } catch (error) {
     if (logThrottle(`plugin:${plugin.name}`, 60_000)) {
-      logStateHelper.state().native.warn(`[log] plugin "${plugin.name}" failed: ${error instanceof Error ? error.message : String(error)}`)
+      logStateHelper.state().native.warn(`[log] plugin "${plugin.name}" failed: ${textOf(error)}`)
     }
   }
 }
@@ -129,8 +134,6 @@ const withoutError = (data: unknown, error: Error | undefined): unknown => {
   return Object.keys(rest).length === 0 ? undefined : rest
 }
 
-const textOf = (message: string | Error): string => message instanceof Error ? message.message : String(message)
-
 const sinkMethod = (level: Severity): ConsoleMethod =>
   level === 'debug' ? (logStateHelper.isBrowser() ? 'log' : 'debug') : level
 
@@ -174,7 +177,18 @@ const write = (record: LogRecord): void => {
   let line = `${iso} ${record.level.toUpperCase().padEnd(5)} [${record.scope}] ${record.message}`
   if (record.event != null) line += ` event=${record.event}`
   if (record.data !== undefined) line += ` ${flat(record.data)}`
-  if (record.error?.stack != null) line += `\n${record.error.stack}`
+  if (record.error != null) {
+    const error = redactHelper.errorData(record.error, { causeStacks: false })
+    if (error.cause != null) {
+      const encoded = JSON.stringify(error.cause)
+      // A reserved header field binds this actual Error.cause to its parent error. Free-form
+      // stack text is never a structured cause; oversized relations are explicitly unavailable.
+      line += encoded.length <= MAX_TEXT_ERROR_CAUSE
+        ? ` errorCause=${JSON.stringify(encoded)}` : ' errorCauseTruncated=true'
+    }
+    // The same redacted, clipped stack the JSON sink writes as `err.stack` — never the raw one.
+    if (typeof error.stack === 'string') line += `\n${error.stack}`
+  }
   out(line)
 }
 
@@ -252,7 +266,7 @@ const argsToCall = (args: unknown[]): [string | Error, unknown] => {
       parts.push(String(arg))
     }
   }
-  const message = parts.join(' ') || (error?.message ?? '')
+  const message = parts.join(' ') || (error != null ? textOf(error) : '')
   const data = objects.length === 0 ? undefined : objects.length === 1 ? objects[0] : objects
   return [error != null && parts.length === 0 ? error : message, error != null && parts.length > 0 ? { error, ...(data != null ? { data } : {}) } : data]
 }

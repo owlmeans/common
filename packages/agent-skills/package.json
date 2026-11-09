@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/agent-skills",
-  "version": "0.1.18-rc.59",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/agent-skills"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -32,18 +42,18 @@
     }
   },
   "devDependencies": {
-    "@langchain/core": "^1.2.14",
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/llm": "^0.1.18-rc.54",
-    "@owlmeans/llm-common": "^0.1.18-rc.40",
-    "@types/bun": "^1.4.2",
-    "@types/node": "^26.6.4",
+    "@langchain/core": "^1.3.1",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/llm": "^0.1.21",
+    "@owlmeans/llm-common": "^0.1.21",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "@owlmeans/llm": "^0.1.18-rc.54",
-    "@owlmeans/llm-common": "^0.1.18-rc.40"
+    "@owlmeans/llm": "^0.1.21",
+    "@owlmeans/llm-common": "^0.1.21"
   },
   "peerDependenciesMeta": {
     "@owlmeans/llm": {

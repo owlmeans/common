@@ -25,6 +25,14 @@ The release runs in this order, once:
    and the viable-agent template seed (`sync-agent-meta.ts`), then rebuild from clean output;
 5. **publish everything that was bumped** (`publish.ts --all`), with fresh operator approval.
 
+**The viable-agent template, its related skills and its harness follow every bump** (operator
+rule): the sweep moves the template's manifests, fixtures and overrides, and `SEED_RUNTIME_DEPS`,
+version-quoting tests and the skills that name a version move by hand in the same release —
+`^0.1.19` never admits `0.1.20-rc.0`, so a template left behind never receives it. A package that
+already carries the next patch's stable version (`0.1.20`) is bumped to `0.1.21-rc.0`, at any
+level of dependency — a manifest range, an embedded skill, a doc pin. Details: library-manager
+`owlmeans-publishing`.
+
 Steps 2–4 write only into packages that step 1 bumped (their content ships with them) and into
 trees nothing publishes. A package outside the closure keeps every range that already admits the
 new versions — the harness enforces it — so propagation never expands the closure. Never re-plan
@@ -205,6 +213,20 @@ Consequences worth knowing:
   unnecessary is recoverable; silently skipping a real change is not.
 - `build/` still ships, so **build before publishing** — a stale `build/` ships stale code even
   though the plan (which compares sources) calls the package right.
+
+## npm page metadata
+
+Every `packages/*/package.json` carries the fields npm shows in its sidebar, right after
+`license` (or `description` when that comes later):
+
+```json
+"homepage": "https://owlmeans.com/docs/",
+"repository": { "type": "git", "url": "git+https://github.com/owlmeans/common.git", "directory": "packages/<dir>" },
+"bugs": { "url": "https://github.com/owlmeans/common/issues" },
+"author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)"
+```
+
+A new package copies them with its own `directory`. closed uses the same values without `directory`.
 
 ## Versions and dist-tags
 

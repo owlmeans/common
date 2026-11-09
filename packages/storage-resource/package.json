@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/storage-resource",
-  "version": "0.1.18-rc.45",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/storage-resource"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -24,18 +34,18 @@
     "react": "*"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1146.0",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/log": "^0.1.18-rc.4",
-    "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/server-context": "^0.1.18-rc.45",
-    "@owlmeans/storage-common": "^0.1.18-rc.39",
-    "file-type": "^22.1.1"
+    "@aws-sdk/client-s3": "^3.1158.0",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/log": "^0.1.21",
+    "@owlmeans/resource": "^0.1.21",
+    "@owlmeans/server-context": "^0.1.21",
+    "@owlmeans/storage-common": "^0.1.21",
+    "file-type": "^22.2.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@types/node": "^26.6.4",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

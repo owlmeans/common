@@ -40,7 +40,10 @@ only the server absent, the same harness shape as `@owlmeans/web-oauth`'s:
   save showing error+skip with skip still moving the flow on, Skip present WITHOUT a failed save,
   the `pristine`/`data-empty`/hint states, a framed mount rendering normally, the privacy notice in
   default mode too, no cookie item/note and a cookie decision made elsewhere left byte-identical by
-  a save, Select-all framed and first, the last-updated line on every row, statements starting with
+  a save, Select-all framed and first, the closing Select-all above the buttons (order, one of each,
+  both boxes agreeing, completing a partial selection), the top box scrolling the buttons into view
+  only when it ticks with focus left on the checkbox (390×600, `scrollIntoView` options recorded for
+  smooth vs `reducedMotion`), the last-updated line on every row, statements starting with
   the confirmation and the link inside the sentence, no dangling sentence without links, custom
   per-language text in English and Polish, no Select-all for a lone consent, everything-already-
   decided in DEFAULT mode auto-continuing (`allItemsCurrent()`, `helpers.ts`) with only `GET status`
@@ -55,7 +58,7 @@ consent ticked as last decided and saving them with the Terms,
   per session vs a new sign-in); `preferences.spec.ts` (same body, no navigation on save, `onSaved`
   firing, no skip link exists, no Terms row even with `?terms=step`, no cookie item, the same list
   structure, Select-all saving as settings, a FULLY-DECIDED account still loading and showing every
-  item (`allItemsCurrent()` — the regression test for the `source`-dependent loading rule in [step-frame.md](step-frame.md)));
+  item (`allItemsCurrent()` — the regression test for the `source`-dependent loading rule in [step-frame.md](step-frame.md)); the card has no closing Select-all);
   `inline.spec.tsx` (server-rendered — placeholders, dropped sentences, label resolution, the
   appended fallback link, per-language records); `i18n.spec.ts` (non-browser — 8-locale parity,
   the date placeholder in every language, a literal-key scan of `t('screen.…'/'preferences.…')`

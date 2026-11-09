@@ -6,7 +6,7 @@ description: Category-D component-level acceptance tests for OwlMeans Common UI 
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
 
-**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.57"` in `devDependencies`
+**Install:** `"@owlmeans/test-ui": "^0.1.21"` in `devDependencies`
 
 `@owlmeans/test-ui` depends on `playwright`, so the browser library arrives with it; add
 `playwright` to `devDependencies` as well when a spec imports a launcher itself. The Vite harness
@@ -75,9 +75,34 @@ sits behind auth without hand-rolling a token:
 | `makePageHelper(page).loginViaSupervisorForm(opts)` | Drive the real login form end-to-end — navigate, answer consent, fill user id + key, submit, wait for the landing, then answer marketing consent (see below). Options: `{ baseUrl, userId, pk, path?, expectPath?, timeout?, waitUntil?, consent?, screenshotDir?, marketingConsent? }`. |
 | `makePageHelper(page).answerMarketingConsent(opts?)` | Answer the `@owlmeans/web-marketing-consent` full-page step if it is shown right after login. Options: `{ accept?: 'all' \| 'none' \| 'skip', terms?: 'accept' \| 'leave', timeout? }`, default `accept: 'all'`, `terms: 'accept'`, `timeout: 30_000`. Returns whether the step was actually shown and answered — `false` means it never appeared. Throws if a Terms box could not be confirmed. |
 
+| `makePageHelper(page).loginViaEmailForm(opts)` | Drive the real e-mail card of `@owlmeans/web-auth-email` (below). Options: `{ baseUrl, email, rewritePin, password?, waiver?, start?: 'email' \| 'dispatcher', path?, dispatcherPath?, apiPath?, offer?: 'skip' \| 'ignore' \| { password }, marketingConsent?, expectPath?, landedSelector?, timeout?, waitUntil?, consent?, screenshotDir? }`. Resolves `{ mode, device, pins, offer, marketingConsent }`. |
+| `makePageHelper(page).routeEmailWaiver(waiver, opts?)` | Send a developer waiver in `x-owlmeans-email-waiver` on this page's `<apiPath>/` requests only (default `/auth/email/`); resolves the function that stops it. |
+| `makeEmailTechClient({ apiUrl, privateKey, credentialId?, path?, fetchImpl? })` | The e-mail developer routes, signed as a trusted record (`signBasicEd25519Request`): `.waiver()` and `.rewritePin(challenge, pin?)` → the PIN now valid (6 random digits by default). `credentialId` defaults to the key's address. |
+
 These need a project whose backend trusts the private key they sign with, so they belong to specs
 that run against a real app rather than a mounted component. See `[[supervisor-auth]]` for the
 server and web wiring they assume.
+
+### E-mail sign-in without a mailbox
+
+`loginViaEmailForm` opens the e-mail card (`/authentication/login/email`, or the chooser and its
+`[data-login-method="email"]` with `start: 'dispatcher'`, ticking a Terms box first when one is
+shown), answers the cookie dialog, types the address and sends for a PIN. It reads the challenge
+from the send-PIN ANSWER on the network and hands it to `rewritePin` for the PIN to type — normally
+`makeEmailTechClient(…).rewritePin`, which rewrites that pending PIN on the server. With `password`
+it tries the password first; a device answer (`reason: 'device'`) is finished with a PIN the same
+way. After the sign-in it answers, in whatever order they come, the password offer (`'skip'` by
+default) and the marketing-consent step, then waits for the landing (`expectPath`, else
+`landedSelector`, default `#app-prompt` — pass the app's own marker, or the wait costs the full
+timeout).
+
+- **The waiver rides on the e-mail routes only**, and only while the login runs: `routeEmailWaiver`
+  is a `page.route` with a path predicate. Routing turns Playwright's HTTP cache off for the page
+  while installed — never route every request, a vite-served app stalls on its unbundled modules.
+- The tech routes exist only where the deployment enabled them for the signing record; elsewhere
+  `waiver()` and `rewritePin()` throw. A spec that must prove the real captcha signs in without
+  `waiver`.
+- A refused step throws with the HTTP status and the card's `data-refusal`, never a bare timeout.
 
 ## Spec shape
 
@@ -287,7 +312,7 @@ selector it actually needs. That wait IS the assertion; the load event never was
 `waitUntil` explicitly for the rare case that wants otherwise.
 
 The rule is not `mountComponent`'s alone — **every** navigation helper here follows it, including
-`makePageHelper(page).loginViaSupervisorForm` and `.loginViaDispatcher`. A helper that navigates on playwright's default
+`makePageHelper(page).loginViaSupervisorForm`, `.loginViaEmailForm` and `.loginViaDispatcher`. A helper that navigates on playwright's default
 turns "someone added a tag manager" into "the whole login-driven suite times out", with the browser
 showing a working login form the entire time. Any new helper that calls `page.goto` passes
 `domcontentloaded` and takes a `waitUntil` override.
@@ -296,18 +321,21 @@ showing a working login form the entire time. Any new helper that calls `page.go
 screen when an assertion timed out; `.loginViaSupervisorForm` takes a `screenshotDir` that captures
 the filled form just before submit.
 
-## The consent dialog blocks the login form, and the failure blames the button
+## An unanswered consent gates the login form, and the failure blames the button
 
-An OwlMeans app asks for cookie consent **before** it will start an authentication flow, and the
-surface — the bar on its transparent overlay, or the preferences window — offers no dismissal: a
-decision is what the gate is waiting for. Until it is
-answered the overlay intercepts pointer events, so a login form renders, resolves, reports itself
-`visible, enabled and stable`, and still cannot be clicked. Playwright retries for the full timeout
-and then reports `click: Timeout … waiting for getByTestId('supervisor-submit')`, naming the
-button. Nothing is wrong with the button; read the `subtree intercepts pointer events` line, which
-names `[data-consent-dialog]`.
+An OwlMeans app asks for cookie consent **before** it will start an authentication flow. The first
+ask is the bar, which blocks nothing — the page is usable and the bar simply stays — so a spec that
+never answers it clicks a login control and meets the gate instead: the sign-in precondition
+(`@owlmeans/client-iam`) refuses the click and raises the preferences WINDOW, a modal over a
+dimmed overlay that offers no dismissal. From then on the overlay intercepts pointer events, so a
+login form renders, resolves, reports itself `visible, enabled and stable`, and still cannot be
+clicked. Playwright retries for the full timeout and then reports `click: Timeout … waiting for
+getByTestId('supervisor-submit')`, naming the button. Nothing is wrong with the button; read the
+`subtree intercepts pointer events` line, which names `[data-consent-dialog]`. (A bar that is still
+up is not in the way of anything — and a window that was not asked for is a sign the spec skipped
+the answer.)
 
-`makePageHelper(page).loginViaSupervisorForm` therefore calls `.acceptConsent()` after navigating. `.acceptConsent` is
+`makePageHelper(page).loginViaSupervisorForm` and `.loginViaEmailForm` therefore call `.acceptConsent()` after navigating. `.acceptConsent` is
 public for specs that drive their own login: it waits for the consent store to SETTLE — never while
 the visitor is still being located, when the transparent overlay is up and would take the click —
 then clicks `[data-consent-accept-all]` on whichever surface asks, waits for it to detach, and
@@ -341,7 +369,9 @@ pick. Both also default `marketingConsent` (their own option, not `.answerMarket
 (root, carrying `data-state="loading"` while its status read is outstanding and `"ready"` once it can
 render), `[data-marketing-consent-terms]` (the Terms checkbox, Terms mode only, with `data-version`),
 `[data-marketing-consent-terms-error]` (Terms record failed — the person stays and retries),
-`[data-marketing-consent-all]` (select-all, never ticks Terms), `[data-marketing-consent-item="<key>"]`
+`[data-marketing-consent-all]` (select-all — exactly one per page; the step's closing copy above the
+buttons is `[data-marketing-consent-all-end]` — and in Terms mode it ticks the Terms box with the
+consents, in required-only mode only the Terms box), `[data-marketing-consent-item="<key>"]`
 (per-consent), `[data-marketing-consent-save]`, `[data-marketing-consent-skip]` (shown whenever the
 step is optional-only — i.e. `!loading && !terms.needed` — not only after a failed save),
 `[data-marketing-consent-skip-note]`, `[data-marketing-consent-signout]` (shown while a Terms box or

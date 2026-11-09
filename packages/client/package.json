@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/client",
-  "version": "0.1.18-rc.59",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/client"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -29,17 +39,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/client-context": "^0.1.18-rc.55",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.54",
-    "@owlmeans/client-resource": "^0.1.18-rc.54",
-    "@owlmeans/config": "^0.1.18-rc.45",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/router": "^0.1.18-rc.35",
-    "@owlmeans/state": "^0.1.18-rc.40"
+    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/client-context": "^0.1.21",
+    "@owlmeans/client-entrypoint": "^0.1.21",
+    "@owlmeans/client-resource": "^0.1.21",
+    "@owlmeans/config": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/resource": "^0.1.21",
+    "@owlmeans/router": "^0.1.21",
+    "@owlmeans/state": "^0.1.21"
   },
   "peerDependencies": {
     "@remix-run/router": "*",
@@ -51,16 +61,16 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-ui": "^0.1.18-rc.57",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/test-ui": "^0.1.21",
     "@types/react": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "^6.1.2",
     "nodemon": "^3.1.14",
-    "playwright": "^1.63.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "playwright": "^1.64.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2"
+    "vite": "^8.3.5"
   },
   "publishConfig": {
     "access": "public"

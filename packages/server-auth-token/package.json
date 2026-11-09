@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/server-auth-token",
-  "version": "0.1.18-rc.39",
+  "version": "0.1.21",
   "license": "MIT",
   "description": "The server half of OwlMeans access tokens — the store, the guard that verifies a presented token, the management handlers and the coguard that admits one on an existing route.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/server-auth-token"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -24,22 +34,22 @@
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/auth-common": "^0.1.18-rc.54",
-    "@owlmeans/auth-token": "^0.1.18-rc.34",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/log": "^0.1.18-rc.4",
-    "@owlmeans/mongo-resource": "^0.1.18-rc.47",
-    "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/server-api": "^0.1.18-rc.58",
-    "@owlmeans/server-auth-identity": "^0.1.18-rc.54",
-    "@owlmeans/server-context": "^0.1.18-rc.45",
+    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/auth-common": "^0.1.21",
+    "@owlmeans/auth-token": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/log": "^0.1.21",
+    "@owlmeans/mongo-resource": "^0.1.21",
+    "@owlmeans/resource": "^0.1.21",
+    "@owlmeans/server-api": "^0.1.21",
+    "@owlmeans/server-auth-identity": "^0.1.21",
+    "@owlmeans/server-context": "^0.1.21",
     "@scure/base": "^2.4.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@types/bun": "^1.4.2",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

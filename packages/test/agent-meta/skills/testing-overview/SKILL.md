@@ -16,7 +16,7 @@ category's helpers on top of it:
 | `@owlmeans/test` | `loadEnv`, `requireEnv`, `hasEnv`, `makeGates`, `loadFixture` | `testing-unit` |
 | `@owlmeans/test-auth` | `makeFixtureKeyPair`, `makeMemoryTrustedResource`, `makeMockGuard`, `withAuth`, `signMockEnvelope`, `makeBearer`, fixtures `SUPERUSER`/`USER`/`SERVICE` | `testing-auth-unit` |
 | `@owlmeans/test-integration` | `mongoGate`, `redisGate`, `s3Gate`, `kubeGate`, `randomNamespace`, `registerCleanup`, `runCleanups` | `testing-integration` |
-| `@owlmeans/test-ui` | `launchBrowser`, `closeBrowser`, `withPage`, `mountComponent`, starter `harness/index.html` — on the `playwright` library, not `@playwright/test` | `testing-ui` |
+| `@owlmeans/test-ui` | `launchBrowser`, `closeBrowser`, `withPage`, `mountComponent`, `makePageHelper` (consent, supervisor and e-mail sign-in), `supervisorAuthHelper`, `makeEmailTechClient`, starter `harness/index.html` — on the `playwright` library, not `@playwright/test` | `testing-ui` |
 
 New auth mocks belong in `@owlmeans/test-auth`, never in a package's own `tests/`.
 
@@ -31,10 +31,10 @@ New auth mocks belong in `@owlmeans/test-auth`, never in a package's own `tests/
 
 ## Package → category map
 
-All 108 packages, one category each.
+114 packages, one category each.
 
-- **A** (56): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `basic-ids`, `bot`, `bot-agent`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-resource`, `client-route`, `client-socket`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `flow`, `i18n`, `iam`, `image-resource`, `llm-common`, `mailer`, `payment`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-bot`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-config`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `web-db`, `web-gtm`, `web-inquiry`, `web-router-react-router`
-- **B** (20): `auth`, `auth-common`, `auth-otp`, `basic-envelope`, `basic-keys`, `client-auth`, `client-did`, `client-iam`, `client-payment`, `did`, `mui-oidc-rp`, `oidc`, `server-auth`, `server-auth-otp`, `server-oidc-provider`, `server-oidc-rp`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `wled`
+- **A** (60): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `auth-email`, `basic-ids`, `bot`, `bot-agent`, `captcha`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-resource`, `client-route`, `client-socket`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `flow`, `i18n`, `iam`, `image-resource`, `llm-common`, `mailer`, `payment`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-bot`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-config`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `web-auth-email`, `web-captcha`, `web-db`, `web-gtm`, `web-inquiry`, `web-router-react-router`
+- **B** (21): `auth`, `auth-common`, `auth-otp`, `basic-envelope`, `basic-keys`, `client-auth`, `client-did`, `client-iam`, `client-payment`, `did`, `mui-oidc-rp`, `oidc`, `server-auth`, `server-auth-email`, `server-auth-otp`, `server-oidc-provider`, `server-oidc-rp`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `wled`
 - **C** (16): `bot-postgres`, `kluster`, `llm` (live inference providers), `mailer-smtp`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-mailer-mailgun`, `storage-resource`
 - **D** (12): `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-bot`, `web-client`, `web-consent`, `web-flow`, `web-panel`, `web-router`, `web-wl`
 - **None** (5): `_tpl`, and the four harness packages themselves — `test`, `test-auth`, `test-integration`, `test-ui`
@@ -48,6 +48,14 @@ its manifest lists: a package that only declares types, schemas and errors has n
 while one whose code issues real commands against the service is C even when it names no driver.
 `redis-resource` imports `ioredis` for types alone and drives the client the db service hands it;
 `mongo-resource` carries its driver as a devDependency, for its specs only. Both are C.
+
+`server-auth-otp` and `server-auth-email` are B — they sign and verify through a fixture trusted key
+— and carry env-gated Redis/Mongo specs (`redisGate`, `mongoGate`) for their stores, exactly as a C
+package would. `captcha` is A: Google is reached only through the `CAPTCHA_VERIFIER` seam or an
+injected `fetch`. `web-captcha` and `web-auth-email` are A: their specs drive the loader over a
+stand-in `document`/`window` and the pure halves (`emailLoginStateHelper`, `emailRefusalHelper`,
+the storage helper, the offer step, the panel helper, i18n parity); the rendered card is an
+application's e2e concern.
 
 `server-bot` is A although its platforms are external services: they are reached only through the
 plugin seam, and its own API-faithful mock transport (a shipped feature, not a test mock) or a

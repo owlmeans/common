@@ -15,7 +15,9 @@ export interface CatalogueHelper {
    * The plan an entity holds: its highest-ranked subscription in an entitling status (the catalogue
    * rank, the stored one for a plan the catalogue no longer declares; the newest first on a tie),
    * else the declared free plan. The plan answered carries the winning row's `overrides`
-   * (`overriddenPlan`), so every reader — ceilings, the view, the gates — sees one answer.
+   * (`overriddenPlan`) and the capability grants in force (`withCapabilities`), so every reader —
+   * ceilings, the view, the gates — sees one answer. The grants in force ride along as `grants`
+   * (units grants are not folded into `plan.limits`: the usage ledger consumes them after the plan).
    *
    * @throws PlanRequired when there is neither.
    */

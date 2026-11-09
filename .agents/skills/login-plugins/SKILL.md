@@ -191,11 +191,21 @@ replace it with a throw.
   while the provider still has a session; only without `next` is a stored session handed back via
   `resume()`. Handing back a refused session closes the popup at once — a "blink" — and the opener
   fails its next request exactly as before, every time.
-- **A dispatcher's exchange must report every way it can end.** `oidc.dispatch(...)` had no
-  `.catch`, so a provider refusal, an API 4xx or a missing stored request became an unhandled
-  rejection: an ordinary tab went blank and a surrogate window sat on "Signing you in…" forever
-  with nothing posted back — a login that completed and an application that never noticed. Every
-  chain that can reject in a dispatcher ends in a `catch` that sets an outcome the view understands.
+- **A dispatcher's exchange must report every way it can end.** Every chain that can reject in a
+  dispatcher ends in a `catch` that sets an outcome the view renders. `web-oidc-rp`'s
+  `oidc.dispatch(...)` and `DispatcherHOC`'s token exchange classify the error with
+  `loginFailureHelper.failureOf` (`@owlmeans/client-auth/login`; a refusal logged at `warn`
+  `auth.refused`, anything else at `error`) and render `LoginFailureView` — "Back to sign-in" for a
+  refusal of this account, "Try again" for a failure; a surrogate window shows the phrased message in
+  its failed stage. Without the catch a provider refusal, an API 4xx or a missing stored request is
+  an unhandled rejection: an ordinary tab goes blank and a surrogate window sits on "Signing you
+  in…" forever with nothing posted back.
+- **A refusal is never phrased as a retry.** The Google callback (`web-oidc-rp`), the supervisor
+  form (`web-auth`), `FallbackLoginScreen` and `client-panel`'s login model all read a caught error
+  through `loginFailureHelper` (`client-auth` → A failed sign-in): a server's `AuthRefused` or a
+  403 carrying the access-denied marker is the person's condition (`login.error.refused`,
+  `account-disabled`, `profile-disabled`) and offers the way back to the method choice, never the
+  same attempt again.
 - **A session the server refuses is dropped, not kept.** `@owlmeans/api` clears the auth service
   when a request that PRESENTED this context's bearer comes back 401. Without it the application
   renders its signed-in tree over a credential that fails everything and offers "Log out" where the

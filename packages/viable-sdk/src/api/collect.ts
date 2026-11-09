@@ -10,8 +10,8 @@ import {
 import { ResilientError } from '@owlmeans/error'
 import { RouteMethod, RouteProtocols } from '@owlmeans/route'
 import {
-  CONNECT_CALL_COLLECT_WAIT_SEC, CONNECT_CALL_HEADER, ConnectCallLost, ConnectCallState, connectRef,
-  type ConnectCallResult,
+  CONNECT_CALL_COLLECT_WAIT_SEC, CONNECT_CALL_HEADER, CONNECT_CLIENT_HEADER, ConnectCallLost, ConnectCallState,
+  ConnectClientKind, connectClientHelper, connectRef, type ConnectCallResult,
 } from '@owlmeans/viable-common'
 import { SdkUnsupported } from '../errors.js'
 import {
@@ -41,6 +41,8 @@ const pause = async (ms: number, signal?: AbortSignal): Promise<void> => await n
  */
 export const createCallCollectTransport = (opts: CallCollectOptions): CallCollectTransport => {
   const location = 'viable-sdk:call-collect-transport'
+  // Formatted once: the edition does not change for the life of the context.
+  const client = connectClientHelper.format(opts.client ?? { kind: ConnectClientKind.Sdk })
 
   const contextOf = (): Ctx => assertContext<ClientConfig, Ctx>(transport.ctx as Ctx | undefined, location)
 
@@ -69,6 +71,19 @@ export const createCallCollectTransport = (opts: CallCollectOptions): CallCollec
     req.headers[CONNECT_CALL_HEADER] = callId
 
     return callId
+  }
+
+  /**
+   * The edition, written onto every request — a collect hop included — in place of any spelling of
+   * the header the request already carried, so the platform reads exactly one value.
+   */
+  const nameClient = (req: AbstractRequest): void => {
+    const headers = req.headers ?? {}
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === CONNECT_CLIENT_HEADER && key !== CONNECT_CLIENT_HEADER) delete headers[key]
+    }
+    headers[CONNECT_CLIENT_HEADER] = client
+    req.headers = headers
   }
 
   const pendingFor = (value: unknown, callId: string): boolean =>
@@ -119,6 +134,7 @@ export const createCallCollectTransport = (opts: CallCollectOptions): CallCollec
   const handle = async (req: AbstractRequest, res: AbstractResponse<unknown>): Promise<void> => {
     const context = contextOf()
     const api = apiOf(context)
+    nameClient(req)
     if (!opts.delegated || !writes(context, req.alias)) {
       await api.handler(req, res)
       return
@@ -147,6 +163,7 @@ export const createCallCollectTransport = (opts: CallCollectOptions): CallCollec
   const transport: CallCollectTransport = createService<CallCollectTransport>(transportAlias(RouteProtocols.WEB), {
     protocol: RouteProtocols.WEB,
     delegated: opts.delegated,
+    client,
     handle: handle as CallCollectTransport['handle'],
   })
 

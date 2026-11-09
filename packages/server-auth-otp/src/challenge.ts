@@ -3,7 +3,7 @@ import type { RedisResource } from '@owlmeans/redis-resource'
 import { OtpUnavailable } from './errors.js'
 import { OTP_CHALLENGE_STORE, OTP_RESOURCE, type OtpChallengeOutcome, OtpChallengeOutcome as Outcome } from './consts.js'
 import type { OtpChallengeStore, OtpConfig, OtpContext } from './types.js'
-import { REDIS_VERIFY_SCRIPT } from './consts.local.js'
+import { REDIS_REWRITE_SCRIPT, REDIS_VERIFY_SCRIPT } from './consts.local.js'
 import type { ChallengeResourceRecord, Clock, StoredChallenge } from './types.local.js'
 
 
@@ -40,6 +40,18 @@ export const makeMemoryOtpChallengeStore = (
 
       return Outcome.Invalid
     },
+    rewrite: async (id, emailKey, codeHash): Promise<boolean> => {
+      const record = records.get(id)
+      if (record == null || record.expiresAt <= now()) {
+        records.delete(id)
+        return false
+      }
+      if (record.emailKey !== emailKey) return false
+      record.codeHash = codeHash
+      record.failedAttempts = 0
+
+      return true
+    },
   })
 }
 
@@ -74,6 +86,19 @@ export const makeRedisOtpChallengeStore = (
         if (result === -1) return Outcome.Invalid
         if (result === -2) return Outcome.Exhausted
         return Outcome.Missing
+      } catch (error) {
+        const unavailable = new OtpUnavailable('challenge')
+        if (error instanceof Error) unavailable.oiriginalStack = `${error}: ${error.stack}`
+        throw unavailable
+      }
+    },
+    rewrite: async (id, emailKey, codeHash): Promise<boolean> => {
+      const ctx = service.ctx as OtpContext<OtpConfig>
+      const resource = ctx.resource<RedisResource<ChallengeResourceRecord>>(resourceAlias)
+      try {
+        return Number(await resource.db.client.eval(
+          REDIS_REWRITE_SCRIPT, 1, resource.key(id), emailKey, codeHash
+        )) === 1
       } catch (error) {
         const unavailable = new OtpUnavailable('challenge')
         if (error instanceof Error) unavailable.oiriginalStack = `${error}: ${error.stack}`

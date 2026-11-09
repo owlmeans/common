@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/web-router-react-router",
-  "version": "0.1.18-rc.34",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/web-router-react-router"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -22,19 +32,19 @@
   },
   "peerDependencies": {
     "react": "*",
-    "react-router": "^8.4.0"
+    "react-router": "^8.5.1"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@types/node": "^26.6.4",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
-    "react-router": "^8.4.0",
+    "react-router": "^8.5.1",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/router": "^0.1.18-rc.35"
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/router": "^0.1.21"
   },
   "publishConfig": {
     "access": "public"

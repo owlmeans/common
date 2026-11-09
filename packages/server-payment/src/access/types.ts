@@ -3,10 +3,11 @@ import type { PaymentService } from '@owlmeans/payment'
 import type {
   BillingProfileResource, CompletionObserver, ConsumerConsentResource, ConsumerDeclarationResource,
   ConsumerEventResource, ConsumerMailPluginConfig, ConsumerRightsService, EntitlementService, FingerprintResource,
-  GatewayService, PaygateCustomerResource, PaymentFulfillmentResource, PaymentSubscriptionRecord,
+  GatewayService, PaygateCustomerResource, PaymentFulfillmentResource, PaymentGrantResource, PaymentSubscriptionRecord,
   PaymentSubscriptionResource, PaymentUsageCounterResource, PaymentUsageResource, PaymentWebhookResource,
   PortalBrandingConfig, PurchaseResource, StripePluginConfig, StripePricingPluginConfig,
 } from '../types.js'
+import type { EntitlementGrantHelper } from '../grants/types.js'
 
 /** What one context holds for payments: its services, its resources, its plugin configs and its Stripe client. */
 export interface PaymentAccess {
@@ -23,6 +24,12 @@ export interface PaymentAccess {
   usageEvents: () => PaymentUsageResource
   usageCounters: () => PaymentUsageCounterResource
   fingerprints: () => FingerprintResource
+  /** The entitlement grant records (`payment-grant`). @throws when the resource is not registered */
+  grantRecords: () => PaymentGrantResource
+  /** The entitlement grant records, or `null` in a context that registered none (no grants at all). */
+  grantRecordsOf: () => PaymentGrantResource | null
+  /** The organization entitlement grants: give, revoke, list and read what is in force (`entitlementGrantsOf`). */
+  grants: () => EntitlementGrantHelper
   billingProfiles: () => BillingProfileResource
   purchases: () => PurchaseResource
   consumerConsents: () => ConsumerConsentResource

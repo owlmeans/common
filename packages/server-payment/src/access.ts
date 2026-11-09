@@ -6,23 +6,27 @@ import type { Context as ApiContext } from '@owlmeans/server-api'
 import {
   CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG, CONSUMER_RIGHTS_SERVICE, ENTITLEMENT_SERVICE, GATEWAY_SERVICE,
   PAYMENT_OBSERVER, RES_BILLING_PROFILE, RES_CONSUMER_CONSENT, RES_CONSUMER_DECLARATION, RES_CONSUMER_EVENT,
-  RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_PURCHASE,
+  RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_GRANT, RES_PAYMENT_PURCHASE,
   RES_PAYMENT_SUBSCRIPTION, RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
   STRIPE_PINNED_API_VERSION, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG, STRIPE_PRICING_PLUGIN_CONFIG,
 } from './consts.js'
 import type {
   BillingProfileResource, CompletionObserver, ConsumerConsentResource, ConsumerDeclarationResource,
   ConsumerEventResource, ConsumerMailPluginConfig, ConsumerRightsService, EntitlementService, FingerprintResource,
-  GatewayService, PaygateCustomerResource, PaymentFulfillmentResource, PaymentSubscriptionRecord,
+  GatewayService, PaygateCustomerResource, PaymentFulfillmentResource, PaymentGrantResource, PaymentSubscriptionRecord,
   PaymentSubscriptionResource, PaymentUsageCounterResource, PaymentUsageResource, PaymentWebhookResource,
   PortalBrandingConfig, PurchaseResource, StripePluginConfig, StripePricingPluginConfig,
 } from './types.js'
 import type { PluginReader } from './types.local.js'
 import type { PaymentAccess } from './access/types.js'
+import type { EntitlementGrantHelper } from './grants/types.js'
+import { entitlementGrantsOf } from './grants.js'
 
 export const makePaymentAccess = (ctx: ApiContext): PaymentAccess => {
   const hasService = (alias: string): boolean =>
     (ctx as unknown as { hasService?: (alias: string) => boolean }).hasService?.(alias) === true
+  const hasResource = (alias: string): boolean =>
+    (ctx as unknown as { hasResource?: (alias: string) => boolean }).hasResource?.(alias) === true
   const plugins = () => (ctx as never as PluginReader).getConfigResource(PLUGINS)
 
   const payment = (): PaymentService => ctx.service<PaymentService>(PAYMENT_SERVICE)
@@ -40,6 +44,10 @@ export const makePaymentAccess = (ctx: ApiContext): PaymentAccess => {
   const usageCounters = (): PaymentUsageCounterResource =>
     ctx.resource<PaymentUsageCounterResource>(RES_PAYMENT_USAGE_COUNTER)
   const fingerprints = (): FingerprintResource => ctx.resource<FingerprintResource>(RES_PAYMENT_FINGERPRINT)
+  const grantRecords = (): PaymentGrantResource => ctx.resource<PaymentGrantResource>(RES_PAYMENT_GRANT)
+  const grantRecordsOf = (): PaymentGrantResource | null =>
+    hasResource(RES_PAYMENT_GRANT) ? grantRecords() : null
+  const grants = (): EntitlementGrantHelper => entitlementGrantsOf(ctx)
   const billingProfiles = (): BillingProfileResource => ctx.resource<BillingProfileResource>(RES_BILLING_PROFILE)
   const purchases = (): PurchaseResource => ctx.resource<PurchaseResource>(RES_PAYMENT_PURCHASE)
   const consumerConsents = (): ConsumerConsentResource => ctx.resource<ConsumerConsentResource>(RES_CONSUMER_CONSENT)
@@ -76,7 +84,8 @@ export const makePaymentAccess = (ctx: ApiContext): PaymentAccess => {
 
   return {
     payment, gateway, gatewayOf, observer, entitlements, paygateCustomers, subscriptions, fulfillments,
-    paymentWebhooks, usageEvents, usageCounters, fingerprints, billingProfiles, purchases, consumerConsents,
+    paymentWebhooks, usageEvents, usageCounters, fingerprints, grantRecords, grantRecordsOf, grants, billingProfiles,
+    purchases, consumerConsents,
     consumerDeclarations, consumerEvents, consumerRights, consumerRightsOf, stripeConfig, portalBrandingConfig,
     consumerMailConfig, stripePricingConfig, stripeClient, activeSubscription,
   }

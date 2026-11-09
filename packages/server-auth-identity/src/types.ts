@@ -23,6 +23,20 @@ export interface IdentityAccount extends Omit<Profile, 'entitySlug'>, ResourceRe
   entityId: string
   /** Never a wildcard: what a person may do lives on their profile rows, per app. */
   scopes: string[]
+  /**
+   * The person is banned: every sign-in through the store's own paths refuses the account
+   * (`IDENTITY_ACCOUNT_DISABLED`). Written only through `accountStateOf(ctx).setDisabled`.
+   */
+  disabled?: boolean
+  /** When the current ban began — present only while `disabled` is `true`. */
+  disabledAt?: Date
+  /** The last successful sign-in, through any app — `accountStateOf(ctx).touchSignIn`. */
+  signedInAt?: Date
+  /**
+   * When the account was registered. Written on every account created from now on; an older account
+   * has none, and a reader falls back to its record id's (ObjectId) time.
+   */
+  createdAt?: Date
 }
 
 /**
@@ -60,7 +74,15 @@ export interface IdentityProfile extends Omit<Profile, 'entitySlug' | 'credentia
   managed?: boolean
   expiresAt?: Date
   createdAt?: Date
+  /** The last successful sign-in to the app through this row — `accountStateOf(ctx).touchSignIn`. */
+  signedInAt?: Date
 }
+
+/**
+ * Why the store refuses a person's sign-in or session: a banned account, or a disabled PRIMARY row
+ * of the app (`IDENTITY_ACCOUNT_DISABLED`, `IDENTITY_PROFILE_DISABLED`).
+ */
+export type IdentityRefusal = 'account:disabled' | 'profile:disabled'
 
 /**
  * One sign-in method of an account — a provider link.
@@ -147,11 +169,33 @@ export type IdentityCredentialsResource = MongoResource<IdentityCredentials>
  *
  * Every payload it answers names the row of THIS deployment's own app (`appendAuthIdentityResources`'
  * `service`) in the account's main organization.
+ *
+ * The three sign-in members refuse a banned account with `AuthRefused('account:disabled')` and a
+ * disabled PRIMARY row of the own app with `AuthRefused('profile:disabled')` — an `AuthenFailed`
+ * (message `auth:manager:authen:<code>`) answering 403 with the access-denied denial marker. An
+ * unknown login is no refusal: `getLinkedProfile` still answers `null`, `linkProfile` still registers.
  */
 export interface IdentityLinkingService extends InitializedService {
+  /**
+   * The own app's primary row of the account the method signs into, or `null` when the method is
+   * unknown or that account has no row of this app yet.
+   *
+   * @throws {AuthRefused} `account:disabled` (before the row is read), `profile:disabled`.
+   */
   getLinkedProfile: (details: ProviderProfileDetails) => Promise<AuthPayload | null>
+  /**
+   * The account of the verified address (registered when new) and its own-app primary row.
+   *
+   * @throws {AuthRefused} `account:disabled` before the row is ensured — a method not linked yet is
+   * still attached to the banned account, which is the same verified person — and `profile:disabled`
+   * when the existing primary row is disabled.
+   */
   linkProfile: (details: ProviderProfileDetails, meta: AccountMeta) => Promise<AuthPayload>
-  /** Attach the method `details` describes to the account of the row `details.profileId` names. */
+  /**
+   * Attach the method `details` describes to the account of the row `details.profileId` names.
+   *
+   * @throws {AuthRefused} `account:disabled` / `profile:disabled` before the method is attached.
+   */
   linkCredentials: (details: ProviderProfileDetails) => Promise<AuthPayload>
   /**
    * Forget which account an external login maps to, so the next `linkProfile` establishes it anew.

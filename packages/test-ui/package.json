@@ -1,12 +1,23 @@
 {
   "name": "@owlmeans/test-ui",
-  "version": "0.1.18-rc.57",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/test-ui"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
     "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
-    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -22,13 +33,15 @@
     "./harness": "./harness/index.html"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/basic-envelope": "^0.1.18-rc.53",
-    "@owlmeans/basic-ids": "^0.1.18-rc.42",
-    "@owlmeans/basic-keys": "^0.1.18-rc.55",
-    "@owlmeans/test": "^0.1.18-rc.39",
-    "@owlmeans/test-auth": "^0.1.18-rc.53",
-    "playwright": "^1.63.0"
+    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/auth-common": "^0.1.21",
+    "@owlmeans/auth-email": "^0.1.22-rc.0",
+    "@owlmeans/basic-envelope": "^0.1.21",
+    "@owlmeans/basic-ids": "^0.1.21",
+    "@owlmeans/basic-keys": "^0.1.21",
+    "@owlmeans/test": "^0.1.21",
+    "@owlmeans/test-auth": "^0.1.21",
+    "playwright": "^1.64.1"
   },
   "peerDependencies": {
     "react": "*",
@@ -43,8 +56,10 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18-rc.8",
-    "@types/bun": "^1.4.2",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@types/bun": "^1.4.4",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

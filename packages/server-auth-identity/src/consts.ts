@@ -47,3 +47,15 @@ export const PROFILE_DIGEST_LENGTH = 22
 // field-level update that lost a race).
 export const MAX_ACCOUNT_KEY_ATTEMPTS = 5
 export const MAX_GUARDED_UPDATE_ATTEMPTS = 5
+
+/**
+ * The refusal of a banned account (`IdentityAccount.disabled`) — the `AuthRefused` message every
+ * sign-in through the linking service throws, and what `accountStateOf(ctx).refusalOf` answers.
+ */
+export const IDENTITY_ACCOUNT_DISABLED = 'account:disabled'
+
+/**
+ * The refusal of a disabled PRIMARY row of an app (`IdentityProfile.disabled`): the person may not
+ * use that app at all.
+ */
+export const IDENTITY_PROFILE_DISABLED = 'profile:disabled'

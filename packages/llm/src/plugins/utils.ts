@@ -1,26 +1,34 @@
 import { MAX_CAUSE_DEPTH } from './consts.local.js'
 import type { PluginUtils } from './utils/types.js'
+import type { LlmFetch } from './transport/types.js'
 
 export const createPluginUtils = (): PluginUtils => {
   const makeConfiguration = (
-    { baseURL, headers }: { baseURL: string | undefined, headers: Record<string, string> | undefined }
+    { baseURL, headers, fetch }: { baseURL: string | undefined, headers: Record<string, string> | undefined, fetch?: LlmFetch | undefined }
   ): { configuration: Record<string, unknown> } | Record<string, never> => {
     const hasBaseURL = baseURL != null
     const hasHeaders = headers != null && Object.keys(headers).length > 0
-    if (!hasBaseURL && !hasHeaders) return {}
+    if (!hasBaseURL && !hasHeaders && fetch == null) return {}
     return {
       configuration: {
         ...(hasBaseURL ? { baseURL } : {}),
         ...(hasHeaders ? { defaultHeaders: headers } : {}),
+        ...(fetch != null ? { fetch } : {}),
       }
     }
   }
 
   const makeClientOptions = (
-    { headers }: { headers: Record<string, string> | undefined }
+    { headers, fetch }: { headers: Record<string, string> | undefined, fetch?: LlmFetch | undefined }
   ): { clientOptions: Record<string, unknown> } | Record<string, never> => {
-    if (headers == null || Object.keys(headers).length === 0) return {}
-    return { clientOptions: { defaultHeaders: headers } }
+    const hasHeaders = headers != null && Object.keys(headers).length > 0
+    if (!hasHeaders && fetch == null) return {}
+    return {
+      clientOptions: {
+        ...(hasHeaders ? { defaultHeaders: headers } : {}),
+        ...(fetch != null ? { fetch } : {}),
+      }
+    }
   }
 
   const escalateMaxTokens = (base: number | undefined, attempt: number, cap: number): number =>

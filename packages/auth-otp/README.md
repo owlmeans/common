@@ -11,7 +11,7 @@ stores, throttles and the auth plugin.
 ## Installation
 
 ```bash
-bun add @owlmeans/auth-otp@^0.1.18-rc.36
+bun add @owlmeans/auth-otp@^0.1.21
 ```
 
 ## Concepts
@@ -23,6 +23,12 @@ bun add @owlmeans/auth-otp@^0.1.18-rc.36
   a TTL, mails it and returns an **opaque issuance id** that contains neither the email nor the code.
 - **Verification** — `verifyChallenge(email, issuanceId, code)` checks and atomically consumes that
   exact issuance; it resolves on success and throws otherwise.
+- **Message** — `issueChallenge(email, { message })` mails an `OtpMessage` (`subject`, `text`,
+  `html` templates with `{{code}}` and `{{minutes}}` placeholders) instead of the default English
+  mail, e.g. a localized one; without it the default mail is sent unchanged.
+- **Rewrite seam** — the optional `rewriteChallenge(email, issuanceId, code)` replaces the code of a
+  pending issuance for developer tooling (lifetime kept, failed attempts reset); it answers `false`
+  for a gone issuance, another address or a code that is not `OTP_CODE_LENGTH` digits.
 - **Attempt limit** — a challenge is invalidated on its `OTP_MAX_FAILED_ATTEMPTS`-th (fifth) failed
   guess.
 
@@ -62,8 +68,11 @@ await otpService(ctx).verifyChallenge('user@example.com', issuanceId, '123456')
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `OtpService` | interface | extends `InitializedService` (`@owlmeans/context`) |
-| `OtpService.issueChallenge(email)` | method | `→ Promise<string>` — generate, persist with TTL, email; returns the opaque issuance id |
+| `OtpService.issueChallenge(email, opts?)` | method | `→ Promise<string>` — generate, persist with TTL, email (`opts.message` overrides the mail); returns the opaque issuance id |
 | `OtpService.verifyChallenge(email, issuanceId, code)` | method | `→ Promise<void>` — verify and atomically consume one issuance |
+| `OtpService.rewriteChallenge?(email, issuanceId, code)` | optional method | `→ Promise<boolean>` — developer seam: replace a pending code, keep its TTL, reset attempts |
+| `OtpMessage` | interface | `{ subject, text, html }` templates; `{{code}}` and `{{minutes}}` are substituted |
+| `OtpIssueOptions` | interface | `{ message?: OtpMessage }` |
 
 ### Constants
 
@@ -76,7 +85,7 @@ await otpService(ctx).verifyChallenge('user@example.com', issuanceId, '123456')
 | `OTP_CODE_LENGTH` | `6` | numeric digits per code |
 | `OTP_MAX_FAILED_ATTEMPTS` | `5` | a challenge is invalidated on its fifth failed guess |
 
-The barrel exports only these string and number constants plus the type; the package tests pin every
+The barrel exports only these string and number constants plus the types; the package tests pin every
 value, because changing one changes what server and clients agree on.
 
 ## Common pitfalls

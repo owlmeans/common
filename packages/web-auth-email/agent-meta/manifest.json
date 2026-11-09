@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/web-auth-email",
+  "version": "0.1.22-rc.0",
+  "generatedAt": "2026-11-05T19:25:07.250Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-auth-email",
+      "category": "package-specific",
+      "file": "skills/web-auth-email/SKILL.md",
+      "canonicalPath": ".agents/skills/web-auth-email/SKILL.md"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
+import { ENGLISH_NAME_NOTE } from '../dev/consts.js'
 import type { RecordComponentResponsibility, RecordInteractionPlan } from './types.js'
 
 export const RecordComponentResponsibilitySchema: JSONSchemaType<RecordComponentResponsibility> = {
@@ -18,17 +19,17 @@ export const RecordComponentResponsibilitySchema: JSONSchemaType<RecordComponent
 export const RecordInteractionPlanSchema: JSONSchemaType<RecordInteractionPlan> = {
   type: 'object',
   properties: {
-    entity: { type: 'string', minLength: 1, description: 'Domain entity name copied from the supplied catalogue' },
-    label: { type: 'string', nullable: true },
+    entity: { type: 'string', minLength: 1, description: `Domain entity name copied from the supplied catalogue. ${ENGLISH_NAME_NOTE}` },
+    label: { type: 'string', nullable: true, description: 'User-facing action label, in the language of the product\'s own texts' },
     storyHash: { type: 'string', nullable: true, description: 'Generator-owned narrative hash; leave unset' },
-    ownerEntity: { type: 'string', nullable: true },
+    ownerEntity: { type: 'string', nullable: true, description: `The owning domain entity, copied from the supplied catalogue. ${ENGLISH_NAME_NOTE}` },
     capabilities: {
       type: 'array', description: 'One or more distinct capabilities contributed by this change',
       items: { type: 'string', enum: ['create', 'read', 'update', 'delete', 'list', 'action'] },
     },
     placement: { type: 'string', enum: ['destination', 'contextual'] },
     presentation: { type: 'string', enum: ['inline', 'dialog', 'sheet', 'route'] },
-    hostScreen: { type: 'string', nullable: true },
+    hostScreen: { type: 'string', nullable: true, description: `The host screen name, "{section}/{purpose}". ${ENGLISH_NAME_NOTE} (spaces and "/" allowed)` },
     hostKind: { type: 'string', nullable: true,
       anyOf: [{ enum: ['collection', 'record', 'singleton'] }, { type: 'null', nullable: true }],
       description: 'collection/singleton may be navigation destinations; record details are reached from their collection' },
@@ -36,8 +37,8 @@ export const RecordInteractionPlanSchema: JSONSchemaType<RecordInteractionPlan> 
     selectionComponents: { type: 'array', nullable: true, items: { type: 'string' },
       description: 'Actual list, board or picker component paths whose primary record-open actions must enter the host' },
     componentResponsibilities: { type: 'array', nullable: true, items: RecordComponentResponsibilitySchema },
-    recordKey: { type: 'string', nullable: true },
-    parentKey: { type: 'string', nullable: true },
+    recordKey: { type: 'string', nullable: true, description: `camelCase identifier of the selected record. ${ENGLISH_NAME_NOTE}` },
+    parentKey: { type: 'string', nullable: true, description: `camelCase identifier of the parent record. ${ENGLISH_NAME_NOTE}` },
     standaloneReason: { type: 'string', nullable: true },
   },
   required: ['entity', 'capabilities', 'placement', 'presentation'],

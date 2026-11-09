@@ -12,7 +12,7 @@ as `@owlmeans/web-log` for a tag manager.
 ## Installation
 
 ```bash
-bun add @owlmeans/log@^0.1.18-rc.4
+bun add @owlmeans/log@^0.1.21
 ```
 
 ## Concepts
@@ -133,7 +133,7 @@ resetLog()   // real console, no plugins, default settings
 | Symbol | Members |
 |---|---|
 | `logLevelHelper`, `createLogLevelHelper()` | `parseLogLevel(value, fallback?)` (accepts `warning`), `parseLogFormat`, `parseLogConsole`, `parseDebugScopes`, `levelAdmits(floor, level)` |
-| `redactHelper`, `createRedactHelper()` | `redact(value)` — never throws; `errorData(error)` — name, message, code, type, incidentId, stack |
+| `redactHelper`, `createRedactHelper()` | `redact(value)` — never throws; `errorData(error, { causeStacks? })` — name, message, code, type, incidentId, status, stack and bounded `cause`, redacted and clipped, never throws; `textOf(value)`, `messageOf(error)` — text that never throws |
 | `logStateHelper`, `createLogStateHelper()` | `state()`, `nativeConsole()`, `isBrowser()` |
 
 ### Constants
@@ -159,15 +159,16 @@ augmentation of `@owlmeans/context`.
 
 | Where | Output |
 |---|---|
-| Server, `format: 'text'` | `<iso> LEVEL [scope] message event=… key=value …`, then the stack |
+| Server, `format: 'text'` | `<iso> LEVEL [scope] message event=… key=value … errorCause=…`, then the stack — the same redacted, clipped one as JSON's `err.stack` |
 | Server, `format: 'json'` | one JSON object: `time`, `level`, `scope`, `msg`, `event?`, `data?`, `err?` |
 | Browser | `[scope] message`, the data object and the `Error` as separate console arguments; `debug` uses `console.log` |
 
 ## Common pitfalls
 
 - Do not write new `console.*` calls; use a scoped logger and a deliberate level.
-- Redaction works on keys only. Never pass a request, a body, a prompt, a message or any free text
-  that can hold secrets or personal content; log ids, sizes, counts and statuses.
+- Data redaction works on keys only; error text loses only `sk-…` keys, `Bearer` tokens and
+  token-like values of secret-named keys. Never pass a request, a body, a prompt, a message or any
+  free text that can hold secrets or personal content; log ids, sizes, counts and statuses.
 - Pass the `Error` object, not `error.message` or `JSON.stringify(error)`.
 - A line that can fire every few seconds is `debug` or guarded by `logThrottle`.
 - Set the level per environment in config, never in code; `cfg.debug.all` does not control logging.
@@ -192,7 +193,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.57
+npx @owlmeans/agent-skills@^0.1.21
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

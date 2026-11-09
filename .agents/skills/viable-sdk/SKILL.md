@@ -1,13 +1,13 @@
 ---
 name: viable-sdk
-description: How to use @owlmeans/viable-sdk — the connector SDK an external coding agent drives the OwlMeans Viable platform with — the token-authenticated client context, the two host kinds and their tool catalogue, the session operation loop, the local slot executor and local run, the model-task envelope, and the extension seam a host adds its own tools through. Auto-invoked when building or changing a connector, an MCP host, a connector tool, the task envelope, or anything that executes platform slot commands on a developer's machine.
+description: How to use @owlmeans/viable-sdk — the connector SDK an external coding agent drives the OwlMeans Viable platform with — the token-authenticated client context, the two host kinds and their tool catalogue, the client header every request names its edition with, the session operation loop and its model-task seam, the local slot executor and local run, the model-task envelope, the extension seam a host adds its own tools through, and the profile seam that presents the catalogue for a store listing or a plugin (the listing profiles). Auto-invoked when building or changing a connector, an MCP host, a connector tool, a tool profile, the task envelope, or anything that executes platform slot commands on a developer's machine.
 user-invocable: false
 ---
 
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.60"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.21"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -23,21 +23,23 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 
 | Export | Description |
 |--------|-------------|
-| `makeSdkContext({ apiUrl, token, service?, timeout?, llm?, onRejected? })` | A client context authenticated by one token — a literal or a thunk — with the connector protocols and the planning tree bound, the planning client registered (`timeout` is its HTTP deadline) and the call-collect transport in front of the API client (`llm: ConnectLlm.Local` turns collection on) |
-| `createCallCollectTransport({ delegated })` → `CallCollectTransport` · `appendCallCollectTransport(context, opts)` · `CallCollectOptions` · `CollectedCall` | The context's HTTP transport (`transport:http`): request now, collect later in the delegated mode |
+| `makeSdkContext({ apiUrl, token, service?, timeout?, llm?, client?, onRejected? })` | A client context authenticated by one token — a literal or a thunk — with the connector protocols and the planning tree bound, the planning client registered (`timeout` is its HTTP deadline) and the call-collect transport in front of the API client (`llm: ConnectLlm.Local` turns collection on; `client` is the edition every request names, `sdk` when absent) |
+| `createCallCollectTransport({ delegated, client? })` → `CallCollectTransport` (`.client` — the header value) · `appendCallCollectTransport(context, opts)` · `CallCollectOptions` · `CollectedCall` | The context's HTTP transport (`transport:http`): request now, collect later in the delegated mode |
 | `makeRemoteConnectorApi(context, { timeout? })` · `RemoteConnectorOptions` | `ConnectorApi` over HTTP; its `planning` is the context's planning client facade; `timeout` bounds every request but the session verbs' (one request — a collected call's hops carry their own) |
-| `openSession(opts)` → `SessionRuntime` (`nextTask(waitMs, signal?)`, `taskAvailable(waitMs, signal?)`, …) | One attached session: the pull loop, the serial worker, the task queue, `stats` |
+| `openSession(opts)` → `SessionRuntime` (`nextTask(waitMs, signal?)`, `taskAvailable(waitMs, signal?)`, …) | One attached session: the pull loop, the serial worker, the task queue, `stats`; `modelTasks: false` refuses model tasks instead of queueing them |
 | `createInflightCalls()` → `InflightCalls` · `makeHandoverHelper(deps)` → `HandoverHelper` (`run`/`contain`/`collect`/`report`/`pending`) | The delegated mode's handover: the calls still running after their tool answered, and how a blocked tool answers with its model task |
 | `makeTaskEnvelopeModel(task)` — `.renderTaskEnvelope({ harness })` · `.parseTaskResult(raw)` | What the parent agent is told; what its answer is checked against |
 | `makeModelTaskDriver({ models })` · `TaskDriver` | A reference parent agent backed by a chat model (tests, CLIs) |
 | `ToolHost.extensions` · `EXTENSION_TOOLS` | Tools the hosting process adds beyond the catalogue (the agent-setup pair `describe_harness` / `install_harness` is one such extension, shipped outside this package); listed, filtered by their own `availability` and registered like the catalogue's own |
-| `catalogue` · `catalogueHelper` (`.visibleTools(host)` · `.toolByName`) · `registerCatalogue(server, deps)` · `serverInstructions({ host })` | The tools and how they reach an MCP server |
-| `statusTextHelper` — `.renderProjectStatus`, `.renderStoryStatus(status, { landing? })`, `.renderPipelineStatus`, `.renderBatchStatus`, `.conversionNext` | Domain status as concise lines ending in the next valid action |
+| `catalogue` · `catalogueHelper` (`.visibleTools(host)` · `.toolByName`) · `registerCatalogue(server, deps)` · `serverInstructions({ host })` · `instructionsHelper.compose(host, { namesOf?, recommend? })` | The tools, how they reach an MCP server, and the base instructions a profile composes its own from |
+| `ToolProfile` (`ToolSplit`, `ToolSplitVariant`, `ToolPresentation`, `ToolProfileText`) · `makeToolProfileModel(profile?)` (`apply`/`namesOf`/`presentationOf`/`answer`/`text`) · `makeListingProfile(opts)` · `listingProfile` · `claudeListingProfile` · `openaiListingProfile` · `localPluginProfile` · `LISTING_HIDDEN` | The profile seam and the listing profiles (below) |
+| `READ_ONLY` · `WRITE` · `IDEMPOTENT_WRITE` · `DESTRUCTIVE` | The public annotation presets, from the root and `./tools` |
+| `statusTextHelper` — `.renderProjectStatus`, `.renderStoryStatus(status, { landing? })`, `.renderPipelineStatus`, `.renderBatchStatus`, `.renderClient(view)`, `.conversionNext` | Domain status as concise lines ending in the next valid action |
 | `controlToolHelper` — `.stopNeedsConfirm`, `.unconfirmedStop`, `.unconfirmedCancel`, `.renderStop`, `.renderSteer`, `.renderCancel` | The agent controls' words: what a stop rolls back, what a steering message does |
 | `storyHelper` — `.resolveStory(deps, projectId, ref)` · `.storyQuery(projectId, filter?)` · `.renderStories(items, page, total)` · `.isLandingStory(card)`; `STORY_ORDER` · `LANDING_MARK` · `LANDING_NOTE` | The story tools' reading of planning cards |
 | `PROJECT_SETTINGS` · `settingsHelper` — `.projectSettingOf(key)` · `.settingsPatch(args)` · `.renderProjectSettings(projectId, settings)` · `.settingsReach(target)` | The project-settings tools: each setting's label and rule, the patch a call asks for, the rendering |
 | `PLATFORM_CATALOGUE` (`pipelines`, `features`, `capabilities`) · `renderPlatform(catalogue, host)` · `GENERATED_SUMMARY` | What `describe_platform` renders, and the one-sentence product summary `describe_capabilities` ends with |
-| `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` · `ToolDeps` (`detach?`, `release?`, `inflight?` beside `attach`) · `ToolAnnotations` · `toolHostHelper` (`anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks`) | The host description and the availability predicates |
+| `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` (`client?`, `profile?` beside `extensions?`) · `ToolDeps` (`detach?`, `release?`, `inflight?` beside `attach`) · `ToolAnnotations` · `toolHostHelper` (`anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks`) | The host description and the availability predicates |
 | `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `makeLocalGitHelper(dir).dispatchGitCommand`, `integrityHelper` (`verifyTarget`/`forgetIntegrity`), `makeLayoutHelper(dir)` (`targetPaths`/`apiPath`/`webPath`/`workerPath`), `makeTargetEnvHelper(dir)` (`backendEnv`/`frontendEnv`), `healthHelper` (`classifyTargetHealth`/`readTargetHealth`), `runBootCheck`, `confineToProject`, `spawnHelper` | The publisher's workload, on somebody's laptop |
 | `./run`: `makeLocalRunHelper(dir)` (`runLocal`, `stopLocal`, `localStatus`), `createLocalServer`, `makeRunStateHelper(dir)` (`startApi`/`startWorker`/`restartApi`, `readRun`/`writeRun`/`clearRun`), `runProcessHelper.stopProcess` | Building and running the generated app locally |
 | `makeMarkerHelper(dir)` (`readMarker`/`writeMarker`/`discoverProject`/`isViableTree`) · `makeProjectEnvHelper(dir)` (`readEnv`/`writeEnv`/`envStatus`) · `dotenvHelper.replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
@@ -70,6 +72,15 @@ completes and a real token after, with no reconfiguration. Only a literal is val
 thunk's value is unknown at construction, and an empty one is simply "not signed in". `onRejected`
 is passed to the carrier guard and fires when the platform 401s the presented token, which is where
 the holder forgets a dead file token (or reports a dead environment one) — see [[auth-token]].
+
+**Every request names its edition — in a header, never in a body.** The call-collect transport
+(below) writes `x-viable-client: <kind>[/<version>]` (`connectClientHelper.format`, `viable-common`)
+on EVERY request it handles — connector routes and planning alike, every collect hop, in every llm
+mode — and drops any other spelling of the header first, so the platform reads exactly one value.
+The edition is `SdkContextOptions.client`; a host built on the SDK names itself
+(`viable-mcp/<version>`), and a context that names nothing says `sdk`. It is formatted once per
+context. A body field would be refused by an older platform (the session open body is closed) and
+an older platform ignores an unknown header, so the header is what crosses the version skew.
 
 **The `/mcp` URL is a value the SDK resolves, never one it derives:** `resolveMcpUrl(values)` returns
 `values[ENV_MCP_URL]` (`VIABLE_MCP_URL`, empty = unset) else `DEFAULT_MCP_URL`
@@ -123,7 +134,8 @@ tokens (`account.tokens.list()`, `.revoke(id)` — never a create), consents
 (`list`, `get(projectId, path)`, `save(projectId, path, content)`, `remove(projectId, path)`,
 `meta(projectId, { kind, category? })` — the category sent only when named), the preview's
 `sandbox` (`run`, `restart`, `stop`, `rebuild` → `ConnectSlotView`), the organization's `slot.list`,
-pipeline state, conversion (`create`, `check`, `start(projectId, body?)`, `proceed(projectId, body)`
+`client()` (how the platform sees this connection, `ConnectClientView`; `null` when an older platform
+answers the route 404 — any other failure throws), pipeline state, conversion (`create`, `check`, `start(projectId, body?)`, `proceed(projectId, body)`
 — the bodies are the route's, `confirm` included —, `status`, `purge`) and inquiry answers. There is
 no capability view, no session read or heartbeat, no conversion cancel, no token create and no
 consent grant. A member is added together with the route in `connectProtocols` and its
@@ -168,7 +180,8 @@ the list it reads is exactly the set of things that work for it. Predicates (`to
 
 Every catalogue tool but `describe_platform` belongs to EXACTLY ONE `PLATFORM_CATALOGUE.capabilities`
 group, and every group carries an `absent` sentence rendered where a host hides it. `serverInstructions`
-is the compact map a parent reads first: the workflow, ONE line naming each capability family by a few
+(for a host without a profile `instructionsHelper.compose(host)`, `tools/instructions.ts`) is the
+compact map a parent reads first: the workflow, ONE line naming each capability family by a few
 of its tools ("everything the web application does except billing"), the cursor rule of the feeds, the
 `confirm: true` set, the browser-only acts (payments and the plan, token creation, giving a marketing
 consent or accepting terms, approving a connector, finishing a GitHub authorization) and the mode
@@ -341,7 +354,7 @@ Rules the table rests on:
 
 ## An irreversible tool asks for `confirm: true`, and every tool declares its annotations
 
-`delete_project`, `unlock_project_agent`, `delete_file`, `purge_origin`, `git_discard`, `git_revert`,
+`delete_project`, `delete_file`, `purge_origin`, `git_discard`, `git_revert`,
 `disconnect_github`, `revoke_access_token`, `publish_production` and `cancel_story_batch` take `confirm` (`z.boolean()`,
 described, NO default), and `manage_app_user`'s `remove`, `manage_app_group`'s `delete` and every
 `stop_agent` scope but `run` take it as an optional field the action requires; each answers "Not done … ask the user" without a single platform
@@ -350,18 +363,19 @@ call unless it is `true` — the confirmation is the TOOL's, a person agreed bef
 REQUIRES `projectId` (`z.string().min(1)`, never the attached project by default) and, on a
 session-capable host attached to that project, closes the session first (`deps.release`, else
 `currentSession()?.close()`) and `deps.detach()`es, then `api.project.destroy` → `{ id, name, alias }`;
-on a local target it says the files and `.viable/` stay. `unlock_project_agent` (`api.project.unlock`
-→ `{ locked, task?, lockedAt? }`) defaults to the attached project and says when a run took the lock
-straight back.
+on a local target it says the files and `.viable/` stay. There is no tool and no `api.project` member
+that force-releases a project's lock: the connector never had a safe use for it (a run still working
+is not stopped), and a platform keeps the old route only to answer that it is no longer supported.
 
 `ToolDefinition.annotations` is REQUIRED — the MCP tool annotations a host shows the person approving
 a call — and `registerCatalogue` passes it through beside the title, description and input schema.
-The shapes live in `tools/consts.local.ts`: `READ_ONLY` (reads, statuses, descriptions), `WRITE`
+The shapes are public presets (`tools/consts.ts`, exported from the root and `./tools`, so a profile
+or a host builds on the same four): `READ_ONLY` (reads, statuses, descriptions), `WRITE`
 (additive changes, the task and question loop), `IDEMPOTENT_WRITE` (setting a value: settings,
 `update_story`, `reset_story`, `attach_project`, `stop_local`, `set_local_service`) and
 `DESTRUCTIVE` (`delete_project`, `delete_story`, `purge_origin`, `reinitialize_project`, `git_revert`,
 `cancel_story_batch` and `stop_agent` (both idempotent — a story stop rolls code back),
-`publish_production` (it replaces the live site), and — also idempotent — `unlock_project_agent`,
+`publish_production` (it replaces the live site), and — also idempotent —
 `write_file` (it replaces a file whole), `delete_file`, `git_discard`, `disconnect_github`,
 `revoke_access_token` and `production_control` (it takes the live site down or restarts it); `preview_control` and
 `link_github_origin` are `IDEMPOTENT_WRITE`); `openWorldHint` is `false` everywhere except
@@ -734,6 +748,13 @@ subagent, and what the loop owes them is delivery. The operation id is kept besi
 never shown to the parent: a parent that could name one could answer an operation it was never
 given.
 
+**A connector that performs no model calls says so once per task.** `openSession({ modelTasks:
+false })` (a plugin edition; `true` when absent) never queues a `ModelTask` op for the parent: it is
+answered `ok: false` with `ConnectOpErrorKind.Unavailable` ("this connector does not perform model
+tasks") — fatal for the run, so no retry ladder runs against a connector that never will —, logged
+and counted in `opsFailed`; a redelivery is answered from the result cache. Questions are still put
+to the person.
+
 A local operation that fails reports `ConnectOpErrorKind.Refused`, never `Unavailable`. The
 connector ran and could not do the thing; `Unavailable` tells the platform to give up on a run that
 is fine.
@@ -819,6 +840,83 @@ built-in tool; a host that passes none offers none, and the platform catalogue's
 renders as absent there. A group may name a tool only the catalogue or `EXTENSION_TOOLS` knows —
 `platform.spec.ts` holds that line. This package never imports a host's extension: the SDK is
 public, the agent-setup pair is not.
+
+## A profile changes how a host PRESENTS the catalogue — and with none, nothing changes
+
+`ToolHost.profile` (`ToolProfile`, `tools/profile/types.ts`) is how a store listing or a vendor
+plugin offers the catalogue: pure data (`hidden`, `splits`, `presentation`, `reportClient`) plus
+two functions (`instructions`, an optional `text` rewrite). `makeToolProfileModel(profile?)`
+(`tools/profile.ts`) holds the mechanics, and every member is the identity when there is no
+profile. `ToolHost.client` names the edition the host is.
+
+**No profile = byte-identical output.** `tools/list` (no `outputSchema` key — a registered config
+is exactly `title, description, inputSchema, annotations`), the instructions, `describe_platform`
+and every result stay what they always were; published hosts and the platform's `/mcp` depend on
+it. A change that alters any of them without a profile is a regression, whatever it adds.
+
+Under a profile:
+
+- **`visibleTools` applies it after availability**: a hidden name is dropped, a split tool is
+  replaced IN PLACE by its variants, then a tool's OWN `presentation` entry overrides its title,
+  description and annotations. A variant (`ToolSplitVariant`) is a tool of its own — name, title,
+  description, annotations, the base input narrowed to its `fields` (the split argument never
+  offered) — whose run is the base tool's with the argument fixed, whatever the call sent.
+- **A declared shape is always answered.** `presentationOf(tool)` is the tool's entry; a variant
+  inherits its base's `output` and `present` unless its own entry declares an `output` (a base
+  presenter is never paired with a variant's own schema). `registerCatalogue` passes `outputSchema`
+  only for a declared `output`, and a SUCCESSFUL call of such a tool always carries
+  `present(structured ?? {}, args)` (args with the variant's fixed action) — the MCP server refuses a
+  success without its declared structure. A refusal (`isError`) never carries one; a tool that
+  declares no `output` keeps only its text. A presenter that throws is a defect: the answer is its
+  text as `isError`, logged.
+- **The text rewrite reaches every string the profile answers**: each text part, every string of
+  the presented structure and what `notify` pushes. Tools in the rewrite's raw set (`read_file`)
+  answer a file's content untouched.
+- **The instructions are the profile's** (`profile.instructions({ host, offered })`, given only
+  the names actually offered). `renderPlatform` names a catalogue tool by `namesOf` — none when
+  hidden, the variants when split — so a hidden tool is never named.
+- **`reportClient`**: `session_status` appends `statusTextHelper.renderClient(await api.client())`
+  — the kind, version and door, and that it never performs the platform's model calls where it may
+  not — and answers `{ client }`; a platform that cannot say (or a failed read, logged) is `null`.
+
+## The listing profiles
+
+`tools/profile/listing.ts` builds every listing with `makeListingProfile(opts)` and exports four:
+`listingProfile` (the hosted listing), `claudeListingProfile` and `openaiListingProfile` (the vendor
+endpoints' own objects over the shared listing tables — a rule for one vendor goes into its own
+profile, never into the shared tables) and `localPluginProfile` (the stdio plugins: a local target, the workspace
+paragraph added to the preface). Where each part lives:
+
+| Part | File (under `tools/profile/`) |
+|---|---|
+| `LISTING_HIDDEN` — `describe_capabilities`, `describe_harness`, `install_harness`, `set_inference_mode`, `inference_settings` (`next_task` / `submit_task_result` never appear: a listing's llm is cloud) | `consts.ts` |
+| `LISTING_SPLITS` — `custom_domain`, `preview_control`, `production_control`, `manage_app_user`, `manage_app_grant`, `manage_app_organization`, `manage_app_group`, one tool per `action` (`attach_custom_domain`, `start_preview`, `restart_production`, `invite_app_user`, `assign_app_grant`, `rename_app_organization`, `create_app_group`, …) | `listing/consts.local.ts` |
+| `LISTING_TOOLS` — every offered tool's annotations, and its title and description where they differ | `listing/consts.local.ts` |
+| The output schemas and presenters of the work domain and of the platform domain | `presentation/work.ts` (+ `work/`), `presentation/platform.ts` (+ `platform/`) |
+| `session_status`'s `{ client }` shape; the merge of all of them | `listing/presentation.ts` |
+| The text rewrite (`makeListingTextHelper(splits).rewrite`) and its rules | `listing/text.ts`, `listing/consts.local.ts` |
+| The preface and the instruction rules | `listing/consts.local.ts`; the base text `tools/instructions.ts` |
+
+Rules every listing holds (`listing-profile.spec.ts` pins the sets):
+
+- **Annotations by behaviour**: destructive = may overwrite, delete, replace or rewrite code or data
+  (an update, a regeneration, a develop, a discard, a revocation, a stop that ends a running thing);
+  idempotent = a second identical call changes nothing more — starting paid model work again or
+  adding a record never is; openWorld = an effect outside the person's account (the live production
+  site, a custom domain, GitHub, a person invited by e-mail, an external repository read).
+- **Descriptions say what spends credits and what repeats**, and carry nothing a listing may not:
+  no recommendation over writing by hand, no delegated mode, no task loop, no harness.
+- **Every offered tool declares an output** except the text-only ones (`describe_platform`,
+  `delete_story`, `answer_question`, `stop_local`); a presenter keeps internal ids and timestamps
+  out unless a follow-up call needs them, and always yields what its schema accepts.
+- **Instructions**: the preface (what OwlMeans does, credits, confirmation, billing in the web
+  application — plus the workspace note on the local plugin) stands in for the base text's opening
+  paragraph, the rest is `instructionsHelper.compose(host, { namesOf, recommend: false })` naming
+  only offered tools, then the instruction rules.
+- **Text**: a split tool's call hint becomes its variant (`custom_domain { action: attach, … }` →
+  `attach_custom_domain { … }`), a bare mention the answering variant (or every variant), a top-up
+  or billing link and its call to action "managed in the OwlMeans web application", and `next_task`
+  `project_status`.
 
 ## The executor is the publisher's job, on somebody's laptop
 
@@ -975,7 +1073,7 @@ the SDK's transport stays in front): the header only in the delegated mode and o
 reused id, pending → collect → settled for a connector call and a planning execute, a settled error
 rethrown as its class, `lost` → `ConnectCallLost`, a dropped hop retried, ordinary answers untouched,
 and the handover over a call that went pending. `catalogue.spec.ts` also pins the manual story moves
-over the real planning service (order, the refusal, a late commit), `delete_project` / `unlock_project_agent`
+over the real planning service (order, the refusal, a late commit), `delete_project`
 (no call without `confirm`, the required `projectId`, release → detach → destroy only for the attached
 project), the annotations (declared everywhere, the destructive set, passed through `registerCatalogue`)
 and the plan and integration phrasings, the cloud-only file and preview tools on both hosts with
@@ -983,14 +1081,24 @@ and the plan and integration phrasings, the cloud-only file and preview tools on
 attaching before its save and naming a failed rebuild, `delete_file` making no call without
 `confirm`, each `preview_control` action's member, and the protected-file and missing-workload
 phrasings; `conversion-confirmation.spec.ts` the proceed edits nested as
-`update` and repeated in the confirmed call; `remote.spec.ts` the delete and unlock routes. `handover.spec.ts` drives the delegated
+`update` and repeated in the confirmed call; `remote.spec.ts` the delete route. `handover.spec.ts` drives the delegated
 `registerCatalogue` over a real task queue: a task first is the answer and the submit replies with
 the call's result, a call first answers as before, an identical repeat joins the running call, a
 refused call is reported in `settled[]`, `next_task` names a call still running, and a delegated
 create detaches, opens an unattached session, sends its id and attaches the new project (none of it
 in the cloud mode). `task-queue.spec.ts` pins the cancellable take, the non-consuming availability
 and the expiry order; `session-worker.spec.ts` that a model task is delivered while a slow slot
-command runs and a redelivered command runs once.
+command runs and a redelivered command runs once; `session-model-tasks.spec.ts` the `modelTasks:
+false` refusal (once, `Unavailable`, logged, never queued, questions still delivered).
+`client-header.spec.ts` pins `x-viable-client` on connector and planning calls and collect hops in
+every mode (`sdk` by default, a differently spelled header replaced) and `client()` (404 → `null`).
+`profile-seam.spec.ts` pins the seam — hidden and split tools, inherited output schemas, the
+structured part on success only, a throwing presenter, the profile's instructions, `describe_platform`
+naming no hidden tool, `session_status`'s client line — and that WITHOUT a profile the model is the
+identity and no registration carries `outputSchema`; `listing-profile.spec.ts` the listing content
+(the destructive, open-world, credit and repeating sets, the text-only tools, descriptions,
+instructions, the text rewrite and its notification); `profile-presentation-{work,platform}.spec.ts`
+that every presenter's output validates against its schema.
 
 ## Depends On
 
@@ -1025,7 +1133,9 @@ for installed custom registries. Read it before proposing a project category.
 
 ## Related
 
-- `@owlmeans/viable-mcp` — the npx stdio server built on this (closed-source; its skill ships in its own package)
+- `@owlmeans/viable-mcp-core` and its editions `@owlmeans/viable-mcp` (the npx stdio server),
+  `@owlmeans/viable-claude` and `@owlmeans/viable-codex` (the plugins' local servers, on
+  `localPluginProfile`) — closed-source; each skill ships in its own package
 - [[auth-token]] — the credential and its carrier guard
 - [[client-planning]] · [[planning]] — the facade the story tools write through
 - `@owlmeans/llm-delegate` (`internal` monorepo, skill `llm-delegate`) — the other end of a model

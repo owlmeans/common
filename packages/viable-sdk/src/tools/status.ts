@@ -1,4 +1,4 @@
-import { ConnectWaitReason, ConversionDecision, ConversionStatus, STORY_BATCH_LIVE, STORY_BATCH_STALLED, StoryBatchKind, StoryBatchStatus, type ConnectPipelineState, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type ConversionStatusView, type StoryBatchView, conversionStageHelper } from '@owlmeans/viable-common'
+import { ConnectWaitReason, ConversionDecision, ConversionStatus, STORY_BATCH_LIVE, STORY_BATCH_STALLED, StoryBatchKind, StoryBatchStatus, type ConnectClientView, type ConnectPipelineState, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type ConversionStatusView, type StoryBatchView, conversionStageHelper } from '@owlmeans/viable-common'
 import { refusalHelper } from './refusal.js'
 import { LANDING_NOTE } from './consts.js'
 import { BATCH_OUTCOME_WORDS, BATCH_STALLED_WORDS } from './consts.local.js'
@@ -188,7 +188,12 @@ export const createStatusTextHelper = (): StatusTextHelper => {
     return lines.join('\n')
   }
 
-  return { renderProjectStatus, renderStoryStatus, renderPipelineStatus, conversionNext, renderSlot, renderBatchStatus }
+  const renderClient = (view: ConnectClientView | null): string => view == null
+    ? 'The platform does not report how it sees this connection.'
+    : `The platform sees this connection as ${view.kind}${view.version != null && view.version !== '' ? ` ${view.version}` : ''}`
+      + ` (via ${view.via})${view.inference ? '' : ' — it never performs the platform\'s model calls'}.`
+
+  return { renderProjectStatus, renderStoryStatus, renderPipelineStatus, conversionNext, renderSlot, renderBatchStatus, renderClient }
 }
 
 export const statusTextHelper = createStatusTextHelper()

@@ -53,7 +53,9 @@ export const makeReconcileHelper = (ctx: ApiContext): ReconcileHelper => {
 
   const knownEntities = async (): Promise<Set<string>> => {
     const ids = new Set<string>()
-    for (const resource of [access.subscriptions(), access.usageEvents()] as unknown as Distinct[]) {
+    const grants = access.grantRecordsOf()
+    const sources = [access.subscriptions(), access.usageEvents(), ...(grants != null ? [grants] : [])]
+    for (const resource of sources as unknown as Distinct[]) {
       for (const id of await resource.collection.distinct('entityId', {})) {
         if (typeof id === 'string' && id !== '') {
           ids.add(id)

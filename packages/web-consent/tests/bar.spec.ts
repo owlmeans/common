@@ -38,7 +38,9 @@ describe('@owlmeans/web-consent — the bar', () => {
       expect(await page.locator('[data-consent-dialog]').count()).toBe(1)
       expect(await bar.getAttribute('data-consent-mode')).toBe('bar')
       expect(await bar.getAttribute('role')).toBe('dialog')
-      expect(await bar.getAttribute('aria-modal')).toBe('true')
+      // Non-modal: the page behind it stays usable, so nothing may tell assistive technology otherwise.
+      expect(await bar.getAttribute('aria-modal')).toBeNull()
+      expect(await page.locator('[data-consent-overlay]').count()).toBe(0)
       expect(await page.locator('[data-consent-save]').count()).toBe(0)
 
       expect(await bar.locator('[data-consent-preferences]').innerText()).toBe('Cookie preferences')
@@ -107,18 +109,21 @@ describe('@owlmeans/web-consent — the bar', () => {
     }
   }, TIMEOUT)
 
-  test('the bar is flat, sits on a dimmed overlay, and both answers are equally prominent', async () => {
+  test('the bar is flat, floats without an overlay, and both answers are equally prominent', async () => {
     const { page, close } = await mountComponent({ url: `${base}/` })
     try {
       const bar = page.locator('[data-consent-bar]')
       await bar.waitFor()
-      const overlay = page.locator('[data-consent-overlay]')
-      const classes = await overlay.evaluate(root => [root, ...Array.from(root.querySelectorAll('*'))]
+      const classes = await bar.evaluate(root => [root, ...Array.from(root.querySelectorAll('*'))]
         .map(element => element.getAttribute('class') ?? '').join(' '))
 
       expect(classes).not.toMatch(/\b(?:bg-gradient|from-|to-secondary|backdrop-|blur|shadow|ring-primary)/)
-      expect(await overlay.getAttribute('class')).toContain('bg-black/70')
-      expect(await overlay.getAttribute('class')).toMatch(/\binset-0\b/)
+      // No overlay: the bar is the whole surface, pinned to the bottom edge, and dims nothing.
+      expect(await page.locator('[data-consent-overlay]').count()).toBe(0)
+      expect(classes).not.toMatch(/\bbg-black/)
+      expect(await bar.getAttribute('class')).not.toMatch(/\binset-0\b/)
+      expect(await bar.getAttribute('class')).toMatch(/\bfixed\b/)
+      expect(await bar.getAttribute('class')).toMatch(/\binset-x-0\b/)
       expect(await bar.getAttribute('class')).toMatch(/\bbottom-0\b/)
       expect(await bar.getAttribute('class')).toMatch(/\bbg-background\b/)
       expect(await bar.getAttribute('class')).toMatch(/\bborder-t\b/)
@@ -141,7 +146,26 @@ describe('@owlmeans/web-consent — the bar', () => {
     }
   }, TIMEOUT)
 
-  test.each(['light', 'dark'])('styled (%s): the page is dimmed and out of reach, the bar sits at the very bottom', async theme => {
+  test('the bar is short: a visitor can read the page and use it without answering', async () => {
+    const { page, close } = await mountComponent({ url: `${base}/` })
+    try {
+      const bar = page.locator('[data-consent-bar]')
+      await bar.waitFor()
+
+      // The description is the halved copy: two short sentences, never the old paragraph.
+      expect((await bar.locator('#cc-bar-desc').innerText()).length).toBeLessThan(200)
+
+      // The page behind the bar answers the pointer; the bar stays, and nothing was decided.
+      await page.locator('#remount').click({ timeout: 3_000 })
+      expect(await page.locator('#generation').innerText()).toBe('1')
+      expect(await bar.count()).toBe(1)
+      expect(await stored(page)).toBeNull()
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test.each(['light', 'dark'])('styled (%s): the bar sits at the very bottom and dims nothing', async theme => {
     const { page, close } = await mountComponent({ url: `${base}/?styled=1&theme=${theme}` })
     try {
       const bar = page.locator('[data-consent-bar]')
@@ -151,43 +175,147 @@ describe('@owlmeans/web-consent — the bar', () => {
 
       expect(Math.round(box.y + box.height)).toBe(viewport.height)
       expect(Math.round(box.width)).toBe(viewport.width)
-      const blocked = await page.evaluate(() => {
+      // The bar is a strip, not a screen: the top of the page is still the page.
+      expect(box.y).toBeGreaterThan(0)
+      const behind = await page.evaluate(() => {
         const hit = document.elementFromPoint(10, 10)
-        const canvas = document.createElement('canvas')
-        canvas.width = canvas.height = 1
-        const context = canvas.getContext('2d')!
-        context.fillStyle = hit == null ? 'transparent' : getComputedStyle(hit).backgroundColor
-        context.fillRect(0, 0, 1, 1)
 
         return {
+          inConsent: hit?.closest('[data-consent-dialog]') != null,
           overlay: hit?.closest('[data-consent-overlay]') != null,
-          background: Array.from(context.getImageData(0, 0, 1, 1).data),
-          opacity: hit == null ? null : getComputedStyle(hit).opacity,
+          background: hit == null ? null : getComputedStyle(hit).backgroundColor,
         }
       })
-      // Dim the page with the same translucent black as the preferences window, in both themes.
-      expect(blocked.overlay).toBe(true)
-      expect(blocked.background).toEqual([0, 0, 0, 179])
-      expect(blocked.opacity).toBe('1')
+      expect(behind.inConsent).toBe(false)
+      expect(behind.overlay).toBe(false)
       expect(await bar.evaluate(root => getComputedStyle(root).opacity)).toBe('1')
-      // The remount button under the overlay cannot be pressed.
-      await expect(page.locator('#remount').click({ timeout: 1_000 })).rejects.toThrow()
+      // The remount button above the bar can be pressed.
+      await page.locator('#remount').click({ timeout: 3_000 })
+      expect(await page.locator('#generation').innerText()).toBe('1')
     } finally {
       await close()
     }
   }, TIMEOUT)
 
-  test('keyboard: focus starts on the bar itself and Tab never leaves it', async () => {
+  test('the page can always be scrolled out from under the bar: the body is padded by its height until it is answered', async () => {
+    const { page, close } = await mountComponent({ url: `${base}/?styled=1` })
+    try {
+      const bar = page.locator('[data-consent-bar]')
+      await bar.waitFor()
+      const measure = async () => await page.evaluate(() => ({
+        padding: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+        bar: Math.ceil(document.querySelector('[data-consent-bar]')!.getBoundingClientRect().height),
+        inline: document.body.style.paddingBottom,
+      }))
+
+      const open = await measure()
+      expect(open.bar).toBeGreaterThan(0)
+      expect(open.padding).toBe(open.bar)
+
+      // It follows the bar: a narrower window wraps the text onto more lines and the bar grows.
+      await page.setViewportSize({ width: 320, height: 640 })
+      await page.waitForFunction(() => {
+        const height = Math.ceil(document.querySelector('[data-consent-bar]')!.getBoundingClientRect().height)
+
+        return Number.parseFloat(getComputedStyle(document.body).paddingBottom) === height
+      })
+      const narrow = await measure()
+      expect(narrow.bar).toBeGreaterThan(open.bar)
+
+      // Answered: not a trace of it is left on the body.
+      await page.locator('[data-consent-mandatory]').click()
+      await page.waitForSelector('[data-consent-bar]', { state: 'detached' })
+      expect(await page.evaluate(() => document.body.style.paddingBottom)).toBe('')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the padding the page already had stays under the bar\'s and comes back with it', async () => {
+    const browser = await browserHelper.launchBrowser()
+    const context = await browser.newContext()
+    // The page has a bottom padding of its own before the bar ever mounts.
+    await context.addInitScript(() => {
+      const observer = new MutationObserver(() => {
+        if (document.body != null) {
+          document.body.style.paddingBottom = '12px'
+          observer.disconnect()
+        }
+      })
+      observer.observe(document, { childList: true, subtree: true })
+    })
+    const page = await context.newPage()
+    await page.goto(`${base}/?styled=1`, { waitUntil: 'domcontentloaded' })
+    const close = async (): Promise<void> => { await context.close() }
+    try {
+      const bar = page.locator('[data-consent-bar]')
+      await bar.waitFor()
+      // The page's 12px under the bar's own height — followed while the bar settles (fonts, wrapping).
+      await page.waitForFunction(() => {
+        const height = Math.ceil(document.querySelector('[data-consent-bar]')!.getBoundingClientRect().height)
+
+        return Number.parseFloat(getComputedStyle(document.body).paddingBottom) === 12 + height
+      })
+
+      await page.locator('[data-consent-accept-all]').click()
+      await page.waitForSelector('[data-consent-bar]', { state: 'detached' })
+      expect(await page.evaluate(() => document.body.style.paddingBottom)).toBe('12px')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('"Cookie preferences" swaps the bar for the modal window, which reserves nothing', async () => {
+    const { page, close } = await mountComponent({ url: `${base}/?styled=1` })
+    try {
+      await page.locator('[data-consent-bar]').waitFor()
+      expect(await page.evaluate(() => document.body.style.paddingBottom)).not.toBe('')
+
+      await page.locator('[data-consent-preferences]').click()
+      await page.locator('[data-consent-dialog][data-consent-mode="window"]').waitFor()
+
+      expect(await page.evaluate(() => document.body.style.paddingBottom)).toBe('')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('keyboard: the bar takes no focus and Tab passes through it into the rest of the page', async () => {
     const { page, close } = await mountComponent({ url: `${base}/?styled=1` })
     try {
       await page.waitForSelector('[data-consent-bar]')
-      await page.waitForFunction(() => document.activeElement?.hasAttribute('data-consent-bar') === true)
+      // A non-modal bar never steals focus on open (it would be a nudge toward an answer).
+      expect(await page.evaluate(() =>
+        document.activeElement?.closest('[data-consent-bar]') != null)).toBe(false)
 
-      for (let press = 0; press < 8; press++) {
-        await page.keyboard.press(press % 3 === 2 ? 'Shift+Tab' : 'Tab')
-        expect(await page.evaluate(() =>
-          document.activeElement?.closest('[data-consent-bar]') != null)).toBe(true)
+      const inside: boolean[] = []
+      for (let press = 0; press < 14; press++) {
+        await page.keyboard.press('Tab')
+        inside.push(await page.evaluate(() =>
+          document.activeElement?.closest('[data-consent-bar]') != null))
       }
+      // Tab reaches the bar's own controls ...
+      expect(inside).toContain(true)
+      // ... and leaves them again: a keyboard user is never trapped in a bar that blocks nothing.
+      const first = inside.indexOf(true)
+      expect(inside.slice(first)).toContain(false)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('"Cookie preferences" replaces the bar with the modal window, which does block the page', async () => {
+    const { page, close } = await mountComponent({ url: `${base}/?styled=1` })
+    try {
+      await page.waitForSelector('[data-consent-bar]')
+      await page.locator('[data-consent-preferences]').click()
+      const dialog = page.locator('[data-consent-dialog][data-consent-mode="window"]')
+      await dialog.waitFor()
+
+      expect(await page.locator('[data-consent-bar]').count()).toBe(0)
+      expect(await dialog.getAttribute('aria-modal')).toBe('true')
+      expect(await dialog.getAttribute('class')).toContain('bg-black/70')
+      await expect(page.locator('#remount').click({ timeout: 1_000 })).rejects.toThrow()
     } finally {
       await close()
     }

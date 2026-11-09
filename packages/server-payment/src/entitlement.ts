@@ -9,6 +9,7 @@ import { paymentUtils } from './utils.js'
 import { catalogueOf } from './catalogue.js'
 import { planHelper } from './plan.js'
 import { usageOf } from './usage.js'
+import { grantFoldHelper } from './grant-fold.js'
 
 const dateOrUndefined = (value: Date | null | undefined): Date | undefined =>
   value == null ? undefined : new Date(value)
@@ -61,7 +62,13 @@ export const makeEntitlementService = (alias: string = ENTITLEMENT_SERVICE): Ent
       }
     }
 
-    return entitlementViewHelper.entitlementViewOf(effective.plan, planViewOf(effective), usage, at)
+    const view = entitlementViewHelper.entitlementViewOf(effective.plan, planViewOf(effective), usage, at)
+    const grants = effective.grants ?? []
+
+    // Units grants in force fold into their limit's numbers; capability grants are in the plan already.
+    return grants.length === 0
+      ? view
+      : { ...view, limits: view.limits.map(limit => grantFoldHelper.foldLimitView(limit, grants)) }
   }
 
   const service: EntitlementService = createService<EntitlementService>(alias, {

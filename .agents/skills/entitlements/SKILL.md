@@ -1,6 +1,6 @@
 ---
 name: entitlements
-description: "The OwlMeans entitlement model across @owlmeans/payment, @owlmeans/server-payment and @owlmeans/web-payment — ranked plans with a real free plan, capabilities versus counted limits, the three limit kinds, promos and grandfathering, the admission-first usage ledger and its may-over-count-never-over-admit invariant, the entitlement view the server gate and the browser both read, the two gate services, and the refusal errors. Use when deciding what a plan grants, gating a route on a feature or a quota, consuming or releasing a limit, or rendering plan state in a UI."
+description: "The OwlMeans entitlement model across @owlmeans/payment, @owlmeans/server-payment and @owlmeans/web-payment — ranked plans with a real free plan, capabilities versus counted limits, the three limit kinds, promos and grandfathering, entitlement grants (units and capabilities for one organization beside its plan), the admission-first usage ledger and its may-over-count-never-over-admit invariant, the entitlement view the server gate and the browser both read, the two gate services, and the refusal errors. Use when deciding what a plan grants, gating a route on a feature or a quota, consuming or releasing a limit, or rendering plan state in a UI."
 user-invocable: false
 ---
 
@@ -38,6 +38,25 @@ answer from the same pure functions, so a disabled button and a 403 cannot disag
 - A plan names its keys, never a product's copy: every limit key an application gates on appears
   on every plan (with `limit: 0` where not included), so "not included" is an answer, not a
   missing row.
+- **An operator's plan is an internal grant**: `grantInternalPlan(…, { force: true, periodEnd })`
+  gives any plan without a paygate, `revokeInternalPlan` ends it (observers hear `canceled`); a
+  re-grant after a lapse re-activates the same row and keeps its first `createdAt` (`restartedAt`
+  marks the restart) — the `server-payment` skill, § The subscription store.
+
+## Entitlement grants — more than the plan, for one organization
+
+A `payment-grant` record (`entitlementGrantsOf(ctx)`, `server-payment` § Entitlement grants) adds to
+ONE organization, beside whatever plan it holds, until it ends or is revoked:
+
+- **units** of a limit key — consumed only AFTER the plan's own allowance, folded into the limit's
+  `limit` / `used` / `remaining` everywhere the limit is read (the entitlement view and the gates
+  carry no extra field); a revoke drops the unused units, the used ones stay consumed, and an
+  occupancy held past the new ceiling follows the ordinary over-limit flag;
+- **a capability** (`scope:permission[>=n]`) — merged into the effective plan while in force; a
+  units grant may carry the capability its units need (published sites need the publish feature).
+- Read limits and capabilities from the effective plan or the view, never from the catalogue, or a
+  grant is missed exactly as an override would be. `onEntitlementGrant` is the application's hook
+  to provision on a gain and withdraw on a loss.
 
 ## Capabilities versus limits
 

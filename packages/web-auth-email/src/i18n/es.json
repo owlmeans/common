@@ -1,0 +1,110 @@
+{
+  "captcha": {
+    "notice": "Este sitio está protegido por reCAPTCHA y se aplican la {{privacy}} y los {{terms}} de Google.",
+    "privacy": "Política de privacidad",
+    "terms": "Términos del servicio"
+  },
+  "error": {
+    "captcha": "No pudimos confirmar que no eres un robot. Inténtalo de nuevo.",
+    "captcha-unavailable": "No se pudo cargar la verificación de seguridad. Revisa tu conexión e inténtalo de nuevo.",
+    "code": "Este código es incorrecto o ha caducado. Revísalo o pide uno nuevo.",
+    "credentials": "Correo electrónico o contraseña incorrectos.",
+    "email": "Introduce un correo electrónico válido.",
+    "failed": "Algo salió mal. Inténtalo de nuevo.",
+    "mismatch": "Las contraseñas no coinciden.",
+    "offer-expired": "Esta oferta ha caducado. Puedes crear una contraseña más tarde en los ajustes de tu cuenta.",
+    "password-disabled": "Aquí no se puede iniciar sesión con contraseña. Usa un código.",
+    "password-empty": "Introduce tu contraseña.",
+    "pin-format": "Introduce el código del correo: {{length}} dígitos.",
+    "throttled": "Demasiados intentos. Espera un poco e inténtalo de nuevo.",
+    "throttled-in": "Demasiados intentos. Vuelve a intentarlo {{when}}.",
+    "unavailable": "El inicio de sesión no está disponible en este momento. Inténtalo más tarde.",
+    "weak": "Usa entre {{min}} y {{max}} caracteres, y no tu correo electrónico."
+  },
+  "login": {
+    "change-email": "Cambiar correo",
+    "device": "No reconocemos este dispositivo. Introduce el código que te enviamos por correo.",
+    "done": "Iniciando sesión…",
+    "email-label": "Correo electrónico",
+    "email-placeholder": "tu@ejemplo.com",
+    "hide-password": "Ocultar contraseña",
+    "options-failed": "No pudimos cargar la configuración de inicio de sesión.",
+    "other": "Otras formas de iniciar sesión",
+    "password-label": "Contraseña",
+    "password-submit": "Iniciar sesión",
+    "password-subtitle": "Inicia sesión con tu correo y tu contraseña.",
+    "pin-label": "Código del correo",
+    "pin-subtitle": "El código te espera en tu bandeja de entrada.",
+    "powered": "Con la tecnología de OwlMeans",
+    "resend": "Enviar un código nuevo",
+    "retry": "Reintentar",
+    "send": "Recibir el código PIN de acceso",
+    "sending": "Enviando…",
+    "sent": "Hemos enviado un código de acceso a {{email}}.",
+    "show-password": "Mostrar contraseña",
+    "subtitle": "Te enviaremos un código por correo para iniciar sesión. ¿Eres nuevo? El mismo código crea tu cuenta.",
+    "title": "Iniciar sesión con correo",
+    "use-password": "¿Ya tienes contraseña? Úsala",
+    "use-pin": "Iniciar sesión con un código",
+    "verify": "Iniciar sesión",
+    "verifying": "Iniciando sesión…"
+  },
+  "offer": {
+    "description": "La próxima vez, inicia sesión con tu correo y tu contraseña sin esperar un código.",
+    "hint": "De {{min}} a {{max}} caracteres.",
+    "later": "Siempre puedes crear una contraseña más tarde en los ajustes de tu cuenta.",
+    "password-label": "Nueva contraseña",
+    "repeat-label": "Repite la contraseña",
+    "save": "Guardar contraseña",
+    "saving": "Guardando…",
+    "skip": "Ahora no",
+    "title": "Crea una contraseña para entrar más rápido"
+  },
+  "password": {
+    "action": {
+      "change": "Cambiar contraseña",
+      "remove": "Eliminar contraseña",
+      "set": "Crear una contraseña",
+      "device-pin-off": "No pedir código en dispositivos nuevos",
+      "device-pin-on": "Pedir código en dispositivos nuevos"
+    },
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "confirming": "Guardando…",
+    "description": "Inicia sesión con tu correo y una contraseña en lugar de un código.",
+    "devices": "En otros dispositivos se pedirá un código en el próximo inicio de sesión.",
+    "done": {
+      "change": "Tu contraseña se ha cambiado.",
+      "remove": "Tu contraseña se ha eliminado.",
+      "set": "Tu contraseña se ha creado.",
+      "device-pin-off": "Ahora inicias sesión en dispositivos nuevos solo con tu contraseña.",
+      "device-pin-on": "Ahora en dispositivos nuevos también se pide un código de tu correo."
+    },
+    "explain": {
+      "change": "Para cambiar tu contraseña, confirma que eres tú con un código que te enviaremos por correo.",
+      "remove": "Sin contraseña, inicias sesión con un código que llega a tu correo. Te enviaremos un código para confirmarlo.",
+      "set": "Para crear una contraseña, confirma que eres tú con un código que te enviaremos por correo.",
+      "device-pin-off": "En un dispositivo nuevo iniciarás sesión solo con tu contraseña. Confirma que eres tú con un código que te enviaremos por correo.",
+      "device-pin-on": "En un dispositivo nuevo también se pedirá un código de tu correo. Confirma que eres tú con un código que te enviaremos por correo."
+    },
+    "loading": "Cargando…",
+    "new-label": "Nueva contraseña",
+    "off": "Aquí no se puede iniciar sesión con contraseña. Inicias sesión con un código que llega a tu correo.",
+    "pin-label": "Código del correo",
+    "repeat-label": "Repite la contraseña",
+    "resend": "Enviar un código nuevo",
+    "retry": "Reintentar",
+    "send": "Enviar código",
+    "sending": "Enviando…",
+    "sent": "Te hemos enviado un código por correo.",
+    "set": "Tienes una contraseña.",
+    "title": "Contraseña",
+    "unreadable": "No pudimos cargar la configuración de tu contraseña.",
+    "unset": "Aún no tienes contraseña. Inicias sesión con un código que llega a tu correo.",
+    "updated": "Último cambio: {{date}}.",
+    "device-pin": {
+      "on": "En un dispositivo nuevo también se pide un código de tu correo.",
+      "off": "En un dispositivo nuevo inicias sesión solo con tu contraseña."
+    }
+  }
+}

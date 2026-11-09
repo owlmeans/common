@@ -1,9 +1,9 @@
 ---
 name: retries
-description: The idle stream deadline, passing an outer attempt into the escalator, isFatalError for loops above the model, and the terminal failure observation hook.
+description: The idle stream deadline, passing an outer attempt into the escalator, isFatalError for loops above the model, guided regeneration after a refused answer (guide, LlmOutputRejection), and the terminal failure observation hook.
 metadata:
   purposes: agent
-  mentions: MODEL_STREAM_TIMEOUT_MS, streamTimeout, escalation, LlmCallOptions, retryHelper, isFatalError, withRetry, FALLBACK_AFTER_ATTEMPTS, LlmSpectator
+  mentions: MODEL_STREAM_TIMEOUT_MS, streamTimeout, escalation, LlmCallOptions, retryHelper, isFatalError, withRetry, FALLBACK_AFTER_ATTEMPTS, LlmSpectator, LlmGuide, LlmOutputRejection
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
@@ -46,6 +46,36 @@ cannot tell them apart — an exhausted balance becomes more expensive calls ins
 `retryHelper.isFatalError(e, fatal?)` runs the same resolvers, in the same order, that `retryHelper.withRetry` uses, and
 returns the error to abort WITH (a resolver may unwrap a carrier and hand back the real cause) or
 `null` when nothing considers it terminal. Ask it rather than re-deriving the rule.
+
+## A refused answer can be GUIDED into the next attempt
+
+`withRetry` asks a refused attempt again with the same messages, and a model that does not know why
+its answer was refused tends to give it again. A call that can say WHY passes `guide` (on `ask`,
+`talk`, `invoke`, `request`): after an attempt is refused for its OUTPUT — the `filter` returned
+`null` or threw, or `invoke`/`request` failed the schema (`validation-failed:…`, first Ajv error on
+`cause`) — the guide receives `{ error, attempt, output }` and answers the messages the NEXT attempt
+appends after the caller's own (a string is a user message; `null` asks again unguided). The latest
+refusal's guidance replaces the previous one; the input is prepared afresh with it, so the tail and
+the JSON/tool directives still close the final message, and every cached prefix holds. A stalled
+stream, an empty answer and a fatal error never reach a guide; a guide that throws is logged and the
+attempt's own error stands.
+
+A filter that can name the defect throws `LlmOutputRejection(reason, details)` — retryable, the same
+`filter-rejected:` prefix — and its guide reads `error.details`:
+
+```ts
+await model.invoke(input, schema, {
+  action: 'name-sections',
+  filter: answer => {
+    const bad = offendersOf(answer)
+    if (bad.length > 0) throw new LlmOutputRejection('non-latin-names', bad)
+    return answer
+  },
+  guide: ({ error, output }) => error instanceof LlmOutputRejection
+    ? correctionOf(error.details, output)
+    : null,
+})
+```
 
 ## Terminal failure observation
 

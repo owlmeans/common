@@ -32,6 +32,11 @@ selector. `entityId` is storage-only and must never be placed in an authenticati
 - Before changing a profile's permissions, role, disabled flag or existence, call `fence(selector,
   operationId)`. On a successful durable write call `refresh` for changed claims or `revoke` for
   disablement/removal. If the write or completion fails, leave the subject pending and refuse it.
+- **A revoke is sticky.** A revoked subject refuses every new `register` (`state: 'revoked'`, the
+  sign-in fails) until a `fence` + `refresh` re-activates it or the subject record expires (up to
+  seven days). So lifting a ban or a disablement completes with `fence` + `refresh` of every subject
+  it revoked, and a sign-out that must not block the person's next sign-in is NOT a revoke — mark
+  the signed-out sessions elsewhere (e.g. a per-profile "issued before" mark the gate reads).
 - Use `appendRedisAuthSessionManager` for viable or any central/scaled issuer. Its Lua transition
   owns the operation id and version atomically; do not replace it with a read-modify-save sequence.
 - The memory implementation intentionally forgets state on restart. It is suitable only when a
