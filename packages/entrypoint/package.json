@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/entrypoint",
-  "version": "0.1.18-rc.42",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/entrypoint"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -28,13 +38,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/route": "^0.1.18-rc.36",
+    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/route": "^0.1.21",
     "ajv": "^8.20.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/dep-config": "^0.1.21",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

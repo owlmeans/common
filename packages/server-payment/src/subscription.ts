@@ -1,4 +1,4 @@
-import { ENTITLING_STATUSES, SubscriptionStatus } from '@owlmeans/payment'
+import { ENTITLING_STATUSES, INTERNAL_PAYGATE, SubscriptionStatus } from '@owlmeans/payment'
 import type { PaymentSubscriptionRecord, PropagatedState, SubscriptionChange, CommitOptions } from './types.js'
 import { ENDED, MATERIAL } from './consts.local.js'
 import { paymentUtils } from './utils.js'
@@ -16,6 +16,7 @@ export const createSubscriptionHelper = (): SubscriptionHelper => {
     cancelAtPeriodEnd: record.cancelAtPeriodEnd === true,
     pausedAt: record.pausedAt ?? undefined,
     renewedInvoiceId: renewedInvoiceId ?? undefined,
+    restartedAt: record.restartedAt ?? undefined,
   })
 
   const classifySubscriptionChange = (
@@ -24,6 +25,10 @@ export const createSubscriptionHelper = (): SubscriptionHelper => {
     const active = ENTITLING_STATUSES.includes(current.status)
     if (previous == null) {
       return active ? 'created' : null
+    }
+    // A row entitling again after it ended (an internal re-grant) starts anew, whatever was last told.
+    if (opts.restart === true && active) {
+      return 'created'
     }
     if (ENDED.includes(current.status) && !ENDED.includes(previous.status)) {
       return 'canceled'
@@ -66,7 +71,9 @@ export const createSubscriptionHelper = (): SubscriptionHelper => {
     const base = `subscription:${record.externalId}:${change}`
     switch (change) {
       case 'created':
+        // A row that began entitling again after it ended is keyed apart from its first start.
         return `${base}:${new Date(record.createdAt).toISOString()}`
+          + (record.restartedAt != null ? `:${new Date(record.restartedAt).toISOString()}` : '')
       case 'renewed':
         return `${base}:${opts.invoiceId ?? record.latestInvoiceId ?? 'unknown'}`
       case 'upgraded':
@@ -93,12 +100,18 @@ export const createSubscriptionHelper = (): SubscriptionHelper => {
   const materiallyDiffers = (previous: PaymentSubscriptionRecord, next: PaymentSubscriptionRecord): boolean =>
     MATERIAL.some(field => !sameValue(previous[field], next[field]))
 
+  const entitlesAt = (record: PaymentSubscriptionRecord, at: Date): boolean =>
+    ENTITLING_STATUSES.includes(record.status) && (record.paygate !== INTERNAL_PAYGATE
+      || record.periodEnd == null || new Date(record.periodEnd).getTime() > at.getTime())
+
   const stateDiffers = (state: PropagatedState, record: PaymentSubscriptionRecord): boolean =>
     state.planSku !== record.planSku || state.rank !== record.rank || state.status !== record.status
     || (state.cancelAtPeriodEnd === true) !== (record.cancelAtPeriodEnd === true)
     || timeOf(state.pausedAt) !== timeOf(record.pausedAt)
 
-  return { propagatedStateOf, classifySubscriptionChange, subscriptionEventKey, materiallyDiffers, stateDiffers }
+  return {
+    propagatedStateOf, classifySubscriptionChange, subscriptionEventKey, materiallyDiffers, entitlesAt, stateDiffers,
+  }
 }
 
 export const subscriptionHelper = createSubscriptionHelper()

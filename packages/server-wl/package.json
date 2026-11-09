@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/server-wl",
   "type": "module",
-  "version": "0.1.18-rc.56",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/server-wl"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 330 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
@@ -21,15 +31,15 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/server-api": "^0.1.18-rc.58",
-    "@owlmeans/server-context": "^0.1.18-rc.45",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.41",
-    "@owlmeans/wled": "^0.1.18-rc.39"
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/server-api": "^0.1.21",
+    "@owlmeans/server-context": "^0.1.21",
+    "@owlmeans/server-entrypoint": "^0.1.21",
+    "@owlmeans/wled": "^0.1.21"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@types/node": "^26.6.4",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

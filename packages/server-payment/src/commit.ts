@@ -2,11 +2,11 @@ import { ENTITLING_STATUSES, INTERNAL_PAYGATE, ProductError, SubscriptionStatus,
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
 import type {
-  CommitOptions, CommitResult, GrantInternalPlanOptions, PaymentSubscriptionRecord, PropagatedState,
+  CommitOptions, CommitResult, GrantInternalPlanOptions, PaymentPlan, PaymentSubscriptionRecord, PropagatedState,
   SubscriptionSnapshot,
 } from './types.js'
 import { log } from './log.js'
-import { SUBSCRIPTION_LOG_EVENTS } from './consts.local.js'
+import { ENDED, SUBSCRIPTION_LOG_EVENTS } from './consts.local.js'
 import { paymentAccessOf } from './access.js'
 import { paymentUtils } from './utils.js'
 import { catalogueOf } from './catalogue.js'
@@ -16,6 +16,12 @@ import type { SubscriptionCommitHelper } from './commit/types.js'
 
 export const makeSubscriptionCommitHelper = (ctx: ApiContext): SubscriptionCommitHelper => {
   const access = paymentAccessOf(ctx)
+
+  const timeOf = (value: Date | null | undefined): number | null => value == null ? null : new Date(value).getTime()
+
+  /** An internal grant's row: `free:<entityId>` for a free plan, `internal:<planSku>:<entityId>` otherwise. */
+  const internalIdOf = (entityId: string, planSku: string, plan: PaymentPlan | null): string =>
+    plan?.free === true ? `free:${entityId}` : `internal:${planSku}:${entityId}`
 
   const snapshotOf = async (
     record: PaymentSubscriptionRecord, state?: PropagatedState,
@@ -92,7 +98,8 @@ export const makeSubscriptionCommitHelper = (ctx: ApiContext): SubscriptionCommi
     await opts.beforePropagate?.(stored, change)
     await access.observer().propagateSubscription({
       change,
-      previous: prior != null && previous != null ? await snapshotOf(previous, prior) : null,
+      // `created` has nothing before it — a row that starts entitling again starts anew too.
+      previous: change !== 'created' && prior != null && previous != null ? await snapshotOf(previous, prior) : null,
       current: await snapshotOf(stored),
       active: ENTITLING_STATUSES.includes(stored.status),
       eventKey: subscriptionHelper.subscriptionEventKey(stored, change, opts),
@@ -121,10 +128,17 @@ export const makeSubscriptionCommitHelper = (ctx: ApiContext): SubscriptionCommi
       throw new ProductError(`internal-grant:${planSku}`)
     }
     const product = await catalogueOf(ctx).findProduct(plan.productSku)
-    const externalId = plan.free === true ? `free:${entityId}` : `internal:${planSku}:${entityId}`
+    const externalId = internalIdOf(entityId, planSku, plan)
     const previous = await access.subscriptions().byExternalId(externalId, INTERNAL_PAYGATE)
     const now = new Date()
     const { periodEnd: _periodEnd, endedAt: _endedAt, canceledAt: _canceledAt, ...kept } = previous ?? {}
+    // A row that stopped entitling (revoked, or past its period end) starts anew. So does one an
+    // earlier call re-activated while its observers failed: they never heard that restart, and the
+    // retry tells them under the same key.
+    const ended = previous != null && !subscriptionHelper.entitlesAt(previous, now)
+    const untold = previous?.restartedAt != null && !ended
+      && timeOf(previous.propagated?.restartedAt) !== timeOf(previous.restartedAt)
+    const restartedAt = ended ? now : previous?.restartedAt
 
     const next = {
       ...kept,
@@ -137,15 +151,42 @@ export const makeSubscriptionCommitHelper = (ctx: ApiContext): SubscriptionCommi
       status: SubscriptionStatus.Active,
       rank: planHelper.planRank(plan),
       ...(opts.periodEnd != null ? { periodEnd: opts.periodEnd } : {}),
+      // The first grant's: subscription-week windows, credit frames and grandfathered promos keep
+      // their anchor through a revoke and a re-grant, so no window opens twice.
       createdAt: previous?.createdAt ?? now,
+      ...(restartedAt != null ? { restartedAt } : {}),
       updatedAt: now,
     } as PaymentSubscriptionRecord
-    const { record } = await commitSubscription(previous, next)
+    const { record } = await commitSubscription(previous, next, ended || untold ? { restart: true } : {})
 
     return record ?? next
   }
 
-  return { snapshotOf, commitSubscription, grantInternalPlan }
+  const revokeInternalPlan = async (entityId: string, planSku: string): Promise<boolean> => {
+    const plan = await catalogueOf(ctx).findPlan(planSku)
+    const previous = await access.subscriptions().byExternalId(internalIdOf(entityId, planSku, plan), INTERNAL_PAYGATE)
+    if (previous == null || ENDED.includes(previous.status)) {
+      return false
+    }
+    const now = new Date()
+    // A grant already past its period end ended then, not now.
+    const endedAt = previous.periodEnd != null && new Date(previous.periodEnd).getTime() < now.getTime()
+      ? new Date(previous.periodEnd) : now
+
+    const next: PaymentSubscriptionRecord = {
+      ...previous,
+      status: SubscriptionStatus.Canceled,
+      periodEnd: endedAt,
+      canceledAt: now,
+      endedAt,
+      updatedAt: now,
+    }
+    const { change, updated } = await commitSubscription(previous, next)
+
+    return change != null || updated
+  }
+
+  return { snapshotOf, commitSubscription, grantInternalPlan, revokeInternalPlan }
 }
 
 /** The subscription store of a context — one per context. */

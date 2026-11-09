@@ -1,5 +1,7 @@
-import { AuthenFailed, AuthenPayloadError, AuthenticationType, AuthManagerError, AuthorizationError } from '@owlmeans/auth'
-import type { AllowanceResponse, Auth, RelyToken } from '@owlmeans/auth'
+import {
+  AUTH_SCOPE, AuthenFailed, AuthenPayloadError, AuthenticationType, AuthManagerError, AuthorizationError, AuthRole, GUEST_ID,
+} from '@owlmeans/auth'
+import type { AllowanceResponse, Auth, AuthCredentials, RelyToken } from '@owlmeans/auth'
 import type { AppContext, RelyAllowanceRequest, RelyCarrier } from '../types.js'
 import type { AuthPlugin, AuthRedisResource, RelyRecord } from './types.js'
 import { makeConsumerRely, makeProviderRely } from '../../model/index.js'
@@ -10,11 +12,29 @@ import { ResourceError } from '@owlmeans/resource'
 import type { Unsubscribe } from '@owlmeans/resource'
 import { RELY_CALL_TIMEOUT, RELY_PIN_PERFIX, RELY_TOKEN_PREFIX } from '@owlmeans/auth-common'
 import { logger } from '@owlmeans/log'
+import { RELY_CREDENTIAL_FIELDS } from './basic-rely/consts.local.js'
 
 const log = logger('server-auth:rely')
 
 const _subscriptions: Record<string, Unsubscribe> = {}
 export const makeBasicRelyPlugin = (context: AppContext, type?: string): AuthPlugin => {
+  /**
+   * The manager signs the credential it is handed, so the caller's identity is dropped here: a
+   * rely-handshake token is a guest's, whatever profile, organization, role or scopes were posted.
+   */
+  const resetIdentity = (credential: AuthCredentials): void => {
+    const fields = credential as unknown as Record<string, unknown>
+    for (const field of Object.keys(fields)) {
+      if (!RELY_CREDENTIAL_FIELDS.includes(field)) {
+        delete fields[field]
+      }
+    }
+    credential.type = AuthenticationType.RelyHandshake
+    credential.role = AuthRole.Guest
+    credential.userId = GUEST_ID
+    credential.scopes = [AUTH_SCOPE]
+  }
+
   const plugin: AuthPlugin = {
     type: type ?? AuthenticationType.RelyHandshake,
 
@@ -115,7 +135,7 @@ export const makeBasicRelyPlugin = (context: AppContext, type?: string): AuthPlu
           throw new AuthenPayloadError('credential')
         }
         const envelop = makeEnvelopeModel<RelyToken>(peer.challenge, EnvelopeKind.Wrap)
-        if (!envelop.verify(keyPair)) {
+        if (!await envelop.verify(keyPair)) {
           throw new AuthManagerError()
         }
         rely = envelop.message()
@@ -130,7 +150,7 @@ export const makeBasicRelyPlugin = (context: AppContext, type?: string): AuthPlu
       }
 
       const myChallenge = makeEnvelopeModel<RelyToken>(credential.challenge, EnvelopeKind.Wrap)
-      if (!myChallenge.verify(keyPair)) {
+      if (!await myChallenge.verify(keyPair)) {
         throw new AuthenFailed()
       }
 
@@ -151,7 +171,7 @@ export const makeBasicRelyPlugin = (context: AppContext, type?: string): AuthPlu
       const token = makeEnvelopeModel<RelyCarrier>(AuthenticationType.RelyHandshake)
       token.send({ source: myRely, rely })
 
-      credential.type = AuthenticationType.RelyHandshake
+      resetIdentity(credential)
 
       // @TODO think about it: we create a mixed object here that is credentials and authentication
       // in the same time. Actually it's a bit dirty. And it means that auth service at the end of the

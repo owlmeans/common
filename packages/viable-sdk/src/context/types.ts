@@ -1,4 +1,4 @@
-import type { ConnectLlm } from '@owlmeans/viable-common'
+import type { ConnectClient, ConnectLlm } from '@owlmeans/viable-common'
 
 export interface SdkContextOptions {
   apiUrl: string
@@ -20,6 +20,12 @@ export interface SdkContextOptions {
    * one HTTP request. Absent or `cloud`, calls go out untouched.
    */
   llm?: ConnectLlm
+  /**
+   * The edition this context names in `x-viable-client` on EVERY request — connector routes and
+   * planning alike, in every mode. A host built on the SDK names itself (`viable-mcp/<version>`);
+   * absent, the context says `sdk`.
+   */
+  client?: ConnectClient
   /** Called when the platform rejects a request that presented this token — a credential holder
    * wires this to forgetting a dead token (and signing in again) or reporting the problem. */
   onRejected?: () => void | Promise<void>

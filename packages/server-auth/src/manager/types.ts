@@ -6,8 +6,10 @@ import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import type { ServiceRoute } from '@owlmeans/server-route'
 import type { Connection } from '@owlmeans/socket'
 import type { StaticResourceAppend } from '@owlmeans/static-resource'
+import type { AuthPluginFactory } from './plugins/types.js'
+import type { AuthServiceConfig } from '../types.js'
 
-export interface AppConfig extends ServerConfig, KlusterConfig {
+export interface AppConfig extends ServerConfig, KlusterConfig, AuthServiceConfig {
   services: Record<string, ServiceRoute>
 }
 
@@ -17,6 +19,16 @@ export interface AuthModel {
   authenticate: (credential: AuthCredentials) => Promise<AuthToken>
 
   rely: (conn: Connection, source?: Auth | null) => Promise<void>
+}
+
+export interface AuthModelOptions {
+  /**
+   * An EXCLUSIVE plugin list: when given, `init` and `authenticate` resolve the plugin of a type ONLY
+   * from it — never from the global registry, so a type it lacks (a globally registered one
+   * included) is `AuthUnknown`. Its types are reachable only through a model built with it, never
+   * through the manager's generic `/authentication/*` actions. Absent = the global registry.
+   */
+  plugins?: Record<string, AuthPluginFactory>
 }
 
 export interface AppContext<C extends AppConfig = AppConfig> extends ServerContext<C>

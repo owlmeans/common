@@ -29,6 +29,7 @@ import type { ToolDeps, ToolDefinition, ToolHost, ToolResult } from './types.js'
 import type { CatalogueHelper } from './catalogue/types.js'
 import { toolHostHelper } from './host.js'
 import { makeHandoverHelper } from './handover.js'
+import { makeToolProfileModel } from './profile.js'
 import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, INFERENCE_LEVELS, INFERENCE_MODES, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, SOURCES_KIND, STOP_SCOPES, WRITE } from './consts.local.js'
 
 export { ToolHostKind }
@@ -619,8 +620,17 @@ export const catalogue: ToolDefinition[] = [
           + ` ${session.pendingQuestions()} waiting`,
         )
       }
+      if (deps.host.profile?.reportClient !== true) return ok(lines.join('\n'))
 
-      return ok(lines.join('\n'))
+      // How the platform sees this connection — a platform older than the report answers null.
+      const client = await deps.api.client().catch((e: unknown) => {
+        deps.log(`session_status: the platform did not report this connection: ${refusalHelper.refusalMessage(e)}`)
+
+        return null
+      })
+      lines.push(statusTextHelper.renderClient(client))
+
+      return ok(lines.join('\n'), { client })
     },
   },
 
@@ -1748,39 +1758,6 @@ export const catalogue: ToolDefinition[] = [
           ? ' The files on this machine are kept; the .viable directory still names the deleted project.'
           : ''),
         { project: deleted as unknown as Record<string, unknown> },
-      )
-    },
-  },
-
-  {
-    name: 'unlock_project_agent',
-    title: 'Release a stuck project lock',
-    description:
-      'Release the project\'s agent lock by force — the recovery when project_status keeps reporting'
-      + ' the agent locked by a run that crashed or will never finish. A run that is still working is'
-      + ' NOT stopped and may collide with whatever starts next, so ask the user first.',
-    input: {
-      projectId: z.string().optional(),
-      confirm: z.boolean().describe('Must be true. The user has to have agreed to releasing the lock.'),
-    },
-    availability: toolHostHelper.anyHost,
-    annotations: { ...DESTRUCTIVE, idempotentHint: true },
-    run: async (args, deps) => {
-      if (args.confirm !== true) {
-        return fail(
-          'Not done. Releasing the lock does not stop a run that is still working, and the next run'
-          + ' may then collide with it. Ask the user, then call it again with confirm: true.'
-        )
-      }
-      const project = projectOf(args, deps)
-      const lock = await deps.api.project.unlock(project)
-
-      return ok(
-        lock.locked
-          ? `The lock is held again${lock.task != null ? ` (${lock.task})` : ''}: a run took it as soon as it was`
-            + ' released. Read project_status.'
-          : 'The project lock is released. project_status shows the project as it now stands.',
-        { projectId: project, lock: lock as unknown as Record<string, unknown> },
       )
     },
   },
@@ -3571,8 +3548,9 @@ export const catalogue: ToolDefinition[] = [
 ]
 
 export const createCatalogueHelper = (): CatalogueHelper => {
-  const visibleTools = (host: ToolHost): ToolDefinition[] =>
-    [...catalogue, ...(host.extensions ?? [])].filter(tool => tool.availability(host))
+  // Availability first, then the host's profile (none: the same list, as it always was).
+  const visibleTools = (host: ToolHost): ToolDefinition[] => makeToolProfileModel(host.profile)
+    .apply([...catalogue, ...(host.extensions ?? [])].filter(tool => tool.availability(host)))
 
   const toolByName = (name: string): ToolDefinition | undefined =>
     catalogue.find(tool => tool.name === name)

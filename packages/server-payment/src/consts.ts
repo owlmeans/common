@@ -34,6 +34,26 @@ export const RES_PAYMENT_WEBHOOK = 'payment-webhook'
 export const RES_PAYMENT_USAGE = 'payment-usage'
 export const RES_PAYMENT_USAGE_COUNTER = 'payment-usage-counter'
 export const RES_PAYMENT_FINGERPRINT = 'payment-fingerprint'
+/** An organization's entitlement grants: extra units of a limit, or a capability, beside its plan. */
+export const RES_PAYMENT_GRANT = 'payment-grant'
+
+/** What an entitlement grant gives: counted units of one limit, or one capability. */
+export enum EntitlementGrantKind {
+  Units = 'units',
+  Capability = 'capability',
+}
+
+/**
+ * An entitlement grant's lifecycle. A grant is `active` until it is revoked; its `startsAt` /
+ * `endsAt` are read at read time, so an expired grant stays `active` and is simply out of force.
+ */
+export enum EntitlementGrantStatus {
+  Active = 'active',
+  Revoked = 'revoked',
+}
+
+/** The usage window of a unit held on an entitlement grant: `grant:<grantId>` — never a counter window. */
+export const GRANT_WINDOW_PREFIX = 'grant:'
 
 /** One per organization: the billing country fixed at the first purchase. */
 export const RES_BILLING_PROFILE = 'payment-billing-profile'

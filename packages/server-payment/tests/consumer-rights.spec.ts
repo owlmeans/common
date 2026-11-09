@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { CancellationKind, CancellationStatus, CancellationUnavailable, ConsentKind, LimitKind, PerformanceConsentRequired, PlanDuration, WithdrawalStatus, WithdrawalUnavailable, consumerCopyHelper } from '@owlmeans/payment'
 import type { PaymentPlanDef, PurchaseRecord } from '../src/types.js'
 import {
-  buyTopUp, ENTITY, fixedMeter, invoiceOf, makeRightsContext, PLANS_PRODUCT, PRO, requestStart, rightsOf, send,
+  buyTopUp, ENTITY, fixedMeter, freeSession, invoiceOf, makeRightsContext, PLANS_PRODUCT, PRO, requestStart, rightsOf, send,
   TEXT_VERSION,
 } from './consumer-fixtures.js'
 import type { RecordingMeter } from './consumer-fixtures.js'
@@ -31,6 +31,21 @@ const consent = async (fake: FakeContext, purchase: PurchaseRecord, language = '
   }, { ip: '198.51.100.1', userAgent: 'test-agent', ipCountry: 'PL' })
 
 describe('consumer rights — performance consent', () => {
+  test('free top-ups retain their receipt and country lock without a consent or monetary withdrawal window', async () => {
+    const fake = await withMeter(fixedMeter({ granted: 1000, used: 0 }))
+    await send(fake, 'checkout.session.completed', freeSession())
+    const purchase = await paymentAccessOf(fake.ctx).purchases().load({ sessionId: 'cs_pl' })
+    expect(purchase).toEqual(expect.objectContaining({ amountTotalMinor: 0, netAmountMinor: 1000, country: 'PL' }))
+    expect(purchase?.deadline).toBeUndefined()
+    expect((await service(fake).profile(ENTITY))?.locked).toBe(true)
+    expect((await service(fake).consentView(ENTITY)).required).toBe(false)
+    await service(fake).assertConsent(ENTITY)
+    expect((await service(fake).purchases(ENTITY))[0].withdrawable).toBe(false)
+    expect((await service(fake).withdrawalCandidates(ENTITY)).candidates).toEqual([])
+    expect(fake.state.refunds).toHaveLength(0)
+    expect(fake.observed.topUp[0]).toEqual(expect.objectContaining({ amountMinor: 1000 }))
+  })
+
   test('an open in-scope window needs consent; the view names the purchase, deadline and billing language', async () => {
     const fake = await makeRightsContext()
     const purchase = await buyTopUp(fake)
@@ -222,6 +237,25 @@ describe('consumer rights — withdrawal of a top-up', () => {
     expect(receipt.refundMinor).toBe(679)
     expect(meter.queries[0].after).toBeInstanceOf(Date)
     expect(fake.observed.withdrawal[0].units).toEqual({ granted: 1_000, used: 400, returned: 350 })
+  })
+
+  test('a discounted withdrawal uses actual payment and applies the invoice discount once', async () => {
+    const fake = await withMeter(fixedMeter({ granted: 1000, used: 500, usedAfter: 500 }))
+    fake.state.invoices.in_discount = invoiceOf('in_discount', {
+      subtotal: 1000, tax: 100, total: 600, total_discount_amounts: [{ amount: 500 }],
+      lines: { data: [{ id: 'il_discount', amount: 1000 }] },
+    })
+    const purchase = await buyTopUp(fake, {
+      invoice: 'in_discount', amount_subtotal: 1000, amount_total: 600,
+      total_details: { amount_tax: 100, amount_discount: 500 }, metadata: { chargeAmountMinor: '1000' },
+    })
+    await consent(fake, purchase)
+    const receipt = await service(fake).withdraw(subject, { purchaseId: purchase.purchaseId, name: 'Anna', email: 'owner@shop.eu' })
+    expect(receipt.refundMinor).toBe(300)
+    expect(fake.state.refunds[0].amount).toBe(300)
+    expect(fake.state.creditNotePreviews[0].lines[0].amount).toBe(500)
+    expect(fake.state.creditNotes[0].total).toBe(300)
+    expect(fake.observed.withdrawal[0].units?.returned).toBe(500)
   })
 
   test('no invoice: a plain proportional refund; a failed preview falls back to it too', async () => {

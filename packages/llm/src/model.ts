@@ -13,6 +13,8 @@ import { normalizeInput } from './helpers/messages.js'
 import { retryHelper } from './helpers/retry.js'
 import { spectate } from './helpers/spectate.js'
 import type { ModelConfig, LlmAskOptions, LlmInvokeOptions, SchemaPlacement, LlmModel, LlmModelOptions, LlmRequestOptions, LlmSpectator, LlmTalkOptions, ModelInput, RefferedResult } from './types.js'
+import { guidanceUtils } from './utils/guidance.js'
+import type { CallGuidance } from './utils/guidance/types.js'
 import { configUtils } from './utils/config.js'
 import { markUtils } from './utils/marks.js'
 import { messageUtils } from './utils/messages.js'
@@ -234,6 +236,17 @@ export const makeLlmModel = ({
     }
   }
 
+  /**
+   * The request one attempt sends: the call's cached preparation — or, once a refusal left guidance,
+   * the caller's input with that guidance after it, prepared afresh for the rung. Prepared rather
+   * than appended, so the tail and the directives still close the final message.
+   */
+  const attemptRequest = async <T>(
+    prepared: (rung: Rung) => Promise<PreparedRequest>, request: PrepareRequest, guidance: CallGuidance<T>, rung: Rung,
+  ): Promise<PreparedRequest> => guidance.active()
+    ? await prepare({ ...request, input: guidance.input(request.input) }, rung)
+    : await prepared(rung)
+
   const notifyRef =<T>(ref: RefferedResult<T> | undefined, value: T): void => {
     if (ref != null) {
       ref.value = value
@@ -417,17 +430,19 @@ export const makeLlmModel = ({
     ask: async (
       input,
       {
-        ref, filter, action, cacheMax, stable, focus, skills, escalation, fatal,
+        ref, filter, guide, action, cacheMax, stable, focus, skills, escalation, fatal,
       }: LlmAskOptions
     ) => {
       return await observeFailure(action, async () => {
-        const prepared = preparing({ input, action, json: false, skills, stable, focus, cacheMax })
+        const request: PrepareRequest = { input, action, json: false, skills, stable, focus, cacheMax }
+        const prepared = preparing(request)
+        const guidance = guidanceUtils.of(guide, action, fatal)
         const seed = ladderSeed(escalation)
         await prepared(rungUtils.rungAt(rungs, seed).rung)
         return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i)
         const { refined } = active
-        const { msgs, options, placed } = await prepared(active)
+        const { msgs, options, placed } = await attemptRequest(prepared, request, guidance, active)
         const useCache = placed > 0
         log.debug('Use model to ask', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
@@ -478,11 +493,16 @@ export const makeLlmModel = ({
 
         if (filter != null) {
           const produced = output
-          const filtered = await filter(produced, message)
+          let filtered: string | null
+          try {
+            filtered = await filter(produced, message)
+          } catch (error) {
+            throw await guidance.refused(error, i, produced)
+          }
           if (filtered == null) {
             // The OUTPUT, not the message envelope: `JSON.stringify(new AIMessage(...))` is 80
             // constant characters of LangChain serialization stub and says nothing at all.
-            throw new LlmModelError(`filter-rejected:${produced.substring(0, 200)}`)
+            throw await guidance.refused(new LlmModelError(`filter-rejected:${produced.substring(0, 200)}`), i, produced)
           }
           output = filtered
         }
@@ -496,17 +516,19 @@ export const makeLlmModel = ({
     talk: async (
       input,
       {
-        ref, filter, action, cacheMax, stable, focus, skills, escalation, fatal,
+        ref, filter, guide, action, cacheMax, stable, focus, skills, escalation, fatal,
       }: LlmTalkOptions
     ) => {
       return await observeFailure(action, async () => {
-        const prepared = preparing({ input, action, json: false, skills, stable, focus, cacheMax })
+        const request: PrepareRequest = { input, action, json: false, skills, stable, focus, cacheMax }
+        const prepared = preparing(request)
+        const guidance = guidanceUtils.of(guide, action, fatal)
         const seed = ladderSeed(escalation)
         await prepared(rungUtils.rungAt(rungs, seed).rung)
         return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i)
         const { refined } = active
-        const { msgs, options, placed } = await prepared(active)
+        const { msgs, options, placed } = await attemptRequest(prepared, request, guidance, active)
         log.debug('Use model to talk', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
@@ -528,9 +550,14 @@ export const makeLlmModel = ({
         if (ref != null) ref.spectatorEntry = entry
 
         if (filter != null) {
-          message = await filter(message)
+          const produced = message
+          try {
+            message = await filter(message)
+          } catch (error) {
+            throw await guidance.refused(error, i, produced)
+          }
           if (message == null) {
-            throw new LlmModelError('filter-rejected:talk')
+            throw await guidance.refused(new LlmModelError('filter-rejected:talk'), i, produced)
           }
         }
 
@@ -544,13 +571,15 @@ export const makeLlmModel = ({
       input: ModelInput,
       schema: JSONSchemaType<T>,
       {
-        temperature, ref, filter, action, cacheMax, stable, focus, skills, escalation, fatal, schemaPlacement,
+        temperature, ref, filter, guide, action, cacheMax, stable, focus, skills, escalation, fatal, schemaPlacement,
       }: LlmInvokeOptions<T>
     ) => {
       return await observeFailure(action, async () => {
         const { name, innerSchema, validate } = schemaUtils.resolveSchemaValidator<T>(ajv, schema)
         const toolName = schemaUtils.toToolName((innerSchema as { title?: string }).title ?? name)
-        const prepared = preparing({ input, action, json: true, skills, stable, focus, cacheMax, ...structuredPrompt(schemaPlacement, toolName, innerSchema) })
+        const request0: PrepareRequest = { input, action, json: true, skills, stable, focus, cacheMax, ...structuredPrompt(schemaPlacement, toolName, innerSchema) }
+        const prepared = preparing(request0)
+        const guidance = guidanceUtils.of(guide, action, fatal)
 
         const seed = ladderSeed(escalation)
         await prepared(rungUtils.rungAt(rungs, seed).rung)
@@ -558,7 +587,7 @@ export const makeLlmModel = ({
         const active = refineModel(seed + i, temperature)
         if (schemaPlacement !== 'tail') assertSchemaShown(active, innerSchema)
         const { refined } = active
-        const request = await prepared(active)
+        const request = await attemptRequest(prepared, request0, guidance, active)
         const { msgs } = request
         log.debug('Use model invoke', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
@@ -583,16 +612,22 @@ export const makeLlmModel = ({
 
         if (filter != null) {
           const preFilter = result
-          result = await filter(result, message)
+          try {
+            result = await filter(result, message)
+          } catch (error) {
+            throw await guidance.refused(error, i, preFilter)
+          }
           if (result == null) {
-            throw new LlmModelError(`filter-rejected:${JSON.stringify(preFilter).substring(0, 200)}`)
+            throw await guidance.refused(
+              new LlmModelError(`filter-rejected:${JSON.stringify(preFilter).substring(0, 200)}`), i, preFilter,
+            )
           }
         }
 
         if (!validate(result)) {
           const err = new LlmModelError(`validation-failed:${JSON.stringify(validate.errors)}`)
           err.cause = validate.errors?.[0]
-          throw err
+          throw await guidance.refused(err, i, result)
         }
 
         notifyRef(ref, message)
@@ -605,13 +640,15 @@ export const makeLlmModel = ({
       input: ModelInput,
       schema: JSONSchemaType<T>,
       {
-        ref, filter, action, cacheMax, stable, focus, skills, escalation, fatal, schemaPlacement,
+        ref, filter, guide, action, cacheMax, stable, focus, skills, escalation, fatal, schemaPlacement,
       }: LlmRequestOptions
     ) => {
       return await observeFailure(action, async () => {
         const { name, innerSchema, validate } = schemaUtils.resolveSchemaValidator<T>(ajv, schema)
         const toolName = schemaUtils.toToolName((innerSchema as { title?: string }).title ?? name)
-        const prepared = preparing({ input, action, json: true, skills, stable, focus, cacheMax, ...structuredPrompt(schemaPlacement, toolName, innerSchema) })
+        const request0: PrepareRequest = { input, action, json: true, skills, stable, focus, cacheMax, ...structuredPrompt(schemaPlacement, toolName, innerSchema) }
+        const prepared = preparing(request0)
+        const guidance = guidanceUtils.of(guide, action, fatal)
 
         const seed = ladderSeed(escalation)
         await prepared(rungUtils.rungAt(rungs, seed).rung)
@@ -619,7 +656,7 @@ export const makeLlmModel = ({
         const active = refineModel(seed + i)
         if (schemaPlacement !== 'tail') assertSchemaShown(active, innerSchema)
         const { refined } = active
-        const request = await prepared(active)
+        const request = await attemptRequest(prepared, request0, guidance, active)
         const { msgs } = request
         log.debug('Use model request', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
@@ -646,9 +683,14 @@ export const makeLlmModel = ({
         message.content = JSON.stringify(result)
 
         if (filter != null) {
-          message = await filter(message)
+          const produced = message
+          try {
+            message = await filter(message)
+          } catch (error) {
+            throw await guidance.refused(error, i, produced)
+          }
           if (message == null) {
-            throw new LlmModelError('filter-rejected:request')
+            throw await guidance.refused(new LlmModelError('filter-rejected:request'), i, produced)
           }
         } else if (message.content == null || message.content.toString().trim() === '') {
           throw new LlmModelError(`empty-content:${JSON.stringify(message).substring(0, 50)}...`)
@@ -657,7 +699,7 @@ export const makeLlmModel = ({
         if (!validate(JSON.parse(`${message.content}`))) {
           const err = new LlmModelError(`validation-failed:${JSON.stringify(validate.errors)}`)
           err.cause = validate.errors?.[0]
-          throw err
+          throw await guidance.refused(err, i, message)
         }
 
         notifyRef(ref, message)

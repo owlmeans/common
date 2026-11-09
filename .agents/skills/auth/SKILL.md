@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/auth
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth": "^0.1.18-rc.42"` in `dependencies`
+**Install:** `"@owlmeans/auth": "^0.1.21"` in `dependencies`
 
 Types, enums, errors and schemas only — no services, no wiring. Every other auth package builds on
 this vocabulary, so a symbol belongs here exactly when both a server and a browser need to agree on
@@ -62,6 +62,7 @@ it.
 | `AuthManagerError` | The auth manager itself failed |
 | `AuthManagerUnsupported` | The manager cannot serve this request shape |
 | `AuthenFailed` | Authentication was attempted and rejected (bad challenge, bad code, bad signature) |
+| `AuthRefused` | A sign-in understood and refused for THIS person — a banned account (`account:disabled`), the app's access blocked (`profile:disabled`), a deployment's own refusal (`new AuthRefused('operator:refused')`). Extends `AuthenFailed` with the same message (`auth:manager:authen:<code>`); declares `httpStatus = 403`, and `@owlmeans/server-api` marks it `X-OwlMeans-Denial: access-denied`, production exposure included |
 | `AuthenExists` | The identity being registered already exists |
 | `AuthenPayloadError` | A required credential field is missing |
 | `AuthPluginError` / `TypeMissmatchError` | A plugin misbehaved / was handed the wrong type |
@@ -144,7 +145,9 @@ Rules of thumb:
 
 - A gate that decides "not allowed" throws `AuthForbidden` (403); a handler that finds no identity
   to act on, or a sign-in naming a method nobody serves, throws `AuthUnknown` (400); a failed
-  credential check throws `AuthenFailed`. `@owlmeans/server-api` maps the authorization family to
+  credential check throws `AuthenFailed`; a sign-in refused for who the person is (retrying with the
+  same account changes nothing) throws `AuthRefused`, so a browser can tell it from a failed attempt
+  (`loginFailureHelper`, `@owlmeans/client-auth`). `@owlmeans/server-api` maps the authorization family to
   401/403 before reading a class's declared `httpStatus`, so `AuthUnknown`'s 400 never masks them.
 - Keep ownership rules out of this package. Downstream apps compose `@owlmeans/entrypoint` gates or
   handler-level checks around these types.

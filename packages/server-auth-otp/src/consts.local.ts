@@ -1,3 +1,5 @@
+import { OTP_CODE_LENGTH } from '@owlmeans/auth-otp'
+
 export const REDIS_VERIFY_SCRIPT = `
 local raw = redis.call('GET', KEYS[1])
 if not raw then return 0 end
@@ -19,6 +21,30 @@ end
 redis.call('SET', KEYS[1], cjson.encode(record), 'XX', 'PX', ttl)
 return -1
 `
+
+/** Rewrite a live challenge of the same address: new code hash, attempts reset, remaining TTL kept. */
+export const REDIS_REWRITE_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 0 end
+local record = cjson.decode(raw)
+if record.emailKey ~= ARGV[1] then return 0 end
+local ttl = redis.call('PTTL', KEYS[1])
+if ttl <= 0 then
+  redis.call('DEL', KEYS[1])
+  return 0
+end
+record.codeHash = ARGV[2]
+record.failedAttempts = 0
+redis.call('SET', KEYS[1], cjson.encode(record), 'XX', 'PX', ttl)
+return 1
+`
+
+/** The placeholders an `OtpMessage` template may carry. */
+export const OTP_MESSAGE_CODE = '{{code}}'
+export const OTP_MESSAGE_MINUTES = '{{minutes}}'
+
+/** The only shape a rewritten code may take: exactly `OTP_CODE_LENGTH` digits. */
+export const OTP_CODE_PATTERN = new RegExp(`^\\d{${OTP_CODE_LENGTH}}$`)
 
 // Separates the email from the opaque issuance id inside the signed challenge.
 export const CHALLENGE_DELIMITER = '::'

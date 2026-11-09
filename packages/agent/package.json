@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/agent",
-  "version": "0.1.18-rc.56",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/agent"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -57,33 +67,33 @@
     }
   },
   "devDependencies": {
-    "@langchain/core": "^1.2.14",
-    "@langchain/langgraph": "^1.4.19",
-    "@owlmeans/dep-config": "workspace:*",
-    "@types/bun": "^1.4.2",
-    "@types/node": "^26.6.4",
+    "@langchain/core": "^1.3.1",
+    "@langchain/langgraph": "^1.5.3",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2",
-    "zod": "^4.6.5",
-    "@langchain/langgraph-checkpoint": "^1.1.5"
+    "zod": "^4.6.7",
+    "@langchain/langgraph-checkpoint": "^1.2.1"
   },
   "dependencies": {
-    "@owlmeans/agent-common": "^0.1.18-rc.50",
-    "@owlmeans/basic-ids": "^0.1.18-rc.42",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/flow": "^0.1.18-rc.46",
-    "@owlmeans/llm": "^0.1.18-rc.54",
-    "@owlmeans/llm-common": "^0.1.18-rc.40",
-    "@owlmeans/log": "^0.1.18-rc.4",
+    "@owlmeans/agent-common": "^0.1.21",
+    "@owlmeans/basic-ids": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/flow": "^0.1.21",
+    "@owlmeans/llm": "^0.1.21",
+    "@owlmeans/llm-common": "^0.1.21",
+    "@owlmeans/log": "^0.1.21",
     "ajv": "^8.20.0"
   },
   "publishConfig": {
     "access": "public"
   },
   "peerDependencies": {
-    "@langchain/core": "^1.2.14",
-    "@langchain/langgraph": "^1.4.19",
-    "@langchain/langgraph-checkpoint": "^1.1.5"
+    "@langchain/core": "^1.3.1",
+    "@langchain/langgraph": "^1.5.3",
+    "@langchain/langgraph-checkpoint": "^1.2.1"
   }
 }

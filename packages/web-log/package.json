@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/web-log",
-  "version": "0.1.18-rc.5",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/web-log"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -22,12 +32,12 @@
     }
   },
   "dependencies": {
-    "@owlmeans/consent": "^0.1.18-rc.13",
-    "@owlmeans/log": "^0.1.18-rc.4"
+    "@owlmeans/consent": "^0.1.21",
+    "@owlmeans/log": "^0.1.21"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@types/bun": "^1.4.2",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

@@ -2,21 +2,21 @@ import type { ResourceMaker } from '@owlmeans/resource'
 import { makeMongoResource } from '@owlmeans/mongo-resource'
 import {
   RES_BILLING_PROFILE, RES_CONSUMER_CONSENT, RES_CONSUMER_DECLARATION, RES_CONSUMER_EVENT, RES_PAYGATE_CUSTOMER,
-  RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_PURCHASE, RES_PAYMENT_SUBSCRIPTION,
-  RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
+  RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_GRANT, RES_PAYMENT_PURCHASE,
+  RES_PAYMENT_SUBSCRIPTION, RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
 } from './consts.js'
 import {
   BillingProfileSchema, ConsumerConsentSchema, ConsumerDeclarationSchema, PaygateCustomerSchema,
-  PaymentFulfillmentSchema, PaymentSubscriptionSchema, PaymentUsageCounterSchema, PaymentUsageSchema,
-  PaymentWebhookSchema, PurchaseSchema, ConsumerEventSchema, FingerprintSchema,
+  PaymentFulfillmentSchema, PaymentGrantSchema, PaymentSubscriptionSchema, PaymentUsageCounterSchema,
+  PaymentUsageSchema, PaymentWebhookSchema, PurchaseSchema, ConsumerEventSchema, FingerprintSchema,
 } from './schemas.js'
 import type {
   BillingProfileRecord, BillingProfileResource, ConsumerConsentRecord, ConsumerConsentResource,
   ConsumerDeclarationRecord, ConsumerDeclarationResource, ConsumerEventRecord, ConsumerEventResource,
   FingerprintRecord, FingerprintResource, PaygateCustomerRecord, PaygateCustomerResource, PaymentFulfillmentRecord,
-  PaymentFulfillmentResource, PaymentSubscriptionRecord, PaymentSubscriptionResource, PaymentUsageCounterRecord,
-  PaymentUsageCounterResource, PaymentUsageRecord, PaymentUsageResource, PaymentWebhookRecord,
-  PaymentWebhookResource, PurchaseRecord, PurchaseResource,
+  PaymentFulfillmentResource, PaymentGrantRecord, PaymentGrantResource, PaymentSubscriptionRecord,
+  PaymentSubscriptionResource, PaymentUsageCounterRecord, PaymentUsageCounterResource, PaymentUsageRecord,
+  PaymentUsageResource, PaymentWebhookRecord, PaymentWebhookResource, PurchaseRecord, PurchaseResource,
 } from './types.js'
 
 export const makePaygateCustomerResource: ResourceMaker<PaygateCustomerRecord, PaygateCustomerResource> = (
@@ -100,6 +100,19 @@ export const makeUsageCounterResource: ResourceMaker<PaymentUsageCounterRecord, 
   )
   resource.schema = PaymentUsageCounterSchema
   resource.index('window', { entityId: 1, limitKey: 1, window: 1 }, { unique: true })
+  return resource
+}
+
+export const makeGrantResource: ResourceMaker<PaymentGrantRecord, PaymentGrantResource> = (
+  dbAlias, serviceAlias,
+): PaymentGrantResource => {
+  const resource = makeMongoResource<PaymentGrantRecord, PaymentGrantResource>(
+    RES_PAYMENT_GRANT, dbAlias, serviceAlias,
+  )
+  resource.schema = PaymentGrantSchema
+  // What every resolution reads: the organization's active grants.
+  resource.index('entityStatus', { entityId: 1, status: 1, kind: 1, limitKey: 1 })
+  resource.index('entityCreated', { entityId: 1, createdAt: -1 })
   return resource
 }
 

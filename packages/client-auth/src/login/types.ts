@@ -177,6 +177,14 @@ export interface LoginMethodSource {
   list: (ctx: LoginMethodContext) => LoginMethod[]
 }
 
+/**
+ * `(key, defaultValue) => string` over the `auth` library resource — the one translate contract
+ * every sign-in renderer shares. Placeholders (`{{incident}}`) are filled after it answers.
+ */
+export interface LoginTranslate {
+  (key: string, defaultValue: string): string
+}
+
 /** What every rendering of the sign-in screen accepts, whatever its UI family. */
 export interface LoginScreenProps {
   /** The one thing a consuming application is expected to supply. */

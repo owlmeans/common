@@ -3,7 +3,7 @@ import {
 } from '@owlmeans/api'
 import type { FastifyReply } from 'fastify'
 import { AccessError, AuthFailedError } from '../errors.js'
-import { AuthForbidden, AuthorizationError } from '@owlmeans/auth'
+import { AuthForbidden, AuthorizationError, AuthRefused } from '@owlmeans/auth'
 import { isResilientError, ResilientError, SEPARATOR } from '@owlmeans/error'
 import { randomUUID } from 'node:crypto'
 import { fastifyLogUtils } from './log.js'
@@ -132,9 +132,10 @@ export const createHttpErrorHelper = (): HttpErrorHelper => {
       reply.header('Retry-After', String(Math.ceil(retryAfter)))
     }
     // Match exact registered types. EntitlementRefusal also extends AuthForbidden but is a plan
-    // decision, not a person's IAM permission denial.
+    // decision, not a person's IAM permission denial. `AuthRefused` is a sign-in refused for this
+    // person (a banned account, blocked access) — the same denial, reached before a session exists.
     const type = (error as { type?: unknown }).type
-    if (type === AuthForbidden.typeName || type === AccessError.typeName) {
+    if (type === AuthForbidden.typeName || type === AccessError.typeName || type === AuthRefused.typeName) {
       reply.header(DENIAL_KIND_HEADER, ACCESS_DENIED_KIND)
     }
   }

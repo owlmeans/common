@@ -2,7 +2,7 @@ import type { PlanningFacade } from '@owlmeans/planning'
 import type {
   BlueprintCatalogue, ConnectAccessTokenList, ConnectAccessTokenRevoked, ConnectIntentPickup, ConnectPrivacyChoices,
   ConnectProfileSettingsView, ConnectProjectSettings,
-  ConnectAgentLock, ConnectBrandingBackfill, ConnectCapabilities, ConnectConfigSaveBody, ConnectConfigScope,
+  ConnectAgentLock, ConnectBrandingBackfill, ConnectCapabilities, ConnectClientView, ConnectConfigSaveBody, ConnectConfigScope,
   ConnectOrganizationBranding, ConnectOrganizationBrandingSave, ConnectProjectConfig, ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody,
   ConnectFileContent, ConnectFileMetaQuery, ConnectFileWritten, ConnectSlotView,
   ConnectGitCommit, ConnectGitCommitResult, ConnectGitRevertResult, ConnectGitState, ConnectGitStatus, ConnectGitSyncResult,
@@ -85,11 +85,6 @@ export interface ConnectorApi {
      * answer names what was deleted.
      */
     destroy: (projectId: string) => Promise<ConnectProjectSummary>
-    /**
-     * Release the project's agent lock by force — the recovery for a lock a crashed run left
-     * behind. A run still working is not stopped by it; the answer is the lock as it now stands.
-     */
-    unlock: (projectId: string) => Promise<ConnectAgentLock>
     /**
      * Stop what the agent runs now — the web's Stop. A story run stops at its next step boundary and
      * its changes since that run started are rolled back (the story returns to planned); an
@@ -276,6 +271,13 @@ export interface ConnectorApi {
   slot: {
     list: () => Promise<ConnectSlotView[]>
   }
+
+  /**
+   * How the platform sees this connection: the edition its `x-viable-client` header named, the door
+   * it came through and whether it may perform the platform's model calls. `null` from a platform
+   * older than the route (it answers 404); every other failure is thrown like any other call's.
+   */
+  client: () => Promise<ConnectClientView | null>
 
   /**
    * A cloud target's git repository — the web Git dialog's own calls. Every write waits while an

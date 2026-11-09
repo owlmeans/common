@@ -7,6 +7,13 @@ export interface SessionOptions {
   executor?: LocalExecutor
   /** Which deployment this is, recorded in the project's marker so a later connector finds it. */
   apiUrl?: string
+  /**
+   * Whether this connector performs the platform's model calls at all. `false` (a plugin edition):
+   * a model-task operation is never queued for the parent — it is answered once, `Unavailable`
+   * (the run stops rather than retrying against a connector that never will), and logged. `true` when
+   * absent — every model task is delivered, as always.
+   */
+  modelTasks?: boolean
   log?: (line: string) => void
 }
 

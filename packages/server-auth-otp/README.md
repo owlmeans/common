@@ -12,7 +12,7 @@ types the service, and on this package only where the server wires itself up.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-otp@^0.1.18-rc.61
+bun add @owlmeans/server-auth-otp@^0.1.21
 ```
 
 ## Concepts
@@ -20,9 +20,17 @@ bun add @owlmeans/server-auth-otp@^0.1.18-rc.61
 - **Issuance** — `issueChallenge(email)` creates a random 6-digit code (`OTP_CODE_LENGTH`), stores it
   for `OTP_TTL_SECONDS` (600 s) under an opaque issuance id, mails it and returns the id. The id
   never contains the address or the code.
+- **Message** — `issueChallenge(email, { message })` mails an `OtpMessage` instead of the default
+  English mail: `{{code}}` and `{{minutes}}` are substituted in its `subject`, `text` and `html`.
+  Without `message` the default mail is sent byte for byte as before.
 - **Challenge store** — `OtpChallengeStore`, keyed by digests from `otpKeyHelper`. `verify`
   compares, counts failures and consumes in one operation; after `OTP_MAX_FAILED_ATTEMPTS` (5) the
-  issuance is exhausted.
+  issuance is exhausted. The optional `rewrite(id, emailKey, codeHash)` (memory and Redis stores
+  implement it; Redis in one Lua call) replaces the code of a live challenge of the same address,
+  resets its failed attempts and keeps its remaining TTL.
+- **Rewrite seam** — `rewriteChallenge(email, issuanceId, code)` is a developer seam for test
+  tooling: `false` when the code is not `OTP_CODE_LENGTH` digits, the store cannot rewrite, or the
+  issuance is gone or belongs to another address. Expose it only behind a developer-only guard.
 - **Throttle** — `AuthThrottleService.consume(key, rules, token?)` applies every `ThrottleRule`
   (`{ limit, windowSeconds }`) together. Enabled only when `cfg.otp.throttleAlias` and
   `cfg.otp.throttleRules` are both set.
@@ -96,9 +104,9 @@ here). The memory factories accept a clock as their second argument for determin
 
 | Symbol | Purpose |
 |---|---|
-| `makeOtpService(alias = OTP_SERVICE)` | `OtpService`: `issueChallenge(email) → issuanceId`, `verifyChallenge(email, issuanceId, code)` |
+| `makeOtpService(alias = OTP_SERVICE)` | `OtpService`: `issueChallenge(email, { message? }) → issuanceId`, `verifyChallenge(email, issuanceId, code)`, `rewriteChallenge(email, issuanceId, code) → boolean` |
 | `appendOtpPlugin(context)` | registers the `'email-otp'` plugin factory; returns the context |
-| `makeRedisOtpChallengeStore(alias?, resourceAlias?)` | atomic Redis store (`SET NX EX` + one Lua verify) |
+| `makeRedisOtpChallengeStore(alias?, resourceAlias?)` | atomic Redis store (`SET NX EX` + one Lua verify, one Lua rewrite) |
 | `makeMemoryOtpChallengeStore(alias?, now?)` | in-memory store for a single process or tests |
 | `makeRedisThrottleService(alias?, resourceAlias?)` | every window checked and consumed in one Lua call |
 | `makeMemoryThrottleService(alias?, now?)` | in-memory sliding-window throttle |
@@ -179,7 +187,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.59
+npx @owlmeans/agent-skills@^0.1.21
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

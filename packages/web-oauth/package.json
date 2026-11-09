@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/web-oauth",
-  "version": "0.1.18-rc.30",
+  "version": "0.1.21",
   "license": "MIT",
   "description": "The browser half of @owlmeans/oauth — the consent, device-code and done screens an OAuth 2.1 sign-in ends on, driven by the shared consent flow, plus the entrypoints and app-config helper that put them on a web app with no wiring beyond configuration.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/web-oauth"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -23,20 +33,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth-common": "^0.1.18-rc.54",
-    "@owlmeans/client": "^0.1.18-rc.59",
-    "@owlmeans/client-auth": "^0.1.18-rc.67",
-    "@owlmeans/client-context": "^0.1.18-rc.55",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.54",
-    "@owlmeans/client-flow": "^0.1.18-rc.62",
-    "@owlmeans/client-i18n": "^0.1.18-rc.58",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/flow": "^0.1.18-rc.46",
-    "@owlmeans/i18n": "^0.1.18-rc.40",
-    "@owlmeans/oauth": "^0.1.18-rc.18",
-    "@owlmeans/route": "^0.1.18-rc.36"
+    "@owlmeans/auth-common": "^0.1.21",
+    "@owlmeans/client": "^0.1.21",
+    "@owlmeans/client-auth": "^0.1.21",
+    "@owlmeans/client-context": "^0.1.21",
+    "@owlmeans/client-entrypoint": "^0.1.21",
+    "@owlmeans/client-flow": "^0.1.21",
+    "@owlmeans/client-i18n": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/flow": "^0.1.21",
+    "@owlmeans/i18n": "^0.1.21",
+    "@owlmeans/oauth": "^0.1.21",
+    "@owlmeans/route": "^0.1.21"
   },
   "peerDependencies": {
     "@radix-ui/react-label": "*",
@@ -49,27 +59,27 @@
     "tailwindcss": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-auth": "^0.1.18-rc.53",
-    "@owlmeans/test-ui": "^0.1.18-rc.57",
-    "@owlmeans/web-client": "^0.1.18-rc.70",
-    "@owlmeans/web-flow": "^0.1.18-rc.61",
-    "@radix-ui/react-label": "^2.1.15",
-    "@radix-ui/react-slot": "^1.3.3",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/test-auth": "^0.1.21",
+    "@owlmeans/test-ui": "^0.1.21",
+    "@owlmeans/web-client": "^0.1.21",
+    "@owlmeans/web-flow": "^0.1.21",
+    "@radix-ui/react-label": "^2.1.17",
+    "@radix-ui/react-slot": "^1.5.0",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/bun": "^1.4.2",
+    "@types/bun": "^1.4.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "^6.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "idb-keyval": "^6.3.0",
     "nodemon": "^3.1.14",
-    "playwright": "^1.63.0",
+    "playwright": "^1.64.1",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2"
+    "vite": "^8.3.5"
   },
   "publishConfig": {
     "access": "public"

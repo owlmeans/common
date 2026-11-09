@@ -10,7 +10,7 @@ allowed-tools: Bash(grep *), Bash(sed *), Bash(bun install)
 
 - Versions are **per package and deliberately uneven** — a release bumps only what changed plus its
   dependents, so untouched packages stay behind. That is the intended state; never "resynchronise"
-  them. Cutting a release is the `publishing` skill — this one covers the version format itself.
+  them unless the operator explicitly requests a shared stable promotion. Cutting a release is the `publishing` skill — this one covers the version format itself.
 - Check a version, don't assume it (see below)
 - All use `@owlmeans/*` namespace with MIT license
 - Version is set in each `packages/*/package.json` under the `"version"` field, and in the root `package.json`
@@ -87,7 +87,7 @@ bun install
 Verify the bump left nothing behind before building:
 
 ```bash
-# every internal range must be the new one (dep-config's workspace:* aside)
+# every internal range must name the stable release
 grep -ho '"@owlmeans/[a-z0-9-]*": "[^"]*"' packages/*/package.json \
   | grep -v 'workspace:\*' | sed 's/.*: "//;s/"//' | sort -u
 
@@ -120,7 +120,7 @@ Constraints the harness already handles, worth knowing when reading a version:
 
 - Internal packages reference each other as `"@owlmeans/xxx": "^X.Y.Z"` (caret, matching monorepo version)
 - Never pin internal deps to exact versions — always use caret
-- `dep-config` is the exception: `"workspace:*"` in devDependencies (see below)
+- `dep-config` follows the same semver caret policy, including development dependencies.
 
 ## Every range must name a version
 
@@ -150,13 +150,11 @@ therefore not "slightly stale" — it is unsatisfiable. Inside the workspace tha
 linking the local package and fetches an old published tarball into
 `packages/*/node_modules/@owlmeans/*` instead; outside it, the install fails.
 
-## dep-config special case
+## dep-config dependency range
 
-`@owlmeans/dep-config` is referenced as `"workspace:*"` (not a caret range) in the devDependencies
-of packages under `packages/*`, because it contains no runtime code — only TypeScript config files.
-Being version-independent, it is the one internal dep a bump never has to touch. The published
-test-helper packages (`test`, `test-integration`, `test-ui`) carry a caret range instead, since they
-are installed from the registry into trees that have no workspace to resolve.
+`@owlmeans/dep-config` uses the current stable caret (`^0.1.21`), including inside common.
+The explicit workspace entries still resolve it locally. Standalone consumers and templates use
+the same published range; no workspace-only exception is needed.
 
 ## Install lines in skills
 

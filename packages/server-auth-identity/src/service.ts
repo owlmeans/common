@@ -1,12 +1,17 @@
 import { appendContextual } from '@owlmeans/context'
-import { type AuthCredentials, type AuthPayload, type Profile, ALL_SCOPES } from '@owlmeans/auth'
+import { type AuthCredentials, type AuthPayload, type Profile, ALL_SCOPES, AuthRefused } from '@owlmeans/auth'
 import type { ProviderProfileDetails } from '@owlmeans/oidc'
 import type { Criteria } from '@owlmeans/resource'
-import type { AccountMeta, IdentityAccountResource, IdentityProfileResource, IdentityCredentialsResource, IdentityLinkingService, IdentityResourcesOptions, IdentityCredentials, IdentityProfile } from './types.js'
+import type {
+  AccountMeta, IdentityAccount, IdentityAccountResource, IdentityProfileResource, IdentityCredentialsResource,
+  IdentityLinkingService, IdentityResourcesOptions, IdentityCredentials, IdentityProfile,
+} from './types.js'
 import { type EntityResolverService, ENTITY_RESOLVER } from '@owlmeans/auth-common'
 import {
   AUTH_IDENTITY_ACCOUNT, AUTH_IDENTITY_PROFILE, AUTH_IDENTITY_CREDENTIALS, AUTH_IDENTITY_LINKING, DEFAULT_APP_SERVICE,
+  IDENTITY_ACCOUNT_DISABLED,
 } from './consts.js'
+import { accountStateOf } from './account-state.js'
 import { identityEvents } from './events.js'
 import { identityOf } from './identity.js'
 import { identityKeyHelper } from './keys.js'
@@ -36,6 +41,25 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
     return entity?.slug
   }
 
+  /**
+   * A banned account signs in nowhere — refused before anything is read or written for it.
+   * `AuthRefused` (an `AuthenFailed` answering 403 with the access-denied marker), so a browser can
+   * phrase it even when the body is only an incident id.
+   */
+  const admitAccount = (account: IdentityAccount): void => {
+    if (account.disabled === true) {
+      throw new AuthRefused(IDENTITY_ACCOUNT_DISABLED)
+    }
+  }
+
+  /** The ban, and the PRIMARY row of the row's (account, app) being disabled. */
+  const admitRow = async (row: IdentityProfile, account: IdentityAccount): Promise<void> => {
+    const refusal = await accountStateOf(service.ctx as ServiceContext).refusalOf(row, account)
+    if (refusal != null) {
+      throw new AuthRefused(refusal)
+    }
+  }
+
   const payloadOf = async (type: string, profile: IdentityProfile): Promise<AuthPayload> => ({
     type,
     role: profile.role,
@@ -50,14 +74,17 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
       const ctx = service.ctx as ServiceContext
       const account = (await identityOf(ctx).credentialOf(details))?.account
       if (account == null) return null
+      admitAccount(account)
 
       // A method that is linked but has no row of THIS app yet answers "not linked": the caller's
       // `linkProfile` then writes the row, on the account the method already belongs to.
       const profile = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE).load({
         profileId: identityKeyHelper.profileIdOf(app, account.id), entityId: account.entityId,
       })
+      if (profile == null) return null
+      await admitRow(profile, account)
 
-      return profile != null ? await payloadOf(details.type, profile) : null
+      return await payloadOf(details.type, profile)
     },
 
     linkProfile: async (details: ProviderProfileDetails, meta: AccountMeta): Promise<AuthPayload> => {
@@ -65,11 +92,16 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
       const { account, registered } = await identityOf(ctx).ensureAccount({
         email: meta.username, ...(details.username != null ? { name: details.username } : {}),
       }, details)
+      // Before the row: a banned person gets no row of this app. (A method this call saw for the first
+      // time is attached by now — it proved the same verified address, and stays usable after a lift.)
+      admitAccount(account)
       // The person is the owner of their personal organization — and, for a deployment's own app,
       // its user with every scope there.
       const profile = await identityOf(ctx).ensureProfile({
         account, service: app, entityId: account.entityId, owner: true, scopes: [ALL_SCOPES],
       })
+      // An existing primary row is returned unchanged — a disabled one stays disabled and refuses.
+      await admitRow(profile, account)
 
       // A registration is complete once the owner row exists, so this is where it is announced.
       // Listeners are awaited and never throw (the service logs them).
@@ -102,6 +134,7 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
         if (account == null) {
           throw new Error('Cannot link credentials: profile not found')
         }
+        await admitRow(row!, account)
         const linked = (await identityOf(ctx).credentialOf(details))?.account
         if (linked != null && linked.id !== account.id) {
           log.warn('Credential link refused: the method signs into another account', {

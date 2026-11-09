@@ -2,19 +2,23 @@ import { useRef, type FC } from 'react'
 import { Cookie } from 'lucide-react'
 import { consentI18nHelper } from '@owlmeans/consent'
 import { webConsentUtils } from '../lib/utils.js'
+import { useBarClearance } from './clearance.js'
 import { ACCENT, BAR_PILL, OUTLINED } from './consts.local.js'
-import { useConsentFocus } from './focus.js'
 import { ConsentLinks } from './links.js'
 import type { ConsentBarProps } from './types.local.js'
 
 /**
- * The first question a visitor is asked, as a tall bar across the bottom of the page.
+ * The first question a visitor is asked, as a bar floating across the bottom of the page.
  *
- * It sits on a dimmed overlay: the page stays in sight and scrolls, but nothing on it can be
- * pressed until the visitor answers. The text says what the essential cookies do, names the
- * optional categories in force (as a list after a colon, so no language has to decline a label),
- * that they stay off until allowed, and that the choice can be changed or withdrawn — then the
- * policy and the host's other links.
+ * It does NOT block the page: there is no overlay, no focus trap and no `aria-modal`, so the visitor
+ * may read, scroll and press anything and leave the question unanswered — the bar simply stays, and
+ * the body is padded by its height meanwhile (`useBarClearance`) so the end of a short page can be
+ * scrolled out from under it. The
+ * text says, in two short sentences, that essential cookies run the site and that the optional
+ * categories in force (a list after a colon, so no language has to decline a label) are used only
+ * with consent, which can be changed or withdrawn at any time — then the policy and the host's other
+ * links. The preferences window is the modal surface: the bar's own "Cookie preferences", and the
+ * sign-in gate (`reason: 'login'`), replace the bar with it.
  *
  * Three answers: "Cookie preferences" replaces the bar with the preferences window, "Accept only
  * mandatory" refuses every optional category, "Accept all" grants them. The two answers carry the
@@ -28,66 +32,64 @@ import type { ConsentBarProps } from './types.local.js'
 export const ConsentBar: FC<ConsentBarProps> = props => {
   const { t, categories, domains } = props
   const surface = useRef<HTMLDivElement>(null)
-  useConsentFocus(surface, true)
+  useBarClearance(surface)
 
   const optional = categories.filter(category => category.required !== true)
   const description = optional.length > 0
     ? consentI18nHelper.interpolate(
-      t('barDescription', 'We use essential cookies to make this site work — for signing in, security and remembering your choices. With your consent we would also use these optional cookies: {{categories}}. They stay off until you allow them, and you can change or withdraw your choice at any time in the cookie preferences.'),
+      t('barDescription', 'We use essential cookies to run this site, and optional ones only with your consent: {{categories}}. You can change or withdraw it at any time.'),
       { categories: optional.map(category => t(category.labelKey, category.key)).join(', ') }
     )
-    : t('barDescriptionEssential', 'This site uses only essential cookies — for signing in, security and remembering your choices. They need no consent and cannot be switched off.')
+    : t('barDescriptionEssential', 'This site uses only essential cookies, which need no consent.')
 
-  return <div className="fixed inset-0 z-[999998] bg-black/70" data-consent-overlay>
-    <div
-      ref={surface} tabIndex={-1}
-      className={webConsentUtils.cn(
-        'fixed inset-x-0 bottom-0 z-[999999] max-h-[85vh] overflow-y-auto border-t border-border bg-background text-foreground outline-none',
-        props.barClassName
-      )}
-      role="dialog" aria-modal="true" aria-labelledby="cc-bar-title"
-      aria-describedby={domains.length > 1 ? 'cc-bar-desc cc-bar-domains' : 'cc-bar-desc'}
-      data-consent-dialog data-consent-bar data-consent-mode="bar"
-    >
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8 lg:flex-row lg:items-end lg:gap-10">
-        <div className="min-w-0 flex-1">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-muted text-primary">
-              <Cookie className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <h2 id="cc-bar-title" className="text-balance text-lg font-extrabold tracking-tight text-foreground sm:text-xl">
-              {t('barTitle', 'Cookies on this site')}
-            </h2>
+  return <div
+    ref={surface}
+    className={webConsentUtils.cn(
+      'fixed inset-x-0 bottom-0 z-[999999] max-h-[60vh] overflow-y-auto border-t border-border bg-background text-foreground',
+      props.barClassName
+    )}
+    role="dialog" aria-labelledby="cc-bar-title"
+    aria-describedby={domains.length > 1 ? 'cc-bar-desc cc-bar-domains' : 'cc-bar-desc'}
+    data-consent-dialog data-consent-bar data-consent-mode="bar"
+  >
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8 lg:flex-row lg:items-end lg:gap-10">
+      <div className="min-w-0 flex-1">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-muted text-primary">
+            <Cookie className="h-5 w-5" aria-hidden="true" />
           </div>
-
-          <p id="cc-bar-desc" className="text-pretty text-sm leading-relaxed text-muted-foreground">
-            {description}
-          </p>
-
-          {domains.length > 1 && <p
-            id="cc-bar-domains" data-consent-domains
-            className="mt-2 text-pretty text-xs text-muted-foreground"
-          >
-            {consentI18nHelper.interpolate(t('domains', 'This choice applies to {{domains}}.'), { domains: domains.join(', ') })}
-          </p>}
-
-          <ConsentLinks t={t} policyHref={props.policyHref} links={props.links} className="mt-1" />
+          <h2 id="cc-bar-title" className="text-balance text-lg font-extrabold tracking-tight text-foreground sm:text-xl">
+            {t('barTitle', 'Cookies on this site')}
+          </h2>
         </div>
 
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end lg:w-auto lg:max-w-xl lg:flex-shrink-0">
-          <button
-            type="button" onClick={props.onPreferences} data-consent-preferences
-            className={webConsentUtils.cn(BAR_PILL, OUTLINED)}
-          >{t('openPreferences', 'Cookie preferences')}</button>
-          {optional.length > 0 && <button
-            type="button" onClick={props.onMandatory} data-consent-mandatory
-            className={webConsentUtils.cn(BAR_PILL, ACCENT)}
-          >{t('acceptMandatory', 'Accept only mandatory')}</button>}
-          <button
-            type="button" onClick={props.onAcceptAll} data-consent-accept-all
-            className={webConsentUtils.cn(BAR_PILL, ACCENT)}
-          >{t('acceptAll', 'Accept All')}</button>
-        </div>
+        <p id="cc-bar-desc" className="text-pretty text-sm leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+
+        {domains.length > 1 && <p
+          id="cc-bar-domains" data-consent-domains
+          className="mt-2 text-pretty text-xs text-muted-foreground"
+        >
+          {consentI18nHelper.interpolate(t('domains', 'This choice applies to {{domains}}.'), { domains: domains.join(', ') })}
+        </p>}
+
+        <ConsentLinks t={t} policyHref={props.policyHref} links={props.links} className="mt-1" />
+      </div>
+
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end lg:w-auto lg:max-w-xl lg:flex-shrink-0">
+        <button
+          type="button" onClick={props.onPreferences} data-consent-preferences
+          className={webConsentUtils.cn(BAR_PILL, OUTLINED)}
+        >{t('openPreferences', 'Cookie preferences')}</button>
+        {optional.length > 0 && <button
+          type="button" onClick={props.onMandatory} data-consent-mandatory
+          className={webConsentUtils.cn(BAR_PILL, ACCENT)}
+        >{t('acceptMandatory', 'Accept only mandatory')}</button>}
+        <button
+          type="button" onClick={props.onAcceptAll} data-consent-accept-all
+          className={webConsentUtils.cn(BAR_PILL, ACCENT)}
+        >{t('acceptAll', 'Accept All')}</button>
       </div>
     </div>
   </div>

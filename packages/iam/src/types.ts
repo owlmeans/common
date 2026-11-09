@@ -303,6 +303,13 @@ export interface IamOrganizationArgs {
 
 export interface IamOrganizationUpdate {
   title: string
+  /**
+   * The account asking for the change. An organization record is shared by every app it is used in;
+   * a person's personal (main) organization is renamed only by that person's own account — an owner
+   * row inside one app never changes how every other app (the platform included) names it. A
+   * backend that keeps titles per app ignores it.
+   */
+  actor?: string
 }
 
 /** A member of an organization, as one client sees it. */

@@ -12,7 +12,11 @@ metadata:
 
 `data-marketing-consent` (the body's root, also carries `data-state="loading"|"ready"`),
 `data-marketing-consent-fields` (the list), `data-marketing-consent-all` (the select-all checkbox)
-and `data-marketing-consent-all-frame` (its framed box), `data-marketing-consent-item="<key>"`,
+and `data-marketing-consent-all-frame` (its framed box), `data-marketing-consent-all-end` and
+`data-marketing-consent-all-end-frame` (the step's closing copy above the buttons — never in the
+settings card; a DIFFERENT attribute name, because `[data-marketing-consent-all]` matches any value
+and a helper's strict click needs one match), `data-marketing-consent-actions` (the button block the
+top box scrolls to), `data-marketing-consent-item="<key>"`,
 `data-marketing-consent-updated="<key>"`, `data-marketing-consent-revised="<key>"` (a consent row's
 "Last updated" line), `data-marketing-consent-link` (an inline anchor), `data-marketing-consent-save`
 (also carries `data-blocked="true"` while a Terms row is unticked, and `data-empty="true"` while
@@ -28,7 +32,8 @@ mode with `terms.needed`), `data-marketing-consent-terms-revised`, `data-marketi
 bare `role="alert"`, no fixed id), `data-marketing-consent-terms-error` (a failed Terms recording —
 distinct from the items' own error), `data-marketing-consent-preferences-save`. `-all`/`-item`/
 `-updated`/`-revised` are the SAME attributes in both the step and `MarketingConsentPreferences` —
-the two are never mounted on one page at once. Do not rename them; `@owlmeans/test-ui`'s
+the two are never mounted on one page at once; exactly ONE `-all` is on a page (the closing copy is
+`-all-end`). Do not rename them; `@owlmeans/test-ui`'s
 `makePageHelper(page).answerMarketingConsent` reads them.
 
 ## The `@source` line — a consumer rule

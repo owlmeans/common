@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/marketing-consent",
-  "version": "0.1.18-rc.14",
+  "version": "0.1.21",
   "license": "MIT",
   "description": "Shared marketing-consent contracts — the standard opt-in/opt-out consent catalogue, revision-aware status resolution, terms acceptance and the guarded consent-surface protocol tree.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/marketing-consent"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -23,20 +33,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/route": "^0.1.18-rc.36",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/i18n": "^0.1.18-rc.40"
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/route": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/i18n": "^0.1.21"
   },
   "peerDependencies": {
     "ajv": "*",
     "ajv-formats": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test": "^0.1.18-rc.39",
-    "@types/bun": "^1.4.2",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/test": "^0.1.21",
+    "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "nodemon": "^3.1.14",

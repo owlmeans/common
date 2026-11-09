@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/client-panel",
-  "version": "0.1.18-rc.67",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/client-panel"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -35,20 +45,20 @@
     }
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.9.1",
-    "@owlmeans/client": "^0.1.18-rc.59",
-    "@owlmeans/client-i18n": "^0.1.18-rc.58",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.54",
-    "@owlmeans/client-route": "^0.1.18-rc.55",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42"
+    "@hookform/resolvers": "^6.0.2",
+    "@owlmeans/client": "^0.1.21",
+    "@owlmeans/client-i18n": "^0.1.21",
+    "@owlmeans/client-entrypoint": "^0.1.21",
+    "@owlmeans/client-route": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21"
   },
   "peerDependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/client-auth": "^0.1.18-rc.67",
-    "@owlmeans/config": "^0.1.18-rc.45",
-    "@owlmeans/i18n": "^0.1.18-rc.40",
-    "@owlmeans/router": "^0.1.18-rc.35",
+    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/client-auth": "^0.1.21",
+    "@owlmeans/config": "^0.1.21",
+    "@owlmeans/i18n": "^0.1.21",
+    "@owlmeans/router": "^0.1.21",
     "ajv": "*",
     "react": "*",
     "react-hook-form": "*"
@@ -62,12 +72,12 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/client-auth": "^0.1.18-rc.67",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/client-auth": "^0.1.21",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
-    "react-hook-form": "^7.89.0",
+    "react-hook-form": "^7.91.0",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

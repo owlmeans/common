@@ -34,7 +34,13 @@
     },
     "error": {
       "failed": "Logowanie nie zostało ukończone. Spróbuj ponownie.",
-      "blocked": "Okno logowania zostało zablokowane. Kliknij ikonę zablokowanego okienka w pasku adresu przeglądarki, aby je otworzyć."
+      "blocked": "Okno logowania zostało zablokowane. Kliknij ikonę zablokowanego okienka w pasku adresu przeglądarki, aby je otworzyć.",
+      "refused": "To konto nie może się tutaj zalogować.",
+      "account-disabled": "To konto zostało wyłączone i nie może się tutaj zalogować.",
+      "profile-disabled": "Dostęp tego konta do tej aplikacji został zablokowany, więc nie może się ono tutaj zalogować.",
+      "retry": "Spróbuj ponownie",
+      "back": "Wróć do logowania",
+      "incident": "Kod zgłoszenia: {{incident}}"
     },
     "orphaned": "Zalogowano. Możesz zamknąć to okno i kontynuować w aplikacji."
   }

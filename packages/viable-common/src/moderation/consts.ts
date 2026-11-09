@@ -1,29 +1,28 @@
 
 /**
- * What the moderation gate refuses, and nothing more.
+ * The categories a moderation refusal is phrased with — a wire contract, CLOSED.
  *
- * The set is deliberately about the SHAPE of what is being built, never its sector: a product
- * that handles money, credentials or medical data is ordinary, and a platform that refuses
- * those refuses most of its own market. What is not ordinary is a product whose purpose is to
- * collect someone else's credentials, to be mistaken for someone who did not ask to be
- * represented, or to push messages at people who never asked for them.
+ * The policy refuses exactly one shape today: {@link ModerationCategory.BrandImpersonation}, a
+ * product built to be MISTAKEN FOR a specific real brand by its name or its look, or presenting
+ * itself as a real bank. Everything else — money, credentials, health data, sign-in screens,
+ * clones and analogies — is an ordinary product.
  *
- * Every generated app has a sign-in screen of its own — that is what an application is — so a
- * login is never evidence of anything here.
- *
- * The set is CLOSED. A new refusal shape belongs inside one of these four, phrased into the
- * policy prompt: each value is a wire contract with user-facing wording in seven languages
- * behind it, and a fifth one silently renders as the generic refusal until every one of those
- * catches up.
+ * The other three values stay because each is a wire string with user-facing wording in eight
+ * languages behind it, and records and refusals that carry them still exist: no value is ever
+ * removed or renamed, and a new shape is phrased into an existing value rather than added.
  */
 export enum ModerationCategory {
-  /** Captures credentials, OTPs, card numbers or recovery phrases for a service the requester does not run. */
+  /** Not refused by the current policy; kept as a wire value of earlier refusals. */
   CredentialHarvesting = 'credential-harvesting',
-  /** Presents itself as a named third party — an organization OR a real person — rather than as its own product. */
+  /**
+   * Passes itself off as an existing brand — its name IS one, contains one or is a lookalike of
+   * one; it asks to look like that brand so a person takes it for the brand itself; or it presents
+   * itself as a specific real bank. The one shape the policy refuses.
+   */
   BrandImpersonation = 'brand-impersonation',
-  /** Collects payment details on behalf of a merchant that is not the requester. */
+  /** Not refused by the current policy; kept as a wire value of earlier refusals. */
   PaymentCapture = 'payment-capture',
-  /** Tooling whose purpose is abuse: credential stuffers, phishing-kit builders, bulk-spam senders. */
+  /** Not refused by the current policy; kept as a wire value of earlier refusals. */
   AbuseTooling = 'abuse-tooling',
 }
 
@@ -56,4 +55,16 @@ export enum ModerationSubject {
    * is not a name it may be reachable at. Descriptions may name a brand; identifiers may not.
    */
   Name = 'name',
+}
+
+/**
+ * Who judges a text — which model role the gate resolves.
+ *
+ * `Senior` (the default) judges what a person wrote and rewrites a refused text; `Junior` is the
+ * cheaper screen for text the platform drafted from a person's own material, where one refused
+ * draft is rewritten by a senior rather than refusing the whole run.
+ */
+export enum ModerationReviewer {
+  Senior = 'senior',
+  Junior = 'junior',
 }
