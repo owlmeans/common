@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/config",
   "type": "module",
-  "version": "0.1.18-rc.45",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/config"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 144 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
@@ -28,14 +38,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/route": "^0.1.18-rc.36"
+    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/resource": "^0.1.21",
+    "@owlmeans/route": "^0.1.21"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/dep-config": "^0.1.21",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

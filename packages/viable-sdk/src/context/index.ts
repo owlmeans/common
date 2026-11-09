@@ -93,9 +93,13 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
   }))
   context.registerMiddleware(authMiddleware)
   // ONE transport in front of the API client for every bound route — the connector's and the
-  // planning client's. In the delegated mode it names each write (`x-viable-call`) and collects an
-  // early `{ pending }` answer until the call settles; otherwise it only forwards.
-  appendCallCollectTransport(context, { delegated: opts.llm === ConnectLlm.Local })
+  // planning client's. Every request names the edition (`x-viable-client`); in the delegated mode it
+  // also names each write (`x-viable-call`) and collects an early `{ pending }` answer until the
+  // call settles; otherwise it only forwards.
+  appendCallCollectTransport(context, {
+    delegated: opts.llm === ConnectLlm.Local,
+    ...(opts.client != null ? { client: opts.client } : {}),
+  })
 
   const surface = connectProtocols({ guard: DEFAULT_GUARD })
   // The story tools speak planning: the same tree the platform mounts, reached with the same token.

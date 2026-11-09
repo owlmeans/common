@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/server-planning",
-  "version": "0.1.18-rc.39",
+  "version": "0.1.21",
   "license": "MIT",
   "description": "The general planning implementation — the planning service and its plugin/middleware registry, the transition executor, the in-memory store, the protocol handlers and the commit feed.",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/server-planning"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -44,32 +54,32 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.42",
-    "@owlmeans/auth-common": "^0.1.18-rc.54",
-    "@owlmeans/basic-ids": "^0.1.18-rc.42",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/planning": "^0.1.18-rc.32",
-    "@owlmeans/queue": "^0.1.18-rc.49",
-    "@owlmeans/resource": "^0.1.18-rc.41",
-    "@owlmeans/log": "^0.1.18-rc.4",
-    "@owlmeans/route": "^0.1.18-rc.36",
-    "@owlmeans/server-api": "^0.1.18-rc.58",
-    "@owlmeans/server-context": "^0.1.18-rc.45",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.41",
-    "@owlmeans/server-socket": "^0.1.18-rc.62",
-    "@owlmeans/socket": "^0.1.18-rc.46"
+    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/auth-common": "^0.1.21",
+    "@owlmeans/basic-ids": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/planning": "^0.1.21",
+    "@owlmeans/queue": "^0.1.21",
+    "@owlmeans/resource": "^0.1.21",
+    "@owlmeans/log": "^0.1.21",
+    "@owlmeans/route": "^0.1.21",
+    "@owlmeans/server-api": "^0.1.21",
+    "@owlmeans/server-context": "^0.1.21",
+    "@owlmeans/server-entrypoint": "^0.1.21",
+    "@owlmeans/server-socket": "^0.1.21",
+    "@owlmeans/socket": "^0.1.21"
   },
   "peerDependencies": {
     "ajv": "*",
     "ajv-formats": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test": "^0.1.18-rc.39",
-    "@types/bun": "^1.4.2",
-    "@types/node": "^26.6.4",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/test": "^0.1.21",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.5",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "nodemon": "^3.1.14",

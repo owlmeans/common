@@ -7,6 +7,7 @@ import {
 import type {
   AcceptConsentOptions, AnswerMarketingConsentOptions, DispatcherLoginOptions, PageHelper, SupervisorFormLoginOptions,
 } from './page/types.js'
+import { makeEmailLoginFlow } from './page/email.js'
 
 export const makePageHelper = (page: Page): PageHelper => {
   const answerMarketingConsent = async (opts?: AnswerMarketingConsentOptions): Promise<boolean> => {
@@ -190,5 +191,10 @@ export const makePageHelper = (page: Page): PageHelper => {
     if (opts.marketingConsent !== 'ignore') await answerMarketingConsent({ accept: 'all', timeout })
   }
 
-  return { answerMarketingConsent, loginViaDispatcher, saveScreenshot, acceptConsent, loginViaSupervisorForm }
+  const email = makeEmailLoginFlow(page, { acceptConsent, answerMarketingConsent, saveScreenshot })
+
+  return {
+    answerMarketingConsent, loginViaDispatcher, saveScreenshot, acceptConsent, loginViaSupervisorForm,
+    routeEmailWaiver: email.routeEmailWaiver, loginViaEmailForm: email.loginViaEmailForm,
+  }
 }

@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/client-resource",
-  "version": "0.1.18-rc.54",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/client-resource"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -22,13 +32,13 @@
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",
-    "@owlmeans/client-context": "^0.1.18-rc.55",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/resource": "^0.1.18-rc.41",
+    "@owlmeans/client-context": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/resource": "^0.1.21",
     "@scure/base": "^2.4.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/dep-config": "^0.1.21",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

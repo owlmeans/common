@@ -2,18 +2,20 @@
  * Shared construction bits for the built-in plugins. Internal to `plugins/` — not
  * part of the package's public surface.
  */
+import type { LlmFetch } from '../transport/types.js'
+
 export interface PluginUtils {
   /**
-   * `{ configuration: { baseURL?, defaultHeaders? } }` for the OpenAI-compatible client,
+   * `{ configuration: { baseURL?, defaultHeaders?, fetch? } }` for the OpenAI-compatible client,
    * or an empty object when there is nothing to set (the client rejects an empty
    * `configuration` in some versions).
    */
   makeConfiguration: (
-    params: { baseURL: string | undefined, headers: Record<string, string> | undefined }
+    params: { baseURL: string | undefined, headers: Record<string, string> | undefined, fetch?: LlmFetch | undefined }
   ) => { configuration: Record<string, unknown> } | Record<string, never>
-  /** `{ clientOptions: { defaultHeaders } }` for the Anthropic client, or an empty object. */
+  /** `{ clientOptions: { defaultHeaders?, fetch? } }` for the Anthropic client, or an empty object. */
   makeClientOptions: (
-    params: { headers: Record<string, string> | undefined }
+    params: { headers: Record<string, string> | undefined, fetch?: LlmFetch | undefined }
   ) => { clientOptions: Record<string, unknown> } | Record<string, never>
   /**
    * Output budget for retry attempt N: double the base budget per attempt, clamped to

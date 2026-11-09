@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/client-iam",
-  "version": "0.1.18-rc.73",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/client-iam"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -22,18 +32,18 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-auth": "^0.1.18-rc.67",
-    "@owlmeans/consent": "^0.1.18-rc.13",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/entrypoint": "^0.1.18-rc.42",
-    "@owlmeans/iam": "^0.1.18-rc.57",
-    "@owlmeans/oidc": "^0.1.18-rc.62",
-    "@owlmeans/web-client": "^0.1.18-rc.70",
-    "@owlmeans/web-oidc-rp": "^0.1.18-rc.73"
+    "@owlmeans/client-auth": "^0.1.21",
+    "@owlmeans/consent": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/iam": "^0.1.21",
+    "@owlmeans/oidc": "^0.1.21",
+    "@owlmeans/web-client": "^0.1.21",
+    "@owlmeans/web-oidc-rp": "^0.1.21"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@types/bun": "^1.4.2",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

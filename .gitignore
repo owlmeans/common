@@ -13,6 +13,8 @@ lerna-debug.log*
 # Dependency only configuration
 yarn.lock
 bun.lock
+# Commit the root workspace lock; nested generated locks stay ignored.
+!/bun.lock
 
 # Dependency directories
 node_modules/

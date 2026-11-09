@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, test } from 'bun:test'
 import * as otp from '../src/index.js'
-import type { OtpService } from '../src/index.js'
+import type { OtpIssueOptions, OtpService } from '../src/index.js'
 
 /**
  * This package is the contract between the OTP server (`@owlmeans/server-auth-otp`) and the clients
@@ -27,9 +27,14 @@ describe('@owlmeans/auth-otp — the shared contract', () => {
   })
 
   test('the service issues an opaque id and verifies by email, id and code', () => {
-    expectTypeOf<OtpService['issueChallenge']>().parameters.toEqualTypeOf<[string]>()
+    expectTypeOf<OtpService['issueChallenge']>().parameters.toEqualTypeOf<[string, OtpIssueOptions?]>()
     expectTypeOf<OtpService['issueChallenge']>().returns.toEqualTypeOf<Promise<string>>()
     expectTypeOf<OtpService['verifyChallenge']>().parameters.toEqualTypeOf<[string, string, string]>()
     expectTypeOf<OtpService['verifyChallenge']>().returns.toEqualTypeOf<Promise<void>>()
+  })
+
+  test('the optional developer seam rewrites a pending code by email, id and code', () => {
+    expectTypeOf<NonNullable<OtpService['rewriteChallenge']>>().parameters.toEqualTypeOf<[string, string, string]>()
+    expectTypeOf<NonNullable<OtpService['rewriteChallenge']>>().returns.toEqualTypeOf<Promise<boolean>>()
   })
 })

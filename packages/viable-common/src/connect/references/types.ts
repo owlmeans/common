@@ -34,6 +34,7 @@ import type {
 } from '../production/types.js'
 import type { ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams, ConnectSessionView } from '../session/types.js'
 import type { ConnectSlotView } from '../slot/types.js'
+import type { ConnectClientView } from '../client/types.js'
 import type { ConnectLlmBody, ConnectProfileSettingsView, ConnectProjectLlmBody, ConnectProjectSettings } from '../settings/types.js'
 import type {
   ConnectIamGroupParams, ConnectIamMemberParams, ConnectIamOrganizationParams, ConnectIamUserParams,
@@ -96,7 +97,6 @@ export interface ConnectReferences {
     modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>
     rename: ConnectReference<{ params: { id: string }, body: ConnectRenameBody }, ConnectProjectStatus>
     destroy: ConnectReference<{ params: { id: string } }, ConnectProjectSummary>
-    unlock: ConnectReference<{ params: { id: string } }, ConnectAgentLock>
     stop: ConnectReference<{ params: { id: string }, body: AgentStopArgs }, ConnectAgentLock>
     steer: ConnectReference<{ params: { id: string }, body: AgentSteerArgs }, AgentSteerResult>
     batch: {
@@ -147,6 +147,9 @@ export interface ConnectReferences {
     restart: ConnectReference<{ params: { id: string } }, ConnectSlotView>
     stop: ConnectReference<{ params: { id: string } }, ConnectSlotView>
     rebuild: ConnectReference<{ params: { id: string } }, ConnectSlotView>
+  }
+  client: {
+    identify: ConnectReference<{}, ConnectClientView>
   }
   slot: {
     list: ConnectReference<{}, ConnectSlotView[]>

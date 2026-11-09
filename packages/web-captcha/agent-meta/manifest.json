@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/web-captcha",
+  "version": "0.1.21",
+  "generatedAt": "2026-11-05T11:16:21.544Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-captcha",
+      "category": "package-specific",
+      "file": "skills/web-captcha/SKILL.md",
+      "canonicalPath": ".agents/skills/web-captcha/SKILL.md"
+    }
+  ]
+}

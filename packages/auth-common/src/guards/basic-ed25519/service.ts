@@ -8,12 +8,12 @@ import type { Config, Context } from '../../utils/types.js'
 import type { BasicEd25519Guard, BasicEd25519GuardOptions } from './types.js'
 import { AuthenPayloadError, AuthroizationType, AuthRole } from '@owlmeans/auth'
 import type { Auth } from '@owlmeans/auth'
-import { createIdOfLength } from '@owlmeans/basic-ids'
 import { extractAuthToken } from '@owlmeans/auth-common/utils'
 import {
   makeMemorySignedRequestReplayStore, makeResourceSignedRequestReplayStore
 } from './replay.js'
 import type { SignedRequestReplayResource, SignedRequestReplayStore } from './types.js'
+import { signBasicEd25519Request } from './sign.js'
 
 export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519GuardOptions): BasicEd25519Guard => {
   const memoryReplay = makeMemorySignedRequestReplayStore()
@@ -36,28 +36,16 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
       const context = assertContext<Config, Context>(guard.ctx)
       const truested = await trust(context, resource, context.cfg.alias ?? context.cfg.service)
 
-      // req?.body != null 
       if (req != null && truested.user.secret != null) {
+        const signed = await signBasicEd25519Request({
+          body: req.body, credential: truested.user.id, key: truested.key,
+        })
         if (req.headers == null) {
           req.headers = {}
         }
-        req.headers[timeKey] = new Date().toISOString()
-        req.headers[nonceKey] = createIdOfLength(16)
+        Object.assign(req.headers, signed.headers)
 
-        const payload = {
-          body: req.body ?? {},
-          headers: { [timeKey]: req.headers[timeKey], [nonceKey]: req.headers[nonceKey] }
-        }
-
-        const token = [
-          AuthroizationType.Ed25519BasicSignature.toUpperCase()
-          , ['Credential', truested.user.id]
-          , ['Signature', await truested.key.sign(payload)]
-        ]
-
-        return token.map(
-          item => Array.isArray(item) ? item.join('=') : item
-        ).join(' ')
+        return signed.authorization
       }
 
       return null

@@ -47,6 +47,7 @@ import type {
 } from './production/types.js'
 import type { ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams, ConnectSessionView } from './session/types.js'
 import type { ConnectSlotView } from './slot/types.js'
+import type { ConnectClientView } from './client/types.js'
 import type { ConnectLlmBody, ConnectProfileSettingsView, ConnectProjectLlmBody, ConnectProjectSettings } from './settings/types.js'
 
 /**
@@ -103,7 +104,6 @@ export const connectRef: ConnectReferences = {
     modify: entrypointRef<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>(connect.project.modify),
     rename: entrypointRef<{ params: { id: string }, body: ConnectRenameBody }, ConnectProjectStatus>(connect.project.rename),
     destroy: entrypointRef<{ params: { id: string } }, ConnectProjectSummary>(connect.project.destroy),
-    unlock: entrypointRef<{ params: { id: string } }, ConnectAgentLock>(connect.project.unlock),
     stop: entrypointRef<{ params: { id: string }, body: AgentStopArgs }, ConnectAgentLock>(connect.project.stop),
     steer: entrypointRef<{ params: { id: string }, body: AgentSteerArgs }, AgentSteerResult>(connect.project.steer),
     batch: {
@@ -189,6 +189,9 @@ export const connectRef: ConnectReferences = {
     restart: entrypointRef<{ params: { id: string } }, ConnectSlotView>(connect.sandbox.restart),
     stop: entrypointRef<{ params: { id: string } }, ConnectSlotView>(connect.sandbox.stop),
     rebuild: entrypointRef<{ params: { id: string } }, ConnectSlotView>(connect.sandbox.rebuild),
+  },
+  client: {
+    identify: entrypointRef<{}, ConnectClientView>(connect.client.identify),
   },
   slot: {
     list: entrypointRef<{}, ConnectSlotView[]>(connect.slot.list),

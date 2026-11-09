@@ -15,6 +15,7 @@ import { paymentAccessOf } from '../access.js'
 import { paymentUtils } from '../utils.js'
 import { consumerRecordsOf } from './records.js'
 import { captureOf } from './capture.js'
+import { stripeSessionHelper } from '../plugins/session.js'
 import { consumerMailOf } from './mail.js'
 import { consumerObserversOf } from './observers.js'
 import { cancellationOf } from './cancellation.js'
@@ -229,7 +230,7 @@ export const makeConsumerReconcileHelper = (
         const metadata = session.metadata ?? {}
         if (metadata.entityId == null || metadata.productSku == null) continue
         try {
-          if (session.mode === 'payment' && session.payment_status === 'paid') {
+          if (stripeSessionHelper.canFulfillPayment(session)) {
             if (await access.purchases().load({ sessionId: session.id }) != null) continue
             const amount = Number(metadata.amountMinor)
             const captured = await captureOf(ctx).capturePaymentPurchase(stripe, session, {

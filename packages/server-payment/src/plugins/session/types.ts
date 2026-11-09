@@ -4,6 +4,8 @@ import type { PaymentPlan, PaymentProduct } from '../../types.js'
 
 /** The parts of a Stripe Checkout Session read from a plan or an answer alone — pure. */
 export interface StripeSessionHelper {
+  /** Paid payments, or completed amount checkouts fully discounted with promotion codes enabled. */
+  canFulfillPayment: (session: Stripe.Checkout.Session) => boolean
   /** The line item of an amount checkout, its pre-tax charge and its currency. @throws ProductError */
   amountCheckoutLineItem: (
     product: PaymentProduct, plan: PaymentPlan, amountMinor: number, behavior?: TaxBehavior,

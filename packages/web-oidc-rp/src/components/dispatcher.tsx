@@ -4,15 +4,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useContext } from '@owlmeans/web-client'
 import { LoginSurrogateView, SurrogateStage } from '@owlmeans/web-client'
 import { useI18nLib } from '@owlmeans/client-i18n'
-import { AUTH_QUERY } from '@owlmeans/auth'
+import { AUTH_QUERY, DISPATCHER } from '@owlmeans/auth'
 import { OIDC_ERROR_DESCRIPTION_QUERY, OIDC_ERROR_QUERY } from '@owlmeans/oidc'
 import { useFlow } from '@owlmeans/web-flow'
 import { OidcAuthService } from '../types.js'
 import { DEFAULT_ALIAS } from '../consts.js'
 import {
   FallbackLoginScreen, LoginIntent, LoginOutcome, ResumeAction, loginResumeHelper, LOGIN_METHOD_QUERY,
-  enterOidcAuthorization,
+  enterOidcAuthorization, LoginFailureView, loginFailureHelper, loginLandingOf,
 } from '@owlmeans/client-auth/login'
+import type { LoginFailure } from '@owlmeans/client-auth/login'
 import { logger } from '@owlmeans/log'
 
 const log = logger('web-oidc-rp')
@@ -51,6 +52,16 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   const [outcome, setOutcome] = useState<LoginOutcome | null>(null)
   // Nothing to return from, and nobody signed in: offer the choice. Never start a flow.
   const [choose, setChoose] = useState(false)
+  // The exchange did not sign anyone in — a refusal of this account, or a failure. Rendered, never
+  // left as an unhandled rejection under a blank page or a "Signing you in…" that never moves.
+  const [failure, setFailure] = useState<LoginFailure | null>(null)
+
+  const translate = useCallback((key: string, defaultValue: string) => tAuth(key, { defaultValue }), [tAuth])
+
+  // The code and the PKCE verifier are single-use: the way on is the sign-in choice, afresh.
+  const restart = useCallback(() => {
+    void loginLandingOf(context).landingUrl({ alias: DISPATCHER }).then(url => { window.location.replace(url) })
+  }, [context])
 
   const onLogin = useCallback(() => {
     // Replays this very URL through the login service from inside the gesture, keeping whatever
@@ -155,6 +166,14 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
         } else {
           await navigate()
         }
+      }).catch((e: unknown) => {
+        const failed = loginFailureHelper.failureOf(e)
+        if (failed.refused) {
+          log.warn('Sign-in refused', { kind: failed.kind, incidentId: failed.incidentId }, { event: 'auth.refused' })
+        } else {
+          log.error('Sign-in did not complete', e, { event: 'auth.refused' })
+        }
+        setFailure(failed)
       })
     }
   }, [client, error])
@@ -173,16 +192,22 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
     return <LoginSurrogateView
       intent={LoginIntent.Login}
       stage={
-        error != null ? SurrogateStage.Failed
+        error != null || failure != null ? SurrogateStage.Failed
           : outcome === LoginOutcome.Orphaned ? SurrogateStage.Orphaned
             : outcome === LoginOutcome.Gesture ? SurrogateStage.Gesture
               : outcome === LoginOutcome.Failed ? SurrogateStage.Failed
                 : SurrogateStage.Working
       }
       onAction={outcome === LoginOutcome.Gesture ? onLogin : () => window.close()}
-      error={errorDescription ?? error ?? undefined}
-      translate={(key, defaultValue) => tAuth(key, { defaultValue })}
+      error={failure != null
+        ? loginFailureHelper.phrase(failure, translate).message
+        : errorDescription ?? error ?? undefined}
+      translate={translate}
     />
+  }
+
+  if (failure != null) {
+    return <LoginFailureView failure={failure} translate={translate} onAction={restart} page />
   }
 
   if (error != null) {

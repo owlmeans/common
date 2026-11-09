@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/test-integration",
-  "version": "0.1.18-rc.37",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/test-integration"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -21,12 +31,12 @@
     }
   },
   "dependencies": {
-    "@owlmeans/log": "^0.1.18-rc.4",
-    "@owlmeans/test": "^0.1.18-rc.39"
+    "@owlmeans/log": "^0.1.21",
+    "@owlmeans/test": "^0.1.21"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18-rc.8",
-    "@types/bun": "^1.4.2",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

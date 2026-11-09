@@ -36,13 +36,18 @@ updated: 2026-10
   policy).
 - Observers are idempotent by their key: paygate callbacks by the Stripe id (a throw makes Stripe
   redeliver); `onConsent`/`onWithdrawal`/`onCancellation` by `consent:`/`withdrawal:`/
-  `cancellation:<id>` (a throw is recorded and `reconcile()` retries it).
+  `cancellation:<id>` (a throw is recorded and `reconcile()` retries it); `onEntitlementGrant` by
+  `grant:<id>:<change>` (a throw is only logged — the application's nightly reconcile backstops it).
+- Beside the plan: internal plan rows (`grantInternalPlan` with `force` / `revokeInternalPlan`, a
+  re-grant re-activates the row and keeps `createdAt`) and `payment-grant` records — units spent
+  only after the plan's allowance (window `grant:<id>`), capabilities merged into the effective plan.
 
 ## Invariants
 
 - An entity's plan parameters are read from `catalogueOf(ctx).resolveEffectivePlan` / the
-  entitlement view, never from the catalogue by sku: a subscription row's `overrides` are merged
-  only there.
+  entitlement view, never from the catalogue by sku: a subscription row's `overrides` and the
+  entitlement grants in force are merged only there (grants fold into `limit`/`used`/`remaining`,
+  no new view field).
 - Public HTTP bodies carry `entitySlug`; the server boundary resolves the stable `entityId` before
   calling the in-process gateway or persisting Stripe metadata. Protocol objects pass through
   client/server code; aliases appear only at registry and broker adapters.

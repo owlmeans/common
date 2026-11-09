@@ -81,6 +81,7 @@ export const makeIdentityHelper = (ctx: Context): IdentityHelper => {
       try {
         const account = await accounts().create({
           credential: createIdOfLength(16, IdStyle.Base58), email, name, entityId: entity.id!, scopes: [],
+          createdAt: new Date(),
         })
 
         return { account, registered: entity }

@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/llm",
-  "version": "0.1.18-rc.54",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/llm"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -43,31 +53,31 @@
     }
   },
   "devDependencies": {
-    "@langchain/anthropic": "^1.5.12",
-    "@langchain/core": "^1.2.14",
-    "@langchain/openai": "^1.6.2",
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test": "^0.1.18-rc.39",
-    "@types/bun": "^1.4.2",
-    "@types/node": "^26.6.4",
+    "@langchain/anthropic": "^1.6.0",
+    "@langchain/core": "^1.3.1",
+    "@langchain/openai": "^1.8.0",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/test": "^0.1.21",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.131.0",
-    "@owlmeans/basic-ids": "^0.1.18-rc.42",
-    "@owlmeans/context": "^0.1.18-rc.35",
-    "@owlmeans/error": "^0.1.18-rc.39",
-    "@owlmeans/llm-common": "^0.1.18-rc.40",
-    "@owlmeans/log": "^0.1.18-rc.4",
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@owlmeans/basic-ids": "^0.1.21",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/error": "^0.1.21",
+    "@owlmeans/llm-common": "^0.1.21",
+    "@owlmeans/log": "^0.1.21",
     "ajv": "^8.20.0"
   },
   "publishConfig": {
     "access": "public"
   },
   "peerDependencies": {
-    "@langchain/anthropic": "^1.5.12",
-    "@langchain/core": "^1.2.14",
-    "@langchain/openai": "^1.6.2"
+    "@langchain/anthropic": "^1.6.0",
+    "@langchain/core": "^1.3.1",
+    "@langchain/openai": "^1.8.0"
   }
 }

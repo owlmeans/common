@@ -5,8 +5,10 @@ import {
   AuthorizationError,
   AuthenFailed,
   AuthenPayloadError,
+  AuthRefused,
   AuthUnknown,
 } from '@owlmeans/auth'
+import { ResilientError } from '@owlmeans/error'
 
 describe('@owlmeans/auth — error inheritance chain', () => {
   // Matches viable-agent/packages/template/packages/backend/src/utils/auth-guard.ts
@@ -66,5 +68,29 @@ describe('@owlmeans/auth — declared HTTP statuses', () => {
     for (const refusal of [AuthorizationError, AuthForbidden]) {
       expect([refusal.typeName, (refusal as { httpStatus?: unknown }).httpStatus]).toEqual([refusal.typeName, undefined])
     }
+  })
+})
+
+describe('@owlmeans/auth — AuthRefused', () => {
+  // A refused sign-in is still a failed one: every catch and message match keeps working.
+  test('is an AuthenFailed with the same `auth:manager:authen:<code>` message', () => {
+    const refused = new AuthRefused('account:disabled')
+    expect(refused).toBeInstanceOf(AuthRefused)
+    expect(refused).toBeInstanceOf(AuthenFailed)
+    expect(refused).not.toBeInstanceOf(AuthorizationError)
+    expect(refused.message).toBe('auth:manager:authen:account:disabled')
+    expect(refused.message).toBe(new AuthenFailed('account:disabled').message)
+    expect(refused.type).toBe(AuthRefused.typeName)
+    expect(new AuthRefused().message).toBe('auth:manager:authen:refused')
+  })
+
+  // The browser tells a refusal from a failure by its status: 403, never the 500 of a fault.
+  test('declares 403 and survives a marshal hop as its own class', () => {
+    expect(AuthRefused.httpStatus).toBe(403)
+    expect((new AuthenFailed('x').constructor as { httpStatus?: unknown }).httpStatus).toBeUndefined()
+
+    const back = ResilientError.ensure(ResilientError.marshal(new AuthRefused('operator:refused')))
+    expect(back).toBeInstanceOf(AuthRefused)
+    expect(back.message).toBe('auth:manager:authen:operator:refused')
   })
 })

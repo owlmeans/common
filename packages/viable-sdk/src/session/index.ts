@@ -6,7 +6,8 @@ import { makeMarkerHelper } from '../project/marker.js'
 import { QuestionQueue } from './questions.js'
 import { TaskQueue } from './tasks.js'
 import type { SessionOptions } from './types.js'
-import { EMPTY_PULL_PAUSE_MS, FAST_PULL_MS } from './consts.local.js'
+import { SdkUnsupported } from '../errors.js'
+import { EMPTY_PULL_PAUSE_MS, FAST_PULL_MS, MODEL_TASKS_REFUSED } from './consts.local.js'
 
 /**
  * One attached connector, running.
@@ -102,6 +103,23 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
     }
 
     if (op.kind === ConnectOpKind.ModelTask) {
+      if (opts.modelTasks === false) {
+        // This connector never performs a model call (a plugin edition): answered once — a
+        // redelivery is answered from the cache above — and never queued for the parent, so it is
+        // not a task anybody runs. `Unavailable` stops the run instead of a retry ladder against a
+        // connector that never will.
+        log(`model task ${op.id} refused: ${MODEL_TASKS_REFUSED}`)
+        stats.opsFailed += 1
+        const refused = new SdkUnsupported('model-task')
+        await submit({
+          opId: op.id,
+          sessionId: session.id,
+          ok: false,
+          error: { type: refused.type, message: MODEL_TASKS_REFUSED, kind: ConnectOpErrorKind.Unavailable },
+        })
+
+        return
+      }
       // Not executed here at all — it is the parent agent's to run, in its own clean subagent.
       // What this loop owes it is delivery and nothing else.
       if (tasks.push(op.payload as ModelTask, op.id)) {
