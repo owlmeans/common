@@ -8,17 +8,19 @@ metadata:
 
 # Using `@owlmeans/server-auth-otp`
 
-**Install:** `"@owlmeans/server-auth-otp": "^0.1.18-rc.61"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-otp": "^0.1.21"` in `dependencies`
 
 Email OTP authentication plugin for the OwlMeans auth-manager plugin system. Relies on `@owlmeans/auth-otp` for the OTP service interface, a Redis resource for code storage, and a `MailerService` to send codes.
 
 ## `@owlmeans/auth-otp` — the contracts
 
 `@owlmeans/auth-otp` has no skill of its own because it is the contracts half of this pair. Its
-`OtpService` issues an opaque issuance id, persists and mails a code, and verifies that exact
-issuance; it also owns `OTP_SERVICE`, `OTP_AUTH_TYPE` (`'email-otp'`), `OTP_RESOURCE`,
-`OTP_TTL_SECONDS` (600), `OTP_CODE_LENGTH` (6), and the five-attempt policy. The server package
-provides the challenge stores, throttles, mailer integration and plugin.
+`OtpService` issues an opaque issuance id, persists and mails a code
+(`issueChallenge(email, { message? })`), verifies that exact issuance, and may rewrite a pending
+code (`rewriteChallenge?`, below); it also owns `OtpMessage` / `OtpIssueOptions`, `OTP_SERVICE`,
+`OTP_AUTH_TYPE` (`'email-otp'`), `OTP_RESOURCE`, `OTP_TTL_SECONDS` (600), `OTP_CODE_LENGTH` (6), and
+the five-attempt policy. The server package provides the challenge stores, throttles, mailer
+integration and plugin.
 
 Depend on it from a shared package that must name the auth type or type the service, and depend on
 `@owlmeans/server-auth-otp` only where the server wires itself up — the same producer/consumer split
@@ -29,7 +31,9 @@ the contracts package, never to the implementation.
 
 | Symbol | Kind | Purpose |
 |--------|------|---------|
-| `makeOtpService(alias?)` | fn | Service factory — stores/verifies OTP codes |
+| `makeOtpService(alias?)` | fn | Service factory — `issueChallenge(email, { message? })`, `verifyChallenge(email, issuanceId, code)`, `rewriteChallenge(email, issuanceId, code) → boolean` |
+| `makeRedisOtpChallengeStore(alias?, resourceAlias?)`, `makeMemoryOtpChallengeStore(alias?, now?)` | fn | Challenge stores: `SET NX EX` + one Lua verify and one Lua rewrite; the memory one for a single process or tests |
+| `makeRedisThrottleService(alias?, resourceAlias?)`, `makeMemoryThrottleService(alias?, now?)` | fn | `AuthThrottleService.consume(key, rules, token?)` — every window in one call |
 | `appendOtpPlugin(context)` | fn | Registers the OTP `AuthPlugin` into the server-auth plugin registry |
 | `OTP_SERVICE` | const | `'auth-otp-service'` — the service alias `makeOtpService` registers under |
 | `OTP_AUTH_TYPE` | const | `'email-otp'` — the auth type string to pass in `init` requests |
@@ -91,11 +95,33 @@ Pass `ctx.cfg.otp` to override defaults:
 
 ```ts
 cfg.otp = {
-  mailerAlias: 'my-mailer',       // default: MAILER_SERVICE ('mailer-service')
-  resourceAlias: 'my-otp-cache',  // default: OTP_RESOURCE  ('auth-otp-cache')
-  identityAlias: 'my-identity',   // default: AUTH_IDENTITY_LINKING
+  mailerAlias: 'my-mailer',             // default: MAILER_SERVICE ('mailer-service')
+  resourceAlias: 'my-otp-cache',        // default: OTP_RESOURCE  ('auth-otp-cache')
+  challengeStoreAlias: 'my-challenges', // default: OTP_CHALLENGE_STORE
+  throttleAlias: 'my-throttle',         // issuance throttle — only together with throttleRules
+  throttleRules: OTP_EMAIL_THROTTLE_RULES,
+  identityAlias: 'my-identity',         // default: AUTH_IDENTITY_LINKING
 }
 ```
+
+A consumer that throttles every route on its own keys (`server-auth-email`) leaves
+`throttleRules` unset: the service's issuance throttle cannot be waived and would double-count.
+
+## The message seam
+
+`issueChallenge(email, { message })` mails an `OtpMessage` (`subject`, `text`, `html` templates;
+`{{code}}` and `{{minutes}}` are substituted in all three) instead of the default English mail —
+a localized or purpose-specific mail. Without `message` the default mail is sent unchanged.
+**Never put `{{code}}` in a subject**: the console mailer logs subjects, and a lock screen shows them.
+
+## The rewrite seam (developer tooling)
+
+`rewriteChallenge(email, issuanceId, code)` replaces the code of a LIVE issuance of that address —
+remaining TTL kept, failed attempts reset — so an end-to-end run can sign in without reading a
+mailbox. It answers `false` when the code is not `OTP_CODE_LENGTH` digits, the store has no
+`rewrite` (`OtpChallengeStore.rewrite?`; memory and Redis implement it), or the issuance is gone or
+names another address. Expose it only behind a developer-only, signed and allow-listed route
+(`server-auth-email`'s `tech.pin`), never to the public.
 
 ## Rules
 
@@ -137,7 +163,9 @@ cfg.otp = {
 - **The resulting auth token can exceed 1024 characters** — it wraps the full `AuthCredentials`
   envelope, including the original allowance challenge, base64-encoded. A consumer route that
   accepts this token (e.g. an OIDC `PROVIDER_INTERACTION` finalizer) must size its own `token`
-  field schema accordingly; the generic `AuthTokenSchema` (`maxLength: 1024`) is too small.
+  field schema accordingly; the generic `AuthTokenSchema` (`maxLength: 1024`) is too small. A
+  plugin whose token must pass a bearer exchange returns a short digest of its challenge as `token`
+  instead (`server-auth` → Rules; `server-auth-email` does).
 
 ## Related
 

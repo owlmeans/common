@@ -8,7 +8,8 @@ import { memoHelper } from '@owlmeans/context'
 import { logger } from '@owlmeans/log'
 import { RecordExists } from '@owlmeans/resource'
 import type { Resource } from '@owlmeans/resource'
-import { AUTH_CACHE, AUTH_SRV_KEY, AUTHEN_TIMEFRAME } from '../consts.js'
+import { AUTH_CACHE, AUTHEN_TIMEFRAME } from '../consts.js'
+import { authSettingsOf } from '../settings.js'
 import type { AuthSpent } from '../types.js'
 import type { Config, Context } from '../types.local.js'
 import type { ReCaptchaCarrier, ReCaptchaGuest, ReCaptchaTokenHelper } from './types.js'
@@ -37,7 +38,7 @@ export const makeReCaptchaTokenHelper = (context: Context): ReCaptchaTokenHelper
       return refuse('ttl')
     }
 
-    const signer = await trust<Config, Context>(context, TRUSTED, AUTH_SRV_KEY)
+    const signer = await trust<Config, Context>(context, TRUSTED, authSettingsOf(context).authKey())
     // Signature and expiry: an envelope past `dt + ttl` does not verify.
     if (!await envelope.verify(signer.key)) {
       return refuse('signature')

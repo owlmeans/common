@@ -1,8 +1,18 @@
 {
   "name": "@owlmeans/image-resource",
   "type": "module",
-  "version": "0.1.18-rc.44",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/image-resource"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 390 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
@@ -24,11 +34,11 @@
     "ajv": "*"
   },
   "dependencies": {
-    "@owlmeans/storage-resource": "^0.1.18-rc.45"
+    "@owlmeans/storage-resource": "^0.1.21"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@types/node": "^26.6.4",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

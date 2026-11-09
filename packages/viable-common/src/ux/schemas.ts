@@ -1,6 +1,7 @@
 import type { JSONSchemaType } from "ajv"
 import type { UXScreenList, UXComponentList, UXScreenToComponent, UXTransition, UXTransitionList } from "./types.js"
 import { UXTransitionType } from "./consts.js"
+import { ENGLISH_NAME_NOTE } from "../dev/consts.js"
 
 export const UXScreenListSchema: JSONSchemaType<UXScreenList> = {
   type: "object",
@@ -11,7 +12,7 @@ export const UXScreenListSchema: JSONSchemaType<UXScreenList> = {
       type: "array",
       items: { 
         type: "string",
-        description: "Technical screen name, no spaces, kebab-case notation with slashes allowed; every part is one or two words"
+        description: "Technical screen name, no spaces, kebab-case notation with slashes allowed; every part is one or two words. " + ENGLISH_NAME_NOTE
       },
       description: "List of screens"
     },
@@ -29,7 +30,7 @@ export const UXComponentListSchema: JSONSchemaType<UXComponentList> = {
       type: "array",
       items: {
         type: "string",
-        description: "Technical component name, no spaces, kebab-case notation with slashes allowed; every part is one or two words"
+        description: "Technical component name, no spaces, kebab-case notation with slashes allowed; every part is one or two words. " + ENGLISH_NAME_NOTE
       },
       description: "List of components"
     },

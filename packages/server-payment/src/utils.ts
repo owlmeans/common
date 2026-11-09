@@ -1,5 +1,5 @@
 import type Stripe from 'stripe'
-import { MONGO_DUPLICATE_KEY } from '@owlmeans/mongo-resource'
+import { MONGO_DUPLICATE_KEY, mongoRefHelper } from '@owlmeans/mongo-resource'
 import { WebhookSetupError, type PaymentService } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { CONSUMER_RIGHTS_SERVICE } from './consts.js'
@@ -55,11 +55,15 @@ export const createPaymentUtils = (): PaymentUtils => {
     return (result.deletedCount ?? 0) > 0
   }
 
+  const idCriteria = (id: string, filter: Record<string, unknown> = {}): Record<string, unknown> =>
+    mongoRefHelper.marshalCriteria({ ...filter, id }, new Map()) as Record<string, unknown>
+
   const errorText = (error: unknown): string =>
     (error instanceof Error ? error.message : String(error)).slice(0, 1000)
 
   return {
-    apiVersionOf, isDuplicateKey, isMissingObject, idOf, dateOf, compact, conditionalSet, conditionalDelete, errorText,
+    apiVersionOf, isDuplicateKey, isMissingObject, idOf, dateOf, compact, conditionalSet, conditionalDelete,
+    idCriteria, errorText,
   }
 }
 

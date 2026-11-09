@@ -5,11 +5,12 @@ import {
   DeclarationChannelSchema, DeclarationKindSchema, PurchaseKindSchema, SubscriptionStatusSchema,
 } from '@owlmeans/payment'
 import { schema } from '@owlmeans/entrypoint'
+import { EntitlementGrantKind, EntitlementGrantStatus } from './consts.js'
 import type {
   BillingProfileRecord, ConsumerConsentRecord, ConsumerDeclarationRecord, PaygateCustomerRecord,
-  PaymentFulfillmentRecord, PaymentSubscriptionRecord, PaymentUsageCounterRecord, PaymentUsageRecord,
-  PaymentWebhookRecord, PurchaseRecord, ConsumerEventRecord, FingerprintRecord, PaygateParams, ResyncResult,
-  ResyncSubscriptionsResult,
+  PaymentFulfillmentRecord, PaymentGrantRecord, PaymentSubscriptionRecord, PaymentUsageCounterRecord,
+  PaymentUsageRecord, PaymentWebhookRecord, PurchaseRecord, ConsumerEventRecord, FingerprintRecord, PaygateParams,
+  ResyncResult, ResyncSubscriptionsResult,
 } from './types.js'
 import { date, id, links, num, optBool, optNum, optStr, origin, str } from './consts.local.js'
 
@@ -40,7 +41,7 @@ export const PaymentSubscriptionSchema = {
     periodStart: optDate, periodEnd: optDate, cancelAtPeriodEnd: optBool, canceledAt: optDate,
     endedAt: optDate, pausedAt: optDate, trialEnd: optDate, latestInvoiceId: optStr, customerId: optStr,
     disputedAt: optDate, disputeStatus: optStr, createdAt: date, updatedAt: optDate, syncedAt: optDate,
-    lastEventId: optStr, initialPropagatedAt: optDate, currency: optStr,
+    lastEventId: optStr, initialPropagatedAt: optDate, restartedAt: optDate, currency: optStr,
     checkoutSessionId: optStr, purchaseId: optStr, firstInvoiceId: optStr, country: optStr, email: optStr,
     amountTotalMinor: optNum, amountTaxMinor: optNum, termsAccepted: optBool, startRequestId: optStr,
     withdrawnAt: optDate,
@@ -64,7 +65,7 @@ export const PaymentSubscriptionSchema = {
       nullable: true,
       properties: {
         planSku: str, rank: num, status: SubscriptionStatusSchema, cancelAtPeriodEnd: optBool,
-        pausedAt: optDate, renewedInvoiceId: optStr,
+        pausedAt: optDate, renewedInvoiceId: optStr, restartedAt: optDate,
       },
       required: ['planSku', 'rank', 'status'],
       additionalProperties: false,
@@ -123,6 +124,20 @@ export const PaymentUsageCounterSchema = {
   required: ['entityId', 'limitKey', 'window', 'used', 'limit', 'updatedAt'],
   additionalProperties: false,
 } as unknown as JSONSchemaType<PaymentUsageCounterRecord>
+
+export const PaymentGrantSchema = {
+  type: 'object',
+  properties: {
+    id, entityId: str,
+    kind: { type: 'string', enum: Object.values(EntitlementGrantKind) },
+    limitKey: optStr, capability: optStr, amount: optNum, used: optNum,
+    startsAt: date, endsAt: optDate,
+    status: { type: 'string', enum: Object.values(EntitlementGrantStatus) },
+    ref: optStr, note: optStr, createdAt: date, revokedAt: optDate,
+  },
+  required: ['entityId', 'kind', 'startsAt', 'status', 'createdAt'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<PaymentGrantRecord>
 
 /** An optional enum: `null` must be listed for a validator to accept it. */
 const nullableEnum = (values: readonly unknown[]) => ({ type: 'string', enum: [...values, null], nullable: true })

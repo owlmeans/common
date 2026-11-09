@@ -1,5 +1,5 @@
-import type { AuthModel, AppConfig, AppContext } from './types.js'
-import { AuthenFailed, AuthenPayloadError, AuthError, AuthUnavailable, authHelper, type AuthCredentials } from '@owlmeans/auth'
+import type { AuthModel, AuthModelOptions, AppConfig, AppContext } from './types.js'
+import { AuthenFailed, AuthenPayloadError, AuthError, AuthUnavailable, AuthUnknown, authHelper, type AuthCredentials } from '@owlmeans/auth'
 import { logger } from '@owlmeans/log'
 import { type EntityResolverService, ENTITY_RESOLVER } from '@owlmeans/auth-common'
 import { authPluginHelper } from './plugins/utils.js'
@@ -11,6 +11,7 @@ import type { Resource } from '@owlmeans/resource'
 import type { AuthSpent } from '../types.js'
 import { AuthChallengeReplayPolicy } from './plugins/consts.js'
 import type { Context } from './types.local.js'
+import type { AuthPlugin } from './plugins/types.js'
 
 
 const log = logger('server-auth')
@@ -22,13 +23,31 @@ const accountOf = (userId: string | undefined): string | undefined =>
 const compact = <T extends Record<string, unknown>>(value: T): Partial<T> =>
   Object.fromEntries(Object.entries(value).filter(([, entry]) => entry != null)) as Partial<T>
 
-export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
+/**
+ * The auth manager's model: issues a signed challenge (`init`) and signs the credential envelope
+ * (`authenticate`) through the plugin of the request's type — from the global registry, or ONLY
+ * from `opts.plugins` when that exclusive list is given.
+ */
+export const makeAuthModel = (context: AppContext<AppConfig>, opts?: AuthModelOptions): AuthModel => {
   const cache = (context: Context): Resource<AuthSpent> =>
     context.resource<Resource<AuthSpent>>(AUTH_CACHE)
 
+  const pluginOf = async (type: string): Promise<AuthPlugin> => {
+    const own = opts?.plugins
+    if (own == null) {
+      return await authPluginHelper.getPlugin(type, context)
+    }
+    const factory = Object.hasOwn(own, type) ? own[type] : undefined
+    if (factory == null) {
+      throw new AuthUnknown(type)
+    }
+
+    return factory(context)
+  }
+
   const model: AuthModel = {
     init: async request => {
-      const plugin = await authPluginHelper.getPlugin(request.type, context)
+      const plugin = await pluginOf(request.type)
       const response = await plugin.init(request)
 
       const envelope = makeEnvelopeModel(plugin.type)
@@ -60,7 +79,7 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
 
         const msg: string = envelope.message(true)
 
-        const plugin = await authPluginHelper.getPlugin(envelope.type(), context)
+        const plugin = await pluginOf(envelope.type())
 
         if (plugin.challengeReplayPolicy !== AuthChallengeReplayPolicy.Plugin) {
           try {

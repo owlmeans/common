@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import Fastify from 'fastify'
 import type { FastifyInstance } from 'fastify'
-import { AuthForbidden, AuthorizationError, AuthUnknown } from '@owlmeans/auth'
+import {
+  AuthenExists, AuthenFailed, AuthenPayloadError, AuthForbidden, AuthorizationError, AuthRefused, AuthUnknown,
+} from '@owlmeans/auth'
 import { ResilientError, SEPARATOR } from '@owlmeans/error'
 import { provideResponse } from '@owlmeans/entrypoint'
 import { httpErrorHelper } from '../src/utils/error.js'
@@ -259,6 +261,30 @@ describe('@owlmeans/server-api — handleError status', () => {
     expect((await answer(new AuthUnknown('email-otp'))).status).toBe(400)
     expect((await answer(ResilientError.marshal(new AuthUnknown('entity')))).status).toBe(400)
     expect((await answer(new AuthUnknown(), '/execute')).status).toBe(400)
+  })
+
+  // A refused sign-in (a banned account, blocked access, a deployment's own refusal) is 403 with the
+  // access-denied marker, so a production browser phrases it from the status alone. Every other
+  // failed sign-in keeps the status it had.
+  test('a refused sign-in answers 403 with the access-denied marker; other failed sign-ins keep theirs', async () => {
+    const refused = await answer(new AuthRefused('account:disabled'))
+    expect(refused.status).toBe(403)
+    expect(refused.denialKind).toBe(ACCESS_DENIED_KIND)
+    expect(refused.body).toBe(refused.incidentId)
+    expect(refused.body).not.toContain('account:disabled')
+    expect((await answer(new AuthRefused('operator:refused'), '/execute')).status).toBe(403)
+
+    const development = await answer(new AuthRefused('profile:disabled'), '/handle-development')
+    expect(development.denialKind).toBe(ACCESS_DENIED_KIND)
+    const rebuilt = ResilientError.ensure(development.body)
+    expect(rebuilt).toBeInstanceOf(AuthRefused)
+    expect(rebuilt.message).toBe('auth:manager:authen:profile:disabled')
+
+    for (const failed of [new AuthenFailed('challenge'), new AuthenExists('x'), new AuthenPayloadError('userId')]) {
+      const answered = await answer(failed)
+      expect({ type: failed.type, status: answered.status, denialKind: answered.denialKind })
+        .toEqual({ type: failed.type, status: 500, denialKind: undefined })
+    }
   })
 
   test('honours an explicitly exposed 5xx without opening arbitrary server statuses', async () => {

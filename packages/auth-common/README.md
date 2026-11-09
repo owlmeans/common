@@ -12,7 +12,7 @@ Predefined authentication protocols, guards, and constants shared between server
 ## Installation
 
 ```bash
-bun add @owlmeans/auth-common@^0.1.18-rc.54
+bun add @owlmeans/auth-common@^0.1.21
 ```
 
 ## Usage
@@ -77,6 +77,25 @@ BED255_TIME_HEADER   // 'X-Auth-Time'
 BED255_CASHE_RESOURCE // resource alias for nonce cache
 ```
 
+### Signing a request outside a context
+
+`signBasicEd25519Request({ body, credential, key })` signs a request exactly as the
+`GUARD_ED25519` guard verifies it (the guard's own client side uses it): `credential` is the
+signer's trusted-record `id`, `key` a `KeyPairModel` with the private key. It answers
+`{ authorization, headers }` — send both, with the body unchanged.
+
+```typescript
+import { signBasicEd25519Request } from '@owlmeans/auth-common'
+import { makeKeyPairModel } from '@owlmeans/basic-keys'
+
+const body = { challenge, pin }
+const signed = await signBasicEd25519Request({ body, credential: recordId, key: makeKeyPairModel(privateKey) })
+await fetch(url, {
+  method: 'POST', body: JSON.stringify(body),
+  headers: { 'content-type': 'application/json', authorization: signed.authorization, ...signed.headers },
+})
+```
+
 ## Product-Viable Integration Notes
 
 - `DEFAULT_GUARD` protects manager routes after bearer authentication is installed by `@owlmeans/server-auth`.
@@ -98,7 +117,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.59
+npx @owlmeans/agent-skills@^0.1.21
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

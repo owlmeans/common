@@ -34,7 +34,13 @@
     },
     "error": {
       "failed": "Sign-in did not complete. Please try again.",
-      "blocked": "The sign-in window was blocked. Click the blocked pop-up icon in your browser's address bar to open it."
+      "blocked": "The sign-in window was blocked. Click the blocked pop-up icon in your browser's address bar to open it.",
+      "refused": "This account cannot sign in here.",
+      "account-disabled": "This account has been disabled and cannot sign in here.",
+      "profile-disabled": "This account’s access to this application has been blocked, so it cannot sign in here.",
+      "retry": "Try again",
+      "back": "Back to sign-in",
+      "incident": "Reference: {{incident}}"
     },
     "orphaned": "Signed in. You can close this window and continue in the application."
   }

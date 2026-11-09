@@ -1,6 +1,9 @@
 import { appendContextual } from '@owlmeans/context'
 import { AuthenFailed } from '@owlmeans/auth'
-import { type OtpService, OTP_SERVICE, OTP_TTL_SECONDS, OTP_CODE_LENGTH, OTP_MAX_FAILED_ATTEMPTS, OTP_RESOURCE } from '@owlmeans/auth-otp'
+import {
+  type OtpIssueOptions, type OtpMessage, type OtpService, OTP_SERVICE, OTP_TTL_SECONDS, OTP_CODE_LENGTH,
+  OTP_MAX_FAILED_ATTEMPTS, OTP_RESOURCE,
+} from '@owlmeans/auth-otp'
 import { type MailerService, MAILER_SERVICE } from '@owlmeans/mailer'
 import { randomBytes, randomInt } from 'node:crypto'
 import type { AuthThrottleService, OtpChallengeStore, OtpConfig, OtpContext } from './types.js'
@@ -9,6 +12,7 @@ import { throttleKeyHelper } from './throttle-keys.js'
 import { otpKeyHelper } from './keys.js'
 import { OtpThrottled, OtpUnavailable } from './errors.js'
 import { makeRedisOtpChallengeStore } from './challenge.js'
+import { OTP_CODE_PATTERN, OTP_MESSAGE_CODE, OTP_MESSAGE_MINUTES } from './consts.local.js'
 import { logger, logThrottle } from '@owlmeans/log'
 
 const log = logger('server-auth-otp')
@@ -19,6 +23,15 @@ const domainOf = (email: string): string => email.slice(email.lastIndexOf('@') +
 const generateCode = (): string => {
   const digits = randomInt(0, Math.pow(10, OTP_CODE_LENGTH))
   return String(digits).padStart(OTP_CODE_LENGTH, '0')
+}
+
+/** An application's login-code mail with its placeholders filled in. */
+const renderMessage = (message: OtpMessage, code: string): OtpMessage => {
+  const fill = (template: string): string => template
+    .replaceAll(OTP_MESSAGE_CODE, code)
+    .replaceAll(OTP_MESSAGE_MINUTES, String(OTP_TTL_SECONDS / 60))
+
+  return { subject: fill(message.subject), text: fill(message.text), html: fill(message.html) }
 }
 
 export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
@@ -40,7 +53,7 @@ export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
   }
 
   const service: OtpService = appendContextual<OtpService>(alias, {
-    issueChallenge: async (email: string): Promise<string> => {
+    issueChallenge: async (email: string, opts?: OtpIssueOptions): Promise<string> => {
       const ctx = service.ctx as OtpContext<OtpConfig>
       const mailerAlias = ctx.cfg.otp?.mailerAlias ?? MAILER_SERVICE
       const challenges = challengeStore(ctx)
@@ -70,12 +83,16 @@ export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
       }, OTP_TTL_SECONDS)
       if (!issued) throw new OtpUnavailable('issuance-collision')
 
-      await mailer.send({
-        to: email,
-        subject: 'Your login code',
-        text: `Your one-time login code is: ${code}\n\nIt expires in ${OTP_TTL_SECONDS / 60} minutes.`,
-        html: `<p>Your one-time login code is: <strong>${code}</strong></p><p>It expires in ${OTP_TTL_SECONDS / 60} minutes.</p>`,
-      })
+      if (opts?.message != null) {
+        await mailer.send({ to: email, ...renderMessage(opts.message, code) })
+      } else {
+        await mailer.send({
+          to: email,
+          subject: 'Your login code',
+          text: `Your one-time login code is: ${code}\n\nIt expires in ${OTP_TTL_SECONDS / 60} minutes.`,
+          html: `<p>Your one-time login code is: <strong>${code}</strong></p><p>It expires in ${OTP_TTL_SECONDS / 60} minutes.</p>`,
+        })
+      }
 
       return issuanceId
     },
@@ -91,6 +108,27 @@ export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
         log.debug('OTP challenge refused', { outcome, emailDomain: domainOf(email) })
         throw new AuthenFailed('otp:code')
       }
+    },
+
+    rewriteChallenge: async (email: string, issuanceId: string, code: string): Promise<boolean> => {
+      const ctx = service.ctx as OtpContext<OtpConfig>
+      const challenges = challengeStore(ctx)
+      if (!OTP_CODE_PATTERN.test(code) || challenges.rewrite == null) {
+        log.debug('OTP challenge rewrite refused', {
+          reason: challenges.rewrite == null ? 'unsupported' : 'code-shape', emailDomain: domainOf(email),
+        })
+        return false
+      }
+      const rewritten = await challenges.rewrite(
+        otpKeyHelper.otpChallengeKey(issuanceId), otpKeyHelper.otpEmailKey(email), otpKeyHelper.otpCodeHash(issuanceId, code)
+      )
+      if (rewritten) {
+        log.info('Login code rewritten', { emailDomain: domainOf(email) }, { event: 'auth.otp-rewritten' })
+      } else {
+        log.debug('OTP challenge rewrite refused', { reason: 'missing', emailDomain: domainOf(email) })
+      }
+
+      return rewritten
     },
   })
 

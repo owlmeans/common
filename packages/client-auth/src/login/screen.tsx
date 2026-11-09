@@ -8,6 +8,9 @@ import { loginMethodsHelper } from './methods.js'
 import { loginTermsHelper } from './terms.js'
 import { resolveCredit } from './credit.js'
 import { box, page } from './consts.local.js'
+import { loginFailureHelper } from './failure.js'
+import { LoginFailureView } from './failure-view.js'
+import type { LoginFailure } from './failure/types.js'
 
 const renderParts = (parts: TermsSentencePart[]): ReactNode =>
   parts.map((part, index) => part.href != null
@@ -49,6 +52,8 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
 
   const [accepted, setAccepted] = useState(() => loginTermsHelper.termsAccepted(resolved))
   const [attempted, setAttempted] = useState(false)
+  // A start that rejected — phrased, never the raw message; the method buttons are the retry.
+  const [failure, setFailure] = useState<LoginFailure | null>(null)
 
   const all = login.methods({ context, env })
   const methods = typeof props.methods === 'function'
@@ -63,7 +68,10 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
       setAttempted(true)
       return
     }
-    void method.start({ context, env })
+    setFailure(null)
+    void method.start({ context, env }).catch((error: unknown) => {
+      setFailure(loginFailureHelper.failureOf(error))
+    })
   }, [blocked, context, env])
 
   const onAccept = useCallback((value: boolean) => {
@@ -130,6 +138,10 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
         resolved, props.locale, resolveLabel
       ))}
     </p>}
+
+    {failure != null && <LoginFailureView
+      failure={failure} translate={t} style={{ padding: 0, marginTop: '1rem', color: '#b00', fontSize: '.875rem' }}
+    />}
 
     {props.footer ?? <p style={{ marginTop: '2rem', fontSize: '.75rem', opacity: .7 }}>
       {credit.poweredBy && <span>{t('login.credit.powered', 'Powered by OwlMeans')}</span>}

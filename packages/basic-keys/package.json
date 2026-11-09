@@ -1,7 +1,17 @@
 {
   "name": "@owlmeans/basic-keys",
-  "version": "0.1.18-rc.55",
+  "version": "0.1.21",
   "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/basic-keys"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -39,9 +49,9 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-auth": "^0.1.18-rc.53",
-    "@types/bun": "^1.4.2",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/test-auth": "^0.1.21",
+    "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
@@ -49,7 +59,7 @@
     "@noble/ciphers": "^2.4.0",
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
-    "@owlmeans/auth": "^0.1.18-rc.42",
+    "@owlmeans/auth": "^0.1.21",
     "@scure/base": "^2.4.0",
     "canonicalize": "^5.1.0"
   },

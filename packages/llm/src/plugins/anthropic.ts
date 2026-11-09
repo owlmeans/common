@@ -12,6 +12,7 @@ import { markUtils } from '../utils/marks.js'
 import { messageUtils } from '../utils/messages.js'
 import { promptUtils } from '../utils/prompt.js'
 import { pluginUtils } from './utils.js'
+import { llmTransportRegistry } from './transport.js'
 import { ANTHROPIC_AUTOMATIC_MARKER, ANTHROPIC_MARKABLE_BLOCKS, CACHEABLE_PREFIX } from './consts.local.js'
 import { ADAPTIVE_MIN_MAX_TOKENS, ANTHROPIC_FAMILY, CacheDialect, type ThinkingOff } from './consts.js'
 import type { AnthropicKwargs, ContentBlock, WireOutputConfig, WireThinking } from './types.local.js'
@@ -165,7 +166,7 @@ export const anthropicPlugin: LlmPlugin = {
 
   effort: config => anthropicEffort(config),
 
-  build: ({ config, secret, callbacks }) => {
+  build: ({ alias, config, secret, callbacks }) => {
     const model = config.model ??= 'claude-haiku-4-5'
     // Claude 4.7+ took the sampling knobs away: not "ignored", a 400. A configured
     // `temperature` on such a model is a preset bug, and dropping it here is the only
@@ -198,7 +199,10 @@ export const anthropicPlugin: LlmPlugin = {
       ...sampling,
       ...(thinkingOff != null ? { thinking: { type: thinkingOff } as unknown as WireThinking } : {}),
       ...(effort != null ? { outputConfig: { effort } as WireOutputConfig } : {}),
-      ...pluginUtils.makeClientOptions({ headers: config.headers }),
+      ...pluginUtils.makeClientOptions({
+        headers: config.headers,
+        fetch: llmTransportRegistry.fetchFor({ provider: ModelProvider.Anthropic, alias, config }),
+      }),
     }
     // Anthropic rejects temperature and top_p together.
     if (cfg.temperature != null && cfg.topP != null) {

@@ -29,3 +29,6 @@ export const COLLECT_FAST_MS = 1_000
 
 /** The rest after an unheld `pending`, so a platform that answers at once is not asked in a hot loop. */
 export const COLLECT_PAUSE_MS = 1_000
+
+/** What a platform older than a route answers for it — read as "this platform cannot say". */
+export const NOT_FOUND = 404

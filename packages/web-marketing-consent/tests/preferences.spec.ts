@@ -144,6 +144,9 @@ describe('MarketingConsentPreferences — a host settings card', () => {
       await page.locator('[data-marketing-consent-preferences-save]').waitFor({ state: 'visible', timeout: 45_000 })
 
       expect(await page.locator('[data-marketing-consent-all-frame]').count()).toBe(1)
+      // The settings card is unchanged: one Select all at the top, no closing copy above its Save.
+      expect(await page.locator('[data-marketing-consent-all-end-frame]').count()).toBe(0)
+      expect(await page.locator('[data-marketing-consent-all-end]').count()).toBe(0)
       for (const definition of STANDARD_MARKETING_CONSENTS) {
         const row = page.locator('label', { has: page.locator(`[data-marketing-consent-item="${definition.key}"]`) })
         expect((await row.textContent())!.trim()).toStartWith('I confirm that I agree')

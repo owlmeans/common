@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-job
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-job": "^0.1.18-rc.42"` in `dependencies`
+**Install:** `"@owlmeans/server-job": "^0.1.21"` in `dependencies`
 
 This package is the boundary between technical `@owlmeans/queue` records and the safe
 `@owlmeans/job` contract. `serveJobEntrypoints` requires a `JobExposurePolicy`; there is no default
@@ -31,7 +31,7 @@ These are ordinary guarded HTTP/WS declarations. They carry no queue name or bro
 ## Bind the bridge
 
 ```typescript
-import { jobViewOf, serveJobEntrypoints } from '@owlmeans/server-job'
+import { jobViewHelper, serveJobEntrypoints } from '@owlmeans/server-job'
 
 export const reportJobBindings = serveJobEntrypoints(reportJobs, {
   queue: REPORT_QUEUE,
@@ -45,7 +45,7 @@ export const reportJobBindings = serveJobEntrypoints(reportJobs, {
     }),
     lookup: async (id, audience, resource) =>
       resource.load({ publicId: id, 'data.ownerId': audience.userId }),
-    map: record => jobViewOf(record, {
+    map: record => jobViewHelper.jobViewOf(record, {
       id: publicIdOf(record),
       kind: publicKindOf(record),
       summary: publicSummaryOf(record),
@@ -82,8 +82,8 @@ be projected.
 |---|---|
 | `serveJobEntrypoints` | Bind list/get/cancel/watch using a mandatory policy |
 | `listJobs` / `getJob` / `cancelJob` / `watchJobs` | Bind one handler manually |
-| `jobViewOf` | Safe record-to-view mapper |
-| `sanitizeJobJson` / `publicJobError` | Bounded JSON and safe failure helpers |
+| `jobViewHelper.jobViewOf` | Safe record-to-view mapper |
+| `jobViewHelper.sanitizeJobJson` / `jobViewHelper.publicJobError` | Bounded JSON and safe failure helpers |
 | `JobExposurePolicy` / `JobHandlerOptions` | Application policy contracts |
 
 ## Related

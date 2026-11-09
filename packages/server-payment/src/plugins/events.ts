@@ -19,6 +19,7 @@ import { customerLockHelper } from './customer-lock.js'
 import { stripeSubscriptionsOf } from './subscriptions.js'
 import { consumerRecordsOf } from '../consumer/records.js'
 import { captureOf } from '../consumer/capture.js'
+import { stripeSessionHelper } from './session.js'
 
 /** `invoice.subscription`, top-level on the pinned API version. */
 const subscriptionIdOfInvoice = (invoice: Stripe.Invoice): string | undefined =>
@@ -93,7 +94,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
       await completeSubscriptionCheckout(session)
       return
     }
-    if (session.mode !== 'payment' || session.payment_status !== 'paid') return
+    if (!stripeSessionHelper.canFulfillPayment(session)) return
     const metadata = session.metadata ?? {}
     if (metadata.entityId == null || metadata.service == null || metadata.productSku == null) {
       throw new PaygateError('metadata:owner')
@@ -441,6 +442,8 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
       log.warn('Dispute matches no fulfillment or subscription', { disputeId: dispute.id })
       return
     }
+    const chargeId = paymentUtils.idOf(dispute.charge)
+    const charge = target.charge ?? (chargeId != null ? await paymentTargetOf(ctx).retrieveCharge(stripe, chargeId) : null)
     const marks = { disputedAt: target.record.disputedAt ?? new Date(), disputeStatus: dispute.status }
     if (target.kind === 'fulfillment') {
       await access.fulfillments().update({ ...target.record, ...marks })
@@ -449,7 +452,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
     }
     await access.observer().propagateDispute(paymentUtils.compact({
       ...targetFields(target), disputeId: dispute.id, phase, status: dispute.status,
-      amountMinor: dispute.amount, currency: dispute.currency, eventKey: `dispute:${dispute.id}:${phase}`,
+      amountMinor: dispute.amount, paidMinor: charge?.amount, currency: dispute.currency, eventKey: `dispute:${dispute.id}:${phase}`,
     }) as DisputeEvent, ctx)
     log.info('Dispute changed', paymentUtils.compact({
       entityId: target.record.entityId, target: target.kind, externalId: target.record.externalId,

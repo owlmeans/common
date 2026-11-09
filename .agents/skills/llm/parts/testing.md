@@ -26,6 +26,8 @@ pins the refusal of a hidden property name before any request. `plugins.spec.ts`
 order, cumulative minimums, budget, OpenAI blocks and tool `input_text`, nothing on `compatible`),
 marker stripping, `loopCache`, and a fallback in another dialect prepared again.
 
+`transport.spec.ts` pins the transport seam over real clients built by the plugins — a fetch handed to the OpenAI Responses, chat-completions, Anthropic and compatible clients, its survival across `refine` and `bindTools`, and `detach` — with a recording fetch that answers 400 (no layer retries it).
+
 `internals.spec.ts` covers the usage drain after `finish_reason`, `appendTail`, abort-insensitive stream creation, reads and cleanup, observed late
 failures, ignored late values, consumer cancellation and active streams exceeding multiple idle
 windows. `bun test ./tests/stream-sdk.spec.ts` exercises actual ChatOpenAI Responses against local

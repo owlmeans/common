@@ -1,0 +1,110 @@
+{
+  "captcha": {
+    "notice": "This site is protected by reCAPTCHA and the Google {{privacy}} and {{terms}} apply.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service"
+  },
+  "error": {
+    "captcha": "We couldn't confirm that you're not a robot. Please try again.",
+    "captcha-unavailable": "The security check couldn't load. Check your connection and try again.",
+    "code": "This code is wrong or has expired. Check it or ask for a new one.",
+    "credentials": "Wrong email or password.",
+    "email": "Enter a valid email address.",
+    "failed": "Something went wrong. Please try again.",
+    "mismatch": "The passwords don't match.",
+    "offer-expired": "This offer has expired. You can set a password later in your account settings.",
+    "password-disabled": "Password sign-in is not available here. Use a code instead.",
+    "password-empty": "Enter your password.",
+    "pin-format": "Enter the code from the email: {{length}} digits.",
+    "throttled": "Too many attempts. Please wait a little and try again.",
+    "throttled-in": "Too many attempts. Please try again {{when}}.",
+    "unavailable": "Sign-in is temporarily unavailable. Please try again later.",
+    "weak": "Use {{min}} to {{max}} characters, and not your email address."
+  },
+  "login": {
+    "change-email": "Change email",
+    "device": "We don't recognise this device. Enter the code we sent to your email.",
+    "done": "Signing you in…",
+    "email-label": "Email",
+    "email-placeholder": "you@example.com",
+    "hide-password": "Hide password",
+    "options-failed": "We couldn't load the sign-in settings.",
+    "other": "Other sign-in options",
+    "password-label": "Password",
+    "password-submit": "Sign in",
+    "password-subtitle": "Sign in with your email and password.",
+    "pin-label": "Code from the email",
+    "pin-subtitle": "Check your inbox for the code.",
+    "powered": "Powered by OwlMeans",
+    "resend": "Send a new code",
+    "retry": "Try again",
+    "send": "Receive authentication PIN code",
+    "sending": "Sending…",
+    "sent": "We sent a sign-in code to {{email}}.",
+    "show-password": "Show password",
+    "subtitle": "We'll email you a code to sign in. New here? The same code creates your account.",
+    "title": "Sign in with email",
+    "use-password": "Already set a password? Use it",
+    "use-pin": "Sign in with a code instead",
+    "verify": "Sign in",
+    "verifying": "Signing in…"
+  },
+  "offer": {
+    "description": "Next time, sign in with your email and password instead of waiting for a code.",
+    "hint": "{{min}} to {{max}} characters.",
+    "later": "You can always set a password later in your account settings.",
+    "password-label": "New password",
+    "repeat-label": "Repeat the password",
+    "save": "Save password",
+    "saving": "Saving…",
+    "skip": "Not now",
+    "title": "Set a password for faster sign-in"
+  },
+  "password": {
+    "action": {
+      "change": "Change password",
+      "remove": "Remove password",
+      "set": "Set a password",
+      "device-pin-off": "Stop asking for a code on new devices",
+      "device-pin-on": "Ask for a code on new devices"
+    },
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "confirming": "Saving…",
+    "description": "Sign in with your email and a password instead of a code.",
+    "devices": "Other devices will need a code the next time they sign in.",
+    "done": {
+      "change": "Your password has been changed.",
+      "remove": "Your password has been removed.",
+      "set": "Your password has been set.",
+      "device-pin-off": "Your password alone now signs you in on new devices.",
+      "device-pin-on": "New devices now also need a code from your email."
+    },
+    "explain": {
+      "change": "To change your password, confirm it's you with a code we'll email you.",
+      "remove": "Without a password you sign in with a code sent to your email. We'll email you a code to confirm.",
+      "set": "To set a password, confirm it's you with a code we'll email you.",
+      "device-pin-off": "Your password alone will sign you in on a new device. Confirm it's you with a code we'll email you.",
+      "device-pin-on": "A new device will also need a code from your email. Confirm it's you with a code we'll email you."
+    },
+    "loading": "Loading…",
+    "new-label": "New password",
+    "off": "Password sign-in is not available here. Sign in with a code sent to your email.",
+    "pin-label": "Code from the email",
+    "repeat-label": "Repeat the password",
+    "resend": "Send a new code",
+    "retry": "Try again",
+    "send": "Send code",
+    "sending": "Sending…",
+    "sent": "We sent a code to your email.",
+    "set": "You have a password.",
+    "title": "Password",
+    "unreadable": "We couldn't load your password settings.",
+    "unset": "You don't have a password yet. You sign in with a code sent to your email.",
+    "updated": "Last changed {{date}}.",
+    "device-pin": {
+      "on": "A new device also needs a code from your email.",
+      "off": "Your password alone signs you in on a new device."
+    }
+  }
+}
