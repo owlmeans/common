@@ -1,6 +1,6 @@
 ---
 name: testing-integration
-description: Category-C integration tests for OwlMeans Common packages that talk to external services (PostgreSQL, MongoDB, Redis, S3, Kubernetes, SMTP). Env-gated, no mocks, per-suite namespaces, conditional context provisioning. Auto-invoked when writing tests in postgres*, mongo*, redis*, kluster, llm, storage-resource, mailer-smtp, server-mailer-mailgun, server-api, server-app.
+description: Category-C integration tests for OwlMeans Common packages that talk to external services (PostgreSQL, MongoDB, Redis, S3, Kubernetes, SMTP). Env-gated, no mocks, per-suite namespaces, conditional context provisioning. Auto-invoked when writing tests in postgres*, mongo*, redis*, kluster, llm, storage-resource, file-streams, mailer-smtp, server-mailer-mailgun, server-api, server-app.
 ---
 
 # Integration Tests — Category C
@@ -9,7 +9,7 @@ description: Category-C integration tests for OwlMeans Common packages that talk
 
 Category C applies to packages that integrate with external services: `postgres`,
 `postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `redis-queue`,
-`kluster`, `storage-resource`, `mailer-smtp`, `server-mailer-mailgun`, `server-api`, `planning-postgres`, `bot-postgres`,
+`kluster`, `storage-resource`, `file-streams`, `mailer-smtp`, `server-mailer-mailgun`, `server-api`, `planning-postgres`, `bot-postgres`,
 `server-app`, `llm` (live inference providers). These tests **never** mock the external service.
 They run only when the corresponding env vars are set, and they self-skip cleanly when those
 variables are missing.

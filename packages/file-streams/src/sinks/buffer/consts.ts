@@ -1,0 +1,1 @@
+export const DEFAULT_BUFFER_SINK_BYTES = 64 * 1024 * 1024

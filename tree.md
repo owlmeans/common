@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All 123 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All 124 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -122,6 +122,7 @@ External-system integrations: Mongo, Postgres, Redis, S3-compatible object stora
 - [`static-resource`](packages/static-resource) → `context`, `error`, `resource`
 - [`storage-resource`](packages/storage-resource) → `context`, `error`, `resource`, `server-context`, `storage-common`
 - [`image-resource`](packages/image-resource) → `storage-resource`
+- [`file-streams`](packages/file-streams) → `context`, `error`, `storage-common`, `storage-resource`
 - [`mongo-resource`](packages/mongo-resource) → `context`, `resource`, `server-context`
 - [`mongo`](packages/mongo) → `basic-keys`, `context`, `mongo-resource`, `resource`, `server-context`
 - [`redis-resource`](packages/redis-resource) → `basic-ids`, `context`, `resource`, `server-context`
@@ -263,7 +264,7 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 - **L4**: `api-config`, `auth-token`, `basic-envelope`, `bot`, `captcha`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
 - **L5**: `agent-common`, `oauth`, `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
 - **L6**: `agent`, `api-config-client`, `auth-email`, `cli-auth`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`
-- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-bot`, `server-oidc-provider`, `server-wl`, `web-db`
+- **L7**: `agent-skills`, `api-config-server`, `client`, `file-streams`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-bot`, `server-oidc-provider`, `server-wl`, `web-db`
 - **L8**: `bot-agent`, `bot-postgres`, `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-common`, `web-wl`, `{server-auth | server-socket}`
 - **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oauth`, `server-oidc-rp`, `viable-sdk`, `web-auth-token`, `web-bot`, `web-flow`
 - **L10**: `client-auth`, `server-auth-email`, `server-iam`, `server-payment`
@@ -316,7 +317,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  storage-resource image-resource  storage-common   static-resource           ║
  ║  kluster          postgres        postgres-resource                          ║
  ║  redis-queue      mailer-smtp     server-mailer-mailgun                      ║
- ║  bot-postgres                                                                ║
+ ║  bot-postgres     file-streams                                               ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  API & API-CONFIG  (HTTP client + runtime config plumbing)        L4–L7      ║
  ║                                                                              ║
@@ -360,7 +361,7 @@ Dependencies flow downward: every package can only import from the layers below 
    L8  █████████ bot-agent  bot-postgres  client-did  client-flow  client-i18n  client-socket
                create-app  redis-queue  web-wl
         ████ {server-auth ↔ server-socket}
-   L7  █████████████ agent-skills  api-config-server  client  iam  image-resource
+   L7  ██████████████ agent-skills  api-config-server  client  file-streams  iam  image-resource
                 mongo  postgres  redis  server-auth-identity  server-bot
                 server-oidc-provider  server-wl  web-db
    L6  █████████████ agent  api-config-client  auth-email  cli-auth  client-resource  kluster

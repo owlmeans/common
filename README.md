@@ -270,6 +270,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`api-config-client`](packages/api-config-client) | Fetches the runtime config a backend advertises and merges it into the client config at boot |
 |  | [`api-config-server`](packages/api-config-server) | Answers the runtime config endpoint from package-owned allowlist plugins |
 | Storage and infrastructure | [`bot-postgres`](packages/bot-postgres) | Postgres tables for the three chat-bot resources of a generated target project: connections, the deduplicating inbox and the activity log |
+|  | [`file-streams`](packages/file-streams) | Online files as streams: URL downloads through proxy plugins and the Google Drive resolver, S3, folders and Viable workloads, zip/tar/gzip, and file-type checks without full downloads |
 |  | [`image-resource`](packages/image-resource) | Image-shaped names and schemas over the shared stored-file types |
 |  | [`kluster`](packages/kluster) | The Kubernetes API client service and the `kluster:` config directive that resolves cluster addresses at boot |
 |  | [`mailer-smtp`](packages/mailer-smtp) | The SMTP (nodemailer) transport for the MailerService contract |
@@ -283,7 +284,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`server-mailer-mailgun`](packages/server-mailer-mailgun) | The Mailgun production email transport |
 |  | [`static-resource`](packages/static-resource) | An in-process Resource over a module-scope map, for records an app holds in memory |
 |  | [`storage-common`](packages/storage-common) | Shared object and file storage types, errors and model |
-|  | [`storage-resource`](packages/storage-resource) | An upload-only S3-compatible object storage resource with MIME sniffing |
+|  | [`storage-resource`](packages/storage-resource) | An upload-only S3-compatible object storage resource with MIME sniffing, and the bucket model every S3 consumer addresses objects by |
 | Server | [`bot-agent`](packages/bot-agent) | Lets an `@owlmeans/agent` agent act on a chat-bot message: the message and the instructions its handler passes as context, the bot's supported actions as never-throwing tools |
 |  | [`captcha`](packages/captcha) | Server-side reCAPTCHA verification: the siteverify verifier, the sign-in plugin policy and a strict challenge-less check for score-based tokens |
 |  | [`server-auth-email`](packages/server-auth-email) | The server half of e-mail sign-in: PIN and password through private auth plugins, remembered devices, captcha, throttles and developer routes |
