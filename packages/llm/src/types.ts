@@ -8,6 +8,7 @@ import type {
   PromptFocus, SpectatorArgument, SpectatorEntryLogged,
 } from '@owlmeans/llm-common'
 import type { PromptInput, PromptService } from './prompt/types.js'
+import type { WebSearch, WebSearchConfig } from './search/types.js'
 
 export type MaybeArray<T> = T | T[]
 
@@ -388,6 +389,12 @@ export interface ModelConfig {
    * value per role, never per user or per request. Defaults to the config alias.
    */
   cacheKey?: string
+  /**
+   * How this model runs a provider-hosted web search (`LlmService.webSearch`): a forced dialect,
+   * the Anthropic tool version, the OpenRouter engine. Unset, the provider plugin decides. Never
+   * inherited by a fallback on another provider.
+   */
+  webSearch?: WebSearchConfig
 }
 
 export interface LlmServiceOptions {
@@ -419,6 +426,13 @@ export interface LlmService extends InitializedService {
 
   /** The configured model list, as supplied by {@link LlmServiceOptions.models}. */
   configs: () => ModelConfig[]
+
+  /**
+   * A provider-hosted web search on the model registered under `alias` — resolved exactly as
+   * {@link getModel} resolves it (presets, override, the output fit), primary rung only. The
+   * search goes to the provider directly, so an installed LLM proxy never reroutes it.
+   */
+  webSearch: (alias: string, override?: Partial<ModelConfig>) => WebSearch
 }
 
 export interface WithLlmService {
@@ -426,4 +440,4 @@ export interface WithLlmService {
 }
 
 /** The part of {@link LlmService} this package implements — see {@link llmServiceApi}. */
-export interface LlmServiceApi extends Pick<LlmService, 'models' | 'callbacks' | 'addCallbacks' | 'getModel' | 'configs'> {}
+export interface LlmServiceApi extends Pick<LlmService, 'models' | 'callbacks' | 'addCallbacks' | 'getModel' | 'configs' | 'webSearch'> {}

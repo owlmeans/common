@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/llm",
-  "version": "0.1.21",
-  "generatedAt": "2026-11-05T11:16:21.527Z",
+  "version": "0.1.22-rc.0",
+  "generatedAt": "2026-11-09T19:08:58.665Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -137,10 +137,39 @@
           ],
           "mentions": [
             "ANTHROPIC_SECRET",
+            "OPENAI_SECRET",
+            "OPENROUTER_SECRET",
             "results.spec.ts",
             "model.spec.ts",
             "anthropic-families.spec.ts",
-            "stream-sdk.spec.ts"
+            "stream-sdk.spec.ts",
+            "search.spec.ts",
+            "search-live.spec.ts"
+          ]
+        },
+        {
+          "name": "web-search",
+          "file": "skills/llm/parts/web-search.md",
+          "description": "Provider-hosted web search through LlmService.webSearch — the Anthropic, OpenAI Responses, OpenRouter and Chat-search dialects, the options each honours, why no transport or proxy ever sees it, the forced search and the enforced domain bound.",
+          "purposes": [
+            "agent",
+            "server-api"
+          ],
+          "mentions": [
+            "webSearch",
+            "makeWebSearch",
+            "WebSearch",
+            "WebSearchResult",
+            "WebSearchOptions",
+            "WebSearchDialect",
+            "WebSearchConfig",
+            "LlmSearchError",
+            "LlmSearchUnsupportedError",
+            "LlmSearchDialect",
+            "ModelConfig.webSearch",
+            "web_search_20250305",
+            "openrouter:web_search",
+            "gpt-5-search-api"
           ]
         }
       ]

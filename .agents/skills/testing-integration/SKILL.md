@@ -10,7 +10,8 @@ description: Category-C integration tests for OwlMeans Common packages that talk
 Category C applies to packages that integrate with external services: `postgres`,
 `postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `redis-queue`,
 `kluster`, `storage-resource`, `file-streams`, `mailer-smtp`, `server-mailer-mailgun`, `server-api`, `planning-postgres`, `bot-postgres`,
-`server-app`, `llm` (live inference providers). These tests **never** mock the external service.
+`server-app`, `llm` (live inference providers), `llm-reader` (live models, the public web, real proxies),
+`llm-reader-playwright` (a browser). These tests **never** mock the external service.
 They run only when the corresponding env vars are set, and they self-skip cleanly when those
 variables are missing.
 

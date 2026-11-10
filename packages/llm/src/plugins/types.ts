@@ -6,6 +6,7 @@ import type {
 } from '@owlmeans/llm-common'
 import type { ModelConfig } from '../types.js'
 import type { CacheBoundary, ThinkingOff } from './consts.js'
+import type { LlmSearchDialect } from '../search/types.js'
 
 /** The effort levels one model accepts, least work first, and the one it uses when unset. */
 export interface EffortSupport {
@@ -213,6 +214,15 @@ export interface LlmPlugin {
    * immediately, or `null` to let it be retried.
    */
   isFatal?: (e: unknown) => Error | null
+
+  /**
+   * Run one provider-hosted web search in this provider's dialect, straight to the provider:
+   * through the `fetch` it is handed, never through `llmTransportRegistry` or an SDK client (an
+   * SDK reads `*_BASE_URL` from the environment). Omitted: the provider cannot search
+   * (`LlmSearchUnsupportedError`). Declared per plugin, never in a family spread — a spread
+   * would send one provider's key to another's endpoint.
+   */
+  search?: LlmSearchDialect
 }
 
 /** The instance-level behaviours every plugin that constructs a `ChatOpenAI` shares. */

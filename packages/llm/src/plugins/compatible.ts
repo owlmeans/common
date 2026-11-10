@@ -6,6 +6,7 @@ import { pluginUtils } from './utils.js'
 import { llmTransportRegistry } from './transport.js'
 import { openAiFamily } from './openai.js'
 import { HUGGINGFACE_MARKER } from './consts.local.js'
+import { compatibleSearch } from './compatible/search.js'
 
 /**
  * Any OpenAI-compatible endpoint that is not OpenAI itself — OpenRouter, the
@@ -29,6 +30,9 @@ export const compatiblePlugin: LlmPlugin = {
 
   structuredMode: (config: ModelConfig): StructuredMode =>
     config.structuredOutput === true ? StructuredMode.Native : StructuredMode.Tool,
+
+  /** Dialect by the host of `baseUrl` — see `createCompatibleSearch`. */
+  search: compatibleSearch,
 
   build: ({ alias, config, secret, callbacks }) => {
     const baseModel = config.model ??= 'Qwen/Qwen3-235B-A22B-Instruct-2507'

@@ -10,6 +10,7 @@ import type { LlmSpectator, ModelConfig } from '@owlmeans/llm'
 export const gates = makeGates({
   openrouter: ['OPENROUTER_SECRET'],
   anthropic: ['ANTHROPIC_SECRET'],
+  openai: ['OPENAI_SECRET'],
 })
 
 /** Role aliases the fixtures register — mirrors how a consumer names its own roles. */
@@ -53,6 +54,25 @@ export const anthropicConfigs = (): ModelConfig[] => [
     maxTokens: 4096,
     maxTokensCap: 16000,
   },
+]
+
+/**
+ * The live web-search configs — one alias per dialect, each on a cheap model whose provider
+ * reports `web_search` support for these keys. Searches are billed per call (≈$0.01), so the
+ * live specs keep `maxUses` low.
+ */
+export const searchConfigs = (): ModelConfig[] => [
+  { alias: 'claude', provider: ModelProvider.Anthropic, model: 'claude-haiku-5-5', secret: process.env.ANTHROPIC_SECRET! },
+  { alias: 'gpt', provider: ModelProvider.OpenAI, model: 'gpt-5.4-mini', secret: process.env.OPENAI_SECRET! },
+  {
+    alias: 'search-model', provider: ModelProvider.Compatible, model: 'gpt-5-search-api',
+    secret: process.env.OPENAI_SECRET!, baseUrl: 'https://api.openai.com/v1',
+  },
+  {
+    alias: 'router-gpt', provider: ModelProvider.Compatible, model: 'openai/gpt-5.4-mini',
+    secret: process.env.OPENROUTER_SECRET!, baseUrl: process.env.OPENROUTER_URL ?? 'https://openrouter.ai/api/v1',
+  },
+  { alias: 'router-claude', preset: 'router-gpt', model: 'anthropic/claude-haiku-5.5' },
 ]
 
 /**

@@ -16,6 +16,8 @@ abstraction that resolves models from an inheritable policy.
   inheritance and a stronger `fallback` model attached for retry escalation
 - **Execution** — frozen, three-level (`Project` → `Task` → `Helper`) execution objects
   carrying a `ModelPolicy`, plus snapshot / restore / checkpoint for resumable workflows
+- **Web search** — provider-hosted internet search (Anthropic, OpenAI, OpenRouter, Chat search
+  models) with citations and sources, sent straight to the provider so no LLM proxy reroutes it
 
 ## Installation
 
@@ -97,6 +99,25 @@ await context.executions().checkpoint(task, jobId)                 // JSON-safe,
 const resumed = context.executions().restore(state, { models: () => context.llm() })
 ```
 
+### Search the web
+
+```typescript
+const answer = await llm.webSearch('analyst').search('What changed in the latest Bun release?', {
+  maxUses: 2, contextSize: 'low', allowedDomains: ['bun.com'],
+})
+answer.text       // Markdown answer
+answer.citations  // [{ url, title, quote, start, end }]
+answer.sources    // every page consulted
+```
+
+The alias resolves like `getModel`. Anthropic configs use the Messages API web search tool,
+OpenAI configs the Responses API `web_search` tool, a compatible config on OpenRouter the
+`openrouter:web_search` server tool, and one on `api.openai.com` / `api.perplexity.ai` a Chat
+search model (`webSearch.dialect` overrides the choice; an unknown host is refused rather than
+answered unsearched). Each search is one direct request to the provider — never through
+`llmTransportRegistry` or an SDK client — so an installed LLM proxy cannot reroute it. A domain
+bound is enforced on the result even when a provider's filter leaks.
+
 ### Add a provider
 
 ```typescript
@@ -155,6 +176,17 @@ skills, sent in the uncached tail), `temperature` (`invoke` only).
 
 Everything under `src/utils/` is library-private and deliberately not exported.
 
+### Web search
+
+| Export | Use for |
+|--------|---------|
+| `LlmService.webSearch(alias, override?)` | A `WebSearch` on that alias's resolved config. |
+| `makeWebSearch({ alias, config, secret, plugin, fetch? })` | The same, built by hand (`fetch` replaces `globalThis.fetch`). |
+| `WebSearch.search(input, options?)` | `{ text, citations, sources, queries, searches, usage, provider, model, dialect, errors }`. Options: `maxUses`, `maxResults`, `contextSize`, `allowedDomains` / `blockedDomains`, `location`, `instructions`, `maxTokens`, `timeout`, `retries`, `signal`, `action`, `spectator`. |
+| `ModelConfig.webSearch` | `{ dialect?, tool?, engine? }` — force a dialect, pick the Anthropic tool version or the OpenRouter engine. |
+| `LlmPlugin.search` | A provider's dialect; a plugin without one cannot search (`LlmSearchUnsupportedError`). |
+| `LlmSearchError`, `LlmSearchUnsupportedError` | A provider failure (`status`, `code`, redacted `detail`); a config or option no dialect can run (fatal). |
+
 ### Plugins
 
 Exported from `@owlmeans/llm/plugins` as well as the root: `llmPluginRegistry` (the registry —
@@ -167,9 +199,10 @@ Exported from `@owlmeans/llm/plugins` as well as the root: `llmPluginRegistry` (
 bun test ./tests
 ```
 
-Offline specs always run. The live specs in `tests/model.spec.ts` are gated: set
-`OPENROUTER_SECRET` (and optionally `OPENROUTER_URL`) and/or `ANTHROPIC_SECRET` in the repo
-root `.env`. With none set they self-skip with a printed reason — never a failure.
+Offline specs always run. The live specs (`tests/model.spec.ts`, `tests/search-live.spec.ts`)
+are gated: set `ANTHROPIC_SECRET`, `OPENAI_SECRET` and/or `OPENROUTER_SECRET` (optionally
+`OPENROUTER_URL`) in the repo root `.env`. With none set they self-skip with a printed reason —
+never a failure.
 
 ## Depends On
 

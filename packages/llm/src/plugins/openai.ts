@@ -22,6 +22,10 @@ import {
 import type { ContentBlock, OpenAiKwargs } from './types.local.js'
 import { effortUtils } from '../utils/effort.js'
 import { schemaUtils } from '../utils/schema.js'
+import { LlmSearchUnsupportedError } from '../errors.js'
+import { WebSearchDialect } from '../search/consts.js'
+import { openAiSearchHelper } from './openai/search.js'
+import { OPENAI_API_URL } from './openai/consts.local.js'
 
 /** Whether this model id goes through the Responses API and therefore rejects sampling. */
 export const usesResponsesApi = (model: string | undefined): boolean =>
@@ -338,6 +342,37 @@ export const openAiPlugin: LlmPlugin = {
 
   schemaDefects: (config, schema) =>
     config.structuredOutput === false ? [] : schemaUtils.hiddenPropertyNames(schema, OPENAI_HIDDEN_PROPERTY_NAMES),
+
+  /**
+   * The Responses API with the `web_search` tool, whatever API the chat client of this model uses;
+   * `webSearch.dialect: 'chat'` asks a Chat-Completions search model (`gpt-5-search-api`) instead.
+   * Always the official endpoint, as the chat client.
+   */
+  search: async params => {
+    const { config } = params
+    const dialect = config.webSearch?.dialect ?? WebSearchDialect.Responses
+    const headers = config.organization != null ? { 'openai-organization': config.organization } : undefined
+    if (dialect === WebSearchDialect.Chat) {
+      return openAiSearchHelper.chat(params, {
+        url: `${OPENAI_API_URL}/chat/completions`,
+        provider: ModelProvider.OpenAI,
+        dialect,
+        body: openAiSearchHelper.webSearchOptions(params.options),
+        tokenParam: 'max_completion_tokens',
+        headers,
+      })
+    }
+    if (dialect !== WebSearchDialect.Responses) {
+      throw new LlmSearchUnsupportedError(`openai:${dialect}`)
+    }
+
+    return openAiSearchHelper.responses(params, {
+      url: `${OPENAI_API_URL}/responses`,
+      provider: ModelProvider.OpenAI,
+      effort: effortUtils.effortFor(openAiEffort(config.model), config.effort, 0),
+      headers,
+    })
+  },
 
   build: ({ alias, config, secret, callbacks }) => {
     const model = config.model ??= 'gpt-5.4-mini'

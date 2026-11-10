@@ -20,6 +20,7 @@ import { effortUtils } from '../utils/effort.js'
 import { schemaUtils } from '../utils/schema.js'
 import { anthropicSupportHelper } from './anthropic/support.js'
 import { THINKING_OFF_TYPES } from './anthropic/consts.local.js'
+import { createAnthropicSearch } from './anthropic/search.js'
 
 /**
  * Make the instance's own view of `thinking` match what the request means, without touching the
@@ -54,6 +55,9 @@ const anthropicEffort = (config: Pick<ModelConfig, 'model' | 'disableThinking'>)
 
   return { levels, default: entry.default }
 }
+
+/** The Messages-API web search, asked with this plugin's own effort table. */
+const anthropicSearch = createAnthropicSearch(anthropicEffort)
 
 /**
  * The `outputConfig` for one attempt, or `undefined` to leave it as `build` wrote it. The model
@@ -297,6 +301,8 @@ export const anthropicPlugin: LlmPlugin = {
    * buried under the repeats.
    */
   isFatal: e => e instanceof BadRequestError || pluginUtils.isBadRequest(e) ? e as Error : null,
+
+  search: anthropicSearch,
 }
 
 /** @deprecated compat:factory-refactor — use `anthropicSupportHelper.rejectsSampling(…)` */
