@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/llm-reader-playwright",
+  "version": "0.1.22-rc.0",
+  "generatedAt": "2026-11-09T19:08:58.661Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "llm-reader-playwright",
+      "category": "package-specific",
+      "file": "skills/llm-reader-playwright/SKILL.md",
+      "canonicalPath": ".agents/skills/llm-reader-playwright/SKILL.md"
+    }
+  ]
+}

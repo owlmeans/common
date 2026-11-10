@@ -76,9 +76,50 @@ export class LlmRetryExceededError extends LlmError {
   }
 }
 
+/**
+ * A provider-hosted web search failed: the provider answered an error status, an error body, or
+ * nothing usable. `status` is the HTTP status when there was one; a 400 is fatal like every other
+ * malformed request, a 429 or 5xx is retried. `detail` never carries a credential.
+ */
+export class LlmSearchError extends LlmError {
+  public static override typeName = `Search${LlmError.typeName}`
+
+  public status?: number
+
+  public code?: string
+
+  public provider?: string
+
+  /** How long the provider asked to wait before a retry, in ms. */
+  public retryAfter?: number
+
+  public detail?: string
+
+  constructor(message: string = 'error') {
+    super(`search:${message}`)
+    this.type = LlmSearchError.typeName
+  }
+}
+
+/**
+ * The config cannot run a web search: its provider has no search dialect (a delegated model), the
+ * compatible host is unknown, or the call asks for a constraint the dialect cannot honour. A
+ * misconfiguration — fatal on the first attempt.
+ */
+export class LlmSearchUnsupportedError extends LlmMissconfiguredError {
+  public static override typeName = `SearchUnsupported${LlmMissconfiguredError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`search-unsupported:${message}`)
+    this.type = LlmSearchUnsupportedError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(LlmError)
 ResilientError.registerErrorClass(LlmModelError)
 ResilientError.registerErrorClass(LlmOutputRejection)
 ResilientError.registerErrorClass(LlmMissconfiguredError)
 ResilientError.registerErrorClass(LlmPluginError)
 ResilientError.registerErrorClass(LlmRetryExceededError)
+ResilientError.registerErrorClass(LlmSearchError)
+ResilientError.registerErrorClass(LlmSearchUnsupportedError)

@@ -39,7 +39,7 @@
     "@owlmeans/basic-envelope": "^0.1.21",
     "@owlmeans/basic-ids": "^0.1.21",
     "@owlmeans/basic-keys": "^0.1.21",
-    "@owlmeans/test": "^0.1.21",
+    "@owlmeans/test": "^0.1.22-rc.0",
     "@owlmeans/test-auth": "^0.1.21",
     "playwright": "^1.64.1"
   },

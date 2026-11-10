@@ -285,6 +285,8 @@ application packages above, or add one when they need that specific feature.
 |  | [`storage-common`](packages/storage-common) | Shared object and file storage types, errors and model |
 |  | [`storage-resource`](packages/storage-resource) | An upload-only S3-compatible object storage resource with MIME sniffing |
 | Server | [`bot-agent`](packages/bot-agent) | Lets an `@owlmeans/agent` agent act on a chat-bot message: the message and the instructions its handler passes as context, the bot's supported actions as never-throwing tools |
+| Server | [`llm-reader`](packages/llm-reader) | Reads the web for an LLM: fetches pages directly or through HTTP/SOCKS proxies (a list or a key→proxy callback), describes, classifies and extracts from them in text or DOM mode, lists their pictures with context, and writes their design as a DESIGN.md |
+| Server | [`llm-reader-playwright`](packages/llm-reader-playwright) | The optional browser renderer for `llm-reader`: script-rendered pages, computed styles and screenshots, through the reader's proxy and address guard |
 |  | [`captcha`](packages/captcha) | Server-side reCAPTCHA verification: the siteverify verifier, the sign-in plugin policy and a strict challenge-less check for score-based tokens |
 |  | [`server-auth-email`](packages/server-auth-email) | The server half of e-mail sign-in: PIN and password through private auth plugins, remembered devices, captcha, throttles and developer routes |
 |  | [`server-auth-otp`](packages/server-auth-otp) | The email-OTP auth plugin and OtpService for passwordless sign-in |

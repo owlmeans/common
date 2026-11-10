@@ -30,11 +30,11 @@ New auth mocks belong in `@owlmeans/test-auth`, never in a package's own `tests/
 
 ## Package → category map
 
-114 packages, one category each.
+116 packages, one category each.
 
 - **A** (60): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `auth-email`, `basic-ids`, `bot`, `bot-agent`, `captcha`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-resource`, `client-route`, `client-socket`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `flow`, `i18n`, `iam`, `image-resource`, `llm-common`, `mailer`, `payment`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-bot`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-config`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `web-auth-email`, `web-captcha`, `web-db`, `web-gtm`, `web-inquiry`, `web-router-react-router`
 - **B** (21): `auth`, `auth-common`, `auth-otp`, `basic-envelope`, `basic-keys`, `client-auth`, `client-did`, `client-iam`, `client-payment`, `did`, `mui-oidc-rp`, `oidc`, `server-auth`, `server-auth-email`, `server-auth-otp`, `server-oidc-provider`, `server-oidc-rp`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `wled`
-- **C** (16): `bot-postgres`, `kluster`, `llm` (live inference providers), `mailer-smtp`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-mailer-mailgun`, `storage-resource`
+- **C** (18): `bot-postgres`, `kluster`, `llm` (live inference providers), `llm-reader` (live models, the public web), `llm-reader-playwright` (a browser), `mailer-smtp`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-mailer-mailgun`, `storage-resource`
 - **D** (12): `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-bot`, `web-client`, `web-consent`, `web-flow`, `web-panel`, `web-router`, `web-wl`
 - **None** (5): `_tpl`, and the four harness packages themselves — `test`, `test-auth`, `test-integration`, `test-ui`
 

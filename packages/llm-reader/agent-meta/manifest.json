@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/llm-reader",
+  "version": "0.1.22-rc.0",
+  "generatedAt": "2026-11-09T20:28:13.778Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "llm-reader",
+      "category": "package-specific",
+      "file": "skills/llm-reader/SKILL.md",
+      "canonicalPath": ".agents/skills/llm-reader/SKILL.md",
+      "parts": [
+        {
+          "name": "analysis",
+          "file": "skills/llm-reader/parts/analysis.md",
+          "description": "The model-backed reading of a page — describe (the default Markdown description), classify, extract in text, DOM (an @owlmeans/agent agent) or auto mode, links by intent, pictures with their role, usage and vision captions — and the page model they read (metadata evidence, content, signals, the DOM index).",
+          "purposes": [
+            "agent",
+            "data"
+          ],
+          "mentions": [
+            "makePageAnalyst",
+            "makeReaderModels",
+            "ReaderModels",
+            "ReaderMode",
+            "ReaderTask",
+            "PageDescription",
+            "PageClassification",
+            "ExtractResult",
+            "Evidence",
+            "SelectedLink",
+            "PageImage",
+            "ImageRole",
+            "makePageModel",
+            "PageModel",
+            "DomIndex",
+            "PageSignals",
+            "MetaValue"
+          ]
+        },
+        {
+          "name": "design",
+          "file": "skills/llm-reader/parts/design.md",
+          "description": "The reader's design analysis — measured facts (stylesheets parsed and weighted by the DOM, computed styles merged from a renderer), the model's draft, and the DESIGN.md the package renders (Google Labs spec plus Responsive Behavior and Agent Prompt Guide).",
+          "purposes": [
+            "theme",
+            "agent"
+          ],
+          "mentions": [
+            "makeDesignAnalyst",
+            "DesignFacts",
+            "DesignReport",
+            "DesignTokens",
+            "DesignDraft",
+            "renderDesignMd",
+            "DESIGN_SECTIONS",
+            "StyleSample",
+            "RenderedPage"
+          ]
+        },
+        {
+          "name": "fetching",
+          "file": "skills/llm-reader/parts/fetching.md",
+          "description": "Fetching pages through the reader's fetcher — the integrated proxy plugin (list, key→proxy callback, strategies, cooldown, failover), the local SOCKS bridge, the Bun and Node transports, NO_PROXY fail-closed, and the address guard.",
+          "purposes": [
+            "server-api",
+            "config"
+          ],
+          "mentions": [
+            "createPageFetcher",
+            "createProxyPlugin",
+            "ProxyResolver",
+            "ProxyLease",
+            "ProxyStrategy",
+            "createSocksBridge",
+            "createFetchTransport",
+            "createAddressGuard",
+            "BRIDGE_ERROR_HEADER",
+            "BRIDGE_REFUSED_HEADER",
+            "NO_PROXY",
+            "ReaderProxyError",
+            "ReaderRefusedError"
+          ]
+        },
+        {
+          "name": "testing",
+          "file": "skills/llm-reader/parts/testing.md",
+          "description": "The reader's specs — real local servers (fixture site, HTTP proxy, SOCKS server), offline fetch/proxy/bridge/page/image/design specs, the Node-runtime spec, and the gated live analysis, public-web and real-proxy specs.",
+          "purposes": [
+            "test"
+          ],
+          "mentions": [
+            "ANTHROPIC_SECRET",
+            "OPENAI_SECRET",
+            "LLM_READER_LIVE_WEB",
+            "LLM_READER_PROXIES",
+            "servers.ts",
+            "context.ts",
+            "node-transport.spec.ts",
+            "analyst.live.spec.ts",
+            "web.live.spec.ts",
+            "proxy.live.spec.ts"
+          ]
+        }
+      ]
+    }
+  ]
+}

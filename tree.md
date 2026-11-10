@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All 123 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All 125 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -160,6 +160,8 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-planning`](packages/server-planning) → `auth`, `auth-common`, `basic-ids`, `context`, `entrypoint`, `error`, `planning`, `queue`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-socket`, `socket`
 - [`server-bot`](packages/server-bot) → `bot`, `context`, `entrypoint`, `error`, `log`, `resource`, `server-api`, `server-entrypoint`
 - [`bot-agent`](packages/bot-agent) → `agent`, `bot`, `server-bot`
+- [`llm-reader`](packages/llm-reader) → `agent`, `context`, `error`, `llm`, `llm-common`, `log`
+- [`llm-reader-playwright`](packages/llm-reader-playwright) → `error`, `llm-reader`, `log`
 - [`server-app`](packages/server-app) → `api`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `static-resource`
 - [`server-payment`](packages/server-payment) → `auth`, `config`, `context`, `entrypoint`, `iam`, `mongo-resource`, `payment`, `resource`, `route`, `server-api`, `server-app`, `server-context`, `server-entrypoint`
 
@@ -249,6 +251,7 @@ A handful of dependencies cross the obvious layer boundaries. They are intention
 - **Tooling → domain (`create-app` → `agent-skills` → `agent`, `llm`).** The scaffolder and the skills installer are CLIs, not framework layers: they sit in [Configuration & tooling](#1-configuration--tooling) but build after the packages they drive. No runtime framework package depends on either.
 - **`astro` → `consent`, `web-gtm`.** The Astro integration composes the browser consent and tag-manager packages for static sites; it is a web-layer package that ships no React.
 - **`bot-agent` → `agent`, `server-bot`.** The bridge from a chat bot to an agent: the update as context, the bot's actions as tools. It sits in the server layer, without the `server-` prefix, because its tools call `server-bot`'s `BotActions` (a type-only edge); `agent` is a peer.
+- **`llm-reader` → `agent`, `llm`.** Web reading for an LLM: a fetcher with HTTP/SOCKS proxies (it runs a local proxy bridge, so it is Node/Bun only), a page model, and analyses on `llm` models — DOM mode through an `agent` tool loop. It sits in the server layer, without the `server-` prefix. `llm-reader-playwright` is its optional browser renderer, a separate package so `playwright` stays an opt-in peer.
 
 If you add a new cross-layer dependency, document it here and explain why.
 
@@ -263,8 +266,8 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 - **L4**: `api-config`, `auth-token`, `basic-envelope`, `bot`, `captcha`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
 - **L5**: `agent-common`, `oauth`, `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
 - **L6**: `agent`, `api-config-client`, `auth-email`, `cli-auth`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`
-- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-bot`, `server-oidc-provider`, `server-wl`, `web-db`
-- **L8**: `bot-agent`, `bot-postgres`, `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-common`, `web-wl`, `{server-auth | server-socket}`
+- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `llm-reader`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-bot`, `server-oidc-provider`, `server-wl`, `web-db`
+- **L8**: `bot-agent`, `bot-postgres`, `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `llm-reader-playwright`, `redis-queue`, `server-auth-token`, `viable-common`, `web-wl`, `{server-auth | server-socket}`
 - **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oauth`, `server-oidc-rp`, `viable-sdk`, `web-auth-token`, `web-bot`, `web-flow`
 - **L10**: `client-auth`, `server-auth-email`, `server-iam`, `server-payment`
 - **L11**: `client-job`, `client-panel`, `client-payment`, `web-auth-email`, `web-client`, `web-oauth`
@@ -309,6 +312,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  server-entrypoint  server-route  server-context   server-config             ║
  ║  server-wl        server-payment  server-bot       bot-agent                 ║
  ║  server-auth-email  captcha (server-side, no prefix)                         ║
+ ║  llm-reader       llm-reader-playwright                                      ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  STORAGE & INFRASTRUCTURE                                         L3–L8      ║
  ║                                                                              ║
@@ -357,11 +361,11 @@ Dependencies flow downward: every package can only import from the layers below 
   L10  ████ client-auth  server-auth-email  server-iam  server-payment
    L9  ██████ server-app  server-auth-otp  server-job  server-oauth  server-oidc-rp
                web-auth-token  web-bot  web-flow
-   L8  █████████ bot-agent  bot-postgres  client-did  client-flow  client-i18n  client-socket
-               create-app  redis-queue  web-wl
+   L8  ██████████ bot-agent  bot-postgres  client-did  client-flow  client-i18n  client-socket
+               create-app  llm-reader-playwright  redis-queue  web-wl
         ████ {server-auth ↔ server-socket}
-   L7  █████████████ agent-skills  api-config-server  client  iam  image-resource
-                mongo  postgres  redis  server-auth-identity  server-bot
+   L7  ██████████████ agent-skills  api-config-server  client  iam  image-resource
+                llm-reader  mongo  postgres  redis  server-auth-identity  server-bot
                 server-oidc-provider  server-wl  web-db
    L6  █████████████ agent  api-config-client  auth-email  cli-auth  client-resource  kluster
                 mailer-smtp  mongo-resource  oidc  postgres-resource  queue  redis-resource

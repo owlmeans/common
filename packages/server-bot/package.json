@@ -62,7 +62,7 @@
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.21",
     "@owlmeans/static-resource": "^0.1.21",
-    "@owlmeans/test": "^0.1.21",
+    "@owlmeans/test": "^0.1.22-rc.0",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "ajv": "^8.20.0",
