@@ -10,11 +10,14 @@ S3-compatible object storage resource for OwlMeans server applications.
   `BasicResource`. The bucket takes a stream and hands back a URL; there is no record store behind
   it to read, list or delete against
 - `StoredConfigAppend` — config mixin type for storage bucket credentials
+- `makeStorageBucketModel(config)` — how one bucket entry addresses its objects (bucket, endpoint,
+  region, keys, public URLs, a client); `@owlmeans/file-streams` reads and writes through it, so an
+  object either package writes is found by the other
 
 ## Installation
 
 ```bash
-bun add @owlmeans/storage-resource@^0.1.21
+bun add @owlmeans/storage-resource@^0.1.22-rc.0
 ```
 
 ## Usage
@@ -41,12 +44,20 @@ Config (`config.json`):
 {
   "storageBuckets": {
     "images": {
-      "url": "https://s3.amazonaws.com",
-      "apiKey": "...",
-      "basePrefix": "my-bucket/images"
+      "url": "media.s3.eu-central-1.amazonaws.com",
+      "apiKey": "<keyId>:<secret>",
+      "basePrefix": "images"
     }
   }
 }
+```
+
+`url` is `<bucket>.<endpoint-host>` — no scheme. Any S3-compatible store is addressed with the
+optional fields instead:
+
+```json
+{ "endpoint": "http://127.0.0.1:9000", "bucket": "media", "forcePathStyle": true, "region": "us-east-1",
+  "acl": false, "apiKey": "<keyId>:<secret>", "basePrefix": "images" }
 ```
 
 Upload a file:
@@ -79,7 +90,15 @@ Extends `ResourceRecord` with: `url?`, `size?`, `prefix`, `stream?`, `format?`, 
 
 ### `StorageConfig`
 
-`{ url: string, apiKey: string, basePrefix: string }`
+`{ url?, apiKey, basePrefix, endpoint?, bucket?, region?, forcePathStyle?, acl?, publicUrl? }` —
+`url` is required unless `endpoint` and `bucket` are set; `region` defaults to `eu-central-1`,
+`acl` to `public-read` (`false` sends none).
+
+### `makeStorageBucketModel(config): StorageBucketModel`
+
+`bucket`, `endpoint`, `region`, `forcePathStyle`, `basePrefix`, `acl`, `keyOf(prefix)`
+(`<basePrefix>/<prefix>`), `urlOf(prefix)` and `createClient()` (a new `S3Client` the caller
+destroys). Throws `FilePropertyError` for an entry it cannot address.
 
 ### `stripData<Input, Output>(file): Output`
 
@@ -93,6 +112,7 @@ Array of MIME types accepted for upload.
 
 - [`@owlmeans/storage-common`](../storage-common) — shared types (`StoredFileMeta`, `StoredFile`, etc.)
 - [`@owlmeans/image-resource`](../image-resource) — image-specific resource built on top of this
+- [`@owlmeans/file-streams`](../file-streams) — streaming reads, multipart writes and transfers over the same bucket entries
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance

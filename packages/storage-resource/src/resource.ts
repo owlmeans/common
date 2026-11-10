@@ -3,7 +3,9 @@ import { DEFAULT_ALIAS } from './consts.js'
 import type { Config, Context, StorageResource, StoredRecord } from './types.js'
 import type { WriteOptions } from '@owlmeans/resource'
 import { FilePropertyError, FileStreamError, FileTypeError, StorageApiError } from '@owlmeans/storage-common'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
+import type { ObjectCannedACL } from '@aws-sdk/client-s3'
+import { makeStorageBucketModel } from './models/bucket.js'
 import { ResilientError } from '@owlmeans/error'
 import { fileTypeFromBuffer } from 'file-type'
 import { logger } from '@owlmeans/log'
@@ -35,27 +37,16 @@ export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?:
       }
 
       const context = resource.assertCtx() as Context
+      const bucket = makeStorageBucketModel(context.cfg.storageBuckets[configKey])
+      const client = bucket.createClient()
 
-      const config = context.cfg.storageBuckets[configKey]
-      const [keyId, keySecret] = config.apiKey.split(':')
-      const [bucket, ...parts] = config.url.split('.')
-
-      // @TODO Abstract it some way and make the upload multipart
+      // @TODO Make the upload multipart
       try {
-        const client = new S3Client({
-          region: 'eu-central-1',
-          endpoint: `https://${parts.join('.')}`,
-          credentials: {
-            accessKeyId: keyId,
-            secretAccessKey: keySecret,
-          }
-        })
-
         const result = await client.send(new PutObjectCommand({
-          ACL: 'public-read',
-          Bucket: bucket,
+          ...(bucket.acl != null ? { ACL: bucket.acl as ObjectCannedACL } : {}),
+          Bucket: bucket.bucket,
           Body: Buffer.concat(buffers),
-          Key: `${config.basePrefix}/${record.prefix}`,
+          Key: bucket.keyOf(record.prefix as string),
           ContentLength: record.size,
           ContentDisposition: 'inline',
           ContentType: record.type,
@@ -65,16 +56,16 @@ export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?:
           throw new StorageApiError('code')
         }
 
-        record.url = `https://${config.url}/${config.basePrefix}/${record.prefix}`
+        record.url = bucket.urlOf(record.prefix as string)
         delete record.stream
-
-        client.destroy()
       } catch (e) {
         if (e instanceof ResilientError) {
           throw e
         }
         log.error('Storage upload failed', e)
         throw new StorageApiError()
+      } finally {
+        client.destroy()
       }
 
       return record as StoredRecord

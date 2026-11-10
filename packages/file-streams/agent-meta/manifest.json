@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/file-streams",
+  "version": "0.1.22-rc.0",
+  "generatedAt": "2026-11-09T20:19:04.592Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "file-streams",
+      "category": "package-specific",
+      "file": "skills/file-streams/SKILL.md",
+      "canonicalPath": ".agents/skills/file-streams/SKILL.md"
+    }
+  ]
+}
