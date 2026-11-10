@@ -161,7 +161,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.63.0",
+    "lucide-react": "^1.71.0",
     "nodemon": "^3.1.14",
     "playwright": "^1.64.1",
     "tailwind-merge": "^3.7.0",
