@@ -347,10 +347,11 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
   attach_project: { annotations: ENSURES },
   reinitialize_project: {
     annotations: REWRITES,
-    description: 'Wipe the generated sources and lay the template down again, then draw the application anew —'
-      + ' model work that spends credits unless the plan\'s project allowance still covers it. The user stories'
-      + ' are KEPT and reset to planned; the configuration and git history survive. Calling it again wipes and'
-      + ' rebuilds again, and spends again.',
+    description: 'Wipe the generated sources and lay the template down again, then draw the application anew.'
+      + ' A rebuild counts as a NEW project generation: it uses one of the plan\'s free project generations, or'
+      + ' spends credits when none is left, and is refused when neither is available. The user stories are KEPT'
+      + ' and reset to planned; the configuration and git history survive. Calling it again wipes and rebuilds'
+      + ' again, and spends again.',
   },
   rename_project: {
     annotations: REWRITES,
