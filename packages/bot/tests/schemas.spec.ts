@@ -9,19 +9,20 @@ describe('connection input', () => {
   const valid = validatorOf(BotConnectionInputSchema)
 
   test('accepts a minimal and a full input, credentials write-only and clearable', () => {
-    expect(valid({ platform: 'telegram', label: 'Community' })).toBe(true)
+    expect(valid({ platform: 'acme', label: 'Community' })).toBe(true)
     expect(valid({
-      id: 'conn_1', platform: 'slack', label: 'Office', transport: 'mock', enabled: true,
-      credentials: { botToken: 'xoxb-1', signingSecret: 's', userToken: '' },
+      id: 'conn_1', platform: 'acme-chat', label: 'Office', transport: 'mock', enabled: true,
+      credentials: { botToken: 'token-1', signingSecret: 's', adminToken: '' },
     })).toBe(true)
   })
 
-  test('refuses an unknown platform, an empty label, a stray key and a malformed credential key', () => {
-    expect(valid({ platform: 'viber', label: 'x' })).toBe(false)
-    expect(valid({ platform: 'telegram', label: '' })).toBe(false)
-    expect(valid({ platform: 'telegram', label: 'x', scope: 'org-1' })).toBe(false)
-    expect(valid({ platform: 'telegram', label: 'x', credentials: { 'bad key': 'v' } })).toBe(false)
-    expect(valid({ platform: 'telegram', label: 'x', credentials: { token: { value: 'v' } } })).toBe(false)
+  test('refuses a malformed platform id, an empty label, a stray key and a malformed credential key', () => {
+    expect(valid({ platform: 'Acme Chat', label: 'x' })).toBe(false)
+    expect(valid({ platform: '', label: 'x' })).toBe(false)
+    expect(valid({ platform: 'acme', label: '' })).toBe(false)
+    expect(valid({ platform: 'acme', label: 'x', scope: 'org-1' })).toBe(false)
+    expect(valid({ platform: 'acme', label: 'x', credentials: { 'bad key': 'v' } })).toBe(false)
+    expect(valid({ platform: 'acme', label: 'x', credentials: { token: { value: 'v' } } })).toBe(false)
   })
 })
 
@@ -63,12 +64,16 @@ describe('params and queries', () => {
     expect(valid({ limit: 1.5 })).toBe(false)
   })
 
-  test('the hook names a known platform and a path-safe connection; its handshake query stays open', () => {
+  test('the hook names a well-formed platform id and a path-safe connection; its handshake query stays open', () => {
     const params = validatorOf(BotHookParamsSchema)
     const query = validatorOf(BotChallengeQuerySchema)
 
-    expect(params({ platform: 'whatsapp', connection: 'conn_1' })).toBe(true)
-    expect(params({ platform: 'viber', connection: 'conn_1' })).toBe(false)
-    expect(query({ 'hub.mode': 'subscribe', 'hub.verify_token': 't', 'hub.challenge': '123', other: 'x' })).toBe(true)
+    expect(params({ platform: 'acme-chat', connection: 'conn_1' })).toBe(true)
+    // Any well-formed id passes the schema: a platform with no plugin is the server's to refuse.
+    expect(params({ platform: 'other', connection: 'conn_1' })).toBe(true)
+    expect(params({ platform: '../acme', connection: 'conn_1' })).toBe(false)
+    expect(params({ platform: 'acme', connection: '../etc' })).toBe(false)
+    expect(query({ 'mode': 'subscribe', 'token': 't', 'challenge': '123', other: 'x' })).toBe(true)
+    expect(query({})).toBe(true)
   })
 })

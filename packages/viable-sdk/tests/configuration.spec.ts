@@ -31,7 +31,7 @@ const toolNamed = (name: string) => {
 
 const CONFIG: ConnectProjectConfig = {
   scope: WorkloadKind.Ephemeral,
-  backend: [{ name: 'STRIPE_SECRET_KEY', set: true }, { name: 'SMTP_PASSWORD', set: false }],
+  backend: [{ name: 'PAYMENT_API_KEY', set: true }, { name: 'SMTP_PASSWORD', set: false }],
   frontend: [{ name: 'PUBLIC_MAP_KEY', set: true, value: 'pk_map_123' }, { name: 'PUBLIC_SITE', set: false, value: '' }],
 }
 
@@ -78,15 +78,15 @@ describe('viable-sdk — the configuration tools', () => {
 
   test('project_configuration says whether a backend variable is set — never its value — and shows the public ones', async () => {
     // A backend entry that carried a value anyway (an older or broken platform) is still not printed.
-    const leaky = { ...CONFIG, backend: [{ name: 'STRIPE_SECRET_KEY', set: true, value: 'sk_live_SECRET' }, ...CONFIG.backend.slice(1)] }
+    const leaky = { ...CONFIG, backend: [{ name: 'PAYMENT_API_KEY', set: true, value: 'key_live_SECRET' }, ...CONFIG.backend.slice(1)] }
     const scopes: unknown[] = []
     const { deps } = connector({ config: { get: async (_id: string, scope?: string) => { scopes.push(scope); return leaky } } })
 
     const result = await toolNamed('project_configuration').run({ scope: 'production' }, deps)
 
     expect(scopes).toEqual([WorkloadKind.Production])
-    expect(result.text).not.toContain('sk_live_SECRET')
-    expect(result.text).toContain('STRIPE_SECRET_KEY: set')
+    expect(result.text).not.toContain('key_live_SECRET')
+    expect(result.text).toContain('PAYMENT_API_KEY: set')
     expect(result.text).toContain('SMTP_PASSWORD: NOT SET')
     expect(result.text).toContain('PUBLIC_MAP_KEY: pk_map_123')
     expect(result.text).toContain('still without a value: SMTP_PASSWORD, PUBLIC_SITE')
@@ -129,13 +129,13 @@ describe('viable-sdk — the configuration tools', () => {
   })
 
   test('a variable the platform refuses comes back as a sentence naming it', async () => {
-    const refused = ResilientError.ensure(ResilientError.marshal(new AuthenPayloadError('STRIPE_SECRET_KEY')))
+    const refused = ResilientError.ensure(ResilientError.marshal(new AuthenPayloadError('PAYMENT_API_KEY')))
     const { deps } = connector({ config: { save: async () => { throw refused } } })
 
-    const result = await toolNamed('update_project_configuration').run({ frontend: { STRIPE_SECRET_KEY: 'x' } }, deps)
+    const result = await toolNamed('update_project_configuration').run({ frontend: { PAYMENT_API_KEY: 'x' } }, deps)
 
     expect(result.isError).toBe(true)
-    expect(result.text).toContain('STRIPE_SECRET_KEY')
+    expect(result.text).toContain('PAYMENT_API_KEY')
     expect(result.text).not.toContain('authen:payload:')
   })
 
@@ -146,7 +146,7 @@ describe('viable-sdk — the configuration tools', () => {
 
     expect(order).toEqual(['session', 'recollect'])
     expect(result.text).toContain('The sources were read again.')
-    expect(result.text).toContain('STRIPE_SECRET_KEY: set')
+    expect(result.text).toContain('PAYMENT_API_KEY: set')
   })
 })
 

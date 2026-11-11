@@ -60,15 +60,15 @@ export const CountrySelect = ({
 }
 
 /**
- * What Stripe Tax says at the estimate's country, with NO country picker of its own: the rate(s),
+ * What the paygate's tax calculation says at the estimate's country, with NO country picker of its own: the rate(s),
  * an estimated total, and one sentence for whichever status leaves no number to trust (reverse
  * charge, no tax, "at checkout", "choose a country"). Several of these may share one
  * `CountrySelect` (a plan comparison table).
  *
- * A country whose currency differs from `currency` (Adaptive Pricing found a rate) shows the tax
+ * A country whose currency differs from `currency` (local-currency pricing found a rate) shows the tax
  * and the total in THAT currency instead, marked `≈` throughout — never both currencies at once,
  * which would read as two different prices for the same line. The rate percentage itself is
- * currency-agnostic and always shows as Stripe stated it.
+ * currency-agnostic and always shows as the paygate stated it.
  *
  * `data-price-estimate` / `data-status` are stable test hooks.
  */

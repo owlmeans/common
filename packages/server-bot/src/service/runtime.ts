@@ -15,6 +15,7 @@ export const makeBotRuntimeFactory = (
   const log = parts.log.child('runtime')
 
   const runtime = (handlers: readonly BotHandler<any>[]): BotRuntime => {
+    parts.warnWithoutPlatforms()
     const names = handlers.map(handler => handler.name)
     if (new Set(names).size !== names.length) {
       log.warn('Bot handler names repeat — a retry skips handlers by name', { handlers: names })
@@ -263,7 +264,7 @@ export const makeBotRuntimeFactory = (
           stopping.push(stopReceiver(id))
         }
       }
-      // A restarted receiver starts after its predecessor let go (Telegram refuses two pollers).
+      // A restarted receiver starts after its predecessor let go (a platform may refuse two pollers).
       await Promise.allSettled(stopping)
       for (const record of wanted.values()) {
         if (startNew() && !receivers.has(record.id!)) {

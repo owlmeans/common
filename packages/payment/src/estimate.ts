@@ -3,7 +3,7 @@ import { TaxBehavior } from './consts.js'
 import type { PriceEstimate, PricingPolicy, AmountEstimate } from './types.js'
 import type { PriceEstimateHelper } from './estimate/types.js'
 
-/** Stripe's own convention for a tax amount: half a unit rounds up. */
+/** The paygates' convention for a tax amount: half a unit rounds up. */
 const roundHalfUp = (value: number): number => Math.floor(value + 0.5)
 
 export const createPriceEstimateHelper = (): PriceEstimateHelper => {
@@ -55,7 +55,7 @@ export const createPriceEstimateHelper = (): PriceEstimateHelper => {
     if (!rescalable) {
       return { subtotalMinor: amountMinor, taxMinor: null, totalMinor: null }
     }
-    // `sameAmount` trusts Stripe's own numbers outright; otherwise only Exclusive ever reaches here
+    // `sameAmount` trusts the paygate's own numbers outright; otherwise only Exclusive ever reaches here
     // (`rescalable` above excludes an Inclusive amount that differs from the reference).
     const taxMinor = sameAmount ? tax.taxMinor : tax.rates.reduce(
       (sum, rate) => sum + roundHalfUp(amountMinor * rate.ratePpm / 1_000_000), 0,

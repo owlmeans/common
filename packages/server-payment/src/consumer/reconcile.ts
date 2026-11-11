@@ -1,10 +1,9 @@
-import type Stripe from 'stripe'
 import { MAILER_SERVICE } from '@owlmeans/mailer'
 import {
-  CancellationStatus, DeclarationKind, ENTITLING_STATUSES, PurchaseKind, WithdrawalStatus,
+  CancellationStatus, DeclarationKind, ENTITLING_STATUSES, INTERNAL_PAYGATE, PaygateError, PurchaseKind, WithdrawalStatus,
 } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
-import { PURCHASE_BACKFILL_DAYS, STRIPE_PAYGATE_ALIAS } from '../consts.js'
+import { PURCHASE_BACKFILL_DAYS } from '../consts.js'
 import type { ConsumerRightsInternals, WithdrawalComputation } from './types.js'
 import type {
   ConsumerEventRecord, ConsumerMailKind, ConsumerReconcileOptions, ConsumerReconcileResult, UsageReading,
@@ -12,10 +11,10 @@ import type {
 import { log } from '../log.js'
 import { DAY_MS, MAX_ATTEMPTS } from './consts.local.js'
 import { paymentAccessOf } from '../access.js'
-import { paymentUtils } from '../utils.js'
 import { consumerRecordsOf } from './records.js'
 import { captureOf } from './capture.js'
-import { stripeSessionHelper } from '../plugins/session.js'
+import { checkoutSnapshotHelper } from '../plugins/snapshot.js'
+import { paygatesOf } from '../paygate/registry.js'
 import { consumerMailOf } from './mail.js'
 import { consumerObserversOf } from './observers.js'
 import { cancellationOf } from './cancellation.js'
@@ -74,9 +73,7 @@ export const makeConsumerReconcileHelper = (
     return pending
   }
 
-  const retryWithdrawals = async (
-    stripe: Stripe, since: Date, limit: number, result: ConsumerReconcileResult,
-  ): Promise<void> => {
+  const retryWithdrawals = async (since: Date, limit: number, result: ConsumerReconcileResult): Promise<void> => {
     const { items } = await access.consumerDeclarations().list({
       kind: DeclarationKind.Withdrawal, status: WithdrawalStatus.Processing, matched: true, receivedAt: { $gte: since },
     }, { size: limit * 2, sort: [{ field: 'receivedAt', order: 'asc' }] })
@@ -87,6 +84,8 @@ export const makeConsumerReconcileHelper = (
       const purchase = declaration.purchaseId != null ? await access.purchases().byPurchaseId(declaration.purchaseId) : null
       // A declaration that lost the race for its purchase is a duplicate — never executed.
       if (purchase == null || purchase.withdrawalId !== id) continue
+      const paygate = paygatesOf(ctx).find(purchase.paygate)
+      if (paygate == null) continue
       const computed = await computedOf(id)
       const refundDone = (declaration.refundMinor ?? 0) <= 0 || await records.hasEvent(id, 'refund', undefined, true)
       const cancelDone = purchase.kind !== PurchaseKind.Subscription
@@ -100,7 +99,7 @@ export const makeConsumerReconcileHelper = (
           if (attempt < MAX_ATTEMPTS) {
             handled++
             result.retried++
-            if (!await withdrawalOf(ctx).retryCreditNote(stripe, declaration, purchase, computed.netMinor, refundEvent.externalId, attempt)) {
+            if (!await withdrawalOf(ctx).retryCreditNote(paygate, declaration, purchase, computed.netMinor, refundEvent.externalId, attempt)) {
               result.failed++
             }
           }
@@ -112,7 +111,7 @@ export const makeConsumerReconcileHelper = (
       handled++
       result.retried++
       try {
-        const execution = await withdrawalOf(ctx).executeWithdrawal(stripe, declaration, purchase, {
+        const execution = await withdrawalOf(ctx).executeWithdrawal(paygate, declaration, purchase, {
           refundMinor: declaration.refundMinor ?? computed?.refundMinor ?? 0, netMinor: computed?.netMinor ?? 0,
         }, { attempt })
         if (!execution.ok) {
@@ -129,9 +128,7 @@ export const makeConsumerReconcileHelper = (
     }
   }
 
-  const retryCancellations = async (
-    stripe: Stripe, since: Date, limit: number, result: ConsumerReconcileResult,
-  ): Promise<void> => {
+  const retryCancellations = async (since: Date, limit: number, result: ConsumerReconcileResult): Promise<void> => {
     const { items } = await access.consumerDeclarations().list({
       kind: DeclarationKind.Cancellation, status: CancellationStatus.Scheduled, matched: true, receivedAt: { $gte: since },
     }, { size: limit * 2, sort: [{ field: 'receivedAt', order: 'asc' }] })
@@ -142,11 +139,12 @@ export const makeConsumerReconcileHelper = (
       if (declaration.subscriptionId == null
         || await records.hasEvent(id, 'cancel-scheduled', undefined, true)) continue
       const attempt = await failures(id, 'cancel-scheduled')
-      const row = await access.subscriptions().byExternalId(declaration.subscriptionId, STRIPE_PAYGATE_ALIAS)
-      if (row == null || attempt >= MAX_ATTEMPTS) continue
+      const row = await access.subscriptions().load({ externalId: declaration.subscriptionId, paygate: { $ne: INTERNAL_PAYGATE } })
+      const paygate = row != null ? paygatesOf(ctx).find(row.paygate) : null
+      if (row == null || paygate == null || attempt >= MAX_ATTEMPTS) continue
       handled++
       result.retried++
-      if (!await cancellationOf(ctx).scheduleCancellation(stripe, declaration, row, attempt)) {
+      if (!await cancellationOf(ctx).scheduleCancellation(paygate, declaration, row, attempt)) {
         result.failed++
       }
     }
@@ -215,50 +213,52 @@ export const makeConsumerReconcileHelper = (
   }
 
   /** Completed checkouts of the last days that have no purchase row (records only — no mail). */
-  const backfillPurchases = async (stripe: Stripe, limit: number, result: ConsumerReconcileResult): Promise<void> => {
-    const from = Math.floor((Date.now() - PURCHASE_BACKFILL_DAYS * DAY_MS) / 1000)
-    let startingAfter: string | undefined
-    let scanned = 0
-    for (;;) {
-      const page = await stripe.checkout.sessions.list({
-        created: { gte: from }, status: 'complete', limit: 100,
-        ...(startingAfter != null ? { starting_after: startingAfter } : {}),
-      })
-      for (const session of page.data) {
-        scanned++
-        if (result.backfilled >= limit) return
-        const metadata = session.metadata ?? {}
-        if (metadata.entityId == null || metadata.productSku == null) continue
-        try {
-          if (stripeSessionHelper.canFulfillPayment(session)) {
-            if (await access.purchases().load({ sessionId: session.id }) != null) continue
-            const amount = Number(metadata.amountMinor)
-            const captured = await captureOf(ctx).capturePaymentPurchase(stripe, session, {
-              ...(Number.isSafeInteger(amount) && amount > 0 ? { netAmountMinor: amount } : {}),
-              ...(metadata.amountCurrency != null ? { amountCurrency: metadata.amountCurrency } : {}),
-              at: new Date(session.created * 1000),
-            }, { mail: false })
-            if (captured?.created === true) result.backfilled++
-          } else if (session.mode === 'subscription') {
-            const subscriptionId = paymentUtils.idOf(session.subscription)
-            if (subscriptionId == null
-              || await access.purchases().byPurchaseId(records.purchaseIdOf(subscriptionId)) != null) continue
-            const row = await access.subscriptions().byExternalId(subscriptionId, STRIPE_PAYGATE_ALIAS)
-            if (row == null || !ENTITLING_STATUSES.includes(row.status)) continue
-            const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-            const captured = await captureOf(ctx).captureSubscriptionPurchase(stripe, subscription, row)
-            if (captured != null) {
-              await captureOf(ctx).completeSubscriptionPurchase(stripe, session, captured.purchase, { mail: false })
-              if (captured.created) result.backfilled++
+  const backfillPurchases = async (limit: number, result: ConsumerReconcileResult): Promise<void> => {
+    const from = new Date(Math.floor((Date.now() - PURCHASE_BACKFILL_DAYS * DAY_MS) / 1000) * 1000)
+    for (const paygate of paygatesOf(ctx).all()) {
+      const listCompleted = paygate.checkout.listCompleted
+      if (listCompleted == null) continue
+      let cursor: string | undefined
+      let scanned = 0
+      for (;;) {
+        const page = await listCompleted(from, cursor)
+        for (const session of page.items) {
+          scanned++
+          if (result.backfilled >= limit) return
+          const metadata = session.metadata ?? {}
+          if (metadata.entityId == null || metadata.productSku == null) continue
+          try {
+            if (checkoutSnapshotHelper.canFulfill(session)) {
+              if (await access.purchases().load({ sessionId: session.id }) != null) continue
+              const amount = Number(metadata.amountMinor)
+              const captured = await captureOf(ctx).capturePaymentPurchase(paygate, session, {
+                ...(Number.isSafeInteger(amount) && amount > 0 ? { netAmountMinor: amount } : {}),
+                ...(metadata.amountCurrency != null ? { amountCurrency: metadata.amountCurrency } : {}),
+                ...(session.createdAt != null ? { at: session.createdAt } : {}),
+              }, { mail: false })
+              if (captured?.created === true) result.backfilled++
+            } else if (session.mode === 'subscription') {
+              const subscriptionId = session.subscriptionId
+              if (subscriptionId == null
+                || await access.purchases().byPurchaseId(records.purchaseIdOf(paygate.id, subscriptionId)) != null) continue
+              const row = await access.subscriptions().byExternalId(subscriptionId, paygate.id)
+              if (row == null || !ENTITLING_STATUSES.includes(row.status)) continue
+              const subscription = paygate.subscriptions != null ? await paygate.subscriptions.retrieve(subscriptionId) : null
+              if (subscription == null) throw new PaygateError(`subscription:${subscriptionId}`)
+              const captured = await captureOf(ctx).captureSubscriptionPurchase(paygate, subscription, row)
+              if (captured != null) {
+                await captureOf(ctx).completeSubscriptionPurchase(paygate, session, captured.purchase, { mail: false })
+                if (captured.created) result.backfilled++
+              }
             }
+          } catch (error) {
+            result.failed++
+            log.error('Reconcile: purchase backfill failed', { sessionId: session.id, paygate: paygate.id, error })
           }
-        } catch (error) {
-          result.failed++
-          log.error('Reconcile: purchase backfill failed', { sessionId: session.id, error })
         }
+        if (page.cursor == null || page.items.length === 0 || scanned >= limit * 20) break
+        cursor = page.cursor
       }
-      if (!page.has_more || page.data.length === 0 || scanned >= limit * 20) return
-      startingAfter = page.data[page.data.length - 1].id
     }
   }
 
@@ -266,25 +266,26 @@ export const makeConsumerReconcileHelper = (
    * Organizations that paid before countries were locked: locked from their paygate customer's
    * address — never one an operator unlocked (its next completed purchase locks it).
    */
-  const lockLegacy = async (stripe: Stripe, limit: number, result: ConsumerReconcileResult): Promise<void> => {
+  const lockLegacy = async (limit: number, result: ConsumerReconcileResult): Promise<void> => {
     const policy = await access.payment().consumerRightsPolicy()
     if (policy?.mechanisms.countryLock !== true) {
       return
     }
-    const { items } = await access.paygateCustomers().list({ paygate: STRIPE_PAYGATE_ALIAS, deletedAt: null }, { size: limit * 4 })
+    const { items } = await access.paygateCustomers().list({ paygate: { $ne: INTERNAL_PAYGATE }, deletedAt: null }, { size: limit * 4 })
     for (const customer of items) {
       if (result.locked >= limit) return
       if (customer.entityId == null || await access.billingProfiles().byEntity(customer.entityId) != null) continue
       if (!await records.hasPaid(customer.entityId) || await records.wasUnlocked(customer.entityId)) continue
+      const paygate = paygatesOf(ctx).find(customer.paygate)
+      if (paygate == null) continue
       try {
         let country = customer.country
         if (country == null) {
-          const retrieved = await stripe.customers.retrieve(customer.externalId)
-          country = (retrieved as Stripe.DeletedCustomer).deleted ? undefined : (retrieved as Stripe.Customer).address?.country ?? undefined
+          country = (await paygate.customers.retrieve(customer.externalId))?.country ?? undefined
         }
         if (country == null) continue
         const { created } = await records.lockProfile(policy, {
-          entityId: customer.entityId, country, source: 'customer', customerId: customer.externalId,
+          entityId: customer.entityId, country, source: 'customer', paygate: paygate.id, customerId: customer.externalId,
           email: customer.email ?? undefined,
         })
         if (created) result.locked++
@@ -302,17 +303,17 @@ export const makeConsumerReconcileHelper = (
     }
     const limit = Math.max(1, opts.limit ?? 50)
     const since = opts.since ?? new Date(Date.now() - 30 * DAY_MS)
-    const stripe = internals.managed ? await internals.stripe(ctx) : null
+    const managed = internals.managed
     const steps: Array<[string, () => Promise<void>]> = [
-      ...(stripe != null ? [
-        ['withdrawals', async () => { await retryWithdrawals(stripe, since, limit, result) }],
-        ['cancellations', async () => { await retryCancellations(stripe, since, limit, result) }],
+      ...(managed ? [
+        ['withdrawals', async () => { await retryWithdrawals(since, limit, result) }],
+        ['cancellations', async () => { await retryCancellations(since, limit, result) }],
       ] as Array<[string, () => Promise<void>]> : []),
       ['mails', async () => { await retryMails(since, limit, result) }],
       ['observers', async () => { await retryObservers(since, limit, result) }],
-      ...(stripe != null ? [
-        ['backfill', async () => { await backfillPurchases(stripe, limit, result) }],
-        ['legacy locks', async () => { await lockLegacy(stripe, limit, result) }],
+      ...(managed ? [
+        ['backfill', async () => { await backfillPurchases(limit, result) }],
+        ['legacy locks', async () => { await lockLegacy(limit, result) }],
       ] as Array<[string, () => Promise<void>]> : []),
     ]
     for (const [name, step] of steps) {

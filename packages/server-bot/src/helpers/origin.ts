@@ -1,4 +1,4 @@
-import type { BotPlatform } from '@owlmeans/bot'
+import type { BotPlatformId } from '@owlmeans/bot'
 import { BOT_HOOK_PATH } from '../consts.js'
 import { BOT_HOST_PATTERN, BOT_PRIVATE_SUFFIXES, BOT_PRIVATE_V4 } from './origin/consts.js'
 import type { BotOriginHelper } from './origin/types.js'
@@ -59,7 +59,7 @@ export const createBotOriginHelper = (): BotOriginHelper => {
     return host.includes('.') && host !== 'localhost' && !BOT_PRIVATE_SUFFIXES.some(suffix => host.endsWith(suffix))
   }
 
-  const hookUrl = (origin: string, platform: BotPlatform, connection: string): string =>
+  const hookUrl = (origin: string, platform: BotPlatformId, connection: string): string =>
     `${origin.replace(/\/+$/, '')}${BOT_HOOK_PATH}/${platform}/${encodeURIComponent(connection)}`
 
   return { originOf, isPublicHttps, hookUrl }

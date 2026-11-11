@@ -1,7 +1,7 @@
 import type {
   BotActionKind, BotActivity, BotActivityTarget, BotChatRef, BotConnection, BotConnectionInput, BotConnectionStatus,
-  BotHookReply, BotMessageRef, BotPlatform, BotReceiveMode, BotSimulateInput, BotSimulateResult, BotTransport,
-  BotUpdate,
+  BotHookReply, BotMessageRef, BotPlatformDescriptor, BotPlatformId, BotReceiveMode, BotSimulateInput,
+  BotSimulateResult, BotTransport, BotUpdate,
 } from '@owlmeans/bot'
 import type { BasicConfig, BasicContext, LazyService } from '@owlmeans/context'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
@@ -19,7 +19,7 @@ import type { BotFetch, BotPlatformIdentity, BotPlatformPlugin } from './platfor
  */
 export interface BotConnectionRecord extends ResourceRecord {
   scope: string
-  platform: BotPlatform
+  platform: BotPlatformId
   label: string
   transport: BotTransport
   status: BotConnectionStatus
@@ -35,11 +35,12 @@ export interface BotConnectionRecord extends ResourceRecord {
   /** AES-256-GCM sealed JSON of the credentials (`v1.<iv>.<tag>.<ciphertext>`); absent when none. */
   sealed?: string | null
   /**
-   * A random per-connection secret: Telegram's `secret_token`, and the default of a generated
-   * credential — it doubles as the WhatsApp verify token the connection's `setup` steps show the
-   * operator to paste into Meta's console. It only proves an inbound request came from the platform
-   * (and signs a mock connection's simulated payloads); it is never a credential of the bot's
-   * account, never authorizes a call to the platform, and is never returned to a client.
+   * A random per-connection secret: what a platform that echoes a secret on every delivery is given,
+   * and the default of a generated credential — it doubles as the verify token the connection's
+   * `setup` steps show the operator to paste into the platform's console. It only proves an inbound
+   * request came from the platform (and signs a mock connection's simulated payloads); it is never a
+   * credential of the bot's account, never authorizes a call to the platform, and is never returned
+   * to a client.
    */
   hookSecret: string
   lastError?: string | null
@@ -54,7 +55,7 @@ export interface BotInboxPayload extends Omit<BotUpdate, 'id'> {}
 export interface BotUpdateRecord extends ResourceRecord {
   scope: string
   connection: string
-  platform: BotPlatform
+  platform: BotPlatformId
   /** `<connection>:<platform>:<platform update id>` — unique: a redelivery is the same row. */
   dedupe: string
   status: BotInboxStatus
@@ -76,7 +77,7 @@ export interface BotUpdateRecord extends ResourceRecord {
 export interface BotActivityRecord extends ResourceRecord {
   scope: string
   connection: string
-  platform: BotPlatform
+  platform: BotPlatformId
   update?: string | null
   action: BotActionKind
   target?: BotActivityTarget | null
@@ -102,7 +103,7 @@ export interface BotResourceAliases {
 }
 
 export interface BotHookUrlMaker {
-  (origin: string, platform: BotPlatform, connection: string): string
+  (origin: string, platform: BotPlatformId, connection: string): string
 }
 
 export interface BotSecretSource {
@@ -118,7 +119,11 @@ export interface BotServiceOptions {
   secret?: BotSecretSource
   /** Default `${origin}/api/bot/hook/${platform}/${connection}`. */
   hookUrl?: BotHookUrlMaker
-  /** The platform plugins; default the built-in ones (`BOT_BUILTIN_PLATFORMS`). */
+  /**
+   * The platform plugins — the platforms this deployment supports, and only those (each from its own
+   * `@owlmeans/bot-<platform>` package; `BotService.register` adds one later). None: the service
+   * warns when it is first used, and every save is refused.
+   */
   platforms?: readonly BotPlatformPlugin[]
   /** The live transport's HTTP client; default the global `fetch`. */
   fetch?: BotFetch
@@ -154,7 +159,7 @@ export interface BotConnectionsApi {
    *
    * @throws {BotSecretMissing} credentials to seal and no secret
    * @throws {BotCredentialsRejected} a credential key the platform does not know
-   * @throws {BotUnsupportedAction} a platform the registry has no plugin for, or a platform change
+   * @throws {BotUnsupportedAction} a platform with no registered plugin, or a platform change
    */
   save: (scope: string, input: BotConnectionInput, origin?: string) => Promise<BotConnection>
   /**
@@ -188,9 +193,9 @@ export interface BotHookRequest {
 
 /** What the hook answers the platform. */
 export interface BotHookAnswer {
-  /** `{ ok: true }`, or a handshake's JSON answer (Slack `{ challenge }`). */
+  /** `{ ok: true }`, or a handshake's JSON answer (`{ challenge }`). */
   reply: BotHookReply
-  /** A handshake answered as plain text (WhatsApp `hub.challenge`) — the GET hook answers this. */
+  /** A handshake answered as plain text (a GET subscription challenge) — the GET hook answers this. */
   text?: string
   /** The inbox rows the request stored (a redelivery answers its existing row), in payload order. */
   updates: string[]
@@ -226,13 +231,14 @@ export type BotMemberTarget = BotUpdate | { chat: BotChatRef | string, user: str
 export interface BotActionResult {
   ok: boolean
   /**
-   * Why it failed, as ONE short sentence a person — or an agent's model — reads ("Telegram refused:
-   * message to delete not found.", "WhatsApp cannot delete messages.").
+   * Why it failed, as ONE short sentence a person — or an agent's model — reads ("Acme refused:
+   * message to delete not found.", "Acme cannot delete messages." — the platform's title from its
+   * descriptor).
    */
   error?: string
   /**
    * The machine marker of the same failure (`bot:unsupported-action:delete`,
-   * `bot:invalid-action:empty-text`, `bot:telegram:400:…`) — compare this, never the sentence.
+   * `bot:invalid-action:empty-text`, `bot:platform:<id>:400:…`) — compare this, never the sentence.
    */
   code?: string
   /** What a reply / send created. */
@@ -248,7 +254,7 @@ export interface BotActionOptions {
 }
 
 export interface BotMuteOptions extends BotActionOptions {
-  /** ≥ 1. Telegram reads more than 366 days as forever. */
+  /** ≥ 1. A platform may cap it (or read a very long one as forever). */
   minutes: number
 }
 
@@ -261,6 +267,8 @@ export interface BotMuteOptions extends BotActionOptions {
 export interface BotActions {
   /** Whether the connection's platform (with its credentials) can do it; `note` always. */
   supports: (kind: BotActionKind) => boolean
+  /** The descriptor of the connection's platform — `null` for an unknown connection or an unregistered platform. */
+  descriptor: () => BotPlatformDescriptor | null
   /** Answer a message (an update answers its own message), in its thread. */
   reply: (to: BotUpdate | BotMessageRef, text: string, opts?: BotActionOptions) => Promise<BotActionResult>
   send: (chat: BotChatRef | string, text: string, opts?: BotActionOptions) => Promise<BotActionResult>
@@ -278,6 +286,10 @@ export type BotActionsTarget = BotUpdate | { scope: string, connection: string }
 export interface BotService extends LazyService {
   connections: BotConnectionsApi
   activity: BotActivityApi
+  /** The registered plugins' descriptors, in registration order — what `platform.list` answers. */
+  platforms: () => BotPlatformDescriptor[]
+  /** Register one more platform plugin (one for a platform already registered replaces it). */
+  register: (plugin: BotPlatformPlugin) => void
   /**
    * The platform's inbound request: authenticate → normalize → inbox (deduplicated) → answer at
    * once. Handlers run later, in the worker. A disabled connection's update is acknowledged and dropped.
@@ -285,12 +297,12 @@ export interface BotService extends LazyService {
    * @throws {BotConnectionNotFound} unknown connection, or the platform does not match
    * @throws {BotSignatureRejected} the request does not prove it came from the platform
    */
-  receive: (platform: BotPlatform, connection: string, request: BotHookRequest) => Promise<BotHookAnswer>
+  receive: (platform: BotPlatformId, connection: string, request: BotHookRequest) => Promise<BotHookAnswer>
   /**
    * A message fed to a MOCK connection: the platform's NATIVE payload, built by the plugin's mock,
    * goes straight into the plugin's `normalize` and the inbox — the path a receiver's payload and an
    * authenticated hook's payload take — and the worker dispatches it like live traffic. No hook is
-   * involved, so a gateway-only platform (Discord) needs no hook route for it.
+   * involved, so a gateway-only platform needs no hook route for it.
    *
    * @throws {BotConnectionNotFound}
    * @throws {BotTransportMismatch} a live connection

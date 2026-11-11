@@ -43,13 +43,15 @@ export interface ConsentLinkHelper {
   /**
    * The inline `<head>` fragment that adopts a decorated link's decision and strips the parameter —
    * standalone, so a page can stamp it even where nothing else here runs (a legal page with no tag
-   * script). `@owlmeans/web-gtm`'s `consentBootstrapScript` embeds this SAME fragment right after
-   * pushing Consent Mode's defaults, so a page that has both never runs it twice with different
-   * effect — the second attempt finds the parameter already gone and does nothing.
+   * script). `consentTrackingHelper.consentBootstrapScript` embeds this SAME fragment first, and a
+   * signal provider's head bootstrap embeds it right after declaring its defaults, so a page that has
+   * both never runs it twice with different effect — the second attempt finds the parameter already
+   * gone and does nothing.
    *
    * Mirrors `consentLinker().adopt` exactly (v2, referrer + freshness/skew + full optional coverage +
-   * no existing record — or only an automatic one, which the visitor's own choice replaces), but as hand-rolled JS text rather than a call into this module — the same
-   * discipline `consentBootstrapScript`/`consentGateScript` already follow, because this has to run
+   * no existing record — or only an automatic one, which the visitor's own choice replaces), but as
+   * hand-rolled JS text rather than a call into this module — the same discipline
+   * `consentTrackingHelper.consentBootstrapScript`/`consentGateScript` follow, because this has to run
    * before any bundle (this module included) has loaded. The parameter is ALWAYS stripped via
    * `history.replaceState`, whether or not the trust rule accepts it: a stale or foreign `owlcc` is
    * exactly as much noise as an adopted one, and neither belongs in the visible URL or in what a page

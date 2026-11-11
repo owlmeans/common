@@ -16,7 +16,7 @@ describe('makeBotProtocols', () => {
       BASE,
       `${BASE}:connection:list`, `${BASE}:connection:save`, `${BASE}:connection:verify`,
       `${BASE}:connection:remove`, `${BASE}:connection:simulate`,
-      `${BASE}:activity:list`,
+      `${BASE}:activity:list`, `${BASE}:platform:list`,
     ].sort())
   })
 
@@ -28,6 +28,7 @@ describe('makeBotProtocols', () => {
       [tree.connection.remove, RouteMethod.DELETE, '/connections/:id'],
       [tree.connection.simulate, RouteMethod.POST, '/connections/:id/simulate'],
       [tree.activity.list, RouteMethod.GET, '/activity'],
+      [tree.platform.list, RouteMethod.GET, '/platforms'],
     ] as const
 
     for (const [leaf, method, path] of routes) {
@@ -52,6 +53,7 @@ describe('makeBotProtocols', () => {
     const member = makeBotProtocols({ base: { alias: 'api:bot:member', path: '/bot/member', parent: 'api', service: 'api' } })
 
     expect(member.connection.list.alias).toBe('api:bot:member:connection:list')
+    expect(member.platform.list.alias).toBe('api:bot:member:platform:list')
     expect(member.base.route.route).toMatchObject({ parent: 'api', service: 'api' })
     expect(member.base.guards).toEqual([])
   })

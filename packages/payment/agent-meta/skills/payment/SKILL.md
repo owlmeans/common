@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/payment
 
 **Layer:** Core
-**Install:** `"@owlmeans/payment": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/payment": "^0.2.0-alpha.0"` in `dependencies`
 
 The contracts half of payments: the catalogue (products, plans, localizations), amount- and
 quantity-priced checkout, the entitlement model — plan capabilities, counted limits, promos,
@@ -257,16 +257,19 @@ computation the server's refusal and the dialog's control share, so they cannot 
 
 `PricingPolicy` (a `PRICING_POLICY_RECORD_ID` singleton config record, `declarePaymentPricing` in
 `@owlmeans/server-payment`) is what a checkout-owning application declares once for tax and
-currency behaviour: `tax.automatic` (Stripe Tax on the session), `tax.behavior` (a synced price's
-`TaxBehavior.Exclusive`/`Inclusive`, absent = leave it `unspecified`), `tax.collectTaxId`,
+currency behaviour: `tax.automatic` (the paygate calculates tax on the session), `tax.behavior` (a
+synced price's `TaxBehavior.Exclusive`/`Inclusive`, absent = leave it as the paygate keeps it),
+`tax.collectTaxId`,
 `tax.estimate` / `currency.estimate` (serve a tax/local-currency estimate endpoint — the estimate
 requires `tax.automatic`, the currency one requires `currency.adaptive`), `currency.adaptive`
-(Stripe Adaptive Pricing on the session), `currency.adaptiveFeeRate` (the conversion fee Adaptive
-Pricing adds to Stripe's base rate, a fraction in `[0, 1)` — Stripe says 2–4% and picks it per
-currency; it needs `currency.adaptive`; absent, an estimate keeps the FX Quotes' own 2% fee, which
-is NOT what Checkout charges). `PaymentService.pricingPolicy()` reads the declared record
+(local-currency pricing on the session: the paygate shows and charges the buyer's currency),
+`currency.adaptiveFeeRate` (the conversion fee local-currency pricing adds to the paygate's base rate,
+a fraction in `[0, 1)` the paygate picks per currency; it needs `currency.adaptive`; absent, an
+estimate keeps the FX quote's own fee-inclusive rate, which is NOT what checkout charges). The field
+names state capabilities, never a provider; a paygate lacking a declared one fails the gateway's boot.
+`PaymentService.pricingPolicy()` reads the declared record
 or `DEFAULT_PRICING_POLICY` — the fixed behaviour every checkout had before this policy existed
-(automatic tax and tax-id collection on, no forced behavior, no Adaptive Pricing, no estimate), so
+(automatic tax and tax-id collection on, no forced behavior, no local-currency pricing, no estimate), so
 an application that declares nothing sees no change.
 
 `PriceEstimate` (built by `@owlmeans/server-payment`'s gateway, `estimatePrice`) is the read model:
@@ -275,10 +278,10 @@ billing country is locked and overrides the request — a picker then shows it a
 it), `region`, `currency`, `behavior`, `tax: TaxEstimate` (`status`
 one of `TaxEstimateStatus` — `taxed`/`reverse-charge`/`none`/`at-checkout`/`location-required` —
 plus `subtotalMinor`/`taxMinor`/`totalMinor`, `scalable`, and `rates: TaxRateEstimate[]` with
-`ratePpm` parsed by `priceEstimateHelper.ratePpmOf` from Stripe's `percentage_decimal`, never
-`Number(x) * 10_000`), and an optional `local` (currency + `exchangeRate`, from Stripe's FX Quotes:
-the quote's `base_rate / (1 + currency.adaptiveFeeRate)` when the fee is declared, else its
-`exchange_rate`; `fxFeeRate` is the fee that rate includes).
+`ratePpm` parsed by `priceEstimateHelper.ratePpmOf` from the paygate's decimal percentage string,
+never `Number(x) * 10_000`), and an optional `local` (currency + `exchangeRate`, from the paygate's FX
+quote: its base rate `/ (1 + currency.adaptiveFeeRate)` when the fee is declared, else its
+fee-inclusive rate; `fxFeeRate` is the fee that rate includes).
 The pure helper `priceEstimateHelper.estimateOf(amountMinor, estimate)` re-derives tax and a total
 for a DIFFERENT amount than the estimate's own reference one — exact only when `scalable` and the
 behavior is `Exclusive`; both `taxMinor`/`totalMinor` come back `null` otherwise, meaning "computed
@@ -287,7 +290,7 @@ at checkout", never a wrong number. When the source estimate carries `local`, th
 (`subtotalAmount`/`taxAmount`/`totalAmount`, major units) alongside the integration-currency ones —
 a UI shows one or the other, marking the local figures `≈`, never both side by side.
 `COUNTRY_CURRENCIES` / `currencyOfCountry` / `COUNTRY_CODES` is a reference ISO 3166-1 → ISO 4217
-map for a country picker and the local-currency lookup — not a Stripe list, and a country absent
+map for a country picker and the local-currency lookup — not a paygate's list, and a country absent
 from it still gets a tax estimate, just no local-currency line.
 
 ## Consumer rights (EU withdrawal, cancellation, country lock)
@@ -508,7 +511,7 @@ checkout return with a visitor; never as the basis of an access decision — tha
 ## Related
 
 - [[entitlements]] — the model across packages: admission, the usage ledger, the gates
-- [[server-payment]] — the Stripe gateway, subscription store, usage ledger and gate services
+- [[server-payment]] — the paygate host, subscription store, usage ledger and gate services
 - [[web-payment]] — hooks and pieces over the entitlement view
 - [[client-payment]] — the browser-side adaptation of the catalogue service
 - [[iam]] — `PermissionSet` and the resource-selector syntax entitlements deliberately avoid

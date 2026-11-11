@@ -1,4 +1,4 @@
-import { BOT_PLATFORMS, BotUpdateKind, type BotSenderRef, type BotUpdate } from '@owlmeans/bot'
+import { BotUpdateKind, type BotPlatformDescriptor, type BotSenderRef, type BotUpdate } from '@owlmeans/bot'
 import { BOT_AGENT_DONE } from '../consts.js'
 import type { BotAgentHelper } from './agent/types.js'
 
@@ -6,7 +6,9 @@ export const createBotAgentHelper = (): BotAgentHelper => {
   /** A person's words as a quote block — read as data, never as headings or instructions. */
   const quote = (text: string): string => text.split(/\r?\n/).map(line => `> ${line}`).join('\n')
 
-  const titleOf = (update: BotUpdate): string => BOT_PLATFORMS[update.platform]?.title ?? `${update.platform}`
+  /** The platform's name — its descriptor's title (`BotActions.descriptor()`), else its id. */
+  const titleOf = (update: BotUpdate, descriptor?: BotPlatformDescriptor | null): string =>
+    descriptor != null && descriptor.platform === update.platform ? descriptor.title : `${update.platform}`
 
   const senderOf = (sender: BotSenderRef): string => {
     const name = sender.name?.trim() ?? ''
@@ -40,8 +42,8 @@ export const createBotAgentHelper = (): BotAgentHelper => {
     return parts.join('\n\n')
   }
 
-  const messageBlock = (update: BotUpdate): string => {
-    const lines = ['# The chat message', '', `Platform: ${titleOf(update)}`, `Chat: ${chatOf(update)}`]
+  const messageBlock = (update: BotUpdate, descriptor?: BotPlatformDescriptor | null): string => {
+    const lines = ['# The chat message', '', `Platform: ${titleOf(update, descriptor)}`, `Chat: ${chatOf(update)}`]
     if (update.sender != null) {
       lines.push(`Sender: ${senderOf(update.sender)}`)
     }
@@ -77,8 +79,8 @@ export const createBotAgentHelper = (): BotAgentHelper => {
     return lines.join('\n')
   }
 
-  const contextOf: BotAgentHelper['contextOf'] = (update, instruction) => {
-    const blocks = [messageBlock(update)]
+  const contextOf: BotAgentHelper['contextOf'] = (update, instruction, descriptor) => {
+    const blocks = [messageBlock(update, descriptor)]
     const text = instructionOf(instruction)
     if (text !== '') {
       blocks.push(`# Instruction\n\n${text}`)
@@ -87,9 +89,10 @@ export const createBotAgentHelper = (): BotAgentHelper => {
     return blocks
   }
 
-  const promptOf: BotAgentHelper['promptOf'] = update => {
+  const promptOf: BotAgentHelper['promptOf'] = (update, descriptor) => {
     const title = update.chat.title?.trim() ?? ''
-    const where = title !== '' ? `the ${titleOf(update)} chat "${title}"` : `a ${titleOf(update)} chat`
+    const platform = titleOf(update, descriptor)
+    const where = title !== '' ? `the ${platform} chat "${title}"` : `a ${platform} chat`
 
     return `A message arrived in ${where}. Act on it as your context instructs, only through your tools — `
       + `each answers "${BOT_AGENT_DONE}" or what went wrong. Then answer with one short line saying what you did.`

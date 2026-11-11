@@ -3,7 +3,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { Button } from '../@/components/ui/button.js'
 import { Input } from '../@/components/ui/input.js'
 import { cn } from '../@/lib/utils.js'
-import { RECAPTCHA_PRIVACY_URL, RECAPTCHA_TERMS_URL } from '../consts.js'
+import { captchaNoticeHelper } from '@owlmeans/web-captcha'
 import { emailRefusalHelper } from '../refusal.js'
 import { textUtils } from '../utils/text.js'
 import type {
@@ -86,17 +86,18 @@ export const RefusalAlert: FC<RefusalAlertProps> = ({ refusal, t, locale, marker
   </p>
 
 /**
- * Google's notice. The loader hides the reCAPTCHA badge, and a page that hides it has to say this
- * itself, with both links.
+ * The captcha provider's notice: a client that hides its provider's badge ships the sentence a page
+ * then has to show, with its links, in the reader's language. The client's text is the default of
+ * `captcha.<key>`, so an application may still override it. Nothing for a client that needs none.
  */
-export const CaptchaNotice: FC<CaptchaNoticeProps> = ({ t, className }) => {
-  const parts = textUtils.parts(
-    t('captcha.notice', 'This site is protected by reCAPTCHA and the Google {{privacy}} and {{terms}} apply.'),
-    {
-      privacy: { text: t('captcha.privacy', 'Privacy Policy'), href: RECAPTCHA_PRIVACY_URL },
-      terms: { text: t('captcha.terms', 'Terms of Service'), href: RECAPTCHA_TERMS_URL },
-    },
-  )
+export const CaptchaNotice: FC<CaptchaNoticeProps> = ({ t, client, locale, className }) => {
+  const notice = captchaNoticeHelper.noticeOf(client, locale)
+  if (notice == null) {
+    return null
+  }
+  const links = Object.fromEntries(Object.entries(notice.links).map(([name, link]) =>
+    [name, { text: t(`captcha.${name}`, link.text), href: link.href }]))
+  const parts = textUtils.parts(t('captcha.notice', notice.sentence), links)
 
   return <p data-email-login-captcha className={cn('text-center text-xs text-muted-foreground', className)}>
     {parts.map((part, index) => part.href != null

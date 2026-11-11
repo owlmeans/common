@@ -1,20 +1,21 @@
-import {
-  BOT_PLATFORMS, BotConnectionStatus, BotTransport, type BotPlatform, type BotSimulateInput,
-} from '@owlmeans/bot'
-import { BOT_BUILTIN_PLATFORMS } from '../platforms/consts.js'
+import { BotConnectionStatus, BotTransport, type BotPlatformId, type BotSimulateInput } from '@owlmeans/bot'
 import { makeBotPlatformRegistry } from '../platforms/registry.js'
 import type { BotNativeInbound, BotPlatformConnection, BotPlatformPlugin } from '../platforms/types.js'
 import type { BotMockHelper, BotMockSigning } from './types.js'
 
-/** The mock helper over a set of plugins — the built-in instances by default, so a test feeds what a service reads. */
-export const makeBotMockHelper = (plugins: readonly BotPlatformPlugin[] = BOT_BUILTIN_PLATFORMS): BotMockHelper => {
+/**
+ * The mock helper over the plugins a test names — the very instances its service is given, so a
+ * test feeds what that service reads (a plugin's mock state lives in the instance).
+ */
+export const makeBotMockHelper = (plugins: readonly BotPlatformPlugin[]): BotMockHelper => {
   const registry = makeBotPlatformRegistry(plugins)
 
-  const connectionOf = (platform: BotPlatform, signing: BotMockSigning): BotPlatformConnection => {
+  const connectionOf = (platform: BotPlatformId, signing: BotMockSigning): BotPlatformConnection => {
     const stamp = new Date().toISOString()
+    const descriptor = registry.require(platform).descriptor
     const credentials = { ...(signing.credentials ?? {}) }
     const hookSecret = signing.hookSecret ?? ''
-    for (const field of BOT_PLATFORMS[platform]?.credentials ?? []) {
+    for (const field of descriptor.credentials) {
       if (field.generated === true && (credentials[field.key] ?? '') === '' && hookSecret !== '') {
         credentials[field.key] = hookSecret
       }
@@ -28,7 +29,7 @@ export const makeBotMockHelper = (plugins: readonly BotPlatformPlugin[] = BOT_BU
       transport: BotTransport.Mock,
       status: BotConnectionStatus.Connected,
       enabled: true,
-      receive: BOT_PLATFORMS[platform]?.receive[0],
+      receive: descriptor.receive[0],
       ...(signing.identity != null ? { identity: { ...signing.identity } } : {}),
       credentialsSet: Object.keys(credentials),
       createdAt: stamp,
@@ -38,10 +39,10 @@ export const makeBotMockHelper = (plugins: readonly BotPlatformPlugin[] = BOT_BU
     }
   }
 
-  const inbound = (platform: BotPlatform, input: BotSimulateInput, signing: BotMockSigning): BotNativeInbound =>
+  const inbound = (platform: BotPlatformId, input: BotSimulateInput, signing: BotMockSigning): BotNativeInbound =>
     registry.require(platform).mock.inbound(input, connectionOf(platform, signing))
 
-  const feed = (platform: BotPlatform, signing: BotMockSigning, input: BotSimulateInput): void => {
+  const feed = (platform: BotPlatformId, signing: BotMockSigning, input: BotSimulateInput): void => {
     const connection = connectionOf(platform, signing)
     const plugin = registry.require(platform)
     plugin.mock.feed(connection.id, plugin.mock.inbound(input, connection).body)
@@ -54,5 +55,3 @@ export const makeBotMockHelper = (plugins: readonly BotPlatformPlugin[] = BOT_BU
     plugin: registry.require,
   }
 }
-
-export const botMockHelper = makeBotMockHelper()

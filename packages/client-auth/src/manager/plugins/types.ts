@@ -22,7 +22,7 @@ export interface AuthenticationPlugin extends Pick<
    * How this method presents itself on the sign-in screen.
    *
    * Absent means the plugin is never OFFERED — it is still reachable by type, which is what a
-   * step-in-a-flow (re-captcha) and a plugin an app deep-links to both need. Every field is
+   * step-in-a-flow (captcha) and a plugin an app deep-links to both need. Every field is
    * optional so an existing plugin object keeps type-checking without being touched.
    */
   method?: AuthMethodMeta

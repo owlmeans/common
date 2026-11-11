@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/api-config-client
 
 **Layer:** Client
-**Install:** `"@owlmeans/api-config-client": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/api-config-client": "^0.2.0-alpha.0"` in `dependencies`
 
 Consumes the declaration shared by `@owlmeans/api-config` and answered by
 `@owlmeans/api-config-server`.

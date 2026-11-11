@@ -235,11 +235,11 @@ export interface PromoView {
  */
 export interface PricingPolicy {
   tax: {
-    /** Stripe Tax on every checkout session (`automatic_tax`, required billing address). */
+    /** The paygate calculates tax on every checkout session (the billing address is required). */
     automatic: boolean
     /**
-     * The behavior synced prices are given. Absent: a price's `tax_behavior` is left untouched
-     * (`unspecified`, following the Stripe account default) — never inferred, always declared.
+     * The behavior synced prices are given. Absent: a price's tax behavior is left as the paygate
+     * keeps it (unspecified, following the paygate account's default) — never inferred, always declared.
      */
     behavior?: TaxBehavior
     /** VAT/GST id collection at checkout, for reverse charge. */
@@ -250,14 +250,14 @@ export interface PricingPolicy {
     estimateTtlSeconds?: number
   }
   currency: {
-    /** Stripe Adaptive Pricing (`adaptive_pricing.enabled`) on every checkout session. */
+    /** Local-currency pricing on every checkout session: the paygate shows and charges the buyer's own currency. */
     adaptive?: boolean
     /**
-     * The conversion fee Adaptive Pricing adds to Stripe's base rate, as a fraction (`0.04` = 4%; Stripe
-     * documents 2–4% and decides it per currency) — a buyer pays `base-rate conversion × (1 + fee)`.
-     * The local-currency line of an estimate applies it, so a quoted total is the one Checkout shows.
-     * Absent: the FX Quotes API's own fee-inclusive rate (its `fx_fee_rate`, 2%), which is what a
-     * conversion through Stripe's FX costs, not what Adaptive Pricing charges. Requires `adaptive`.
+     * The conversion fee local-currency pricing adds to the paygate's base rate, as a fraction
+     * (`0.04` = 4%; the paygate decides it per currency) — a buyer pays `base-rate conversion × (1 + fee)`.
+     * The local-currency line of an estimate applies it, so a quoted total is the one checkout shows.
+     * Absent: the paygate's own fee-inclusive FX quote rate, which is what a conversion through its
+     * FX costs, not what local-currency pricing charges. Requires `adaptive`.
      */
     adaptiveFeeRate?: number
     /** Serve the "≈ local total" line of an estimate. Requires `currency.adaptive`. */
@@ -276,7 +276,7 @@ export interface PriceEstimateBody {
 
 export interface TaxRateEstimate {
   type: TaxType
-  /** The rate as Stripe states it, e.g. `"23"` or `"8.5"` — display only. */
+  /** The rate as the paygate states it, e.g. `"23"` or `"8.5"` — display only. */
   percentage: string
   /** The same rate as parts per million, exact: `23%` is `230000`. Never a float. */
   ratePpm: number
@@ -319,9 +319,9 @@ export interface PriceEstimate {
     currency: string
     /**
      * Integration-currency (`currency` above) units per one unit of `local.currency`, fee-inclusive
-     * (Stripe FX Quotes, requested `to_currency: currency, from_currencies: [local.currency]`): the
-     * quote's `base_rate / (1 + currency.adaptiveFeeRate)` when the policy declares the Adaptive Pricing
-     * fee, else the quote's own `exchange_rate`. A local amount is `amountInCurrency / exchangeRate`.
+     * (the paygate's FX quote from `local.currency` to `currency`): the quote's base rate
+     * `/ (1 + currency.adaptiveFeeRate)` when the policy declares the local-currency pricing fee, else
+     * the quote's own fee-inclusive rate. A local amount is `amountInCurrency / exchangeRate`.
      */
     exchangeRate: number
     /** The conversion fee `exchangeRate` includes: `currency.adaptiveFeeRate`, else the quote's `fx_fee_rate`. */
@@ -751,7 +751,7 @@ export interface AmountEstimate {
   /**
    * The subtotal, tax and total in the country's own currency, in major units — present only
    * alongside a non-`null` `totalMinor`. A UI showing `local` shows ONLY `local` for the tax and
-   * total (marked `≈`, since it is Stripe's own rate at read time, not the checkout rate); the
+   * total (marked `≈`, since it is the paygate's own rate at read time, not the checkout rate); the
    * integration-currency amounts stay the reference for bookkeeping, never a second figure to show
    * alongside the converted one.
    */

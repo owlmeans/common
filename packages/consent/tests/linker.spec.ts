@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test'
 import { CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_KEY, CONSENT_LANGUAGE_KEY, CONSENT_MARKETING, DEFAULT_CONSENT_CATEGORIES, CONSENT_LINK_MAX_AGE, CONSENT_LINK_PARAM } from '../src/consts.js'
-import { consentModeHelper } from '../src/gtobserver.js'
 import { consentLinkHelper } from '../src/linker.js'
 import { consentPluginHelper } from '../src/plugins.js'
 import { makeConsentStore } from '../src/store.js'
 import { consentStorageHelper } from '../src/storage.js'
+import { consentTrackingHelper } from '../src/tracking.js'
 import type { ConsentRecord } from '../src/types.js'
 
 /** A minimal browser: storage, a settable referrer, and a `location`/`history` pair that actually
@@ -65,8 +65,6 @@ const nowSeconds = (): number => Math.floor(Date.now() / 1000)
 beforeEach(() => {
   env.reset()
   env.goto('https://platform.test/dispatcher')
-  delete (globalThis as any).dataLayer
-  delete (globalThis as any).cookieConsentSetup
 })
 
 describe('encodeConsentLink / decodeConsentLink', () => {
@@ -290,19 +288,19 @@ describe('the store, with a linker configured', () => {
 })
 
 describe('consentBootstrapScript with a linker: order and shape', () => {
-  test('the linker fragment sits after the default push and before the storage read', () => {
-    const script = consentModeHelper.consentBootstrapScript({ linker: { domains: DOMAINS } })
-    const defaultAt = script.indexOf("'consent','default'")
+  test('the linker fragment comes first, before the storage read', () => {
+    const script = consentTrackingHelper.consentBootstrapScript({ linker: { domains: DOMAINS } })
     const linkerAt = script.indexOf('URLSearchParams')
-    const storageAt = script.indexOf('w.localStorage.getItem')
+    // The fragment reads storage itself; the bootstrap's own read is the last one.
+    const storageAt = script.lastIndexOf('w.localStorage.getItem')
 
-    expect(defaultAt).toBeGreaterThan(-1)
-    expect(linkerAt).toBeGreaterThan(defaultAt)
+    expect(linkerAt).toBeGreaterThan(-1)
+    expect(script.indexOf(consentLinkHelper.consentLinkerScript({ linker: { domains: DOMAINS } }))).toBe('(function(w,d){'.length)
     expect(storageAt).toBeGreaterThan(linkerAt)
   })
 
   test('emits nothing extra with no linker configured', () => {
-    expect(consentModeHelper.consentBootstrapScript()).not.toContain('URLSearchParams')
+    expect(consentTrackingHelper.consentBootstrapScript()).not.toContain('URLSearchParams')
   })
 
   test('escapes "<" inside embedded strings', () => {
@@ -755,10 +753,10 @@ describe('language: strictly necessary, stored whatever the cookie decision is',
       expect(consentLinkHelper.consentLinkerScript(linkerOpts)).toBe(script)
     })
 
-    test('the bootstrap embeds it, after the defaults and before its own storage read', () => {
-      const script = consentModeHelper.consentBootstrapScript(receiving)
+    test('the bootstrap embeds it before its own storage read', () => {
+      const script = consentTrackingHelper.consentBootstrapScript(receiving)
 
-      expect(script.indexOf(CONSENT_LANGUAGE_KEY)).toBeGreaterThan(script.indexOf("'consent','default'"))
+      expect(script.indexOf(CONSENT_LANGUAGE_KEY)).toBeGreaterThan(-1)
       // The fragment reads storage itself (to know whether a decision exists) before it writes the
       // language; the bootstrap's own read is the LAST one, after the whole fragment.
       expect(script.indexOf(CONSENT_LANGUAGE_KEY)).toBeLessThan(script.lastIndexOf('w.localStorage.getItem'))

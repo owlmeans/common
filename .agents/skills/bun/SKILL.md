@@ -84,8 +84,7 @@ sets the linker and no timeout.
   untracked leftover from a removed package, not a workspace member — delete it rather than
   debugging why it will not compile.
 - Several packages declare a `test` script but ship no `tests/` directory, so `bun run test` reports
-  `Test filter "./tests" had no matches` and exits 1 for each: `auth-otp`, `mailer`,
-  `server-mailer-mailgun`, `web-auth`. Expected, not a regression — read the
+  `Test filter "./tests" had no matches` and exits 1 for each: `auth-otp`, `web-auth`. Expected, not a regression — read the
   per-package pass/fail counts, not the aggregate exit code.
 - **The pinned Bun floor is load-bearing for MongoDB.** `bson@7.3.x` runs a static initializer that
   calls `process.getBuiltinModule('v8').startupSnapshot.isBuildingSnapshot()`, and Bun implements
@@ -148,9 +147,9 @@ package, and a later `bun install` will not prune it. Five faces of the same bug
 | `TS2322 … Two different types with this name exist, but they are unrelated` on plain `<div>` props or `CSSProperties` | `@types/react` | the two repos resolved different patches of the same `^` range. Type identity is per-declaration-file, so one patch apart is enough. `bun update @types/react @types/react-dom` in **every** repo, then confirm they match |
 
 **A linked repo may be on a different compiler major, and that is not a copy to sweep.** `common`,
-`internal`, `viable` and `viable-agent` all declare `typescript: ^7.0.2`. `static` lists five of
-this repo's packages as workspace entries (`dep-config`, `consent`, `web-consent`, `web-gtm`,
-`astro`) while declaring `typescript: ^5.8.3` in its own manifests, so wherever its
+`internal`, `viable` and `viable-agent` all declare `typescript: ^7.0.2`. `static` lists
+this repo's packages as workspace entries (`dep-config`, `consent`, `web-consent`, `astro`, … and
+connect's `web-gtm`) while declaring `typescript: ^5.8.3` in its own manifests, so wherever its
 `libraries/common` link is in place a TypeScript 5 compiler reads this repo's emitted `.d.ts`.
 Read the consumer's own manifest before deciding a nested copy is stale, and keep emitted
 declarations readable by the oldest compiler a linked repo declares.

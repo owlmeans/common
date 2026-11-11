@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/file-inspector
 
 **Layer:** Infra
-**Install:** `"@owlmeans/file-inspector": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/file-inspector": "^0.2.0-alpha.0"` in `dependencies`
 
 Server-side (Node and Bun). Detection works on bytes in hand (`inspect`) or reads a source through
 a narrow port (`probe`): a head sample plus a few bounded range reads, never more than the budget.

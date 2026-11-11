@@ -9,7 +9,9 @@ import type {
   BotActivityQuery, BotBaseOptions, BotChallengeQuery, BotHookParams, BotHookPayload, BotHookProtocolOptions,
   BotHookProtocols, BotHookReply, BotIdParams, BotProtocolOptions, BotProtocols, BotRemoveResult,
 } from './protocols/types.js'
-import type { BotActivity, BotConnection, BotConnectionInput, BotSimulateInput, BotSimulateResult } from './types.js'
+import type {
+  BotActivity, BotConnection, BotConnectionInput, BotPlatformDescriptor, BotSimulateInput, BotSimulateResult,
+} from './types.js'
 
 const mountOf = (base: BotBaseOptions): Partial<RouteOptions> => ({
   ...(base.parent != null ? { parent: base.parent } : {}),
@@ -17,8 +19,8 @@ const mountOf = (base: BotBaseOptions): Partial<RouteOptions> => ({
 })
 
 /**
- * Declare one managing surface of the bot — connections and activity — as an immutable tree a
- * server binds and a client calls.
+ * Declare one managing surface of the bot — connections, activity and the platforms the server has
+ * plugins for — as an immutable tree a server binds and a client calls.
  *
  * Every leaf hangs under ONE base that carries the guards and the gate, so they cannot drift apart;
  * aliases derive from `opts.base.alias` (`<alias>:connection:list` …). A target declares one tree per
@@ -68,6 +70,13 @@ export const makeBotProtocols = (opts: BotProtocolOptions): BotProtocols => {
         contract.request({ query: typed<BotActivityQuery>(BotActivityQuerySchema) }, typed<BotActivity[]>())
       ),
     }),
+
+    platform: Object.freeze({
+      list: protocol(
+        leaf(aliases.platform.list, '/platforms', RouteMethod.GET),
+        contract(typed<BotPlatformDescriptor[]>())
+      ),
+    }),
   })
 }
 
@@ -76,9 +85,9 @@ export const makeBotProtocols = (opts: BotProtocolOptions): BotProtocols => {
  * `/:platform/:connection` under the base.
  *
  * NO guard and no gate, by design: the caller is the platform, and it proves itself by signing the
- * request (Telegram's secret token, WhatsApp's app-secret HMAC, Slack's signing secret), which the
- * server verifies against the connection's credentials. The body carries no schema — the signature
- * covers the raw bytes, and the payload is the platform's own.
+ * request (a secret header, an HMAC over the raw body — whatever its plugin checks), which the server
+ * verifies against the connection's credentials. The body carries no schema — the signature covers
+ * the raw bytes, and the payload is the platform's own.
  */
 export const makeBotHookProtocols = (opts: BotHookProtocolOptions): BotHookProtocols => {
   const aliases = botAliasUtils.botHookAliases(opts.base.alias)

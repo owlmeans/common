@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-oidc-provider",
-  "version": "0.1.21",
+  "version": "0.2.0-alpha.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,18 +31,18 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.21",
-    "@owlmeans/client-flow": "^0.1.21",
-    "@owlmeans/oidc": "^0.1.21",
-    "@owlmeans/resource": "^0.1.21",
-    "@owlmeans/web-client": "^0.1.21",
+    "@owlmeans/auth": "^0.2.0-alpha.0",
+    "@owlmeans/client-flow": "^0.2.0-alpha.0",
+    "@owlmeans/oidc": "^0.2.0-alpha.0",
+    "@owlmeans/resource": "^0.2.0-alpha.0",
+    "@owlmeans/web-client": "^0.2.0-alpha.0",
     "universal-cookie": "^8.1.2"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

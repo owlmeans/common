@@ -1,6 +1,6 @@
 ---
 name: bot
-description: How to use @owlmeans/bot — the runtime-free, browser-safe contract of OwlMeans chat bots on Telegram, WhatsApp, Discord and Slack. Covers the platform descriptors (credentials, receive modes, supported actions), connections, the Unicode-aware text helper a handler matches message text with, the /command parser, normalized updates and activity (with the handler's opaque `ref`), the managing and hook protocol trees with their AJV schemas, the bot error family, and how a generated target mounts the operator, member and hook trees. Auto-invoked when importing from @owlmeans/bot, declaring bot routes, matching a message against phrases (an application's own keyword groups), or deciding what a platform can do.
+description: How to use @owlmeans/bot — the runtime-free, browser-safe contract of OwlMeans chat bots, naming no platform. Covers the platform descriptor a platform plugin declares (string id, credentials with per-language labels and hints, receive modes, supported actions, glyph, setup hint, pre-save link), the platform.list leaf, connections, the Unicode-aware text helper a handler matches message text with, the /command parser, normalized updates and activity (with the handler's opaque `ref`), the managing and hook protocol trees with their AJV schemas, the bot error family, and how a generated target mounts the operator, member and hook trees. Auto-invoked when importing from @owlmeans/bot, declaring bot routes, matching a message against phrases (an application's own keyword groups), or deciding what a platform can do.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,9 +8,13 @@ user-invocable: false
 # @owlmeans/bot
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/bot": "^0.1.21"` in `dependencies`
-**Runtime-free:** no network, no storage, no logging — enums, descriptors, interfaces, AJV schemas
-(plain objects), three pure helpers, protocol factories and registered errors. Safe in a browser.
+**Install:** `"@owlmeans/bot": "^0.2.0-alpha.0"` in `dependencies`
+**Runtime-free:** no network, no storage, no logging — enums, interfaces, AJV schemas (plain
+objects), three pure helpers, protocol factories and registered errors. Safe in a browser.
+**Platform-neutral:** it names no platform. A platform is a string id (`BotPlatformId`) owned by its
+plugin package (`@owlmeans/bot-<platform>`, the connect repository), which declares the platform's
+`BotPlatformDescriptor`; a server supports exactly the plugins it registers and lists their
+descriptors on every managing tree (`platform.list`).
 
 A bot connection is ONE bot account on one platform, owned by a **scope** (the organization — or the
 application itself — that runs it). What the bot does with a message is the APPLICATION's code: a
@@ -24,39 +28,54 @@ an agent the actions as tools. Every one of them speaks the vocabulary declared 
 
 | Export | What it is |
 |---|---|
-| `BotPlatform` | `telegram` · `whatsapp` · `discord` · `slack` |
+| `BotPlatformId` | `string` — the plugin's id, matching `BOT_PLATFORM_ID_PATTERN` (`^[a-z][a-z0-9-]{0,31}$`); a hook URL segment and a stored column, never renamed |
+| `BotPlatformDescriptor` | what a platform needs and can do — `platform`, `title`, `glyph`, `credentials`, `receive`, `actions`, `setup`, `docs`, `hint`, `link?` (below) |
+| `BotTexts` / `BotPlatformGlyph` / `BotPlatformLink` | per-language text (`{ en, pl, … }`, `BOT_TEXT_FALLBACK_LANGUAGE` = `en`) / `send`·`phone`·`messages`·`hash`·`chat` / a pre-save link (`{ kind: 'invite', template, params, label, pending? }`) |
 | `BotReceiveMode` / `BotTransport` / `BotConnectionStatus` | `webhook`·`poll`·`gateway` / `live`·`mock` / `pending`·`connected`·`failed`·`disabled` |
 | `BotActionKind` | platform calls: `reply` `send` `delete` `mute` `ban` `react`, plus `note` (activity only) |
 | `BotTextMatch` / `BotUpdateKind` / `BotChatKind` | `word`·`contains` / `message`·`edited`·`command`·`member` / `private`·`group`·`channel` |
-| `BOT_PLATFORMS` | `Record<BotPlatform, BotPlatformDescriptor>` — credentials, receive modes, actions, setup, docs |
 | `BotConnection` / `BotConnectionInput` | the client view (never a credential) / the write (credentials write-only) |
 | `BotUpdate`, `BotMessage`, `BotMessageRef`, `BotChatRef`, `BotSenderRef`, `BotCommand` | the normalized inbound update a handler receives |
 | `BotActivity`, `BotSimulateInput`, `BotSimulateResult` | one recorded action (a failure carries `error`, a sentence, and `code`, its `bot:<marker>:` marker; `ref` is the handler's opaque reference); the API-only simulate input and answer `{ update, duplicate? }` |
 | `botTextHelper` | `fold(text)`, `tokensOf(text)`, `matched(text, phrases, mode?)`, `phrasesOf(input)` |
 | `botCommandHelper` | `parse(text, botUsername?) → BotCommand \| null` |
-| `botPlatformHelper` | `actionsOf(platform, credentialsSet?)`, `supports(platform, kind, credentialsSet?)` |
-| `makeBotProtocols(opts)` → `BotProtocols` | the managing tree (connections, activity) |
+| `botPlatformHelper` | `actionsOf(descriptor, credentialsSet?)`, `supports(descriptor, kind, credentialsSet?)` — no descriptor: `note` alone |
+| `makeBotProtocols(opts)` → `BotProtocols` | the managing tree (connections, activity, `platform.list`) |
+| `BotSurfaceProtocols` | a managing tree as servers and panels take it — `platform` optional (a tree restated before the leaf existed) |
 | `makeBotHookProtocols(opts)` → `BotHookProtocols` | the platforms' inbound tree (`receive`, `challenge`) |
 | `Bot*Schema` | `BotConnectionInputSchema`, `BotSimulateInputSchema`, `BotIdParamsSchema`, `BotActivityQuerySchema`, `BotHookParamsSchema`, `BotChallengeQuerySchema` |
-| `BotError` family | `BotConnectionNotFound` 404, `BotCredentialsRejected` 422, `BotSignatureRejected` 401, `BotTransportMismatch` 409, `BotUnsupportedAction` 422 |
+| `BotError` family | `BotConnectionNotFound` 404, `BotCredentialsRejected` 422, `BotSignatureRejected` 401, `BotTransportMismatch` 409, `BotUnsupportedAction` 422, `BotErrorPlatform` (no status) — `bot:platform:<id>:<detail>`, `platform` / `detail` read back on either side of a hop |
 | `BOT_*` limits | `BOT_TEXT_MAX` 4096, `BOT_LABEL_MAX` 120, `BOT_ACTIVITY_LIMIT_MAX` 200 / `_DEFAULT` 50, `BOT_ID_PATTERN` … |
 | `BOT_MANAGE_PERMISSION` | `'bot--manage'` — the permission the member mount's gate requires (organization owners hold it by default where users work in organizations; otherwise granted explicitly) |
 
-## Platforms
+## Platforms — the descriptor
 
-| Platform | Credentials | Receive | Actions | Setup |
-|---|---|---|---|---|
-| telegram | `token` | webhook, poll | reply send delete mute ban react | auto (`setWebhook` + secret token) |
-| whatsapp | `accessToken`, `phoneNumberId`, `appSecret`, `verifyToken` (generated) | webhook | reply send react | manual (callback URL + verify token) |
-| discord | `token`, `applicationId` | gateway | reply send delete mute (timeout) ban react | auto (gateway; invite URL) |
-| slack | `botToken`, `signingSecret`, optional admin `userToken` | webhook (Events API) | reply send react; `delete` only with `userToken` | manual (Request URL) |
+```ts
+interface BotPlatformDescriptor {
+  platform: BotPlatformId          // the plugin's id
+  title: string                    // a proper name, not translated
+  glyph: BotPlatformGlyph          // a neutral icon key the panels map — never a brand mark
+  credentials: BotCredentialField[] // { key, secret, required, generated?, enables?, label: BotTexts, hint?: BotTexts }
+  receive: BotReceiveMode[]        // preferred first
+  actions: BotActionKind[]         // the calls the REQUIRED credentials allow; `note` never listed
+  setup: 'auto' | 'manual'         // auto: the server registers the hook; manual: a person pastes `setup` steps
+  docs: string
+  hint: BotTexts                   // what a person does in the platform itself (rights, intents, console steps)
+  link?: BotPlatformLink           // e.g. an invite: `{ kind: 'invite', template: 'https://…?client_id={applicationId}', params: [{ key, pattern, identity? }], label, pending? }`
+}
+```
 
-- Ask `botPlatformHelper.supports(platform, kind, connection.credentialsSet)` — never a local table.
+- The descriptor is DATA declared by the platform's plugin package — the panels draw the credential
+  inputs, labels, hints, glyph and link from it (read through `platform.list`), the server verifies
+  and acts by it, generation picks actions from it. No layer keeps a table of platforms of its own.
+- Every `BotTexts` carries the languages the panels ship (`en`, `pl`, `ru`, `be`, `uk`, `es`, `de`,
+  `fr`); a reader's language that is missing falls back to `en`.
+- Ask `botPlatformHelper.supports(descriptor, kind, connection.credentialsSet)` — never a local table.
   It adds what an optional credential `enables` and always answers `note` true.
-- A moderation kit on a platform that cannot delete (WhatsApp; Slack without `userToken`) falls back
-  to `warn` (a reply). WhatsApp cannot delete, mute or ban at all.
-- A `generated` credential (WhatsApp `verifyToken`) is created by the server and shown in the
-  connection's `setup` steps; nobody types it.
+- A `generated` credential (a verify token a console asks for) is created by the server and shown in
+  the connection's `setup` steps; nobody types it.
+- A link param with `identity: true` falls back to the verified bot account's id when the credential
+  is not in hand (a saved connection never shows a credential back).
 
 ## Matching text
 
@@ -95,18 +114,23 @@ makeBotProtocols({ base: { alias, path, parent?, service? }, guards?, gates? }):
 // connection.remove   DELETE /connections/:id            → { id }
 // connection.simulate POST   /connections/:id/simulate  BotSimulateInput → BotSimulateResult (mock only, API only)
 // activity.list       GET    /activity?connection=&limit= → BotActivity[] (newest first, limit ≤ 200)
+// platform.list       GET    /platforms                  → BotPlatformDescriptor[] (the registered plugins', in order)
 makeBotHookProtocols({ base: { alias, path, parent?, service? } }): BotHookProtocols
-// receive    POST /:platform/:connection   (native payload, no body schema)
-// challenge  GET  /:platform/:connection   (WhatsApp hub.* handshake → the challenge string)
+// receive    POST /:platform/:connection   (native payload, no body schema; `platform` an id pattern)
+// challenge  GET  /:platform/:connection   (a platform's GET handshake — its own query keys → the challenge string)
 ```
 
-- Aliases derive from the base: `<alias>:connection:list`, `<alias>:activity:list`, `<alias>:receive` …
-  Two mounts are two base aliases.
+- Aliases derive from the base: `<alias>:connection:list`, `<alias>:activity:list`,
+  `<alias>:platform:list`, `<alias>:receive` … Two mounts are two base aliases.
+- The schemas check a platform id by PATTERN, never an enum: a well-formed id with no registered plugin
+  is the server's to refuse (`unsupported-action` on save, `connection-not-found` on the hook).
+- `serveBotEntrypoints` and the panels take `BotSurfaceProtocols`: `platform` is optional there, so a
+  tree an application restated leaf by leaf before `platform.list` existed still binds (no platform to
+  offer until the tree restates the leaf).
 - `gates` is the gate the base carries (`{ alias, params? }` — a protocol has exactly one gate).
-- **The hook tree carries no guard and no gate, on purpose: the platform signs.** Telegram's secret
-  token, WhatsApp's app-secret HMAC and Slack's signing secret are verified by the server against the
-  connection's credentials over the RAW body — never put an auth guard in front of it, never add a
-  body schema.
+- **The hook tree carries no guard and no gate, on purpose: the platform signs.** Each plugin checks
+  its platform's proof (a secret header, an HMAC over the raw body) against the connection's
+  credentials over the RAW body — never put an auth guard in front of it, never add a body schema.
 - List queries are required on the client: `activity.list.call({ query: {} })`.
 
 ## Rules for consumers
@@ -131,11 +155,14 @@ makeBotHookProtocols({ base: { alias, path, parent?, service? } }): BotHookProto
   arrive only through the hook or the worker's receivers.
 - `scope` is decided by the server from the acting organization (`makeEntityScope` / the target's
   actor) — it is never read from the wire.
-- `BotMessageRef` alone addresses a message: it carries `space` (Discord guild / Slack team) where
-  the platform needs it.
-- Error messages are `bot:<marker>:<detail>`; the UI copy ships with `web-bot` as
-  `lib : bot.errors.<key>` (`botErrorHelper.keyOf` reads the class, then `@owlmeans/server-bot`'s type
-  names, then the marker — an activity's `code`, a connection's `lastError`).
+- `BotMessageRef` alone addresses a message: it carries `space` (the server or workspace) where the
+  platform needs it.
+- Error messages are `bot:<marker>:<detail>`; a platform's API refusal is `BotErrorPlatform`,
+  `bot:platform:<id>:<detail>` — a plugin's own error classes extend it WITHOUT a type name of their
+  own, so the refusal is rebuilt as `BotErrorPlatform` wherever the plugin is not loaded. The UI copy
+  ships with `web-bot` as `lib : bot.errors.<key>` (`botErrorHelper.keyOf` reads the class, then
+  `@owlmeans/server-bot`'s type names, then the marker — an activity's `code`, a connection's
+  `lastError`; a legacy `bot:<id>:…` marker by the registered id it starts with).
 
 ## Target wiring
 
@@ -167,13 +194,17 @@ export const botProtocols = Object.freeze({
 - The member mount's gate requires `BOT_MANAGE_PERMISSION` (`'bot--manage'`) — import it, never
   respell it: the platform and the target seed read the same constant. Where users work in
   organizations, an organization's owners hold it by default; otherwise it is only granted explicitly.
+- The case slot (`sources/common/src/case.ts`) restates each managing tree leaf by leaf —
+  `platform: { list: operator.platform.list }` included.
 - The api binds each managing tree with `serveBotEntrypoints(tree, { scope })` (`@owlmeans/server-bot`),
   `scope` from the target's actor — the application's own organization for `operator` without
   tenancy, the acting organization otherwise — and the hook tree with `serveBotHookEntrypoints`.
+- The backend's bot service registers the platform plugins (`makeBotService({ platforms: [...] })`,
+  the four `@owlmeans/bot-<platform>` packages) — the server supports nothing else.
 - Hook URL: `https://<host>/api/bot/hook/<platform>/<connection>` — the host of the request that
   saved or verified the connection, so preview, production and custom domains all work.
-- The web screens host `BotConnectionsPanel` (the connection dialog) and `BotActivityPanel` with
-  `surface = appProtocols.api.bot.operator` (or `.member`). Keyword groups are the target's OWN
+- The web screens host `BotConnectionsPanel` (the connection dialog; `platforms` string ids) and
+  `BotActivityPanel` with `surface = appProtocols.api.bot.operator` (or `.member`). Keyword groups are the target's OWN
   generated records — type, API, collection and form screens like any product record.
 - Handlers live in `sources/backend/src/bot/handlers/`, listed by the generated barrel
   `handlers/index.ts`, and run in the worker (`bot.runtime(handlers)`). A keyword handler loads the

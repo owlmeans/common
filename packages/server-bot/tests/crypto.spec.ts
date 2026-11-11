@@ -35,7 +35,7 @@ describe('@owlmeans/server-bot — credentials sealing', () => {
     expect(() => sealer.open('plain-text', 'org-1')).toThrow(BotCredentialsUnreadable)
   })
 
-  test('a hook secret is URL-safe and fits Telegram\'s secret_token alphabet', () => {
+  test('a hook secret is URL-safe and fits the strictest secret-header alphabet (A-Z, a-z, 0-9, _ and -)', () => {
     const secret = botCryptoHelper.randomSecret()
 
     expect(secret).toMatch(/^[A-Za-z0-9_-]{43}$/)

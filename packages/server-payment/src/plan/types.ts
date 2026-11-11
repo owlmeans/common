@@ -16,6 +16,11 @@ export interface PlanHelper {
    */
   overriddenPlan: (plan: PaymentPlan, row: Pick<PaymentSubscriptionRecord, 'overrides'> | null | undefined) => PaymentPlan
   planLookupKey: (product: PaymentProduct, plan: PaymentPlan) => string
-  /** Whether a plan is sold through a paygate: never a free plan; otherwise its own gateways, else the product's. */
+  /**
+   * Whether a plan is sold through a paygate: never a free plan; otherwise its own `gateways`, else
+   * the product's — and neither declared means every paygate.
+   */
   isSoldThrough: (product: PaymentProduct, plan: PaymentPlan, paygate: string) => boolean
+  /** Whether a plan is sold at all: not free, and its gateways (its own, else the product's) are absent or not empty. */
+  isForSale: (product: PaymentProduct, plan: PaymentPlan) => boolean
 }

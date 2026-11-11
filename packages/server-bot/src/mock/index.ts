@@ -1,3 +1,6 @@
 export type * from './types.js'
+export type * from './platform/types.js'
 export type { BotMockCall, BotNativeInbound } from '../platforms/types.js'
 export * from './mock.js'
+export * from './platform.js'
+export { BOT_TEST_PLATFORM, BOT_TEST_SECRET_HEADER } from './platform/consts.js'

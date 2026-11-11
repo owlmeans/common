@@ -1,0 +1,53 @@
+{
+  "name": "@owlmeans/test-payment",
+  "version": "0.2.0-alpha.0",
+  "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/test-payment"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "description": "Test harness for @owlmeans/server-payment and its providers: an in-memory context, catalogue fixtures and a fake paygate.",
+  "dependencies": {
+    "@owlmeans/context": "^0.2.0-alpha.0",
+    "@owlmeans/mailer": "^0.2.0-alpha.0",
+    "@owlmeans/mongo-resource": "^0.2.0-alpha.0",
+    "@owlmeans/payment": "^0.2.0-alpha.0",
+    "@owlmeans/resource": "^0.2.0-alpha.0",
+    "@owlmeans/server-api": "^0.2.0-alpha.0",
+    "@owlmeans/server-context": "^0.2.0-alpha.0",
+    "@owlmeans/server-payment": "^0.2.0-alpha.0"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
+    "@types/bun": "^1.4.4",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

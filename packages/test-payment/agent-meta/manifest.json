@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/test-payment",
+  "version": "0.2.0-alpha.0",
+  "generatedAt": "2026-11-09T19:44:59.514Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "test-payment",
+      "category": "package-specific",
+      "file": "skills/test-payment/SKILL.md",
+      "canonicalPath": ".agents/skills/test-payment/SKILL.md"
+    }
+  ]
+}

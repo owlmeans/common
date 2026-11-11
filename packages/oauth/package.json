@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/oauth",
-  "version": "0.1.21",
+  "version": "0.2.0-alpha.0",
   "license": "MIT",
   "description": "Shared OAuth 2.1 contracts for OwlMeans authorization servers and clients — device authorization, authorization code + PKCE, protected-resource and authorization-server metadata, Client ID Metadata Documents, the shared consent flow, and runtime-agnostic client helpers.",
   "homepage": "https://owlmeans.com/docs/",
@@ -33,16 +33,16 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.21",
-    "@owlmeans/entrypoint": "^0.1.21",
-    "@owlmeans/error": "^0.1.21",
-    "@owlmeans/flow": "^0.1.21",
-    "@owlmeans/route": "^0.1.21",
+    "@owlmeans/auth": "^0.2.0-alpha.0",
+    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/error": "^0.2.0-alpha.0",
+    "@owlmeans/flow": "^0.2.0-alpha.0",
+    "@owlmeans/route": "^0.2.0-alpha.0",
     "@noble/hashes": "^2.4.0",
     "@scure/base": "^2.4.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "nodemon": "^3.1.14",

@@ -1,9 +1,4 @@
 {
-  "captcha": {
-    "notice": "This site is protected by reCAPTCHA and the Google {{privacy}} and {{terms}} apply.",
-    "privacy": "Privacy Policy",
-    "terms": "Terms of Service"
-  },
   "error": {
     "captcha": "We couldn't confirm that you're not a robot. Please try again.",
     "captcha-unavailable": "The security check couldn't load. Check your connection and try again.",

@@ -9,7 +9,7 @@ const base = protocol(route(aliases.base, '/payment-gate', backend()), contract(
 /** Embedded gateway protocol tree; the alias strings are private adapter details. */
 export const paymentGate = {
   base,
-  /** Public: Stripe signs the raw body, so no application guard may sit in front of it. */
+  /** Public: the paygate signs the raw body, so no application guard may sit in front of it. */
   webhook: protocol(
     route(aliases.webhook, '/webhook/:paygate', backend({ parent: base, method: RouteMethod.POST })),
     contract.request({ params: PaygateParamsSchema }, typed<undefined>()),

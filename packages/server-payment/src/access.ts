@@ -1,4 +1,3 @@
-import Stripe from 'stripe'
 import { PLUGINS } from '@owlmeans/config'
 import { memoHelper } from '@owlmeans/context'
 import { DEFAULT_ALIAS as PAYMENT_SERVICE, ENTITLING_STATUSES, type PaymentService } from '@owlmeans/payment'
@@ -8,19 +7,20 @@ import {
   PAYMENT_OBSERVER, RES_BILLING_PROFILE, RES_CONSUMER_CONSENT, RES_CONSUMER_DECLARATION, RES_CONSUMER_EVENT,
   RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_GRANT, RES_PAYMENT_PURCHASE,
   RES_PAYMENT_SUBSCRIPTION, RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
-  STRIPE_PINNED_API_VERSION, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG, STRIPE_PRICING_PLUGIN_CONFIG,
 } from './consts.js'
 import type {
   BillingProfileResource, CompletionObserver, ConsumerConsentResource, ConsumerDeclarationResource,
   ConsumerEventResource, ConsumerMailPluginConfig, ConsumerRightsService, EntitlementService, FingerprintResource,
   GatewayService, PaygateCustomerResource, PaymentFulfillmentResource, PaymentGrantResource, PaymentSubscriptionRecord,
   PaymentSubscriptionResource, PaymentUsageCounterResource, PaymentUsageResource, PaymentWebhookResource,
-  PortalBrandingConfig, PurchaseResource, StripePluginConfig, StripePricingPluginConfig,
+  PurchaseResource,
 } from './types.js'
 import type { PluginReader } from './types.local.js'
 import type { PaymentAccess } from './access/types.js'
 import type { EntitlementGrantHelper } from './grants/types.js'
 import { entitlementGrantsOf } from './grants.js'
+import type { PaygateRegistry } from './paygate/types.js'
+import { paygatesOf } from './paygate/registry.js'
 
 export const makePaymentAccess = (ctx: ApiContext): PaymentAccess => {
   const hasService = (alias: string): boolean =>
@@ -61,20 +61,12 @@ export const makePaymentAccess = (ctx: ApiContext): PaymentAccess => {
   const consumerRightsOf = (alias: string = CONSUMER_RIGHTS_SERVICE): ConsumerRightsService | null =>
     hasService(alias) ? ctx.service<ConsumerRightsService>(alias) : null
 
-  const stripeConfig = async (): Promise<StripePluginConfig> =>
-    await plugins().get(STRIPE_PLUGIN_CONFIG) as StripePluginConfig
-
-  const portalBrandingConfig = async (): Promise<PortalBrandingConfig | null> =>
-    await plugins().load(STRIPE_PORTAL_PLUGIN_CONFIG) as PortalBrandingConfig | null
-
   const consumerMailConfig = async (): Promise<ConsumerMailPluginConfig | null> =>
     await plugins().load(CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG) as ConsumerMailPluginConfig | null
 
-  const stripePricingConfig = async (): Promise<StripePricingPluginConfig | null> =>
-    await plugins().load(STRIPE_PRICING_PLUGIN_CONFIG) as StripePricingPluginConfig | null
+  const pluginConfig = async <T>(id: string): Promise<T | null> => await plugins().load(id) as T | null
 
-  const stripeClient = async (): Promise<Stripe> =>
-    new Stripe((await stripeConfig()).api, { apiVersion: STRIPE_PINNED_API_VERSION as never })
+  const paygates = (): PaygateRegistry => paygatesOf(ctx)
 
   const activeSubscription = async (
     entityId: string, productSku: string,
@@ -86,8 +78,8 @@ export const makePaymentAccess = (ctx: ApiContext): PaymentAccess => {
     payment, gateway, gatewayOf, observer, entitlements, paygateCustomers, subscriptions, fulfillments,
     paymentWebhooks, usageEvents, usageCounters, fingerprints, grantRecords, grantRecordsOf, grants, billingProfiles,
     purchases, consumerConsents,
-    consumerDeclarations, consumerEvents, consumerRights, consumerRightsOf, stripeConfig, portalBrandingConfig,
-    consumerMailConfig, stripePricingConfig, stripeClient, activeSubscription,
+    consumerDeclarations, consumerEvents, consumerRights, consumerRightsOf, consumerMailConfig, pluginConfig, paygates,
+    activeSubscription,
   }
 }
 

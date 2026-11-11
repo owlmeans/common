@@ -1,16 +1,15 @@
 import { describe, expect, test } from 'bun:test'
 import { AuthenFailed, AuthUnavailable } from '@owlmeans/auth'
+import { PluginMissconfigured } from '@owlmeans/config'
 import { addLogPlugin, memoryPlugin } from '@owlmeans/log'
 import { makeCaptchaCheck } from '../src/check.js'
-import type { CaptchaResponse, CaptchaSettings } from '../src/types.js'
-import { makeTestCtx } from './context.js'
+import type { CaptchaSettings, CaptchaVerdict } from '../src/types.js'
+import { makeTestCtx, makeTestProvider } from './context.js'
 
-const SETTINGS: CaptchaSettings = {
-  siteKey: 'site-key', secret: 'secret', hostnames: 'owlmeans.org, owlmeans.com', minScore: '0.5',
-}
+const SETTINGS: CaptchaSettings = { hostnames: 'owlmeans.org, owlmeans.com', minScore: '0.5' }
 
-const GOOD: CaptchaResponse = {
-  success: true, challenge_ts: '2026-10-06T10:00:00Z', hostname: 'vib-dev-1.owlmeans.org', score: 0.9, action: 'email_pin',
+const GOOD: CaptchaVerdict = {
+  success: true, at: '2026-10-06T10:00:00Z', hostname: 'vib-dev-1.owlmeans.org', score: 0.9, action: 'email_pin',
 }
 
 const failure = async (promise: Promise<unknown>): Promise<Error> => {
@@ -23,85 +22,128 @@ const failure = async (promise: Promise<unknown>): Promise<Error> => {
 }
 
 describe('@owlmeans/captcha — strict check', () => {
-  test('off without a site key: nothing to render, nothing asked, every call passes', async () => {
-    const { context, asked } = await makeTestCtx({ answer: GOOD })
+  test('off without settings: nothing to advertise, nothing asked, every call passes, boot passes', async () => {
+    const provider = makeTestProvider({ verdict: GOOD })
+    const context = await makeTestCtx({ providers: [provider] })
 
-    for (const settings of [null, { ...SETTINGS, siteKey: '' }, { ...SETTINGS, siteKey: '  ', secret: '' }]) {
-      const check = makeCaptchaCheck(context, settings)
-      expect(check.enabled()).toBe(false)
-      expect(check.siteKey()).toBeNull()
-      await check.assert({ action: 'email_pin' })
-    }
-    expect(asked).toHaveLength(0)
+    const off = makeCaptchaCheck(context, null)
+    expect(off.enabled()).toBe(false)
+    expect(off.clientSettings()).toBeNull()
+    off.assertReady()
+    await off.assert({ action: 'email_pin' })
+    expect(provider.asked).toHaveLength(0)
 
-    const on = makeCaptchaCheck(context, SETTINGS)
-    expect(on.enabled()).toBe(true)
-    expect(on.siteKey()).toBe('site-key')
+    const bare = await makeTestCtx()
+    makeCaptchaCheck(bare, null).assertReady()
+    await makeCaptchaCheck(bare, null).assert({ token: 'token', action: 'email_pin' })
   })
 
-  test('passes a good token, asking the registered verifier with the secret, the token and the IP', async () => {
-    const { context, asked } = await makeTestCtx({ answer: GOOD })
+  test('on: advertises the provider\'s client settings and passes a good token with the action and the IP', async () => {
+    const provider = makeTestProvider({ verdict: GOOD })
+    const context = await makeTestCtx({ providers: [provider] })
 
-    await makeCaptchaCheck(context, SETTINGS).assert({ token: 'google-token', action: 'email_pin', remoteip: '203.0.113.7' })
-    await makeCaptchaCheck(context, { ...SETTINGS, hostnames: [' OwlMeans.org ', 'example.com'], minScore: 0.9 })
-      .assert({ token: 'google-token', action: 'email_pin' })
+    const check = makeCaptchaCheck(context, SETTINGS)
+    expect(check.enabled()).toBe(true)
+    expect(check.clientSettings()).toEqual({ provider: 'test', siteKey: 'site-key' })
+    check.assertReady()
 
-    expect(asked).toEqual([
-      { secret: 'secret', response: 'google-token', remoteip: '203.0.113.7' },
-      { secret: 'secret', response: 'google-token' },
+    await check.assert({ token: 'provider-token', action: 'email_pin', remoteIp: '203.0.113.7' })
+    await makeCaptchaCheck(context, { provider: 'test', hostnames: [' OwlMeans.org ', 'example.com'], minScore: 0.9 })
+      .assert({ token: 'provider-token', action: 'email_pin' })
+
+    expect(provider.asked).toEqual([
+      { token: 'provider-token', action: 'email_pin', remoteIp: '203.0.113.7' },
+      { token: 'provider-token', action: 'email_pin' },
     ])
   })
 
+  test('picks the provider the settings name, and only the only one when they name none', async () => {
+    const one = makeTestProvider({ id: 'one', verdict: GOOD })
+    const two = makeTestProvider({ id: 'two', verdict: GOOD, siteKey: 'second' })
+    const context = await makeTestCtx({ providers: [one, two] })
+
+    expect(makeCaptchaCheck(context, { ...SETTINGS, provider: 'two' }).clientSettings()).toEqual({ provider: 'two', siteKey: 'second' })
+    await makeCaptchaCheck(context, { ...SETTINGS, provider: 'two' }).assert({ token: 't', action: 'email_pin' })
+    expect([one.asked.length, two.asked.length]).toEqual([0, 1])
+
+    // Two registered and none named: no guess.
+    expect(() => makeCaptchaCheck(context, SETTINGS).assertReady()).toThrow(PluginMissconfigured)
+  })
+
+  test('fails closed without a registered provider: a boot error, and unavailability at the call', async () => {
+    const memory = memoryPlugin('captcha-provider')
+    const remove = addLogPlugin(memory)
+    try {
+      for (const context of [await makeTestCtx(), await makeTestCtx({ providers: [makeTestProvider({ id: 'other', verdict: GOOD })] })]) {
+        const check = makeCaptchaCheck(context, { ...SETTINGS, provider: 'test' })
+        expect(() => check.assertReady()).toThrow(PluginMissconfigured)
+        expect(() => check.clientSettings()).toThrow('captcha:provider:test')
+
+        const error = await failure(check.assert({ token: 'token', action: 'email_pin' }))
+        expect(error).toBeInstanceOf(AuthUnavailable)
+        expect(error.message).toContain('captcha:config')
+      }
+      expect(memory.records.some(record => record.level === 'error' && record.event === 'auth.captcha.provider')).toBe(true)
+    } finally {
+      remove()
+    }
+  })
+
   test('refuses each way a token can fail, with the documented reason', async () => {
-    const cases: [Partial<CaptchaResponse>, string | null | undefined, string][] = [
-      [{}, undefined, 'recaptcha:missing'],
-      [{}, null, 'recaptcha:missing'],
-      [{}, '', 'recaptcha:missing'],
-      [{ success: false, 'error-codes': ['timeout-or-duplicate'] }, 'token', 'recaptcha:timeout-or-duplicate'],
-      [{ success: false }, 'token', 'recaptcha:unknown'],
-      [{ score: undefined }, 'token', 'recaptcha:score'],
-      [{ score: 0.49 }, 'token', 'recaptcha:score'],
-      [{ hostname: 'evil.com' }, 'token', 'recaptcha:hostname'],
-      [{ hostname: 'notowlmeans.org' }, 'token', 'recaptcha:hostname'],
-      [{ hostname: '' }, 'token', 'recaptcha:hostname'],
-      [{ action: 'email_password' }, 'token', 'recaptcha:action'],
-      [{ action: undefined }, 'token', 'recaptcha:action'],
-      [{ hostname: 'evil.com', score: 0.1, action: 'other' }, 'token', 'recaptcha:score'],
+    const cases: [Partial<CaptchaVerdict>, string | null | undefined, string][] = [
+      [{}, undefined, 'captcha:missing'],
+      [{}, null, 'captcha:missing'],
+      [{}, '', 'captcha:missing'],
+      [{ success: false, errors: ['timeout-or-duplicate'] }, 'token', 'captcha:timeout-or-duplicate'],
+      [{ success: false }, 'token', 'captcha:unknown'],
+      [{ score: undefined }, 'token', 'captcha:score'],
+      [{ score: 0.49 }, 'token', 'captcha:score'],
+      [{ hostname: 'evil.com' }, 'token', 'captcha:hostname'],
+      [{ hostname: 'notowlmeans.org' }, 'token', 'captcha:hostname'],
+      [{ hostname: '' }, 'token', 'captcha:hostname'],
+      [{ action: 'email_password' }, 'token', 'captcha:action'],
+      [{ action: undefined }, 'token', 'captcha:action'],
+      [{ hostname: 'evil.com', score: 0.1, action: 'other' }, 'token', 'captcha:score'],
     ]
     for (const [answer, token, reason] of cases) {
-      const { context, asked } = await makeTestCtx({ answer: { ...GOOD, ...answer } })
+      const provider = makeTestProvider({ verdict: { ...GOOD, ...answer } })
+      const context = await makeTestCtx({ providers: [provider] })
       const error = await failure(makeCaptchaCheck(context, SETTINGS).assert({ token, action: 'email_pin' }))
 
       expect([answer, token, error]).toEqual([answer, token, expect.any(AuthenFailed)])
       expect([answer, token, error.message]).toEqual([answer, token, expect.stringContaining(reason)])
-      expect(asked).toHaveLength(reason === 'recaptcha:missing' ? 0 : 1)
+      expect(provider.asked).toHaveLength(reason === 'captcha:missing' ? 0 : 1)
     }
   })
 
-  test('an enabled check with incomplete settings fails closed before Google is asked, logging once', async () => {
+  test('on with incomplete settings or no site key fails closed before the provider is asked, logging once', async () => {
     const memory = memoryPlugin('captcha-check')
     const remove = addLogPlugin(memory)
     try {
-      for (const settings of [
-        { ...SETTINGS, secret: '' },
-        { ...SETTINGS, hostnames: '' },
-        { ...SETTINGS, hostnames: [] },
-        { ...SETTINGS, hostnames: [' ', ','] },
-        { ...SETTINGS, minScore: '' },
-        { ...SETTINGS, minScore: 'high' },
-        { ...SETTINGS, minScore: 1.5 },
-        { ...SETTINGS, minScore: -0.1 },
-      ]) {
-        const { context, asked } = await makeTestCtx({ answer: GOOD })
+      const cases: [CaptchaSettings, string][] = [
+        [{ ...SETTINGS, hostnames: '' }, ''],
+        [{ ...SETTINGS, hostnames: [] }, 'site-key'],
+        [{ ...SETTINGS, hostnames: [' ', ','] }, 'site-key'],
+        [{ minScore: '0.5' }, 'site-key'],
+        [{ ...SETTINGS, minScore: '' }, 'site-key'],
+        [{ ...SETTINGS, minScore: 'high' }, 'site-key'],
+        [{ ...SETTINGS, minScore: 1.5 }, 'site-key'],
+        [{ ...SETTINGS, minScore: -0.1 }, 'site-key'],
+        [{ hostnames: 'owlmeans.org' }, 'site-key'],
+        [SETTINGS, ''],
+      ]
+      for (const [settings, siteKey] of cases) {
+        const provider = makeTestProvider({ verdict: GOOD, siteKey })
+        const context = await makeTestCtx({ providers: [provider] })
         const check = makeCaptchaCheck(context, settings)
         memory.clear()
         for (let attempt = 0; attempt < 2; attempt++) {
           const error = await failure(check.assert({ token: 'token', action: 'email_pin' }))
           expect([settings, error]).toEqual([settings, expect.any(AuthUnavailable)])
-          expect(error.message).toContain('recaptcha:config')
+          expect(error.message).toContain('captcha:config')
         }
-        expect(asked).toHaveLength(0)
-        expect(memory.records.filter(record => record.level === 'error' && record.event === 'auth.recaptcha.config'))
+        expect(provider.asked).toHaveLength(0)
+        expect(memory.records.filter(record => record.level === 'error' && record.event === 'auth.captcha.config'))
           .toHaveLength(1)
       }
     } finally {
@@ -109,17 +151,18 @@ describe('@owlmeans/captcha — strict check', () => {
     }
   })
 
-  test('an unreachable Google is unavailability, never a pass', async () => {
-    const { context } = await makeTestCtx({ fetch: async () => { throw new Error('offline') } })
+  test('a provider that cannot be asked is unavailability, never a pass', async () => {
+    const provider = makeTestProvider({ failure: new AuthUnavailable('captcha') })
+    const context = await makeTestCtx({ providers: [provider] })
     const error = await failure(makeCaptchaCheck(context, SETTINGS).assert({ token: 'token', action: 'email_pin' }))
 
     expect(error).toBeInstanceOf(AuthUnavailable)
-    expect(error.message).toContain('recaptcha')
-    expect(error.message).not.toContain('recaptcha:config')
+    expect(error.message).toContain('captcha')
+    expect(error.message).not.toContain('captcha:config')
   })
 
   test('a score floor of 0 and a string floor are valid', async () => {
-    const { context } = await makeTestCtx({ answer: { ...GOOD, score: 0 } })
+    const context = await makeTestCtx({ providers: [makeTestProvider({ verdict: { ...GOOD, score: 0 } })] })
 
     await makeCaptchaCheck(context, { ...SETTINGS, minScore: 0 }).assert({ token: 'token', action: 'email_pin' })
     await makeCaptchaCheck(context, { ...SETTINGS, minScore: ' 0 ' }).assert({ token: 'token', action: 'email_pin' })

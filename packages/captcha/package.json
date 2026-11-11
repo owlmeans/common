@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/captcha",
-  "version": "0.1.21",
+  "version": "0.2.0-alpha.0",
   "license": "MIT",
-  "description": "Captcha verification for OwlMeans servers — the reCAPTCHA siteverify verifier, the policy of the re-captcha sign-in plugin, and a strict challenge-less check a route runs on a score-based token.",
+  "description": "Captcha for OwlMeans servers — the provider host a captcha provider plugs into, the policy of the captcha guest sign-in, and a strict challenge-less check a route runs on a score-based token. No provider built in.",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
     "type": "git",
@@ -33,13 +33,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.21",
-    "@owlmeans/config": "^0.1.21",
-    "@owlmeans/context": "^0.1.21",
-    "@owlmeans/log": "^0.1.21"
+    "@owlmeans/auth": "^0.2.0-alpha.0",
+    "@owlmeans/config": "^0.2.0-alpha.0",
+    "@owlmeans/context": "^0.2.0-alpha.0",
+    "@owlmeans/log": "^0.2.0-alpha.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

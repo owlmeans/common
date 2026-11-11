@@ -150,7 +150,7 @@ describe('@owlmeans/server-auth-email — password sign-in', () => {
 })
 
 describe('@owlmeans/server-auth-email — exclusive plugins', () => {
-  test('a challenge of a global type (email-otp, pk-supervisor, re-captcha) is refused at sign-in', async () => {
+  test('a challenge of a global type (email-otp, pk-supervisor, captcha) is refused at sign-in', async () => {
     const env = await makeEmailAuthFixture()
     appendOtpPlugin(env.context)
     // A real IAM e-mail-OTP challenge, issued through the global registry.
@@ -160,7 +160,7 @@ describe('@owlmeans/server-auth-email — exclusive plugins', () => {
     const presented = [
       challenge,
       await env.challengeOf(AuthenticationType.Supervisor, 'iam@example.org::whatever'),
-      await env.challengeOf(AuthenticationType.ReCaptcha, 'iam@example.org::whatever'),
+      await env.challengeOf(AuthenticationType.Captcha, 'iam@example.org::whatever'),
     ]
     for (const foreign of presented) {
       const error = await failure(env.service.signIn({ email: 'iam@example.org', device: DEVICE_A, challenge: foreign, pin: iamCode }, env.guest()))

@@ -4,8 +4,8 @@ import type { CustomerLockHelper } from './customer-lock/types.js'
 export const createCustomerLockHelper = (): CustomerLockHelper => {
   const customerMutex: Record<string, Mutex> = {}
 
-  const withCustomerLock = async <T>(customerId: string | undefined, fn: () => Promise<T>): Promise<T> => {
-    const key = customerId ?? ''
+  const withCustomerLock = async <T>(paygate: string, customerId: string | undefined, fn: () => Promise<T>): Promise<T> => {
+    const key = `${paygate}:${customerId ?? ''}`
     const mutex = customerMutex[key] = customerMutex[key] ?? new Mutex()
     const release = await mutex.acquire()
     try {

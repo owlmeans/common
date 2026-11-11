@@ -35,56 +35,6 @@
     "react": "Reaction",
     "note": "Note"
   },
-  "credentials": {
-    "telegram": {
-      "token": {
-        "label": "Bot token",
-        "hint": "From @BotFather in Telegram: /newbot creates a bot, /token shows its token."
-      }
-    },
-    "whatsapp": {
-      "accessToken": {
-        "label": "Access token",
-        "hint": "A permanent system-user token of your Meta app with the WhatsApp messaging permission."
-      },
-      "phoneNumberId": {
-        "label": "Phone number ID",
-        "hint": "WhatsApp → API Setup in your Meta app dashboard."
-      },
-      "appSecret": {
-        "label": "App secret",
-        "hint": "App settings → Basic in your Meta app; it proves every incoming message came from Meta."
-      },
-      "verifyToken": {
-        "label": "Verify token",
-        "hint": "Created for you; paste it into the webhook settings of your Meta app."
-      }
-    },
-    "discord": {
-      "token": {
-        "label": "Bot token",
-        "hint": "Developer Portal → your application → Bot → Reset Token. Turn on the Message Content intent there too."
-      },
-      "applicationId": {
-        "label": "Application ID",
-        "hint": "Developer Portal → your application → General Information."
-      }
-    },
-    "slack": {
-      "botToken": {
-        "label": "Bot token (xoxb-…)",
-        "hint": "Your Slack app → OAuth & Permissions → Bot User OAuth Token."
-      },
-      "signingSecret": {
-        "label": "Signing secret",
-        "hint": "Your Slack app → Basic Information → App Credentials."
-      },
-      "userToken": {
-        "label": "Admin user token (xoxp-…)",
-        "hint": "Lets the bot delete messages. Installed by a workspace admin; without it the bot warns instead."
-      }
-    }
-  },
   "connections": {
     "title": "Bot connections",
     "description": "The bot accounts this application runs. Credentials are stored encrypted and are never shown again.",
@@ -103,12 +53,6 @@
     "setup-title": "Finish the setup in {{platform}}",
     "hook-url": "Webhook URL",
     "hint": {
-      "telegram": "Add the bot to your group as an administrator with the right to delete messages and to ban users, so it can act on what it reads.",
-      "whatsapp": "Paste the webhook URL and the verify token below into the webhook settings of your Meta app, then subscribe to the messages field.",
-      "discord": "Invite the bot to your server with the permissions its actions need, and turn on the Message Content intent in the Developer Portal.",
-      "slack": "Paste the URL below as the Request URL under Event Subscriptions of your Slack app, subscribe to message events and add the bot to its channels.",
-      "discord-invite": "Invite the bot to a server",
-      "discord-pending": "The invite link appears once the application ID is known.",
       "after-save": "Once saved, the connection shows the webhook URL and the values to paste into {{platform}}."
     }
   },
@@ -117,6 +61,7 @@
     "edit-title": "Edit {{label}}",
     "description": "Paste the credentials the platform gave you. They are written once and never shown back.",
     "platform": "Platform",
+    "no-platforms": "No messaging platform is available on this server yet.",
     "label": "Name",
     "label-placeholder": "Community moderator",
     "credentials": "Credentials",

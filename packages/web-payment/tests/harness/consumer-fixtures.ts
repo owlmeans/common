@@ -6,7 +6,7 @@ import type {
   SubscriptionStartView, WithdrawalCandidateList,
 } from '@owlmeans/payment'
 
-/** Canned consumer-rights data for the Playwright harness — no server, no Stripe. */
+/** Canned consumer-rights data for the Playwright harness — no server, no paygate. */
 
 export const TRADER = 'Example Trader'
 

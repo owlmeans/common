@@ -1,31 +1,30 @@
-import type Stripe from 'stripe'
 import { CheckoutPricingMode, ENTITLING_STATUSES, PaygateError, SubscriptionStatus } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
-import { GATEWAY_SERVICE, STRIPE_PAYGATE_ALIAS } from '../consts.js'
+import { memoHelper } from '@owlmeans/context'
+import { GATEWAY_SERVICE } from '../consts.js'
 import type {
   CommitResult, CheckoutOutcome, CheckoutPlugin, DisputeEvent, PaymentFulfillmentRecord, PaymentSubscriptionRecord,
   RefundEvent, TopUpCompletion,
 } from '../types.js'
+import type {
+  CheckoutSnapshot, DisputeChangedEvent, EventCustomer, EventInvoice, InvoiceEvent, Paygate, PaygateCharge,
+  PaygateEvent, PaygateRefund, PaygateSubscription, SubscriptionChangedEvent,
+} from '../paygate/types.js'
 import type { PaymentTarget } from './refunds/types.js'
 import type { ApplyOptions } from './subscriptions/types.js'
 import { log } from '../log.js'
-import { DISPUTE_PHASES } from './consts.local.js'
-import type { EventHandler, StripeEventHandler } from './events/types.js'
+import type { PaymentEventsHelper } from './events/types.js'
 import { paymentAccessOf } from '../access.js'
 import { paymentUtils } from '../utils.js'
 import { checkoutPluginsOf } from './checkout-plugins.js'
 import { paymentTargetOf } from './refunds.js'
 import { customerLockHelper } from './customer-lock.js'
-import { stripeSubscriptionsOf } from './subscriptions.js'
+import { paygateSubscriptionsOf } from './subscriptions.js'
+import { checkoutSnapshotHelper } from './snapshot.js'
 import { consumerRecordsOf } from '../consumer/records.js'
 import { captureOf } from '../consumer/capture.js'
-import { stripeSessionHelper } from './session.js'
 
-/** `invoice.subscription`, top-level on the pinned API version. */
-const subscriptionIdOfInvoice = (invoice: Stripe.Invoice): string | undefined =>
-  paymentUtils.idOf((invoice as unknown as { subscription?: string | { id?: string } | null }).subscription)
-
-const integerMetadata = (metadata: Stripe.Metadata, key: string): number => {
+const integerMetadata = (metadata: Record<string, string>, key: string): number => {
   const raw = metadata[key]
   const value = raw == null || raw.trim() === '' ? Number.NaN : Number(raw)
   if (!Number.isSafeInteger(value)) throw new PaygateError(`metadata:${key}`)
@@ -33,33 +32,34 @@ const integerMetadata = (metadata: Stripe.Metadata, key: string): number => {
 }
 
 /**
- * The Stripe event dispatch table. `process` runs the handler of an event type and ignores every
- * other type; a throw escapes so Stripe delivers the event again.
+ * The event dispatch of a context: one paygate event applied to the stores and told to the
+ * observers. A throw escapes so the paygate delivers the event again.
  */
-export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEventHandler => {
+export const makePaymentEventsHelper = (ctx: ApiContext): PaymentEventsHelper => {
   const access = paymentAccessOf(ctx)
-  const stripeSubscriptions = stripeSubscriptionsOf(ctx)
+  const subscriptions = paygateSubscriptionsOf(ctx)
+  const lock = customerLockHelper.withCustomerLock
 
   /** The registered checkout plugins — none in a context without a gateway service. */
   const registeredPlugins = (): readonly CheckoutPlugin[] =>
     (ctx as unknown as { hasService?: (alias: string) => boolean }).hasService?.(GATEWAY_SERVICE) === true
       ? access.gateway().checkoutPlugins?.() ?? [] : []
 
-  const upsertCustomer = async (customer: Stripe.Customer): Promise<void> => {
-    await customerLockHelper.withCustomerLock(customer.id, async () => {
+  const upsertCustomer = async (paygate: Paygate, customer: EventCustomer): Promise<void> => {
+    await lock(paygate.id, customer.id, async () => {
       const resource = access.paygateCustomers()
-      const existing = await resource.loadByPgId(customer.id, STRIPE_PAYGATE_ALIAS)
+      const existing = await resource.loadByPgId(customer.id, paygate.id)
       const data = paymentUtils.compact({
         email: customer.email ?? undefined, name: customer.name ?? undefined,
-        taxId: customer.tax_ids?.data?.[0]?.value ?? undefined,
-        country: customer.address?.country?.toUpperCase() ?? undefined,
+        taxId: customer.taxId ?? undefined,
+        country: customer.country?.toUpperCase() ?? undefined,
         currency: customer.currency?.toLowerCase() ?? undefined,
         entityId: customer.metadata?.entityId ?? existing?.entityId ?? undefined,
         profileId: customer.metadata?.profileId ?? existing?.profileId ?? undefined,
       })
       if (existing == null) {
         try {
-          await resource.create({ paygate: STRIPE_PAYGATE_ALIAS, externalId: customer.id, ...data })
+          await resource.create({ paygate: paygate.id, externalId: customer.id, ...data })
         } catch (error) {
           if (!paymentUtils.isDuplicateKey(error)) throw error
         }
@@ -70,15 +70,15 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
     })
   }
 
-  const markCustomerDeleted = async (customer: Stripe.DeletedCustomer | Stripe.Customer): Promise<void> => {
+  const markCustomerDeleted = async (paygate: Paygate, customerId: string): Promise<void> => {
     const resource = access.paygateCustomers()
-    const existing = await resource.loadByPgId(customer.id, STRIPE_PAYGATE_ALIAS)
+    const existing = await resource.loadByPgId(customerId, paygate.id)
     if (existing != null && existing.deletedAt == null) {
       await resource.update({ ...existing, deletedAt: new Date() })
     }
   }
 
-  const settle = async (session: Stripe.Checkout.Session, outcome: CheckoutOutcome, entityId?: string): Promise<void> => {
+  const settle = async (session: CheckoutSnapshot, outcome: CheckoutOutcome, entityId?: string): Promise<void> => {
     const metadata = session.metadata ?? {}
     const owner = entityId ?? metadata.entityId
     if (owner == null) return
@@ -89,25 +89,25 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
     }))
   }
 
-  const fulfillPayment = async (session: Stripe.Checkout.Session): Promise<void> => {
+  const fulfillPayment = async (paygate: Paygate, session: CheckoutSnapshot): Promise<void> => {
     if (session.mode === 'subscription') {
-      await completeSubscriptionCheckout(session)
+      await completeSubscriptionCheckout(paygate, session)
       return
     }
-    if (!stripeSessionHelper.canFulfillPayment(session)) return
+    if (!checkoutSnapshotHelper.canFulfill(session)) return
     const metadata = session.metadata ?? {}
     if (metadata.entityId == null || metadata.service == null || metadata.productSku == null) {
       throw new PaygateError('metadata:owner')
     }
-    await customerLockHelper.withCustomerLock(paymentUtils.idOf(session.customer), async () => {
+    await lock(paygate.id, session.customerId, async () => {
       const ledger = access.fulfillments()
-      let stored = await ledger.byExternalId(session.id, STRIPE_PAYGATE_ALIAS)
+      let stored = await ledger.byExternalId(session.id, paygate.id)
       if (stored?.fulfilledAt != null) return
 
       const amountMode = metadata.pricingMode === CheckoutPricingMode.Amount
       const base = {
         entityId: metadata.entityId, productSku: metadata.productSku, planSku: metadata.planSku,
-        service: metadata.service, paygate: STRIPE_PAYGATE_ALIAS, externalId: session.id,
+        service: metadata.service, paygate: paygate.id, externalId: session.id,
       }
       let completion: TopUpCompletion
       let record: Partial<PaymentFulfillmentRecord>
@@ -119,7 +119,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
           ? chargedMinor : integerMetadata(metadata, 'sourceChargeAmountMinor')
         const amountCurrency = (metadata.amountCurrency ?? currency)?.toLowerCase()
         if (currency == null || session.currency?.toLowerCase() !== currency
-          || amountCurrency == null || session.amount_subtotal !== chargedMinor
+          || amountCurrency == null || session.amountSubtotalMinor !== chargedMinor
           || amountMinor <= 0 || chargedMinor <= 0 || sourceChargedMinor < amountMinor
           || (amountCurrency === currency && sourceChargedMinor !== chargedMinor)) {
           throw new PaygateError('amount-mismatch')
@@ -136,8 +136,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
         if (metadata.currency != null && session.currency?.toLowerCase() !== metadata.currency.toLowerCase()) {
           throw new PaygateError('currency-mismatch')
         }
-        const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 100 })
-        const units = lineItems.data.reduce((sum, line) => sum + (line.quantity ?? 0), 0)
+        const units = await paygate.checkout.units(session.id)
         if (units <= 0) throw new PaygateError('units')
         record = { mode: CheckoutPricingMode.Quantity, units, ...(session.currency != null ? { currency: session.currency } : {}) }
         completion = { ...base, mode: 'quantity', units }
@@ -145,18 +144,16 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
 
       // The purchase — the withdrawal window and the contract — exists BEFORE the credits do; the
       // billing country is locked with it.
-      const captured = await captureOf(ctx).capturePaymentPurchase(stripe, session, paymentUtils.compact({
+      const captured = await captureOf(ctx).capturePaymentPurchase(paygate, session, paymentUtils.compact({
         netAmountMinor: completion.mode === 'amount' ? completion.amountMinor : undefined,
         amountCurrency: completion.mode === 'amount' ? completion.amountCurrency : undefined,
         units: completion.mode === 'quantity' ? completion.units : undefined,
       }))
       const evidence = captureOf(ctx).sessionEvidenceOf(session)
-      const identifiers = paymentUtils.compact({
-        paymentIntentId: paymentUtils.idOf(session.payment_intent), invoiceId: paymentUtils.idOf(session.invoice),
-      })
+      const identifiers = paymentUtils.compact({ paymentIntentId: session.paymentId, invoiceId: session.invoiceId })
       const evidenceFields = paymentUtils.compact({
         country: evidence.country, email: evidence.email, profileId: metadata.profileId,
-        amountTotalMinor: session.amount_total ?? undefined, amountTaxMinor: session.total_details?.amount_tax ?? undefined,
+        amountTotalMinor: session.amountTotalMinor ?? undefined, amountTaxMinor: session.amountTaxMinor ?? undefined,
         termsAccepted: evidence.termsAccepted, purchaseId: captured?.purchase.purchaseId,
       })
       if (stored == null) {
@@ -164,7 +161,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
           stored = await ledger.create(paymentUtils.compact({ ...base, ...record, ...identifiers, ...evidenceFields, createdAt: new Date() }) as PaymentFulfillmentRecord)
         } catch (error) {
           if (!paymentUtils.isDuplicateKey(error)) throw error
-          stored = await ledger.byExternalId(session.id, STRIPE_PAYGATE_ALIAS)
+          stored = await ledger.byExternalId(session.id, paygate.id)
           if (stored == null || stored.fulfilledAt != null) return
         }
       } else if ((stored.paymentIntentId == null && identifiers.paymentIntentId != null)
@@ -187,40 +184,40 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
    * refined with the buyer's own country and totals, the billing country is locked, the evidence is
    * stored on the subscription row and the confirmation mailed.
    */
-  const completeSubscriptionCheckout = async (session: Stripe.Checkout.Session): Promise<void> => {
-    if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') return
-    const subscriptionId = paymentUtils.idOf(session.subscription)
+  const completeSubscriptionCheckout = async (paygate: Paygate, session: CheckoutSnapshot): Promise<void> => {
+    if (session.payment !== 'paid' && session.payment !== 'not-required') return
+    const subscriptionId = session.subscriptionId
     if (subscriptionId == null) return
-    await customerLockHelper.withCustomerLock(paymentUtils.idOf(session.customer), async () => {
-      let row = await access.subscriptions().byExternalId(subscriptionId, STRIPE_PAYGATE_ALIAS)
-      let subscription: Stripe.Subscription | null = null
+    await lock(paygate.id, session.customerId, async () => {
+      let row = await access.subscriptions().byExternalId(subscriptionId, paygate.id)
+      let subscription: PaygateSubscription | null = null
       if (row?.propagated == null) {
-        subscription = await stripeSubscriptions.retrieveSubscription(stripe, subscriptionId)
+        subscription = await subscriptions.retrieveSubscription(paygate, subscriptionId)
         if (subscription != null) {
-          row = (await stripeSubscriptions.applySubscription(subscription, { source: 'webhook', stripe })).record ?? row
+          row = (await subscriptions.applySubscription(paygate, subscription, { source: 'webhook' })).record ?? row
         }
       }
       if (row == null) {
         log.warn('Completed checkout names an unknown subscription', { sessionId: session.id, subscriptionId })
         return
       }
-      let purchase = await access.purchases().byPurchaseId(consumerRecordsOf(ctx).purchaseIdOf(subscriptionId))
+      let purchase = await access.purchases().byPurchaseId(consumerRecordsOf(ctx).purchaseIdOf(paygate.id, subscriptionId))
       if (purchase == null && ENTITLING_STATUSES.includes(row.status)) {
-        subscription = subscription ?? await stripeSubscriptions.retrieveSubscription(stripe, subscriptionId)
+        subscription = subscription ?? await subscriptions.retrieveSubscription(paygate, subscriptionId)
         purchase = subscription != null
-          ? (await captureOf(ctx).captureSubscriptionPurchase(stripe, subscription, row))?.purchase ?? null : null
+          ? (await captureOf(ctx).captureSubscriptionPurchase(paygate, subscription, row))?.purchase ?? null : null
       }
       if (purchase != null) {
-        purchase = await captureOf(ctx).completeSubscriptionPurchase(stripe, session, purchase)
+        purchase = await captureOf(ctx).completeSubscriptionPurchase(paygate, session, purchase)
       }
       const evidence = captureOf(ctx).sessionEvidenceOf(session)
       const metadata = session.metadata ?? {}
-      const current = await access.subscriptions().byExternalId(subscriptionId, STRIPE_PAYGATE_ALIAS) ?? row
+      const current = await access.subscriptions().byExternalId(subscriptionId, paygate.id) ?? row
       await access.subscriptions().update(paymentUtils.compact({
         ...current,
         checkoutSessionId: session.id,
         purchaseId: purchase?.purchaseId ?? current.purchaseId,
-        firstInvoiceId: current.firstInvoiceId ?? paymentUtils.idOf(session.invoice),
+        firstInvoiceId: current.firstInvoiceId ?? session.invoiceId,
         currency: current.currency ?? (evidence.currency !== '' ? evidence.currency : undefined),
         country: evidence.country ?? current.country,
         email: evidence.email ?? current.email,
@@ -238,25 +235,25 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
     await settle(session, 'paid')
   }
 
-  const checkoutFailed = async (session: Stripe.Checkout.Session): Promise<void> => {
+  const checkoutFailed = async (paygate: Paygate, session: CheckoutSnapshot): Promise<void> => {
     const metadata = session.metadata ?? {}
-    const customerId = paymentUtils.idOf(session.customer)
+    const customerId = session.customerId
     const entityId = metadata.entityId
-      ?? (customerId != null ? (await access.paygateCustomers().loadByPgId(customerId, STRIPE_PAYGATE_ALIAS))?.entityId : undefined)
+      ?? (customerId != null ? (await access.paygateCustomers().loadByPgId(customerId, paygate.id))?.entityId : undefined)
     if (entityId == null) {
       log.warn('Failed checkout belongs to no known entity', { sessionId: session.id })
       return
     }
     if (session.mode === 'payment' && metadata.productSku != null && metadata.service != null) {
       const ledger = access.fulfillments()
-      const stored = await ledger.byExternalId(session.id, STRIPE_PAYGATE_ALIAS)
+      const stored = await ledger.byExternalId(session.id, paygate.id)
       if (stored == null) {
         try {
           await ledger.create(paymentUtils.compact({
             entityId, productSku: metadata.productSku, planSku: metadata.planSku, service: metadata.service,
-            paygate: STRIPE_PAYGATE_ALIAS, externalId: session.id,
+            paygate: paygate.id, externalId: session.id,
             mode: metadata.pricingMode === CheckoutPricingMode.Amount ? CheckoutPricingMode.Amount : CheckoutPricingMode.Quantity,
-            paymentIntentId: paymentUtils.idOf(session.payment_intent), createdAt: new Date(), failedAt: new Date(),
+            paymentIntentId: session.paymentId, createdAt: new Date(), failedAt: new Date(),
           }) as PaymentFulfillmentRecord)
         } catch (error) {
           if (!paymentUtils.isDuplicateKey(error)) throw error
@@ -267,62 +264,54 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
     }
     await access.observer().propagatePaymentFailed(paymentUtils.compact({
       entityId, kind: 'checkout' as const, externalId: session.id,
-      subscriptionId: paymentUtils.idOf(session.subscription), eventKey: `payment-failed:${session.id}:0`,
+      subscriptionId: session.subscriptionId, eventKey: `payment-failed:${session.id}:0`,
     }), ctx)
     log.info('Payment failed', paymentUtils.compact({
-      entityId, kind: 'checkout', sessionId: session.id, subscriptionId: paymentUtils.idOf(session.subscription),
+      entityId, kind: 'checkout', sessionId: session.id, subscriptionId: session.subscriptionId,
     }), { event: 'payment.failed' })
     await settle(session, 'failed', entityId)
   }
 
-  const purgeExpiredCheckout = async (session: Stripe.Checkout.Session): Promise<void> => {
-    await access.fulfillments().purge({ paygate: STRIPE_PAYGATE_ALIAS, externalId: session.id, fulfilledAt: null })
+  const purgeExpiredCheckout = async (paygate: Paygate, session: CheckoutSnapshot): Promise<void> => {
+    await access.fulfillments().purge({ paygate: paygate.id, externalId: session.id, fulfilledAt: null })
     await settle(session, 'expired')
   }
 
-  const applyFromEvent = (opts: Partial<ApplyOptions> = {}): EventHandler => async event => {
-    const subscription = event.data.object as Stripe.Subscription
-    await customerLockHelper.withCustomerLock(paymentUtils.idOf(subscription.customer), async () => {
-      await stripeSubscriptions.applySubscription(subscription, {
-        source: 'webhook', eventId: event.id, eventCreated: event.created, stripe, ...opts,
+  const subscriptionChanged = async (paygate: Paygate, event: SubscriptionChangedEvent): Promise<void> => {
+    const subscription = event.subscription
+    await lock(paygate.id, subscription.customerId, async () => {
+      await subscriptions.applySubscription(paygate, subscription, {
+        source: 'webhook', eventId: event.eventId, eventCreated: event.createdAt,
+        ...(event.deleted ? { forced: SubscriptionStatus.Canceled } : {}),
+        ...(event.trialEnding ? { trialEnding: true } : {}),
       })
     })
   }
 
   const reapplyInvoiceSubscription = async (
-    event: Stripe.Event, invoice: Stripe.Invoice, opts: Partial<ApplyOptions> = {},
+    paygate: Paygate, eventId: string, invoice: EventInvoice, opts: Partial<ApplyOptions> = {},
   ): Promise<CommitResult | null> => {
-    const subscriptionId = subscriptionIdOfInvoice(invoice)
-    if (subscriptionId == null) return null
-    const subscription = await stripeSubscriptions.retrieveSubscription(stripe, subscriptionId)
+    const subscriptionId = invoice.subscriptionId
+    if (subscriptionId == null || paygate.subscriptions == null) return null
+    const subscription = await subscriptions.retrieveSubscription(paygate, subscriptionId)
     if (subscription == null) {
-      return await customerLockHelper.withCustomerLock(paymentUtils.idOf(invoice.customer),
-        async () => await stripeSubscriptions.cancelMissing(subscriptionId))
+      return await lock(paygate.id, invoice.customerId, async () => await subscriptions.cancelMissing(paygate, subscriptionId))
     }
 
-    return await customerLockHelper.withCustomerLock(paymentUtils.idOf(subscription.customer), async () =>
-      await stripeSubscriptions.applySubscription(subscription, { source: 'webhook', eventId: event.id, stripe, ...opts }))
+    return await lock(paygate.id, subscription.customerId, async () =>
+      await subscriptions.applySubscription(paygate, subscription, { source: 'webhook', eventId, ...opts }))
   }
 
-  const invoicePaid: EventHandler = async event => {
-    const invoice = event.data.object as Stripe.Invoice
-    if (invoice.billing_reason === 'subscription_cycle') {
-      await reapplyInvoiceSubscription(event, invoice, { renewal: true, invoiceId: invoice.id })
-      return
-    }
-    await refreshLatestInvoice(invoice, invoice.id)
-  }
-
-  const refreshLatestInvoice = async (invoice: Stripe.Invoice, latestInvoiceId?: string): Promise<void> => {
-    const subscriptionId = subscriptionIdOfInvoice(invoice)
+  const refreshLatestInvoice = async (paygate: Paygate, invoice: EventInvoice, latestInvoiceId?: string): Promise<void> => {
+    const subscriptionId = invoice.subscriptionId
     if (subscriptionId == null) return
-    await customerLockHelper.withCustomerLock(paymentUtils.idOf(invoice.customer), async () => {
-      const row = await access.subscriptions().byExternalId(subscriptionId, STRIPE_PAYGATE_ALIAS)
+    await lock(paygate.id, invoice.customerId, async () => {
+      const row = await access.subscriptions().byExternalId(subscriptionId, paygate.id)
       if (row == null) return
       let latest = latestInvoiceId
       if (latest == null) {
-        const subscription = await stripeSubscriptions.retrieveSubscription(stripe, subscriptionId)
-        latest = paymentUtils.idOf(subscription?.latest_invoice)
+        const subscription = await subscriptions.retrieveSubscription(paygate, subscriptionId)
+        latest = subscription?.latestInvoiceId
       }
       if (latest != null && row.latestInvoiceId !== latest) {
         await access.subscriptions().update({ ...row, latestInvoiceId: latest, updatedAt: new Date() })
@@ -330,26 +319,48 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
     })
   }
 
-  const invoiceFailed: EventHandler = async event => {
-    const invoice = event.data.object as Stripe.Invoice
-    const result = await reapplyInvoiceSubscription(event, invoice)
-    const customerId = paymentUtils.idOf(invoice.customer)
+  const invoiceFailed = async (paygate: Paygate, event: InvoiceEvent): Promise<void> => {
+    const invoice = event.invoice
+    const result = await reapplyInvoiceSubscription(paygate, event.eventId, invoice)
+    const customerId = invoice.customerId
     const entityId = result?.record?.entityId
-      ?? (customerId != null ? (await access.paygateCustomers().loadByPgId(customerId, STRIPE_PAYGATE_ALIAS))?.entityId : undefined)
+      ?? (customerId != null ? (await access.paygateCustomers().loadByPgId(customerId, paygate.id))?.entityId : undefined)
     if (entityId == null) {
       log.warn('Failed invoice belongs to no known entity', { invoiceId: invoice.id })
       return
     }
-    const attempt = invoice.attempt_count ?? 0
+    const attempt = invoice.attempt ?? 0
+    const actionRequired = event.change === 'action-required'
     await access.observer().propagatePaymentFailed(paymentUtils.compact({
-      entityId, kind: 'invoice' as const, externalId: invoice.id, subscriptionId: subscriptionIdOfInvoice(invoice),
-      invoiceId: invoice.id, attempt, actionRequired: event.type === 'invoice.payment_action_required',
-      nextAttemptAt: paymentUtils.dateOf(invoice.next_payment_attempt), eventKey: `payment-failed:${invoice.id}:${attempt}`,
+      entityId, kind: 'invoice' as const, externalId: invoice.id, subscriptionId: invoice.subscriptionId,
+      invoiceId: invoice.id, attempt, actionRequired,
+      nextAttemptAt: invoice.nextAttemptAt, eventKey: `payment-failed:${invoice.id}:${attempt}`,
     }), ctx)
     log.info('Payment failed', paymentUtils.compact({
-      entityId, kind: 'invoice', invoiceId: invoice.id, subscriptionId: subscriptionIdOfInvoice(invoice), attempt,
-      actionRequired: event.type === 'invoice.payment_action_required',
+      entityId, kind: 'invoice', invoiceId: invoice.id, subscriptionId: invoice.subscriptionId, attempt, actionRequired,
     }), { event: 'payment.failed' })
+  }
+
+  const invoiceChanged = async (paygate: Paygate, event: InvoiceEvent): Promise<void> => {
+    const invoice = event.invoice
+    switch (event.change) {
+      case 'paid':
+        if (invoice.renewal) {
+          await reapplyInvoiceSubscription(paygate, event.eventId, invoice, { renewal: true, invoiceId: invoice.id })
+          return
+        }
+        await refreshLatestInvoice(paygate, invoice, invoice.id)
+        return
+      case 'payment-failed':
+      case 'action-required':
+        await invoiceFailed(paygate, event)
+        return
+      case 'uncollectible':
+        await reapplyInvoiceSubscription(paygate, event.eventId, invoice)
+        return
+      case 'voided':
+        await refreshLatestInvoice(paygate, invoice)
+    }
   }
 
   const targetFields = (target: PaymentTarget) => target.kind === 'fulfillment'
@@ -365,8 +376,10 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
     })
 
   /** A refund of a purchase's payment moves its refunded total; a whole refund closes its window. */
-  const refundPurchase = async (target: PaymentTarget, refundedTotal: number, paid: number | undefined): Promise<void> => {
-    const purchaseId = consumerRecordsOf(ctx).purchaseIdOf(target.record.externalId)
+  const refundPurchase = async (
+    paygate: Paygate, target: PaymentTarget, refundedTotal: number, paid: number | undefined,
+  ): Promise<void> => {
+    const purchaseId = consumerRecordsOf(ctx).purchaseIdOf(paygate.id, target.record.externalId)
     const purchase = await access.purchases().byPurchaseId(purchaseId)
     if (purchase == null || (target.kind === 'subscription' && purchase.invoiceId != null && purchase.invoiceId !== target.invoiceId)) {
       return
@@ -377,33 +390,33 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
     }))
   }
 
-  const processRefund = async (refund: Stripe.Refund, charge?: Stripe.Charge | null): Promise<void> => {
-    if (refund.status !== 'succeeded') return
-    const target = await paymentTargetOf(ctx).resolvePaymentTarget(stripe, {
-      paymentIntentId: paymentUtils.idOf(refund.payment_intent), chargeId: paymentUtils.idOf(refund.charge), charge,
+  const processRefund = async (paygate: Paygate, refund: PaygateRefund, charge?: PaygateCharge | null): Promise<void> => {
+    if (!refund.succeeded) return
+    const target = await paymentTargetOf(ctx).resolvePaymentTarget(paygate, {
+      paymentIntentId: refund.paymentId, chargeId: refund.chargeId, charge,
     })
     if (target == null) {
       log.warn('Refund matches no fulfillment or subscription', { refundId: refund.id })
       return
     }
-    const chargeId = paymentUtils.idOf(refund.charge)
-    const refunded = target.charge ?? (chargeId != null ? await paymentTargetOf(ctx).retrieveCharge(stripe, chargeId) : null)
-    const refundedTotal = Math.max(refunded?.amount_refunded ?? 0, refund.amount)
-    const paid = refunded?.amount
+    const chargeId = refund.chargeId
+    const refunded = target.charge ?? (chargeId != null ? await paymentTargetOf(ctx).retrieveCharge(paygate, chargeId) : null)
+    const refundedTotal = Math.max(refunded?.refundedMinor ?? 0, refund.amountMinor)
+    const paid = refunded?.amountMinor
     if (target.kind === 'fulfillment') {
       await access.fulfillments().update(paymentUtils.compact({
         ...target.record, refundedMinor: Math.max(target.record.refundedMinor ?? 0, refundedTotal),
         refundedAt: new Date(), chargeId: target.record.chargeId ?? refunded?.id,
       }))
     }
-    await refundPurchase(target, refundedTotal, paid)
+    await refundPurchase(paygate, target, refundedTotal, paid)
     const metadata = { ...(refund.metadata ?? {}) } as Record<string, string>
     await access.observer().propagateRefund(paymentUtils.compact({
       ...targetFields(target),
       refundId: refund.id,
-      paymentIntentId: target.paymentIntentId ?? paymentUtils.idOf(refund.payment_intent),
+      paymentIntentId: target.paymentIntentId ?? refund.paymentId,
       invoiceId: target.kind === 'subscription' ? target.invoiceId : target.record.invoiceId ?? undefined,
-      amountMinor: refund.amount,
+      amountMinor: refund.amountMinor,
       refundedTotalMinor: refundedTotal,
       paidMinor: paid,
       currency: refund.currency,
@@ -415,35 +428,22 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
     }) as RefundEvent, ctx)
     log.info('Payment refunded', paymentUtils.compact({
       entityId: target.record.entityId, target: target.kind, externalId: target.record.externalId, refundId: refund.id,
-      amountMinor: refund.amount, refundedTotalMinor: refundedTotal, paidMinor: paid, currency: refund.currency,
+      amountMinor: refund.amountMinor, refundedTotalMinor: refundedTotal, paidMinor: paid, currency: refund.currency,
       withdrawalId: metadata.withdrawalId != null && metadata.withdrawalId !== '' ? metadata.withdrawalId : undefined,
     }), { event: 'payment.refunded' })
   }
 
-  const chargeRefunded: EventHandler = async event => {
-    const charge = event.data.object as Stripe.Charge
-    const refunds = await stripe.refunds.list({ charge: charge.id, limit: 100 })
-    for (const refund of refunds.data) {
-      await processRefund(refund, charge)
-    }
-  }
-
-  const refundChanged: EventHandler = async event => {
-    await processRefund(event.data.object as Stripe.Refund)
-  }
-
-  const disputeChanged: EventHandler = async event => {
-    const dispute = event.data.object as Stripe.Dispute
-    const phase = DISPUTE_PHASES[event.type]
-    const target = await paymentTargetOf(ctx).resolvePaymentTarget(stripe, {
-      paymentIntentId: paymentUtils.idOf(dispute.payment_intent), chargeId: paymentUtils.idOf(dispute.charge),
+  const disputeChanged = async (paygate: Paygate, event: DisputeChangedEvent): Promise<void> => {
+    const { dispute, phase } = event
+    const target = await paymentTargetOf(ctx).resolvePaymentTarget(paygate, {
+      paymentIntentId: dispute.paymentId, chargeId: dispute.chargeId,
     })
     if (target == null) {
       log.warn('Dispute matches no fulfillment or subscription', { disputeId: dispute.id })
       return
     }
-    const chargeId = paymentUtils.idOf(dispute.charge)
-    const charge = target.charge ?? (chargeId != null ? await paymentTargetOf(ctx).retrieveCharge(stripe, chargeId) : null)
+    const chargeId = dispute.chargeId
+    const charge = target.charge ?? (chargeId != null ? await paymentTargetOf(ctx).retrieveCharge(paygate, chargeId) : null)
     const marks = { disputedAt: target.record.disputedAt ?? new Date(), disputeStatus: dispute.status }
     if (target.kind === 'fulfillment') {
       await access.fulfillments().update({ ...target.record, ...marks })
@@ -452,67 +452,49 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe): StripeEvent
     }
     await access.observer().propagateDispute(paymentUtils.compact({
       ...targetFields(target), disputeId: dispute.id, phase, status: dispute.status,
-      amountMinor: dispute.amount, paidMinor: charge?.amount, currency: dispute.currency, eventKey: `dispute:${dispute.id}:${phase}`,
+      amountMinor: dispute.amountMinor, paidMinor: charge?.amountMinor, currency: dispute.currency,
+      eventKey: `dispute:${dispute.id}:${phase}`,
     }) as DisputeEvent, ctx)
     log.info('Dispute changed', paymentUtils.compact({
       entityId: target.record.entityId, target: target.kind, externalId: target.record.externalId,
-      disputeId: dispute.id, phase, status: dispute.status, amountMinor: dispute.amount, currency: dispute.currency,
+      disputeId: dispute.id, phase, status: dispute.status, amountMinor: dispute.amountMinor, currency: dispute.currency,
     }), { event: phase === 'opened' ? 'dispute.opened' : phase === 'closed' ? 'dispute.closed' : 'dispute.updated' })
   }
 
-  const handlers: Record<string, EventHandler> = {
-    'customer.created': async event => { await upsertCustomer(event.data.object as Stripe.Customer) },
-    'customer.updated': async event => { await upsertCustomer(event.data.object as Stripe.Customer) },
-    'customer.deleted': async event => { await markCustomerDeleted(event.data.object as Stripe.Customer) },
-
-    'checkout.session.completed': async event => { await fulfillPayment(event.data.object as Stripe.Checkout.Session) },
-    'checkout.session.async_payment_succeeded': async event => {
-      await fulfillPayment(event.data.object as Stripe.Checkout.Session)
-    },
-    'checkout.session.async_payment_failed': async event => {
-      await checkoutFailed(event.data.object as Stripe.Checkout.Session)
-    },
-    'checkout.session.expired': async event => {
-      await purgeExpiredCheckout(event.data.object as Stripe.Checkout.Session)
-    },
-
-    'customer.subscription.created': applyFromEvent(),
-    'customer.subscription.updated': applyFromEvent(),
-    'customer.subscription.pending_update_applied': applyFromEvent(),
-    'customer.subscription.pending_update_expired': applyFromEvent(),
-    'customer.subscription.paused': applyFromEvent(),
-    'customer.subscription.resumed': applyFromEvent(),
-    'customer.subscription.deleted': applyFromEvent({ forced: SubscriptionStatus.Canceled }),
-    'customer.subscription.trial_will_end': applyFromEvent({ trialEnding: true }),
-
-    'invoice.paid': invoicePaid,
-    'invoice.payment_failed': invoiceFailed,
-    'invoice.payment_action_required': invoiceFailed,
-    // Enabled on the endpoint for an application's own use; it has no invoice id and nothing is due.
-    'invoice.upcoming': async () => undefined,
-    'invoice.marked_uncollectible': async event => {
-      await reapplyInvoiceSubscription(event, event.data.object as Stripe.Invoice)
-    },
-    'invoice.voided': async event => { await refreshLatestInvoice(event.data.object as Stripe.Invoice) },
-
-    'charge.refunded': chargeRefunded,
-    'refund.created': refundChanged,
-    'refund.updated': refundChanged,
-    'refund.failed': async () => undefined,
-
-    'charge.dispute.created': disputeChanged,
-    'charge.dispute.funds_withdrawn': disputeChanged,
-    'charge.dispute.funds_reinstated': disputeChanged,
-    'charge.dispute.closed': disputeChanged,
+  const apply = async (paygate: Paygate, event: PaygateEvent): Promise<void> => {
+    switch (event.type) {
+      case 'customer':
+        if (event.change === 'deleted') {
+          await markCustomerDeleted(paygate, event.customer.id)
+        } else {
+          await upsertCustomer(paygate, event.customer)
+        }
+        return
+      case 'checkout':
+        if (event.outcome === 'completed') {
+          await fulfillPayment(paygate, event.session)
+        } else if (event.outcome === 'failed') {
+          await checkoutFailed(paygate, event.session)
+        } else {
+          await purgeExpiredCheckout(paygate, event.session)
+        }
+        return
+      case 'subscription':
+        await subscriptionChanged(paygate, event)
+        return
+      case 'invoice':
+        await invoiceChanged(paygate, event)
+        return
+      case 'refund':
+        await processRefund(paygate, event.refund, event.charge)
+        return
+      case 'dispute':
+        await disputeChanged(paygate, event)
+    }
   }
 
-  return {
-    handlers,
-    process: async (event: Stripe.Event): Promise<void> => {
-      const handler = handlers[event.type]
-      if (handler != null) {
-        await handler(event)
-      }
-    },
-  }
+  return { apply }
 }
+
+/** The paygate event dispatch of a context — one per context. */
+export const paymentEventsOf = memoHelper.oncePer(makePaymentEventsHelper)

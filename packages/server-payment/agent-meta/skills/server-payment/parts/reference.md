@@ -50,10 +50,10 @@ Event actions: `mail` (step = mail kind), `computed` (the meter reading and the 
 `cancel-scheduled`, `observers` (step = `consent`/`withdrawal`/`cancellation`), `lock`,
 `lock-mismatch`, `relock`, `unlock` (detail: `from`, `by`, `reason`, the deleted `profile`),
 `duplicate`, `checkout-terms-fallback` (`recordKind: 'checkout'`, `recordId` = the entity,
-`externalId` = the session created without the checkbox, `ok: false`, detail: the Stripe `message`,
+`externalId` = the session created without the checkbox, `ok: false`, detail: the paygate's `message`,
 `code`, `param`, `mode`, `productSku`, `planSku`; `error` when the retry failed too).
 
-`PurchaseRecord.termsAccepted` is Stripe's `consent.terms_of_service` of the completed session and
+`PurchaseRecord.termsAccepted` is the completed session's own terms acceptance (`CheckoutSnapshot.termsAccepted`) and
 nothing else; `confirmationMailAt` is the one claim of the purchase confirmation.
 
 Accessors (`paymentAccessOf(ctx)`, `src/access.ts`): `billingProfiles`, `purchases`, `consumerConsents`,
@@ -128,7 +128,7 @@ unrefunded and rounded in the consumer's favour.
 ## Cancellation, step by step
 
 1. Policy and `mechanisms.cancellation`; managed.
-2. Resolve the subscription: in-app `subscriptionId`, a contract, else the entitling Stripe
+2. Resolve the subscription: in-app `subscriptionId`, a contract, else the entitling paygate
    subscription (none → `CancellationUnavailable('no-subscription')`, ended → `'ended'`); public the
    contract + e-mail, else the only organization whose paygate customer has the e-mail.
 3. Decide: extraordinary → `review` (paygate untouched); ordinary and live →

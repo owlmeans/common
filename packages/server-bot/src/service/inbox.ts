@@ -1,5 +1,5 @@
 import {
-  BotConnectionNotFound, BotError, BotSignatureRejected, BotTransport, BotTransportMismatch, type BotPlatform,
+  BotConnectionNotFound, BotError, BotSignatureRejected, BotTransport, BotTransportMismatch, type BotPlatformId,
   type BotSimulateInput, type BotSimulateResult,
 } from '@owlmeans/bot'
 import { BotInboxStatus } from '../consts.js'
@@ -61,7 +61,7 @@ export const makeBotInbox = (parts: BotServiceParts, sessions: BotSessions): Bot
   const accept = async (record: BotConnectionRecord, payload: unknown): Promise<string[]> =>
     (await intake(record, payload)).map(entry => entry.id)
 
-  const receive = async (platform: BotPlatform, connection: string, request: BotHookRequest): Promise<BotHookAnswer> => {
+  const receive = async (platform: BotPlatformId, connection: string, request: BotHookRequest): Promise<BotHookAnswer> => {
     const record = await store.connections().load(connection)
     const plugin = registry.get(platform)
     if (record == null || record.platform !== platform || plugin == null) {

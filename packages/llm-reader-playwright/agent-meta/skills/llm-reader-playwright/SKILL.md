@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm-reader-playwright
 
 **Layer:** Server (drives a browser)
-**Install:** `"@owlmeans/llm-reader-playwright": "^0.1.22-rc.0"` in `dependencies`, plus the
+**Install:** `"@owlmeans/llm-reader-playwright": "^0.2.0-alpha.0"` in `dependencies`, plus the
 `playwright` **peer** — the consumer's installed browsers are used (`bunx playwright install chromium`)
 
 ```ts

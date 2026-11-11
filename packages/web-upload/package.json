@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-upload",
-  "version": "0.1.22-rc.0",
+  "version": "0.2.0-alpha.0",
   "description": "File and folder upload UI for OwlMeans web applications: a headless upload queue (local precheck against the upload policy, per-entry and overall violations, concurrent upload with progress and abort through @owlmeans/client-upload, archives expanded into the entries they produced), dropped-folder traversal, and shadcn/Tailwind v4 parts — a drop zone over any content, file and folder pickers, a compact file list with progress and localized rejection reasons.",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
@@ -33,13 +33,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.21",
-    "@owlmeans/client-i18n": "^0.1.21",
-    "@owlmeans/client-upload": "^0.1.22-rc.0",
-    "@owlmeans/context": "^0.1.21",
-    "@owlmeans/i18n": "^0.1.21",
-    "@owlmeans/log": "^0.1.21",
-    "@owlmeans/upload": "^0.1.22-rc.0"
+    "@owlmeans/client": "^0.2.0-alpha.0",
+    "@owlmeans/client-i18n": "^0.2.0-alpha.0",
+    "@owlmeans/client-upload": "^0.2.0-alpha.0",
+    "@owlmeans/context": "^0.2.0-alpha.0",
+    "@owlmeans/i18n": "^0.2.0-alpha.0",
+    "@owlmeans/log": "^0.2.0-alpha.0",
+    "@owlmeans/upload": "^0.2.0-alpha.0"
   },
   "peerDependencies": {
     "class-variance-authority": "*",
@@ -51,15 +51,15 @@
     "tailwindcss": "*"
   },
   "devDependencies": {
-    "@owlmeans/client-context": "^0.1.21",
-    "@owlmeans/client-entrypoint": "^0.1.21",
-    "@owlmeans/dep-config": "^0.1.21",
-    "@owlmeans/file-streams": "^0.1.22-rc.0",
-    "@owlmeans/server-api": "^0.1.21",
-    "@owlmeans/server-context": "^0.1.21",
-    "@owlmeans/server-upload": "^0.1.22-rc.0",
-    "@owlmeans/static-resource": "^0.1.21",
-    "@owlmeans/test-ui": "^0.1.21",
+    "@owlmeans/client-context": "^0.2.0-alpha.0",
+    "@owlmeans/client-entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
+    "@owlmeans/file-streams": "^0.2.0-alpha.0",
+    "@owlmeans/server-api": "^0.2.0-alpha.0",
+    "@owlmeans/server-context": "^0.2.0-alpha.0",
+    "@owlmeans/server-upload": "^0.2.0-alpha.0",
+    "@owlmeans/static-resource": "^0.2.0-alpha.0",
+    "@owlmeans/test-ui": "^0.2.0-alpha.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.4.4",
     "@types/react": "^19.3.0",

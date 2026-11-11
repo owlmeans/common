@@ -1,8 +1,9 @@
 import type { FC } from 'react'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { CookieConsent, CookiePolicy, DEFAULT_CONSENT_CATEGORIES, consentPluginHelper } from '../../src/index.js'
+import { CookieConsent, CookiePolicy, DEFAULT_CONSENT_CATEGORIES, consentPluginHelper, consentSignalHelper } from '../../src/index.js'
 import type { ConsentCategory, ConsentDisplayMode, ConsentGeoOptions, ConsentService } from '../../src/index.js'
+import { harnessSignals } from './signals.js'
 
 /**
  * The harness renders whatever the query string asks for, so a spec chooses its case by URL and
@@ -29,6 +30,9 @@ import type { ConsentCategory, ConsentDisplayMode, ConsentGeoOptions, ConsentSer
  */
 const params = new URLSearchParams(window.location.search)
 
+// The signal provider the specs read back — registered explicitly, as an application registers one.
+consentSignalHelper.register(harnessSignals)
+
 /** The one partner domain every `?linker=1` case shares — never the harness's own origin. */
 export const LINKER_DOMAINS = ['partner.test']
 
@@ -40,9 +44,9 @@ if (params.get('styled') != null) {
 }
 
 /**
- * A deliberately non-default set: a different key, a different global var, and a signal list that
- * does not match the built-in one. A component that quietly fell back to the defaults would still
- * render three plausible rows, so the assertions key on THESE names.
+ * A deliberately non-default set: a different key and a different global var. A component that
+ * quietly fell back to the defaults would still render three plausible rows, so the assertions key
+ * on THESE names.
  */
 const CUSTOM: ConsentCategory[] = [
   {
@@ -53,7 +57,7 @@ const CUSTOM: ConsentCategory[] = [
     key: 'telemetry',
     labelKey: 'consent.telemetry.label', descriptionKey: 'consent.telemetry.description',
     globalVar: 'harnessTelemetry',
-    signals: ['analytics_storage'],
+    tracking: true,
   },
 ]
 

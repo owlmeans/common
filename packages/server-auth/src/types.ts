@@ -30,7 +30,7 @@ export interface AuthServiceSettings {
   tokenKey?: string
   /**
    * The `TRUSTED` record name of the auth manager: it signs the sign-in challenges, the credential
-   * envelopes and reCAPTCHA guest tokens, and the bearer exchange and the reCAPTCHA guard verify them
+   * envelopes and captcha guest tokens, and the bearer exchange and the captcha guard verify them
    * with it. Default: `AUTH_SRV_KEY` (`'auth-service'`).
    */
   authKey?: string

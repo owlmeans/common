@@ -21,9 +21,13 @@ describe('emailRefusalHelper — typed refusals (development bodies)', () => {
   test('wrong password, wrong code, captcha and its outage', () => {
     expect(helper.refusalOf(wire(new AuthenFailed('email:password')), 'password').kind).toBe('credentials')
     expect(helper.refusalOf(wire(new AuthenFailed('otp:code')), 'pin').kind).toBe('code')
-    expect(helper.refusalOf(wire(new AuthenFailed('recaptcha:score')), 'send').kind).toBe('captcha')
-    expect(helper.refusalOf(wire(new AuthUnavailable('recaptcha:config')), 'send').kind).toBe('captcha-unavailable')
+    expect(helper.refusalOf(wire(new AuthenFailed('captcha:score')), 'send').kind).toBe('captcha')
+    expect(helper.refusalOf(wire(new AuthenFailed('captcha:timeout-or-duplicate')), 'password').kind).toBe('captcha')
+    expect(helper.refusalOf(wire(new AuthUnavailable('captcha:config')), 'send').kind).toBe('captcha-unavailable')
+    expect(helper.refusalOf(wire(new AuthUnavailable('captcha')), 'send').kind).toBe('captcha-unavailable')
     expect(helper.refusalOf(new CaptchaLoadError('timeout'), 'send').kind).toBe('captcha-unavailable')
+    // No client for the advertised provider: the browser could not even try.
+    expect(helper.refusalOf(new CaptchaLoadError('unavailable'), 'password').kind).toBe('captcha-unavailable')
   })
 
   test('the e-mail family: weak, expired offer, passwords off', () => {

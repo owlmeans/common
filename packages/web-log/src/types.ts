@@ -10,7 +10,3 @@ export interface ConsentedAnalyticsOptions {
   /** Reshape an event; return `undefined` to drop it. */
   map?: (event: AnalyticsEvent) => Record<string, unknown> | undefined
 }
-
-export interface DataLayerWindow {
-  dataLayer?: unknown[]
-}

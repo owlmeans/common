@@ -3,6 +3,8 @@ import { mountComponent, browserHelper, makePageHelper, consentGeoTestHelper } f
 import type { Page } from '@owlmeans/test-ui'
 import { CONSENT_AUTO_MAX_AGE, CONSENT_KEY, CONSENT_SCHEMA_VERSION } from '@owlmeans/consent'
 import { HARNESS_URL } from './context.js'
+import { HARNESS_SIGNALS } from './harness/signals.js'
+import type { HarnessSignal } from './harness/signals.js'
 
 const TIMEOUT = 60_000
 
@@ -74,9 +76,9 @@ describe('@owlmeans/web-consent — asking only where the law requires it', () =
       const record = await stored(page)
       expect(record).toMatchObject({ essential: true, analytics: true, marketing: true })
       expect(typeof record?.auto).toBe('number')
-      const update = await page.evaluate(() => ((window as never as { dataLayer?: unknown[] }).dataLayer ?? [])
-        .map(item => Array.from(item as ArrayLike<unknown>)).filter(entry => entry[1] === 'update').pop()?.[2])
-      expect(update).toMatchObject({ analytics_storage: 'granted' })
+      const update = await page.evaluate(name => ((window as never as Record<string, HarnessSignal[] | undefined>)[name] ?? [])
+        .filter(signal => signal.step === 'apply').pop(), HARNESS_SIGNALS)
+      expect(update).toEqual({ step: 'apply', from: 'bundle', granted: { essential: true, analytics: true, marketing: true } })
       // The visitor can still change it — the corner button is there.
       await page.waitForSelector('[data-consent-reopen]')
     } finally {
@@ -168,9 +170,10 @@ describe('@owlmeans/web-consent — asking only where the law requires it', () =
       await page.waitForSelector('[data-consent-bar]')
 
       // The inline bootstrap read the record before any bundle and must NOT have applied it.
-      const updates = await page.evaluate(() => ((window as never as { dataLayer?: unknown[] }).dataLayer ?? [])
-        .map(item => Array.from(item as ArrayLike<unknown>)).filter(entry => entry[1] === 'update'))
+      const updates = await page.evaluate(name => ((window as never as Record<string, HarnessSignal[] | undefined>)[name] ?? [])
+        .filter(signal => signal.step === 'apply'), HARNESS_SIGNALS)
       expect(updates).toEqual([])
+      expect(await page.evaluate(() => (window as never as Record<string, unknown>).owlConsentAnalytics ?? null)).toBeNull()
       expect(await stored(page)).toBeNull()
     } finally {
       await close()

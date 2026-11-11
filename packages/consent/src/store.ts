@@ -2,10 +2,10 @@ import {
   CONSENT_IDLE_STATE, CONSENT_KEY, CONSENT_STATE_ATTRIBUTE, DEFAULT_CONSENT_CATEGORIES,
 } from './consts.js'
 import { CLOUDFLARE_LOCATOR_ALIAS } from './consts.local.js'
-import { consentModeHelper } from './gtobserver.js'
 import { consentGeoHelper } from './geo.js'
 import { consentLinkHelper } from './linker.js'
 import { consentPluginHelper } from './plugins.js'
+import { consentSignalHelper } from './signal.js'
 import { consentStorageHelper } from './storage.js'
 import type {
   ConsentListener, ConsentOptions, ConsentReason, ConsentRecord, ConsentState, ConsentStore,
@@ -18,7 +18,10 @@ import type { ConsentGeoVerdict } from './geo/types.js'
  * A module singleton rather than something hung off a context, because that is what consent
  * actually is — a property of the browser and the page, not of one component tree. It also has to
  * be reachable from places that are not React at all: the sign-in precondition runs inside a click
- * handler, and a tag-manager helper runs before any component has mounted.
+ * handler, and a tag loader runs before any component has mounted.
+ *
+ * It signals a decision through `consentSignalHelper` — the category globals, every registered
+ * provider, then `CONSENT_EVENT` — and works the same with no provider registered.
  */
 export const makeConsentStore = (): ConsentStore => {
   const listeners = new Set<ConsentListener>()
@@ -77,7 +80,7 @@ export const makeConsentStore = (): ConsentStore => {
     if (result === 'auto') {
       const record = consentGeoHelper.automaticRecord(resolved())
       consentStorageHelper.writeConsent(record, options)
-      consentModeHelper.applyConsent(record, options)
+      consentSignalHelper.apply(record, options)
       publish({ record, open: false, reason: null, locating: null })
 
       return
@@ -100,12 +103,13 @@ export const makeConsentStore = (): ConsentStore => {
 
     init: opts => {
       options = { ...options, ...opts }
-      // Before anything is read, so a page with no stored answer still declares what is denied.
-      consentModeHelper.pushConsentDefaults(options)
+      // Before anything is read, so a page with no stored answer still declares what is denied —
+      // through every registered signal provider; with none registered this declares nothing.
+      consentSignalHelper.defaults(options)
 
       if (options.linker != null) {
         // Registered once: `start` installs the click listener of THAT instance, and a second
-        // instance (a second `init` — a re-mounted provider, StrictMode, `loadGtm`) would install
+        // instance (a second `init` — a re-mounted provider, StrictMode, a tag loader) would install
         // its own beside it.
         if (!consentPluginHelper.consentPlugins().some(plugin => plugin.alias === 'linker')) {
           consentPluginHelper.registerConsentPlugin(consentLinkHelper.consentLinker())
@@ -150,7 +154,7 @@ export const makeConsentStore = (): ConsentStore => {
       }
 
       if (record != null) {
-        consentModeHelper.applyConsent(record, options)
+        consentSignalHelper.apply(record, options)
         publish({ record, open: false, reason: null, locating: null })
 
         return
@@ -175,7 +179,7 @@ export const makeConsentStore = (): ConsentStore => {
     save: record => {
       const { auto: _auto, ...explicit } = record
       consentStorageHelper.writeConsent(explicit, options)
-      consentModeHelper.applyConsent(explicit, options)
+      consentSignalHelper.apply(explicit, options)
       publish({ record: explicit, open: false, reason: null, locating: null })
     },
 

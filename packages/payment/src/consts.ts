@@ -113,12 +113,12 @@ export enum TaxEstimateStatus {
   LocationRequired = 'location-required',
 }
 
-/** A tax type a rate carries, collapsed from Stripe's finer `tax_type` for display. */
+/** A tax type a rate carries, collapsed from the paygate's finer tax types for display. */
 export enum TaxType {
   Vat = 'vat',
   Gst = 'gst',
   SalesTax = 'sales-tax',
-  /** Any other Stripe `tax_type` (excise, lease, tourism, …). */
+  /** Any other tax type (excise, lease, tourism, …). */
   Tax = 'tax',
 }
 
@@ -356,7 +356,7 @@ export const PAYMENT_SERVICE = DEFAULT_ALIAS
 
 /**
  * ISO 3166-1 alpha-2 country code → lowercase ISO 4217 currency code — the currency circulating in
- * that country, for the "≈ local total" line of a price estimate. Not a Stripe list: Stripe Tax can
+ * that country, for the "≈ local total" line of a price estimate. Not a paygate's list: a paygate can
  * compute a rate for a country this map has no entry for (or none at all, `location-required`), and
  * `currencyOfCountry` returning `null` just means the estimate carries no local-currency line, never
  * a rejected request.
@@ -459,7 +459,7 @@ export const CAPABILITY_LIMIT_SCOPE = 'limit'
 /**
  * Preserves today's fixed behavior for every consumer that declares no policy: automatic tax and
  * tax-id collection stay on for every checkout (`taxOptions` before this policy existed), no
- * `behavior` is forced onto a synced price, no Adaptive Pricing, and the estimate endpoints are off
+ * `behavior` is forced onto a synced price, no local-currency pricing, and the estimate endpoints are off
  * (a new capability, opt-in only).
  */
 export const DEFAULT_PRICING_POLICY: PricingPolicy = Object.freeze({
@@ -473,7 +473,7 @@ export const LIFETIME_WINDOW = 'lifetime'
 /** The window key an occupancy limit's counter lives under. */
 export const OCCUPANCY_WINDOW = 'occupancy'
 
-/** The 27 EU member states (ISO 3166-1 alpha-2; Greece is `GR`, as Stripe reports it). */
+/** The 27 EU member states (ISO 3166-1 alpha-2; Greece is `GR`, as paygates report it). */
 export const EU_COUNTRIES: readonly string[] = Object.freeze([
   'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU',
   'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK',

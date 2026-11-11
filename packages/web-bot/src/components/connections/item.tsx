@@ -1,6 +1,6 @@
 import { useCallback, useState, type FC } from 'react'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
-import { BOT_PLATFORMS, BotConnectionStatus, BotTransport, type BotConnection } from '@owlmeans/bot'
+import { BotConnectionStatus, BotTransport, type BotConnection } from '@owlmeans/bot'
 import { Loader2, Pencil, ShieldCheck, Trash2 } from 'lucide-react'
 import { Badge } from '../../@/components/ui/badge.js'
 import { Button } from '../../@/components/ui/button.js'
@@ -15,7 +15,9 @@ import { ConnectionSetup } from './setup.js'
 import type { ConnectionItemProps } from './types.js'
 
 /** One connection: who the bot is, how it receives, what went wrong last, and what can be done. */
-export const ConnectionItem: FC<ConnectionItemProps> = ({ connection, onVerify, onToggle, onEdit, onRemove }) => {
+export const ConnectionItem: FC<ConnectionItemProps> = ({
+  connection, descriptor, platforms, onVerify, onToggle, onEdit, onRemove,
+}) => {
   const t = useI18nLib(BOT_I18N)
   const [lng] = useLanguage()
   const [verifying, setVerifying] = useState(false)
@@ -23,7 +25,6 @@ export const ConnectionItem: FC<ConnectionItemProps> = ({ connection, onVerify, 
   const [outcome, setOutcome] = useState<BotOutcome<BotConnection> | null>(null)
   const [toggleError, setToggleError] = useState<Error | null>(null)
 
-  const descriptor = BOT_PLATFORMS[connection.platform]
   const mock = connection.transport === BotTransport.Mock
   const identity = connection.identity?.username != null && connection.identity.username !== ''
     ? `@${connection.identity.username}`
@@ -65,7 +66,7 @@ export const ConnectionItem: FC<ConnectionItemProps> = ({ connection, onVerify, 
     data-bot-enabled={connection.enabled ? 'true' : 'false'}
   >
     <div className="flex flex-wrap items-center gap-2">
-      <PlatformIcon platform={connection.platform} className="text-muted-foreground" />
+      <PlatformIcon platform={connection.platform} glyph={descriptor?.glyph} className="text-muted-foreground" />
       <span className="font-medium break-all" data-bot-label>{connection.label}</span>
       <span className="text-muted-foreground text-sm">{descriptor?.title ?? connection.platform}</span>
       {mock && <Badge variant="outline" className="rounded-full" data-bot-mock>{t('transport.mock')}</Badge>}
@@ -87,16 +88,16 @@ export const ConnectionItem: FC<ConnectionItemProps> = ({ connection, onVerify, 
 
     {connection.lastError != null && connection.lastError !== '' && <div data-bot-last-error>
       <p className="text-muted-foreground text-xs">{t('connections.last-error')}</p>
-      <BotErrorNote error={connection.lastError} />
+      <BotErrorNote error={connection.lastError} platforms={platforms} />
     </div>}
 
     {verified && <p role="status" className="text-sm" data-bot-verified>
       {t('connections.verified', { name: identity ?? '' })}
     </p>}
-    {outcome?.ok === false && <div data-bot-verify-error><BotErrorNote error={outcome.error} /></div>}
-    {toggleError != null && <BotErrorNote error={toggleError} />}
+    {outcome?.ok === false && <div data-bot-verify-error><BotErrorNote error={outcome.error} platforms={platforms} /></div>}
+    {toggleError != null && <BotErrorNote error={toggleError} platforms={platforms} />}
 
-    <ConnectionSetup connection={connection} />
+    <ConnectionSetup connection={connection} descriptor={descriptor} />
 
     <div className="flex flex-wrap items-center gap-2">
       <Button

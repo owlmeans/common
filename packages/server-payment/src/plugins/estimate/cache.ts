@@ -1,7 +1,7 @@
 import type { EstimateCache } from './types.js'
 
 // One instance per gateway service, never module-level (a test builds many contexts in one process,
-// and a module-level cache would make "no Stripe call" assertions order-dependent).
+// and a module-level cache would make "no paygate call" assertions order-dependent).
 
 /** @param taxTtlMs default 24h; @param fxTtlMs default 1h; @param customerTtlMs default 5min. */
 export const makeEstimateCache = (

@@ -26,11 +26,12 @@ describe('@owlmeans/bot-agent — botAgentHelper', () => {
     expect(botAgentHelper.contextOf(update, ['Greet back.', 'Be brief.'])[1]).toBe('# Instruction\n\nGreet back.\n\nBe brief.')
   })
 
-  test('promptOf names the platform and the chat, and the tools\' answers', async () => {
+  test('promptOf names the platform by its descriptor (else its id) and the chat, and the tools\' answers', async () => {
     const bot = makeTestBot()
-    const { update } = await receive(bot, { text: 'hello', chat: { title: 'Gamers' } })
+    const { update, actions } = await receive(bot, { text: 'hello', chat: { title: 'Gamers' } })
 
-    expect(botAgentHelper.promptOf(update)).toStartWith('A message arrived in the Telegram chat "Gamers". ')
+    expect(botAgentHelper.promptOf(update, actions.descriptor())).toStartWith('A message arrived in the Community chat "Gamers". ')
+    expect(botAgentHelper.promptOf(update)).toStartWith('A message arrived in the community chat "Gamers". ')
     expect(botAgentHelper.promptOf(update)).toContain('"done"')
   })
 })

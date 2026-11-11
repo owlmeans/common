@@ -22,7 +22,7 @@ their pictures with the context they are used in, and write their design system 
 ## Installation
 
 ```bash
-bun add @owlmeans/llm-reader@^0.1.22-rc.0
+bun add @owlmeans/llm-reader@^0.2.0-alpha.0
 bun add @langchain/core @langchain/langgraph @langchain/langgraph-checkpoint @langchain/openai @langchain/anthropic
 ```
 
@@ -115,7 +115,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.1
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

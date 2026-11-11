@@ -11,9 +11,9 @@
     "credits": "Valeur des crédits",
     "adjustment": "Ajustement de traitement",
     "subtotal": "Sous-total hors taxes",
-    "tax-note": "Stripe calcule les taxes applicables lors du paiement.",
+    "tax-note": "Les taxes applicables sont calculées lors du paiement.",
     "cancel": "Annuler",
-    "continue": "Continuer vers Stripe",
+    "continue": "Continuer vers le paiement",
     "pending": "Ouverture du paiement…",
     "close": "Fermer",
     "above-limit": "Le maximum que vous pouvez ajouter actuellement est de {{amount}}."
@@ -68,7 +68,7 @@
     },
     "rate": "{{type}} ({{percentage}} %)",
     "total": "Total estimé",
-    "converted-note": "Conversion au taux de change actuel de Stripe ; le montant exact et les éventuels frais de conversion sont confirmés lors du paiement.",
+    "converted-note": "Conversion au taux de change actuel ; le montant exact et les éventuels frais de conversion sont confirmés lors du paiement.",
     "status": {
       "taxed": "La taxe est incluse dans le total estimé ci-dessous.",
       "reverse-charge": "Autoliquidation : votre numéro de TVA vous fait déclarer vous-même cette taxe, aucun montant n’est ajouté.",

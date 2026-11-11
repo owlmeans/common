@@ -4,22 +4,22 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
-import { consentModeHelper } from '@owlmeans/consent'
+import { harnessSignals } from './harness/signals.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
 /**
- * Stamp the real bootstrap snippet into `<head>`, the way every consumer does.
+ * Stamp a signal provider's head bootstrap into `<head>`, the way every consumer stamps its tag's.
  *
- * A test that hand-wrote the snippet would pass while the shipped emitter was broken, and one that
- * loaded it as a module would defer it — which is precisely the defect the ordering exists to
- * prevent. Injecting the emitter's own output, inline and classic, is what makes the ordering
- * assertions in `bootstrap.spec.ts` mean anything.
+ * The harness provider's bootstrap is composed from consent's own emitters (the neutral bootstrap
+ * and its inline building blocks), so a broken emitter fails here; and it is injected inline and
+ * classic, because one loaded as a module would be deferred — precisely the defect the ordering
+ * exists to prevent.
  */
 const consentBootstrap = (): Plugin => ({
   name: 'owlmeans-consent-bootstrap',
   transformIndexHtml: html =>
-    html.replace('<!--owlmeans:consent-->', `<script>${consentModeHelper.consentBootstrapScript()}</script>`),
+    html.replace('<!--owlmeans:consent-->', `<script>${harnessSignals.bootstrapScript!()}</script>`),
 })
 
 /**

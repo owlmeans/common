@@ -17,7 +17,6 @@ describe('@owlmeans/auth-email — constants', () => {
     expect(email.EMAIL_WAIVER_HEADER).toBe('x-owlmeans-email-waiver')
     expect(email.EMAIL_CAPTCHA_ACTION_PIN).toBe('email_pin')
     expect(email.EMAIL_CAPTCHA_ACTION_PASSWORD).toBe('email_password')
-    expect(email.EMAIL_CAPTCHA_PROVIDER).toBe('recaptcha-v3')
     expect(email.EMAIL_IDENTITY_TYPE).toBe('email-otp')
   })
 

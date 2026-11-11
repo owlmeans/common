@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import {
-  BotActionKind, BotChatKind, BotConnectionNotFound, BotConnectionStatus, BotPlatform, BotReceiveMode, BotTransport,
+  BotActionKind, BotChatKind, BotConnectionNotFound, BotConnectionStatus, BotReceiveMode, BotTransport,
   BotUpdateKind, botTextHelper, type BotUpdate,
 } from '@owlmeans/bot'
 import type { Criteria } from '@owlmeans/resource'
 import { BotInboxStatus } from '../consts.js'
 import { botHandler } from '../handler.js'
-import { telegramBotPlatform } from '../platforms/telegram/plugin.js'
 import type { BotUpdateRecord } from '../types.js'
 import { botAssertHelper } from './assert.js'
 import type { BotConformanceCapability, BotConformanceCase, BotConformanceSubject } from './types.js'
@@ -16,11 +15,15 @@ const { check, same, rejects, eventually } = botAssertHelper
 /** A fresh scope per case, so cases never see each other's rows on a shared database. */
 const scopeOf = (): string => `conformance-${randomUUID()}`
 
-/** A verified mock Telegram connection (no origin → it polls). */
-const connect = async ({ service }: BotConformanceSubject, scope: string, label: string = 'Conformance bot') => {
-  const saved = await service.connections.save(scope, { platform: BotPlatform.Telegram, label, transport: BotTransport.Mock })
+/** A verified mock connection on the subject's platform (no origin → it polls). */
+const connect = async ({ service, platform }: BotConformanceSubject, scope: string, label: string = 'Conformance bot') => {
+  const saved = await service.connections.save(scope, { platform: platform.platform, label, transport: BotTransport.Mock })
   return await service.connections.verify(scope, saved.id)
 }
+
+/** The credential key a case seals: the platform's first typed one. */
+const keyOf = ({ platform }: BotConformanceSubject): string =>
+  platform.descriptor.credentials.find(field => field.generated !== true)?.key ?? 'token'
 
 const rowsOf = async ({ resources }: BotConformanceSubject, connection: string): Promise<BotUpdateRecord[]> =>
   (await resources.update.list({ connection } as Criteria<BotUpdateRecord>, { size: 0 })).items
@@ -29,10 +32,10 @@ const cases: BotConformanceCase[] = [
   {
     name: 'a connection round-trips: the store mints its id, absent fields stay absent, reads are scoped',
     run: async subject => {
-      const { service, resources } = subject
+      const { service, resources, platform } = subject
       const scope = scopeOf()
       const saved = await service.connections.save(scope, {
-        platform: BotPlatform.Telegram, label: 'Front desk', transport: BotTransport.Mock,
+        platform: platform.platform, label: 'Front desk', transport: BotTransport.Mock,
       })
       check(typeof saved.id === 'string' && saved.id !== '', 'the store minted an id')
       same([saved.scope, saved.label, saved.status, saved.enabled, saved.credentialsSet],
@@ -52,25 +55,27 @@ const cases: BotConformanceCase[] = [
 
   {
     name: 'credentials are stored sealed, kept when omitted and cleared by an empty value',
-    run: async ({ service, resources }) => {
+    run: async subject => {
+      const { service, resources, platform } = subject
       const scope = scopeOf()
+      const key = keyOf(subject)
       const token = `123456:${randomUUID()}`
       const saved = await service.connections.save(scope, {
-        platform: BotPlatform.Telegram, label: 'Sealed', credentials: { token },
+        platform: platform.platform, label: 'Sealed', credentials: { [key]: token },
       })
-      same(saved.credentialsSet, ['token'], 'the key is set')
+      same(saved.credentialsSet.filter(entry => entry === key), [key], 'the key is set')
       const raw = await resources.connection.get(saved.id)
       check(typeof raw.sealed === 'string' && raw.sealed.startsWith('v1.'), 'sealed in the v1 format')
       check(!raw.sealed!.includes(token) && !JSON.stringify(raw).includes(token), 'the token is nowhere in clear')
 
-      const relabeled = await service.connections.save(scope, { id: saved.id, platform: BotPlatform.Telegram, label: 'Renamed' })
-      same([relabeled.label, relabeled.credentialsSet], ['Renamed', ['token']], 'an omitted credential is kept')
+      const relabeled = await service.connections.save(scope, { id: saved.id, platform: platform.platform, label: 'Renamed' })
+      same([relabeled.label, relabeled.credentialsSet.includes(key)], ['Renamed', true], 'an omitted credential is kept')
       same((await resources.connection.get(saved.id)).sealed, raw.sealed, 'the sealed value is untouched')
 
       const cleared = await service.connections.save(scope, {
-        id: saved.id, platform: BotPlatform.Telegram, label: 'Renamed', credentials: { token: '' },
+        id: saved.id, platform: platform.platform, label: 'Renamed', credentials: { [key]: '' },
       })
-      same(cleared.credentialsSet, [], 'an empty value clears the key')
+      same(cleared.credentialsSet.includes(key), false, 'an empty value clears the key')
       check((await resources.connection.get(saved.id)).sealed == null, 'nothing sealed is left')
     },
   },
@@ -95,12 +100,12 @@ const cases: BotConformanceCase[] = [
       const scope = scopeOf()
       const connection = await connect(subject, scope)
       const raw = await subject.resources.connection.get(connection.id)
-      const inbound = telegramBotPlatform.mock.inbound({ text: 'hello there' }, {
+      const inbound = subject.platform.mock.inbound({ text: 'hello there' }, {
         ...connection, credentials: {}, hookSecret: raw.hookSecret,
       })
       const request = { method: 'POST', headers: inbound.headers, body: inbound.body, rawBody: inbound.rawBody }
-      const first = await service.receive(BotPlatform.Telegram, connection.id, request)
-      const again = await service.receive(BotPlatform.Telegram, connection.id, request)
+      const first = await service.receive(connection.platform, connection.id, request)
+      const again = await service.receive(connection.platform, connection.id, request)
       same(again.updates, first.updates, 'the redelivery answers the stored row')
       same((await rowsOf(subject, connection.id)).length, 1, 'one row')
       const [row] = await rowsOf(subject, connection.id)
@@ -215,14 +220,14 @@ const cases: BotConformanceCase[] = [
   {
     name: 'the store refuses a second inbox row with the same dedupe key',
     needs: ['unique'],
-    run: async ({ resources }) => {
+    run: async ({ resources, platform }) => {
       const scope = scopeOf()
       const stamp = new Date().toISOString()
       const row: Omit<BotUpdateRecord, 'id'> = {
-        scope, connection: `c-${randomUUID()}`, platform: BotPlatform.Telegram, dedupe: `dedupe-${randomUUID()}`,
+        scope, connection: `c-${randomUUID()}`, platform: platform.platform, dedupe: `dedupe-${randomUUID()}`,
         status: BotInboxStatus.Pending, attempts: 0, handled: [], receivedAt: stamp,
         update: {
-          connection: 'c', scope, platform: BotPlatform.Telegram, kind: BotUpdateKind.Message,
+          connection: 'c', scope, platform: platform.platform, kind: BotUpdateKind.Message,
           chat: { id: '1', kind: BotChatKind.Group }, addressed: false, receivedAt: stamp,
         },
       }

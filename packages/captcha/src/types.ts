@@ -1,69 +1,96 @@
 import type { PluginConfig } from '@owlmeans/config'
-import type { InitializedService } from '@owlmeans/context'
+import type { LazyService } from '@owlmeans/context'
 
-/** Google's siteverify answer, for a checkbox (v2) or a score-based (v3) token. */
-export interface CaptchaResponse {
-  success: boolean
-  /** When the challenge was solved, as an ISO date-time string. */
-  challenge_ts: string
-  /** The host of the page the token was solved on. */
-  hostname: string
-  /** Score-based keys only: 0.0 (a bot) … 1.0 (a person). */
-  score?: number
-  /** Score-based keys only: the action the page named when it asked for the token. */
+/** What a provider may weigh besides the token itself. */
+export interface CaptchaVerifyOptions {
+  /** The action the caller expects the token to have been issued for. */
   action?: string
-  'error-codes'?: string[]
-}
-
-/** The siteverify form: the key's secret, the token the browser got, optionally the browser's IP. */
-export interface CaptchaRequest {
-  secret: string
-  response: string
-  remoteip?: string
+  /** The browser's IP address, when the caller knows it. */
+  remoteIp?: string
 }
 
 /**
- * Asks Google whether a reCAPTCHA token is good. Consumers resolve it by `CAPTCHA_VERIFIER`, so a
- * test (or a proxy) registers its own under that alias; without one, the default siteverify call runs.
+ * A provider's answer for one token, in the terms every captcha policy judges: whether the provider
+ * accepted the token, and what it says about it.
  */
-export interface CaptchaVerifierService extends InitializedService {
-  /**
-   * Google's answer for one token. A refusal is an answer (`success: false`), not an error.
-   *
-   * @throws {AuthUnavailable} when Google cannot be asked or answers something unreadable.
-   */
-  verify: (request: CaptchaRequest) => Promise<CaptchaResponse>
+export interface CaptchaVerdict {
+  /** The provider accepted the token. */
+  success: boolean
+  /** Score-based providers only: 0.0 (a bot) … 1.0 (a person); absent for a challenge-only answer. */
+  score?: number
+  /** The action the token was issued for, when the provider reports one. */
+  action?: string
+  /** The host of the page the token was solved on, when the provider reports it. */
+  hostname?: string
+  /** When the challenge was solved (ISO date-time), when the provider reports it. */
+  at?: string
+  /** The provider's own refusal codes, for a token it did not accept. */
+  errors?: string[]
 }
 
-/** The one call the default verifier makes — `fetch`, or a stand-in a test injects. */
-export interface CaptchaFetch {
-  (url: string, init: RequestInit): Promise<Response>
-}
-
-export interface CaptchaVerifierOptions {
-  /** The siteverify address; must be https. Default `RECAPTCHA_SITEVERIFY_URL`. */
-  url?: string
-  /** Default: the global `fetch`. */
-  fetch?: CaptchaFetch
-  /** Milliseconds before the call is abandoned. Default `RECAPTCHA_VERIFY_TIMEOUT`. */
-  timeout?: number
+/** What a browser needs to solve a provider's captcha: the provider's id and the public site key. */
+export interface CaptchaClientSettings {
+  /** The id of the provider — the browser picks its client by it. */
+  provider: string
+  /** The public key the browser asks the provider with; `''` when none is configured. */
+  siteKey: string
 }
 
 /**
- * The policy record of the lenient reCAPTCHA sign-in (the `MOD_RECAPTCHA` plugin record of a server
- * config): the secret in `value` plus the policy. Every policy field is a string as a mounted config
- * file delivers it; `''` or absent = no check.
+ * One captcha provider: the server half of a captcha service, registered in the context's captcha
+ * host (`ensureCaptchaService(ctx).register(provider)`). A provider package exports a factory for it
+ * and an `append*` helper that registers it; nothing registers a provider as a side effect.
+ */
+export interface CaptchaProvider {
+  /** The provider's id — what settings, the `MOD_CAPTCHA` record and a browser client name it by. */
+  id: string
+  /**
+   * The provider's verdict on one token. A refused token is a verdict (`success: false`), never an
+   * error.
+   *
+   * @throws {AuthUnavailable} `captcha:config` when the provider holds no key to ask with; `captcha`
+   *   when the provider cannot be asked or answers something unreadable.
+   */
+  verify: (token: string, options?: CaptchaVerifyOptions) => Promise<CaptchaVerdict>
+  /** The settings a browser needs; the site key is `''` while none is configured. */
+  clientSettings: () => CaptchaClientSettings
+}
+
+/**
+ * The context's captcha host: the providers by id. Reached with `ensureCaptchaService(ctx)` while a
+ * context is set up; consumers resolve a provider through `captchaResolverOf(ctx)`, which never
+ * registers anything.
+ */
+export interface CaptchaService extends LazyService {
+  /** Add a provider; a provider of the same id is replaced. */
+  register: (provider: CaptchaProvider) => void
+  /**
+   * The provider of `id`; without an id, the only registered provider. `null` when none is
+   * registered under `id`, or when no id is given and none or several are registered.
+   */
+  get: (id?: string | null) => CaptchaProvider | null
+  /** Every registered provider, in registration order. */
+  list: () => CaptchaProvider[]
+}
+
+/**
+ * The host record `MOD_CAPTCHA` of a server config: which provider judges the captcha guest sign-in
+ * of `@owlmeans/server-auth` and its lenient policy. Declaring it is what turns that sign-in on; it
+ * holds no secret — keys are the provider's own records or options. Every policy field is a string as
+ * a mounted config file delivers it; `''` or absent = no check.
  */
 export interface CaptchaPolicyRecord extends PluginConfig {
+  /** The provider id; absent = the only registered provider. */
+  provider?: string
   /** Hosts a token may be solved on, comma- or space-separated; a subdomain of an entry passes. */
   hostnames?: string
-  /** The lowest score a score-based token may carry (0…1); a checkbox token has none and passes. */
+  /** The lowest score a score-based token may carry (0…1); an answer without a score passes. */
   minScore?: string | number
   /** The actions a token may be issued for, comma- or space-separated; a token naming none fails. */
   actions?: string
 }
 
-/** The lenient policy one `CaptchaPolicyRecord` states, applied to Google's answer. */
+/** The lenient policy one `CaptchaPolicyRecord` states, applied to a provider's verdict. */
 export interface CaptchaPolicyModel {
   readonly record: CaptchaPolicyRecord
   /** The allowed hosts, lowercased; empty = any host. */
@@ -77,27 +104,50 @@ export interface CaptchaPolicyModel {
   /** The allowed actions; empty = any action. */
   actions: () => string[]
   /**
-   * Accept Google's answer or refuse it, in this order: success, hostname, score, action.
+   * Accept a verdict or refuse it, in this order: success, hostname, score, action.
    *
-   * @throws {AuthenFailed} `recaptcha:<error-codes>`, `recaptcha:hostname`, `recaptcha:score`,
-   *   `recaptcha:action`.
+   * @throws {AuthenFailed} `captcha:<errors>` / `captcha:unknown`, `captcha:hostname`,
+   *   `captcha:score`, `captcha:action`.
    */
-  assert: (response: CaptchaResponse) => void
+  assert: (verdict: CaptchaVerdict) => void
 }
 
 /**
- * What a strict, challenge-less captcha check runs on: a score-based (v3) key and its policy.
- * An empty `siteKey` turns the check off; every other field is then required.
+ * Reads the captcha host of a context without ever registering one — what a check, a sign-in plugin
+ * or a boot-time validation uses once the context is set up.
+ */
+export interface CaptchaResolver {
+  /** The provider of `id` (without an id: the only registered one), or `null`. */
+  find: (id?: string | null) => CaptchaProvider | null
+  /**
+   * {@link find}, or a configuration fault: captcha is configured but no registered provider fits.
+   *
+   * @throws {PluginMissconfigured} `captcha:provider:<id | any>`, logged once with a clear reason.
+   */
+  provider: (id?: string | null) => CaptchaProvider
+  /** The `MOD_CAPTCHA` record of the context's config, or `null` when it declares none. */
+  record: () => CaptchaPolicyRecord | null
+  /**
+   * The boot check of the captcha guest sign-in: a declared `MOD_CAPTCHA` record must name a
+   * registered provider. Without the record it passes.
+   *
+   * @throws {PluginMissconfigured} as {@link provider} does.
+   */
+  assertReady: () => void
+}
+
+/**
+ * The strict check a route runs before it acts: which provider, the hosts a token may be solved on
+ * and the lowest score. `null` settings turn the check off; once settings are given, nothing is
+ * optional. Keys (secret, site key) are the provider's, never settings.
  */
 export interface CaptchaSettings {
-  /** The browser's site key; `''` = captcha off. */
-  siteKey: string
-  /** The siteverify secret. */
-  secret: string
+  /** The provider id; absent = the only registered provider. */
+  provider?: string
   /** Hosts a token may be solved on — a list, or a comma/space-separated string; never empty. */
-  hostnames: string[] | string
+  hostnames?: string[] | string
   /** The lowest accepted score, 0…1 — a number or a numeric string. */
-  minScore: number | string
+  minScore?: number | string
 }
 
 /** One call's captcha: the browser's token, the action the call expects, the caller's IP. */
@@ -105,28 +155,39 @@ export interface CaptchaCheckRequest {
   token?: string | null
   /** The exact action the token must have been issued for. */
   action: string
-  remoteip?: string
+  remoteIp?: string
 }
 
 /**
- * The strict check a route runs on a score-based token before it acts: no sign-in, no guest
- * token, nothing spent — Google's answer is judged in place.
+ * The strict check a route runs on a score-based token before it acts: no sign-in, no guest token,
+ * nothing spent — the provider's verdict is judged in place.
  */
 export interface CaptchaCheck {
-  /** True when a site key is configured (the check is on). */
+  /** True when settings are given (the check is on). */
   enabled: () => boolean
-  /** The site key a browser needs, or `null` when the check is off. */
-  siteKey: () => string | null
+  /**
+   * What a browser needs to solve the captcha, or `null` while the check is off.
+   *
+   * @throws {PluginMissconfigured} when the check is on and no registered provider fits.
+   */
+  clientSettings: () => CaptchaClientSettings | null
+  /**
+   * The boot check: on, the provider the settings name must be registered. Off, it passes.
+   *
+   * @throws {PluginMissconfigured} `captcha:provider:<id | any>`.
+   */
+  assertReady: () => void
   /**
    * Resolve when the token passes; a disabled check always resolves.
    *
-   * Refusals, in this order: `recaptcha:missing` (no token), `recaptcha:<error-codes>` /
-   * `recaptcha:unknown` (Google's own), `recaptcha:score` (no score, or below `minScore`),
-   * `recaptcha:hostname`, `recaptcha:action` (not exactly `request.action`).
+   * Refusals, in this order: `captcha:missing` (no token), `captcha:<errors>` / `captcha:unknown`
+   * (the provider's own), `captcha:score` (no score, or below `minScore`), `captcha:hostname`,
+   * `captcha:action` (not exactly `request.action`).
    *
    * @throws {AuthenFailed} for a refused token.
-   * @throws {AuthUnavailable} `recaptcha:config` when enabled but the secret, the hostnames or the
-   *   score floor are missing or invalid; `recaptcha` when Google cannot be asked.
+   * @throws {AuthUnavailable} `captcha:config` when on but no provider fits, the provider has no site
+   *   key, or the hostnames or the score floor are missing or invalid; whatever the provider throws
+   *   when it cannot be asked (`captcha`, `captcha:config`).
    */
   assert: (request: CaptchaCheckRequest) => Promise<void>
 }

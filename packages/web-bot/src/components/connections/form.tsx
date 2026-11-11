@@ -1,8 +1,6 @@
 import { useCallback, useId, useMemo, useState, type FC, type FormEvent } from 'react'
-import { useI18nLib } from '@owlmeans/client-i18n'
-import {
-  BOT_CREDENTIAL_MAX, BOT_LABEL_MAX, BOT_PLATFORMS, BotPlatform, type BotConnectionInput,
-} from '@owlmeans/bot'
+import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
+import { BOT_CREDENTIAL_MAX, BOT_LABEL_MAX, type BotConnectionInput, type BotCredentialField } from '@owlmeans/bot'
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { Badge } from '../../@/components/ui/badge.js'
 import { Button } from '../../@/components/ui/button.js'
@@ -22,36 +20,41 @@ import { PlatformHint } from './setup.js'
 import type { ConnectionFormProps } from './types.js'
 
 /**
- * Connect a bot, or change one. The credential inputs are the platform descriptor's — never a list
- * of this package's own — and they are WRITE-ONLY: a saved value is never shown back, the field
- * only says it is set, and leaving it empty keeps it.
+ * Connect a bot, or change one. The platforms, their credential inputs, labels, hints and link are
+ * the server's registered descriptors (`platform.list`) — never a list of this package's own — and
+ * the credentials are WRITE-ONLY: a saved value is never shown back, the field only says it is set,
+ * and leaving it empty keeps it.
  *
  * Mounted afresh for every opening (the panel keys it), so a half-typed secret never survives a
  * close. It never sends a transport: a new connection is live, and an existing one keeps its own.
  */
-export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platforms, onSave, onClose }) => {
+export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platforms, descriptors, onSave, onClose }) => {
   const t = useI18nLib(BOT_I18N)
+  const [lng] = useLanguage()
   const id = useId()
 
-  const [platform, setPlatform] = useState<BotPlatform>(editing?.platform ?? platforms[0] ?? BotPlatform.Telegram)
+  const [platform, setPlatform] = useState<string>(editing?.platform ?? platforms[0]?.platform ?? '')
   const [label, setLabel] = useState(editing?.label ?? '')
   const [values, setValues] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  const descriptor = BOT_PLATFORMS[platform]
-  const fields = useMemo(() => botViewHelper.typedCredentialsOf(platform), [platform])
+  // The descriptors arrive with the platform list: a form opened before it settled picks the first one then.
+  const chosen = platform !== '' ? platform : platforms[0]?.platform ?? ''
+  const descriptor = descriptors.find(entry => entry.platform === chosen) ?? null
+  const fields = useMemo(() => botViewHelper.typedCredentialsOf(descriptor), [descriptor])
   const generated = (descriptor?.credentials ?? []).filter(field => field.generated === true)
-  const stored = editing?.platform === platform ? editing.credentialsSet : []
+  const stored = editing?.platform === chosen ? editing.credentialsSet : []
+  const labelOf = (field: BotCredentialField): string => botViewHelper.textOf(field.label, lng, field.key)
 
   // A bot cannot be verified without its required credentials, so they are asked for here.
   const missing = fields.filter(field =>
     field.required && (values[field.key] ?? '').trim() === '' && !stored.includes(field.key)
   )
-  const valid = label.trim() !== '' && missing.length === 0
+  const valid = descriptor != null && label.trim() !== '' && missing.length === 0
 
   const choosePlatform = useCallback((next: string) => {
-    setPlatform(next as BotPlatform)
+    setPlatform(next)
     setValues({})
   }, [])
 
@@ -63,7 +66,7 @@ export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platfor
       .filter(([key, value]) => value !== '' && fields.some(field => field.key === key)))
     const input: BotConnectionInput = {
       ...(editing != null ? { id: editing.id } : {}),
-      platform,
+      platform: chosen,
       label: label.trim(),
       ...(Object.keys(credentials).length > 0 ? { credentials } : {}),
     }
@@ -79,7 +82,7 @@ export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platfor
     } finally {
       setSaving(false)
     }
-  }, [valid, saving, values, fields, editing, platform, label, onSave, onClose])
+  }, [valid, saving, values, fields, editing, chosen, label, onSave, onClose])
 
   return <Dialog open={open} onOpenChange={next => { if (!next) onClose() }}>
     <DialogContent closeLabel={t('common.close')} className="max-h-[calc(100dvh-2rem)] overflow-y-auto" data-bot-connection-form>
@@ -93,22 +96,26 @@ export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platfor
 
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${id}-platform`}>{t('form.platform')}</Label>
-          {editing != null || platforms.length === 1
-            ? <p id={`${id}-platform`} className="flex items-center gap-2 text-sm" data-bot-input="platform" data-bot-value={platform}>
-              <PlatformIcon platform={platform} />
-              {descriptor?.title ?? platform}
+          {editing == null && platforms.length === 0
+            ? <p id={`${id}-platform`} className="text-muted-foreground text-sm" data-bot-input="platform" data-bot-no-platforms>
+              {t('form.no-platforms')}
             </p>
-            : <Select value={platform} onValueChange={choosePlatform}>
-              <SelectTrigger id={`${id}-platform`} className="w-full" data-bot-input="platform" data-bot-value={platform}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {platforms.map(option => <SelectItem key={option} value={option} data-bot-option={option}>
-                  <PlatformIcon platform={option} />
-                  {BOT_PLATFORMS[option]?.title ?? option}
-                </SelectItem>)}
-              </SelectContent>
-            </Select>}
+            : editing != null || platforms.length === 1
+              ? <p id={`${id}-platform`} className="flex items-center gap-2 text-sm" data-bot-input="platform" data-bot-value={chosen}>
+                <PlatformIcon platform={chosen} glyph={descriptor?.glyph} />
+                {descriptor?.title ?? chosen}
+              </p>
+              : <Select value={chosen} onValueChange={choosePlatform}>
+                <SelectTrigger id={`${id}-platform`} className="w-full" data-bot-input="platform" data-bot-value={chosen}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {platforms.map(option => <SelectItem key={option.platform} value={option.platform} data-bot-option={option.platform}>
+                    <PlatformIcon platform={option.platform} glyph={option.glyph} />
+                    {option.title}
+                  </SelectItem>)}
+                </SelectContent>
+              </Select>}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -119,15 +126,16 @@ export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platfor
           />
         </div>
 
-        <fieldset className="flex flex-col gap-4" data-bot-credentials={platform}>
+        <fieldset className="flex flex-col gap-4" data-bot-credentials={chosen}>
           <legend className="sr-only">{t('form.credentials')}</legend>
           {fields.map(field => {
             const set = stored.includes(field.key)
             const required = field.required
+            const hint = botViewHelper.textOf(field.hint, lng)
 
-            return <div key={`${platform}:${field.key}`} className="flex flex-col gap-2">
+            return <div key={`${chosen}:${field.key}`} className="flex flex-col gap-2">
               <Label htmlFor={`${id}-cred-${field.key}`}>
-                {t(`credentials.${platform}.${field.key}.label`, { defaultValue: field.key })}
+                {labelOf(field)}
                 {!field.required && <span className="text-muted-foreground font-normal">({t('common.optional')})</span>}
                 {set && <Badge variant="secondary" className="rounded-full" data-bot-credential-set={field.key}>
                   {t('form.secret-set')}
@@ -148,25 +156,24 @@ export const ConnectionForm: FC<ConnectionFormProps> = ({ open, editing, platfor
                   setValues(current => ({ ...current, [field.key]: next }))
                 }}
               />
-              <p className="text-muted-foreground text-xs">
-                {t(`credentials.${platform}.${field.key}.hint`, { defaultValue: '' })}
-              </p>
+              {hint !== '' && <p className="text-muted-foreground text-xs" data-bot-field-hint={field.key}>{hint}</p>}
             </div>
           })}
           {generated.map(field => <p key={field.key} className="text-muted-foreground text-xs" data-bot-generated={field.key}>
             <span className="text-foreground font-medium">
-              {t(`credentials.${platform}.${field.key}.label`, { defaultValue: field.key })}
+              {labelOf(field)}
             </span>
             {' — '}
             {t('form.generated')}
           </p>)}
         </fieldset>
 
-        <PlatformHint
-          platform={platform}
+        {descriptor != null && <PlatformHint
+          descriptor={descriptor}
           beforeSave
-          applicationId={platform === BotPlatform.Discord ? values.applicationId ?? editing?.identity?.id : null}
-        />
+          values={values}
+          identity={editing?.platform === chosen ? editing.identity?.id : null}
+        />}
 
         {descriptor?.docs != null && <a
           href={descriptor.docs} target="_blank" rel="noopener noreferrer" data-bot-docs

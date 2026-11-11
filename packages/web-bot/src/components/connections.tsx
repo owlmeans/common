@@ -9,6 +9,7 @@ import {
 import { BOT_I18N } from '../consts.js'
 import { botViewHelper } from '../helpers/view.js'
 import { useBotConnections } from '../hooks/use-bot-connections.js'
+import { useBotPlatforms } from '../hooks/use-bot-platforms.js'
 import type { BotConnectionsPanelProps } from '../types.js'
 import { cn } from '../utils.js'
 import { ConnectionForm } from './connections/form.js'
@@ -21,14 +22,16 @@ import { ConfirmDialog } from './shared/confirm-dialog.js'
  * the bot account it verified as, how it receives and what failed last — and adding, changing,
  * verifying, switching off and removing one.
  *
- * `platforms` limits what a NEW connection may be made on (the product's platforms). Every connection
- * made here is live; a mock one exists only when created through the API (tests, the runtime smoke)
- * and is shown with a badge.
+ * The platforms are the server's registered ones (`platform.list`); `platforms` limits what a NEW
+ * connection may be made on (the product's platforms). Every connection made here is live; a mock one
+ * exists only when created through the API (tests, the runtime smoke) and is shown with a badge.
  */
 export const BotConnectionsPanel: FC<BotConnectionsPanelProps> = ({ surface, platforms, className }) => {
   const t = useI18nLib(BOT_I18N)
   const { items, loading, error, save, verify, remove } = useBotConnections(surface)
-  const allowed = useMemo(() => botViewHelper.platformsOf(platforms), [platforms])
+  const registered = useBotPlatforms(surface)
+  const allowed = useMemo(() => botViewHelper.platformsOf(registered.items, platforms), [registered.items, platforms])
+  const ids = useMemo(() => registered.items.map(descriptor => descriptor.platform), [registered.items])
 
   const [formOpen, setFormOpen] = useState(false)
   const [formKey, setFormKey] = useState(0)
@@ -76,7 +79,8 @@ export const BotConnectionsPanel: FC<BotConnectionsPanelProps> = ({ surface, pla
     </CardHeader>
 
     <CardContent className="flex flex-col gap-4">
-      {error != null && <BotErrorNote error={error} variant="alert" />}
+      {error != null && <BotErrorNote error={error} variant="alert" platforms={ids} />}
+      {registered.error != null && <BotErrorNote error={registered.error} variant="alert" platforms={ids} />}
 
       {loading && items.length === 0
         ? <div className="text-muted-foreground flex justify-center py-8" data-bot-loading>
@@ -89,6 +93,8 @@ export const BotConnectionsPanel: FC<BotConnectionsPanelProps> = ({ surface, pla
             {items.map(connection => <ConnectionItem
               key={connection.id}
               connection={connection}
+              descriptor={registered.descriptorOf(connection.platform)}
+              platforms={ids}
               onVerify={verify}
               onToggle={toggle}
               onEdit={openForm}
@@ -102,6 +108,7 @@ export const BotConnectionsPanel: FC<BotConnectionsPanelProps> = ({ surface, pla
       open={formOpen}
       editing={editing}
       platforms={allowed}
+      descriptors={registered.items}
       onSave={save}
       onClose={() => setFormOpen(false)}
     />

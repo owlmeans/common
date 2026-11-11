@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-upload
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-upload": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/server-upload": "^0.2.0-alpha.0"` in `dependencies`
 
 Server half of the upload family (contract: `/upload`). Files are verified on THIS service before
 they move anywhere; only accepted files reach the application's receiver.

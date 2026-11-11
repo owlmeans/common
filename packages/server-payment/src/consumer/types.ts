@@ -3,13 +3,11 @@ import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
 import type {
   ConsumerRightsAccountProtocols, ConsumerRightsPublicProtocols, WithdrawalEstimate,
 } from '@owlmeans/payment'
-import type { Context as ApiContext } from '@owlmeans/server-api'
-import type Stripe from 'stripe'
 import type {
   PurchaseRecord, BillingProfileRecord, BillingProfileSource, LockOptions, UsageMeter, UsageReading,
 } from '../types.js'
 
-/** What a completed Checkout Session says about its buyer and totals. */
+/** What a completed checkout session says about its buyer and totals. */
 export interface SessionEvidence {
   country?: string
   email?: string
@@ -64,7 +62,6 @@ export interface PurchaseDraft extends Omit<PurchaseRecord, 'id' | 'contractRef'
 export interface ConsumerRightsInternals {
   readonly managed: boolean
   meter: () => UsageMeter | null
-  stripe: (ctx: ApiContext) => Promise<Stripe>
 }
 
 /** Who hands a registration its options: the application itself, or the gateway on its behalf. */

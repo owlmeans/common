@@ -12,7 +12,7 @@ types the service, and on this package only where the server wires itself up.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-otp@^0.1.21
+bun add @owlmeans/server-auth-otp@^0.2.0-alpha.0
 ```
 
 ## Concepts
@@ -44,8 +44,7 @@ bun add @owlmeans/server-auth-otp@^0.1.21
 ### Wire the server
 
 ```typescript
-import { MAILER_SERVICE } from '@owlmeans/mailer'
-import { makeMailgunMailerService } from '@owlmeans/server-mailer-mailgun'
+import { appendSmtpMailer } from '@owlmeans/mailer-smtp'
 import { makeRedisResource } from '@owlmeans/redis-resource'
 import {
   OTP_RESOURCE, appendOtpPlugin, makeOtpService, makeRedisOtpChallengeStore, makeRedisThrottleService,
@@ -54,7 +53,7 @@ import {
 context.registerResource(makeRedisResource(OTP_RESOURCE))          // challenge and throttle storage
 context.registerService(makeRedisOtpChallengeStore())               // OTP_CHALLENGE_STORE
 context.registerService(makeRedisThrottleService())                 // OTP_THROTTLE_SERVICE
-context.registerService(makeMailgunMailerService(MAILER_SERVICE))   // delivers the code
+appendSmtpMailer(context, { authenticated: true, verifyOnInit: true }) // the mailer host delivers the code
 context.registerService(makeOtpService())                           // OTP_SERVICE
 
 appendOtpPlugin(context)                                            // plugin under 'email-otp'
@@ -173,8 +172,8 @@ malformed address is `AuthenFailed('otp:email')`.
 - [`@owlmeans/auth-otp`](../auth-otp) — `OtpService` type and the shared OTP constants
 - [`@owlmeans/server-auth`](../server-auth) — the auth-manager plugin registry this plugin joins
 - [`@owlmeans/server-auth-identity`](../server-auth-identity) — `IdentityLinkingService`, which maps the address to an account
-- [`@owlmeans/mailer`](../mailer) — `MailerService` and the console transport for tests
-- [`@owlmeans/server-mailer-mailgun`](../server-mailer-mailgun) / [`@owlmeans/mailer-smtp`](../mailer-smtp) — production transports
+- [`@owlmeans/mailer`](../mailer) — the mailer host (`MAILER_SERVICE`) and the console transport for tests
+- [`@owlmeans/mailer-smtp`](../mailer-smtp) — the SMTP transport; provider HTTP transports live in OwlMeans connect
 - [`@owlmeans/redis-resource`](../redis-resource) — the Redis resource behind the stores and throttle
 
 The `server-auth-otp` skill covers the flow and its schema gotchas for agents.
@@ -187,7 +186,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

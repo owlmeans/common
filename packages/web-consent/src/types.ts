@@ -67,7 +67,8 @@ export interface CookiePolicyProps {
    * The third-party services the site runs, each listed under the category that gates it —
    * name, provider, purpose, cookie names and the provider's privacy policy. A service whose
    * category is not among `categories` is listed in a trailing "Other services" group rather than
-   * dropped. `@owlmeans/web-gtm`'s `googleTagServices(id)` supplies the entries for a Google tag.
+   * dropped. A tag's own package (the provider plugins in OwlMeans connect) supplies the entries
+   * for its tag.
    */
   services?: ConsentService[]
   className?: string

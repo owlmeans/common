@@ -213,7 +213,8 @@ export const EmailLoginScreen: FC<EmailLoginScreenProps> = props => {
           </Button>
         </div>}
 
-      {model.captcha && state.step !== 'pin' && state.step !== 'done' && <CaptchaNotice t={t} />}
+      {model.captcha && state.step !== 'pin' && state.step !== 'done'
+        && <CaptchaNotice t={t} client={model.captchaClient} locale={props.locale} />}
 
       {model.otherOptions != null && state.step !== 'done' && <a
         href={model.otherOptions.href}

@@ -1,6 +1,6 @@
 import {
-  BOT_PLATFORMS, BotActionKind, BotChatKind, BotConnectionNotFound, botPlatformHelper, BotTransport,
-  BotUnsupportedAction, type BotChatRef, type BotMessageRef, type BotUpdate,
+  BotActionKind, BotChatKind, BotConnectionNotFound, botPlatformHelper, BotTransport, BotUnsupportedAction,
+  type BotChatRef, type BotMessageRef, type BotPlatformDescriptor, type BotUpdate,
 } from '@owlmeans/bot'
 import { BotConnectionDisabled } from '../errors.js'
 import type { BotPlatformAction, BotPlatformActionResult, BotPlatformSession } from '../platforms/types.js'
@@ -24,11 +24,14 @@ export const makeBotActionsFactory = (
     record: BotConnectionRecord | null, scope: string, connection: string, bound?: BotUpdate
   ): BotActions => {
     const credentialsSet = record != null ? sessions.view(record).credentialsSet : []
+    // A connection on a platform with no registered plugin keeps its record: it can note, nothing else.
     const plugin = record != null ? registry.get(record.platform) : null
+
+    const descriptor = (): BotPlatformDescriptor | null => plugin?.descriptor ?? null
 
     const supports = (kind: BotActionKind): boolean =>
       record != null && (kind === BotActionKind.Note || (plugin != null
-        && botPlatformHelper.supports(record.platform, kind, credentialsSet)))
+        && botPlatformHelper.supports(plugin.descriptor, kind, credentialsSet)))
 
     const refusalOf = (plan: BotActionPlan): string | undefined => {
       if (record == null) {
@@ -49,7 +52,7 @@ export const makeBotActionsFactory = (
       const platform = record?.platform ?? bound?.platform
       const refusal = refusalOf(plan)
       if (refusal != null) {
-        result = { ok: false, ...refusalUtils.of(refusal, plan.kind, platform) }
+        result = { ok: false, ...refusalUtils.of(refusal, plan.kind, descriptor()) }
       } else if (plan.action == null) {
         result = { ok: true }
       } else {
@@ -58,7 +61,7 @@ export const makeBotActionsFactory = (
           const done: BotPlatformActionResult = await plugin!.act(session, plan.action)
           result = { ok: true, ...(done.message != null ? { message: done.message } : {}) }
         } catch (error) {
-          result = { ok: false, ...refusalUtils.of(error, plan.kind, platform) }
+          result = { ok: false, ...refusalUtils.of(error, plan.kind, descriptor()) }
         }
       }
       if (platform != null) {
@@ -205,7 +208,7 @@ export const makeBotActionsFactory = (
       ...(invalidText(text) != null ? { invalid: invalidText(text) } : {}),
     })
 
-    return { supports, reply, send, delete: remove, mute, ban, react, note }
+    return { supports, descriptor, reply, send, delete: remove, mute, ban, react, note }
   }
 
   const actions = async (target: BotActionsTarget): Promise<BotActions> => {
@@ -216,9 +219,6 @@ export const makeBotActionsFactory = (
       record = found != null && found.scope === target.scope ? found : null
     } catch (error) {
       log.error('Bot connection not read for actions', { connection: target.connection, error })
-    }
-    if (record != null && BOT_PLATFORMS[record.platform] == null) {
-      record = null
     }
 
     return actionsOf(record, target.scope, target.connection, bound)

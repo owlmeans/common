@@ -1,18 +1,22 @@
 import type { Resource } from '@owlmeans/resource'
 import { RES_BOT_ACTIVITY, RES_BOT_CONNECTION, RES_BOT_UPDATE } from '../consts.js'
+import { makeTestBotPlatform } from '../mock/platform.js'
 import { appendBot } from '../service.js'
 import type { BotActivityRecord, BotConnectionRecord, BotUpdateRecord } from '../types.js'
 import { BOT_CONFORMANCE_SECRET, BOT_CONFORMANCE_SERVICE } from './consts.js'
 import type { BotConformanceSubjectMaker } from './types.js'
 
 /**
- * The service every case runs against: the context's three resources, a fixture secret, a fast
- * dispatcher (5 ms), two attempts, one day of retention.
+ * The service every case runs against: the context's three resources, one platform plugin (the test
+ * platform unless named), a fixture secret, a fast dispatcher (5 ms), two attempts, one day of
+ * retention.
  */
 export const makeBotConformanceSubject: BotConformanceSubjectMaker = (context, opts = {}) => {
   const aliases = opts.resources ?? {}
+  const platform = opts.platform ?? makeTestBotPlatform()
   const service = appendBot(context, {
     resources: aliases,
+    platforms: [platform],
     secret: () => BOT_CONFORMANCE_SECRET,
     pollMs: 5,
     attempts: 2,
@@ -28,5 +32,6 @@ export const makeBotConformanceSubject: BotConformanceSubjectMaker = (context, o
       activity: context.resource<Resource<BotActivityRecord>>(aliases.activity ?? RES_BOT_ACTIVITY),
     },
     capabilities: opts.capabilities ?? [],
+    platform,
   }
 }

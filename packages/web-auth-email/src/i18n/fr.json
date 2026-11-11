@@ -1,9 +1,4 @@
 {
-  "captcha": {
-    "notice": "Ce site est protégé par reCAPTCHA, et les {{privacy}} et les {{terms}} de Google s’appliquent.",
-    "privacy": "Règles de confidentialité",
-    "terms": "Conditions d’utilisation"
-  },
   "error": {
     "captcha": "Nous n’avons pas pu confirmer que vous n’êtes pas un robot. Réessayez.",
     "captcha-unavailable": "Le contrôle de sécurité n’a pas pu se charger. Vérifiez votre connexion et réessayez.",

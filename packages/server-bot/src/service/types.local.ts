@@ -1,5 +1,5 @@
 import type {
-  BotActionKind, BotActivityTarget, BotConnection, BotPlatform, BotSimulateInput, BotSimulateResult, BotUpdate,
+  BotActionKind, BotActivityTarget, BotConnection, BotPlatformId, BotSimulateInput, BotSimulateResult, BotUpdate,
 } from '@owlmeans/bot'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { Logger } from '@owlmeans/log'
@@ -38,6 +38,8 @@ export interface BotServiceParts {
   options: BotResolvedOptions
   now: () => Date
   log: Logger
+  /** Warn (once per service) that no platform plugin is registered — called where the service boots. */
+  warnWithoutPlatforms: () => void
 }
 
 /** Connection records as the rest of the service needs them. */
@@ -76,7 +78,7 @@ export interface BotInboxEntry {
 }
 
 export interface BotInbox {
-  receive: (platform: BotPlatform, connection: string, request: BotHookRequest) => Promise<BotHookAnswer>
+  receive: (platform: BotPlatformId, connection: string, request: BotHookRequest) => Promise<BotHookAnswer>
   simulate: (scope: string, connection: string, input: BotSimulateInput) => Promise<BotSimulateResult>
   /** Normalize and store a native payload of an already trusted source (a receiver) — the inbox row ids. */
   accept: (record: BotConnectionRecord, payload: unknown) => Promise<string[]>

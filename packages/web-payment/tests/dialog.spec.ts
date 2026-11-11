@@ -15,7 +15,7 @@ describe('AmountCheckoutDialog', () => {
     try {
       await page.locator('[data-amount-details] [data-test-details]').waitFor()
       expect(await page.getByLabel('Custom amount').isDisabled()).toBe(true)
-      expect(await page.getByRole('button', { name: 'Continue to Stripe' }).isDisabled()).toBe(true)
+      expect(await page.getByRole('button', { name: 'Continue to checkout' }).isDisabled()).toBe(true)
       expect(await page.getByRole('button', { name: 'Cancel' }).isDisabled()).toBe(false)
     } finally { await close() }
   }, TIMEOUT)
@@ -46,7 +46,7 @@ describe('AmountCheckoutDialog', () => {
       expect(await dialog.innerText()).toContain('Processing adjustment')
       expect(await dialog.innerText()).toContain('$0.21')
       expect(await dialog.innerText()).toContain('$10.21')
-      expect(await dialog.innerText()).toContain('Stripe calculates any applicable tax')
+      expect(await dialog.innerText()).toContain('Any applicable tax is calculated at checkout')
     } finally { await close() }
   }, TIMEOUT)
 
@@ -54,7 +54,7 @@ describe('AmountCheckoutDialog', () => {
     const { page, close } = await mountComponent({ url: await harnessUrl() })
     try {
       const input = page.getByLabel('Custom amount')
-      const confirm = page.getByRole('button', { name: 'Continue to Stripe' })
+      const confirm = page.getByRole('button', { name: 'Continue to checkout' })
 
       await input.fill('4.99')
       expect(await input.getAttribute('aria-invalid')).toBe('true')
@@ -88,13 +88,13 @@ describe('AmountCheckoutDialog', () => {
     } finally { await readyMount.close() }
   }, TIMEOUT)
 
-  test('a Stripe Tax estimate replaces the plain tax note with the country and the rate, converted to the local currency', async () => {
+  test('a tax estimate replaces the plain tax note with the country and the rate, converted to the local currency', async () => {
     const { page, close } = await mountComponent({ url: `${await harnessUrl()}?estimate=pl` })
     try {
       const dialog = page.getByRole('dialog')
       await dialog.waitFor()
       const text = await dialog.innerText()
-      expect(text).not.toContain('Stripe calculates any applicable tax')
+      expect(text).not.toContain('Any applicable tax is calculated at checkout')
       expect(text).toContain('Poland')
       expect(text).toContain('VAT (23%)')
       // PLN replaces USD outright once a local currency is known — never both figures at once.
@@ -104,7 +104,7 @@ describe('AmountCheckoutDialog', () => {
       expect(text).not.toContain('$12.56')
       expect(text).toContain('≈ PLN 9.40')
       expect(text).toContain('≈ PLN 50.24')
-      expect(text).toContain("Converted at Stripe's current exchange rate")
+      expect(text).toContain('Converted at the current exchange rate')
       expect(text).toContain('Tax is included in the estimated total below.')
     } finally { await close() }
   }, TIMEOUT)
@@ -119,7 +119,7 @@ describe('AmountCheckoutDialog', () => {
     } finally { await close() }
   }, TIMEOUT)
 
-  test('falls back to "computed at checkout" wording with no numeric tax row when Stripe cannot resolve a rate', async () => {
+  test('falls back to "computed at checkout" wording with no numeric tax row when the paygate cannot resolve a rate', async () => {
     const { page, close } = await mountComponent({ url: `${await harnessUrl()}?estimate=at-checkout` })
     try {
       const text = await page.getByRole('dialog').innerText()

@@ -6,7 +6,7 @@ the design analysis gets computed styles, custom properties, block geometry and 
 ## Installation
 
 ```bash
-bun add @owlmeans/llm-reader-playwright@^0.1.22-rc.0 playwright
+bun add @owlmeans/llm-reader-playwright@^0.2.0-alpha.0 playwright
 bunx playwright install chromium
 ```
 
@@ -57,7 +57,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.1
 ```
 
 The embedded files are version-matched to this package release. Do not edit them
