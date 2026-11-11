@@ -1,0 +1,64 @@
+{
+  "name": "@owlmeans/file-inspector",
+  "version": "0.2.0-alpha.0",
+  "description": "File verification from bytes: what a file really is (images, media, pdf, office, csv, text, code, fonts, 3D models, diagrams, executables) against what its name and media type claim, from a head sample or a few bounded range reads; active-PDF detection, executable refusal and safe file names.",
+  "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/file-inspector"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 391 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./kinds": {
+      "import": "./build/kinds.js",
+      "require": "./build/kinds.js",
+      "default": "./build/kinds.js",
+      "module": "./build/kinds.js",
+      "types": "./build/kinds.d.ts"
+    }
+  },
+  "dependencies": {
+    "@file-type/cfbf": "^0.2.2",
+    "@file-type/xml": "^1.2.0",
+    "@owlmeans/error": "^0.2.0-alpha.0",
+    "@owlmeans/log": "^0.2.0-alpha.0",
+    "@owlmeans/storage-common": "^0.2.0-alpha.0",
+    "file-type": "^22.2.0",
+    "strtok3": "^10.7.0"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.5",
+    "@types/yazl": "^3.3.1",
+    "nodemon": "^3.1.14",
+    "tar-stream": "^3.2.2",
+    "typescript": "^7.0.2",
+    "yazl": "^3.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

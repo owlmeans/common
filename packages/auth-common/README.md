@@ -84,6 +84,11 @@ BED255_CASHE_RESOURCE // resource alias for nonce cache
 signer's trusted-record `id`, `key` a `KeyPairModel` with the private key. It answers
 `{ authorization, headers }` — send both, with the body unchanged.
 
+A body of raw bytes (a `Blob`, an `ArrayBuffer`, a typed array, a Node stream — what a streamed-body
+route carries) is signed as `{}` by both the signer and the guard: the signature proves the caller and
+the moment, never the bytes. A route that must prove its bytes declares their digest (in the query)
+and checks it against what it stores.
+
 ```typescript
 import { signBasicEd25519Request } from '@owlmeans/auth-common'
 import { makeKeyPairModel } from '@owlmeans/basic-keys'

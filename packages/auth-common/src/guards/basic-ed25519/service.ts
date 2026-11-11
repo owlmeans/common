@@ -14,6 +14,7 @@ import {
 } from './replay.js'
 import type { SignedRequestReplayResource, SignedRequestReplayStore } from './types.js'
 import { signBasicEd25519Request } from './sign.js'
+import { signedPayloadOf } from './payload.js'
 
 export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519GuardOptions): BasicEd25519Guard => {
   const memoryReplay = makeMemorySignedRequestReplayStore()
@@ -82,12 +83,8 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
       const timestamp = req.headers?.[timeKey]
       const nonce = req.headers?.[nonceKey]
 
-      const payload = {
-        body: req.body ?? {},
-        headers: { [timeKey]: timestamp, [nonceKey]: nonce }
-      }
-
-      if (!await trusted.key.verify(payload, signature.signature)) {
+      // A streamed-body route reaches its guard with no parsed body: verified as `{}`, as signed.
+      if (!await trusted.key.verify(signedPayloadOf(req.body, timestamp, nonce), signature.signature)) {
         return false as T
       }
 

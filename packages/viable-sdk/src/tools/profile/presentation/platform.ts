@@ -6,19 +6,21 @@ import {
   BACKFILL_OUTPUT, CONFIGURATION_OUTPUT, CUSTOM_DOMAIN_OUTPUT, FILE_READ_OUTPUT, FILE_WRITTEN_OUTPUT, FILES_OUTPUT,
   GIT_COMMIT_OUTPUT, GIT_DISCARD_OUTPUT, GIT_HISTORY_OUTPUT, GIT_REVERT_OUTPUT, GIT_STATUS_OUTPUT,
   GITHUB_AUTHORIZE_OUTPUT, GITHUB_CONNECTION_OUTPUT, GITHUB_DISCONNECTED_OUTPUT, GITHUB_LINKED_OUTPUT,
-  GITHUB_REPOSITORIES_OUTPUT, GITHUB_SYNC_OUTPUT, INTENT_OUTPUT, ORGANIZATION_BRANDING_OUTPUT, PREVIEW_OUTPUT,
+  GITHUB_REPOSITORIES_OUTPUT, GITHUB_SYNC_OUTPUT, INTENT_OUTPUT, MATERIAL_TEXT_OUTPUT, MATERIALS_OUTPUT,
+  ORGANIZATION_BRANDING_OUTPUT, PREVIEW_OUTPUT, PROJECT_WITH_FILES_OUTPUT,
   PRIVACY_OUTPUT, PRODUCTION_AUTH_OUTPUT, PRODUCTION_OUTPUT, REDIRECTS_OUTPUT, SETTINGS_OUTPUT, TOKEN_REVOKED_OUTPUT,
   TOKENS_OUTPUT, WITHDRAW_OUTPUT,
 } from './platform/consts.js'
 import { gitPresentHelper as git } from './platform/git.js'
 import { iamPresentHelper as iam } from './platform/iam.js'
+import { materialsPresentHelper as materials } from './platform/materials.js'
 import { productionPresentHelper as production } from './platform/production.js'
 import { settingsPresentHelper as settings } from './platform/settings.js'
 import { workspacePresentHelper as workspace } from './platform/workspace.js'
 
 /**
  * The declared structured output and its presenter for every PLATFORM-domain tool of the listing
- * profiles — settings, configuration, branding, the account, files and the preview, git and GitHub,
+ * profiles — settings, configuration, branding, the account, a new project's files, files and the preview, git and GitHub,
  * production and the generated application's sign-in.
  *
  * Keyed by the BASE tool name: a split variant (`attach_custom_domain`, `invite_app_user`, …)
@@ -40,6 +42,10 @@ export const platformPresentation: Readonly<Record<string, ToolPresentation>> = 
   privacy_choices: { output: PRIVACY_OUTPUT, present: account.privacy },
   withdraw_marketing_consent: { output: WITHDRAW_OUTPUT, present: account.withdrawn },
   pickup_intent: { output: INTENT_OUTPUT, present: account.intent },
+
+  create_project_with_files: { output: PROJECT_WITH_FILES_OUTPUT, present: materials.created },
+  list_materials: { output: MATERIALS_OUTPUT, present: materials.catalogue },
+  read_material: { output: MATERIAL_TEXT_OUTPUT, present: materials.text },
 
   list_files: { output: FILES_OUTPUT, present: workspace.files },
   read_file: { output: FILE_READ_OUTPUT, present: workspace.file },

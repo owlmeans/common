@@ -8,6 +8,7 @@ import { executionPolicyHelper } from './execution/policy.js'
 import { CacheBoundary } from './plugins/consts.js'
 import type { LlmPlugin, LlmSystemBlock, PromptBoundary } from './plugins/types.js'
 import { cacheHelper } from './helpers/cache.js'
+import { capabilityHelper } from './helpers/capabilities.js'
 import { jsonHelper } from './helpers/json.js'
 import { normalizeInput } from './helpers/messages.js'
 import { retryHelper } from './helpers/retry.js'
@@ -17,6 +18,7 @@ import { guidanceUtils } from './utils/guidance.js'
 import type { CallGuidance } from './utils/guidance/types.js'
 import { configUtils } from './utils/config.js'
 import { markUtils } from './utils/marks.js'
+import { mediaUtils } from './utils/media.js'
 import { messageUtils } from './utils/messages.js'
 import { reportNull } from './utils/null-report.js'
 import type { NullReportParams } from './utils/null-report/types.js'
@@ -115,7 +117,8 @@ export const makeLlmModel = ({
    * Prepare one request for one rung, in dependency order:
    *
    * 1. normalize (copies — the caller's messages are never edited), strip any cache marker they
-   *    carry, drop blank content;
+   *    carry, drop blank content, spell every neutral media part in the rung's dialect and check
+   *    the media against the provider's limits;
    * 2. note the caller's first `stable` non-system messages — the lead that repeats across calls;
    * 3. compose: the caller's leading system text becomes `Context`, and the result is laid out as
    *    `[system, project message, …caller]` — stable for a persona, for a step, for a batch;
@@ -132,6 +135,7 @@ export const makeLlmModel = ({
     const msgs = normalizeInput(input)
     promptUtils.stripCacheMarkers(msgs)
     promptUtils.dropBlankContent(msgs)
+    mediaUtils.render(msgs, plugin, config)
     // Identities, not positions: composition puts messages in front of these.
     const lead = new Set(msgs.filter(msg => messageUtils.roleOf(msg) !== 'system').slice(0, Math.max(0, stable)))
 
@@ -221,14 +225,14 @@ export const makeLlmModel = ({
 
   /**
    * `prepare` bound to one call, re-run only when an attempt lands on a rung of another family
-   * or cache dialect — a fallback on another provider, or an explicit-cache OpenAI model falling
-   * back to one that caches implicitly. The rungs are visited in order, so re-preparing on every
+   * or cache or media dialect — a fallback on another provider, an explicit-cache OpenAI model falling
+   * back to one that caches implicitly, a Responses-API model falling back to chat completions. The rungs are visited in order, so re-preparing on every
    * change is enough; each preparation starts again from the caller's untouched input.
    */
   const preparing = (request: PrepareRequest): (rung: Rung) => Promise<PreparedRequest> => {
     let prepared: { key: string, request: PreparedRequest } | null = null
     return async rung => {
-      const key = `${rung.plugin?.family ?? ''}|${rung.plugin?.cacheDialect?.(rung.config) ?? ''}`
+      const key = `${rung.plugin?.family ?? ''}|${rung.plugin?.cacheDialect?.(rung.config) ?? ''}|${rung.plugin?.mediaDialect?.(rung.config) ?? ''}`
       if (prepared == null || prepared.key !== key) {
         prepared = { key, request: await prepare(request, rung) }
       }
@@ -293,13 +297,14 @@ export const makeLlmModel = ({
   /**
    * Rebuild the model for attempt N.
    *
-   * The attempts walk the fallback chain the service hung off the primary — each rung gets
+   * The attempts walk the call's ladder — the fallback chain the service hung off the primary, less
+   * the rungs that do not accept the media the call carries — each rung gets
    * {@link FALLBACK_AFTER_ATTEMPTS} of them and the last keeps the rest. A rung on another
    * provider is fine: everything provider-shaped (the refine, the prompt rendering, the
    * structured-output call) is taken from the rung's own plugin, never the primary's.
    */
-  const refineModel = (attempt: number, temperature?: number): ActiveRung => {
-    const { rung, rungAttempt } = rungUtils.rungAt(rungs, attempt)
+  const refineModel = (ladder: Rung[], attempt: number, temperature?: number): ActiveRung => {
+    const { rung, rungAttempt } = rungUtils.rungAt(ladder, attempt)
     if (rung.index > 0 && rungAttempt === 0) {
       log.warn('Switching to fallback model', {
         model: rung.model.getName(), fallback: rung.index, fallbackModel: rung.config.model, attempts: attempt,
@@ -427,6 +432,8 @@ export const makeLlmModel = ({
   }
 
   const helper: LlmModel = {
+    capabilities: () => capabilityHelper.of(model),
+
     ask: async (
       input,
       {
@@ -438,9 +445,10 @@ export const makeLlmModel = ({
         const prepared = preparing(request)
         const guidance = guidanceUtils.of(guide, action, fatal)
         const seed = ladderSeed(escalation)
-        await prepared(rungUtils.rungAt(rungs, seed).rung)
+        const ladder = mediaUtils.ladderFor(rungs, mediaUtils.needsOf(normalizeInput(input)))
+        await prepared(rungUtils.rungAt(ladder, seed).rung)
         return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
-        const active = refineModel(seed + i)
+        const active = refineModel(ladder, seed + i)
         const { refined } = active
         const { msgs, options, placed } = await attemptRequest(prepared, request, guidance, active)
         const useCache = placed > 0
@@ -524,9 +532,10 @@ export const makeLlmModel = ({
         const prepared = preparing(request)
         const guidance = guidanceUtils.of(guide, action, fatal)
         const seed = ladderSeed(escalation)
-        await prepared(rungUtils.rungAt(rungs, seed).rung)
+        const ladder = mediaUtils.ladderFor(rungs, mediaUtils.needsOf(normalizeInput(input)))
+        await prepared(rungUtils.rungAt(ladder, seed).rung)
         return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
-        const active = refineModel(seed + i)
+        const active = refineModel(ladder, seed + i)
         const { refined } = active
         const { msgs, options, placed } = await attemptRequest(prepared, request, guidance, active)
         log.debug('Use model to talk', { model: refined.getName(), id: refined.lc_kwargs.model })
@@ -582,9 +591,10 @@ export const makeLlmModel = ({
         const guidance = guidanceUtils.of(guide, action, fatal)
 
         const seed = ladderSeed(escalation)
-        await prepared(rungUtils.rungAt(rungs, seed).rung)
+        const ladder = mediaUtils.ladderFor(rungs, mediaUtils.needsOf(normalizeInput(input)))
+        await prepared(rungUtils.rungAt(ladder, seed).rung)
         return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
-        const active = refineModel(seed + i, temperature)
+        const active = refineModel(ladder, seed + i, temperature)
         if (schemaPlacement !== 'tail') assertSchemaShown(active, innerSchema)
         const { refined } = active
         const request = await attemptRequest(prepared, request0, guidance, active)
@@ -651,9 +661,10 @@ export const makeLlmModel = ({
         const guidance = guidanceUtils.of(guide, action, fatal)
 
         const seed = ladderSeed(escalation)
-        await prepared(rungUtils.rungAt(rungs, seed).rung)
+        const ladder = mediaUtils.ladderFor(rungs, mediaUtils.needsOf(normalizeInput(input)))
+        await prepared(rungUtils.rungAt(ladder, seed).rung)
         return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
-        const active = refineModel(seed + i)
+        const active = refineModel(ladder, seed + i)
         if (schemaPlacement !== 'tail') assertSchemaShown(active, innerSchema)
         const { refined } = active
         const request = await attemptRequest(prepared, request0, guidance, active)

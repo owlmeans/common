@@ -22,7 +22,10 @@ import type {
   IamProjectMemberUpdate, IamProjectUserInvite, IamProjectUserUpdate, IamRevokeGrant, IamUser, IamUsersResponse,
   ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFileChanges,
   AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView,
+  ConnectCreateWithMaterialsBody, ConnectMaterialCatalogue, ConnectMaterialsState, ConnectMaterialText,
 } from '@owlmeans/viable-common'
+import type { UploadInput, UploadInputResult, UploadRunOptions } from '@owlmeans/client-upload'
+import type { UploadSession } from '@owlmeans/upload'
 
 export interface SdkOptions {
   apiUrl: string
@@ -37,6 +40,9 @@ export interface SdkOptions {
   /** Where the connector's own diagnostics go. NEVER stdout for a stdio MCP server. */
   log?: (line: string) => void
 }
+
+/** How an upload of a project's files runs: inputs in flight at once, retries, progress, abort. */
+export interface MaterialsUploadOptions extends Pick<UploadRunOptions, 'concurrency' | 'retries' | 'onProgress' | 'signal'> {}
 
 /**
  * Everything the connector can ask the platform for.
@@ -214,6 +220,40 @@ export interface ConnectorApi {
 
   story: {
     status: (projectId: string, storyId: string) => Promise<ConnectStoryStatus>
+  }
+
+  /**
+   * A NEW project's files ("materials"): a create that waits for them, their upload — only where the
+   * connector reads a disk — sealed (which starts the drafting from the prompt and the files), the
+   * drafting asked again, and the two reads every host has: the catalogue and one material's text.
+   */
+  materials: {
+    /**
+     * Create a project announcing the files about to be uploaded (`materials: { files, bytes }`, what
+     * the precheck accepted). The same answer as `project.create`; nothing is drafted until the upload
+     * is sealed. `sessionId` names the caller's unattached delegated session, as for `project.create`.
+     */
+    create: (body: ConnectCreateWithMaterialsBody) => Promise<ConnectProjectStatus>
+    /**
+     * Send files into the project's upload (its session is the project): prechecked against the
+     * session's policy, `concurrency` at a time, one result per input in order — the server's
+     * decision per file (an archive answers the files it unpacked), a precheck refusal, or the
+     * failure that remained after the retries. Refused `SdkUnsupported` where no disk is read.
+     */
+    upload: (projectId: string, inputs: UploadInput[], opts?: MaterialsUploadOptions) => Promise<UploadInputResult[]>
+    /** Take one uploaded file back out before the upload is sealed (`fileId` = the upload's own id of it). */
+    remove: (projectId: string, fileId: string) => Promise<UploadSession>
+    /** Every file is in: the upload is sealed and the drafting starts. */
+    seal: (projectId: string) => Promise<UploadSession>
+    /**
+     * Ask for the drafting again — `force`: an upload still open is sealed first (Continue with what
+     * arrived), a draft that failed runs again (Retry). Answers where the files stand.
+     */
+    draft: (projectId: string, force?: boolean) => Promise<ConnectMaterialsState>
+    /** Every file of the project — accepted, rejected and removed — with its purpose and status. */
+    catalogue: (projectId: string) => Promise<ConnectMaterialCatalogue>
+    /** One material's text: its transcript, else a textual file's own text, cut at `CONNECT_MATERIAL_TEXT_MAX`. */
+    read: (projectId: string, path: string) => Promise<ConnectMaterialText>
   }
 
   /**

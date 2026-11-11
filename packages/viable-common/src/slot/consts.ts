@@ -88,7 +88,18 @@ export enum SlotFileCommand {
   ReadPossibleSource = 'readPossibleSource',
   ReadSources = 'readSources',
   WriteFile = 'writeFile',
+  /**
+   * Write bytes: `{ filePath, base64 }` → `{}`. Strict base64 of at most
+   * {@link SLOT_BINARY_MAX_BASE64_CHARS}, written beside and renamed over, confined to the tree.
+   */
   WriteBinaryFile = 'writeBinaryFile',
+  /**
+   * Read bytes: `{ filePath }` → `{ base64, size }`. Confined to the tree (a symlink resolving out
+   * of it is refused), a regular file only, at most {@link SLOT_BINARY_MAX_BYTES} — the write's own
+   * ceiling, so whatever was placed can be read back. What a multi-modal read of a placed material
+   * and file-streams' `WorkloadReader` stand on.
+   */
+  ReadBinaryFile = 'readBinaryFile',
   WriteSource = 'writeSource',
   DeleteFile = 'deleteFile',
   FindFilesWithEnvVars = 'findFilesWithEnvVars',
@@ -309,6 +320,9 @@ export const FILE_COMMAND_DEADLINES: Partial<Record<SlotFileCommand, number>> = 
   [SlotFileCommand.Relocate]: 300_000,
   [SlotFileCommand.RemoveTree]: 120_000,
   [SlotFileCommand.ReadHead]: 30_000,
+  // One bounded read, so the default figure — STATED, because a materials pass reads one per file
+  // and the number is then a decision rather than an inheritance.
+  [SlotFileCommand.ReadBinaryFile]: 30_000,
 }
 
 /** What every other file command gets. The value the type-level branch used to hard-code. */
@@ -369,7 +383,18 @@ export const FILE_COMMAND_TIMEOUTS: Partial<Record<SlotFileCommand, number>> = {
   [SlotFileCommand.Relocate]: 340_000,
   [SlotFileCommand.RemoveTree]: 160_000,
   [SlotFileCommand.ReadHead]: 70_000,
+  [SlotFileCommand.ReadBinaryFile]: 70_000,
 }
+
+/**
+ * The binary transport ceiling, one value for every executor and every caller: 12 MiB of bytes,
+ * which is 16 MiB of base64 characters. `WriteBinaryFile` refuses a longer payload and
+ * `ReadBinaryFile` a larger file, so anything written can be read back through the same channel.
+ */
+export const SLOT_BINARY_MAX_BYTES = 12 * 1024 * 1024
+
+/** {@link SLOT_BINARY_MAX_BYTES} as base64 characters (4 per 3 bytes). */
+export const SLOT_BINARY_MAX_BASE64_CHARS = 16 * 1024 * 1024
 
 /**
  * The one marker per layout, chosen because it exists in that layout and in no other.

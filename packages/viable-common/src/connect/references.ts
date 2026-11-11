@@ -23,6 +23,12 @@ import type {
   ConnectGithubPublishBody, ConnectGithubRepoList, ConnectGithubRepoQuery,
 } from './git/types.js'
 import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } from './kit/types.js'
+import type {
+  ConnectCreateWithMaterialsBody, ConnectMaterialCatalogue, ConnectMaterialQuery, ConnectMaterialsDraftBody,
+  ConnectMaterialsState, ConnectMaterialText,
+} from './materials/types.js'
+import type { UploadFileQuery, UploadFileResult, UploadSession } from '@owlmeans/upload'
+import type { BinaryBody } from '@owlmeans/entrypoint'
 import type { ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFileChanges } from './feed/types.js'
 import type { ConnectInquiryAnswerBody, ConnectOp, ConnectOpResult, ConnectOpSubmission } from './ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
@@ -96,6 +102,24 @@ export const connectRef: ConnectReferences = {
   },
   project: {
     create: entrypointRef<{ body: ConnectCreateBody }, ConnectProjectStatus>(connect.project.create),
+    createWithMaterials: entrypointRef<{
+      body: ConnectCreateWithMaterialsBody
+    }, ConnectProjectStatus>(connect.project.createWithMaterials),
+    materials: {
+      state: entrypointRef<{ params: { id: string } }, UploadSession>(connect.project.materials.state),
+      file: entrypointRef<{
+        params: { id: string }, query: UploadFileQuery, body: BinaryBody
+      }, UploadFileResult>(connect.project.materials.file),
+      remove: entrypointRef<{ params: { id: string, file: string } }, UploadSession>(connect.project.materials.remove),
+      seal: entrypointRef<{ params: { id: string } }, UploadSession>(connect.project.materials.seal),
+      draft: entrypointRef<{
+        params: { id: string }, body: ConnectMaterialsDraftBody
+      }, ConnectMaterialsState>(connect.project.materials.draft),
+      catalogue: entrypointRef<{ params: { id: string } }, ConnectMaterialCatalogue>(connect.project.materials.catalogue),
+      read: entrypointRef<{
+        params: { id: string }, query: ConnectMaterialQuery
+      }, ConnectMaterialText>(connect.project.materials.read),
+    },
     confirm: entrypointRef<{ params: { id: string }, body: ConnectConfirmBody }, ConnectProjectStatus>(connect.project.confirm),
     list: entrypointRef<{}, ConnectProjectSummary[]>(connect.project.list),
     status: entrypointRef<{ params: { id: string } }, ConnectProjectStatus>(connect.project.status),

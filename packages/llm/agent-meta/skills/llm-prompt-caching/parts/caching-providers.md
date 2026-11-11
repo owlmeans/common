@@ -24,6 +24,12 @@ chosen; then it goes out as text blocks cut after `Role` + `Skills` and after `P
 segment's last block carrying the marker. A system sent as a `JSON.stringify`d block array is text
 the model reads and a prefix nothing shares — never build one.
 
+Images and PDFs reach `patchPrompt` already in the provider's spelling: `prepare` rewrites every
+neutral media part (`LlmPlugin.media`) right after normalizing, so a marker closing a message that
+ends in one lands on the provider's own `image` / `document` / `input_image` / `input_file` block.
+Media counts no characters toward a minimum, and media in the final message stays unmarked like
+the rest of the payload ([[llm]], `media` part).
+
 ## Anthropic — `cache_control`
 
 - Models whose id starts with `claude-`. The marker is `{ type: 'ephemeral' }` for 5 minutes —

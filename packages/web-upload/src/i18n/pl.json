@@ -1,0 +1,48 @@
+{
+  "pickers": {
+    "files": "Dodaj pliki",
+    "folder": "Dodaj folder"
+  },
+  "dropzone": {
+    "title": "Upuść, aby dodać",
+    "hint": "Pliki i całe foldery trafią na listę",
+    "description": "Przeciągnij pliki lub foldery nad ten obszar, wklej pliki albo użyj przycisków Dodaj pliki i Dodaj folder.",
+    "added": "Dodano pliki: {count}"
+  },
+  "list": "Pliki",
+  "status": {
+    "queued": "Gotowy",
+    "uploading": "Wysyłanie… {percent}",
+    "accepted": "Wysłano",
+    "rejected": "Odrzucono",
+    "failed": "Błąd"
+  },
+  "reason": {
+    "limits": "Przekracza limity przesyłania",
+    "type-mismatch": "Zawartość nie odpowiada nazwie ani typowi",
+    "dangerous": "Odrzucono jako potencjalnie niebezpieczny",
+    "refused-kind": "Ten rodzaj pliku nie jest akceptowany",
+    "archive-invalid": "Archiwum nie da się bezpiecznie rozpakować",
+    "path-invalid": "Ta nazwa lub ścieżka folderu jest niedozwolona",
+    "duplicate": "Inny plik ma tę samą ścieżkę"
+  },
+  "limit": {
+    "file-bytes": "Większy niż {max}, limit dla jednego pliku",
+    "files": "Przekracza limit liczby plików: {max}",
+    "total-bytes": "Przekracza limit łącznego rozmiaru: {max}"
+  },
+  "failed": "Nie wysłano — zostanie wysłany ponownie",
+  "from": "Z archiwum {archive}",
+  "remove": "Usuń {path}",
+  "totals": "Pliki: {count} · {size}",
+  "progress": "Wysłano {loaded} z {total}",
+  "hints": "Limity — pliki: {files}, jeden plik: {file}, łącznie: {total}",
+  "violation": {
+    "max-files": "Za dużo plików: {count}, najwyżej {max}",
+    "max-total-bytes": "Za duży łączny rozmiar: {size}, najwyżej {max}",
+    "max-file-bytes": "Pliki większe niż {max}: {count}"
+  },
+  "units": {
+    "byte": "B"
+  }
+}

@@ -119,6 +119,16 @@ export interface WorkspacePresentHelper {
   preview: Presenter
 }
 
+/** A new project's files. */
+export interface MaterialsPresentHelper {
+  /** create_project_with_files — the project status, and what became of each file. */
+  created: Presenter
+  /** list_materials — the catalogue and where the files stand. */
+  catalogue: Presenter
+  /** read_material — the path, where the text came from and its size; the text is the answer's. */
+  text: Presenter
+}
+
 /** The git and GitHub tools. */
 export interface GitPresentHelper {
   /** git_status — the connection and the working tree. */

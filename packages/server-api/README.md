@@ -103,30 +103,45 @@ export class ProjectBusy extends ResilientError {
 }
 ```
 
-### File upload
+### Streamed upload
 
-`uploadedFile(request)` is the only place a handler touches the Fastify multipart API. The protocol
-must declare a `body` section.
+A route declaring `streamBody({ maxBytes, types? })` (`@owlmeans/route`) in its `protocolOptions`
+receives its body as the raw request stream — nothing buffers it. The handler reads it through
+`streamedBody(request)`; guards, gates and intermediates have already run.
 
 ```ts
-import { handlers, NoFileError, uploadedFile } from '@owlmeans/server-api'
+import { contract, protocol, typed, type BinaryBody } from '@owlmeans/entrypoint'
+import { backend, route, RouteMethod, streamBody } from '@owlmeans/route'
 
-export const upload = api.request(invoiceProtocols.attach, async (request, context) => {
-  const file = await uploadedFile(request)
-  if (file == null) {
-    throw new NoFileError()
-  }
+export const materialProtocols = {
+  upload: protocol(
+    route('material:upload', '/materials/:id/file', backend({
+      method: RouteMethod.PUT, protocolOptions: streamBody({ maxBytes: 12 * 1024 * 1024 }),
+    })),
+    contract.request({ params: typed<{ id: string }>(IdSchema), body: typed<BinaryBody>() }, typed<Material>()),
+    { guards: DEFAULT_GUARD },
+  ),
+}
+```
 
-  const content = await file.toBuffer()
+```ts
+import { handlers, streamedBody } from '@owlmeans/server-api'
 
-  return context.attachment().create({
-    entityId: makeEntityScope(request).requireEntityKey(),
-    name: file.filename,
-    mimetype: file.mimetype,
-    size: content.length,
-  })
+export const upload = api.request(materialProtocols.upload, async (request, context) => {
+  const { stream, length, type } = streamedBody(request) // a Node Readable; length = Content-Length
+  return context.materials().receive(request.params.id, stream, { length, type })
 })
 ```
+
+A declared `Content-Length` over `maxBytes` answers 413 before a byte is read; a body crossing the
+limit while it is read destroys the stream with `StreamBodyTooLargeError` and answers 413 whatever
+the handler threw; a content type the route does not declare answers 415; a client that aborts
+errors the stream with `StreamBodyAbortedError`. An answer sent before the body was read to its end
+carries `Connection: close`. Every other route is untouched.
+
+A multipart body is parsed for every other route with its fields and files in `request.body` (file
+contents as `Buffer`s, 5 MiB × 5 files). `uploadedFile(request)` therefore resolves `undefined`: the
+parts are consumed before the handler runs.
 
 ### Holding the port during boot
 
@@ -164,13 +179,15 @@ await context.getApiServer().listen()
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `handlers<Context>()` | function | Factories `body(protocol, fn)`, `params(protocol, fn)`, `request(protocol, fn)` returning `BoundEntrypointHandler<Protocol>` |
-| `uploadedFile(request)` | function | The multipart file of a request, or `undefined` |
+| `streamedBody(request)` | function | The body of a streamed-body route: `StreamedBody` `{ stream, length?, type?, maxBytes }` |
+| `uploadedFile(request)` | function | The multipart file of a request — resolves `undefined`, the parts are already in `request.body` |
 | `extractUploadedFile(req)` | function | Same boundary for an untyped `AbstractRequest`; returns `Promise<UploadedFile \| undefined>` |
 | `holdApiPort(cfg, opts?)` | function | Bind the service port before init; returns `ApiPortHold` with `release()` |
 | `createApiServer(alias)` | function | Create the Fastify API server service |
 | `appendApiServer(ctx, alias = DEFAULT_ALIAS)` | function | Register the API server and `context.getApiServer()` |
 | `handleBody`, `handleParams`, `handleRequest`, `handleIntermediate` | function | Unbound compatibility wrappers returning `RefedEntrypointHandler` |
 | `AuthFailedError`, `AccessError`, `NoFileError` | class | Registered `ResilientError` subclasses (401, 403, 500) |
+| `StreamBodyTooLargeError`, `StreamBodyAbortedError` | class | A streamed body past `maxBytes` (413), or ended by the client (400) |
 | `DEFAULT_ALIAS` | const | `'api-server'` |
 | `PORT` | const | `80`, used when the service route declares no port |
 | `CLOSED_HOST`, `OPENED_HOST` | const | `'127.0.0.1'` and `'0.0.0.0'`; a service with `opened: true` listens on the second |
@@ -179,6 +196,7 @@ await context.getApiServer().listen()
 | `Config`, `Context` | type | `ServerConfig` and `ServerContext & ApiServerAppend` |
 | `Request`, `Response` | type | Fastify request and reply |
 | `UploadedFile` | type | Fastify `MultipartFile` |
+| `StreamedBody` | type | What `streamedBody(request)` answers |
 
 ### `./utils` subpath
 
@@ -204,8 +222,9 @@ code does not need it.
 
 - `.body` and `.params` exist only for a protocol that declares that section; for anything else use
   `.request`.
-- Do not reach into `request.original` from application code — `uploadedFile(request)` is the
-  multipart boundary.
+- Do not reach into `request.original` from application code — `streamedBody(request)` is the
+  upload boundary.
+- A streamed-body route is POST, PUT or PATCH; any other method fails the server's init.
 - Prefer `handlers<Context>()` over the unbound `handle*` wrappers, and never hand-write a
   `RefedEntrypointHandler` for an HTTP route.
 - A handler is wrapped by `handlers<Context>()` **exactly once**: wrap a plain function where it is

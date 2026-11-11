@@ -1,0 +1,65 @@
+{
+  "name": "@owlmeans/client-upload",
+  "version": "0.2.0-alpha.0",
+  "description": "Upload client for browsers and Bun: open, upload (precheck against the session policy, concurrency, retries, abort, per-file and overall progress), state, remove, seal and abort over the upload protocol tree; inputs from picked or dropped files and folders, and from local paths (./node).",
+  "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/client-upload"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 402 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./node": {
+      "import": "./build/node.js",
+      "require": "./build/node.js",
+      "default": "./build/node.js",
+      "module": "./build/node.js",
+      "types": "./build/node.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/api": "^0.2.0-alpha.0",
+    "@owlmeans/context": "^0.2.0-alpha.0",
+    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/upload": "^0.2.0-alpha.0"
+  },
+  "devDependencies": {
+    "@owlmeans/client-context": "^0.2.0-alpha.0",
+    "@owlmeans/client-entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
+    "@owlmeans/file-streams": "^0.2.0-alpha.0",
+    "@owlmeans/server-api": "^0.2.0-alpha.0",
+    "@owlmeans/server-context": "^0.2.0-alpha.0",
+    "@owlmeans/server-upload": "^0.2.0-alpha.0",
+    "@owlmeans/static-resource": "^0.2.0-alpha.0",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.5",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

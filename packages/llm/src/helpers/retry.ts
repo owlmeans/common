@@ -1,17 +1,21 @@
 import { logger } from '@owlmeans/log'
-import { LlmMissconfiguredError, LlmRetryExceededError } from '../errors.js'
+import { LlmMediaError, LlmMissconfiguredError, LlmRetryExceededError } from '../errors.js'
 import { llmPluginRegistry } from '../plugins/registry.js'
 import type { FatalErrorResolver, RetryHelper, RetryOptions } from './retry/types.js'
 
 const log = logger('llm')
 
 /**
- * A misconfiguration is the same on every attempt: no retry, rung or climb can change it.
+ * A misconfiguration — or a media part no rung may receive — is the same on every attempt: no
+ * retry, rung or climb can change it.
  *
  * Module-level on purpose: the registry is process-wide — a rule registered through any
  * instance must stop every retry loop of the process.
  */
-const resolvers: FatalErrorResolver[] = [e => e instanceof LlmMissconfiguredError ? e : null]
+const resolvers: FatalErrorResolver[] = [
+  e => e instanceof LlmMissconfiguredError ? e : null,
+  e => e instanceof LlmMediaError ? e : null,
+]
 
 export const createRetryHelper = (): RetryHelper => {
   const registerFatalError = (resolver: FatalErrorResolver): void => {

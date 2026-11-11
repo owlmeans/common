@@ -3,9 +3,11 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { logThrottle, logger } from '@owlmeans/log'
 import { LLM_SERVICE } from './consts.js'
 import { LlmMissconfiguredError } from './errors.js'
+import { capabilityHelper } from './helpers/capabilities.js'
 import { resolveFallbacks } from './helpers/fallback.js'
 import { llmPluginRegistry } from './plugins/registry.js'
 import type { LlmService, LlmServiceOptions, ModelConfig, WithLlmService, LlmServiceApi } from './types.js'
+import { makeWebSearch } from './search.js'
 
 const log = logger('llm')
 
@@ -85,21 +87,17 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
   }
 
   /**
-   * Resolve `alias` → config (inheriting a `preset`, applying `override`) and build it.
-   * Every rung of a declared `fallback` chain is built as well (see `resolveFallbacks`) and
-   * hung off the rung above it as a non-enumerable `__fallbackModel`, which the model's retry
-   * escalator walks.
-   *
-   * Four layers, lowest first — the alias's own preset, the alias, the override's preset,
-   * the override. A `preset` is a BASE that its referent refines, so it has to sit under
-   * the config naming it; the previous order assigned it last, which meant a role
-   * declaring `preset:` silently discarded both its own fields and the caller's override —
-   * effort-tier token caps and `temperatureFactory`'s temperature among them. An override
-   * naming a preset (how the execution layer delivers a `modelOverrides` string pin) still
-   * outranks the alias, because picking a different model is a stronger statement than the
-   * role's default; explicit override fields stay on top of everything.
+   * Resolve `alias` → its fully merged config (inheriting a `preset`, applying `override`). Four
+   * layers, lowest first — the alias's own preset, the alias, the override's preset, the
+   * override. A `preset` is a BASE that its referent refines, so it has to sit under the config
+   * naming it; the previous order assigned it last, which meant a role declaring `preset:`
+   * silently discarded both its own fields and the caller's override — effort-tier token caps
+   * and `temperatureFactory`'s temperature among them. An override naming a preset (how the
+   * execution layer delivers a `modelOverrides` string pin) still outranks the alias, because
+   * picking a different model is a stronger statement than the role's default; explicit
+   * override fields stay on top of everything.
    */
-  const createModel = (alias: string, override: Partial<ModelConfig> = {}): BaseChatModel => {
+  const resolveConfig = (alias: string, override: Partial<ModelConfig> = {}): ModelConfig => {
     const models = options.models()
     const baseConfig = models.find(m => m.alias === alias)
     if (baseConfig == null) {
@@ -115,6 +113,17 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
     // The service-wide idle deadline is a floor, not an override: a preset that states its
     // own `streamTimeout` knows something specific about that model and keeps it.
     config.streamTimeout ??= options.streamTimeout
+
+    return config
+  }
+
+  /**
+   * Resolve `alias` and build it. Every rung of a declared `fallback` chain is built as well
+   * (see `resolveFallbacks`) and hung off the rung above it as a non-enumerable
+   * `__fallbackModel`, which the model's retry escalator walks.
+   */
+  const createModel = (alias: string, override: Partial<ModelConfig> = {}): BaseChatModel => {
+    const config = resolveConfig(alias, override)
 
     const rungs = resolveFallbacks(config).map(rung => buildModel(alias, fit(alias, rung)))
     for (let i = 0; i < rungs.length - 1; i++) {
@@ -153,6 +162,21 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
       }
 
       return model
+    },
+
+    capabilities: (alias, override = {}) => capabilityHelper.fromConfigs(resolveFallbacks(resolveConfig(alias, override))),
+
+    webSearch: (alias, override = {}) => {
+      // The primary rung only — a search is one direct request, never an escalation ladder.
+      const config = fit(alias, resolveFallbacks(resolveConfig(alias, override))[0]!)
+      if (config.provider == null || config.secret == null) {
+        throw new LlmMissconfiguredError(alias)
+      }
+      const { secret, ...rest } = config
+
+      return makeWebSearch({
+        alias, config: rest as ModelConfig, secret, plugin: llmPluginRegistry.resolvePlugin(rest),
+      })
     },
   }
 }

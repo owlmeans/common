@@ -29,14 +29,17 @@ leaving room for the prompt. **A `fallback` that changes `model` must restate
 `contextWindow`/`maxOutput`** (and reset `combinedWindow`): on the same provider the fallback config
 is `{...rungAbove, ...fallback}`, so every field the patch does not name is inherited from a
 different model. `createModel` clamps `maxTokens` per rung, against that rung's own `maxOutput`.
+The capability flags `vision` and `documents` follow the same rule: inherited on the same provider,
+never across providers, restated by a fallback that changes `model` (the `media` part).
 
 ## Fallback chains and provider effort
 
 **A `fallback` may carry its own `fallback`; the chain is the escalation ladder.** `resolveFallbacks`
 (`helpers/fallback.ts`, exported) is the ONE merge: the service builds from it and hangs each rung
-off the one above as `__fallbackModel`; a consumer walking a preset (tests, a price list) calls it
-rather than re-spreading. Each rung gets `FALLBACK_AFTER_ATTEMPTS` attempts, the last keeps the rest
-(`utils/rungs.ts` — 8 retries over three rungs = 3 / 3 / 2).
+off the one above as `__fallbackModel` (private; the built chain is `capabilityHelper.ladder`); a
+consumer walking a preset (tests, a price list) calls it rather than re-spreading. Each rung gets
+`FALLBACK_AFTER_ATTEMPTS` attempts, the last keeps the rest (`utils/rungs.ts` — 8 retries over three
+rungs = 3 / 3 / 2).
 
 **A rung may name another `provider`.** It then inherits only `PROVIDER_NEUTRAL_FIELDS` (`maxTokens`,
 `maxTokensCap`, `streamTimeout`, `cacheKey`), so it must bring its own `secret`, `model`, capability,

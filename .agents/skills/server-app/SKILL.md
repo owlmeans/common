@@ -41,4 +41,6 @@ boundary.
   that array during context initialization.
 
 `holdApiPort`, `config`, `sservice`, `service`, `AppType` and the context bootstrap exports remain
-available from this package for process wiring.
+available from this package for process wiring. A streamed upload route's handler reads its body with
+`streamedBody(request)` (`StreamedBody`, refusals `StreamBodyTooLargeError` 413 and
+`StreamBodyAbortedError` 400), re-exported from `@owlmeans/server-api` (`/server-api`).

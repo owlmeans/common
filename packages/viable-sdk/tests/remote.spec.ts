@@ -360,7 +360,7 @@ describe('viable-sdk — the remote API addresses only routes the platform serve
 
     expect(Object.keys(api).sort()).toEqual([
       'account', 'client', 'closeSession', 'config', 'convert', 'copyOrganizationBranding', 'files', 'git', 'github', 'iam', 'inquiry',
-      'openSession',
+      'materials', 'openSession',
       'pipeline', 'planning', 'production', 'project', 'projectBranding', 'pullOps', 'sandbox', 'saveProjectBranding',
       'setPlatformCredit', 'slot', 'story', 'submitOp',
     ])
@@ -376,6 +376,9 @@ describe('viable-sdk — the remote API addresses only routes the platform serve
     expect(Object.keys(api.project)).toEqual(expect.arrayContaining(['llm', 'setLlm', 'activity', 'stop', 'steer', 'batch']))
     expect(Object.keys(api.project.batch).sort()).toEqual(['cancel', 'get', 'start'])
     expect(Object.keys(api.files).sort()).toEqual(['changes', 'get', 'list', 'meta', 'remove', 'save'])
+    // A new project's files: the create, the upload (its state read and each file), a file taken back,
+    // the seal, the drafting asked again and the two reads — no open, no abort.
+    expect(Object.keys(api.materials).sort()).toEqual(['catalogue', 'create', 'draft', 'read', 'remove', 'seal', 'upload'])
     expect(Object.keys(api.sandbox).sort()).toEqual(['rebuild', 'restart', 'run', 'stop'])
     expect(Object.keys(api.slot)).toEqual(['list'])
     expect(Object.keys(api.convert).sort()).toEqual(['check', 'create', 'proceed', 'purge', 'start', 'status'])

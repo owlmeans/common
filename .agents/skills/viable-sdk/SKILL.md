@@ -39,8 +39,9 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 | `storyHelper` — `.resolveStory(deps, projectId, ref)` · `.storyQuery(projectId, filter?)` · `.renderStories(items, page, total)` · `.isLandingStory(card)`; `STORY_ORDER` · `LANDING_MARK` · `LANDING_NOTE` | The story tools' reading of planning cards |
 | `PROJECT_SETTINGS` · `settingsHelper` — `.projectSettingOf(key)` · `.settingsPatch(args)` · `.renderProjectSettings(projectId, settings)` · `.settingsReach(target)` | The project-settings tools: each setting's label and rule, the patch a call asks for, the rendering |
 | `PLATFORM_CATALOGUE` (`pipelines`, `features`, `capabilities`) · `renderPlatform(catalogue, host)` · `GENERATED_SUMMARY` | What `describe_platform` renders, and the one-sentence product summary `describe_capabilities` ends with |
-| `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` (`client?`, `profile?` beside `extensions?`) · `ToolDeps` (`detach?`, `release?`, `inflight?` beside `attach`) · `ToolAnnotations` · `toolHostHelper` (`anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks`) | The host description and the availability predicates |
-| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `makeLocalGitHelper(dir).dispatchGitCommand`, `integrityHelper` (`verifyTarget`/`forgetIntegrity`), `makeLayoutHelper(dir)` (`targetPaths`/`apiPath`/`webPath`/`workerPath`), `makeTargetEnvHelper(dir)` (`backendEnv`/`frontendEnv`), `healthHelper` (`classifyTargetHealth`/`readTargetHealth`), `runBootCheck`, `confineToProject`, `spawnHelper` | The publisher's workload, on somebody's laptop |
+| `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` (`client?`, `profile?` beside `extensions?`) · `ToolDeps` (`detach?`, `release?`, `inflight?` beside `attach`) · `ToolAnnotations` · `toolHostHelper` (`anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks`/`readsDisk`/`uploadsMaterials`) | The host description and the availability predicates |
+| `materialsToolHelper` (`inputsOf`/`precheck`/`send`/`renderOutcomes`/`renderCatalogue`/`renderText`/`reasonPhrase`) · `MaterialOutcome` · `MaterialsUploadOptions` | A new project's files: the disk read, the precheck against `MATERIALS_UPLOAD_POLICY`, the send-and-seal, the words |
+| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper` (the publisher's file commands, `writeBinaryFile`/`readBinaryFile` included), `createLocalShellHelper`, `makeLocalGitHelper(dir).dispatchGitCommand`, `integrityHelper` (`verifyTarget`/`forgetIntegrity`), `makeLayoutHelper(dir)` (`targetPaths`/`apiPath`/`webPath`/`workerPath`), `makeTargetEnvHelper(dir)` (`backendEnv`/`frontendEnv`), `healthHelper` (`classifyTargetHealth`/`readTargetHealth`), `runBootCheck`, `confineToProject`, `spawnHelper` | The publisher's workload, on somebody's laptop |
 | `./run`: `makeLocalRunHelper(dir)` (`runLocal`, `stopLocal`, `localStatus`), `createLocalServer`, `makeRunStateHelper(dir)` (`startApi`/`startWorker`/`restartApi`, `readRun`/`writeRun`/`clearRun`), `runProcessHelper.stopProcess` | Building and running the generated app locally |
 | `makeMarkerHelper(dir)` (`readMarker`/`writeMarker`/`discoverProject`/`isViableTree`) · `makeProjectEnvHelper(dir)` (`readEnv`/`writeEnv`/`envStatus`) · `dotenvHelper.replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
 | `SdkError`, `SdkAuthError`, `SdkMisconfigured`, `SdkUnsupported` | Registered `ResilientError` classes |
@@ -130,7 +131,10 @@ inference preference (`account.llm.get()`, `.set(mode)`) and a project's overrid
 (`project.llm(id)`, `project.setLlm(id, mode | null)` — `null` crosses as `null`), the person's
 tokens (`account.tokens.list()`, `.revoke(id)` — never a create), consents
 (`account.privacy.status()`, `.withdraw(keys)` — never a grant) and the intent pickup
-(`account.intent.pickup(ref)`), story status, files
+(`account.intent.pickup(ref)`), story status, a new project's files (`materials.create(body)`,
+`.upload(projectId, inputs, opts?)` — `@owlmeans/client-upload` over the tree, its `state` read for the
+precheck —, `.remove(projectId, fileId)`, `.seal`, `.draft(projectId, force?)`, `.catalogue`, `.read(projectId,
+path)`; the tree has no `open` and no `abort`), files
 (`list`, `get(projectId, path)`, `save(projectId, path, content)`, `remove(projectId, path)`,
 `meta(projectId, { kind, category? })` — the category sent only when named), the preview's
 `sandbox` (`run`, `restart`, `stop`, `rebuild` → `ConnectSlotView`), the organization's `slot.list`,
@@ -381,6 +385,12 @@ or a host builds on the same four): `READ_ONLY` (reads, statuses, descriptions),
 `link_github_origin` are `IDEMPOTENT_WRITE`); `openWorldHint` is `false` everywhere except
 `convert_project`, which may clone a repository from the internet. A new tool picks one; a read is
 never destructive (`catalogue.spec.ts` pins the destructive set).
+
+## A new project's files: sent from this machine, read on every host
+
+`create_project_with_files` (only where `toolHostHelper.uploadsMaterials`: a stdio host, never target
+`local` AND llm `local`), `list_materials` and `read_material` (every host) — the precheck, the send and
+seal, the 45-second answer and the words: part [materials](parts/materials.md).
 
 ## A cloud target's files and preview are the web editor's and sandbox card's own calls
 
@@ -954,6 +964,13 @@ Rules for the local executor:
   walked and pruned rather than removed — and a keep that was not there (the web `.env` every
   project without local branding lacks) must not leave the walked directory behind as a skeleton the
   install then lands in.
+- **The binary pair is the publisher's, shape for shape.** `WriteBinaryFile { filePath, base64 }` →
+  `{}` takes strict padded base64 of at most `SLOT_BINARY_MAX_BASE64_CHARS`, writes beside and
+  renames over; `ReadBinaryFile { filePath }` → bare `{ base64, size }` reads a REGULAR file of at
+  most `SLOT_BINARY_MAX_BYTES` (the write's own ceiling, from `@owlmeans/viable-common`). A symlink
+  that resolves out of the project is a `SandboxPathError` — the name is confined, then what it
+  resolves to; a directory, an oversized file or a bad payload is a `FileCommandRefused`; a missing
+  file is the filesystem's ENOENT. `executor-binary.spec.ts` drives both through the dispatcher.
 - **An absolute path from elsewhere on the machine is re-rooted inside the project**, not refused —
   the publisher's own behaviour, kept deliberately and pinned by a test. Concatenating it onto the
   root instead builds a shadow tree: the write reports success, a later read of the same name
@@ -1067,7 +1084,12 @@ the planning aliases and paths a context binds, and `remote.spec.ts` drives the 
 settings and the kit routes through a captured transport to pin their paths and deadlines, and pins that the remote
 `ConnectorApi` has no member without a connector route (the `files`, `sandbox` and `slot` members by
 name) and every connector alias is bound, and that a
-delegated create keeps the tool deadline and sends its `sessionId`. `call-collect.spec.ts` drives the
+delegated create keeps the tool deadline and sends its `sessionId`. `materials-tools.spec.ts` pins the
+upload's availability per host kind and mode (and that instructions and `describe_platform` name it only
+there), and drives `create_project_with_files` over the REAL remote `ConnectorApi` through a captured
+transport playing the platform: refusals reported before anything is sent, the announcement, each file's
+bytes streamed, the seal, a refused seal drafting with what arrived, the delegated attach before the first
+file; plus `list_materials` / `read_material` and the members' routes. `call-collect.spec.ts` drives the
 transport through the same captured client (`captureTransport` replaces the context's API CLIENT, so
 the SDK's transport stays in front): the header only in the delegated mode and only on writes, a
 reused id, pending → collect → settled for a connector call and a planning execute, a settled error
@@ -1103,6 +1125,7 @@ that every presenter's output validates against its schema.
 ## Depends On
 
 - `@owlmeans/viable-common` — the whole wire contract · `@owlmeans/auth-token` — the carrier guard
+- `@owlmeans/client-upload` (`./node` for `fromPaths`), `@owlmeans/upload` — a new project's files
 - `@owlmeans/planning` — the protocol tree, the facade contract and its refusals ·
   `@owlmeans/client-planning` — the remote facade and the long-poll commit wait
 - `@owlmeans/api`, `@owlmeans/client-context`, `@owlmeans/client-entrypoint`, `@owlmeans/client-config`,
@@ -1140,3 +1163,9 @@ for installed custom registries. Read it before proposing a project category.
 - [[client-planning]] · [[planning]] — the facade the story tools write through
 - `@owlmeans/llm-delegate` (`internal` monorepo, skill `llm-delegate`) — the other end of a model
   task, inside the platform
+
+## Parts
+
+| Part | Load it when |
+|---|---|
+| [materials](parts/materials.md) | creating a project with files from a connector, or reading a project's materials (`create_project_with_files`, `list_materials`, `read_material`, `ConnectorApi.materials`) |

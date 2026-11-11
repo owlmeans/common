@@ -1,4 +1,4 @@
-import type { StatTreeResult, SubProject } from '@owlmeans/viable-common'
+import type { SlotReadBinaryFileResult, StatTreeResult, SubProject } from '@owlmeans/viable-common'
 import type { LocalSourceFile, SourceListOptions } from '../types.js'
 
 /**
@@ -40,6 +40,19 @@ export interface LocalFileHelper {
   readSources: (files: string | string[]) => Promise<LocalSourceFile[]>
   writeFile: (filePath: string, content: string) => Promise<void>
   writeSource: (file: { path: string, code: string }) => Promise<void>
+  /**
+   * Write bytes, exactly as the publisher does: strict padded base64 of at most
+   * `SLOT_BINARY_MAX_BASE64_CHARS`, confined to the project, written beside and renamed over so a
+   * reader never sees half a file. An invalid payload throws `FileCommandRefused`.
+   */
+  writeBinaryFile: (filePath: string, base64: string) => Promise<void>
+  /**
+   * Read bytes back as base64. Confined to the project — a symlink that resolves outside it is a
+   * `SandboxPathError` — and refused (`FileCommandRefused`) for anything but a regular
+   * file or a file over `SLOT_BINARY_MAX_BYTES`, the write's own ceiling. A missing file throws
+   * the filesystem's ENOENT, like `readFile`.
+   */
+  readBinaryFile: (filePath: string) => Promise<SlotReadBinaryFileResult>
   deleteFile: (filePath: string, noThrow?: boolean) => Promise<void>
   /**
    * The tree, one line per file, bounded.

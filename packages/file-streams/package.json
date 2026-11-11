@@ -1,0 +1,63 @@
+{
+  "name": "@owlmeans/file-streams",
+  "version": "0.2.0-alpha.0",
+  "description": "Server-side file streaming: URL downloads with connect-time SSRF pinning, HTTP/SOCKS proxy plugins and a Google Drive resolver; S3, filesystem, buffer and Viable-workload destinations; zip/tar/gzip with traversal and bomb guards; file-type verification without full downloads.",
+  "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/file-streams"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 396 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1158.0",
+    "@owlmeans/context": "^0.2.0-alpha.0",
+    "@owlmeans/error": "^0.2.0-alpha.0",
+    "@owlmeans/file-inspector": "^0.2.0-alpha.0",
+    "@owlmeans/log": "^0.2.0-alpha.0",
+    "@owlmeans/storage-common": "^0.2.0-alpha.0",
+    "@owlmeans/storage-resource": "^0.2.0-alpha.0",
+    "socks": "^2.8.10",
+    "tar-stream": "^3.2.2",
+    "yauzl": "^3.4.0",
+    "yazl": "^3.3.1"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
+    "@owlmeans/server-context": "^0.2.0-alpha.0",
+    "@owlmeans/test": "^0.2.0-alpha.0",
+    "@owlmeans/test-integration": "^0.2.0-alpha.0",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.5",
+    "@types/yauzl": "^3.4.0",
+    "@types/yazl": "^3.3.1",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

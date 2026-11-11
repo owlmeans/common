@@ -101,7 +101,8 @@
     "@owlmeans/llm-common": "^0.2.0-alpha.0",
     "@owlmeans/planning": "^0.2.0-alpha.0",
     "@owlmeans/resource": "^0.2.0-alpha.0",
-    "@owlmeans/route": "^0.2.0-alpha.0"
+    "@owlmeans/route": "^0.2.0-alpha.0",
+    "@owlmeans/upload": "^0.2.0-alpha.0"
   },
   "publishConfig": {
     "access": "public"

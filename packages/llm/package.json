@@ -50,6 +50,13 @@
       "default": "./build/prompt/index.js",
       "module": "./build/prompt/index.js",
       "types": "./build/prompt/index.d.ts"
+    },
+    "./tokens": {
+      "import": "./build/tokens/index.js",
+      "require": "./build/tokens/index.js",
+      "default": "./build/tokens/index.js",
+      "module": "./build/tokens/index.js",
+      "types": "./build/tokens/index.d.ts"
     }
   },
   "devDependencies": {
@@ -70,7 +77,9 @@
     "@owlmeans/error": "^0.2.0-alpha.0",
     "@owlmeans/llm-common": "^0.2.0-alpha.0",
     "@owlmeans/log": "^0.2.0-alpha.0",
-    "ajv": "^8.20.0"
+    "ajv": "^8.20.0",
+    "@noble/hashes": "^2.4.0",
+    "gpt-tokenizer": "^4.1.0"
   },
   "publishConfig": {
     "access": "public"

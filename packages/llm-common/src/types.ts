@@ -42,6 +42,10 @@ export interface ModelConfigPatch {
   maxOutput?: number
   /** The window is shared between input and output rather than input-only. */
   combinedWindow?: boolean
+  /** The model accepts image input. Unset means it does not — a call carrying images skips it. */
+  vision?: boolean
+  /** The model accepts PDF documents. Unset means it does not — a call carrying one skips it. */
+  documents?: boolean
 }
 
 /** A JSON-safe model override: a config alias, or a partial config patch. */

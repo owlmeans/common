@@ -1,6 +1,6 @@
 ---
 name: testing-integration
-description: Category-C integration tests for OwlMeans Common packages that talk to external services (PostgreSQL, MongoDB, Redis, S3, Kubernetes, SMTP). Env-gated, no mocks, per-suite namespaces, conditional context provisioning. Auto-invoked when writing tests in postgres*, mongo*, redis*, kluster, llm, storage-resource, mailer-smtp, server-api, server-app.
+description: Category-C integration tests for OwlMeans Common packages that talk to external services (PostgreSQL, MongoDB, Redis, S3 incl. RustFS, Kubernetes, SMTP). Env-gated, no mocks, per-suite namespaces, conditional context provisioning. Auto-invoked when writing tests in postgres*, mongo*, redis*, kluster, llm, storage-resource, file-streams, mailer-smtp, server-api, server-app, server-payment, marketing-consent-*.
 ---
 
 # Integration Tests — Category C
@@ -9,8 +9,10 @@ description: Category-C integration tests for OwlMeans Common packages that talk
 
 Category C applies to packages that integrate with external services: `postgres`,
 `postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `redis-queue`,
-`kluster`, `storage-resource`, `mailer-smtp`, `server-api`, `planning-postgres`, `bot-postgres`,
-`server-app`, `llm` (live inference providers). These tests **never** mock the external service.
+`kluster`, `storage-resource`, `file-streams`, `mailer-smtp`, `server-api`, `planning-postgres`, `bot-postgres`,
+`marketing-consent-mongo`, `marketing-consent-postgres`, `server-payment`,
+`server-app`, `llm` (live inference providers), `llm-reader` (live models, the public web, real proxies),
+`llm-reader-playwright` (a browser). These tests **never** mock the external service.
 They run only when the corresponding env vars are set, and they self-skip cleanly when those
 variables are missing.
 
@@ -65,6 +67,26 @@ password still opens the gate and fails in the suite, where it belongs. It answe
 it cannot tell — an SRV (`mongodb+srv://`) or unix-socket address, a string it cannot parse, a probe
 that cannot spawn — which is exactly the behaviour a gate had before it probed. `gateHelper.s3Gate()`,
 `.kubeGate()` and `.smtpGate()` do not probe: they name remote services, not a local forward.
+
+### S3-gated suites
+
+`gateHelper.s3Gate()` opens the S3 round trips of two packages: `storage-resource` (`create.spec.ts`;
+the bucket half of `ensure.spec.ts`) and `file-streams` (`s3.spec.ts`, `backed.spec.ts`). Everything
+else in both packages runs offline against local stand-ins. The endpoint is any S3-compatible store
+— RustFS, MinIO or AWS — and the suites share one shape:
+
+- **Addressing.** Path-style for every endpoint but `*.amazonaws.com`, `S3_REGION` defaulting to
+  `us-east-1`, and `acl: false` (RustFS and most self-hosted stores refuse canned ACLs).
+- **Namespacing.** Each suite writes under its own random base prefix in `S3_TEST_BUCKET` and
+  removes it in `afterAll`; a bucket-ensure spec creates and removes buckets named
+  `<S3_TEST_BUCKET>-<hex>`, so the key's policy must admit that name family.
+- **A store in a cluster is a port-forward.** A cluster RustFS is reached as
+  `kubectl port-forward -n <ns> svc/<s3-service> <local>:9000` with
+  `S3_ENDPOINT=http://127.0.0.1:<local>`. The S3 gate does not probe, so a forward that is down
+  fails the suites with a connection error instead of skipping them: start the forward first, or
+  leave `S3_ENDPOINT` empty.
+- **Credentials** come from the store's own secret, piped straight into `S3_KEY` / `S3_SECRET`
+  like every other credential (below).
 
 An optional variable is only in `env` when it was actually populated, which is why a suite reads a
 defaulted one — `POSTGRES_TEST_DB_PREFIX ?? 'omt'` — straight from `process.env` instead: calling

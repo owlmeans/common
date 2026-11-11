@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/file-streams",
+  "version": "0.2.0-alpha.0",
+  "generatedAt": "2026-11-11T15:44:02.969Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "file-streams",
+      "category": "package-specific",
+      "file": "skills/file-streams/SKILL.md",
+      "canonicalPath": ".agents/skills/file-streams/SKILL.md",
+      "parts": [
+        {
+          "name": "network",
+          "file": "skills/file-streams/parts/network.md",
+          "description": "What the HTTP client may reach — the connect-time network policy, redirects and sensitive headers, the HTTP and SOCKS proxy plugins and their pinning, why the client is node:http over its own socket under Bun, and the Google Drive and Docs resolver.",
+          "purposes": [
+            "config",
+            "ops"
+          ],
+          "mentions": [
+            "createNetworkPolicy",
+            "allowCidrs",
+            "allowPrivate",
+            "createProxyRouter",
+            "createHttpProxyPlugin",
+            "createSocksProxyPlugin",
+            "trustProxyDns",
+            "createGoogleDriveResolver",
+            "googleDriveResolver",
+            "ResolverError",
+            "NetworkPolicyError"
+          ]
+        },
+        {
+          "name": "workspaces",
+          "file": "skills/file-streams/parts/workspaces.md",
+          "description": "Scoped temporary workspaces nested by organization/project/purpose, workspaces mirrored to a bucket (put, restore, evict, drop), bucket prefix listing and removal, reading files back from a Viable workload, and the service's workspace config.",
+          "purposes": [
+            "data",
+            "config",
+            "ops"
+          ],
+          "mentions": [
+            "createWorkspace",
+            "createBackedWorkspace",
+            "makeWorkloadSource",
+            "WorkloadReader",
+            "readBinaryFile",
+            "removePrefix",
+            "fileScopeHelper",
+            "FileScope",
+            "WorkspaceScope",
+            "BackedScope",
+            "BackedWorkspace",
+            "WORKSPACE_SCOPE_MARKER"
+          ]
+        }
+      ]
+    }
+  ]
+}

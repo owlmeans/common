@@ -1,0 +1,48 @@
+{
+  "pickers": {
+    "files": "Add files",
+    "folder": "Add folder"
+  },
+  "dropzone": {
+    "title": "Drop to add",
+    "hint": "Files and whole folders go to the list",
+    "description": "Drag files or folders over this area, paste files, or use the Add files and Add folder buttons.",
+    "added": "Files added: {count}"
+  },
+  "list": "Files",
+  "status": {
+    "queued": "Ready",
+    "uploading": "Uploading… {percent}",
+    "accepted": "Uploaded",
+    "rejected": "Rejected",
+    "failed": "Failed"
+  },
+  "reason": {
+    "limits": "Over the upload limits",
+    "type-mismatch": "Its content does not match its name or type",
+    "dangerous": "Refused as potentially dangerous",
+    "refused-kind": "This kind of file is not accepted",
+    "archive-invalid": "The archive cannot be unpacked safely",
+    "path-invalid": "This name or folder path is not allowed",
+    "duplicate": "Another file has the same path"
+  },
+  "limit": {
+    "file-bytes": "Larger than {max}, the limit for one file",
+    "files": "Past the limit on the number of files: {max}",
+    "total-bytes": "Past the limit on the total size: {max}"
+  },
+  "failed": "Not uploaded — it will be sent again",
+  "from": "From {archive}",
+  "remove": "Remove {path}",
+  "totals": "Files: {count} · {size}",
+  "progress": "Uploaded {loaded} of {total}",
+  "hints": "Limits — files: {files}, one file: {file}, in total: {total}",
+  "violation": {
+    "max-files": "Too many files: {count}, at most {max}",
+    "max-total-bytes": "Too large in total: {size}, at most {max}",
+    "max-file-bytes": "Files larger than {max}: {count}"
+  },
+  "units": {
+    "byte": "B"
+  }
+}

@@ -1,7 +1,7 @@
 ---
 node: entrypoints
 scope: "packages/entrypoint/**, packages/server-entrypoint/**, packages/client-entrypoint/**, packages/route/**, packages/server-route/**, packages/client-route/**, packages/context/**"
-updated: 2026-09
+updated: 2026-11
 ---
 
 # Entrypoints
@@ -85,6 +85,11 @@ registry that holds them is [[context]].
   bare `string`, forcing every caller to pass `someProtocol.alias` instead of `someProtocol` — the
   fix is widening that option's own type to `RouteParent`, not adding `.alias` at more call sites.
   Check a helper's own option types before assuming a `.alias` extraction is required.
+
+- A CLIENT context calling a guarded protocol needs a service under every guard alias the protocol
+  declares: `authMiddleware` asks each one for `authenticated(req)`, and a missing one rejects the
+  call before any request is sent — a spec that expects an HTTP refusal then passes for the wrong
+  reason. Register a token-less `makeMockGuard({ alias })` (`@owlmeans/test-auth`) on the client.
 
 - `package.json` top-level `"module"` field and the `exports` `"module"` condition are bundler
   fields — a find/replace on "module" must never touch them.

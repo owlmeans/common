@@ -1,6 +1,6 @@
 ---
 name: api
-description: How to use @owlmeans/api — the axios-based HTTP client service that carries entrypoint calls between services, its status-to-outcome mapping, typed transport errors that keep the HTTP status and incident id (the ./status subpath), and per-request timeout/abort. Auto-invoked when importing the API client, reading a failed call's status, or when ctx.entrypoint(...).call() under the hood is involved.
+description: How to use @owlmeans/api — the axios-based HTTP client service that carries entrypoint calls between services, its status-to-outcome mapping, typed transport errors that keep the HTTP status and incident id (the ./status subpath), per-request timeout/abort, upload/download progress, and binary bodies for streamed-body routes. Auto-invoked when importing the API client, reading a failed call's status, uploading a file, or when ctx.entrypoint(...).call() under the hood is involved.
 user-invocable: false
 ---
 
@@ -52,6 +52,9 @@ These live on the request the caller passes and are forwarded to the transport:
 - `signal` — an `AbortSignal`, which aborts the request in flight.
 - `headers` — a `content-type` of `application/x-www-form-urlencoded` makes the body serialize
   through `qs` instead of JSON; any other `content-type` the caller sets is kept.
+- `onUploadProgress` / `onDownloadProgress` — a `TransferProgressListener` (`@owlmeans/entrypoint`)
+  called with `{ loaded, total?, progress?, bytes, rate?, estimated? }` as axios reports it (XHR
+  events in a browser; at most ~3 a second, the last one at `loaded === total`, in Bun/Node).
 
 ## Request bodies
 
@@ -64,6 +67,16 @@ The body travels as JSON the server parses back to the value the caller passed:
 | String, number or boolean under a JSON `content-type` (`application/json`, `*+json`), any method | `JSON.stringify`'d |
 | A string that already IS JSON text (`'{"a":1}'`, `'"abc"'`) | Sent as it is — a caller that serialized it itself keeps working |
 | Any scalar under another `content-type` (`text/plain`), or with none on a non-`POST` | Untouched |
+
+A **binary body** — a `Blob`/`File`, an `ArrayBuffer`, a typed array or `Buffer`, a Node
+`Readable` (anything with `pipe`) — goes out as raw bytes, never serialized: under the call's own
+`content-type`, else the first type a streamed-body route declares (`streamBodyOf`, `@owlmeans/route`),
+else `application/octet-stream`. A typed array is narrowed to its own bytes (axios would send its
+whole underlying `ArrayBuffer`); a `Blob` of another type is re-typed so Node's adapter does not put
+the blob's type on the wire; `maxRedirects: 0`, so the redirect follower never keeps a copy of the
+upload. `Content-Length` is set from a `Buffer`, `ArrayBuffer` or `Blob` (in a browser XHR sets it);
+a `Readable` goes chunked unless the call sets one. Works in a browser (XHR) and in Bun/Node. A web
+`ReadableStream` is not a body axios can send.
 
 Under a body schema of `type: 'string'` (the protocol's contract, read from the entrypoint's
 `filter.body`) a string is always a value: `'123'`, `'true'` or `'{…}'` arrive as those strings,
@@ -130,11 +143,22 @@ appendApiClient(context)
 `appendApiClient` only claims `cfg.webService` when it is unset, so an app that has already named a
 transport keeps it.
 
+An upload to a streamed-body route (`materialProtocols.upload`, see `/server-api`), from a browser
+`File` or from Bun bytes or a stream, with progress, a timeout and an abort:
+
+```typescript
+const material = await context.entrypoint(materialProtocols.upload).call({
+  params: { id }, body: file,                       // File | Blob | Uint8Array | Buffer | Readable
+  onUploadProgress: ({ loaded, total }) => setProgress(total != null ? loaded / total : 0),
+  timeout: 120_000, signal: controller.signal,
+})
+```
+
 ## Depends On
 
 - `@owlmeans/context` — service registration
 - `@owlmeans/entrypoint` — the entrypoint being addressed, `@owlmeans/client-route` — `clientRouteHelper.extractParams`
 - `@owlmeans/config` — `makeSecurityHelper`, `@owlmeans/client-config` — the config shape
 - `@owlmeans/auth-common` — the token-refresh header and the auth service it updates
-- `@owlmeans/error`, `@owlmeans/route`
+- `@owlmeans/error`, `@owlmeans/route` — `streamBodyOf` for a streamed-body route's default type
 - `axios`, `qs` (runtime)

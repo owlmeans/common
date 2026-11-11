@@ -72,14 +72,14 @@ const OPEN_WORLD_SET = [
  * the configuration's re-collection, the purge's document rewrite).
  */
 const CREDIT_SET = [
-  'create_project', 'confirm_project', 'reinitialize_project', 'recollect_configuration', 'create_story',
+  'create_project', 'create_project_with_files', 'confirm_project', 'reinitialize_project', 'recollect_configuration', 'create_story',
   'update_story', 'develop_story', 'start_story_batch', 'modify_project', 'rename_project', 'resume_pipeline',
   'answer_question', 'convert_project', 'proceed_conversion', 'purge_origin',
 ]
 
 /** NOT IDEMPOTENT — a write whose second call repeats its effect (another record, another paid run). */
 const REPEATING_SET = [
-  'create_project', 'reinitialize_project', 'recollect_configuration', 'pickup_intent', 'create_story',
+  'create_project', 'create_project_with_files', 'reinitialize_project', 'recollect_configuration', 'pickup_intent', 'create_story',
   'update_story', 'develop_story', 'start_story_batch', 'modify_project', 'steer_agent', 'rename_project',
   'resume_pipeline', 'next_question', 'answer_question', 'convert_project', 'proceed_conversion',
   'restart_preview', 'rebuild_preview', 'git_commit', 'git_revert', 'connect_github', 'publish_to_github',

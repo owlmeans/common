@@ -29,7 +29,8 @@ bun add @owlmeans/client-entrypoint@^0.2.0-alpha.0
   the API client named by `cfg.webService` does — a string, or a map keyed by service name with a
   default key. Callers never branch on it.
 - **Call options** — a request holds only the contract's sections (`params`, `query`, `body`,
-  `headers`) plus `CallOptions`: `auth`, `host`, `base`, `unsecure`, `timeout` and `signal`.
+  `headers`) plus `CallOptions`: `auth`, `host`, `base`, `unsecure`, `timeout`, `signal`,
+  `onUploadProgress` and `onDownloadProgress`.
 
 ## Usage
 
@@ -112,9 +113,25 @@ try {
 ```
 
 A mutation route (`POST`, `PUT`, `PATCH`) always sends a body — `{}` when the contract has none —
-so `call({ params })` is enough. Never add `{ body: {} }` as a workaround.
+so `call({ params })` is enough. Never add `{ body: {} }` as a workaround. A streamed-body route
+(`streamBody()` of `@owlmeans/route`) is the exception: its body is raw bytes, and an absent one
+stays absent.
 
-### 5. Narrowing a payload to a schema
+### 5. Uploading to a streamed-body route
+
+The body is a `Blob`/`File`, bytes or (in Bun/Node) a `Readable`, typed `BinaryBody` by the
+contract; the progress listener gets `{ loaded, total?, progress?, bytes, rate?, estimated? }`.
+`validateOnCall` validates `params`/`query` and skips the body.
+
+```ts
+const material = await ctx.entrypoint(apiProtocols.material.upload).call({
+  params: { id }, body: file,
+  onUploadProgress: ({ loaded, total }) => setProgress(total != null ? loaded / total : 0),
+  signal: controller.signal,
+})
+```
+
+### 6. Narrowing a payload to a schema
 
 `clientRequestHelper.pickPerSchema(object, schema)` keeps only the keys the AJV schema declares and skips `null` values.
 It is useful when a form model carries more fields than the contract accepts.
@@ -168,7 +185,7 @@ await ctx.entrypoint(apiProtocols.project.update).call({ params: { id }, body })
 | `apiCallOf(ref).apiInvoke(options?)` | helper member | The round trip behind `invoke()` |
 | `apiCallOf(ref).apiHandler` | helper member | The handler that picks the transport service or the API client |
 | `apiCallOf(ref).entrypointUrl(request?, options?)` | helper member | The address behind `url()` |
-| `validate(ref)` | function | The filter behind `validate()` |
+| `validate(ref)` | function | The filter behind `validate()`: every section with a schema, never `headers`, `response` or a streamed body |
 | `isEntrypoint(value)` | function | Re-export from `@owlmeans/entrypoint/utils` |
 
 ## Common pitfalls

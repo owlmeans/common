@@ -393,6 +393,20 @@ export const CONNECT_CONFIG_SAVE_MAX = 100
 export const CONNECT_FILE_PATH_MAX = 512
 
 /**
+ * The most characters of one material's text a read answers (`connect.project.materials.read`) —
+ * the connector's `read_file` cap, so a material and a generated file are cut at the same length.
+ */
+export const CONNECT_MATERIAL_TEXT_MAX = 100_000
+
+/** Where a material's text came from (`ConnectMaterialText.source`). */
+export enum ConnectMaterialTextSource {
+  /** The markdown analogue the analysis wrote of a document (`docs/materials/transcripts/…`). */
+  Transcript = 'transcript',
+  /** The file's own bytes, decoded as UTF-8 — a textual file (markdown, code, CSV, SVG, a diagram). */
+  Text = 'text',
+}
+
+/**
  * The bounds of a marketing-consent withdrawal: how many consent keys one call may name, and how
  * long one key may be. Which keys exist is the platform's catalogue, checked by the handler — an
  * unknown key refuses the whole call rather than being silently dropped.
@@ -626,6 +640,29 @@ export const connect = Object.freeze({
   }),
   project: Object.freeze({
     create: 'viable:manager-api:connect:project:create',
+    /**
+     * Create a project that waits for its files: the create body plus the announcement of what the
+     * connector is about to upload (`materials: { files, bytes }`). The same answer as `create`; the
+     * drafting starts once the upload below is sealed. A route of its own — the create body is closed.
+     */
+    createWithMaterials: 'viable:manager-api:connect:project:create-with-materials',
+    /**
+     * A NEW project's files ("materials"): the upload tree whose session IS the project (`state`, the
+     * streamed `file`, `remove`, `seal` — no `open`: the creation opens the session, and no `abort`:
+     * a connector seals with what arrived), the
+     * drafting asked again (`draft { force? }`), and the two reads every host has — the catalogue and
+     * one material's text. The aliases below `base` are `makeUploadProtocols`' own (`<base>:<member>`).
+     */
+    materials: Object.freeze({
+      base: 'viable:manager-api:connect:project:materials',
+      state: 'viable:manager-api:connect:project:materials:state',
+      file: 'viable:manager-api:connect:project:materials:file',
+      remove: 'viable:manager-api:connect:project:materials:remove',
+      seal: 'viable:manager-api:connect:project:materials:seal',
+      draft: 'viable:manager-api:connect:project:materials:draft',
+      catalogue: 'viable:manager-api:connect:project:materials:catalogue',
+      read: 'viable:manager-api:connect:project:materials:read',
+    }),
     confirm: 'viable:manager-api:connect:project:confirm',
     list: 'viable:manager-api:connect:project:list',
     status: 'viable:manager-api:connect:project:status',

@@ -33,6 +33,25 @@ export type SlotDatabaseQueryResult = {
   error: { message: string; code?: string; detail?: string; hint?: string; position?: string }
 }
 
+/** `SlotFileCommand.WriteBinaryFile`'s arguments; it answers `{}`. */
+export interface SlotWriteBinaryFileArgs {
+  filePath: string
+  /** Strict, padded base64 of at most `SLOT_BINARY_MAX_BASE64_CHARS`. */
+  base64: string
+}
+
+/** `SlotFileCommand.ReadBinaryFile`'s arguments. */
+export interface SlotReadBinaryFileArgs {
+  filePath: string
+}
+
+/** What `SlotFileCommand.ReadBinaryFile` answers. */
+export interface SlotReadBinaryFileResult {
+  base64: string
+  /** Raw bytes — at most `SLOT_BINARY_MAX_BYTES`. */
+  size: number
+}
+
 export interface SlotCommandPayload {
   type: SlotCommandType
   command: SlotCommand

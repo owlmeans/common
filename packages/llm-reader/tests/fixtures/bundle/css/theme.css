@@ -1,0 +1,22 @@
+:root {
+  --brand: #2f7d5b;
+  --brand-dark: #1f5a41;
+  --ink: #17201b;
+  --paper: #fbfaf6;
+  --radius: 12px;
+  --font-body: "Source Sans 3", Arial, sans-serif;
+  --font-head: "Merriweather", Georgia, serif;
+}
+html, body { margin: 0; }
+body { font-family: var(--font-body); font-size: 17px; line-height: 1.5; color: var(--ink); background: var(--paper); }
+h1 { font-family: var(--font-head); font-size: 44px; font-weight: 700; line-height: 1.15; margin: 0 0 20px; }
+h2 { font-family: var(--font-head); font-size: 28px; font-weight: 700; }
+a { color: var(--brand); text-decoration: none; }
+.topbar { display: flex; align-items: center; gap: 20px; padding: 16px 40px; background: #ffffff; }
+.btn { display: inline-block; padding: 10px 20px; border-radius: var(--radius); font-weight: 600; }
+.btn-primary { background: var(--brand); color: #ffffff; }
+.hero { padding: 80px 40px; background: #e8f2ec; }
+.card { background: #ffffff; border-radius: var(--radius); padding: 20px; box-shadow: 0 2px 6px rgba(23, 32, 27, 0.12); }
+.price { font-size: 24px; font-weight: 700; }
+.footer { padding: 40px; background: var(--ink); color: #dfe6e1; }
+@media (min-width: 900px) { .hero { padding: 120px 80px; } }

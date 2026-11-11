@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "package": "@owlmeans/viable-sdk",
   "version": "0.2.0-alpha.0",
-  "generatedAt": "2026-11-09T19:44:59.485Z",
+  "generatedAt": "2026-11-11T15:44:02.960Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,30 @@
       "name": "viable-sdk",
       "category": "package-specific",
       "file": "skills/viable-sdk/SKILL.md",
-      "canonicalPath": ".agents/skills/viable-sdk/SKILL.md"
+      "canonicalPath": ".agents/skills/viable-sdk/SKILL.md",
+      "parts": [
+        {
+          "name": "materials",
+          "file": "skills/viable-sdk/parts/materials.md",
+          "description": "A new project's files through the connector — create_project_with_files (stdio hosts only, never fully local), its disk read and precheck against MATERIALS_UPLOAD_POLICY, the create-attach-send-seal flow and the 45-second answer, list_materials and read_material on every host, ConnectorApi.materials and the listing presentations.",
+          "purposes": [
+            "agent",
+            "client-api",
+            "data"
+          ],
+          "mentions": [
+            "create_project_with_files",
+            "list_materials",
+            "read_material",
+            "materialsToolHelper",
+            "MaterialOutcome",
+            "MaterialsUploadOptions",
+            "uploadsMaterials",
+            "readsDisk",
+            "MATERIALS_ANSWER_MS"
+          ]
+        }
+      ]
     }
   ]
 }

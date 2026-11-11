@@ -44,8 +44,10 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       id: 'vib:project:create',
       title: 'Draft a project from a description',
       what: 'Writes the specification, names the application and drafts its vision. Nothing is'
-        + ' built and no code is generated until the draft is confirmed.',
-      startedBy: ['create_project'],
+        + ' built and no code is generated until the draft is confirmed. A project may start from files'
+        + ' as well: each is checked and catalogued, documents are transcribed, and the draft is written'
+        + ' from the description and their text.',
+      startedBy: ['create_project', 'create_project_with_files'],
       resumable: false,
     },
     {
@@ -222,6 +224,17 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         'delete_project',
       ],
       absent: 'no project tools are offered here',
+    },
+    {
+      id: 'materials',
+      title: 'A new project\'s files',
+      what: 'A project may start from files — a specification or brief, a logo, icons, fonts, stylesheets,'
+        + ' sketches, an HTML prototype, media — sent where the connector reads a disk: each is checked'
+        + ' first (at most 50 files, 12 MiB each, 50 MiB in all; programs refused) and a refusal is'
+        + ' reported per file. Every connector reads what a project was given: the catalogue with each'
+        + ' file\'s purpose, status and description, and one file\'s text.',
+      tools: ['create_project_with_files', 'list_materials', 'read_material'],
+      absent: 'a project\'s files are attached and read in the web application from here',
     },
     {
       id: 'settings',

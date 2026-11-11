@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "package": "@owlmeans/server-api",
   "version": "0.2.0-alpha.0",
-  "generatedAt": "2026-11-09T19:44:59.478Z",
+  "generatedAt": "2026-11-11T15:44:02.958Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,7 +10,24 @@
       "name": "server-api",
       "category": "package-specific",
       "file": "skills/server-api/SKILL.md",
-      "canonicalPath": ".agents/skills/server-api/SKILL.md"
+      "canonicalPath": ".agents/skills/server-api/SKILL.md",
+      "parts": [
+        {
+          "name": "streamed-body",
+          "file": "skills/server-api/parts/streamed-body.md",
+          "description": "Streamed (raw octet-stream) request bodies — what a streamBody() route answers past its limit, on a wrong content type or a client abort, how it is scoped in Fastify, and why the multipart helpers resolve undefined.",
+          "purposes": [
+            "server-api"
+          ],
+          "mentions": [
+            "streamedBody",
+            "streamBody",
+            "StreamBodyTooLargeError",
+            "StreamBodyAbortedError",
+            "BinaryBody"
+          ]
+        }
+      ]
     }
   ]
 }

@@ -3,6 +3,8 @@ import { AgentSteerArgsSchema, AgentStopArgsSchema, StoryBatchStartArgsSchema } 
 import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView } from '../batch/types.js'
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { route, RouteMethod } from '@owlmeans/route'
+import { makeUploadProtocols } from '@owlmeans/upload'
+import { MATERIALS_LIMITS } from '../materials/consts.js'
 import { connect, ConnectPaidGate } from './consts.js'
 import {
   ConnectAccessTokenParamsSchema, ConnectIntentPickupBodySchema, ConnectLlmBodySchema, ConnectPrivacyWithdrawBodySchema,
@@ -18,6 +20,7 @@ import {
   ConnectGithubPublishBodySchema, ConnectGithubRepoQuerySchema, ConnectProductionDomainBodySchema,
   ConnectProductionRedirectsBodySchema, ConnectIamGroupParamsSchema, ConnectIamMemberParamsSchema,
   ConnectIamOrganizationParamsSchema, ConnectIamUserParamsSchema, ConnectActivityQuerySchema, ConnectFeedQuerySchema,
+  ConnectCreateWithMaterialsBodySchema, ConnectMaterialQuerySchema, ConnectMaterialsDraftBodySchema,
 } from './schemas.js'
 import type {
   ConnectAccessTokenList, ConnectAccessTokenParams, ConnectAccessTokenRevoked, ConnectBrandingBackfill, ConnectIntentPickup,
@@ -41,6 +44,10 @@ import type {
   ConnectGithubPublishBody, ConnectGithubRepoList, ConnectGithubRepoQuery,
 } from './git/types.js'
 import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } from './kit/types.js'
+import type {
+  ConnectCreateWithMaterialsBody, ConnectMaterialCatalogue, ConnectMaterialQuery, ConnectMaterialsDraftBody,
+  ConnectMaterialsState, ConnectMaterialText,
+} from './materials/types.js'
 import type { ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFileChanges } from './feed/types.js'
 import type { ConnectInquiryAnswerBody, ConnectOpResult } from './ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
@@ -75,7 +82,9 @@ import type {
 /**
  * Declare the connector's HTTP surface — exactly the routes a connector calls: the session (long
  * poll, no socket), the operation relay, projects (their lifecycle and agent lock included, the
- * agent's stop and steering, and story batches — several stories implemented one after another), story
+ * agent's stop and steering, and story batches — several stories implemented one after another), a
+ * NEW project's files (a create that waits for them, their upload whose session is the project, the
+ * drafting asked again, the catalogue and one material's text), story
  * status, generated files (read, written, deleted, metadata listed), the preview workload's controls,
  * the organization's workloads, the project's git repository and GitHub connection, its production
  * workload (published, restarted, stopped, its custom domain and standalone sign-in), its generated
@@ -122,6 +131,17 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
   // A root of its own: a child of `base` would resolve the project gate and the account gate under
   // one gate service, and `getGates()` keeps one gate per service.
   const accountBase = openProtocol(route(connect.account.base, `${prefix}/account`), accountOwnership)
+  // A NEW project's files: `@owlmeans/upload`'s tree under `base` (its guard and ownership gate
+  // inherited) whose session IS the project — `/project/materials/:id`. Its `open` and `abort` are
+  // left out: the create with materials opens the session, and a connector seals with what arrived.
+  const materialsUpload = makeUploadProtocols({
+    alias: connect.project.materials.base,
+    parent: base,
+    path: '/project/materials',
+    sessionParam: 'id',
+    maxFileBytes: MATERIALS_LIMITS.fileBytes,
+  })
+  const materialsBase = materialsUpload.base
 
   return {
     base,
@@ -258,6 +278,41 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       route(connect.project.create, '/project', { parent: base, method: RouteMethod.POST }),
       contract.request({ body: typed<ConnectCreateBody>(ConnectCreateBodySchema) }, typed<ConnectProjectStatus>())
     ),
+    // The create of a project that waits for its files: the same answer, the announcement beside the
+    // prompt. No payment gate on the route, exactly like `create`: the create gate is checked inside.
+    createWithMaterials: protocol(
+      route(connect.project.createWithMaterials, '/project/with-materials', { parent: base, method: RouteMethod.POST }),
+      contract.request({
+        body: typed<ConnectCreateWithMaterialsBody>(ConnectCreateWithMaterialsBodySchema),
+      }, typed<ConnectProjectStatus>())
+    ),
+    // The project's files: the upload (only where a connector reads a disk), the drafting asked again,
+    // and the catalogue and one material's text — read on every host. The ownership gate alone.
+    materials: {
+      base: materialsBase,
+      state: materialsUpload.state,
+      file: materialsUpload.file,
+      remove: materialsUpload.remove,
+      seal: materialsUpload.seal,
+      draft: protocol(
+        route(connect.project.materials.draft, '/:id/draft', { parent: materialsBase, method: RouteMethod.POST }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+          body: typed<ConnectMaterialsDraftBody>(ConnectMaterialsDraftBodySchema),
+        }, typed<ConnectMaterialsState>())
+      ),
+      catalogue: protocol(
+        route(connect.project.materials.catalogue, '/:id/catalogue', { parent: materialsBase, method: RouteMethod.GET }),
+        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectMaterialCatalogue>())
+      ),
+      read: protocol(
+        route(connect.project.materials.read, '/:id/content', { parent: materialsBase, method: RouteMethod.GET }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+          query: typed<ConnectMaterialQuery>(ConnectMaterialQuerySchema),
+        }, typed<ConnectMaterialText>())
+      ),
+    },
     list: protocol(
       route(connect.project.list, '/project', { parent: base, method: RouteMethod.GET }),
       contract(typed()),

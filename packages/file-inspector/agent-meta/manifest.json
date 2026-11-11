@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/file-inspector",
+  "version": "0.2.0-alpha.0",
+  "generatedAt": "2026-11-11T15:44:02.974Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "file-inspector",
+      "category": "package-specific",
+      "file": "skills/file-inspector/SKILL.md",
+      "canonicalPath": ".agents/skills/file-inspector/SKILL.md"
+    }
+  ]
+}

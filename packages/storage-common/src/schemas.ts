@@ -1,6 +1,6 @@
 import type { JSONSchemaType } from 'ajv'
-import type { StoredFileInstance, StoredFileMeta } from './types.js'
-import { StoredFileFormat, StoredFileStatus } from './consts.js'
+import type { FileScope, StoredFileInstance, StoredFileMeta } from './types.js'
+import { FILE_SCOPE_SEGMENT_MAX_LENGTH, FILE_SCOPE_SEGMENT_PATTERN, StoredFileFormat, StoredFileStatus } from './consts.js'
 import { EntityValueSchema, IdValueSchema, ScopeValueSchema } from '@owlmeans/auth'
 
 export const StoredFileMetaSchema: JSONSchemaType<StoredFileMeta> = {
@@ -62,3 +62,21 @@ export const StoredFileWithDataSchema: JSONSchemaType<StoredFileMeta> = {
   required: [...StoredFileMetaSchema.required, 'instances'],
   additionalProperties: false,
 } as JSONSchemaType<StoredFileMeta>
+
+export const FileScopeSegmentSchema: JSONSchemaType<string> = {
+  type: 'string',
+  minLength: 1,
+  maxLength: FILE_SCOPE_SEGMENT_MAX_LENGTH,
+  pattern: FILE_SCOPE_SEGMENT_PATTERN,
+}
+
+export const FileScopeSchema: JSONSchemaType<FileScope> = {
+  type: 'object',
+  properties: {
+    organization: { ...FileScopeSegmentSchema },
+    project: { ...FileScopeSegmentSchema, nullable: true },
+    purpose: { ...FileScopeSegmentSchema },
+  },
+  required: ['organization', 'purpose'],
+  additionalProperties: false,
+}

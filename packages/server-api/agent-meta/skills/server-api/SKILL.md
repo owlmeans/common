@@ -1,6 +1,6 @@
 ---
 name: server-api
-description: Implement HTTP entrypoint protocols with @owlmeans/server-api handlers<Context>().body(), params(), request(), and uploadedFile(). Load before writing an API handler.
+description: Implement HTTP entrypoint protocols with @owlmeans/server-api handlers<Context>().body(), params(), request(), and streamedBody() for a streamed (raw octet-stream) upload route. Load before writing an API handler or an upload endpoint.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -109,8 +109,34 @@ exposure) and a status from `httpErrorHelper.errorStatus(error)` (`./utils`), re
   framework treats a 404 specially — a missing route is a Fastify JSON body the client turns into
   a 404 `ApiStatusError`.
 
-`uploadedFile(request)` is the Fastify multipart boundary. Keep raw Fastify access there rather
-than reaching through `request.original` in application code.
+## Streamed request bodies
+
+One file per request as a raw body: the route declares `streamBody()` (`@owlmeans/route`) in its
+`protocolOptions`, the contract types the body `typed<BinaryBody>()` (no schema), the handler reads
+it with `streamedBody(request)` — never `request.original`:
+
+```ts
+export const materialProtocols = {
+  upload: protocol(
+    route('material:upload', '/materials/:id/file', backend({
+      method: RouteMethod.PUT, protocolOptions: streamBody({ maxBytes: 12 * MiB }), // types?: ['application/pdf']
+    })),
+    contract.request({ params: typed<{ id: string }>(IdSchema), body: typed<BinaryBody>() }, typed<Material>()),
+    { guards: DEFAULT_GUARD },
+  ),
+}
+
+const upload = api.request(materialProtocols.upload, async (request, context) => {
+  const { stream, length, type } = streamedBody(request) // Node Readable; Content-Length when sent
+  return context.materials().receive(request.params.id, stream, { length, type })
+})
+```
+
+Client: `ep.call({ params, body: file, onUploadProgress })` (`/client-entrypoint`, `/api`). Over
+`maxBytes` → 413 (declared length: before reading), undeclared type → 415, client abort → the
+stream errors; other routes are untouched. Details: [streamed-body](parts/streamed-body.md). Files
+and folders a person uploads — sessions, limits, verification, archives — are `/server-upload` over
+the `/upload` tree, which builds on exactly this route.
 
 ## Logging
 
@@ -160,3 +186,9 @@ bodies private.
 
 Do not use unbound compatibility handler wrappers. For a WebSocket route use
 `@owlmeans/server-socket`'s `connection(protocol, callback)`.
+
+## Parts
+
+| Part | Load it when |
+|---|---|
+| [streamed-body](parts/streamed-body.md) | declaring or serving an upload route (`streamBody`, `streamedBody`), or reading its limits and refusals |

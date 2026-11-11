@@ -31,6 +31,9 @@ user-invocable: false
 | `RouteAddress` | `{ host, port, base, secure, protocol }` — where a route answers |
 | `CommonServiceRoute` / `ResolvedServiceRoute` | A service entry, and one that knows its host |
 | `normalizePath(path)`, `SEP`, `PARAM` | Path primitives |
+| `streamBody({ maxBytes, types? })` | HTTP `protocolOptions` declaring a raw streamed request body (`StreamBodyDeclaration`) |
+| `streamBodyOf(route)` | The route's `StreamBody` `{ maxBytes, types }` (default type filled in), or `null` |
+| `STREAM_BODY`, `DEFAULT_STREAM_TYPE` | `'stream'` and `'application/octet-stream'` |
 
 ## Declaration and model
 
@@ -49,6 +52,25 @@ an HTTP request, a socket frame or a package-owned transport — the call site n
 stores an opaque protocol identifier and `protocolOptions`. The package defining a custom protocol
 owns its marker, option type, validation and transport; the generic route package does not describe
 that transport's implementation semantics.
+
+## HTTP protocol options: a streamed body
+
+The built-in HTTP protocol (`RouteProtocols.WEB`, also a route naming no protocol) owns one kind of
+`protocolOptions`: `streamBody({ maxBytes, types? })`, a route whose request body travels as raw
+bytes. `@owlmeans/server-api` hands the handler the request stream unbuffered (413 past
+`maxBytes`, 415 outside `types`), `@owlmeans/api` sends a binary body as is under the first declared
+type, and `@owlmeans/client-entrypoint` skips body validation for it. The builder validates eagerly
+(`maxBytes` a positive integer, `types` a non-empty list, lower-cased; default
+`['application/octet-stream']`) and freezes its result; transports read it with `streamBodyOf(route)`,
+which answers `null` for any other route and throws `SyntaxError` on a malformed hand-written one. It
+survives `protocol()`, `bind`/`bindAll` and the markers as plain declaration data:
+
+```typescript
+route('material:upload', '/materials/:id/file', backend({
+  method: RouteMethod.PUT,
+  protocolOptions: streamBody({ maxBytes: 12 * 1024 * 1024, types: ['application/octet-stream'] }),
+}))
+```
 
 ## Subpath Exports
 

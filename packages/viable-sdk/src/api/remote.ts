@@ -1,7 +1,10 @@
 import { apiStatusHelper } from '@owlmeans/api'
-import { connectRef, type ConnectClientView, type AgentSteerArgs, type AgentStopArgs, type StoryBatchStartArgs, type StoryBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload } from '@owlmeans/viable-common'
+import { DEFAULT_GUARD } from '@owlmeans/auth-common'
+import { makeUploadClient } from '@owlmeans/client-upload'
+import type { UploadProtocols } from '@owlmeans/upload'
+import { connectProtocols, connectRef, type ConnectClientView, type AgentSteerArgs, type AgentStopArgs, type StoryBatchStartArgs, type StoryBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
-import { NOT_FOUND } from './consts.local.js'
+import { MATERIALS_FILE_TIMEOUT_MS, NOT_FOUND } from './consts.local.js'
 import type { ConnectorApi, OpenSessionArgs, ProjectEdits } from '../types.js'
 import type { Ctx } from './types.local.js'
 import type { RemoteConnectorOptions } from './types.js'
@@ -36,6 +39,10 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
     ...(query.detail != null ? { detail: query.detail } : {}),
   })
   const feedTimeout = (query: ConnectFeedQuery = {}): number => Math.max(timeout, ((query.wait ?? 0) + 10) * 1000)
+  // The project's upload, over the tree the context bound. The connector's tree has no `open` — the
+  // create with materials opens the session — so the client's own `open` is never called.
+  const materialsTree = connectProtocols({ guard: DEFAULT_GUARD }).project.materials
+  const uploads = makeUploadClient(context, { ...materialsTree, open: materialsTree.state } as unknown as UploadProtocols)
 
   return {
     openSession: async (args: OpenSessionArgs): Promise<ConnectSessionView> => {
@@ -190,6 +197,38 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
     story: {
       status: async (id: string, storyId: string): Promise<ConnectStoryStatus> => await context
         .entrypoint(connectRef.story.status).call({ params: { id, storyId }, timeout }),
+    },
+
+    materials: {
+      // Only what was named crosses the wire: the body is a closed shape.
+      create: async body => await context.entrypoint(connectRef.project.createWithMaterials).call({
+        body: {
+          prompt: body.prompt,
+          materials: { files: body.materials.files, bytes: body.materials.bytes },
+          ...(body.target != null ? { target: body.target } : {}),
+          ...(body.sessionId != null ? { sessionId: body.sessionId } : {}),
+        },
+        timeout,
+      }),
+      // Prechecked against the session's own policy (one `state` read), then each file streamed.
+      upload: async (id, inputs, options = {}) => await uploads.upload(id, inputs, {
+        ...(options.concurrency != null ? { concurrency: options.concurrency } : {}),
+        ...(options.retries != null ? { retries: options.retries } : {}),
+        ...(options.onProgress != null ? { onProgress: options.onProgress } : {}),
+        ...(options.signal != null ? { signal: options.signal } : {}),
+        call: { timeout: MATERIALS_FILE_TIMEOUT_MS },
+      }),
+      remove: async (id, file) => await context.entrypoint(connectRef.project.materials.remove).call({
+        params: { id, file }, timeout,
+      }),
+      seal: async id => await context.entrypoint(connectRef.project.materials.seal).call({ params: { id }, timeout }),
+      draft: async (id, force) => await context.entrypoint(connectRef.project.materials.draft).call({
+        params: { id }, body: force === true ? { force: true } : {}, timeout,
+      }),
+      catalogue: async id => await context.entrypoint(connectRef.project.materials.catalogue).call({ params: { id }, timeout }),
+      read: async (id, path) => await context.entrypoint(connectRef.project.materials.read).call({
+        params: { id }, query: { path }, timeout,
+      }),
     },
 
     planning: planningContextOf(context).facade({}),

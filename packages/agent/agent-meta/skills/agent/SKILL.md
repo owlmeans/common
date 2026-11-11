@@ -1,6 +1,6 @@
 ---
 name: agent
-description: How to use @owlmeans/agent — context-aware LLM agents over the LangGraph functional API, and resumable PIPELINES over a checkpointed StateGraph, with the AgentPlugin and PipelinePlugin seams, CUMULATIVE PIPELINE RESULTS (cumulativeResultsPlugin), conversation-summarization and memory plugins, and storage-independent ports. Auto-invoked when importing makeAgentModel, makePipeline, makeCheckpointSaver, appendAgentsService, an agent or pipeline plugin, cumulativeResultsPlugin, toolHelper, or an agent store.
+description: How to use @owlmeans/agent — context-aware LLM agents over the LangGraph functional API, and resumable PIPELINES over a checkpointed StateGraph, with the AgentPlugin and PipelinePlugin seams, CUMULATIVE PIPELINE RESULTS (cumulativeResultsPlugin), conversation-summarization and memory plugins, image and PDF parts in a run, and storage-independent ports. Auto-invoked when importing makeAgentModel, makePipeline, makeCheckpointSaver, appendAgentsService, an agent or pipeline plugin, cumulativeResultsPlugin, toolHelper, or an agent store.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -64,20 +64,23 @@ prefix that every run of a persona shares. The project message is stable for one
 for its rounds; volatile material anywhere above it would cost every run sharing the persona a
 cache write.
 
-**The loop's prompt is composed once and marked per round.** The run sends
+**The loop's prompt is composed once, rendered and marked per round.** The run sends
 `[system, project message, opening, …rounds]`: the system as real text in a `SystemMessage` (never a
 `JSON.stringify`d block array), and the composed Tail on a COPY of the opening, so the transcript
-keeps the caller's message. Each round hands the wire to the provider plugin's
-`loopCache(wire, agentModel, hints)` — it strips and re-marks copies, the opening at its boundaries
-and the growing conversation read back round after round — and streams with the call options it
-returns. The plugin is `AgentOptions.provider ?? llmPluginRegistry.resolveFor(agentModel)`, resolved
-on the unbound model. `cacheSystem: false` on the persona sends no markers. Detail:
-[[llm-prompt-caching]].
+keeps the caller's message. Each round spells the wire's media parts for the answering model
+(`mediaHelper.render`), then hands it to the provider plugin's `loopCache(wire, model, hints)` — it
+strips and re-marks copies, the opening at its boundaries and the growing conversation read back
+round after round — and streams with the call options it returns. The plugin is
+`AgentOptions.provider ?? llmPluginRegistry.resolveFor(model)` for the primary, resolved on the
+unbound model; `cacheSystem: false` on the persona sends no markers. Detail: [[llm-prompt-caching]].
+
+**Images and PDFs ride the opening; the first rung that accepts them answers** — or `invoke` refuses
+the run before it starts. A tool result is always text. Detail: the `media` part.
 
 **`spectate` gets the turn and the answering model.** `AgentSpectateHook(input, message, action,
 retries, startedAt?, model?)` is called once per round with the turn number as `retries` and the
-agent model's id as `model`, after `cacheHelper.withCacheTiers` has carried a 1-hour cache write
-into the usage.
+answering rung's id as `model`, after `cacheHelper.withCacheTiers` has carried a 1-hour cache write
+into the usage. `input` carries neutral media parts; `@owlmeans/llm`'s `spectate` stores placeholders.
 
 **A run that exceeds `maxTurns` throws `AgentLoopExhaustedError`.** The ceiling counts tool rounds
 (`DEFAULT_MAX_TURNS` is 64, `AgentOptions.maxTurns` overrides it), and it is reached only when the
@@ -191,4 +194,5 @@ would break every restore.
 |---|---|
 | [pipelines](parts/pipelines.md) | declaring or running a pipeline, writing a pipeline plugin, or resuming a run |
 | [cumulative-results](parts/cumulative-results.md) | telling a pipeline's later steps what earlier steps produced, or writing an extractor |
+| [media](parts/media.md) | sending images or PDFs into an agent run, choosing a model that sees them, or a tool that needs to see something |
 | [testing](parts/testing.md) | writing tests that drive an agent loop or a pipeline |

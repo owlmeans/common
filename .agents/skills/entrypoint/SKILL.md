@@ -62,6 +62,14 @@ imports protocol objects, while raw aliases are limited to dynamic registry or t
 Use `typed<Model>(schema)` rather than a bare `JSONSchemaType<Model>` when the model must remain
 exact. A bare AJV generic can widen a protocol section to `OpenValue`.
 
+An upload route types its body `typed<BinaryBody>()` — no schema; `BinaryBody` is a
+`Blob`/`File`, an `ArrayBuffer`, a typed array or a Node `Readable` (structurally) — and declares
+`protocolOptions: streamBody({ maxBytes, types? })` on its route (`/route`); the server reads it with
+`streamedBody(request)` (`/server-api`). `CallOptions` carries the transport controls a call may add
+to its sections: `auth`, `host`, `base`, `unsecure`, `timeout`, `signal`, and the
+`TransferProgressListener`s `onUploadProgress` / `onDownloadProgress`
+(`{ loaded, total?, progress?, bytes, rate?, estimated? }`).
+
 `RequestOf<Protocol>`, `ResponseOf<Protocol>`, `BodyOf<Protocol>`, `ParamsOf<Protocol>`,
 `QueryOf<Protocol>`, and `HeadersOf<Protocol>` derive the contract types. A handler receives
 `HandlerRequest<RequestOf<Protocol>>`, which includes the transport metadata as well as the typed

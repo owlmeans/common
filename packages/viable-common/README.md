@@ -22,8 +22,8 @@ bun add @owlmeans/viable-common@^0.2.0-alpha.0
 
 | Subpath | Contents |
 |---|---|
-| `.` | The shapes a generated project is described by: the planning module (Viable card types and flows), user stories and entities, the design and scaffold plans, UX/UI specs, the `docs/` metadata paths, the four user areas and the tenancy decision, model roles and personas, blueprint types, moderation categories, slot metadata, the agent-output presentation taxonomy. Re-exports every subpath except `./intent` |
-| `@owlmeans/viable-common/slot` | The slot command vocabulary — file, shell, git and database commands, the sub-project roles and layouts, the target's ports and process markers |
+| `.` | The shapes a generated project is described by: the planning module (Viable card types and flows), user stories and entities, the design and scaffold plans, UX/UI specs, the `docs/` metadata paths, the four user areas and the tenancy decision, model roles and personas, blueprint types, moderation categories, slot metadata, the agent-output presentation taxonomy, the materials contract (files attached to a new project). Re-exports every subpath except `./intent` |
+| `@owlmeans/viable-common/slot` | The slot command vocabulary — file (binary write and read included), shell, git and database commands, the binary transport ceiling, the sub-project roles and layouts, the target's ports and process markers |
 | `@owlmeans/viable-common/connect` | The connector protocol: sessions, operations, model tasks, questions, domain statuses, capabilities, the error family, and `connectProtocols()` — the one declaration both the platform and the SDK bind |
 | `@owlmeans/viable-common/convert` | Converting an application that already exists: the stages and their transitions, the origin and stack taxonomy, the census classifiers, and the `docs/conversion/` layout |
 | `@owlmeans/viable-common/integrity` | The target-shape manifest — what a slot is allowed to install, build and run — per target layout |
@@ -48,6 +48,9 @@ bun add @owlmeans/viable-common@^0.2.0-alpha.0
   still verify clean.
 - **Agent-output presentation** — `agentPresentationHelper.classifyAgentMessage` sorts a model message
   into code, diff, structured, Markdown or plain, with a specialist role.
+- **Material** — a file attached to a new project's prompt: a `ProjectMaterialRecord` on the
+  platform, a `MaterialIndexEntry` (the record without platform ids) in the target's
+  `docs/materials/index.md`, rendered and read by `materialIndexHelper`.
 
 ## Usage
 
@@ -102,6 +105,21 @@ if (!report.ok) {
 }
 ```
 
+### Keep the materials catalogue in a target
+
+```typescript
+import { MATERIALS_INDEX, MaterialPurpose, materialIndexHelper } from '@owlmeans/viable-common'
+
+// The platform's rows → the target document (ids, scope and timestamps dropped; deterministic).
+await files.writeFile(MATERIALS_INDEX, materialIndexHelper.render(records))
+
+// A later run reads it back and picks what it needs — total: no index reads as no entries.
+const entries = materialIndexHelper.parse(await files.readFile(MATERIALS_INDEX, true))
+const forDesign = materialIndexHelper.relevant(entries, {
+  purposes: [MaterialPurpose.LayoutSketch, MaterialPurpose.HtmlPrototype], mentions: [prompt],
+})
+```
+
 ### Classify agent output
 
 ```typescript
@@ -138,7 +156,8 @@ The full export list is the package's `src/` barrel; the groups an app reaches f
 | Design and scaffold | `StoryDesign`, `ScaffoldPlan`, `ScaffoldPlanSchema`, `landingPlanHelper`, `StoryDesignPort`, `AccessBlock`, `PermissionDefault` |
 | Slot metadata | `SlotMetadata`, `metadataConfigs`, `metadataLists`, `metadataSecrets`, `APP_SECRET_ENV`, `BRANDING_ENV_KEYS`, `brandingEnv` |
 | Agent output | `agentPresentationHelper`, `AgentMessageCategory`, `AgentStructuredKind`, `AgentCodeLanguage`, `AgentMarkdownKind`, `AgentMessageRole` |
-| `./slot` | `SlotCommandType`, `slotCommandHelper`, `SubProject`, `LAYOUTS`, `ROLE_DIRS`, `slotLayoutHelper`, `slotOriginHelper`, `DATABASE_READ_LIMITS` |
+| Materials | `MaterialPurpose`, `MaterialStatus`, `MaterialRemoval`, `MaterialUseBy`, `MaterialUseTarget`, `ProjectMaterialRecord`, `ProjectMaterialRecordSchema`, `MaterialIndexEntry`, `MaterialIndexEntrySchema`, `materialIndexHelper`, `MATERIALS_DIR`, `MATERIALS_INDEX`, `MATERIALS_ASSETS_DIR`, `MATERIALS_ASSET_PURPOSES`, `MATERIALS_KEEP`, `MATERIALS_LIMITS`, `MATERIALS_BRIEF_TOKENS` |
+| `./slot` | `SlotCommandType`, `SlotFileCommand` (`WriteBinaryFile`, `ReadBinaryFile`), `SLOT_BINARY_MAX_BYTES`, `slotCommandHelper`, `SubProject`, `LAYOUTS`, `ROLE_DIRS`, `slotLayoutHelper`, `slotOriginHelper`, `DATABASE_READ_LIMITS` |
 | `./connect` | `connectProtocols`, `connect`, `connectRef`, `ConnectEntrypointOptions`, `ConnectPaidGate`, `ModelTier`, `modelTierHelper`, the view and body types with their `*Schema`s, `CONNECT_CALL_*`, the `Connect*` error family |
 | `./convert` | `ConversionStage`, `conversionStageHelper`, `OriginKind`, `StackId`, `censusHelper`, `conversionDocHelper`, `CENSUS_SKIP_DIRS`, `SOURCE_LIST_EXCLUSIONS` |
 | `./integrity` | `TargetLayout`, `TARGET_LAYOUTS`, `targetLayoutHelper`, `targetIntegrityHelper`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES` |

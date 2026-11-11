@@ -5,6 +5,7 @@ import { COLLABORATOR_KEYS, EXECUTION_SERVICE } from '../consts.js'
 import { InquiryDeclined } from '../inquiry/errors.js'
 import { inquiryTransportRegistry } from '../inquiry/transport.js'
 import type { TemperatureFactory } from '../types.js'
+import { capabilityHelper } from '../helpers/capabilities.js'
 import type {
   Execution, ExecutionPlugin, ExecutionService, ExecutionServiceOptions, ExecutionShape,
   HelperExecution, TaskExecution, WithExecutionService,
@@ -155,6 +156,12 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
 
       return self().model(scoped, exec.policy.utilityRole ?? UTILITY_ROLE, override)
     },
+
+    capabilities: (exec, role, override) => capabilityHelper.of(
+      role == null && override == null && exec.level === ExecutionLevel.Helper
+        ? (exec as unknown as HelperExecution).model
+        : self().model(exec, role, override),
+    ),
 
     temperatureFactory: (exec, role, baseOverride): TemperatureFactory =>
       temperature => {

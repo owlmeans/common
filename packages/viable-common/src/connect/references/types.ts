@@ -21,6 +21,12 @@ import type {
   ConnectGithubPublishBody, ConnectGithubRepoList, ConnectGithubRepoQuery,
 } from '../git/types.js'
 import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } from '../kit/types.js'
+import type {
+  ConnectCreateWithMaterialsBody, ConnectMaterialCatalogue, ConnectMaterialQuery, ConnectMaterialsDraftBody,
+  ConnectMaterialsState, ConnectMaterialText,
+} from '../materials/types.js'
+import type { UploadFileQuery, UploadFileResult, UploadSession } from '@owlmeans/upload'
+import type { BinaryBody } from '@owlmeans/entrypoint'
 import type { ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFileChanges } from '../feed/types.js'
 import type { ConnectInquiryAnswerBody, ConnectOp, ConnectOpResult, ConnectOpSubmission } from '../ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from '../pipeline/types.js'
@@ -89,7 +95,17 @@ export interface ConnectReferences {
   }
   project: {
     create: ConnectReference<{ body: ConnectCreateBody }, ConnectProjectStatus>
-    confirm: ConnectReference<{ params: { id: string }, body: ConnectConfirmBody }, ConnectProjectStatus>
+    createWithMaterials: ConnectReference<{ body: ConnectCreateWithMaterialsBody }, ConnectProjectStatus>
+    materials: {
+      state: ConnectReference<{ params: { id: string } }, UploadSession>
+      file: ConnectReference<{ params: { id: string }, query: UploadFileQuery, body: BinaryBody }, UploadFileResult>
+      remove: ConnectReference<{ params: { id: string, file: string } }, UploadSession>
+      seal: ConnectReference<{ params: { id: string } }, UploadSession>
+      draft: ConnectReference<{ params: { id: string }, body: ConnectMaterialsDraftBody }, ConnectMaterialsState>
+      catalogue: ConnectReference<{ params: { id: string } }, ConnectMaterialCatalogue>
+      read: ConnectReference<{ params: { id: string }, query: ConnectMaterialQuery }, ConnectMaterialText>
+    }
+    confirm:ConnectReference<{ params: { id: string }, body: ConnectConfirmBody }, ConnectProjectStatus>
     list: ConnectReference<{}, ConnectProjectSummary[]>
     status: ConnectReference<{ params: { id: string } }, ConnectProjectStatus>
     attach: ConnectReference<{ body: ConnectAttachBody }, ConnectProjectStatus>

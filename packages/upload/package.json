@@ -1,0 +1,55 @@
+{
+  "name": "@owlmeans/upload",
+  "version": "0.2.0-alpha.0",
+  "description": "Browser-safe upload contract: upload policies and limits counted on the expanded set, sessions and uploaded files with a closed rejection vocabulary, AJV schemas, errors, path normalization and prechecks, and a mountable protocol tree (open, streamed file, state, remove, seal, abort).",
+  "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/upload"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 400 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/error": "^0.2.0-alpha.0",
+    "@owlmeans/file-inspector": "^0.2.0-alpha.0",
+    "@owlmeans/route": "^0.2.0-alpha.0"
+  },
+  "peerDependencies": {
+    "ajv": "*"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
+    "@types/bun": "^1.4.4",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

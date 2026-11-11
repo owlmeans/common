@@ -27,6 +27,10 @@ export const createInstructionsHelper = (): InstructionsHelper => {
     const families = [
       ...family('supported stacks and application categories', 'describe_blueprints'),
       ...family('projects', 'list_projects', 'rename_project', 'delete_project', 'list_slots'),
+      ...family(
+        'a new project\'s files',
+        ...(toolHostHelper.uploadsMaterials(host) ? ['create_project_with_files'] : []), 'list_materials', 'read_material',
+      ),
       ...family('stories', 'list_stories', 'create_story', 'develop_story', 'start_story_batch', 'story_batch_status'),
       `open-ended changes (${list('modify_project', 'steer_agent')}), stopping the agent (${list('stop_agent')})`
       + ` and planning kits (${list('describe_planning_kits')})`,

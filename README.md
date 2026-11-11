@@ -184,7 +184,7 @@ concepts, worked examples, the full export list and common pitfalls.
 | [`context`](packages/context) | The per-process container for services, resources and entrypoints | `createService`, `assertContext`, `AppType`, `ContextStage`, `BASE`/`HOME`/`GUEST` |
 | [`config`](packages/config) | The typed application config and the service map | `service`, `plugin`, `makeSecurityHelper`, `appendConfigResource`, `configHelper` |
 | [`entrypoint`](packages/entrypoint) | Immutable, typed protocol declarations shared by server and client | `protocol`, `openProtocol`, `contract`, `typed`, `EntrypointOutcome` |
-| [`route`](packages/route) | Route declarations: path segment, method, parent, service | `route`, `backend`, `frontend`, `RouteMethod`, `RouteProtocols` |
+| [`route`](packages/route) | Route declarations: path segment, method, parent, service, a streamed request body | `route`, `backend`, `frontend`, `RouteMethod`, `RouteProtocols`, `streamBody` |
 | [`resource`](packages/resource) | One CRUD, criteria and paging contract for every store | `Resource`, `Criteria`, `ListResult`, `UnknownRecordError`, `createListSchema` |
 | [`auth`](packages/auth) | The authentication vocabulary: identity types, roles, errors | `Auth`, `AuthPayload`, `AuthRole`, `AuthForbidden`, `authHelper` |
 | [`error`](packages/error) | Errors that survive a service boundary with their class intact | `ResilientError`, `ResilientError.ensure`, `ResilientError.marshal` |
@@ -194,7 +194,7 @@ concepts, worked examples, the full export list and common pitfalls.
 | Package | What it gives an app | Key exports |
 |---|---|---|
 | [`server-app`](packages/server-app) | The backend bootstrap: one context factory and one `main` | `makeContext`, `main`, `config`, `sservice`, `entrypoints` |
-| [`server-api`](packages/server-api) | Fastify HTTP server and protocol-typed handler factories | `handlers`, `createApiServer`, `appendApiServer` |
+| [`server-api`](packages/server-api) | Fastify HTTP server, protocol-typed handler factories and streamed request bodies | `handlers`, `createApiServer`, `appendApiServer`, `streamedBody` |
 | [`server-entrypoint`](packages/server-entrypoint) | Materializes shared protocols with server handlers | `bind`, `bindAll` |
 | [`server-auth`](packages/server-auth) | The Ed25519 bearer guard and the authentication service | `appendAuthService`, `makeAuthService`, `AUTH_CACHE` |
 | [`server-auth-identity`](packages/server-auth-identity) | Local identities, profiles, provider linking and the organization-entity resolver | `appendAuthIdentityResources`, `IdentityLinkingService`, `makeEntityResolverService` |
@@ -250,7 +250,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`flow`](packages/flow) | A serializable step/transition state machine whose whole state is one string |
 |  | [`iam`](packages/iam) | The provider-agnostic IAM service, permission definitions and grants, and `hasPermission` |
 |  | [`job`](packages/job) | Browser-safe application job projections, schemas and entrypoint contracts |
-|  | [`llm`](packages/llm) | The LLM inference runtime: provider plugins, the model factory, policy-driven execution and prompt composition |
+|  | [`llm`](packages/llm) | The LLM inference runtime: provider plugins, the model factory, policy-driven execution, prompt composition, image and PDF parts with per-rung capabilities, and token budgets |
 |  | [`llm-common`](packages/llm-common) | Runtime-free serializable contracts for LLM inference and execution |
 |  | [`mailer`](packages/mailer) | The mailer host (`MAILER_SERVICE`), the `MailerTransport` contract and a console transport for development and tests |
 |  | [`marketing-consent`](packages/marketing-consent) | Marketing-consent contracts: the opt-in/opt-out catalogue, revision-aware status, terms acceptance and the consent protocol tree |
@@ -258,6 +258,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`payment`](packages/payment) | Provider-agnostic payment contracts: protocols, checkout policies, catalogue records, entitlement gates and consumer rights |
 |  | [`planning-auth`](packages/planning-auth) | Optional authentication identity and external group links for planning |
 |  | [`planning`](packages/planning) | Runtime-free planning contracts: workcards, projects, specifications, status flows, the transition fold, scoped schemas and the protocol tree |
+|  | [`upload`](packages/upload) | Browser-safe upload contract: policies and limits counted on the expanded set, sessions and uploaded files with a closed rejection vocabulary, prechecks and the mountable upload protocol tree |
 |  | [`viable-common`](packages/viable-common) | Runtime-free contracts of the OwlMeans Viable platform |
 |  | [`viable-log`](packages/viable-log) | A generated application's link to the Viable platform: the preview and slot `log` plugins and the wire contract the platform parses |
 |  | [`wled`](packages/wled) | The shared white-label contract: company info, styles, brand media and DNS shapes |
@@ -270,6 +271,8 @@ application packages above, or add one when they need that specific feature.
 |  | [`api-config-client`](packages/api-config-client) | Fetches the runtime config a backend advertises and merges it into the client config at boot |
 |  | [`api-config-server`](packages/api-config-server) | Answers the runtime config endpoint from package-owned allowlist plugins |
 | Storage and infrastructure | [`bot-postgres`](packages/bot-postgres) | Postgres tables for the three chat-bot resources of a generated target project: connections, the deduplicating inbox and the activity log |
+|  | [`file-inspector`](packages/file-inspector) | What a file really is from its bytes against what its name and media type claim: verdicts, verify policies, active-PDF detection, executable refusal and safe file names |
+|  | [`file-streams`](packages/file-streams) | Online files as streams: URL downloads through proxy plugins and the Google Drive resolver, S3 (with prefix listing and removal), folders and Viable workloads, scoped temporary workspaces mirrored to a bucket, zip/tar/gzip, and file-type checks through `file-inspector` |
 |  | [`image-resource`](packages/image-resource) | Image-shaped names and schemas over the shared stored-file types |
 |  | [`kluster`](packages/kluster) | The Kubernetes API client service and the `kluster:` config directive that resolves cluster addresses at boot |
 |  | [`mailer-smtp`](packages/mailer-smtp) | The SMTP (nodemailer) transport for the mailer host |
@@ -281,9 +284,11 @@ application packages above, or add one when they need that specific feature.
 |  | [`redis`](packages/redis) | The Redis connection service registered on a server context |
 |  | [`redis-queue`](packages/redis-queue) | The BullMQ-over-Redis driver for `@owlmeans/queue` |
 |  | [`static-resource`](packages/static-resource) | An in-process Resource over a module-scope map, for records an app holds in memory |
-|  | [`storage-common`](packages/storage-common) | Shared object and file storage types, errors and model |
-|  | [`storage-resource`](packages/storage-resource) | An upload-only S3-compatible object storage resource with MIME sniffing |
+|  | [`storage-common`](packages/storage-common) | Shared object and file storage types, errors and model, and the organization/project/purpose file scope |
+|  | [`storage-resource`](packages/storage-resource) | An upload-only S3-compatible object storage resource (RustFS, MinIO, AWS) that verifies an upload's bytes through `file-inspector` and streams it, creates a missing bucket at start-up, and the bucket model every S3 consumer addresses objects by |
 | Server | [`bot-agent`](packages/bot-agent) | Lets an `@owlmeans/agent` agent act on a chat-bot message: the message and the instructions its handler passes as context, the bot's supported actions as never-throwing tools |
+|  | [`llm-reader`](packages/llm-reader) | Reads the web for an LLM: fetches pages directly or through HTTP/SOCKS proxies (a list or a key→proxy callback), describes, classifies and extracts from them in text or DOM mode, lists their pictures with context, and writes their design as a DESIGN.md — a local HTML bundle too, under a virtual origin |
+|  | [`llm-reader-playwright`](packages/llm-reader-playwright) | The optional browser renderer for `llm-reader`: script-rendered pages, computed styles and screenshots, through the reader's proxy and address guard |
 |  | [`captcha`](packages/captcha) | Provider-neutral server captcha: the provider host, the guest sign-in policy (`MOD_CAPTCHA`) and a strict challenge-less check; providers live in OwlMeans connect |
 |  | [`server-auth-email`](packages/server-auth-email) | The server half of e-mail sign-in: PIN and password through private auth plugins, remembered devices, captcha, throttles and developer routes |
 |  | [`server-auth-otp`](packages/server-auth-otp) | The email-OTP auth plugin and OtpService for passwordless sign-in |
@@ -300,6 +305,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`server-payment`](packages/server-payment) | Protocol-bound payment resources, entitlement gates and a provider-agnostic paygate host |
 |  | [`server-planning`](packages/server-planning) | The planning service and plugin registry, the transition executor, the in-memory store, the handlers and the store conformance suite |
 |  | [`server-route`](packages/server-route) | Server-side route models: matching a request against a mounted path |
+|  | [`server-upload`](packages/server-upload) | Upload sessions on a server: atomic limits, files spooled and verified before they move, archives unpacked with guards, a receiver port (a tree, or another service) and the upload handlers |
 |  | [`server-wl`](packages/server-wl) | The server half of the white-label contract: the provide entrypoint and its provider seams |
 | Client | [`client-config`](packages/client-config) | The base client config shape and `addWebService()` |
 |  | [`client-context`](packages/client-context) | `makeClientContext()`, the platform-agnostic base of every web and native context |
@@ -314,6 +320,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`client-resource`](packages/client-resource) | A client-side caching resource for in-memory or persistent storage |
 |  | [`client-route`](packages/client-route) | Marking a route model as client-side and extracting its parameters |
 |  | [`client-socket`](packages/client-socket) | A self-restoring WebSocket connection to a socket entrypoint, with its status aggregator and hook |
+|  | [`client-upload`](packages/client-upload) | The upload client for browsers and Bun: precheck, concurrency, retries, abort and progress over the upload protocol tree; inputs from picked files and folders or local paths |
 |  | [`client-wl`](packages/client-wl) | The reserved platform-neutral slot of the white-label stack |
 | Web | [`astro`](packages/astro) | Consent and head-tag wiring for Astro sites: the head/noscript/adopt strings, the legal-page test and locale conversion |
 |  | [`mui-oidc-rp`](packages/mui-oidc-rp) | The legacy MUI browser OIDC relying party |
@@ -335,6 +342,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`web-payment`](packages/web-payment) | Protocol-bound payment hooks and the themed amount checkout UI |
 |  | [`web-router`](packages/web-router) | The default in-browser routing plugin: the History API, the matcher and the React provider |
 |  | [`web-router-react-router`](packages/web-router-react-router) | The opt-in React Router v8 routing plugin |
+|  | [`web-upload`](packages/web-upload) | File and folder upload UI: the headless upload queue with local prechecks, the drop zone, the file and folder pickers and the progress list |
 |  | [`web-wl`](packages/web-wl) | The browser half of the white-label contract: the caching service and the logo component |
 | Test support | [`test`](packages/test) | Foundation test helpers: `.env` loading, required variables and environment gates |
 |  | [`test-auth`](packages/test-auth) | The only package with authentication mocks: fixture key pairs, trusted-record stores and guards |

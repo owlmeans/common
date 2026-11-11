@@ -4,6 +4,7 @@ import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import '@fastify/middie/types/index.d.ts'
 import type { MultipartFile } from '@fastify/multipart'
+import type { Readable } from 'node:stream'
 
 export interface ApiServer extends InitializedService {
   server: FastifyInstance
@@ -38,6 +39,26 @@ export interface Context<C extends Config = Config> extends ServerContext<C>,
   ApiServerAppend { }
 
 export interface UploadedFile extends MultipartFile { }
+
+/**
+ * The body of a streamed-body route (`streamBody()` of `@owlmeans/route`) as its handler reads it —
+ * from `streamedBody(request)`, never through `request.original`.
+ */
+export interface StreamedBody {
+  /**
+   * The request body, unbuffered, with backpressure to the client. It errors with
+   * `StreamBodyTooLargeError` once more than `maxBytes` arrive and with `StreamBodyAbortedError`
+   * when the client goes away; an empty request is an empty stream. Opened once per request: every
+   * call answers the same stream.
+   */
+  stream: Readable
+  /** The declared `Content-Length`, when the client sent one (already checked against `maxBytes`). */
+  length?: number
+  /** The request's `Content-Type` — one of the route's declared types. */
+  type?: string
+  /** The route's declared limit. */
+  maxBytes: number
+}
 
 export interface ApiPortHoldOptions {
   /**

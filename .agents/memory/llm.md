@@ -1,7 +1,7 @@
 ---
 node: llm
 scope: "packages/llm/**, packages/llm-common/**"
-updated: 2026-09
+updated: 2026-11
 ---
 
 # LLM (inference runtime + execution abstraction)
@@ -20,14 +20,18 @@ model factory service and the generic execution service. Related: [[versioning]]
   a `() => service` late-binding accessor.
 - Observability is a one-method sink (`LlmSpectator`: `log`, optional `captureNull`). Anything
   richer (storage, `derive`, `update`) belongs to the consumer.
-- Live specs are gated via `@owlmeans/test` `makeGates` on `OPENROUTER_SECRET` / `ANTHROPIC_SECRET`
-  in the repo-root `.env` (documented in `.env.example`); with none set they self-skip.
+- Live specs are gated via `@owlmeans/test` `makeGates` on `OPENROUTER_SECRET` / `ANTHROPIC_SECRET` /
+  `OPENAI_SECRET` in the repo-root `.env` (documented in `.env.example`); with none set they self-skip.
 
 ## Invariants
 
 - Provider differences are `LlmPlugin` members — `build` / `owns` / `family` / `refine` /
   `structuredMode` / `toolChoice` / `responseFormat` / `patchPrompt` / `loopCache` / `cacheDialect` / `isFatal`. No `instanceof`
   or `provider ===` branch may return to `model.ts` or `service.ts`.
+- A web search (`LlmService.webSearch`) is a direct request to the provider — never through
+  `llmTransportRegistry` or an SDK client — so an installed LLM proxy cannot reroute it; its dialect is
+  `LlmPlugin.search`, declared per plugin and never in `openAiFamily` (a spread would send a gateway
+  key to api.openai.com). Detail: skill `llm`, part `web-search`.
 - Plugin **registration order is load-bearing**: `pluginFor` returns the first `owns` match, so
   `compatible` is registered before `openai` — both build a `ChatOpenAI`, and assuming tool-calling
   for an unlabelled model is safe everywhere while assuming native JSON-schema support is not.

@@ -49,6 +49,24 @@ parses back the same value (`'abc'` travels as `"abc"`). A string that already i
 as it is — except under a `type: 'string'` body contract, where only a JSON string literal counts
 as serialized and `'123'` arrives as the string `'123'`.
 
+A binary body — a `Blob`/`File`, an `ArrayBuffer`, a typed array or `Buffer`, a Node `Readable` —
+is sent as raw bytes under the call's `content-type`, else the first type a streamed-body route
+declares (`streamBody()` of `@owlmeans/route`), else `application/octet-stream`. It works from a
+browser and from Bun/Node, where `Content-Length` is set whenever the size is known.
+
+### Progress, timeout and abort
+
+`onUploadProgress` and `onDownloadProgress` on a call receive `{ loaded, total?, progress?, bytes,
+rate?, estimated? }`; `timeout` (ms) and `signal` bound and cancel the round trip.
+
+```typescript
+const material = await context.entrypoint(materialProtocols.upload).call({
+  params: { id }, body: file,
+  onUploadProgress: ({ loaded, total }) => setProgress(total != null ? loaded / total : 0),
+  timeout: 120_000, signal: controller.signal,
+})
+```
+
 ### Error Classes
 
 - `ApiError` — base API error

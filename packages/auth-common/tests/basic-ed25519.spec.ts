@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { Readable } from 'node:stream'
 import { AuthenPayloadError, AuthroizationType } from '@owlmeans/auth'
 import {
   BED255_NONCE_HEADER, BED255_SIG_TTL, BED255_TIME_HEADER, makeBasicEd25519Guard,
@@ -144,5 +145,26 @@ describe('@owlmeans/auth-common — signBasicEd25519Request', () => {
     expect(typeof outgoing.headers?.[timeKey]).toBe('string')
     expect(typeof outgoing.headers?.[nonceKey]).toBe('string')
     expect((await handle(guard, req))?.userId).toBe(fixture.authRecord.id)
+  })
+
+  test('raw bytes sign as `{}`: accepted where a streamed route\'s server sees no body', async () => {
+    const fixture = makeTrustFixture({ withSecret: true, name: 'auth-common-tests' })
+    const guard = makeBasicEd25519Guard(TRUSTED_ALIAS)
+    fixture.ctx.registerService(guard)
+    const bodies: unknown[] = [
+      Readable.from([Buffer.from('streamed bytes')]), new Uint8Array([1, 2, 3]), new Blob(['blob']), new ArrayBuffer(4),
+    ]
+
+    for (const body of bodies) {
+      const outgoing: Partial<AbstractRequest> = { body }
+      const authorization = await guard.authenticated(outgoing)
+      // The server half of a streamed-body route: the parser leaves the body unread.
+      const req = {
+        alias: 'streamed', body: undefined, params: {}, query: {}, path: '/streamed',
+        headers: { ...outgoing.headers, authorization: authorization ?? '' },
+      } satisfies AbstractRequest
+
+      expect((await handle(guard, req))?.userId).toBe(fixture.authRecord.id)
+    }
   })
 })

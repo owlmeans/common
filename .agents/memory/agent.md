@@ -1,7 +1,7 @@
 ---
 node: agent
 scope: "packages/agent/**, packages/agent-common/**"
-updated: 2026-09
+updated: 2026-11
 ---
 
 ## Facts
@@ -72,6 +72,7 @@ updated: 2026-09
 - An unbound port is a no-op, never an error.
 - `FakeStreamingChatModel` always replays its first response, so it cannot drive a tool loop; the
   specs script their own model double (`tests/_tools/model.ts`).
+- A media spec on Anthropic alone proves no rendering (its converter spells standard blocks; chat completions 400s).
 - `makeStaticFlowProvider` must THROW on an unknown flow: `makeFlowModel` reads a string as a flow
   name first and only re-reads it as a serialized token once the provider throws.
 

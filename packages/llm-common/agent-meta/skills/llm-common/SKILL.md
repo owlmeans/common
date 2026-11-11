@@ -1,6 +1,6 @@
 ---
 name: llm-common
-description: How to use @owlmeans/llm-common — runtime-free serializable contracts for LLM inference and execution (ModelProvider, ExecutionEffort/Level, ModelPolicy, PromptPolicy, SkillDefinition, ExecutionState and its cumulative-results view, PromptBlock/PromptRegion, PromptFocus, PackagePurpose, CacheTtlPolicy, spectator records, NullCapture, LlmFileProvider). Auto-invoked when importing those contracts or extending them for a domain.
+description: How to use @owlmeans/llm-common — runtime-free serializable contracts for LLM inference and execution (ModelProvider, ExecutionEffort/Level, ModelPolicy, PromptPolicy, SkillDefinition, ExecutionState and its cumulative-results view, PromptBlock/PromptRegion, PromptFocus, PackagePurpose, CacheTtlPolicy, spectator records, NullCapture, LlmFileProvider, model capabilities and media limits). Auto-invoked when importing those contracts or extending them for a domain.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -26,7 +26,10 @@ The dependency direction is one-way: a domain contracts package extends these;
 | `StructuredMode` | `Native` (provider JSON-schema mode) vs `Tool` (forced tool call). |
 | `SpectatorContentType`, `SPECTATOR_GENERAL` | Observability record enums/defaults. |
 | `ModelRole` | Open `string` — declare your own enum, its values stay assignable. |
-| `ModelConfigPatch` / `ModelConfigOverride` | The JSON-safe config subset; never credentials. Carries the model-capability fields (`contextWindow`, `maxOutput`, `combinedWindow`) alongside the budget ones — see the `llm` skill for what each means. |
+| `ModelConfigPatch` / `ModelConfigOverride` | The JSON-safe config subset; never credentials. Carries the model-capability fields (`contextWindow`, `maxOutput`, `combinedWindow`, `vision`, `documents`) alongside the budget ones — see the `llm` skill for what each means. |
+| `ModelCapabilities`, `RungCapabilities`, `MediaNeeds` | What the model a role resolved to accepts, rung by rung (`vision` = some rung takes images — a media call runs only on those), and what a call's content needs. Answered by `@owlmeans/llm` (`media` part). |
+| `MediaKind`, `MediaPlaceholder` | What a binary part is, and the `{ type, mime, bytes, sha256 }` a trace stores instead of its payload. |
+| `MEDIA_IMAGE_TYPES`, `MEDIA_DOCUMENT_TYPES`, `MEDIA_LIMITS`, `MediaLimits`, `MediaRequestLimits` | png/jpeg/gif/webp and PDF; per-part limits in raw bytes and pixels — the strictest the built-in providers document (image 7 500 000 bytes and 8000 px, PDF 50 000 000 bytes), so an upload screen checks `file.size` against the same numbers; per-request limit shape. |
 | `ModelPolicy` | `{ effort, roleOverrides?, modelOverrides?, utilityRole? }` — inherited by every refinement. |
 | `UTILITY_ROLE` | `'utility'` — the conventional cheap tier for side calls (a relevance pick, a classification). `ModelPolicy.utilityRole` points it at another alias; `ExecutionService.utility` resolves it. |
 | `ExecutionState` / `TaskExecutionState` | The persistable core (`level`/`purpose`/`policy`, optional `prompt`/`inquiry`/`results`, plus `phase`/`completed`/`cursor`/`data`). |

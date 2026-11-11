@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/web-upload",
+  "version": "0.2.0-alpha.0",
+  "generatedAt": "2026-11-11T15:44:02.972Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-upload",
+      "category": "package-specific",
+      "file": "skills/web-upload/SKILL.md",
+      "canonicalPath": ".agents/skills/web-upload/SKILL.md"
+    }
+  ]
+}

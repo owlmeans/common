@@ -2,8 +2,9 @@ import { assertContext, createService } from '@owlmeans/context'
 import { clientRouteHelper } from '@owlmeans/client-route'
 import type { ApiClient } from './types.js'
 import axios, { AxiosHeaders } from 'axios'
-import type { AxiosRequestTransformer } from 'axios'
-import type { CommonEntrypoint } from '@owlmeans/entrypoint'
+import type { AxiosProgressEvent, AxiosRequestTransformer } from 'axios'
+import type { CommonEntrypoint, TransferProgressListener } from '@owlmeans/entrypoint'
+import { streamBodyOf } from '@owlmeans/route'
 import { DEFAULT_ALIAS, UNAUTHORIZED_ERROR } from './consts.js'
 import { responseUtils } from './utils/response.js'
 import { makeSecurityHelper } from '@owlmeans/config'
@@ -16,6 +17,16 @@ const presented = (headers?: Record<string, unknown>): boolean =>
   headers != null && Object.entries(headers).some(
     ([key, value]) => key.toLowerCase() === AUTH_HEADER && value != null && value !== ''
   )
+
+/** The transport-neutral report a caller's listener gets for one axios progress event. */
+const progressOf = (listener: TransferProgressListener) => (event: AxiosProgressEvent): void => listener({
+  loaded: event.loaded,
+  bytes: event.bytes,
+  ...(event.total != null ? { total: event.total } : {}),
+  ...(event.progress != null ? { progress: event.progress } : {}),
+  ...(event.rate != null ? { rate: event.rate } : {}),
+  ...(event.estimated != null ? { estimated: event.estimated } : {}),
+})
 
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const location = `api.service:${alias}`
@@ -46,9 +57,13 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         { host: request.host, base: request.base, forceUnsecure: request.unsecure }
       )
 
-      // A scalar JSON body (a string, a number, a boolean) is serialized here, so the server parses
-      // back the value the caller sent; objects and arrays are left to axios.
-      const body = bodyUtils.requestBodyOf(request.body, request.headers, route.method, module.filter?.body)
+      // A binary body (a Blob, bytes, a Node stream) travels as is, under the call's own content
+      // type or the first one a streamed-body route accepts. A scalar JSON body (a string, a
+      // number, a boolean) is serialized here, so the server parses back the value the caller
+      // sent; objects and arrays are left to axios.
+      const body = bodyUtils.isBinaryBody(request.body)
+        ? bodyUtils.binaryBodyOf(request.body, request.headers, streamBodyOf(route)?.types[0])
+        : bodyUtils.requestBodyOf(request.body, request.headers, route.method, module.filter?.body)
       const transformer: AxiosRequestTransformer | undefined = body.verbatim ? data => data : undefined
       const requestHeaders = body.contentType != null
         ? { ...request.headers, 'content-type': body.contentType }
@@ -66,6 +81,11 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         timeout: request.timeout,
         // Abort signal (e.g. a caller's timeout AbortController) — aborts in-flight.
         signal: request.signal,
+        ...(request.onUploadProgress != null ? { onUploadProgress: progressOf(request.onUploadProgress) } : {}),
+        ...(request.onDownloadProgress != null ? { onDownloadProgress: progressOf(request.onDownloadProgress) } : {}),
+        // Raw bytes are streamed, never held for a redirect: the redirect follower Node's adapter
+        // uses otherwise keeps a copy of the whole body in memory to replay it.
+        ...(body.binary === true ? { maxRedirects: 0 } : {}),
       })
 
       // @TODO Move somewhere else - desirably into auth package via some middleware

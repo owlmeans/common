@@ -306,6 +306,8 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
   privacy_choices: { annotations: READ },
   list_files: { annotations: READ },
   read_file: { annotations: READ },
+  list_materials: { annotations: READ },
+  read_material: { annotations: READ },
   git_status: { annotations: READ },
   git_history: { annotations: READ },
   github_repositories: { annotations: READ_OPEN },
@@ -330,6 +332,9 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
       + ' and drafts a vision — model work that spends credits (the plan\'s project allowance first). Returns'
       + ' the project status; read the draft and call confirm_project. Each call drafts another project, so'
       + ' calling it again spends again.',
+  },
+  create_project_with_files: {
+    annotations: ADDS,
   },
   confirm_project: {
     annotations: ENSURES,
@@ -567,7 +572,7 @@ export const SESSION_STATUS_OUTPUT = {
 }
 
 /** Tools whose text is the user's own content (a file), which a listing's rewrite never touches. */
-export const LISTING_RAW_TEXT: ReadonlySet<string> = new Set(['read_file'])
+export const LISTING_RAW_TEXT: ReadonlySet<string> = new Set(['read_file', 'read_material'])
 
 /**
  * The listing's wording rules for every text it answers or notifies. OpenAI's plugin guidelines

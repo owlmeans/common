@@ -76,9 +76,103 @@ export class LlmRetryExceededError extends LlmError {
   }
 }
 
+/**
+ * A provider-hosted web search failed: the provider answered an error status, an error body, or
+ * nothing usable. `status` is the HTTP status when there was one; a 400 is fatal like every other
+ * malformed request, a 429 or 5xx is retried. `detail` never carries a credential.
+ */
+export class LlmSearchError extends LlmError {
+  public static override typeName = `Search${LlmError.typeName}`
+
+  public status?: number
+
+  public code?: string
+
+  public provider?: string
+
+  /** How long the provider asked to wait before a retry, in ms. */
+  public retryAfter?: number
+
+  public detail?: string
+
+  constructor(message: string = 'error') {
+    super(`search:${message}`)
+    this.type = LlmSearchError.typeName
+  }
+}
+
+/**
+ * The config cannot run a web search: its provider has no search dialect (a delegated model), the
+ * compatible host is unknown, or the call asks for a constraint the dialect cannot honour. A
+ * misconfiguration — fatal on the first attempt.
+ */
+export class LlmSearchUnsupportedError extends LlmMissconfiguredError {
+  public static override typeName = `SearchUnsupported${LlmMissconfiguredError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`search-unsupported:${message}`)
+    this.type = LlmSearchUnsupportedError.typeName
+  }
+}
+
+/**
+ * A media part (an image, a document) cannot be sent. Fatal in every retry loop: no attempt, rung
+ * or climb changes the bytes, their type or the models that accept them.
+ */
+export class LlmMediaError extends LlmError {
+  public static override typeName = `Media${LlmError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`media:${message}`)
+    this.type = LlmMediaError.typeName
+  }
+}
+
+/** The part's type is not accepted (an image other than png/jpeg/gif/webp, a non-PDF document), or its bytes are not what its type says. */
+export class LlmMediaTypeError extends LlmMediaError {
+  public static override typeName = `Type${LlmMediaError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`type:${message}`)
+    this.type = LlmMediaTypeError.typeName
+  }
+}
+
+/** A documented provider limit is exceeded — a part's size or side, or a request's count or total. Nothing is resized. */
+export class LlmMediaLimitError extends LlmMediaError {
+  public static override typeName = `Limit${LlmMediaError.typeName}`
+
+  /** The limit that was exceeded. */
+  public limit?: number
+
+  /** What the part or request measured. */
+  public actual?: number
+
+  constructor(message: string = 'error') {
+    super(`limit:${message}`)
+    this.type = LlmMediaLimitError.typeName
+  }
+}
+
+/** No rung of the role accepts what the call carries (`ModelConfig.vision` / `documents`). */
+export class LlmMediaUnsupportedError extends LlmMediaError {
+  public static override typeName = `Unsupported${LlmMediaError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`unsupported:${message}`)
+    this.type = LlmMediaUnsupportedError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(LlmError)
 ResilientError.registerErrorClass(LlmModelError)
 ResilientError.registerErrorClass(LlmOutputRejection)
 ResilientError.registerErrorClass(LlmMissconfiguredError)
 ResilientError.registerErrorClass(LlmPluginError)
 ResilientError.registerErrorClass(LlmRetryExceededError)
+ResilientError.registerErrorClass(LlmSearchError)
+ResilientError.registerErrorClass(LlmSearchUnsupportedError)
+ResilientError.registerErrorClass(LlmMediaError)
+ResilientError.registerErrorClass(LlmMediaTypeError)
+ResilientError.registerErrorClass(LlmMediaLimitError)
+ResilientError.registerErrorClass(LlmMediaUnsupportedError)

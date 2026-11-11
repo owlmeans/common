@@ -3,7 +3,7 @@ name: providers
 description: The LlmPlugin seam that replaces provider ifs, the sampling parameters each family rejects, plugin registration order, and classifying a provider error by walking cause.
 metadata:
   purposes: agent, config
-  mentions: LlmPlugin, llmPluginRegistry, llmTransportRegistry, LlmTransport, LlmFetch, resolveFor, patchPrompt, loopCache, cacheDialect, anthropicPlugin, openAiPlugin, compatiblePlugin, openAiFamily, NO_SAMPLING_PREFIXES, RESPONSES_API_PREFIXES, usesResponsesApi, rejectsSampling, isBadRequest, @owlmeans/llm/plugins
+  mentions: LlmPlugin, llmPluginRegistry, mediaDialect, mediaLimits, llmTransportRegistry, LlmTransport, LlmFetch, resolveFor, patchPrompt, loopCache, cacheDialect, anthropicPlugin, openAiPlugin, compatiblePlugin, openAiFamily, NO_SAMPLING_PREFIXES, RESPONSES_API_PREFIXES, usesResponsesApi, rejectsSampling, isBadRequest, @owlmeans/llm/plugins
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
@@ -28,7 +28,9 @@ metadata:
 | `cacheDialect(config)` | which cache dialect a config is prepared in; a dialect change between rungs re-prepares the request |
 | `cacheKey` (via `ModelConfig.cacheKey`) | provider cache-routing hints such as OpenAI's `prompt_cache_key` |
 | `isFatal` | "this error can never be retried" |
+| `search` | the provider's web-search dialect (`webSearch`); declared per plugin, never in a family spread — see the `web-search` part |
 | `suppressesThinking` | whether the plugin turns reasoning off on the wire FOR THIS CONFIG, which is what drops the `/no_think` prompt directive from the prepared messages |
+| `media` / `mediaDialect` / `mediaLimits` | the provider's spelling of a neutral image or PDF part, which spelling a config gets (a change between rungs re-prepares), and the per-request media limits — see the `media` part |
 
 ### A provider that removes a parameter is a plugin concern too
 
@@ -80,6 +82,8 @@ and `bindTools` rebuild from `lc_kwargs`, which keep both, so every retry rung k
   a key does it on the request it is handed, never in the config — `usesResponsesApi`, the effort
   table, the cache dialect and every consumer's price list key on the id the config names.
 - Keep the proxying itself out of this package: `@owlmeans/llm-proxy` (internal) is the one consumer.
+- A web search (`LlmService.webSearch`) never consults a transport: it is a direct request to the
+  provider, so a proxy attached here cannot reroute it (the `web-search` part).
 
 ## Classify a provider error by walking `cause`, never by `instanceof` or a surface read
 
