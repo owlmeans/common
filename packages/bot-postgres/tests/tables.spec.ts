@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { makePgIntrospectHelper, pgDiffHelper } from '@owlmeans/postgres-resource'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
-import { BotActionKind, BotChatKind, BotPlatform, BotTransport, BotUpdateKind } from '@owlmeans/bot'
+import { BotActionKind, BotChatKind, BotTransport, BotUpdateKind } from '@owlmeans/bot'
 import { RecordExists } from '@owlmeans/resource'
 import { BotInboxStatus, RES_BOT_ACTIVITY, RES_BOT_CONNECTION, RES_BOT_UPDATE } from '@owlmeans/server-bot'
 import type { BotUpdateRecord } from '@owlmeans/server-bot'
@@ -17,10 +17,10 @@ const it = gate.skip ? test.skip : test
 
 /** An inbox row as the service writes it — no id: Postgres mints it. */
 const inboxRow = (dedupe: string): Omit<BotUpdateRecord, 'id'> => ({
-  scope: 'tables', connection: 'c-1', platform: BotPlatform.Telegram, dedupe,
+  scope: 'tables', connection: 'c-1', platform: 'test', dedupe,
   status: BotInboxStatus.Pending, attempts: 0, handled: [], receivedAt: '2026-10-26T10:00:00.000Z',
   update: {
-    connection: 'c-1', scope: 'tables', platform: BotPlatform.Telegram, kind: BotUpdateKind.Message,
+    connection: 'c-1', scope: 'tables', platform: 'test', kind: BotUpdateKind.Message,
     chat: { id: '-100', kind: BotChatKind.Group }, addressed: false, receivedAt: '2026-10-26T10:00:00.000Z',
   },
 })
@@ -58,19 +58,19 @@ describe('@owlmeans/bot-postgres — tables against a real database', () => {
     const updates = context.resource<BotUpdateResource>(RES_BOT_UPDATE)
     const activities = context.resource<BotActivityResource>(RES_BOT_ACTIVITY)
 
-    const row = await updates.create(inboxRow('c-1:telegram:1'))
+    const row = await updates.create(inboxRow('c-1:test:1'))
     expect(typeof row.id).toBe('string')
     const stored = await updates.get(row.id!)
     expect([stored.handled, stored.update.chat, stored.claimedAt]).toEqual([[], { id: '-100', kind: BotChatKind.Group }, null])
-    await expect(updates.create(inboxRow('c-1:telegram:1'))).rejects.toThrow(RecordExists)
+    await expect(updates.create(inboxRow('c-1:test:1'))).rejects.toThrow(RecordExists)
 
     const followed = await activities.create({
-      scope: 'tables', connection: 'c-1', platform: BotPlatform.Telegram, update: row.id!, action: BotActionKind.Delete,
+      scope: 'tables', connection: 'c-1', platform: 'test', update: row.id!, action: BotActionKind.Delete,
       target: { chat: '-100', message: '7' }, ref: 'group-spam', ok: true, transport: BotTransport.Mock,
       at: '2026-10-26T10:00:01.000Z',
     })
     const plain = await activities.create({
-      scope: 'tables', connection: 'c-1', platform: BotPlatform.Telegram, action: BotActionKind.Send,
+      scope: 'tables', connection: 'c-1', platform: 'test', action: BotActionKind.Send,
       target: { chat: '-100' }, text: 'Announcement', ok: true, transport: BotTransport.Mock, at: '2026-10-26T10:00:02.000Z',
     })
     const newest = await activities.list({ scope: 'tables' }, { sort: [{ field: 'at', order: 'desc' }] })
@@ -89,7 +89,7 @@ describe('@owlmeans/bot-postgres — tables against a real database', () => {
 
     const updates = context.resource<BotUpdateResource>(custom.update)
     expect(updates.table.table).toBe('chat_update')
-    await updates.create(inboxRow('c-1:telegram:2'))
-    await expect(updates.create(inboxRow('c-1:telegram:2'))).rejects.toThrow(RecordExists)
+    await updates.create(inboxRow('c-1:test:2'))
+    await expect(updates.create(inboxRow('c-1:test:2'))).rejects.toThrow(RecordExists)
   })
 })

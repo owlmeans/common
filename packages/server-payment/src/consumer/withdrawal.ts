@@ -1,12 +1,10 @@
-import type Stripe from 'stripe'
-import { PurchaseKind, type WithdrawalEstimate, consumerCopyHelper, withdrawalRefundHelper } from '@owlmeans/payment'
+import { PaygateError, PurchaseKind, type WithdrawalEstimate, consumerCopyHelper, withdrawalRefundHelper } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
-import { STRIPE_OWNER_KEY, STRIPE_OWNER_VALUE, STRIPE_PAYGATE_ALIAS } from '../consts.js'
 import type { ConsumerDeclarationRecord, PaymentSubscriptionRecord, PurchaseRecord, UsageMeter } from '../types.js'
 import { DAY_MS } from './consts.local.js'
 import type { WithdrawalComputation, WithdrawalExecution } from './types.js'
-import type { PinnedCreditNoteParams } from './types.local.js'
+import type { CreditNoteLine, Paygate, PaygateCall, PaygateCreditNote, PaygateRefund } from '../paygate/types.js'
 import { paymentAccessOf } from '../access.js'
 import { paymentUtils } from '../utils.js'
 import { catalogueOf } from '../catalogue.js'
@@ -17,17 +15,12 @@ import type { ConsumerEventDraft } from './records/types.js'
 import { captureOf } from './capture.js'
 import type { WithdrawalHelper } from './withdrawal/types.js'
 
-/** A Stripe error that says the subscription is already gone. */
-const alreadyCanceled = (error: unknown): boolean => paymentUtils.isMissingObject(error)
-  || /canceled subscription|already (been )?cancel/i.test((error as { message?: string } | null)?.message ?? '')
-
 /**
- * Stripe replays the stored answer of an idempotency key — a failure too — for a day: a retry
- * uses a fresh key (`…:<attempt>`) and first adopts what an earlier attempt may have made.
+ * A paygate may replay the stored answer of an idempotency key — a failure too: a retry uses a fresh
+ * key (`…:<attempt>`) and first adopts what an earlier attempt may have made.
  */
-const keyOf = (withdrawalId: string, step: string, attempt: number): Stripe.RequestOptions => ({
-  idempotencyKey: attempt > 0 ? `withdrawal:${withdrawalId}:${step}:${attempt}` : `withdrawal:${withdrawalId}:${step}`,
-})
+const keyOf = (withdrawalId: string, step: string, attempt: number): string =>
+  attempt > 0 ? `withdrawal:${withdrawalId}:${step}:${attempt}` : `withdrawal:${withdrawalId}:${step}`
 
 export const makeWithdrawalHelper = (ctx: ApiContext): WithdrawalHelper => {
   const access = paymentAccessOf(ctx)
@@ -68,7 +61,7 @@ export const makeWithdrawalHelper = (ctx: ApiContext): WithdrawalHelper => {
     }
 
     const subscription = purchase.subscriptionId != null
-      ? await access.subscriptions().byExternalId(purchase.subscriptionId, STRIPE_PAYGATE_ALIAS) : null
+      ? await access.subscriptions().byExternalId(purchase.subscriptionId, purchase.paygate) : null
     const plan = purchase.planSku != null ? await catalogueOf(ctx).findPlan(purchase.planSku) : null
     const purchasedAt = new Date(purchase.purchasedAt)
     const periodStart = subscription?.periodStart != null ? new Date(subscription.periodStart) : purchasedAt
@@ -95,28 +88,20 @@ export const makeWithdrawalHelper = (ctx: ApiContext): WithdrawalHelper => {
     }
   }
 
-  /** A refund this withdrawal already made (found by its metadata) — what a retry adopts. */
-  const existingRefund = async (stripe: Stripe, paymentIntentId: string, withdrawalId: string): Promise<Stripe.Refund | null> => {
-    const { data } = await stripe.refunds.list({ payment_intent: paymentIntentId, limit: 100 })
-
-    return data.find(refund => refund.metadata?.withdrawalId === withdrawalId && refund.status !== 'failed'
-      && refund.status !== 'canceled') ?? null
-  }
-
-  /** A credit note this withdrawal already made — what a retry adopts. */
-  const existingCreditNote = async (stripe: Stripe, invoiceId: string, withdrawalId: string): Promise<Stripe.CreditNote | null> => {
-    const { data } = await stripe.creditNotes.list({ invoice: invoiceId, limit: 100 })
-
-    return data.find(note => note.metadata?.withdrawalId === withdrawalId && note.status !== 'void') ?? null
-  }
+  const memoOf = (declaration: ConsumerDeclarationRecord, purchase: PurchaseRecord): string =>
+    consumerCopyHelper.consumerText(declaration.language, 'credit-note.memo', {
+      contractRef: purchase.contractRef, date: consumerFormatHelper.formatDate(new Date(declaration.receivedAt), declaration.language),
+    })
 
   const executeWithdrawal = async (
-    stripe: Stripe, declaration: ConsumerDeclarationRecord, purchase: PurchaseRecord,
+    paygate: Paygate, declaration: ConsumerDeclarationRecord, purchase: PurchaseRecord,
     computation: { refundMinor: number, netMinor: number }, opts: { attempt?: number } = {},
   ): Promise<WithdrawalExecution> => {
     const withdrawalId = declaration.id as string
     const attempt = opts.attempt ?? 0
-    const key = (step: string): Stripe.RequestOptions => keyOf(withdrawalId, step, attempt)
+    const call = (step: string, comment?: string): PaygateCall => ({
+      idempotencyKey: keyOf(withdrawalId, step, attempt), ...(comment != null ? { comment } : {}),
+    })
     const event = (action: 'refund' | 'credit-note' | 'subscription-cancel', fields: Record<string, unknown>) =>
       records.recordEvent({
         recordId: withdrawalId, recordKind: 'declaration', entityId: purchase.entityId, action, ok: false, ...fields,
@@ -128,22 +113,22 @@ export const makeWithdrawalHelper = (ctx: ApiContext): WithdrawalHelper => {
         outcome.subscriptionCanceled = true
       } else {
         try {
-          await stripe.subscriptions.cancel(purchase.subscriptionId, {
-            prorate: false, invoice_now: false, cancellation_details: { comment: `withdrawal:${withdrawalId}` },
-          }, key('subscription-cancel'))
-          outcome.subscriptionCanceled = true
-          await event('subscription-cancel', { ok: true, externalId: purchase.subscriptionId })
-        } catch (error) {
-          if (alreadyCanceled(error)) {
-            outcome.subscriptionCanceled = true
-            await event('subscription-cancel', { ok: true, externalId: purchase.subscriptionId, detail: '{"already":true}' })
-          } else {
-            outcome.ok = false
-            await event('subscription-cancel', { externalId: purchase.subscriptionId, error: paymentUtils.errorText(error) })
+          if (paygate.subscriptions == null) {
+            throw new PaygateError(`capability:subscriptions:${paygate.id}`)
           }
+          const { alreadyCanceled } = await paygate.subscriptions.cancelNow(
+            purchase.subscriptionId, call('subscription-cancel', `withdrawal:${withdrawalId}`),
+          )
+          outcome.subscriptionCanceled = true
+          await event('subscription-cancel', alreadyCanceled
+            ? { ok: true, externalId: purchase.subscriptionId, detail: '{"already":true}' }
+            : { ok: true, externalId: purchase.subscriptionId })
+        } catch (error) {
+          outcome.ok = false
+          await event('subscription-cancel', { externalId: purchase.subscriptionId, error: paymentUtils.errorText(error) })
         }
         if (outcome.subscriptionCanceled) {
-          const row: PaymentSubscriptionRecord | null = await access.subscriptions().byExternalId(purchase.subscriptionId, STRIPE_PAYGATE_ALIAS)
+          const row: PaymentSubscriptionRecord | null = await access.subscriptions().byExternalId(purchase.subscriptionId, purchase.paygate)
           if (row != null && row.withdrawnAt == null) {
             await access.subscriptions().update({ ...row, withdrawnAt: new Date(declaration.receivedAt) })
           }
@@ -157,11 +142,16 @@ export const makeWithdrawalHelper = (ctx: ApiContext): WithdrawalHelper => {
     if (computation.refundMinor <= 0) {
       return outcome
     }
+    const payments = paygate.payments
+    if (payments == null) {
+      await event('refund', { error: `capability:payments:${paygate.id}`, amountMinor: computation.refundMinor, currency: purchase.currency })
+      return { ...outcome, ok: false, needsReview: true }
+    }
 
     let paymentIntentId = purchase.paymentIntentId
     let invoiceLineId = purchase.invoiceLineId
     if (purchase.invoiceId != null && (paymentIntentId == null || invoiceLineId == null)) {
-      const invoice = await capture.invoiceEvidenceOf(stripe, purchase.invoiceId)
+      const invoice = await capture.invoiceEvidenceOf(paygate, purchase.invoiceId)
       paymentIntentId = paymentIntentId ?? invoice.paymentIntentId
       invoiceLineId = invoiceLineId ?? invoice.invoiceLineId
       await records.patchPurchase(purchase.purchaseId, paymentUtils.compact({
@@ -175,14 +165,14 @@ export const makeWithdrawalHelper = (ctx: ApiContext): WithdrawalHelper => {
 
     const open = Math.max(0, purchase.amountTotalMinor - (purchase.refundedMinor ?? 0))
     let amount = Math.min(open, computation.refundMinor)
-    let lines: Stripe.CreditNoteCreateParams.Line[] | null = null
-    if (purchase.invoiceId != null && invoiceLineId != null && computation.netMinor > 0) {
-      lines = [{ type: 'invoice_line_item', invoice_line_item: invoiceLineId, amount: computation.netMinor }]
+    let line: CreditNoteLine | null = null
+    if (payments.creditNotes != null && purchase.invoiceId != null && invoiceLineId != null && computation.netMinor > 0) {
+      line = { invoiceId: purchase.invoiceId, lineId: invoiceLineId, amountMinor: computation.netMinor }
       try {
-        const preview = await stripe.creditNotes.preview({ invoice: purchase.invoiceId, lines })
-        amount = Math.min(open, preview.total)
+        const preview = await payments.creditNotes.preview(line)
+        amount = Math.min(open, preview.totalMinor)
       } catch (error) {
-        lines = null
+        line = null
         await event('credit-note', { step: 'preview', error: paymentUtils.errorText(error) })
       }
     }
@@ -190,32 +180,27 @@ export const makeWithdrawalHelper = (ctx: ApiContext): WithdrawalHelper => {
       return outcome
     }
 
-    let refund: Stripe.Refund
+    let refund: PaygateRefund
     try {
-      refund = (attempt > 0 ? await existingRefund(stripe, paymentIntentId, withdrawalId) : null)
-        ?? await stripe.refunds.create({
-          payment_intent: paymentIntentId, amount, reason: 'requested_by_customer',
-          metadata: { [STRIPE_OWNER_KEY]: STRIPE_OWNER_VALUE, withdrawalId, purchaseId: purchase.purchaseId },
-        }, key('refund'))
+      const metadata = { withdrawalId, purchaseId: purchase.purchaseId }
+      refund = (attempt > 0 ? await payments.findRefund(paymentIntentId, { withdrawalId }) : null)
+        ?? await payments.refund({ paymentId: paymentIntentId, amountMinor: amount, metadata }, call('refund'))
     } catch (error) {
       await event('refund', { error: paymentUtils.errorText(error), amountMinor: amount, currency: purchase.currency })
       return { ...outcome, ok: false }
     }
-    await event('refund', { ok: true, externalId: refund.id, amountMinor: refund.amount, currency: refund.currency })
+    await event('refund', { ok: true, externalId: refund.id, amountMinor: refund.amountMinor, currency: refund.currency })
     outcome.refundId = refund.id
-    outcome.refundedMinor = refund.amount
+    outcome.refundedMinor = refund.amountMinor
 
-    if (lines != null && purchase.invoiceId != null) {
+    if (line != null && payments.creditNotes != null) {
       try {
-        const note = await stripe.creditNotes.create({
-          invoice: purchase.invoiceId, lines, refund: refund.id,
-          memo: consumerCopyHelper.consumerText(declaration.language, 'credit-note.memo', {
-            contractRef: purchase.contractRef, date: consumerFormatHelper.formatDate(new Date(declaration.receivedAt), declaration.language),
-          }),
+        const note = await payments.creditNotes.create({
+          ...line, refundId: refund.id, memo: memoOf(declaration, purchase),
           metadata: { withdrawalId, purchaseId: purchase.purchaseId },
-        } as PinnedCreditNoteParams, key('credit-note'))
+        }, call('credit-note'))
         outcome.creditNoteId = note.id
-        await event('credit-note', { ok: true, externalId: note.id, amountMinor: note.total, currency: note.currency })
+        await event('credit-note', { ok: true, externalId: note.id, amountMinor: note.totalMinor, currency: note.currency })
       } catch (error) {
         // The refund stands; the corrective document is retried by reconcile.
         await event('credit-note', { error: paymentUtils.errorText(error), detail: JSON.stringify({ refundId: refund.id }) })
@@ -226,30 +211,29 @@ export const makeWithdrawalHelper = (ctx: ApiContext): WithdrawalHelper => {
   }
 
   const retryCreditNote = async (
-    stripe: Stripe, declaration: ConsumerDeclarationRecord, purchase: PurchaseRecord,
+    paygate: Paygate, declaration: ConsumerDeclarationRecord, purchase: PurchaseRecord,
     netMinor: number, refundId: string, attempt: number,
   ): Promise<boolean> => {
     const withdrawalId = declaration.id as string
+    const creditNotes = paygate.payments?.creditNotes
+    if (creditNotes == null) {
+      return false
+    }
     let invoiceLineId = purchase.invoiceLineId
     if (invoiceLineId == null && purchase.invoiceId != null) {
-      invoiceLineId = (await capture.invoiceEvidenceOf(stripe, purchase.invoiceId)).invoiceLineId
+      invoiceLineId = (await capture.invoiceEvidenceOf(paygate, purchase.invoiceId)).invoiceLineId
     }
     if (purchase.invoiceId == null || invoiceLineId == null || netMinor <= 0) {
       return false
     }
     try {
-      const note = await existingCreditNote(stripe, purchase.invoiceId, withdrawalId) ?? await stripe.creditNotes.create({
-        invoice: purchase.invoiceId,
-        lines: [{ type: 'invoice_line_item', invoice_line_item: invoiceLineId, amount: netMinor }],
-        refund: refundId,
-        memo: consumerCopyHelper.consumerText(declaration.language, 'credit-note.memo', {
-          contractRef: purchase.contractRef, date: consumerFormatHelper.formatDate(new Date(declaration.receivedAt), declaration.language),
-        }),
-        metadata: { withdrawalId, purchaseId: purchase.purchaseId },
-      } as PinnedCreditNoteParams, keyOf(withdrawalId, 'credit-note', attempt))
+      const note: PaygateCreditNote = await creditNotes.find(purchase.invoiceId, { withdrawalId }) ?? await creditNotes.create({
+        invoiceId: purchase.invoiceId, lineId: invoiceLineId, amountMinor: netMinor, refundId,
+        memo: memoOf(declaration, purchase), metadata: { withdrawalId, purchaseId: purchase.purchaseId },
+      }, { idempotencyKey: keyOf(withdrawalId, 'credit-note', attempt) })
       await records.recordEvent({
         recordId: withdrawalId, recordKind: 'declaration', entityId: purchase.entityId, action: 'credit-note', ok: true,
-        externalId: note.id, amountMinor: note.total, currency: note.currency,
+        externalId: note.id, amountMinor: note.totalMinor, currency: note.currency,
       })
       return true
     } catch (error) {

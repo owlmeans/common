@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/common-inquiry
 
 **Layer:** Cross-cutting domain (no `@owlmeans/*` dependencies; optional `ajv` peer for schema types)
-**Install:** `"@owlmeans/common-inquiry": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/common-inquiry": "^0.2.0-alpha.1"` in `dependencies`
 
 The one place the three parties of the inquiry widget agree: the browser SDK
 (`@owlmeans/web-inquiry`), the widget bundle that renders the dialog, and the CRM API that accepts
@@ -23,9 +23,9 @@ A CRM is addressed by its base URL (`https://<web host>/crm`, no trailing slash)
 |---|---|---|
 | `INQUIRY_SCRIPT` | `inquiry.js` | `<crm>/inquiry.js?v=<INQUIRY_RUNTIME_VERSION>` — the widget bundle |
 | `INQUIRY_API_SEGMENT` | `api` | `<crm>/api` — the CRM API |
-| `INQUIRY_CONFIG_PATH` | `/assets/config.json` | `<crm>/api/assets/config.json` — the advertised config (reCAPTCHA site key) |
+| `INQUIRY_CONFIG_PATH` | `/assets/config.json` | `<crm>/api/assets/config.json` — the advertised config (the captcha site key) |
 | `INQUIRY_SUBMIT_PATH` | `/inquiry` | `POST <crm>/api/inquiry` — multipart |
-| `INQUIRY_RECAPTCHA_ACTION` | `inquiry` | the reCAPTCHA v3 action the widget executes and the CRM requires |
+| `INQUIRY_CAPTCHA_ACTION` | `inquiry` | the captcha action the widget executes and the CRM requires |
 | `INQUIRY_OPEN_EVENT` | `inquiry_dialog_open` | the analytics event of an open |
 
 ## The widget config
@@ -141,4 +141,5 @@ else `en`.
 ## Related
 
 - `web-inquiry` — the browser SDK over this contract (load, open, bind, button, analytics)
-- `web-log` — `gtmAnalyticsPlugin`, which carries the open event to a tag manager
+- `web-log` — the consent gate analytics sinks are built on; connect's `web-gtm` — `gtmAnalyticsPlugin`,
+  which carries the open event to a tag manager

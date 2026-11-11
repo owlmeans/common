@@ -22,7 +22,7 @@ and the password panel for a settings screen — in eight languages. The contrac
 ## Installation
 
 ```bash
-bun add @owlmeans/web-auth-email@^0.1.21
+bun add @owlmeans/web-auth-email@^0.2.0-alpha.0
 ```
 
 The package ships its own private shadcn primitives (`alert`, `button`, `card`, `input`, `label`)
@@ -82,9 +82,11 @@ devices", confirmed by a mailed code like every other action.
 
 ## Translations
 
-`lib : auth-email` (`login.*`, `captcha.*`, `offer.*`, `password.*`, `error.*`) in `en`, `pl`, `ru`,
-`be`, `uk`, `es`, `de`, `fr`, plus `login.method.email` in the `auth` resource. Override any string at
-the app tier, in the library namespace:
+`lib : auth-email` (`login.*`, `offer.*`, `password.*`, `error.*`) in `en`, `pl`, `ru`, `be`, `uk`,
+`es`, `de`, `fr`, plus `login.method.email` in the `auth` resource. The captcha notice is the captcha
+client's own text in the card's language — the default of `captcha.notice` and its link labels
+(`captcha.<link>`), which an app may override too. Override any string at the app tier, in the
+library namespace:
 
 ```ts
 import { i18nHelper, LIB_NAMESPACE } from '@owlmeans/i18n'
@@ -98,7 +100,10 @@ i18nHelper.addI18nApp('en', 'auth-email', { login: { title: 'Sign in to Acme' } 
   waits in `sessionStorage` (`owlmeans:auth-email:offer`), bound to the account and its 15 minutes.
   A browser that refuses storage still signs in (an ephemeral device id, no offer).
 - A captcha token is fetched right before each send-PIN and password sign-in when the deployment
-  asks for one, and Google's notice is shown; the badge stays hidden.
+  asks for one, from the page's registered client of the provider the server advertises
+  (`captchaClients` of `@owlmeans/web-captcha`; register it explicitly, e.g. `appendRecaptchaClient()`
+  of `@owlmeans/web-captcha-recaptcha`). Without that client the call is refused as
+  `captcha-unavailable`, never sent without a token. The client's notice is shown when it has one.
 - Refusals are phrased from the error or, in production, the HTTP status alone: 401 is a wrong code
   or wrong credentials, 403 a refused captcha or confirmation code, 429 too many attempts, 422 a
   password outside the policy, 409 an expired offer, 404 passwords off, 503 an outage.
@@ -112,7 +117,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -4,6 +4,7 @@ import addFormats from 'ajv-formats'
 import { ResilientError } from '@owlmeans/error'
 import { CodeScope, CodeStyle, IntrinsicStatus, makeSchemaRegistry, SpecificationFormat, TITLE_MAX, WorkcardKind, type Specification, statusHelper } from '@owlmeans/planning'
 import { ProjectArea } from '../src/areas/consts.js'
+import { BOT_PLATFORMS_MAX } from '../src/blueprint/consts.js'
 import { ConnectingStoryKind, REQUIREMENTS_VERSION, SpecCategory, StoryKind } from '../src/ba/consts.js'
 import { RequirementsDocumentSchema } from '../src/ba/schemas.js'
 import { connectingStoryHelper } from '../src/ba/connecting.js'
@@ -269,13 +270,15 @@ describe('viable-common - the viable field schemas', () => {
     expect(project({ caseQuote: 'x'.repeat(1025) })).toBe(false)
   })
 
-  test('a project records its bot platforms (at least one, known, unique) and a bot kit from the closed set', () => {
-    expect(project({ blueprintCase: 'bot', botPlatforms: ['telegram'], botKit: 'moderation', caseQuote: 'A Telegram moderation bot.' })).toBe(true)
-    expect(project({ blueprintCase: 'ai-bot', botPlatforms: ['whatsapp', 'slack'], botKit: 'intake' })).toBe(true)
+  test('a project records its bot platform ids (at least one, well-formed, unique, bounded) and a bot kit from the closed set', () => {
+    expect(project({ blueprintCase: 'bot', botPlatforms: ['chat'], botKit: 'moderation', caseQuote: 'A chat moderation bot.' })).toBe(true)
+    expect(project({ blueprintCase: 'ai-bot', botPlatforms: ['chat', 'team-chat'], botKit: 'intake' })).toBe(true)
     expect(project({ botPlatforms: null, botKit: null })).toBe(true)
     expect(project({ botPlatforms: [] })).toBe(false)
-    expect(project({ botPlatforms: ['viber'] })).toBe(false)
-    expect(project({ botPlatforms: ['telegram', 'telegram'] })).toBe(false)
+    expect(project({ botPlatforms: ['Chat App'] })).toBe(false)
+    expect(project({ botPlatforms: ['../chat'] })).toBe(false)
+    expect(project({ botPlatforms: ['chat', 'chat'] })).toBe(false)
+    expect(project({ botPlatforms: Array.from({ length: BOT_PLATFORMS_MAX + 1 }, (_, at) => `chat${at}`) })).toBe(false)
     expect(project({ botKit: 'marketing' })).toBe(false)
   })
 

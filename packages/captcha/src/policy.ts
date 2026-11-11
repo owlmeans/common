@@ -1,11 +1,11 @@
 import { AuthenFailed } from '@owlmeans/auth'
 import { PluginMissconfigured } from '@owlmeans/config'
-import type { CaptchaPolicyModel, CaptchaPolicyRecord, CaptchaResponse } from './types.js'
+import type { CaptchaPolicyModel, CaptchaPolicyRecord, CaptchaVerdict } from './types.js'
 import { policyUtils } from './utils/policy.js'
 
 /**
- * The lenient policy of the reCAPTCHA sign-in plugin: every field of the record is optional, and an
- * empty one is no check (a checkbox answer without a score passes any score floor).
+ * The lenient policy of the captcha guest sign-in: every field of the record is optional, and an
+ * empty one is no check (a verdict without a score passes any score floor).
  */
 export const makeCaptchaPolicyModel = (record: CaptchaPolicyRecord): CaptchaPolicyModel => {
   const { listOf, hostOf, hostAllowed } = policyUtils
@@ -27,25 +27,25 @@ export const makeCaptchaPolicyModel = (record: CaptchaPolicyRecord): CaptchaPoli
 
   const actions = (): string[] => listOf(record.actions)
 
-  const assert = (response: CaptchaResponse): void => {
-    if (response.success !== true) {
-      const codes = Array.isArray(response['error-codes']) ? response['error-codes'] : []
-      throw new AuthenFailed('recaptcha:' + (codes.length > 0 ? codes.join(',') : 'unknown'))
+  const assert = (verdict: CaptchaVerdict): void => {
+    if (verdict.success !== true) {
+      const codes = Array.isArray(verdict.errors) ? verdict.errors : []
+      throw new AuthenFailed('captcha:' + (codes.length > 0 ? codes.join(',') : 'unknown'))
     }
 
     const allowed = hostnames()
-    if (allowed.length > 0 && !hostAllowed(allowed, response.hostname)) {
-      throw new AuthenFailed('recaptcha:hostname')
+    if (allowed.length > 0 && !hostAllowed(allowed, verdict.hostname)) {
+      throw new AuthenFailed('captcha:hostname')
     }
 
     const floor = minScore()
-    if (floor != null && typeof response.score === 'number' && response.score < floor) {
-      throw new AuthenFailed('recaptcha:score')
+    if (floor != null && typeof verdict.score === 'number' && verdict.score < floor) {
+      throw new AuthenFailed('captcha:score')
     }
 
     const named = actions()
-    if (named.length > 0 && (typeof response.action !== 'string' || !named.includes(response.action))) {
-      throw new AuthenFailed('recaptcha:action')
+    if (named.length > 0 && (typeof verdict.action !== 'string' || !named.includes(verdict.action))) {
+      throw new AuthenFailed('captcha:action')
     }
   }
 

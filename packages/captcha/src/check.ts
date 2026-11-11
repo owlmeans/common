@@ -1,27 +1,27 @@
 import { AuthenFailed, AuthUnavailable } from '@owlmeans/auth'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { logger } from '@owlmeans/log'
-import { CAPTCHA_VERIFIER } from './consts.js'
-import type { CaptchaCheck, CaptchaSettings, CaptchaVerifierService } from './types.js'
+import { captchaResolverOf } from './resolver.js'
+import type { CaptchaCheck, CaptchaSettings } from './types.js'
 import { policyUtils } from './utils/policy.js'
-import { createCaptchaVerifierService } from './verifier.js'
 
 const log = logger('captcha')
 
 /**
- * The strict, challenge-less check of a score-based (v3) token, for a route that acts on its own
- * (sends a mail, checks a password) rather than signing a reCAPTCHA guest in.
+ * The strict, challenge-less check of a score-based token, for a route that acts on its own (sends
+ * a mail, checks a password) rather than signing a captcha guest in.
  *
- * Unlike the lenient sign-in policy nothing is optional once a site key is set: the score is
- * required, the hostname list must not be empty and every call names the exact action its token
- * must carry. An enabled check whose settings are incomplete fails closed with
- * `AuthUnavailable('recaptcha:config')`. The verifier is the context's `CAPTCHA_VERIFIER` service
- * when one is registered, the default siteverify call otherwise.
+ * Unlike the lenient sign-in policy nothing is optional once settings are given: the provider must
+ * be registered, the score is required, the hostname list must not be empty and every call names
+ * the exact action its token must carry. The provider is resolved through the context's captcha host
+ * — there is no built-in provider: a check whose provider is missing fails closed, and
+ * `assertReady` (called at boot) turns that into a boot error.
  */
 export const makeCaptchaCheck = <C extends BasicConfig, T extends BasicContext<C>>(
   context: T, settings: CaptchaSettings | null
 ): CaptchaCheck => {
   const { listOf, hostOf, hostAllowed } = policyUtils
+  const resolver = captchaResolverOf(context)
 
   const textOf = (value: unknown): string => typeof value === 'string' ? value.trim() : ''
 
@@ -35,47 +35,45 @@ export const makeCaptchaCheck = <C extends BasicConfig, T extends BasicContext<C
     return Number.isFinite(score) && score >= 0 && score <= 1 ? score : null
   }
 
-  const key = textOf(settings?.siteKey)
-  const secret = textOf(settings?.secret)
   const source = settings?.hostnames
   const hosts = (Array.isArray(source) ? source.flatMap(listOf) : listOf(source))
     .map(hostOf).filter(host => host !== '')
   const floor = scoreOf(settings?.minScore)
 
   let reported = false
-  let fallback: CaptchaVerifierService | undefined
-
-  const verifier = (): CaptchaVerifierService => {
-    if (context.hasService(CAPTCHA_VERIFIER)) {
-      return context.service<CaptchaVerifierService>(CAPTCHA_VERIFIER)
-    }
-    fallback ??= createCaptchaVerifierService()
-
-    return fallback
-  }
 
   const refuse = (reason: string, action: string): never => {
     log.debug('Captcha refused', { reason, action })
-    throw new AuthenFailed(`recaptcha:${reason}`)
+    throw new AuthenFailed(`captcha:${reason}`)
   }
 
-  const enabled: CaptchaCheck['enabled'] = () => key !== ''
+  const enabled: CaptchaCheck['enabled'] = () => settings != null
 
-  const siteKey: CaptchaCheck['siteKey'] = () => key !== '' ? key : null
+  const clientSettings: CaptchaCheck['clientSettings'] = () =>
+    settings != null ? resolver.provider(settings.provider).clientSettings() : null
+
+  const assertReady: CaptchaCheck['assertReady'] = () => {
+    if (settings != null) {
+      resolver.provider(settings.provider)
+    }
+  }
 
   const assert: CaptchaCheck['assert'] = async request => {
-    if (key === '') {
+    if (settings == null) {
       return
     }
-    if (secret === '' || hosts.length === 0 || floor == null) {
+    const provider = resolver.find(settings.provider)
+    const siteKey = textOf(provider?.clientSettings().siteKey)
+    if (provider == null || siteKey === '' || hosts.length === 0 || floor == null) {
       if (!reported) {
         reported = true
         const invalid = [
-          secret === '' ? 'secret' : null, hosts.length === 0 ? 'hostnames' : null, floor == null ? 'minScore' : null,
+          provider == null ? 'provider' : null, provider != null && siteKey === '' ? 'siteKey' : null,
+          hosts.length === 0 ? 'hostnames' : null, floor == null ? 'minScore' : null,
         ].filter(field => field != null)
-        log.error('Captcha check misconfigured', { invalid }, { event: 'auth.recaptcha.config' })
+        log.error('Captcha check misconfigured', { invalid, provider: settings.provider ?? null }, { event: 'auth.captcha.config' })
       }
-      throw new AuthUnavailable('recaptcha:config')
+      throw new AuthUnavailable('captcha:config')
     }
 
     const { action } = request
@@ -84,23 +82,23 @@ export const makeCaptchaCheck = <C extends BasicConfig, T extends BasicContext<C
       refuse('missing', action)
     }
 
-    const remoteip = textOf(request.remoteip)
-    const answer = await verifier().verify({ secret, response: token, ...(remoteip !== '' ? { remoteip } : {}) })
+    const remoteIp = textOf(request.remoteIp)
+    const verdict = await provider.verify(token, { action, ...(remoteIp !== '' ? { remoteIp } : {}) })
 
-    if (answer.success !== true) {
-      const codes = Array.isArray(answer['error-codes']) ? answer['error-codes'] : []
+    if (verdict.success !== true) {
+      const codes = Array.isArray(verdict.errors) ? verdict.errors : []
       refuse(codes.length > 0 ? codes.join(',') : 'unknown', action)
     }
-    if (typeof answer.score !== 'number' || !Number.isFinite(answer.score) || answer.score < floor) {
+    if (typeof verdict.score !== 'number' || !Number.isFinite(verdict.score) || verdict.score < floor) {
       refuse('score', action)
     }
-    if (!hostAllowed(hosts, answer.hostname)) {
+    if (!hostAllowed(hosts, verdict.hostname)) {
       refuse('hostname', action)
     }
-    if (typeof action !== 'string' || action === '' || answer.action !== action) {
+    if (typeof action !== 'string' || action === '' || verdict.action !== action) {
       refuse('action', action)
     }
   }
 
-  return { enabled, siteKey, assert }
+  return { enabled, clientSettings, assertReady, assert }
 }

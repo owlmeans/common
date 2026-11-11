@@ -1,5 +1,5 @@
+/** The window as the category globals are written onto it: any flag by name. */
 export interface ConsentWindow {
-  dataLayer?: unknown[]
   [flag: string]: unknown
 }
 

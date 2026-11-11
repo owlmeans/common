@@ -1,4 +1,6 @@
 export type * from './types.js'
 export * from './consts.js'
 export * from './attachment.js'
+export * from './console.js'
+export * from './host.js'
 export * from './service.js'

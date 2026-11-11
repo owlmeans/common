@@ -1,9 +1,11 @@
-import type { BotPlatform } from '@owlmeans/bot'
+import type { BotPlatformGlyph, BotPlatformId } from '@owlmeans/bot'
 
 export interface BotErrorNoteProps {
   error: Error | string | null | undefined
   /** `alert`: a bordered banner for a failed read; `inline`: one line under the control that failed. */
   variant?: 'alert' | 'inline'
+  /** The server's registered platform ids — a stored legacy `bot:<id>:…` refusal reads as the platform's. */
+  platforms?: readonly BotPlatformId[]
   className?: string
 }
 
@@ -27,6 +29,8 @@ export interface ConfirmDialogProps {
 }
 
 export interface PlatformIconProps {
-  platform: BotPlatform
+  platform: BotPlatformId
+  /** The descriptor's glyph; absent (an unregistered platform): a generic bot. */
+  glyph?: BotPlatformGlyph
   className?: string
 }

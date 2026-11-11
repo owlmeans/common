@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { SubscriptionStatus } from '@owlmeans/payment'
-import { FREE, future, makeFakeContext, past, PRO } from './fake-stripe.js'
-import type { FakeContext } from './fake-stripe.js'
+import { FREE, future, makeFakeContext, past, PRO } from '@owlmeans/test-payment'
+import type { FakeContext } from '@owlmeans/test-payment'
 import { paymentAccessOf } from '../src/access.js'
 
 const ENTITY = 'entity-1'

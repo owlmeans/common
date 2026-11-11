@@ -30,19 +30,18 @@ New auth mocks belong in `@owlmeans/test-auth`, never in a package's own `tests/
 
 ## Package → category map
 
-114 packages, one category each.
+112 packages, one category each.
 
-- **A** (60): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `auth-email`, `basic-ids`, `bot`, `bot-agent`, `captcha`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-resource`, `client-route`, `client-socket`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `flow`, `i18n`, `iam`, `image-resource`, `llm-common`, `mailer`, `payment`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-bot`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-config`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `web-auth-email`, `web-captcha`, `web-db`, `web-gtm`, `web-inquiry`, `web-router-react-router`
+- **A** (59): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `auth-email`, `basic-ids`, `bot`, `bot-agent`, `captcha`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-resource`, `client-route`, `client-socket`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `flow`, `i18n`, `iam`, `image-resource`, `llm-common`, `mailer`, `payment`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-bot`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-config`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `web-auth-email`, `web-captcha`, `web-db`, `web-inquiry`, `web-router-react-router`
 - **B** (21): `auth`, `auth-common`, `auth-otp`, `basic-envelope`, `basic-keys`, `client-auth`, `client-did`, `client-iam`, `client-payment`, `did`, `mui-oidc-rp`, `oidc`, `server-auth`, `server-auth-email`, `server-auth-otp`, `server-oidc-provider`, `server-oidc-rp`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `wled`
-- **C** (16): `bot-postgres`, `kluster`, `llm` (live inference providers), `mailer-smtp`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-mailer-mailgun`, `storage-resource`
+- **C** (15): `bot-postgres`, `kluster`, `llm` (live inference providers), `mailer-smtp`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `storage-resource`
 - **D** (12): `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-bot`, `web-client`, `web-consent`, `web-flow`, `web-panel`, `web-router`, `web-wl`
 - **None** (5): `_tpl`, and the four harness packages themselves — `test`, `test-auth`, `test-integration`, `test-ui`
 
 A **contract** package and its **backend** split across categories. `queue`, `resource`,
 `storage-common` and `image-resource` are A — types, AJV schemas, error classes and declarations,
 with nothing to connect to — while `redis-queue`, `mongo`, `postgres` and `storage-resource` (which
-carries the S3 client) are C. Same for mail: `mailer` is A, `mailer-smtp` and
-`server-mailer-mailgun` are C. The test is what the package's own code does at runtime, not what
+carries the S3 client) are C. Same for mail: `mailer` is A, `mailer-smtp` is C. The test is what the package's own code does at runtime, not what
 its manifest lists: a package that only declares types, schemas and errors has no gate to write,
 while one whose code issues real commands against the service is C even when it names no driver.
 `redis-resource` imports `ioredis` for types alone and drives the client the db service hands it;
@@ -50,11 +49,13 @@ while one whose code issues real commands against the service is C even when it 
 
 `server-auth-otp` and `server-auth-email` are B — they sign and verify through a fixture trusted key
 — and carry env-gated Redis/Mongo specs (`redisGate`, `mongoGate`) for their stores, exactly as a C
-package would. `captcha` is A: Google is reached only through the `CAPTCHA_VERIFIER` seam or an
-injected `fetch`. `web-captcha` and `web-auth-email` are A: their specs drive the loader over a
-stand-in `document`/`window` and the pure halves (`emailLoginStateHelper`, `emailRefusalHelper`,
-the storage helper, the offer step, the panel helper, i18n parity); the rendered card is an
-application's e2e concern.
+package would. `captcha` is A: it names no captcha service, so its specs register a stand-in
+`CaptchaProvider` in the captcha host — the plugin seam, not a mock. `web-captcha` and
+`web-auth-email` are A: their specs drive stand-in `CaptchaClient`s and the pure halves
+(`captchaNoticeHelper`, `emailLoginStateHelper`, `emailRefusalHelper`, the storage helper, the
+offer step, the panel helper, i18n parity); the rendered card is an application's e2e concern. A
+provider's own service (siteverify, a script loader) is tested in its connect package, over an
+injected `fetch` or a stand-in `document`/`window`.
 
 `server-bot` is A although its platforms are external services: they are reached only through the
 plugin seam, and its own API-faithful mock transport (a shipped feature, not a test mock) or a
@@ -64,7 +65,7 @@ spec's `fetch` answering a platform's documented envelopes stands in for them; i
 `web-router` is D, not A: it drives the History API, so its routing behaviour is only observable in
 a browser and its specs mount a real harness in chromium. A client-side package stays in A when it
 ships no component at all — `client-config`, `client-context`, `client-entrypoint`, `client-flow`,
-`client-job`, `client-resource`, `client-route`, `client-socket`, `web-db`, `web-gtm`, `web-inquiry`
+`client-job`, `client-resource`, `client-route`, `client-socket`, `web-db`, `web-inquiry`
 and `web-router-react-router` are services, models and adapters, so `bun test` alone covers them.
 
 A new package takes the category its own behaviour implies: an external service it cannot fake ⇒ C,

@@ -1,16 +1,16 @@
 ---
 name: testing-integration
-description: Category-C integration tests for OwlMeans Common packages that talk to external services (PostgreSQL, MongoDB, Redis, S3, Kubernetes, SMTP). Env-gated, no mocks, per-suite namespaces, conditional context provisioning. Auto-invoked when writing tests in postgres*, mongo*, redis*, kluster, llm, storage-resource, mailer-smtp, server-mailer-mailgun, server-api, server-app.
+description: Category-C integration tests for OwlMeans Common packages that talk to external services (PostgreSQL, MongoDB, Redis, S3, Kubernetes, SMTP). Env-gated, no mocks, per-suite namespaces, conditional context provisioning. Auto-invoked when writing tests in postgres*, mongo*, redis*, kluster, llm, storage-resource, mailer-smtp, server-api, server-app.
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
 # Integration Tests — Category C
 
-**Install:** `"@owlmeans/test-integration": "^0.1.21"` in `devDependencies`
+**Install:** `"@owlmeans/test-integration": "^0.2.0-alpha.0"` in `devDependencies`
 
 Category C applies to packages that integrate with external services: `postgres`,
 `postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `redis-queue`,
-`kluster`, `storage-resource`, `mailer-smtp`, `server-mailer-mailgun`, `server-api`, `planning-postgres`, `bot-postgres`,
+`kluster`, `storage-resource`, `mailer-smtp`, `server-api`, `planning-postgres`, `bot-postgres`,
 `server-app`, `llm` (live inference providers). These tests **never** mock the external service.
 They run only when the corresponding env vars are set, and they self-skip cleanly when those
 variables are missing.
@@ -83,9 +83,9 @@ in a test package: `pg` (`@owlmeans/postgres`), `mongodb` (`@owlmeans/mongo`), `
 (`@owlmeans/storage-resource`), `@kubernetes/client-node` (`@owlmeans/kluster`) and `nodemailer`
 (`@owlmeans/mailer-smtp`). A suite that must reach the service outside the package's own
 service — to seed a fixture, or to assert on what really landed — imports that driver directly in
-its `tests/`. `@owlmeans/server-mailer-mailgun` has no driver: it posts to the Mailgun HTTP API
-with the global `fetch`, so a suite there imports nothing beyond the package under test and
-asserts on the request it builds and the API's reply.
+its `tests/`. A transport that posts to an HTTP API with the global `fetch` has no driver: its
+suite points the base URL at a local `Bun.serve` stand-in and asserts on the request it builds and
+the reply.
 
 ## Env contract
 

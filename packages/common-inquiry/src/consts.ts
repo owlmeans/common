@@ -9,7 +9,7 @@ export const INQUIRY_API_SEGMENT = 'api'
 /** POST, multipart — relative to the API (`<crm url>/api/inquiry`). */
 export const INQUIRY_SUBMIT_PATH = '/inquiry'
 
-/** GET — the advertised config (reCAPTCHA site key), relative to the API (`<crm url>/api/assets/config.json`). */
+/** GET — the advertised config (the captcha site key), relative to the API (`<crm url>/api/assets/config.json`). */
 export const INQUIRY_CONFIG_PATH = '/assets/config.json'
 
 /** The `window` property the bundle installs its `InquiryRuntime` at. */
@@ -25,8 +25,8 @@ export const INQUIRY_RUNTIME_VERSION = 1
 /** The analytics event of a dialog open (`@owlmeans/log` `analytics` option → tag manager). */
 export const INQUIRY_OPEN_EVENT = 'inquiry_dialog_open'
 
-/** The reCAPTCHA v3 action the widget executes and the CRM requires. */
-export const INQUIRY_RECAPTCHA_ACTION = 'inquiry'
+/** The captcha action the widget executes and the CRM requires. */
+export const INQUIRY_CAPTCHA_ACTION = 'inquiry'
 
 /** One attachment at most, in bytes (decimal). */
 export const INQUIRY_MAX_FILE_BYTES = 5_000_000

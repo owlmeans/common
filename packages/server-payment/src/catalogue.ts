@@ -2,7 +2,6 @@ import type { PermissionSet } from '@owlmeans/auth'
 import { ENTITLING_STATUSES, PlanRequired, ProductError, promoHelper } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
-import { STRIPE_PAYGATE_ALIAS } from './consts.js'
 import { paymentAccessOf } from './access.js'
 import { planHelper } from './plan.js'
 import { subscriptionHelper } from './subscription.js'
@@ -97,15 +96,12 @@ export const makeCatalogueHelper = (ctx: ApiContext): CatalogueHelper => {
       .map(({ promo: _promo, ...set }) => set)
   }
 
-  const stripePlansOf = async (): Promise<Array<{ product: PaymentProduct, plans: PaymentPlan[] }>> => {
+  const plansSoldThrough = async (paygate: string): Promise<Array<{ product: PaymentProduct, plans: PaymentPlan[] }>> => {
     const products = await access.payment().products() as PaymentProduct[]
     const result: Array<{ product: PaymentProduct, plans: PaymentPlan[] }> = []
     for (const product of products) {
-      if (!(product.gateways ?? []).includes(STRIPE_PAYGATE_ALIAS)) {
-        continue
-      }
       const plans = (await access.payment().allPlans(product.sku) as PaymentPlan[])
-        .filter(plan => planHelper.isSoldThrough(product, plan, STRIPE_PAYGATE_ALIAS))
+        .filter(plan => planHelper.isSoldThrough(product, plan, paygate))
       if (plans.length > 0) {
         result.push({ product, plans })
       }
@@ -119,7 +115,7 @@ export const makeCatalogueHelper = (ctx: ApiContext): CatalogueHelper => {
   ): Promise<{ product: PaymentProduct, plan: PaymentPlan }> => {
     const product = await access.payment().product(productSku) as PaymentProduct
     const plans = (await access.payment().allPlans(product.sku) as PaymentPlan[])
-      .filter(plan => planHelper.isSoldThrough(product, plan, STRIPE_PAYGATE_ALIAS))
+      .filter(plan => planHelper.isForSale(product, plan))
     if (planSku != null && !plans.some(plan => plan.sku === planSku)) {
       throw new ProductError(`plan:${planSku}`)
     }
@@ -130,7 +126,7 @@ export const makeCatalogueHelper = (ctx: ApiContext): CatalogueHelper => {
   }
 
   return {
-    findPlan, findProduct, catalogPlans, freePlanOf, resolveEffectivePlan, entitlementsOf, stripePlansOf,
+    findPlan, findProduct, catalogPlans, freePlanOf, resolveEffectivePlan, entitlementsOf, plansSoldThrough,
     consumablePlanOf,
   }
 }

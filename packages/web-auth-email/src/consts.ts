@@ -45,9 +45,5 @@ export const EMAIL_LOGIN_METHOD_META: Readonly<AuthMethodMeta> = Object.freeze({
   emphasis: 'secondary',
 })
 
-/** Google's documents the reCAPTCHA notice links to (the badge itself is hidden). */
-export const RECAPTCHA_PRIVACY_URL = 'https://policies.google.com/privacy'
-export const RECAPTCHA_TERMS_URL = 'https://policies.google.com/terms'
-
 /** Where "Powered by OwlMeans" leads, as on the chooser card. */
 export const OWLMEANS_URL = 'https://owlmeans.com'

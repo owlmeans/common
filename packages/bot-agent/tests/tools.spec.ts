@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { toolHelper } from '@owlmeans/agent'
 import { BotActionKind, BotTransport } from '@owlmeans/bot'
-import { telegramBotPlatform } from '@owlmeans/server-bot'
 import { BOT_AGENT_DONE, BotAgentTool, botAgentTools } from '../src/index.js'
 import { makeTestBot, receive } from './context.js'
 
@@ -36,8 +35,8 @@ describe('@owlmeans/bot-agent — botAgentTools', () => {
         [BotActionKind.React, true, update.id, ref, message, '👎'],
       ])
     expect(activity.every(entry => entry.transport === BotTransport.Mock)).toBe(true)
-    expect(telegramBotPlatform.mock.calls(connection).map(call => call.method)).toEqual(expect.arrayContaining([
-      'sendMessage', 'deleteMessage', 'restrictChatMember', 'banChatMember', 'setMessageReaction',
+    expect(bot.platforms.community.mock.calls(connection).map(call => call.method)).toEqual(expect.arrayContaining([
+      'sendMessage', 'deleteMessage', 'muteMember', 'banMember', 'react',
     ]))
   })
 

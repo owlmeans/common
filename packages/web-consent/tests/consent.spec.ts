@@ -1,7 +1,10 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { mountComponent, browserHelper } from '@owlmeans/test-ui'
+import type { Page } from '@owlmeans/test-ui'
 import { CONSENT_KEY, CONSENT_LOCALES, CONSENT_SCHEMA_VERSION, consentI18nHelper } from '@owlmeans/consent'
 import { HARNESS_URL } from './context.js'
+import { HARNESS_SIGNALS } from './harness/signals.js'
+import type { HarnessSignal } from './harness/signals.js'
 
 // Browser work does not fit the 5s default: a cold harness compiles the app on first request.
 const TIMEOUT = 60_000
@@ -12,12 +15,16 @@ afterAll(async () => {
 
 const base = HARNESS_URL.replace(/\/$/, '')
 
+/** What the harness signal provider was asked, in order (`tests/harness/signals.ts`). */
+const signalsOf = async (page: Page): Promise<HarnessSignal[]> =>
+  await page.evaluate(name => (window as never as Record<string, HarnessSignal[] | undefined>)[name] ?? [], HARNESS_SIGNALS)
+
 /**
  * A page booted with `record` already in storage, the way a returning visitor arrives.
  *
  * The seed lands BEFORE the document under test loads, because both things being observed — the
- * inline bootstrap's `consent/update` and the dialog's decision not to open — read storage during
- * the first paint. Seeding after load would test neither.
+ * inline bootstrap's signal and the dialog's decision not to open — read storage during the first
+ * paint. Seeding after load would test neither.
  */
 const seeded = async (record: unknown | null, query = '') => {
   const mounted = await mountComponent({ url: `${base}/`, waitUntil: 'commit' })
@@ -41,16 +48,15 @@ describe('@owlmeans/web-consent — the dialog', () => {
       await page.waitForSelector('[data-consent-dialog]')
 
       // The ORDER is the whole point of the inline bootstrap: whatever a tag reads when it loads
-      // is what it obeys, so `consent/default` has to be the FIRST thing on the queue — not merely
-      // present somewhere on it.
-      const layer = await page.evaluate(() => (
-        (window as never as { dataLayer?: unknown[] }).dataLayer ?? []
-      ).map(item => Array.from(item as ArrayLike<unknown>).slice(0, 2).join(':')))
+      // is what it obeys, so the provider's defaults have to be declared FIRST, from the head —
+      // and only once, though the store asks the provider again when it starts.
+      const signals = await signalsOf(page)
 
-      expect(layer[0]).toBe('consent:default')
+      expect(signals[0]).toEqual({ step: 'defaults', from: 'inline' })
+      expect(signals.filter(signal => signal.step === 'defaults')).toHaveLength(1)
 
       // No decision exists yet, so nothing may have been granted on this page.
-      expect(layer.filter(entry => entry === 'consent:update')).toHaveLength(0)
+      expect(signals.filter(signal => signal.step === 'apply')).toHaveLength(0)
     } finally {
       await close()
     }
@@ -106,26 +112,24 @@ describe('@owlmeans/web-consent — the dialog', () => {
     try {
       await page.waitForSelector('[data-consent-reopen]')
 
-      const seen = await page.evaluate(() => {
-        const layer = ((window as never as { dataLayer?: unknown[] }).dataLayer ?? [])
-          .map(item => Array.from(item as ArrayLike<unknown>))
+      const seen = await page.evaluate(name => {
+        const w = window as never as Record<string, unknown>
 
         return {
-          kinds: layer.map(entry => `${String(entry[0])}:${String(entry[1])}`),
-          update: layer.find(entry => entry[1] === 'update')?.[2] ?? null,
-          analytics: (window as never as Record<string, unknown>).owlConsentAnalytics ?? null,
-          marketing: (window as never as Record<string, unknown>).owlConsentMarketing ?? null,
+          signals: (w[name] ?? []) as HarnessSignal[],
+          analytics: w.owlConsentAnalytics ?? null,
+          marketing: w.owlConsentMarketing ?? null,
         }
-      })
+      }, HARNESS_SIGNALS)
 
-      expect(seen.kinds[0]).toBe('consent:default')
-      expect(seen.kinds).toContain('consent:update')
-      expect(seen.update).toMatchObject({
-        analytics_storage: 'granted', ad_storage: 'denied', security_storage: 'granted',
+      expect(seen.signals[0]).toEqual({ step: 'defaults', from: 'inline' })
+      // The head applied it before the bundle did anything at all.
+      expect(seen.signals[1]).toEqual({
+        step: 'apply', from: 'inline', granted: { essential: true, analytics: true, marketing: false },
       })
-      // `globalVar` is the seam for a snippet that cannot subscribe — a GTM custom-HTML tag, a
-      // hand-placed pixel — so it has to be right by the time the update lands, which is the same
-      // inline script and therefore the same tick.
+      // `globalVar` is the seam for a snippet that cannot subscribe — a tag manager's custom-HTML
+      // tag, a hand-placed pixel — so it has to be right by the time the provider's update lands,
+      // which is the same inline script and therefore the same tick.
       expect(seen.analytics).toBe(true)
       expect(seen.marketing).toBe(false)
     } finally {
@@ -142,16 +146,15 @@ describe('@owlmeans/web-consent — the dialog', () => {
       await page.locator('[data-consent-save]').click()
       await page.waitForSelector('[data-consent-reopen]')
 
-      const denied = await page.evaluate(() => {
-        const layer = ((window as never as { dataLayer?: unknown[] }).dataLayer ?? [])
-          .map(item => Array.from(item as ArrayLike<unknown>))
+      const denied = await page.evaluate(name => {
+        const w = window as never as Record<string, unknown>
 
         return {
-          update: layer.filter(entry => entry[1] === 'update').pop()?.[2] ?? null,
-          globalVar: (window as never as Record<string, unknown>).harnessTelemetry ?? null,
+          update: ((w[name] ?? []) as HarnessSignal[]).filter(signal => signal.step === 'apply').pop() ?? null,
+          globalVar: w.harnessTelemetry ?? null,
         }
-      })
-      expect(denied.update).toMatchObject({ analytics_storage: 'denied' })
+      }, HARNESS_SIGNALS)
+      expect(denied.update).toEqual({ step: 'apply', from: 'bundle', granted: { essential: true, telemetry: false } })
       expect(denied.globalVar).toBe(false)
 
       // A decision that does not survive a remount would re-prompt on every page of an SPA.

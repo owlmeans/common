@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { browserHelper } from '@owlmeans/test-ui'
-import { BotConnectionStatus, BotPlatform, BotReceiveMode, BotTransport } from '@owlmeans/bot'
+import { BotConnectionStatus, BotReceiveMode, BotTransport } from '@owlmeans/bot'
 import en from '../src/i18n/en.json' with { type: 'json' }
-import { choose, connectionOf, fieldsOn, open, refusal, TIMEOUT, untilCall, type Server } from './helpers.js'
+import { choose, connectionOf, DESCRIPTORS, fieldsOn, open, refusal, TIMEOUT, untilCall, type Server } from './helpers.js'
 
 afterAll(async () => { await browserHelper.closeBrowser() })
 
@@ -22,48 +22,76 @@ const listing = (items = [connectionOf()]): Server => call => {
   return undefined
 }
 
-describe('connections panel — the form follows the platform descriptor', () => {
-  test('every platform draws exactly its typed credentials, secrets masked, the generated one announced', async () => {
-    const { page, close } = await open({ panel: 'connections' }, listing([]))
+describe('connections panel — the form follows the registered platform descriptors', () => {
+  test('every platform draws exactly its typed credentials with the descriptor\'s labels, secrets masked, the generated one announced', async () => {
+    const { page, calls, close } = await open({ panel: 'connections' }, listing([]))
     try {
       await page.locator('[data-bot-connections] [data-bot-empty]').waitFor()
       await page.locator('[data-bot-action="add"]').click()
 
       expect(await fieldsOn(page)).toEqual(['token'])
       expect(await page.locator('[data-bot-field="token"]').getAttribute('type')).toBe('password')
+      expect(await page.locator('[data-bot-connection-form] label[for$="-cred-token"]').textContent()).toBe('Bot token')
+      expect(await page.locator('[data-bot-field-hint="token"]').textContent()).toBe('From the relay console: /token.')
+      expect(await page.locator('[data-bot-hint="relay"]').textContent()).toContain('Add the bot to your group as an administrator.')
 
-      await choose(page, 'platform', BotPlatform.WhatsApp)
+      await choose(page, 'platform', 'console')
       expect(await fieldsOn(page)).toEqual(['accessToken', 'phoneNumberId', 'appSecret'])
       expect(await page.locator('[data-bot-field="phoneNumberId"]').getAttribute('type')).toBe('text')
       expect(await page.locator('[data-bot-field="appSecret"]').getAttribute('type')).toBe('password')
       expect(await page.locator('[data-bot-generated="verifyToken"]').count()).toBe(1)
+      // A manual platform is told where the address will appear: there is none before saving.
+      expect(await page.locator('[data-bot-hint="console"]').textContent())
+        .toContain(en.connections.hint['after-save'].replace('{{platform}}', 'Console'))
 
-      await choose(page, 'platform', BotPlatform.Discord)
+      await choose(page, 'platform', 'guild')
       expect(await fieldsOn(page)).toEqual(['token', 'applicationId'])
-      // The invite link is drawn once the application id is typed, with the permissions in it.
+      // The descriptor's invite link is drawn once the application id is typed; its pending text before.
       expect(await page.locator('[data-bot-invite]').count()).toBe(0)
+      expect(await page.locator('[data-bot-link-pending="invite"]').textContent()).toBe('The invite link appears once the application ID is known.')
       await page.locator('[data-bot-field="applicationId"]').fill('123456789012345678')
       expect(await page.locator('[data-bot-invite]').getAttribute('href'))
-        .toContain('client_id=123456789012345678')
+        .toBe('https://guild.example/authorize?client_id=123456789012345678&scope=bot')
+      expect(await page.locator('[data-bot-invite]').textContent()).toBe('Invite the bot to a server')
 
-      await choose(page, 'platform', BotPlatform.Slack)
+      await choose(page, 'platform', 'workspace')
       expect(await fieldsOn(page)).toEqual(['botToken', 'signingSecret', 'userToken'])
+      // The platforms are the server's: read once, through `platform.list`.
+      expect(calls.filter(call => call.path === 'platforms').length).toBe(1)
     } finally {
       await close()
     }
   }, TIMEOUT)
 
   test('`platforms` limits the picker: one platform is shown, not chosen', async () => {
-    const { page, close } = await open({ panel: 'connections', platforms: 'slack' }, listing([]))
+    const { page, close } = await open({ panel: 'connections', platforms: 'workspace' }, listing([]))
     try {
       await page.locator('[data-bot-connections] [data-bot-empty]').waitFor()
       await page.locator('[data-bot-action="add"]').click()
       const platform = page.locator('[data-bot-input="platform"]')
-      expect(await platform.getAttribute('data-bot-value')).toBe(BotPlatform.Slack)
+      expect(await platform.getAttribute('data-bot-value')).toBe('workspace')
       expect(await platform.evaluate(node => node.tagName)).toBe('P')
       expect(await fieldsOn(page)).toEqual(['botToken', 'signingSecret', 'userToken'])
     } finally {
       await close()
+    }
+  }, TIMEOUT)
+
+  test('a server with no platform — or a tree without `platform.list` — offers none and saves nothing', async () => {
+    for (const [query, descriptors] of [[{ panel: 'connections' }, []], [{ panel: 'connections', restated: '1' }, DESCRIPTORS]] as const) {
+      const { page, calls, close } = await open(query, listing([]), [...descriptors])
+      try {
+        await page.locator('[data-bot-connections] [data-bot-empty]').waitFor()
+        await page.locator('[data-bot-action="add"]').click()
+        await page.locator('[data-bot-no-platforms]').waitFor()
+        expect(await page.locator('[data-bot-no-platforms]').textContent()).toBe(en.form['no-platforms'])
+        expect(await fieldsOn(page)).toEqual([])
+        await page.locator('[data-bot-input="label"]').fill('Anything')
+        expect(await page.locator('[data-bot-action="save"]').isDisabled()).toBe(true)
+        expect(calls.some(call => call.path === 'platforms')).toBe(query.restated == null)
+      } finally {
+        await close()
+      }
     }
   }, TIMEOUT)
 
@@ -84,7 +112,7 @@ describe('connections panel — the form follows the platform descriptor', () =>
       await page.locator('[data-bot-action="save"]').click()
 
       const saved = await untilCall(calls, call => call.method === 'POST' && call.path === 'connections')
-      expect(saved.body).toEqual({ platform: BotPlatform.Telegram, label: 'Community bot', credentials: { token: '123456:ABC' } })
+      expect(saved.body).toEqual({ platform: 'relay', label: 'Community bot', credentials: { token: '123456:ABC' } })
       await page.locator('[data-bot-connection="c-new"]').waitFor()
     } finally {
       await close()
@@ -95,7 +123,7 @@ describe('connections panel — the form follows the platform descriptor', () =>
 describe('connections panel — credentials are write-only', () => {
   test('a stored secret is never shown back: the field says "set", blank keeps it, only typed keys are sent', async () => {
     const stored = connectionOf({
-      id: 'w1', platform: BotPlatform.WhatsApp, label: 'Bakery', receive: BotReceiveMode.Webhook,
+      id: 'w1', platform: 'console', label: 'Bakery', receive: BotReceiveMode.Webhook,
       credentialsSet: ['accessToken', 'phoneNumberId', 'appSecret', 'verifyToken'],
     })
     const { page, calls, close } = await open({ panel: 'connections' }, listing([stored]))
@@ -113,7 +141,7 @@ describe('connections panel — credentials are write-only', () => {
 
       const saved = await untilCall(calls, call => call.method === 'POST' && call.path === 'connections')
       expect(saved.body).toEqual({
-        id: 'w1', platform: BotPlatform.WhatsApp, label: 'Bakery', credentials: { appSecret: 'rotated-secret' },
+        id: 'w1', platform: 'console', label: 'Bakery', credentials: { appSecret: 'rotated-secret' },
       })
       await page.locator('[data-bot-connection-form]').waitFor({ state: 'detached' })
     } finally {
@@ -157,7 +185,7 @@ describe('connections panel — a connection in the list', () => {
   }, TIMEOUT)
 
   test('server-bot refusals are told by type name or marker; a receiver\'s platform fault reads as the platform\'s refusal', async () => {
-    const broken = connectionOf({ status: BotConnectionStatus.Failed, lastError: 'receiver:bot:discord-gateway:4014:disallowed-intents' })
+    const broken = connectionOf({ status: BotConnectionStatus.Failed, lastError: 'receiver:bot:platform:guild:gateway:4014:disallowed-intents' })
     const server: Server = call => {
       if (call.method === 'GET' && call.path === 'connections') return { json: [broken] }
       if (call.method === 'POST' && call.path === 'connections/c1/verify') {
@@ -173,7 +201,7 @@ describe('connections panel — a connection in the list', () => {
       const last = item.locator('[data-bot-last-error] [data-bot-error]')
       await last.waitFor()
       expect(await last.getAttribute('data-bot-error')).toBe('platform-refused')
-      expect(await last.textContent()).toBe(en.errors['platform-refused'].replace('{{detail}}', '4014:disallowed-intents'))
+      expect(await last.textContent()).toBe(en.errors['platform-refused'].replace('{{detail}}', 'gateway:4014:disallowed-intents'))
 
       await item.locator('[data-bot-action="verify"]').click()
       const refused = item.locator('[data-bot-verify-error] [data-bot-error]')
@@ -185,30 +213,53 @@ describe('connections panel — a connection in the list', () => {
     }
   }, TIMEOUT)
 
-  test('a manual platform lists its hook URL and setup values with copy buttons; Telegram says what rights to give', async () => {
+  test('a stored refusal from before the one platform marker reads as the platform\'s by its registered id', async () => {
+    const items = [
+      connectionOf({ id: 'g1', platform: 'guild', status: BotConnectionStatus.Failed, lastError: 'receiver:bot:guild-gateway:4014:disallowed-intents' }),
+      connectionOf({ id: 'r1', status: BotConnectionStatus.Failed, lastError: 'bot:relay:401:Unauthorized' }),
+      connectionOf({ id: 'x1', status: BotConnectionStatus.Failed, lastError: 'bot:elsewhere:500:boom' }),
+    ]
+    const { page, close } = await open({ panel: 'connections' }, listing(items))
+    try {
+      const guild = page.locator('[data-bot-connection="g1"] [data-bot-last-error] [data-bot-error]')
+      await guild.waitFor()
+      expect(await guild.getAttribute('data-bot-error')).toBe('platform-refused')
+      expect(await guild.textContent()).toBe(en.errors['platform-refused'].replace('{{detail}}', '4014:disallowed-intents'))
+      expect(await page.locator('[data-bot-connection="r1"] [data-bot-last-error] [data-bot-error]').getAttribute('data-bot-error'))
+        .toBe('platform-refused')
+      // A marker naming no registered platform is a bot failure like any other.
+      expect(await page.locator('[data-bot-connection="x1"] [data-bot-last-error] [data-bot-error]').getAttribute('data-bot-error'))
+        .toBe('bot')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('a manual platform lists its hook URL and setup values with copy buttons; an auto one shows its hint', async () => {
     const items = [
       connectionOf(),
       connectionOf({
-        id: 's1', platform: BotPlatform.Slack, label: 'Office', status: BotConnectionStatus.Connected,
-        hookUrl: 'https://app.example.com/api/bot/hook/slack/s1',
-        setup: ['Request URL: https://app.example.com/api/bot/hook/slack/s1', 'Subscribe to message.channels events.'],
+        id: 's1', platform: 'workspace', label: 'Office', status: BotConnectionStatus.Connected,
+        hookUrl: 'https://app.example.com/api/bot/hook/workspace/s1',
+        setup: ['Request URL: https://app.example.com/api/bot/hook/workspace/s1', 'Subscribe to message events.'],
         credentialsSet: ['botToken', 'signingSecret'],
       }),
       connectionOf({ id: 'm1', label: 'Sandbox', transport: BotTransport.Mock }),
     ]
     const { page, close } = await open({ panel: 'connections' }, listing(items))
     try {
-      const slack = page.locator('[data-bot-connection="s1"]')
-      await slack.waitFor()
-      expect(await slack.locator('[data-bot-copy="hook"]').count()).toBe(1)
-      expect(await slack.locator('[data-bot-setup-step="hook"] code').textContent())
-        .toBe('https://app.example.com/api/bot/hook/slack/s1')
+      const workspace = page.locator('[data-bot-connection="s1"]')
+      await workspace.waitFor()
+      await workspace.locator('[data-bot-copy="hook"]').waitFor()
+      expect(await workspace.locator('[data-bot-setup-step="hook"] code').textContent())
+        .toBe('https://app.example.com/api/bot/hook/workspace/s1')
       // The step repeating the hook URL is not drawn twice; the sentence step has no copy button.
-      expect(await slack.locator('[data-bot-setup-step]').count()).toBe(2)
-      expect(await slack.locator('[data-bot-copy]').count()).toBe(1)
+      expect(await workspace.locator('[data-bot-setup-step]').count()).toBe(2)
+      expect(await workspace.locator('[data-bot-copy]').count()).toBe(1)
+      expect(await workspace.locator('[data-bot-platform-icon="workspace"]').count()).toBeGreaterThan(0)
 
-      expect(await page.locator('[data-bot-connection="c1"] [data-bot-hint="telegram"]').textContent())
-        .toContain(en.connections.hint.telegram)
+      expect(await page.locator('[data-bot-connection="c1"] [data-bot-hint="relay"]').textContent())
+        .toContain(DESCRIPTORS[0].hint.en)
       // A mock connection (made through the API) reaches no platform: no setup, no note, a badge alone.
       const mock = page.locator('[data-bot-connection="m1"]')
       expect(await mock.locator('[data-bot-mock]').count()).toBe(1)
@@ -234,7 +285,7 @@ describe('connections panel — a connection in the list', () => {
       const item = page.locator('[data-bot-connection="c1"]')
       await item.locator('[data-bot-action="toggle"]').click()
       const saved = await untilCall(calls, call => call.method === 'POST' && call.path === 'connections')
-      expect(saved.body).toEqual({ id: 'c1', platform: BotPlatform.Telegram, label: 'Moderator', enabled: false })
+      expect(saved.body).toEqual({ id: 'c1', platform: 'relay', label: 'Moderator', enabled: false })
       await page.locator('[data-bot-connection="c1"][data-bot-enabled="false"]').waitFor()
 
       await item.locator('[data-bot-action="remove"]').click()

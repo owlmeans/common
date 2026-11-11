@@ -1,17 +1,13 @@
-import type Stripe from 'stripe'
-import { CheckoutPricingMode, currencyOfCountry, ProductError, TaxBehavior, TaxEstimateStatus, TaxType, UnknownProduct, type PriceEstimate, type TaxEstimate, type TaxRateEstimate, checkoutPricingHelper, consumerRegionHelper, priceEstimateHelper } from '@owlmeans/payment'
+import { CheckoutPricingMode, currencyOfCountry, ProductError, TaxBehavior, TaxEstimateStatus, UnknownProduct, type PriceEstimate, type TaxEstimate, checkoutPricingHelper, consumerRegionHelper } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
-import { STRIPE_FX_QUOTES_API_VERSION, STRIPE_PAYGATE_ALIAS } from '../consts.js'
 import type { PaymentPlan, PaymentProduct, PriceEstimateParams } from '../types.js'
-import { NON_SCALABLE_REASONS, TAX_TYPE_MAP } from './consts.local.js'
 import type { CacheEntry, FxOutcome, TaxOutcome } from './types.local.js'
 import type { EstimateCache, EstimateHelper } from './estimate/types.js'
-import { fxOf } from './fx.js'
+import type { Paygate, PaygateCustomer } from '../paygate/types.js'
 import { paymentAccessOf } from '../access.js'
-import { paymentUtils } from '../utils.js'
 import { catalogueOf } from '../catalogue.js'
-import { planHelper } from '../plan.js'
+import { paygatesOf } from '../paygate/registry.js'
 
 /**
  * A keyed value cached for `ttlMs`, with in-flight requests shared across concurrent callers. Only
@@ -43,54 +39,6 @@ const cached = async <T>(
   return promise
 }
 
-// -------------------------------------------------------------------------------------------
-// Tax
-// -------------------------------------------------------------------------------------------
-
-/** A duck-typed check, matching `isMissingObject` above: the installed SDK's own error classes. */
-const isInvalidRequest = (error: unknown): error is { code?: string } =>
-  (error as { type?: unknown } | null)?.type === 'StripeInvalidRequestError'
-
-/** A linear percentage rate scales with the amount; a flat fee, a partial exemption, or several inclusive rates do not. */
-const scalableOf = (breakdown: Stripe.Tax.Calculation.TaxBreakdown[], behavior: TaxBehavior): boolean => {
-  if (breakdown.some(row => row.tax_rate_details?.rate_type === 'flat_amount')) return false
-  if (breakdown.some(row => NON_SCALABLE_REASONS.has(row.taxability_reason))) return false
-  if (behavior === TaxBehavior.Inclusive && breakdown.length > 1) return false
-  return true
-}
-
-const statusOf = (breakdown: Stripe.Tax.Calculation.TaxBreakdown[], taxMinor: number): TaxEstimateStatus => {
-  if (breakdown.some(row => row.taxability_reason === 'reverse_charge')) return TaxEstimateStatus.ReverseCharge
-  if (taxMinor > 0) return TaxEstimateStatus.Taxed
-  if (breakdown.some(row => row.taxability_reason === 'not_supported')) return TaxEstimateStatus.AtCheckout
-  return TaxEstimateStatus.None
-}
-
-const taxTypeOf = (raw: string | null | undefined): TaxType => raw != null && raw in TAX_TYPE_MAP ? TAX_TYPE_MAP[raw] : TaxType.Tax
-
-const ratesOf = (breakdown: Stripe.Tax.Calculation.TaxBreakdown[]): TaxRateEstimate[] => breakdown
-  .filter((row): row is Stripe.Tax.Calculation.TaxBreakdown & {
-    tax_rate_details: NonNullable<Stripe.Tax.Calculation.TaxBreakdown['tax_rate_details']>
-  } => row.tax_rate_details != null)
-  .map(row => ({
-    type: taxTypeOf(row.tax_rate_details.tax_type),
-    percentage: row.tax_rate_details.percentage_decimal,
-    ratePpm: priceEstimateHelper.ratePpmOf(row.tax_rate_details.percentage_decimal),
-    ...(row.tax_rate_details.country != null ? { country: row.tax_rate_details.country } : {}),
-    ...(row.tax_rate_details.state != null ? { state: row.tax_rate_details.state } : {}),
-  }))
-
-const taxEstimateOf = (calculation: Stripe.Tax.Calculation, behavior: TaxBehavior, subtotalMinor: number): TaxEstimate => {
-  const breakdown = calculation.tax_breakdown ?? []
-  const taxMinor = calculation.tax_amount_exclusive + calculation.tax_amount_inclusive
-  const status = statusOf(breakdown, taxMinor)
-
-  return {
-    status, subtotalMinor, taxMinor, totalMinor: calculation.amount_total,
-    scalable: scalableOf(breakdown, behavior), rates: ratesOf(breakdown),
-  }
-}
-
 /** The reference amount and currency of the estimate: an amount plan's default preset, else the plan's own price. */
 const referenceOf = (plan: PaymentPlan): { subtotalMinor: number; currency: string } => {
   if (plan.pricingMode === CheckoutPricingMode.Amount) {
@@ -113,19 +61,14 @@ export const makeEstimateHelper = (ctx: ApiContext): EstimateHelper => {
 
   // Customer lookup — the fallback country and the tax ids a request-given country still checks.
   const cachedCustomer = async (
-    stripe: Stripe, entityId: string, cache: EstimateCache,
-  ): Promise<Stripe.Customer | null> => cached(cache.customer, cache.inflight, `customer:${entityId}`, cache.customerTtlMs, async () => {
-    const record = await access.paygateCustomers().byEntity(entityId, STRIPE_PAYGATE_ALIAS)
+    paygate: Paygate, entityId: string, cache: EstimateCache,
+  ): Promise<PaygateCustomer | null> => cached(cache.customer, cache.inflight, `customer:${paygate.id}:${entityId}`, cache.customerTtlMs, async () => {
+    const record = await access.paygateCustomers().byEntity(entityId, paygate.id)
     if (record == null || record.deletedAt != null) {
       return null
     }
-    try {
-      const retrieved = await stripe.customers.retrieve(record.externalId, { expand: ['tax_ids'] })
-      return (retrieved as Stripe.DeletedCustomer).deleted ? null : retrieved as Stripe.Customer
-    } catch (error) {
-      if (paymentUtils.isMissingObject(error)) return null
-      throw error
-    }
+
+    return await paygate.customers.retrieve(record.externalId, { taxIds: true })
   })
 
   /**
@@ -152,24 +95,25 @@ export const makeEstimateHelper = (ctx: ApiContext): EstimateHelper => {
     return option != null ? { subtotalMinor: option.unitAmount, currency: chargeCurrency } : reference
   }
 
-  // Currency: Stripe FX Quotes, a PREVIEW endpoint — see `STRIPE_FX_QUOTES_API_VERSION`. A buyer's
-  // local currency is priced by Adaptive Pricing at the BASE rate plus its own conversion fee
-  // (`price × (1 + fee)`, 2–4% as Stripe decides), which the quote's fee-inclusive `exchange_rate`
-  // (base × (1 − `fx_fee_rate`), 2%) understates; a policy declaring `adaptiveFeeRate` is estimated
-  // the way Checkout prices it, one without keeps the quote's rate.
+  // Currency: the paygate's FX quotes. A buyer's local currency is priced at the BASE rate plus the
+  // paygate's own conversion fee (`price × (1 + fee)`), which a quote's fee-inclusive `exchangeRate`
+  // understates; a policy declaring `adaptiveFeeRate` is estimated the way checkout prices it, one
+  // without keeps the quote's rate.
   const fetchFxRate = async (
-    stripe: Stripe, currency: string, localCurrency: string, apiVersion: string,
+    paygate: Paygate, currency: string, localCurrency: string,
     settlementCurrency: string = currency, adaptiveFeeRate?: number,
   ): Promise<FxOutcome> => {
+    const fx = paygate.fx
+    if (fx == null) return null
     const settlement = settlementCurrency.toLowerCase()
     const sourceRate = settlement === currency
       ? { referenceRate: 1 }
-      : await fxOf(ctx).stripeFxRate(stripe, currency, settlement, apiVersion)
+      : await fx.quote(currency, settlement)
     if (sourceRate == null) return null
     if (localCurrency === settlement) {
       return { currency: localCurrency, exchangeRate: 1 / sourceRate.referenceRate }
     }
-    const localRate = await fxOf(ctx).stripeFxRate(stripe, localCurrency, settlement, apiVersion)
+    const localRate = await fx.quote(localCurrency, settlement)
     if (localRate == null) return null
     const settlementPerLocal = adaptiveFeeRate != null ? localRate.baseRate / (1 + adaptiveFeeRate) : localRate.exchangeRate
     const feeRate = adaptiveFeeRate ?? localRate.fxFeeRate
@@ -179,17 +123,17 @@ export const makeEstimateHelper = (ctx: ApiContext): EstimateHelper => {
     }
   }
 
-  const estimateStripePrice = async (
-    stripe: Stripe, params: PriceEstimateParams, cache: EstimateCache,
-  ): Promise<PriceEstimate> => {
+  const estimatePrice = async (params: PriceEstimateParams, cache: EstimateCache): Promise<PriceEstimate> => {
     const product = await catalogueOf(ctx).findProduct(params.productSku) as PaymentProduct | null
     if (product == null) throw new UnknownProduct(params.productSku)
+    const paygates = paygatesOf(ctx)
     const plans = (await access.payment().allPlans(product.sku) as PaymentPlan[])
-      .filter(plan => planHelper.isSoldThrough(product, plan, STRIPE_PAYGATE_ALIAS))
+      .filter(plan => paygates.forSale(product, plan, params.paygate).length > 0)
     const plan = params.planSku != null
       ? plans.find(item => item.sku === params.planSku)
       : plans.find(item => item.recurring != null) ?? plans[0]
     if (plan == null) throw new ProductError(params.planSku != null ? `plan:${params.planSku}` : 'plan')
+    const paygate = paygates.forSale(product, plan, params.paygate)[0]
 
     const pricing = await access.payment().pricingPolicy()
     const behavior = pricing.tax.behavior ?? TaxBehavior.Exclusive
@@ -201,25 +145,25 @@ export const makeEstimateHelper = (ctx: ApiContext): EstimateHelper => {
     let country = locked ? profile.country as string : params.country?.toUpperCase()
     let source: 'request' | 'customer' | 'profile' | undefined = locked ? 'profile' : country != null ? 'request' : undefined
     let matchingTaxIds: Array<{ type: string; value: string }> = []
-    let taxabilityOverride: 'customer_exempt' | 'reverse_charge' | undefined
+    let exemption: 'exempt' | 'reverse' | undefined
 
-    const customer = await cachedCustomer(stripe, params.entityId, cache)
+    const customer = await cachedCustomer(paygate, params.entityId, cache)
     if (customer != null) {
-      if (country == null && customer.address?.country != null) {
-        country = customer.address.country
+      if (country == null && customer.country != null) {
+        country = customer.country
         source = 'customer'
       }
       if (country != null) {
-        matchingTaxIds = (customer.tax_ids?.data ?? [])
+        matchingTaxIds = (customer.taxIds ?? [])
           .filter(taxId => taxId.country === country)
           .map(taxId => ({ type: taxId.type, value: taxId.value }))
-        if (customer.tax_exempt === 'exempt') taxabilityOverride = 'customer_exempt'
-        else if (customer.tax_exempt === 'reverse') taxabilityOverride = 'reverse_charge'
+        if (customer.taxExempt === 'exempt') exemption = 'exempt'
+        else if (customer.taxExempt === 'reverse') exemption = 'reverse'
       }
     }
 
     const region = rights != null ? consumerRegionHelper.regionOf(country, rights) : null
-    const settlementCurrency = (await access.stripePricingConfig())?.settlementCurrency?.toLowerCase()
+    const settlementCurrency = (await paygate.settlementCurrency())?.toLowerCase()
     // The currency the checkout session charges: the region's (or the locked profile's) under a policy
     // with region currencies, else none forced.
     const chargeCurrency = rights != null && rights.currencies != null && Object.keys(rights.currencies).length > 0
@@ -232,44 +176,26 @@ export const makeEstimateHelper = (ctx: ApiContext): EstimateHelper => {
       return { currency, behavior, tax: unresolvedEstimate(TaxEstimateStatus.LocationRequired, subtotalMinor), ...where }
     }
 
+    if (paygate.tax == null) {
+      return { country, source, currency, behavior, tax: unresolvedEstimate(TaxEstimateStatus.AtCheckout, subtotalMinor), ...where } as PriceEstimate
+    }
+    const tax = paygate.tax
     const cacheKey = JSON.stringify([
-      currency, country, subtotalMinor, product.taxCode ?? null, behavior,
-      matchingTaxIds.map(id => `${id.type}:${id.value}`).sort(), taxabilityOverride ?? null,
+      paygate.id, currency, country, subtotalMinor, product.taxCode ?? null, behavior,
+      matchingTaxIds.map(id => `${id.type}:${id.value}`).sort(), exemption ?? null,
     ])
-    const outcome = await cached(cache.tax, cache.inflight, `tax:${cacheKey}`, cache.taxTtlMs, async (): Promise<TaxOutcome> => {
-      try {
-        const calculation = await stripe.tax.calculations.create({
-          currency,
-          line_items: [{
-            amount: subtotalMinor, reference: plan.sku, tax_behavior: behavior,
-            ...(product.taxCode != null ? { tax_code: product.taxCode } : {}),
-          }],
-          customer_details: {
-            address: { country },
-            address_source: 'billing',
-            // Cast: `Stripe.TaxId.type` (the customer's saved tax id) and the Tax Calculation
-            // parameter's own tax-id-type enum are independently generated from Stripe's OpenAPI
-            // spec and can drift apart in this pinned SDK; every value here still came from a real
-            // Stripe `TaxId` record, so it is valid at the API even where the two types disagree.
-            ...(matchingTaxIds.length > 0
-              ? { tax_ids: matchingTaxIds as Stripe.Tax.CalculationCreateParams.CustomerDetails['tax_ids'] }
-              : {}),
-            ...(taxabilityOverride != null ? { taxability_override: taxabilityOverride } : {}),
-          },
-        })
-        return { ok: true, calculation }
-      } catch (error) {
-        if (isInvalidRequest(error)) return { ok: false, code: error.code }
-        throw error
-      }
-    })
+    const outcome = await cached(cache.tax, cache.inflight, `tax:${cacheKey}`, cache.taxTtlMs, async (): Promise<TaxOutcome> =>
+      await tax.calculate({
+        currency, amountMinor: subtotalMinor, reference: plan.sku, taxBehavior: behavior,
+        ...(product.taxCode != null ? { taxCode: product.taxCode } : {}),
+        country: country as string, taxIds: matchingTaxIds,
+        ...(exemption != null ? { exemption } : {}),
+      }))
 
-    const tax = outcome.ok
-      ? taxEstimateOf(outcome.calculation, behavior, subtotalMinor)
-      : unresolvedEstimate(TaxEstimateStatus.AtCheckout, subtotalMinor)
+    const estimated: TaxEstimate = outcome ?? unresolvedEstimate(TaxEstimateStatus.AtCheckout, subtotalMinor)
 
-    const result: PriceEstimate = { country, source, currency, behavior, tax, ...where }
-    // Adaptive Pricing — and so a local-currency line — applies only to a session CHARGED in the
+    const result: PriceEstimate = { country, source, currency, behavior, tax: estimated, ...where }
+    // Local-currency pricing — and so a local-currency line — applies only to a session CHARGED in the
     // settlement currency; a forced region currency (exact USD) is shown as it is. An amount plan is
     // estimated in its policy currency but charged in the region's currency (converted per session,
     // `chargeAmount`), so the session's currency decides, never the reference's: a EUR-charged top-up
@@ -280,14 +206,12 @@ export const makeEstimateHelper = (ctx: ApiContext): EstimateHelper => {
     if (pricing.currency.estimate && pricing.currency.adaptive === true && adaptive) {
       const localCurrency = currencyOfCountry(country)
       if (localCurrency != null && localCurrency !== currency) {
-        const stripePricing = await access.stripePricingConfig()
-        const apiVersion = stripePricing?.fxApiVersion ?? STRIPE_FX_QUOTES_API_VERSION
-        const settlementCurrency = stripePricing?.settlementCurrency?.toLowerCase() ?? currency
-        // A preview endpoint: unreachable or erroring never fails the estimate, it only drops `local`.
+        const settlement = settlementCurrency ?? currency
+        // A rate that cannot be read never fails the estimate, it only drops `local`.
         const feeRate = pricing.currency.adaptiveFeeRate
         const fx = await cached(
-          cache.fx, cache.inflight, `fx:${currency}:${settlementCurrency}:${localCurrency}:${apiVersion}:${feeRate ?? ''}`, cache.fxTtlMs,
-          () => fetchFxRate(stripe, currency, localCurrency, apiVersion, settlementCurrency, feeRate),
+          cache.fx, cache.inflight, `fx:${paygate.id}:${currency}:${settlement}:${localCurrency}:${feeRate ?? ''}`, cache.fxTtlMs,
+          () => fetchFxRate(paygate, currency, localCurrency, settlement, feeRate),
         ).catch(() => null)
         if (fx != null) {
           result.local = { currency: fx.currency, exchangeRate: fx.exchangeRate, ...(fx.fxFeeRate != null ? { fxFeeRate: fx.fxFeeRate } : {}) }
@@ -298,7 +222,7 @@ export const makeEstimateHelper = (ctx: ApiContext): EstimateHelper => {
     return result
   }
 
-  return { estimateStripePrice }
+  return { estimatePrice }
 }
 
 /** The price estimates of a context — one per context. */

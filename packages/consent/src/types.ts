@@ -1,16 +1,4 @@
-/**
- * Google Consent Mode v2 signals.
- *
- * Named here rather than left as free strings because a typo in a signal name is silent: the tag
- * manager simply never sees the update, and the only symptom is analytics that stay switched off
- * for everyone who agreed to them.
- */
 import { CONSENT_LINK_VERSION } from './consts.local.js'
-
-export type ConsentSignal =
-  | 'ad_storage' | 'ad_user_data' | 'ad_personalization'
-  | 'analytics_storage' | 'functionality_storage'
-  | 'personalization_storage' | 'security_storage'
 
 export interface ConsentCategory {
   /** Stable storage key. `essential` is reserved and always required. */
@@ -27,17 +15,20 @@ export interface ConsentCategory {
   descriptionKey: string
   /**
    * The window global this category yields to: `window[globalVar] = granted`, written on every
-   * apply and BEFORE the tag-manager push.
+   * apply and BEFORE any registered signal provider runs (`consentSignalHelper`).
    *
    * This is the seam for anything that cannot subscribe — a custom-HTML tag reading a flag, a
-   * hand-placed pixel, a script that only ever runs once. Without it, integrating a tag that is
-   * not Consent-Mode-aware means reaching into this package.
+   * hand-placed pixel, a script that only ever runs once. Without it, integrating a tag that
+   * speaks no signal protocol means reaching into this package.
    */
   globalVar?: string
-  /** Consent Mode v2 signals this category drives. */
-  signals?: ConsentSignal[]
-  /** dataLayer event pushed when this category transitions from denied to granted. */
-  event?: string
+  /**
+   * Granting this category grants TRACKING: a loader gated on consent (`consentTrackingHelper`'s
+   * `trackingGranted` and `consentGateScript`) may run once an optional category marked so is
+   * granted. `true` on the default `analytics` and `marketing` categories. A required category never
+   * counts, whatever this says — everyone has it, so it can grant nothing.
+   */
+  tracking?: boolean
 }
 
 /**
@@ -48,13 +39,13 @@ export interface ConsentCategory {
  * the policy wants the second — "analytics cookies" discloses nothing about which company learns
  * what a visitor did — so a site that runs a tag lists it here, beside the category that gates
  * it. Plain data rather than keys: the name, the provider and the purpose are whatever the party
- * adding the tag knows about it, and `@owlmeans/web-gtm`'s `googleTagServices(id)` is the
- * disclosure for a Google tag.
+ * adding the tag knows about it — a tag's own package (the provider plugins in OwlMeans connect)
+ * ships the disclosure for its tag.
  */
 export interface ConsentService {
-  /** Display name: "Google Analytics". */
+  /** Display name: "Example Analytics". */
   name: string
-  /** Who receives the data: "Google LLC". */
+  /** Who receives the data: "Example Corp". */
   provider: string
   /**
    * The `ConsentCategory.key` this service runs under: `'analytics'`, `'marketing'`,
@@ -64,7 +55,7 @@ export interface ConsentService {
   category: string
   /** One sentence on what it does with the data. */
   purpose?: string
-  /** Cookie names it may set: `['_ga', '_ga_<ID>']`. */
+  /** Cookie names it may set: `['_ex', '_ex_<ID>']`. */
   cookies?: string[]
   /** The provider's own privacy policy. */
   privacyHref?: string
@@ -133,7 +124,10 @@ export interface ConsentOptions {
    * host-only cookie, so every visitor who has already chosen would be asked again.
    */
   cookieDomain?: string
-  /** Skip every dataLayer and global write. For tests, and for an app that runs no tags. */
+  /**
+   * Skip every runtime effect of a decision on the page: no category global, no registered signal
+   * provider, no `CONSENT_EVENT`. For tests, and for an app that runs no tags.
+   */
   silent?: boolean
   /**
    * Cross-domain consent: share this decision, and adopt one, between the listed first-party
@@ -203,8 +197,9 @@ export interface ConsentStore {
   get: () => ConsentState
   subscribe: (listener: ConsentListener) => () => void
   /**
-   * Push the defaults, load and migrate any stored record, apply it — and, when there is none,
-   * either ask at once or, with `geo` set, locate the visitor first and ask or decide automatically.
+   * Declare every registered signal provider's defaults, load and migrate any stored record, apply
+   * it — and, when there is none, either ask at once or, with `geo` set, locate the visitor first
+   * and ask or decide automatically.
    * Synchronous: a lookup runs in the background, `locating` says so, and `settled()` waits for it.
    */
   init: (opts?: ConsentOptions) => void

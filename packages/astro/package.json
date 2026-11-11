@@ -1,6 +1,7 @@
 {
   "name": "@owlmeans/astro",
-  "version": "0.1.21",
+  "version": "0.2.0-alpha.1",
+  "description": "Consent + head tag wiring for Astro sites.",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,11 +33,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/consent": "^0.1.21",
-    "@owlmeans/web-gtm": "^0.1.21"
+    "@owlmeans/consent": "^0.2.0-alpha.1"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

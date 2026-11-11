@@ -185,10 +185,10 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       const credentials = envelope.message()
       const msg = credentials.challenge
 
-      // A reCAPTCHA token proves a solved challenge, never a person: it is spent by
-      // `makeReCaptchaGuard` on the one route that takes it and never becomes a session. Refused
-      // before the spend, so a token presented here stays usable where it belongs.
-      if (envelope.type() === AuthenticationType.ReCaptcha || credentials.type === AuthenticationType.ReCaptcha) {
+      // A captcha token proves a solved challenge, never a person: it is spent by `makeCaptchaGuard`
+      // on the one route that takes it and never becomes a session. Refused before the spend, so a
+      // token presented here stays usable where it belongs.
+      if (envelope.type() === AuthenticationType.Captcha || credentials.type === AuthenticationType.Captcha) {
         throw refuse('guest', new AuthenFailed('guest'), credentials.userId)
       }
 

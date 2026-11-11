@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { LimitExhausted, LimitKind, LimitMisdeclared, LimitUnknown, LimitWindow, planLimitHelper } from '@owlmeans/payment'
 import { UnsupportedArgumentError } from '@owlmeans/resource'
-import { makeFakeContext, past, PRO } from './fake-stripe.js'
-import type { FakeContext } from './fake-stripe.js'
+import { makeFakeContext, past, PRO } from '@owlmeans/test-payment'
+import type { FakeContext } from '@owlmeans/test-payment'
 import { paymentAccessOf } from '../src/access.js'
 
 const ledger = (fake: FakeContext) => fake.stores['payment-usage'].rows

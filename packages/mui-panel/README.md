@@ -13,7 +13,7 @@ component. The `mui-panel` skill covers this package.
 ## Installation
 
 ```bash
-bun add @owlmeans/mui-panel@^0.1.21
+bun add @owlmeans/mui-panel@^0.2.0-alpha.0
 ```
 
 Peer dependencies the app provides: `@mui/material`, `@mui/icons-material`, `@emotion/react`,
@@ -123,7 +123,9 @@ render(context, theme)
 ```
 
 Importing `@owlmeans/mui-panel/auth` sets MUI renderers for `AuthenticationType.BasicEd25519`,
-`ReCaptcha` and `WalletConsumer` in the shared `@owlmeans/client-auth/manager` plugin registry.
+`Captcha` and `WalletConsumer` in the shared `@owlmeans/client-auth/manager` plugin registry. The
+captcha renderer shows the `widget` of the page's registered captcha client (`@owlmeans/web-captcha`)
+and nothing without one.
 
 ## API
 
@@ -226,7 +228,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

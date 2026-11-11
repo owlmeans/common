@@ -4,11 +4,11 @@ import {
   CONSENT_REQUIRED_COUNTRIES, CONSENT_TRACE_PATH,
 } from '../src/consts.js'
 import { consentGeoHelper } from '../src/geo.js'
-import { consentModeHelper } from '../src/gtobserver.js'
 import { consentLinkHelper } from '../src/linker.js'
 import { consentPluginHelper } from '../src/plugins.js'
 import { makeConsentStore } from '../src/store.js'
 import { consentStorageHelper } from '../src/storage.js'
+import { consentTrackingHelper } from '../src/tracking.js'
 import type { ConsentGeoPlugin, ConsentOptions, ConsentRecord } from '../src/types.js'
 
 /** Storage, a cookie jar, `<html>` attributes, a `location`/`history` pair and a fake trace endpoint. */
@@ -88,8 +88,7 @@ const gpc = (value: boolean | undefined): void => {
 beforeEach(() => {
   env.reset()
   env.located('US')
-  delete (globalThis as any).dataLayer
-  delete (globalThis as any).cookieConsentSetup
+  delete (globalThis as any).owlConsentAnalytics
 })
 
 afterEach(() => {
@@ -384,20 +383,15 @@ describe('the head scripts and an automatic decision', () => {
     // eslint-disable-next-line no-new-func
     new Function(script)()
   }
-  const updates = (): Record<string, string>[] => ((globalThis as any).dataLayer ?? [])
-    .filter((entry: IArguments) => entry[0] === 'consent' && entry[1] === 'update')
-    .map((entry: IArguments) => entry[2])
-
   test('the bootstrap applies a fresh automatic decision and skips a stale one', () => {
     consentStorageHelper.writeConsent({ ...consentGeoHelper.automaticRecord(), auto: nowSeconds() })
-    run(consentModeHelper.consentBootstrapScript())
-    expect(updates()[0]?.analytics_storage).toBe('granted')
+    run(consentTrackingHelper.consentBootstrapScript())
+    expect((globalThis as any).owlConsentAnalytics).toBe(true)
 
-    delete (globalThis as any).dataLayer
-    delete (globalThis as any).cookieConsentSetup
+    delete (globalThis as any).owlConsentAnalytics
     consentStorageHelper.writeConsent({ ...consentGeoHelper.automaticRecord(), auto: nowSeconds() - CONSENT_AUTO_MAX_AGE - 1 })
-    run(consentModeHelper.consentBootstrapScript())
-    expect(updates()).toEqual([])
+    run(consentTrackingHelper.consentBootstrapScript())
+    expect((globalThis as any).owlConsentAnalytics).toBeUndefined()
   })
 
   test('the gate loads for a fresh automatic grant and waits on a stale one', () => {
@@ -407,11 +401,11 @@ describe('the head scripts and an automatic decision', () => {
     ;(globalThis as any).addEventListener = (_type: string, cb: () => void) => { listeners.push(cb) }
     try {
       consentStorageHelper.writeConsent({ ...consentGeoHelper.automaticRecord(), auto: nowSeconds() })
-      run(consentModeHelper.consentGateScript('window.__loaded++'))
+      run(consentTrackingHelper.consentGateScript('window.__loaded++'))
       expect((globalThis as any).__loaded).toBe(1)
 
       consentStorageHelper.writeConsent({ ...consentGeoHelper.automaticRecord(), auto: nowSeconds() - CONSENT_AUTO_MAX_AGE - 1 })
-      run(consentModeHelper.consentGateScript('window.__loaded++'))
+      run(consentTrackingHelper.consentGateScript('window.__loaded++'))
       expect((globalThis as any).__loaded).toBe(1)
       expect(listeners.length).toBe(1)
     } finally {

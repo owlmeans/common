@@ -1,4 +1,4 @@
-import type { BotPlatform } from '@owlmeans/bot'
+import type { BotPlatformId } from '@owlmeans/bot'
 
 export interface BotOriginHelper {
   /**
@@ -10,5 +10,5 @@ export interface BotOriginHelper {
   /** Whether a URL is HTTPS on a public host — not localhost, a private address or a single label. */
   isPublicHttps: (url: string) => boolean
   /** The default hook URL: `${origin}/api/bot/hook/${platform}/${connection}`. */
-  hookUrl: (origin: string, platform: BotPlatform, connection: string) => string
+  hookUrl: (origin: string, platform: BotPlatformId, connection: string) => string
 }

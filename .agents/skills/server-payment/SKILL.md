@@ -1,36 +1,32 @@
 ---
 name: server-payment
-description: Public in-process Stripe gateway for OwlMeans backends — amount and quantity checkout, subscriptions, the checkout plugin seam (per-entity narrowing, admission, holds), protocol-bound webhook routes, product sync with per-currency prices, fulfillment observers, entitlement gates, internal plan grants and revokes, entitlement grants (payment-grant units and capabilities beside the plan), and the EU consumer-rights service (country lock, purchases and withdrawal windows, spend consent, subscription start requests, the withdrawal and cancellation functions with automatic refunds and credit notes, durable-medium mails, reconcile). Use when wiring @owlmeans/server-payment or changing Stripe payment behavior.
+description: Public provider-agnostic paygate host for OwlMeans backends — payment providers registered per context (PaymentProvider / Paygate capabilities, ensurePaymentProviders, paygatesOf, forSale, the defined reaction to every absent capability, the boot feature checks), amount and quantity checkout, subscriptions, the checkout plugin seam (per-entity narrowing, admission, holds), protocol-bound webhook routes dispatching neutral paygate events, the catalogue sync with per-currency prices, fulfillment observers, entitlement gates, internal plan grants and revokes, entitlement grants (payment-grant units and capabilities beside the plan), and the EU consumer-rights service (country lock, purchases and withdrawal windows, spend consent, subscription start requests, the withdrawal and cancellation functions with automatic refunds and credit notes, durable-medium mails, reconcile). Use when wiring @owlmeans/server-payment, writing a payment provider, or changing payment behavior.
 user-invocable: false
 ---
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.1.21`
+**Install:** `bun add @owlmeans/server-payment@^0.2.0-alpha.0`
 
-Public MIT package. It embeds Stripe into an application backend and owns everything between
-Stripe and an entity's entitlements: the subscription store, one-time fulfillments, the usage
-ledger of counted limits, plan resolution, the two gate services, Stripe's own configuration
-(products, prices, the portal, the webhook endpoint) and the EU consumer-rights records and
-functions. The application owns its catalogue, what a purchase is worth to it (credits,
-provisioning), its usage meter and its side effects. Contracts — plans, limits, promos, the
-entitlement view, the consumer-rights views, calculators, copy and refusals — are
-`@owlmeans/payment`; the model across packages is the `entitlements` skill. Field lists, the
-service contract and the step-by-step algorithms are in the `reference` part
-([parts/reference.md](parts/reference.md)).
+Public MIT package. It embeds payments into an application backend and owns everything between a
+paygate and an entity's entitlements: the subscription store, one-time fulfillments, the usage
+ledger of counted limits, plan resolution, the two gate services, the paygate bootstrap (products,
+prices, the portal, the webhook endpoint — each delegated to the paygate) and the EU consumer-rights
+records and functions. **It names no paygate and depends on none**: a paygate is a payment provider
+package (OwlMeans connect) registered in the context. The application owns its catalogue, what a
+purchase is worth to it (credits, provisioning), its usage meter and its side effects. Contracts —
+plans, limits, promos, the entitlement view, the consumer-rights views, calculators, copy and
+refusals — are `@owlmeans/payment`; the model across packages is the `entitlements` skill. Field
+lists, the service contract and the step-by-step algorithms are in the `reference` part
+([parts/reference.md](parts/reference.md)); a provider's own SDK behaviour is its package's skill.
 
 ## Wiring
 
 ```typescript
-stripeSecrets(cfg, { api: '/secrets/stripe-key' })     // webhook secret: optional override
-portalBranding(cfg, { returnUrl: 'https://app.example.com/billing', headline: 'Example' })
 declarePaymentPricing(cfg, {                           // absent entirely: today's fixed behaviour, unchanged
   tax: { automatic: true, behavior: TaxBehavior.Exclusive, collectTaxId: true, estimate: true },
-  currency: { adaptive: true, adaptiveFeeRate: 0.04, estimate: true },   // the fee is optional: see "Price sync and the tax estimate"
-  stripe: { settlementCurrency: 'eur', subscriptionPaymentMethodTypes: ['card', 'link', 'klarna'],
-    subscriptionPaymentMethodTypesByCurrency: { usd: ['card', 'link'] },
-    lockCustomerEmail: true, lockCustomerCountry: true },   // optional: see "Customer locks"
-})
+  currency: { adaptive: true, adaptiveFeeRate: 0.04, estimate: true },   // the fee is optional: see "The estimate"
+})                                                     // `tax` and `currency` only — a provider declares its own settings
 declareConsumerRights(cfg, {                           // absent: no consumer-rights behaviour at all
   textVersion: 'terms-2026-09', links: { en: { billingTerms, withdrawalInformation, withdrawalFunction, cancellation } },
   currencies: { eu: 'eur', other: 'usd' },
@@ -47,7 +43,8 @@ declarePaymentPlan(cfg, { productSku: 'app-plans', sku: 'pro-monthly', rank: 10,
   withdrawal: { components: [{ key: 'services', basis: 'time', shareMinor: 1000 },
     { key: 'credits', basis: 'units', shareMinor: 1000 }] }, capabilities: […] })
 
-appendPaymentGatewayService(context)                     // the process that talks to Stripe
+appendMyPaygate(context)                                 // a provider package's `append…` — in EVERY process, before or after the gateway
+appendPaymentGatewayService(context)                     // the process that talks to the paygates
 appendPaymentGatewayService(context, { manage: false })  // a worker that only reads entitlements and asserts consent
 // One deployment, several managed processes on one database: the same owner and webhookService everywhere
 appendPaymentGatewayService(context, { owner: 'app-api', webhookService: 'app-hooks' })                   // receives the webhook, bootstraps at boot
@@ -71,61 +68,105 @@ paymentAccessOf(context).observer().onSubscription(async event => { /* keyed by 
 ```
 
 - `appendPaymentGatewayService` registers twelve resources, the catalogue service
-  (`PAYMENT_SERVICE`), the completion observer, the gateway (`GATEWAY_SERVICE`), the capability
-  gate (`ENTITLEMENT_GATE`), the limit gate (`LIMIT_GATE`), the entitlement service
-  (`ENTITLEMENT_SERVICE`) and the consumer-rights service (`CONSUMER_RIGHTS_SERVICE`), each only
-  when not registered already. `appendConsumerRights` does the consumer-rights part alone.
-- **Registration order is free.** Whichever of `appendConsumerRights` and the gateway comes first,
-  `usage` and `stripe` are installed on the one service, and `manage` resolves as the application's
-  explicit value, else the gateway's, else managed. The consumer-rights resources keep the aliases
-  of the first registration.
-- **The consumer-rights service is lazy** (like the completion observer): `paymentAccessOf(ctx).consumerRights()`,
-  `useMeter` and `useMailRenderer` work while the application is wired; the gateway's initialization
-  initializes it, so its boot checks still run at boot. The gateway is NOT lazy: `paymentAccessOf(ctx).gateway()` (and
+  (`PAYMENT_SERVICE`), the payment providers service (`PAYMENT_PROVIDERS`), the completion observer,
+  the gateway (`GATEWAY_SERVICE`), the capability gate (`ENTITLEMENT_GATE`), the limit gate
+  (`LIMIT_GATE`), the entitlement service (`ENTITLEMENT_SERVICE`) and the consumer-rights service
+  (`CONSUMER_RIGHTS_SERVICE`), each only when not registered already. `appendConsumerRights` does the
+  consumer-rights part alone.
+- **Registration order is free.** Whichever of `appendConsumerRights`, the provider and the gateway
+  comes first, `usage` is installed on the one service and `manage` resolves as the application's
+  explicit value, else the gateway's, else managed. The consumer-rights resources keep the aliases of
+  the first registration.
+- **The consumer-rights service and the providers service are lazy** (like the completion observer):
+  `paymentAccessOf(ctx).consumerRights()`, `useMeter`, `useMailRenderer` and a provider's registration
+  work while the application is wired; the gateway's initialization initializes the consumer rights, so
+  its boot checks still run at boot. The gateway is NOT lazy: `paymentAccessOf(ctx).gateway()` (and
   `.use(plugin)`) needs the initialized context.
-- **`manage: false`** registers the same surface with no Stripe client: no bootstrap at init, and
-  `createLink`, `portalLink`, `resyncSubscription`, `resyncAll`, the webhook route, `withdraw` and
-  `cancel` throw `PaygateError('unmanaged')`. `grantInternalPlan`, `revokeInternalPlan`, the
-  entitlement grants, the entitlement service,
-  `amountPolicy`, `planPrices` and the consumer-rights reads, `recordConsent`,
-  `recordStartRequest` and `assertConsent` work, because they are Mongo only.
-- **Three keys of a deployment's Stripe state**, each a `PaymentGatewayOptions` field, each read
-  back on the gateway (`paymentAccessOf(ctx).gateway().webhookService / owner / bootstrap`):
+- **`manage: false`** registers the same surface without talking to a paygate: no bootstrap at init,
+  and `createLink`, `portalLink`, `estimatePrice`, `resyncSubscription`, `resyncAll`, the webhook
+  route, `withdraw` and `cancel` throw `PaygateError('unmanaged')`. `grantInternalPlan`,
+  `revokeInternalPlan`, the entitlement grants, the entitlement service, `amountPolicy`, `planPrices`
+  and the consumer-rights reads, `recordConsent`, `recordStartRequest` and `assertConsent` work,
+  because they are Mongo only. Register the provider there too: the webhook route resolves the paygate
+  first, and the boot checks its features.
+- **Three keys of a deployment's paygate state**, each a `PaymentGatewayOptions` field, each read back
+  on the gateway (`paymentAccessOf(ctx).gateway().webhookService / owner / bootstrap`):
   - `webhookService` (default `cfg.service`) — the `cfg.services` alias whose host and base form
-    `webhookOf(ctx).webhookUrlOf`, the portal's deployment key too. Name the process that RECEIVES the webhook
-    (the one serving `paymentGate`) in every process, so every bootstrap computes one URL.
+    `webhookOf(ctx).webhookUrlOf(paygate)` (`/<base>/payment-gate/webhook/<paygate>`), the portal's
+    deployment key too (`webhookOf(ctx).deploymentOf(paygate)` = `{ owner, webhookUrl }`). Name the
+    process that RECEIVES the webhook (the one serving `paymentGate`) in every process, so every
+    bootstrap computes one URL.
   - `owner` (default `cfg.service`) — the `payment-webhook` rows' `service`, the signing-secret
-    lookup, the endpoint's `owlmeans:<owner>` description and `service` metadata, the
-    `portal:<owner>` fingerprint and the portal's `service` metadata. One value in every process of
-    the database, so each finds and replaces the others' rows.
-  - `bootstrap` (default: `manage`) — run `stripeBootstrapOf(ctx).bootstrapStripe` at boot. Exactly one kind of process
-    keeps it (the receiver). A managed process with `bootstrap: false` still serves checkout, the
-    portal, estimates, the resyncs and the webhook route, and a FORCED bootstrap (`resync`, an
-    application's maintenance `stripeBootstrapOf(ctx).bootstrapStripe(stripe, { force: true })`) still runs there —
-    same URL, same rows, fingerprinted, so idempotent from any process.
+    lookup and the labels a paygate puts on its own objects. One value in every process of the
+    database, so each finds and replaces the others' rows.
+  - `bootstrap` (default: `manage`) — run `paygateBootstrapOf(ctx).bootstrap()` at boot. Exactly one
+    kind of process keeps it (the receiver). A managed process with `bootstrap: false` still serves
+    checkout, the portal, estimates, the resyncs and the webhook route, and a FORCED bootstrap
+    (`resync`, an application's maintenance `paygateBootstrapOf(ctx).bootstrap({ force: true })`)
+    still runs there — same URL, same rows, fingerprinted, so idempotent from any process.
   - Refused at construction: `bootstrap: true` with `manage: false`, an empty `owner` or
     `webhookService` (`PaygateError`). A managed, bootstrapping gateway fails its initialization when
     `webhookService` is not declared in `cfg.services` (`WebhookSetupError('service:<alias>')`).
-- `stripe` (a `StripeFactory`, default `paymentAccessOf(ctx).stripeClient`) is the gateway's own Stripe client —
-  `paymentAccessOf(ctx).gateway().stripe(ctx)`, used by its methods, its boot bootstrap and the `paymentGate` handlers.
-  The consumer-rights service takes its own (`appendConsumerRights({ stripe })`).
+- **Boot checks** (gateway initialization): a declared policy feature a registered paygate lacks
+  fails the boot — `tax.automatic` → `automaticTax`, `tax.collectTaxId` → `taxIdCollection`,
+  `currency.adaptive` → `adaptiveCurrency`, the consumer-rights `checkoutTerms` → `termsConsent`
+  (`PaygateError('feature:<flag>:<paygate>')`); a managed, bootstrapping gateway with no provider
+  registered fails (`PaygateError('provider:none')`), a managed one without bootstrap only warns.
 - Every process that registers the gateway runs the collection validators (`collMod`) of all
   twelve records at init: a process of an older version narrows the validators again, so roll
   the processes of one deployment out together.
 - Gateway methods take the stable `entityId`. A public handler resolves it from its request
   entity first; protocol bodies carry `entitySlug`.
-- A value in `stripeSecrets` / `portalBranding` that starts with `/` is read from that file at
-  boot, and a missing file fails the boot — so leave `webhook` out unless the file exists.
+
+## The paygate contract
+
+A provider implements `PaymentProvider { id, features, bind(ctx): Paygate }` (`paygate/types.ts`) and
+is registered with `ensurePaymentProviders(ctx).register(provider)` — one registered under a taken id
+replaces it. `paygatesOf(ctx)` binds each provider once per context: `find(id)` (or `null`), `get(id)`
+(`UnknownPaygate`), `all()` in registration order, and `forSale(product, plan, requested?)` — the
+paygates the plan is sold through (`planHelper.isSoldThrough`) that can sell it (a recurring plan needs
+`subscriptions`), narrowed to `requested`. `paymentAccessOf(ctx).paygates()` is the same registry.
+
+`features` (`PaygateFeatures`): `automaticTax`, `taxIdCollection`, `adaptiveCurrency`, `termsConsent`,
+`customTextMax?` (the host refuses a longer text, `ConsumerRightsError('copy:length:<field>')`),
+`sessionTtl?` (the plugins' lifetime is clamped into it; absent, a session takes none). The paygate
+always has `settlementCurrency()`, `customers` (`ensure`, `retrieve`, `setCountry`, `locks`) and
+`checkout` (`createSession`, `expireSession`, `units`, `listCompleted?`); every other capability has a
+defined host reaction to its absence:
+
+| Absent | Host reaction |
+|---|---|
+| `subscriptions` | a recurring plan is not for sale through it; resync skips its rows; a subscription withdrawal is `review`; a cancellation is only received |
+| `payments` | every withdrawal of its purchases is `review` (no paygate call); refunds and disputes resolve without charge or invoice reads |
+| `payments.creditNotes` | a withdrawal refunds proportionally, without a corrective document |
+| `webhook` | its route throws `PaygateError('capability:webhook')`; the bootstrap skips the endpoint |
+| `catalogue` | the product sync skips it; a quantity or subscription checkout throws `ProductError('price:<lookup key>')` |
+| `portal` | `portalLink` throws `PortalUnavailable('paygate')`; the bootstrap skips the configuration |
+| `tax` | an estimate answers `at-checkout` |
+| `fx` | a conversion between two currencies throws `PaygateError('fx-rate:<from>:<to>')`; an estimate has no local line |
+| `checkout.listCompleted` | the consumer-rights reconcile backfills no purchase |
+
+Every call that moves money or ends a contract carries a `PaygateCall { idempotencyKey, comment? }`:
+the host computes the keys (`withdrawal:<id>:<step>[:<attempt>]`, `cancellation:<id>:schedule[:<attempt>]`)
+and the notes (`withdrawal:<id>`, `cancellation:<id>`). What the host reads back is neutral data —
+`CheckoutSnapshot`, `PaygateSubscription` (the status already mapped to `SubscriptionStatus`),
+`PaygateInvoice`, `PaygateCharge`, `PaygateRefund`, `PaygateDispute` — and a webhook delivery is
+verified by the paygate into ordered `PaygateEvent`s (`customer`, `checkout`, `subscription`, `invoice`,
+`refund`, `dispute`). A provider reaches the host's stores through `paymentAccessOf(ctx)`
+(`paygateCustomers`, `paymentWebhooks`, `fingerprints`, `pluginConfig`), `consumerRecordsOf(ctx)` and
+`webhookOf(ctx)`; its own settings are its own plugin records.
 
 ## Declaring plans
 
 - **`rank`** orders a product's plans; a higher rank is an upgrade. A safe integer `>= 0`; absent
   reads as `0`.
 - **The free plan is a plan**: `free: true`, `price: 0`, no `gateways`. It is never synchronized to
-  Stripe and never checked out; an entity without an entitling subscription resolves to it.
-- `gateways` names the paygates a plan is sold through; absent inherits the product's.
+  a paygate and never checked out; an entity without an entitling subscription resolves to it.
+- `gateways` names the paygates a plan is sold through; absent inherits the product's, and neither
+  declared means EVERY registered paygate (`declarePaymentProduct` no longer defaults it). An empty
+  list sells it through none.
 - **`currencyPrices`** (`{ usd: 20 }`, major units, lowercase codes) are exact prices in further
-  currencies, synced as the reusable Price's `currency_options`; a declared price in the Price's
+  currencies, synced as further currencies of the reusable price; a declared price in the price's
   default currency replaces its converted amount. Only for recurring and quantity plans.
 - **`withdrawal.components`** state the separately priced parts of a subscription for a withdrawal
   (CJEU C-641/19): `{ key, basis: 'time' | 'units', shareMinor }`, the shares summing to
@@ -143,18 +184,18 @@ paymentAccessOf(context).observer().onSubscription(async event => { /* keyed by 
 
 ## Records
 
-None declares an ObjectId reference: `entityId` is an organization key and every other id is Stripe's.
+None declares an ObjectId reference: `entityId` is an organization key and every other id is the paygate's; every row of a paygate carries its id in `paygate`.
 
 | Collection | One row per | Indexes |
 |---|---|---|
-| `payment-paygate-customer` | Stripe customer (`country`, `currency` from its webhooks; `deletedAt`) | `{paygate, externalId}` unique · `{paygate, entityId}` · `{paygate, profileId}` |
-| `payment-subscription` | subscription: `sub_…`, `free:<entityId>`, `internal:<planSku>:<entityId>` (+ `currency` and the checkout evidence) | `{paygate, externalId}` unique · `{entityId, status, rank:-1}` · `{entityId, planSku}` · `{paygate, customerId}` · `{paygate, itemId}` sparse · `{paygate, status, updatedAt}` |
+| `payment-paygate-customer` | paygate customer (`country`, `currency` from its events; `deletedAt`) | `{paygate, externalId}` unique · `{paygate, entityId}` · `{paygate, profileId}` |
+| `payment-subscription` | subscription: a paygate's id, `free:<entityId>`, `internal:<planSku>:<entityId>` (+ `currency` and the checkout evidence) | `{paygate, externalId}` unique · `{entityId, status, rank:-1}` · `{entityId, planSku}` · `{paygate, customerId}` · `{paygate, itemId}` sparse · `{paygate, status, updatedAt}` |
 | `payment-fulfillment` | one-time checkout session (+ evidence: country, e-mail, totals, terms, `purchaseId`) | `{paygate, externalId}` unique · `{paygate, paymentIntentId}` sparse · `{paygate, chargeId}` sparse · `{entityId, createdAt:-1}` |
 | `payment-webhook` | managed webhook endpoint of an owner (`service` = the gateway's `owner`; `secret` is `secure: true`) | `{paygate, service, url}` unique |
 | `payment-usage` | usage event — the ledger | `{entityId, limitKey, eventKey}` unique · `{entityId, limitKey, window}` · `{entityId, limitKey, ref}` sparse · `{entityId, createdAt:-1}` |
 | `payment-usage-counter` | (entity, limit, window) projection | `{entityId, limitKey, window}` unique |
 | `payment-grant` | entitlement grant beside the plan: `kind` (`units` / `capability`), `limitKey`, `capability`, `amount`, `used`, `startsAt`, `endsAt?`, `status` (`active` / `revoked`), `ref`, `note`, `revokedAt` | (§ Entitlement grants) |
-| `payment-fingerprint` | synchronized product (`<productSku>`, with `prices[]`) or portal (`portal:<owner>`) | `{sku}` unique |
+| `payment-fingerprint` | synchronized product (`<productSku>`, with `prices[]` — one paygate syncs a product) or a paygate's own fingerprint (its portal configuration) | `{sku}` unique |
 | `payment-billing-profile` | organization: the billing country fixed at the first purchase | `{entityId}` unique · `{paygate, customerId}` sparse |
 | `payment-purchase` | purchase = contract + withdrawal window (a paid one-time checkout, a subscription's first invoice) | `{purchaseId}` unique · `{contractRef}` unique · `{entityId, deadline:-1}` · `{entityId, purchasedAt:-1}` · `{sessionId}` unique sparse · `{paygate, subscriptionId}` · `{invoiceId}` · `{invoiceNumber}` · `{paygate, paymentIntentId}` |
 | `payment-consumer-consent` | append-only: a performance consent or a subscription start request | `{entityId, decidedAt:-1}` · `{kind, entityId, planSku, decidedAt:-1}` |
@@ -174,118 +215,78 @@ None declares an ObjectId reference: `entityId` is an organization key and every
 
 ## Checkout
 
-- `Amount`: one inline `price_data` item for the synchronized product, quantity 1, its
-  `tax_behavior` the declared `PricingPolicy.tax.behavior`. Promotion-code entry defaults off;
-  `declarePaymentPricing({ stripe: { amountPromotionCodes: true }, … })` enables it for amount
-  sessions in that deployment. Discounts reduce payment, never the selected `amountMinor` or its
-  original charge metadata. `Quantity`: the
-  reusable price under the plan lookup key, adjustable quantity. Subscription: `planSku` (else the
-  product's first recurring plan), quantity 1. One-time Sessions enable `invoice_creation`.
-- `CreateLinkParams.locale` is a caller-validated Stripe locale (Session `locale`, the Customer's
-  `preferred_locales`). `submitText` is trusted application copy — a string, or a function of
-  `CheckoutTextContext {language, currency, unitAmountMinor, interval, region, country}` — on
-  every mode; never caller-provided text.
-- A plan the paygate does not sell is refused (`ProductError`). `checkoutOptions` puts automatic
-  tax, billing address collection, tax-id collection and Adaptive Pricing on the session exactly
-  as `PricingPolicy` declares them.
-- Subscription methods come from `stripe.subscriptionPaymentMethodTypesByCurrency[chargeCurrency]`,
-  falling back to `subscriptionPaymentMethodTypes`; with neither, Stripe selects dynamically.
-  Currency keys and method names normalize to lowercase. Currency keys must have three letters;
-  method lists must be nonempty and unique. Choose account-supported methods for each currency:
-  a method the account cannot accept in that currency rejects the whole session.
-- **Without a consumer-rights policy every session is what it always was**: the charge currency
-  is the settlement currency (FX from the catalogue), Adaptive Pricing as declared.
+`gateway.createLink(ctx, params)` (`checkoutOf(ctx).createCheckoutLink`): the plans of the product
+for sale through some paygate (`params.paygate` narrows), the named plan (else the product's first
+recurring plan, a consumable's first plan), the paygate `forSale` answers first — a plan no paygate
+sells is `ProductError('plan:<sku>')`, none at all `ProductError('plan')`. The host decides the whole
+session and hands the paygate a `SessionInput`; the paygate only translates it.
+
+- `Amount`: one inline line at the charge amount (`checkoutPricingHelper.chargeAmountMinor`, the
+  declared `tax.behavior`), the policy narrowed by the plugins first. `Quantity`: the reusable price
+  under the plan lookup key (`catalogue.price`), adjustable quantity. Subscription: the plan's reusable
+  price, quantity 1, and the subscription's own metadata.
+- `CreateLinkParams.locale` is a caller-validated locale the paygate supports. `submitText` is
+  trusted application copy — a string, or a function of `CheckoutTextContext {language, currency,
+  unitAmountMinor, interval, region, country}` — on every mode; never caller-provided text.
+- `automaticTax` / `collectTaxId` / `adaptiveCurrency` exactly as `PricingPolicy` declares them
+  (`adaptiveCurrency` only when the charge currency is the settlement currency), `keepAddress` when the
+  saved address carries the locked or pinned country and is tax-locatable.
+- **Metadata** (session; a subscription's own too): `pricingMode`, `currency`, `entityId`,
+  `profileId?`, `service`, `productSku`, `planSku`; an amount checkout's `amountCurrency`,
+  `amountMinor`, `sourceChargeAmountMinor`, `chargeAmountMinor`; under a consumer-rights policy below.
+  The checkout events read them back — they are the host's, never a paygate's.
+- **Without a consumer-rights policy every session is what it always was**: the charge currency is the
+  settlement currency (FX through the paygate's `fx`), local-currency pricing as declared.
 
 ### Under a consumer-rights policy
 
 - **The country.** A locked billing profile overrides `params.country`; another declared country is
   `BillingCountryLocked` (409), and so is a saved customer address that left the locked country
   (an operator relocks). An organization that already paid before its country was locked is
-  locked lazily from its Stripe customer's address (`source: 'customer'`). Before any lock, the
-  declared country is prefilled on a customer without an address.
+  locked lazily from its paygate customer's address (`source: 'customer'`). Before any lock, the
+  declared country is preselected on a customer without an address (`customers.setCountry(…, { replace: false })`).
 - **The currency.** Charge currency = the profile's currency, else `consumerRegionHelper.chargeCurrencyOf(region)`
   (`policy.currencies`). An amount checkout whose policy currency IS the charge currency is
-  charged exactly — no FX call; any other goes through the FX reference rate (rounded up). A
-  subscription or quantity session is forced to the charge currency (`currency`) only when its
-  synced Price carries it (default or option) — otherwise it is left to Stripe and warned.
-  `adaptive_pricing.enabled` is explicitly true only when the policy enables it and the charge
-  currency is the settlement currency; every other session sends false. Omitting the flag lets
-  Stripe inherit the Dashboard setting and can enable localization for an exact USD checkout.
-- **The lock at Stripe.** A locked profile whose customer carries the address:
-  `customer_update.address: 'never'` and `billing_address_collection: 'auto'` (tax follows the
-  saved address, Checkout cannot move it); `name: 'auto'` stays. A locked customer without a
-  tax-locatable address (`stripeSessionHelper.isTaxLocatable`) keeps `'auto'`/`'required'`, or Stripe refuses the
-  session ("Automatic tax calculation in Checkout requires a valid address on the Customer").
-- **Terms.** `mechanisms.checkoutTerms` puts `consent_collection.terms_of_service: 'required'` and
-  `custom_text.terms_of_service_acceptance` (the `checkout.terms-acceptance.in-scope | other` copy
-  with the billing language's links, ≤ 1200 characters) on every session.
-- **A missing Dashboard terms URL never breaks a payment.** Stripe refuses the checkbox then
-  (`invalid_request_error`, param `consent_collection[terms_of_service]`, "You cannot collect consent
-  to your terms of service unless a URL is set in the Stripe Dashboard", matched by
-  `stripeSessionHelper.isMissingTermsUrl`): the session is created ONCE more without `consent_collection` and without the
-  terms text, under the same plugin admissions, metadata `termsCollected: 'false'`; a
-  `checkout-terms-fallback` event (`recordKind: 'checkout'`, `recordId` = the entity, `externalId`
-  = the session, `ok: false`, the Stripe message in `detail`) is appended per fallback and one
-  `warn` log per context tells the operator what to set. Any other refusal is not retried; a
-  failing retry releases the admissions and propagates its own error.
+  charged exactly — no FX call; any other goes through the paygate's FX reference rate (rounded up). A
+  subscription or quantity session is forced to the charge currency only when its synced price
+  carries it (default or further currency) — otherwise it is left to the paygate and warned.
+- **Terms.** `mechanisms.checkoutTerms` puts the terms checkbox (`collectTerms`) with the
+  `checkout.terms-acceptance.in-scope | other` copy and the billing language's links on every session.
+  A paygate may create the session without it when its own account cannot collect it — then the
+  metadata says `termsCollected: 'false'` and it audits a `checkout-terms-fallback` event.
 - **Texts.** An in-scope top-up without `submitText` says what it buys (`checkout.top-up`, with the
   country's name); a subscription without `submitText` shows the renewal price in the charge
-  currency (`checkout.renewal.<interval>`), and `after_submit` links the cancellation page while
-  that mechanism is on. Every text is asserted ≤ 1200 characters.
+  currency (`checkout.renewal.<interval>`), and the after-submit text links the cancellation page while
+  that mechanism is on. Every text is asserted within the paygate's `customTextMax`.
 - **Start requests.** A subscription needs a fresh start request bound to the organization, the
   plan and the current text version (`assertStartRequest` → `SubscriptionStartRequired`, 428),
   unless the organization is already locked outside the territories — a country picked before
-  checkout may differ from the address typed at Stripe.
-- **Metadata** (session and `subscription_data`): `region`, `country`, `language`, `termsVersion`,
-  `copyVersion`, `termsCollected` (`'true'` when the checkbox is on the session, `'false'` when the
-  policy has it off or after the fallback), `ipCountry` (the `cf-ipcountry` the app passes),
-  `startRequestId`, `profileId`, `countryPinned` (`'true'` only under `lockCustomerCountry` when the
+  checkout may differ from the address typed at the paygate.
+- **Metadata**: `region`, `country`, `language`, `termsVersion`, `copyVersion`, `termsCollected`
+  (`'true'` when the checkbox is on the session), `ipCountry` (the `cf-ipcountry` the app passes),
+  `startRequestId`, `countryPinned` (`'true'` only under the paygate's customer country lock when the
   session kept the pinned address). The purchase's `termsAccepted` comes only from the completed
-  session's `consent.terms_of_service` — absent when nothing was collected.
+  session's own terms acceptance — absent when nothing was collected.
 
-### Amount promotion codes and free completions
+### Free completions
 
-- Coupons apply to the existing single grossed-up line, processing adjustment included; Stripe
-  computes tax after the discount. `amount_subtotal` remains the original pre-discount base;
-  `amount_total` records the discounted, tax-inclusive payment, including an explicit zero.
-- A completed amount session with promotion codes enabled, a positive base subtotal fully covered
-  by `total_details.amount_discount`, zero tax and zero total fulfills for `no_payment_required`
-  as well as `paid`. Currency, subtotal and credit-value metadata checks still apply. Fulfillment
-  keeps the full selected credits and the existing session idempotency key; no PaymentIntent or
-  invoice is required for a free redemption. Purchase backfill uses the same completion predicate.
-- A zero-total top-up keeps its purchase receipt and country lock but has no monetary withdrawal
-  deadline, spending-consent window or refundable amount. Discounted paid purchases use the actual
-  payment for proportional refunds. Keep the original invoice-line basis in credit notes: Stripe
-  applies the invoice discount itself, once. `DisputeEvent.paidMinor` is the actual charge total in
-  dispute currency, including tax; an absent value retains the consumer's legacy fallback.
+A completed amount checkout with promotion codes enabled, a positive subtotal fully discounted, zero
+tax and a zero total fulfills (`checkoutSnapshotHelper.canFulfill`) as a paid one does; currency,
+subtotal and credit-value metadata checks still apply, fulfillment keeps the full selected credits.
+A zero-total top-up keeps its purchase receipt and country lock but has no monetary withdrawal
+deadline, spending-consent window or refundable amount; a discounted paid purchase refunds
+proportionally to the actual payment. `DisputeEvent.paidMinor` is the actual charge total.
 
-### Customer locks (`declarePaymentPricing` → `stripe`)
+### Customer locks (`customers.locks()`, provider configuration)
 
-Both are opt-in, backend-only, read per call from the Stripe pricing plugin config, and work with
-or without a consumer-rights policy.
-
-- **`lockCustomerEmail`** — every `createLink` must pass `CreateLinkParams.email` (the application's
-  verified e-mail of the buyer), else `PaygateError('customer-email')` before any Stripe call. It is
-  written to the Stripe customer (created with it, or updated — case-insensitively different — in
-  the same call as `preferred_locales`), never as `customer_email`: Checkout shows a customer's
-  valid e-mail read-only, and only while the customer has none asks for one and saves it. The
-  customer carries the LAST payer's e-mail (invoices and renewals go there). Without the lock
-  `email` is ignored.
-- **`lockCustomerCountry`** — the known country (the locked profile's, else `params.country`) is
-  written to the customer as a country-only address (lines and postal code cleared) when the saved
-  one carries no or another country — over another country only before any lock (a locked
-  customer's other country is still `BillingCountryLocked`). When the saved address is
-  tax-locatable the session keeps it (`customer_update.address: 'never'`, collection `'auto'`):
-  no address form, tax on the pinned country; Stripe still shows the card form's "Country or
-  region" picker (a payment-method detail no parameter hides), which then moves neither tax nor the
-  saved address. Metadata `countryPinned: 'true'` makes the first completed purchase lock THAT
-  country (`lockFromSession`: `metadata.country` before `customer_details.address.country`).
-- **Tax-locatable** (`stripeSessionHelper.isTaxLocatable`, from Stripe's customer-locations table): a country alone
-  everywhere except US (needs `postal_code`) and CA / IN (`postal_code` or `state`). A pinned US,
-  CA or IN customer without one is not kept: Checkout collects the address — country editable —
-  and the purchase locks what was typed, as without the option.
-- **The portal** never offers `email` under `lockCustomerEmail`, nor `address` under
-  `lockCustomerCountry` (or `countryLock`); both flags are in its fingerprint.
+- **E-mail** — every `createLink` must pass `CreateLinkParams.email` (the application's verified
+  e-mail of the buyer), else `PaygateError('customer-email')` before any paygate call; it is passed to
+  `customers.ensure`, which pins it on the paygate customer. Without the lock `email` is ignored.
+- **Country** — the known country (the locked profile's, else `params.country`) is written to the
+  customer as a country-only address (`setCountry(…, { replace: true })`) when the saved one carries no
+  or another country — over another country only before any lock. When the saved address is
+  tax-locatable the session keeps it (`keepAddress`): tax on the pinned country, and metadata
+  `countryPinned: 'true'` makes the first completed purchase lock THAT country.
 
 ## Checkout plugins
 
@@ -298,59 +299,47 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
 | `admit(ctx, CheckoutAttempt)` | before the session, every mode | throw (`CheckoutLimitExceeded`) to veto; may return `{ reservationId }` |
 | `created(ctx, CheckoutCreated)` | after the session | gets `sessionId`, `url`, `expiresAt`, amounts, its own `reservationId`; a throw expires the session, releases every hold and propagates |
 | `settled(ctx, CheckoutSettled)` | webhook: `paid`, `expired`, `failed`; and `failed` for a checkout that never became usable | errors are logged, never raised |
-| `sessionTtlSeconds` | — | the smallest declared, clamped to 30 min – 24 h, becomes `expires_at`; none declared: Stripe's default |
+| `sessionTtlSeconds` | — | the smallest declared, clamped into the paygate's `features.sessionTtl`, becomes the session's `expiresAt`; none declared, or a paygate without bounds: its own default |
 
 - **One narrowing path.** `createLink` and `gateway.amountPolicy(ctx, entityId, productSku,
   planSku?)` both call `checkoutPluginsOf(ctx).narrowAmountFor` → `amountNarrowingHelper.narrowAmountPolicy` (`@owlmeans/payment`); an amount
   above the narrowed maximum, or any amount while `blocked`, is `CheckoutLimitExceeded` (409). A
   control and a refusal cannot disagree. An amount above the plan's own maximum stays the base
   policy's error.
-- A veto, a Stripe refusal or a throwing `created` releases what the earlier plugins admitted
+- A veto, a paygate refusal, a session without a URL or a throwing `created` (the fresh session is
+  expired first) releases what the earlier plugins admitted
   (`settled` with `outcome: 'failed'` and their `reservationId`).
 - `gateway.planPrices(ctx, productSku)` answers `PlanPriceView[]` (a default entry per Price plus
-  one per currency option) from the synced fingerprint rows — no Stripe call.
+  one per further currency) from the synced fingerprint rows — no paygate call.
 
-## Price sync and the tax estimate
+## Catalogue sync and the estimate
 
-- `productSyncOf(ctx).syncStripeProducts` gives a matching, still-`unspecified` price the declared `tax.behavior` IN
-  PLACE and a fresh one on creation; a price carrying the OPPOSITE behavior is replaced. Before an
-  in-place update it checks the account's tax-settings default and skips — logging why — when that
-  would change existing renewals, unless `stripe.migrateUnspecifiedPrices` opts in.
-- A recurring or quantity plan whose catalogue currency differs from `stripe.settlementCurrency` is
-  converted with an unlocked FX Quote (`reference_rate`, rounded up). Its **currency options**:
-  the declared `currencyPrices`, plus the catalogue currency (exact `round(price × 100)`) when it is
-  one of the policy's region currencies; each option carries the declared `tax_behavior`. Active
-  prices are listed with `expand: ['data.currency_options']`; a changed option replaces the Price
-  (deactivate + create with `transfer_lookup_key`) — options are never edited in place, so a
-  subscriber keeps the Price they accepted.
-- The resolved amounts, currencies and options are fingerprinted; an unchanged fingerprint makes no
-  product/price call. Each sync stores the product's `prices[]` (`SyncedPrice`: price id, lookup
-  key, default currency and amount, options, tax behavior, interval, source amount) on the
-  fingerprint row — what `planPrices`, checkout currency forcing and the estimate read. A row from
-  before `prices[]` existed syncs once more.
-- `estimatePrice` (`plugins/estimate.ts`) is a Stripe Tax calculation for one product/plan's
-  reference amount at a country — **$0.05 per distinct** (currency, country, amount, tax code,
-  behavior, matching tax ids) combination, cached per gateway-service instance for 24h; failures
-  are never cached. **A locked profile overrides the requested country** (`source: 'profile'`,
-  `locked: true`); the estimate carries `region`. Under a policy with region currencies a
-  recurring plan is estimated in the charge currency at its synced unit amount (default or
-  option); the `local` line (FX Quotes, a PREVIEW endpoint) only when the session's CHARGE currency
-  (the region's, or the locked profile's) is the settlement currency — the same test the session's
-  `adaptive_pricing` takes. An amount plan stays estimated in its policy currency but is charged in
-  the region's currency, so an EU top-up gets its local line through the policy → settlement →
-  local chain, and an exact-USD one none.
-- **The local line prices the conversion the way Checkout does.** Adaptive Pricing shows a buyer's
-  currency at the quote's `base_rate` plus its own conversion fee (`price × (1 + fee)`, Stripe's 2–4%,
-  decided per currency — test mode showed 4% for PLN: `1 EUR = 4.5626 PLN = 1 / 0.227941 × 1.04`),
-  while the FX Quotes `exchange_rate` is `base_rate × (1 − fx_fee_rate)` with the quote's 2% — so it
-  understates Checkout (99.11 against 101.02 PLN for a €22.14 total). `currency.adaptiveFeeRate`
-  declares that fee: `local.exchangeRate` = `base_rate / (1 + fee)` (and `fxFeeRate` = the fee),
-  divided by the source's reference rate for an amount plan, so a subscription and a top-up share the
-  one rule. Absent, `local.exchangeRate` is the quote's own `exchange_rate`. A buyer whose local
-  currency IS the settlement currency pays no conversion fee and gets none. `StripeFxRate.baseRate`
-  is `rate_details.base_rate` (derived from `exchange_rate` and `fx_fee_rate` when absent); the fee
-  is part of the FX cache key. The fee Stripe really applies is not exposed by any API — probe it by
-  reading a test-mode Checkout page ("includes N% conversion fee") and set the declared value.
+- `productSyncOf(ctx).syncProducts(paygate)` — for every product with a plan sold through the paygate:
+  a recurring or quantity plan whose catalogue currency differs from the paygate's settlement currency
+  is converted at its FX reference rate (rounded up); its **further currencies** are the declared
+  `currencyPrices`, plus the catalogue currency (exact `round(price × 100)`) when it is one of the
+  policy's region currencies. The resolved amounts, currencies, options and the declared tax behavior
+  are fingerprinted; an unchanged fingerprint makes no paygate call. Otherwise `catalogue.syncProduct`
+  brings the product and its prices to the declaration (the paygate keeps a subscriber's accepted
+  price) and the host stores the product's `prices[]` (`SyncedPrice`: price id, lookup key, default
+  currency and amount, options, tax behavior, interval, source amount) on the fingerprint row — what
+  `planPrices`, checkout currency forcing and the estimate read. A row from before `prices[]` existed
+  syncs once more. `syncPaymentProducts()` syncs every paygate.
+- `estimatePrice` (`estimateOf(ctx).estimatePrice`): the paygate's `tax.calculate` for one
+  product/plan's reference amount at a country — cached per gateway-service instance for 24 h per
+  distinct (paygate, currency, country, amount, tax code, behavior, matching tax ids, exemption);
+  failures are never cached. **A locked profile overrides the requested country** (`source: 'profile'`,
+  `locked: true`); without one the paygate customer's country serves (`source: 'customer'`), its tax
+  ids of that country and its exemption included. The estimate carries `region`. Under a policy with
+  region currencies a recurring plan is estimated in the charge currency at its synced unit amount;
+  the `local` line only when the session's CHARGE currency is the settlement currency — the same test
+  the session takes. An amount plan stays estimated in its policy currency but is charged in the
+  region's currency, so an EU top-up gets its local line through the policy → settlement → local chain.
+- **The local line prices the conversion the way checkout does.** `currency.adaptiveFeeRate`
+  declares the paygate's local-currency conversion fee: `local.exchangeRate` = the quote's base rate
+  `/ (1 + fee)` (and `fxFeeRate` = the fee), divided by the source's reference rate for an amount plan.
+  Absent, `local.exchangeRate` is the quote's own fee-inclusive rate. A paygate without `fx` gives no
+  local line; a paygate without `tax` answers `at-checkout`.
 
 ## The subscription store
 
@@ -366,19 +355,21 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
   belongs to the row — it follows the subscription through a plan change, ends with it, and the
   free-plan fallback (no row) has none. A new overridable parameter is a new optional key of
   `SubscriptionOverrides`, declared in `PaymentSubscriptionSchema` and merged in `planHelper.overriddenPlan`.
-- `mapStatus`: `active`→Active, `trialing`→Trial, `past_due`→PastDue, `unpaid`/`paused`→Suspended,
-  `incomplete`→Created, `incomplete_expired`→Ended, `canceled`→Canceled; paused collection is
-  Suspended with `pausedAt`.
+- The paygate maps its own status to `SubscriptionStatus` (`PaygateSubscription.status`, the raw word
+  in `externalStatus`); a paused subscription is stored with `pausedAt`. The plan is the price's plan
+  (`PaygateSubscription.planSku`), else `metadata.planSku`, else the row's.
 - **State is written before observers, and classified against what observers were last told**
   (`propagated`, stamped with `lastEventId` only after every observer succeeded).
-  `CommitOptions.beforePropagate(record, change)` runs between the write and the observers — the
-  Stripe path writes a subscription's purchase there on `created`, so the window exists before an
+  `CommitOptions.beforePropagate(record, change)` runs between the write and the observers — a
+  paygate subscription's purchase is written there on `created`, so the window exists before an
   observer grants the bundle.
 - Classification, first match: `created` · `canceled` · `paused` · `resumed` · `upgraded` /
   `downgraded` · `cancel-scheduled` · `cancel-undone` · `renewed` (once per invoice) · `past-due` ·
   `suspended` · `trial-ending`.
 - A repeated delivery (`lastEventId`) is ignored; an older payload than the stored state is not
-  applied. `resyncSubscription` / `resyncAll` re-read and apply as a webhook would.
+  applied. `resyncSubscription` / `resyncAll` (`paygateSubscriptionsOf(ctx)`) re-read through each
+  row's paygate and apply as a webhook would; a subscription the paygate no longer has is canceled,
+  a row of an unregistered paygate or one without `subscriptions` is skipped.
 - **Internal plans** (`paygate: INTERNAL_PAYGATE`, row `internal:<planSku>:<entityId>`; Mongo only,
   so they work unmanaged): `gateway.grantInternalPlan(ctx, entityId, planSku, { force?, periodEnd? })`
   upserts the row — the free plan, or any plan with `force: true` (else `ProductError`); `periodEnd`
@@ -432,7 +423,7 @@ units or a capability beside its plan:
 ## Entitlements and gates
 
 - `paymentAccessOf(ctx).entitlements()` → `effectivePlan`, `entitlements` (the `EntitlementView`), `hasCapability`,
-  `limitState`, the ledger operations. Never calls Stripe.
+  `limitState`, the ledger operations. Never calls a paygate.
 - **Capability gate** (`ENTITLEMENT_GATE`) passes when the view grants ANY parameter; **limit gate**
   (`LIMIT_GATE`) when any `limit:<key>[>=n]` has room — it never consumes. Both refuse with
   `AuthForbidden` refusals (403) and fail closed on an unreadable store.
@@ -446,8 +437,9 @@ first purchase. The service is `paymentAccessOf(ctx).consumerRights()` (`.consum
 full contract is in the `reference` part ([parts/reference.md](parts/reference.md)).
 
 - **A purchase** is a paid one-time checkout, or a subscription's FIRST invoice — renewals,
-  internal grants and manual credits never are. Its row (`purchaseId` `stripe:<cs_…>` /
-  `stripe:<sub_…>`, `contractRef` `CR-YYMMDD-XXXXXX` over an unambiguous alphabet, retried on a
+  internal grants and manual credits never are. Its row (`purchaseId` `<paygate>:<checkout session id>` /
+  `<paygate>:<subscription id>` — `consumerRecordsOf(ctx).purchaseIdOf(paygate, id)`, `contractRef`
+  `CR-YYMMDD-XXXXXX` over an unambiguous alphabet, retried on a
   collision) is written **before anything is granted**: in `checkout.session.completed` before
   `onTopUp`, in the first subscription commit before the `created` observers. A completed
   subscription checkout then refines it with the buyer's own country, e-mail, totals and terms
@@ -458,9 +450,10 @@ full contract is in the `reference` part ([parts/reference.md](parts/reference.m
 - **The lock**: the first completed purchase's `customer_details.address.country` (else the
   declared one) locks the profile — first write wins through the unique index; a later different
   country is a `lock-mismatch` event, never a relock. The request's `cf-ipcountry` is stored as
-  `ipCountry` beside it, and the `lock` event flags `ipMismatch`. The profile's currency is an
-  entitling Stripe subscription's currency when one exists (two subscriptions of one customer can
-  not differ), else the region's. Only `lock(entityId, country, 'manual', { force: true, by,
+  `ipCountry` beside it, and the `lock` event flags `ipMismatch`. The profile records the paygate it
+  came from (`LockOptions.paygate`, default the first registered). Its currency is an entitling paygate
+  subscription's currency when one exists (two subscriptions of one customer can not differ), else the
+  region's. Only `lock(entityId, country, 'manual', { force: true, by,
   reason })` replaces a lock, audited as `relock`.
 - **Unlock** (an operator, Mongo only — unmanaged works): `unlock(entityId, { by, reason })` deletes
   the profile (only while it still holds the country read) and appends an `unlock` event carrying the
@@ -487,20 +480,21 @@ full contract is in the `reference` part ([parts/reference.md](parts/reference.m
 - **Withdrawal** (`withdraw(subject | null, body, origin)`, managed only): in-app by `purchaseId`,
   public by contract reference or invoice number plus an e-mail of the purchase, its profile or
   its paygate customer. The declaration and the conditional `withdrawnAt` are written BEFORE
-  Stripe; the receipt is mailed at once; then the paygate steps under
+  the paygate; the receipt is mailed at once; then the paygate steps under
   `withdrawal:<id>:<step>` keys; then `onWithdrawal`. The refund comes from the application's
   `UsageMeter` through the `@owlmeans/payment` calculators (deduction `usedAfter + settled +
-  clawed`); no meter, or `automaticRefunds` off, is `review` (no paygate call). A late
+  clawed`); no meter, `automaticRefunds` off, or a paygate that cannot execute it (no `payments`; no
+  `subscriptions` for a subscription purchase) is `review` (no paygate call). A late
   declaration is `expired` — recorded and acknowledged, nothing executed. A repeated one answers
   the original receipt. The public answer is always the bare `DeclarationReceipt`.
 - **Cancellation** (`cancel(subject | null, body, origin)`): in-app the organization's entitling
-  Stripe subscription; public a contract reference plus e-mail, else the one organization whose
-  paygate customer has that e-mail. Ordinary → `cancel_at_period_end`, or `cancel_at` a later
-  boundary (`cancellationEffectiveAt`, no proration); already scheduled → `already-scheduled`;
+  paygate subscription; public a contract reference plus e-mail, else the one organization whose
+  paygate customer has that e-mail. Ordinary → `subscriptions.scheduleCancel` at the period end, or at
+  a later boundary (`cancellationEffectiveAt`, no proration); already scheduled → `already-scheduled`;
   **extraordinary → `review`, the paygate untouched** (an operator decides, the receipt says so).
 - **Observers `onConsent` / `onWithdrawal` / `onCancellation` run AFTER the records and the paygate
   steps; a throw is recorded (`observers` event) and retried by `reconcile()` — unlike the paygate
-  callbacks, whose throw makes Stripe redeliver.** A `WithdrawalEvent` with `status: 'refunded'`
+  callbacks, whose throw makes the paygate redeliver.** A `WithdrawalEvent` with `status: 'refunded'`
   carries `units.returned` — take exactly those back; `review` means an operator refunds later,
   and that refund arrives as an ordinary `RefundEvent`.
 - **`RefundEvent.withdrawalId`**: a refund this package made for a withdrawal carries
@@ -533,23 +527,28 @@ mailer is registered.
 paygate steps of withdrawals (refund, credit note, subscription cancel) and scheduled
 cancellations, failed mails and failed observers; backfills purchases (records only, no mail) from
 completed sessions of the last 16 days without a row; locks organizations that paid before the
-lock from their paygate customer (never one an operator unlocked). A retry uses a fresh idempotency key (`…:<attempt>`; Stripe
-replays a stored failure for a day) and first adopts a refund or credit note an earlier attempt
-made (found by `metadata.withdrawalId`). Five failures of a step leave it to an operator. At most
+lock from their paygate customer (never one an operator unlocked). A retry uses a fresh idempotency key (`…:<attempt>`; a paygate
+may replay a stored failure) and first adopts a refund or credit note an earlier attempt
+made (`payments.findRefund` / `creditNotes.find` by `metadata.withdrawalId`). The backfill reads each
+paygate's `checkout.listCompleted`. Five failures of a step leave it to an operator. At most
 `limit` (50) items per step.
 
 ## Protocols, handlers and security
 
-- `paymentGate` (bound by `paymentGateEntrypoints`): `webhook` is public because Stripe signs the
-  untouched raw body — never put an application guard on it; `resync` and `resyncSubscriptions`
-  carry `GUARD_ED25519`.
+- `paymentGate` (bound by `paymentGateEntrypoints`): `webhook` (`/payment-gate/webhook/:paygate`) is
+  public because the paygate signs the untouched raw body — never put an application guard on it. It
+  resolves the paygate FIRST (`UnknownPaygate` for an unregistered id), then refuses an unmanaged
+  gateway (`PaygateError('unmanaged')`) and a paygate without `webhook`
+  (`PaygateError('capability:webhook')`), lets the paygate verify the delivery
+  (`PaygateSignatureError`, 400) and applies its events in order (`paymentEventsOf(ctx).apply`).
+  `resync` and `resyncSubscriptions` carry `GUARD_ED25519`.
 - **An application that declares the gate itself** — its own aliases, every route pinned to the
   service that receives the webhook — binds its declarations to `paymentGateHandlers` (`webhook`,
   `resync`, `resyncSubscriptions`) with `bind(own.webhook, paymentGateHandlers.webhook)` from
   `@owlmeans/server-entrypoint` / `@owlmeans/server-app`, and never registers `paymentGate` or
   `paymentGateEntrypoints`. A handler reads its context from the entrypoint it is bound to, so the
   application's declaration is the one mounted and run. Its declarations keep the library's paths
-  (`webhookOf(ctx).webhookUrlOf` forms the Stripe URL from `paymentGate`'s), contracts (`PaygateParams`,
+  (`webhookOf(ctx).webhookUrlOf(paygate)` forms the paygate's URL from `paymentGate`'s), contracts (`PaygateParams`,
   `ResyncResult`, `ResyncSubscriptionsResult` — `bind` refuses another shape at compile time) and
   guards. Two ways to get it wrong: `bindAll(declarations, [paymentGateHandlers.webhook])` pairs by
   object identity and leaves the application's declaration without a handler, and
@@ -572,73 +571,50 @@ made (found by `metadata.withdrawalId`). Five failures of a step leave it to an 
   `cf-connecting-ip` → the LAST `x-forwarded-for` entry → `x-real-ip` → the socket; the raw
   `x-forwarded-for`, `user-agent` (≤ 512), `cf-ipcountry`, `accept-language`.
 
-## Stripe self-management
+## The paygate bootstrap
 
-Runs in `initialize()` of a managed gateway with `bootstrap` (default), after the context is
-ready, and on a forced `stripeBootstrapOf(ctx).bootstrapStripe` from any managed process; each step independent: products
-and prices (above), the portal configuration, the webhook endpoint. A deployment's identity is its
-webhook URL (`webhookOf(ctx).webhookUrlOf()`: the `webhookService` alias's host and base); its rows carry the
-`owner`.
-
-- **The portal configuration**: customer update (tax id; email unless `stripe.lockCustomerEmail`;
-  address unless `mechanisms.countryLock` or `stripe.lockCustomerCountry`), invoice history,
-  payment method update, cancellation at period end without proration, price switching between the
-  active recurring prices. Its fingerprint covers the catalogue (incl. `currencyPrices`), the lock
-  flags, the region currencies, the branding and the deployment key. Each deployment owns its own configuration, tagged `{ owlmeans: 'payment',
-  service: <owner>, deployment: webhookOf(ctx).webhookUrlOf() }`; one tagged for another deployment (a former
-  webhook URL included) is never touched — a moved URL creates a new configuration.
-- `portalLink(ctx, entityId, { flow, planSku?, returnUrl })`: a customer is required
-  (`PortalUnavailable`, 409); `Cancel`/`Update`/`Change` need an entitling Stripe subscription.
-- **The webhook endpoint** at `webhookOf(ctx).webhookUrlOf()`, subscribed to `WEBHOOK_EVENTS`, on the API version
-  read back from the client; only an https public host. A deployment deletes only the endpoints its
-  own rows name. A new URL (a moved host, a new `webhookService`) creates the endpoint there, then
-  deletes the endpoints of the owner's rows at other URLs and those rows — no migration step. The
-  secret (create-only) is stored field-encrypted where the database has a key; the receiver reads
-  the newest row of its `owner`.
-- **Do not bump the Stripe SDK** (17.x, API `2025-02-24.acacia`): `current_period_*`,
-  `invoice.subscription`, `invoice.payment_intent`, `charge.invoice` are top-level there and move
-  later; credit notes link a refund by `refund`; `presentment_details` is untyped. Read them through
-  narrow accessors.
-- **Dashboard prerequisites** (test and live): a terms-of-service URL in Settings → Public details
-  before `checkoutTerms` is on (without it every checkout falls back to no checkbox — payments go on,
-  but the acceptance is not collected: watch for `checkout-terms-fallback` events); Checkout's return/refund
-  policy off or pointing at the Billing Terms, never "no refunds"; business name, address and
-  support e-mail in Public details; the "successful payments" and "refunds" customer e-mails.
+`paygateBootstrapOf(ctx).bootstrap({ force? })` runs in `initialize()` of a managed gateway with
+`bootstrap` (default), after the context is ready, and on a forced run from any managed process. For
+every registered paygate, each step on its own (one failing is logged and does not block the others),
+each capability the paygate lacks skipped: the products and prices (`productSyncOf(ctx).syncProducts`),
+the portal configuration (`portal.ensureConfiguration(deploymentOf(paygate))`), the webhook endpoint
+(`webhook.ensureEndpoint(deploymentOf(paygate))` — only for an https public host; a local one is
+logged `payment.webhook.unmanaged` and skipped). A deployment's identity is its webhook URL; its rows
+carry the `owner`. `resync` forgets every fingerprint first. What a paygate does in each step
+(endpoints, signing secrets, configurations shared by deployments of one account) is its provider's.
 
 ## Event dispatch
 
-| Event | Persisted | Observer · event key |
+| Paygate event | Persisted | Observer · event key |
 |---|---|---|
-| `customer.created` / `.updated` | customer upsert (`country`, `currency`) | — |
-| `customer.deleted` | customer `deletedAt` | — |
-| `checkout.session.completed` / `.async_payment_succeeded`, `payment` mode, paid | lock + purchase + confirmation mail, fulfillment (+ evidence), `fulfilledAt` after observers | `onTopUp` · session id; plugins `settled('paid')` |
-| same, `subscription` mode | subscription applied if no webhook did (purchase in its first commit), purchase refined, lock, subscription evidence, confirmation mail | plugins `settled('paid')` |
-| `checkout.session.async_payment_failed` | fulfillment `failedAt` | `onPaymentFailed {kind:'checkout'}` · `payment-failed:<session>:0`; `settled('failed')` |
-| `checkout.session.expired` | unfulfilled fulfillment purged | plugins `settled('expired')` |
-| `customer.subscription.created` / `.updated` / `.pending_update_*` / `.paused` / `.resumed` | subscription applied (+ `currency`) | `onSubscription` · classified |
-| `customer.subscription.deleted` | applied as Canceled + `endedAt` | `canceled` |
-| `customer.subscription.trial_will_end` | applied | `trial-ending` |
-| `invoice.paid` | cycle invoice ⇒ re-read, applied as a renewal; otherwise `latestInvoiceId` | `renewed` |
-| `invoice.payment_failed` / `.payment_action_required` | re-read and applied | classified, then `onPaymentFailed {kind:'invoice'}` · `payment-failed:<invoice>:<attempt>` |
-| `invoice.upcoming` | nothing | — |
-| `invoice.marked_uncollectible` / `invoice.voided` | re-read and applied / `latestInvoiceId` | classified / — |
-| `charge.refunded`, `refund.created` / `.updated` (succeeded) | fulfillment `refundedMinor`/`refundedAt`; purchase `refundedMinor`, `refundedAt` on a whole refund | `onRefund` · `refund:<refund>` (`metadata`, `withdrawalId`) |
-| `refund.failed` | — | — |
-| `charge.dispute.*` | target `disputedAt`, `disputeStatus` | `onDispute {phase}` · `dispute:<dispute>:<phase>` |
+| `customer` `upserted` / `deleted` | customer upsert (`country` upper, `currency` lower) / `deletedAt` | — |
+| `checkout` `completed`, a one-time payment the session fulfils | lock + purchase + confirmation mail, fulfillment (+ evidence; quantity units from `checkout.units`), `fulfilledAt` after observers | `onTopUp` · session id; plugins `settled('paid')` |
+| same, `subscription` mode, paid or not required | subscription applied if no event did (purchase in its first commit), purchase refined, lock, subscription evidence, confirmation mail | plugins `settled('paid')` |
+| `checkout` `failed` | fulfillment `failedAt` | `onPaymentFailed {kind:'checkout'}` · `payment-failed:<session>:0`; `settled('failed')` |
+| `checkout` `expired` | unfulfilled fulfillment purged | plugins `settled('expired')` |
+| `subscription` | applied (+ `currency`); `deleted` as Canceled + `endedAt`; `trialEnding` | `onSubscription` · classified (`canceled`, `trial-ending`) |
+| `invoice` `paid`, a renewal | re-read and applied as a renewal | `renewed` |
+| `invoice` `paid`, otherwise / `voided` | `latestInvoiceId` (a voided one re-reads the subscription's) | — |
+| `invoice` `payment-failed` / `action-required` | re-read and applied | classified, then `onPaymentFailed {kind:'invoice'}` · `payment-failed:<invoice>:<attempt>` |
+| `invoice` `uncollectible` | re-read and applied | classified |
+| `refund`, succeeded | fulfillment `refundedMinor`/`refundedAt`; purchase `refundedMinor`, `refundedAt` on a whole refund | `onRefund` · `refund:<refund>` (`metadata`, `withdrawalId`) |
+| `dispute` | target `disputedAt`, `disputeStatus` | `onDispute {phase}` · `dispute:<dispute>:<phase>` |
 
-A refund or dispute resolves to its target by payment intent (fulfillment), by charge, by invoice
-(the subscription whose latest invoice it is, else the invoice's subscription); a subscription
-refund touches the purchase only when it is of the purchase's own (first) invoice.
+A refund or dispute resolves to its target by payment (fulfillment), by charge, by invoice (the
+subscription whose latest invoice it is, else the invoice's subscription — `payments.charge`,
+`payments.invoice`); a subscription refund touches the purchase only when it is of the purchase's own
+(first) invoice. Work on one paygate customer is serialized in-process (`customerLockHelper`, key
+`<paygate>:<customer>`).
 
 ## Observer API and idempotency keys
 
 | Callback | Payload | Key | A throw |
 |---|---|---|---|
-| `onTopUp` | `TopUpCompletion` | session id | Stripe redelivers |
-| `onSubscription` | `SubscriptionEvent` | `subscription:<id>:<change>:…` | Stripe redelivers |
-| `onRefund` | `RefundEvent` (+ `metadata`, `withdrawalId`) | `refund:<refund>` | Stripe redelivers |
-| `onDispute` | `DisputeEvent` | `dispute:<dispute>:<phase>` | Stripe redelivers |
-| `onPaymentFailed` | `PaymentFailedEvent` | `payment-failed:<session\|invoice>:<attempt>` | Stripe redelivers |
+| `onTopUp` | `TopUpCompletion` | session id | the paygate redelivers |
+| `onSubscription` | `SubscriptionEvent` | `subscription:<id>:<change>:…` | the paygate redelivers |
+| `onRefund` | `RefundEvent` (+ `metadata`, `withdrawalId`) | `refund:<refund>` | the paygate redelivers |
+| `onDispute` | `DisputeEvent` | `dispute:<dispute>:<phase>` | the paygate redelivers |
+| `onPaymentFailed` | `PaymentFailedEvent` | `payment-failed:<session\|invoice>:<attempt>` | the paygate redelivers |
 | `onConsent` | `ConsentEvent` (`kind`, `consentId`, `purchaseIds`, `planSku`) | `consent:<id>` | recorded; `reconcile` retries |
 | `onWithdrawal` | `WithdrawalEvent` (`status`, `purchase: PurchaseRef`, `refund`, `units`, `subscriptionCanceled`) | `withdrawal:<id>` | recorded; `reconcile` retries |
 | `onCancellation` | `CancellationEvent` (`matched`, `kind`, `status`, `effectiveAt`) | `cancellation:<id>` | recorded; `reconcile` retries |
@@ -650,55 +626,21 @@ refund uses `netAmountMinor * refundedTotalMinor / paidMinor`.
 ## Testing
 
 Unit specs run a real server context — real catalogue, services and gates — over in-memory
-resources (unique and sparse-unique indexes, raw conditional updates) and a fake Stripe that records
-every SDK call and its request options (idempotency keys) and can fail a method's next calls
-(`state.failures`: a message, a real SDK error such as `new Stripe.errors.StripeInvalidRequestError(…)`,
-or a list of them, one per call), so "no Stripe call" is an assertion. `makeFakeContext` wires the
-consumer-rights call before the gateway by default (`gatewayFirst`, `rights` and a pre-init `wire`
-hook test the other orders); `gateway` passes the gateway's options (default `{ manage: false }`,
-the fake always its Stripe client, so a managed one boot-bootstraps against it), `service` /
-`host` / `base` / `services` shape `cfg.service` and `cfg.services`, and `seed` pre-fills stores
-(a database shared between two processes). `gate-handlers.spec.ts` binds `paymentGateHandlers`
-onto a re-declared, pinned gate and runs it in that process's context. The consumer-rights service there is
-managed through the fake (`appendConsumerRights({ manage: true, stripe })`) with a console mailer
-(`fake.mails`). The Mongo-gated specs prove admission under concurrency, the collection validators
-of every record, the unique indexes, the concurrent first lock and the single winner of
-concurrent withdrawals.
-
-## External docs
-
-- https://docs.stripe.com/api/checkout/sessions/object — `amount_subtotal` precedes discounts and
-  tax; `amount_total` follows them; a free payment can omit a PaymentIntent.
-- https://docs.stripe.com/payments/checkout/no-cost-orders — fulfill zero-cost orders on Checkout
-  completion, including orders discounted by 100%.
-- https://docs.stripe.com/invoicing/dashboard/credit-notes#credit-balances-and-discounts — invoice
-  discounts apply proportionally to credit-note lines; retain the original line basis.
-
-- https://docs.stripe.com/api/checkout/sessions/create — `customer`: "If the Customer already has a valid email set, the email will be prefilled and not editable in Checkout" (else Checkout saves the typed one); `customer_email` only prefills a NEW customer and cannot be combined with `customer`. Inline `price_data`; `consent_collection.terms_of_service` needs a terms URL in the Dashboard (else `invalid_request_error` on param `consent_collection[terms_of_service]`); `custom_text.{submit, after_submit, terms_of_service_acceptance}` ≤ 1200 characters each; `currency` forces a Price's currency option; `expires_at` 30 min – 24 h.
-- https://docs.stripe.com/tax/customer-locations — minimal tax location: country alone except US (postal code), CA and IN (postal code or province); https://docs.stripe.com/tax/checkout/page — an existing customer with `customer_update.address: 'never'` is taxed on its saved address. Verified against test mode (2026-10): a pinned DE customer keeps its VAT when the card country is switched to US; a country-only US/CA customer is refused at session creation.
-- https://docs.stripe.com/payments/checkout/localize-prices/manual-currency-prices — `currency_options` on a Price, one reusable Price for several currencies; manual options override Adaptive Pricing for that currency.
-- https://docs.stripe.com/payments/currencies/localize-prices/adaptive-pricing — Adaptive Pricing requires the price currency to be a settlement currency; webhook amounts stay in the integration currency.
-- https://docs.stripe.com/api/checkout/sessions/create?query=adaptive_pricing — `adaptive_pricing.enabled` defaults to the Dashboard setting when omitted; send an explicit boolean for every session.
-- https://docs.stripe.com/payments/klarna — Klarna eligibility depends on currency, customer location and purchase use case; verify the account's supported currencies before explicitly requesting it.
-- https://docs.stripe.com/invoicing/multi-currency-customers — a customer's subscriptions share one currency; one-time payments may differ.
-- https://docs.stripe.com/invoicing/integration/programmatic-credit-notes — preview a credit note on an invoice line; link an existing refund with `refund`; custom lines are not allowed with automatic tax.
-- https://docs.stripe.com/tax/reports — a refund or a credit note lowers reported tax; only the credit note is the corrective document of an issued invoice.
-- https://docs.stripe.com/api/refunds/create — `payment_intent`, `amount`, `reason: requested_by_customer`, `metadata`; an idempotency key replays the stored answer (failures too) for 24 h.
-- https://docs.stripe.com/api/subscriptions/cancel and /update — `cancel(prorate, invoice_now, cancellation_details)`; `update(cancel_at_period_end | cancel_at, proration_behavior)`.
-- https://docs.stripe.com/payments/checkout/receipts — one-time Checkout needs `invoice_creation.enabled` for a post-payment invoice; a Customer's `preferred_locales` localizes Stripe mails.
-- https://docs.stripe.com/checkout/fulfillment — fulfillment must be idempotent and support delayed-payment success events.
-- https://docs.stripe.com/api/webhook_endpoints/create — the signing `secret` is returned only by create; `api_version` is create-only.
-- https://docs.stripe.com/api/customer_portal/configurations/create — `features.customer_update.allowed_updates`, subscription cancel/update features; configurations are never deletable.
-- https://docs.stripe.com/api/tax/calculations/create — `percentage_decimal` is a STRING; parse it exactly.
-- https://docs.stripe.com/api/fx_quotes/create — a PREVIEW endpoint (`stripe.rawRequest`); `reference_rate` for settlement conversion.
-- https://docs.stripe.com/currencies/localize-prices/fx-quotes-api — `exchange_rate` is fee-inclusive (`base_rate × (1 − fx_fee_rate)`, 2%); dividing a price by `base_rate` is the fee-free local price.
-- https://docs.stripe.com/payments/currencies/localize-prices/adaptive-pricing — the buyer pays a 2–4% conversion fee that Stripe decides ("includes 4% conversion fee" on a PLN Checkout, 2026-10): the mid-market rate × (1 + fee), a different fee from the FX Quotes' `fx_fee_rate`.
+resources with a fake paygate (`@owlmeans/test-payment`: `makeFakeContext`, `makeFakePaygate`; the
+`test-payment` skill), so "no paygate call" and "the host asked the paygate for exactly this session"
+are assertions. `paygates.spec.ts` covers the registry, `forSale` and the boot checks;
+`webhook.spec.ts` the route and the dispatch; `capabilities.spec.ts` the checkout input and every
+absent capability; `gate-handlers.spec.ts` binds `paymentGateHandlers` onto a re-declared, pinned
+gate. A provider's SDK behaviour, its golden records and the Mongo-gated integration specs (admission
+under concurrency, the collection validators, the concurrent first lock) live in the provider's
+package.
 
 ## Related
 
 - [[entitlements]] — the model across packages
 - [[payment]] — the contracts: grammars, views, consumer-rights calculators, copy, refusals, factories
 - [[web-payment]] — hooks and pieces, the consumer-rights dialogs and functions
+- [[test-payment]] — the harness: in-memory context, fake paygate
 - [[mailer]] — the mail transport the consumer-rights mails go through
 - [[mongo-resource]] — raw collection access, duplicate-key detection, field locking
 

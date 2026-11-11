@@ -4,7 +4,6 @@ import {
   BOT_ATTEMPTS, BOT_LEASE_MS, BOT_POLL_MS, BOT_RECONCILE_MS, BOT_RETAIN_MS, BOT_SECRET_ENV, BOT_SERVICE,
 } from './consts.js'
 import { botOriginHelper } from './helpers/origin.js'
-import { BOT_BUILTIN_PLATFORMS } from './platforms/consts.js'
 import { makeBotPlatformRegistry } from './platforms/registry.js'
 import type { BotFetch } from './platforms/types.js'
 import { makeBotActionsFactory } from './service/actions.js'
@@ -24,6 +23,10 @@ const positive = (value: number | undefined, fallback: number): number =>
  * The bot service over any `@owlmeans/resource` store: connections (credentials sealed), activity,
  * the signed inbound hook into the inbox, simulation for mock connections (API only), the worker's
  * runtime and the never-throwing actions. Resources are resolved by alias on every call.
+ *
+ * It supports exactly the platforms whose plugins it is given (`options.platforms`, or `register`
+ * later) — each from its own `@owlmeans/bot-<platform>` package. With none, it warns where it boots
+ * (the worker's `runtime`, the panels' first `platforms` read) and refuses every save.
  */
 export const makeBotService = (options: BotServiceOptions = {}, alias: string = BOT_SERVICE): BotService => {
   const resolved: BotResolvedOptions = {
@@ -38,13 +41,24 @@ export const makeBotService = (options: BotServiceOptions = {}, alias: string = 
   }
 
   let service: BotService | undefined
+  const registry = makeBotPlatformRegistry(options.platforms ?? [])
+  const log = logger('server-bot')
+  let warned = false
   const parts: BotServiceParts = {
     context: () => service!.assertCtx<BasicConfig, BasicContext<BasicConfig>>(alias),
     store: makeBotStore(() => service!.assertCtx<BasicConfig, BasicContext<BasicConfig>>(alias), options.resources),
-    registry: makeBotPlatformRegistry(options.platforms ?? BOT_BUILTIN_PLATFORMS),
+    registry,
     options: resolved,
     now: options.now ?? (() => new Date()),
-    log: logger('server-bot'),
+    log,
+    warnWithoutPlatforms: () => {
+      if (!warned && registry.plugins().length === 0) {
+        warned = true
+        log.warn('Bot service has no platform plugin: no connection can be saved — register one (makeBotService({ platforms }) or service.register)', {
+          service: alias,
+        }, { event: 'bot.platforms.missing' })
+      }
+    },
   }
   const sessions = makeBotSessions(parts)
   const activity = makeBotActivity(parts)
@@ -54,6 +68,11 @@ export const makeBotService = (options: BotServiceOptions = {}, alias: string = 
   service = createLazyService<BotService>(alias, {
     connections: makeBotConnections(parts, sessions),
     activity: { list: activity.list },
+    platforms: () => {
+      parts.warnWithoutPlatforms()
+      return registry.platforms()
+    },
+    register: registry.register,
     receive: inbox.receive,
     simulate: inbox.simulate,
     runtime: makeBotRuntimeFactory(parts, sessions, inbox, actions).runtime,

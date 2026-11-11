@@ -1,6 +1,6 @@
 ---
 name: web-inquiry
-description: How to use @owlmeans/web-inquiry — the lightweight browser SDK of the OwlMeans customer inquiry widget. makeInquiryClient injects the widget runtime (<crm>/inquiry.js) once per page, checks its version, and opens the contact dialog from code (open), from triggers that keep their href as a fallback (bind) or from a floating button (button); every open is reported once as the analytics event inquiry_dialog_open through @owlmeans/log, which web-log's gtmAnalyticsPlugin forwards to a tag manager under consent. Auto-invoked when adding a contact/feedback dialog, a "Contact us" or "Get a quote" trigger to a page, importing makeInquiryClient or InquiryLoadError, or wiring the inquiry open event into GTM.
+description: How to use @owlmeans/web-inquiry — the lightweight browser SDK of the OwlMeans customer inquiry widget. makeInquiryClient injects the widget runtime (<crm>/inquiry.js) once per page, checks its version, and opens the contact dialog from code (open), from triggers that keep their href as a fallback (bind) or from a floating button (button); every open is reported once as the analytics event inquiry_dialog_open through @owlmeans/log, which a consent-gated analytics plugin (connect web-gtm's gtmAnalyticsPlugin for a tag manager) forwards under consent. Auto-invoked when adding a contact/feedback dialog, a "Contact us" or "Get a quote" trigger to a page, importing makeInquiryClient or InquiryLoadError, or wiring the inquiry open event into GTM.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,10 +8,10 @@ user-invocable: false
 # @owlmeans/web-inquiry
 
 **Layer:** Web (depends on `@owlmeans/common-inquiry` and `@owlmeans/log`; no React, no widget code)
-**Install:** `"@owlmeans/web-inquiry": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/web-inquiry": "^0.2.0-alpha.1"` in `dependencies`
 
-The host half of the inquiry widget. The dialog itself — React, styles, reCAPTCHA (loaded through
-`@owlmeans/web-captcha`), the upload — is a bundle the CRM serves; this package only loads it,
+The host half of the inquiry widget. The dialog itself — React, styles, the captcha (a
+`@owlmeans/web-captcha` client), the upload — is a bundle the CRM serves; this package only loads it,
 opens it and reports the opens. A page pays for the widget on the first interaction, never at load.
 
 ## Use it
@@ -97,11 +97,13 @@ code, a bound trigger or the floating button is counted exactly once. `inquiry_s
 trigger's `source` (the floating button's defaults to `fab`) and is sent even when undefined, so a
 tag manager's data layer does not keep the previous open's value.
 
-To send it to GTM, the host registers the consent-gated plugin once at startup:
+To send it to GTM, the host registers the consent-gated tag-manager sink of connect's
+`@owlmeans/web-gtm` once at startup (any sink built on `@owlmeans/web-log`'s
+`consentedAnalyticsPlugin` works the same way):
 
 ```ts
 import { addLogPlugin } from '@owlmeans/log'
-import { gtmAnalyticsPlugin } from '@owlmeans/web-log'
+import { gtmAnalyticsPlugin } from '@owlmeans/web-gtm'
 import { INQUIRY_OPEN_EVENT } from '@owlmeans/web-inquiry'
 
 addLogPlugin(gtmAnalyticsPlugin({ allow: [INQUIRY_OPEN_EVENT] }))
@@ -126,4 +128,5 @@ the loader is page-wide state, so each spec uses a CRM URL of its own.
 ## Related
 
 - `common-inquiry` — the config, the runtime contract, limits and schemas
-- `web-log`, `log` — the analytics routing the open event takes
+- `web-log`, `log` — the analytics routing the open event takes; `web-gtm` (OwlMeans connect) — the
+  tag-manager sink

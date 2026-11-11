@@ -1,4 +1,6 @@
-import { BotActionKind, BotConnectionStatus, BotPlatform, BotReceiveMode, BotTransport } from '@owlmeans/bot'
+import {
+  BOT_PLATFORM_ID_PATTERN, BotActionKind, BotConnectionStatus, BotReceiveMode, BotTransport,
+} from '@owlmeans/bot'
 import type { JSONSchemaType } from 'ajv'
 import { BotInboxStatus } from './consts.js'
 import type { BotActivityRecord, BotConnectionRecord, BotUpdateRecord } from './types.js'
@@ -16,7 +18,12 @@ const text = { type: 'string' }
 const required = { type: 'string', minLength: 1 }
 const optional = { type: 'string', nullable: true }
 const strings = { type: 'array', items: { type: 'string' } }
-const platform = { type: 'string', enum: Object.values(BotPlatform) }
+/**
+ * A platform id (`BotPlatformId`) — a pattern, never an enum: the platforms are the registered
+ * plugins', not a list of this package. No `maxLength` (the pattern bounds it): a store maps one to a
+ * sized column type, and the stored column stays text.
+ */
+const platform = { type: 'string', minLength: 1, pattern: BOT_PLATFORM_ID_PATTERN }
 
 export const BotConnectionRecordSchema = cast<BotConnectionRecord>({
   type: 'object',

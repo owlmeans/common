@@ -1,4 +1,4 @@
-import type { BotActionKind, BotPlatform } from '@owlmeans/bot'
+import type { BotActionKind, BotPlatformDescriptor } from '@owlmeans/bot'
 
 /** A failed action as its result and its activity carry it. */
 export interface BotRefusal {
@@ -12,11 +12,12 @@ export interface BotRefusal {
 export interface RefusalUtils {
   /**
    * `failure` is a marker decided before any call (`bot:invalid-action:empty-text`) or what the
-   * plugin threw; `kind` is the action, `platform` names it in the sentence.
+   * plugin threw; `kind` is the action; `descriptor` (the registered plugin's) names the platform in
+   * the sentence and the credential an action needs — `The platform` without one.
    *
-   * A platform's API error is `bot:<platform>:<codes or the Web API method>:<the platform's words>`:
-   * the sentence keeps the words ("Telegram refused: message to delete not found."); a transport
-   * fault ending in `unreachable` / `timeout` says the platform could not be reached / did not answer.
+   * A platform's API error is `bot:platform:<id>:<codes or the API method>:<the platform's words>`:
+   * the sentence keeps the words ("Acme refused: message to delete not found."); a transport fault
+   * ending in `unreachable` / `timeout` says the platform could not be reached / did not answer.
    */
-  of: (failure: unknown, kind: BotActionKind, platform?: BotPlatform) => BotRefusal
+  of: (failure: unknown, kind: BotActionKind, descriptor?: BotPlatformDescriptor | null) => BotRefusal
 }

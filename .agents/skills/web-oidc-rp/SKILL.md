@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.2.0-alpha.0"` in `dependencies`
 
 ## Key Exports
 

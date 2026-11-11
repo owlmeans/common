@@ -1,15 +1,20 @@
 import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 import type { RouteParent } from '@owlmeans/route'
-import type { EMAIL_AUTH_LOCALES, EMAIL_CAPTCHA_PROVIDER, EmailPasswordPurpose, EmailSignInReason } from './consts.js'
+import type { EMAIL_AUTH_LOCALES, EmailPasswordPurpose, EmailSignInReason } from './consts.js'
 
 /** One of the languages the sign-in mails are written in. */
 export type EmailAuthLocale = typeof EMAIL_AUTH_LOCALES[number]
 
 // --- Views (answers) ---------------------------------------------------------------------------
 
-/** The captcha a client must solve before send-PIN and password sign-in. */
+/**
+ * The captcha a client must solve before send-PIN and password sign-in — the server's captcha
+ * provider's own client settings (`CaptchaProvider.clientSettings()` of `@owlmeans/captcha`).
+ */
 export interface EmailAuthCaptchaView {
-  provider: typeof EMAIL_CAPTCHA_PROVIDER
+  /** The id of the server's captcha provider; the browser solves it with the client of that id. */
+  provider: string
+  /** The public key the browser asks the provider with. */
   siteKey: string
 }
 

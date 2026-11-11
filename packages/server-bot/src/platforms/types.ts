@@ -1,5 +1,5 @@
 import type {
-  BotActionKind, BotChatRef, BotConnection, BotHookReply, BotMessageRef, BotPlatform, BotPlatformDescriptor,
+  BotActionKind, BotChatRef, BotConnection, BotHookReply, BotMessageRef, BotPlatformDescriptor, BotPlatformId,
   BotSimulateInput, BotTransport, BotUpdate,
 } from '@owlmeans/bot'
 import type { BotHookRequest } from '../types.js'
@@ -95,7 +95,7 @@ export interface BotMockCall {
   at: string
   /**
    * Which credential made the call, where the platform has more than one — in the plugin's words
-   * (Slack: `bot` the bot token, `user` the admin user token, `none` no token). Absent elsewhere.
+   * (e.g. `bot` the bot token, `user` an admin user token, `none` no token). Absent elsewhere.
    */
   auth?: string
 }
@@ -130,11 +130,18 @@ export interface BotPlatformMock {
 /**
  * One messaging platform. A plugin is plain code over its session's `fetch` — it holds no storage,
  * no credentials and no timers of its own; the service decides when it runs and with which transport.
- * Every method may throw: the service records the failure (actions answer `{ ok: false }`).
+ * Every method may throw: the service records the failure (actions answer `{ ok: false }`). A
+ * platform's API refusal is a `BotErrorPlatform` (`bot:platform:<id>:<detail>`) or a subclass of it
+ * that declares no type name of its own.
+ *
+ * A plugin lives in its own package (`@owlmeans/bot-<platform>`) and is registered explicitly —
+ * `makeBotService({ platforms: [...] })` or `BotService.register(plugin)`; the service supports
+ * exactly the registered platforms.
  */
 export interface BotPlatformPlugin {
-  platform: BotPlatform
-  /** `BOT_PLATFORMS[platform]` — the contract's descriptor, never a copy that could drift. */
+  /** The platform's id — a stored column and a hook URL segment, so it never changes. */
+  platform: BotPlatformId
+  /** What the platform needs and can do — the record `platform.list` answers the panels with. */
   descriptor: BotPlatformDescriptor
   /**
    * Who the bot is — the credentials check. A refusal of the credentials (or a missing required
@@ -162,7 +169,7 @@ export interface BotPlatformPlugin {
   receiver?: (session: BotPlatformSession, emit: BotReceiverEmit, signal: AbortSignal) => Promise<void>
   /**
    * Whether a receiver's fault is one no restart fixes — a revoked token, a configuration the
-   * platform refuses (Telegram 401/404 on `getUpdates`, Discord close codes 4004 and 4010–4014). A
+   * platform refuses (a 401 on the poll, a gateway closing with an authentication code). A
    * `BotCredentialsRejected` is fatal without asking; absent, nothing else is.
    */
   fatal?: (error: unknown) => boolean

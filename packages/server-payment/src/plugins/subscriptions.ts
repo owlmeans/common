@@ -1,10 +1,9 @@
-import type Stripe from 'stripe'
-import { SubscriptionStatus, TERMINAL_STATUSES } from '@owlmeans/payment'
+import { INTERNAL_PAYGATE, SubscriptionStatus, TERMINAL_STATUSES } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
-import { STRIPE_PAYGATE_ALIAS } from '../consts.js'
 import type { CommitResult, PaymentSubscriptionRecord, SubscriptionRef } from '../types.js'
-import type { ApplyOptions, StripeSubscriptionsHelper } from './subscriptions/types.js'
+import type { Paygate, PaygateSubscription } from '../paygate/types.js'
+import type { ApplyOptions, PaygateSubscriptionsHelper } from './subscriptions/types.js'
 import { log } from '../log.js'
 import { RESYNC_PAGE } from './consts.local.js'
 import { paymentAccessOf } from '../access.js'
@@ -12,36 +11,25 @@ import { paymentUtils } from '../utils.js'
 import { catalogueOf } from '../catalogue.js'
 import { planHelper } from '../plan.js'
 import { subscriptionCommitOf } from '../commit.js'
+import { paygatesOf } from '../paygate/registry.js'
 import { customerLockHelper } from './customer-lock.js'
-import { mapStatus } from './status.js'
 import { captureOf } from '../consumer/capture.js'
-
-const isPaused = (subscription: Pick<Stripe.Subscription, 'status' | 'pause_collection'>): boolean =>
-  subscription.status === 'paused'
-  || (subscription.pause_collection != null && (subscription.status === 'active' || subscription.status === 'trialing'))
-
-/**
- * The current period. Top-level on the API version the client is pinned to; read through a narrow
- * accessor because later versions move it onto the subscription items.
- */
-const periodOf = (subscription: Stripe.Subscription): { start?: Date, end?: Date } => {
-  const typed = subscription as unknown as { current_period_start?: number | null, current_period_end?: number | null }
-  return { start: paymentUtils.dateOf(typed.current_period_start), end: paymentUtils.dateOf(typed.current_period_end) }
-}
 
 const secondsFloor = (at: Date): Date => new Date(Math.floor(at.getTime() / 1000) * 1000)
 
-export const makeStripeSubscriptionsHelper = (ctx: ApiContext): StripeSubscriptionsHelper => {
+export const makePaygateSubscriptionsHelper = (ctx: ApiContext): PaygateSubscriptionsHelper => {
   const access = paymentAccessOf(ctx)
 
-  const applySubscription = async (subscription: Stripe.Subscription, opts: ApplyOptions): Promise<CommitResult> => {
+  const applySubscription = async (
+    paygate: Paygate, subscription: PaygateSubscription, opts: ApplyOptions,
+  ): Promise<CommitResult> => {
     const metadata = subscription.metadata ?? {}
-    const customerId = paymentUtils.idOf(subscription.customer)
-    const previous = await access.subscriptions().byExternalId(subscription.id, STRIPE_PAYGATE_ALIAS)
+    const customerId = subscription.customerId
+    const previous = await access.subscriptions().byExternalId(subscription.id, paygate.id)
 
     let entityId: string | undefined = metadata.entityId ?? previous?.entityId
     if (entityId == null && customerId != null) {
-      entityId = (await access.paygateCustomers().loadByPgId(customerId, STRIPE_PAYGATE_ALIAS))?.entityId ?? undefined
+      entityId = (await access.paygateCustomers().loadByPgId(customerId, paygate.id))?.entityId ?? undefined
     }
     if (entityId == null) {
       log.warn('Subscription belongs to no known entity; ignored', { subscriptionId: subscription.id })
@@ -52,24 +40,22 @@ export const makeStripeSubscriptionsHelper = (ctx: ApiContext): StripeSubscripti
     }
 
     const now = new Date()
-    const syncedAt = opts.eventCreated != null ? new Date(opts.eventCreated * 1000) : secondsFloor(now)
+    const syncedAt = opts.eventCreated ?? secondsFloor(now)
     if (opts.eventCreated != null && previous?.syncedAt != null
       && syncedAt.getTime() < new Date(previous.syncedAt).getTime()) {
       return { record: previous, change: null, updated: false }
     }
 
-    const item = subscription.items?.data?.[0]
-    // A price recreated by `sync.ts` (an opposite `tax_behavior`) loses its lookup key; its sku
-    // metadata survives, so a subscription switched to it in the portal still resolves its plan.
-    const planSku = item?.price?.lookup_key ?? item?.price?.metadata?.sku ?? metadata.planSku ?? previous?.planSku
+    // A price recreated by the catalogue sync (an opposite tax behavior) may lose its lookup key; the
+    // paygate still names its plan, so a subscription switched to it in the portal resolves its plan.
+    const planSku = subscription.planSku ?? metadata.planSku ?? previous?.planSku
     if (planSku == null) {
       log.warn('Subscription names no plan; ignored', { subscriptionId: subscription.id })
       return { record: previous, change: null, updated: false }
     }
     const plan = await catalogueOf(ctx).findPlan(planSku)
     const productSku = plan?.productSku ?? previous?.productSku ?? metadata.productSku ?? planSku
-    const paused = opts.forced == null && isPaused(subscription)
-    const period = periodOf(subscription)
+    const paused = opts.forced == null && subscription.paused
     const terminal = opts.forced != null && TERMINAL_STATUSES.includes(opts.forced)
 
     const next = paymentUtils.compact({
@@ -78,24 +64,24 @@ export const makeStripeSubscriptionsHelper = (ctx: ApiContext): StripeSubscripti
       planSku,
       productSku,
       service: metadata.service ?? previous?.service ?? productSku,
-      paygate: STRIPE_PAYGATE_ALIAS,
+      paygate: paygate.id,
       externalId: subscription.id,
-      itemId: item?.id,
-      priceId: item?.price?.id,
-      status: opts.forced ?? mapStatus(subscription),
-      externalStatus: subscription.status,
+      itemId: subscription.itemId,
+      priceId: subscription.priceId,
+      status: opts.forced ?? subscription.status,
+      externalStatus: subscription.externalStatus,
       rank: plan != null ? planHelper.planRank(plan) : previous?.rank ?? 0,
-      periodStart: period.start,
-      periodEnd: period.end,
-      cancelAtPeriodEnd: subscription.cancel_at_period_end === true,
-      canceledAt: paymentUtils.dateOf(subscription.canceled_at),
-      endedAt: paymentUtils.dateOf(subscription.ended_at) ?? (terminal ? previous?.endedAt ?? now : undefined),
+      periodStart: subscription.periodStart,
+      periodEnd: subscription.periodEnd,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd === true,
+      canceledAt: subscription.canceledAt,
+      endedAt: subscription.endedAt ?? (terminal ? previous?.endedAt ?? now : undefined),
       pausedAt: paused ? previous?.pausedAt ?? now : undefined,
-      trialEnd: paymentUtils.dateOf(subscription.trial_end),
-      latestInvoiceId: opts.invoiceId ?? paymentUtils.idOf(subscription.latest_invoice) ?? previous?.latestInvoiceId,
+      trialEnd: subscription.trialEnd,
+      latestInvoiceId: opts.invoiceId ?? subscription.latestInvoiceId ?? previous?.latestInvoiceId,
       customerId,
       currency: subscription.currency?.toLowerCase() ?? previous?.currency,
-      createdAt: previous?.createdAt ?? paymentUtils.dateOf(subscription.created) ?? now,
+      createdAt: previous?.createdAt ?? subscription.createdAt ?? now,
       updatedAt: now,
       syncedAt,
     }) as PaymentSubscriptionRecord
@@ -106,25 +92,17 @@ export const makeStripeSubscriptionsHelper = (ctx: ApiContext): StripeSubscripti
       // The first invoice is a purchase: its window exists before an observer grants the bundle.
       beforePropagate: async (record, change) => {
         if (change === 'created') {
-          await captureOf(ctx).captureSubscriptionPurchase(opts.stripe ?? null, subscription, record)
+          await captureOf(ctx).captureSubscriptionPurchase(paygate, subscription, record)
         }
       },
     })
   }
 
-  const retrieveSubscription = async (stripe: Stripe, id: string): Promise<Stripe.Subscription | null> => {
-    try {
-      return await stripe.subscriptions.retrieve(id)
-    } catch (error) {
-      if (paymentUtils.isMissingObject(error)) {
-        return null
-      }
-      throw error
-    }
-  }
+  const retrieveSubscription = async (paygate: Paygate, id: string): Promise<PaygateSubscription | null> =>
+    paygate.subscriptions != null ? await paygate.subscriptions.retrieve(id) : null
 
-  const cancelMissing = async (externalId: string): Promise<CommitResult> => {
-    const previous = await access.subscriptions().byExternalId(externalId, STRIPE_PAYGATE_ALIAS)
+  const cancelMissing = async (paygate: Paygate, externalId: string): Promise<CommitResult> => {
+    const previous = await access.subscriptions().byExternalId(externalId, paygate.id)
     if (previous == null || TERMINAL_STATUSES.includes(previous.status)) {
       return { record: previous, change: null, updated: false }
     }
@@ -136,24 +114,47 @@ export const makeStripeSubscriptionsHelper = (ctx: ApiContext): StripeSubscripti
     })
   }
 
-  const resyncStripeSubscription = async (stripe: Stripe, ref: SubscriptionRef): Promise<number> => {
-    const ids = new Set<string>()
+  /** A registered paygate that keeps subscriptions, or `null`. */
+  const subscribingPaygate = (id: string | undefined): Paygate | null => {
+    const paygate = id != null ? paygatesOf(ctx).find(id) : null
+
+    return paygate?.subscriptions != null ? paygate : null
+  }
+
+  const resyncOne = async (paygate: Paygate, id: string): Promise<boolean> => {
+    const subscription = await retrieveSubscription(paygate, id)
+    const result = await customerLockHelper.withCustomerLock(paygate.id, subscription?.customerId, async () => subscription != null
+      ? await applySubscription(paygate, subscription, { source: 'resync' })
+      : await cancelMissing(paygate, id))
+
+    return result.updated
+  }
+
+  const resyncSubscription = async (ref: SubscriptionRef): Promise<number> => {
+    const targets = new Map<string, { paygate: Paygate, id: string }>()
+    const add = (paygate: Paygate | null, id: string): void => {
+      if (paygate != null && !targets.has(`${paygate.id}:${id}`)) {
+        targets.set(`${paygate.id}:${id}`, { paygate, id })
+      }
+    }
     if (ref.subscriptionId != null) {
-      ids.add(ref.subscriptionId)
+      const row = ref.paygate == null
+        ? await access.subscriptions().load({ externalId: ref.subscriptionId, paygate: { $ne: INTERNAL_PAYGATE } })
+        : null
+      add(subscribingPaygate(ref.paygate ?? row?.paygate)
+        ?? (ref.paygate == null && row == null ? paygatesOf(ctx).all().find(paygate => paygate.subscriptions != null) ?? null : null),
+      ref.subscriptionId)
     }
     if (ref.entityId != null) {
-      const { items } = await access.subscriptions().list({ entityId: ref.entityId, paygate: STRIPE_PAYGATE_ALIAS }, { size: 0 })
-      items.forEach(row => ids.add(row.externalId))
+      const { items } = await access.subscriptions().list(
+        { entityId: ref.entityId, paygate: ref.paygate ?? { $ne: INTERNAL_PAYGATE } }, { size: 0 },
+      )
+      items.forEach(row => { add(subscribingPaygate(row.paygate), row.externalId) })
     }
 
     let updated = 0
-    for (const id of ids) {
-      const subscription = await retrieveSubscription(stripe, id)
-      const customerId = subscription != null ? paymentUtils.idOf(subscription.customer) : undefined
-      const result = await customerLockHelper.withCustomerLock(customerId, async () => subscription != null
-        ? await applySubscription(subscription, { source: 'resync', stripe })
-        : await cancelMissing(id))
-      if (result.updated) {
+    for (const { paygate, id } of targets.values()) {
+      if (await resyncOne(paygate, id)) {
         updated++
       }
     }
@@ -161,35 +162,34 @@ export const makeStripeSubscriptionsHelper = (ctx: ApiContext): StripeSubscripti
     return updated
   }
 
-  const resyncStripeSubscriptions = async (stripe: Stripe): Promise<{ scanned: number, updated: number }> => {
-    const ids: string[] = []
+  const resyncAll = async (): Promise<{ scanned: number, updated: number }> => {
+    const rows: PaymentSubscriptionRecord[] = []
     for (let page = 0; ; page++) {
       const { items } = await access.subscriptions().list(
-        { paygate: STRIPE_PAYGATE_ALIAS, status: { $nin: [...TERMINAL_STATUSES] } },
+        { paygate: { $ne: INTERNAL_PAYGATE }, status: { $nin: [...TERMINAL_STATUSES] } },
         { size: RESYNC_PAGE, page, sort: ['createdAt'] },
       )
-      ids.push(...items.map(row => row.externalId))
+      rows.push(...items)
       if (items.length < RESYNC_PAGE) {
         break
       }
     }
+    const targets = rows.filter(row => subscribingPaygate(row.paygate) != null)
 
     let updated = 0
-    for (const subscriptionId of ids) {
+    for (const row of targets) {
       try {
-        updated += await resyncStripeSubscription(stripe, { subscriptionId })
+        updated += await resyncSubscription({ subscriptionId: row.externalId, paygate: row.paygate })
       } catch (error) {
-        log.error('Subscription resync failed', { subscriptionId, error })
+        log.error('Subscription resync failed', { subscriptionId: row.externalId, paygate: row.paygate, error })
       }
     }
 
-    return { scanned: ids.length, updated }
+    return { scanned: targets.length, updated }
   }
 
-  return {
-    applySubscription, retrieveSubscription, cancelMissing, resyncStripeSubscription, resyncStripeSubscriptions,
-  }
+  return { applySubscription, retrieveSubscription, cancelMissing, resyncSubscription, resyncAll }
 }
 
-/** The Stripe subscriptions of a context — one per context. */
-export const stripeSubscriptionsOf = memoHelper.oncePer(makeStripeSubscriptionsHelper)
+/** The paygate subscriptions of a context — one per context. */
+export const paygateSubscriptionsOf = memoHelper.oncePer(makePaygateSubscriptionsHelper)

@@ -1,6 +1,5 @@
 import type { Card, Project, Specification } from '@owlmeans/planning'
 import type { ProjectArea } from '../areas/consts.js'
-import type { BotPlatform } from '@owlmeans/bot'
 import type { BotKit, WorkKind } from '../blueprint/consts.js'
 import type { ViableTenancyDecision } from '../areas/types.js'
 import type { StoryKind } from '../ba/consts.js'
@@ -30,8 +29,11 @@ export type ViableProjectFields = {
   gameKind?: string
   /** Which kind of work a work-management product keeps; absent for every other case. */
   workKind?: WorkKind
-  /** The messaging platforms a bot product lives on (at least one); absent for every other case. */
-  botPlatforms?: BotPlatform[]
+  /**
+   * The messaging platform ids a bot product lives on (at least one, `BOT_PLATFORM_ID_FORMAT`, the
+   * plugins' own — the catalogue lists the supported ones); absent for every other case.
+   */
+  botPlatforms?: string[]
   /** What a bot product is for; absent for every other case. */
   botKit?: BotKit
   /** The requester's sentence the case (work management, bot) was verified against. */

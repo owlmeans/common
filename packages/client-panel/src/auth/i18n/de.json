@@ -5,8 +5,8 @@
     "privateKey": { "label": "Privater Schlüssel" },
     "submit": "Authentifizieren"
   },
-  "re-captcha": {
-    "guideline": "Wir müssen sicherstellen, dass Sie kein Roboter sind. Klicken Sie auf das weiße Feld unten, um zu beweisen, dass Sie ein Mensch sind."
+  "captcha": {
+    "guideline": "Wir müssen sicherstellen, dass Sie kein Roboter sind. Bitte führen Sie die Prüfung unten durch, um zu beweisen, dass Sie ein Mensch sind."
   },
   "wallet-provider": {
     "pin": {

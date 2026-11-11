@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-auth-email
 
 **Layer:** Web (L11 — `client-auth`, `client-entrypoint`, `client-i18n`, `web-captcha`, `auth-email`; NOT `web-panel`)
-**Install:** `"@owlmeans/web-auth-email": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/web-auth-email": "^0.2.0-alpha.0"` in `dependencies`
 **Peers:** React, `react-dom`, `@radix-ui/react-{label,slot}`, `class-variance-authority`, `clsx`,
 `lucide-react`, `tailwind-merge`, `tailwindcss`
 
@@ -79,7 +79,14 @@ offer), a parked flow, else home.
 - The offer step is pending only while a ticket of THIS account is stored AND the status says
   enabled, unset, not declined; a status read that fails is "not pending" (fails open).
   `PasswordOfferScreen`: set (new + repeat) or "Not now" (decline); both continue the login.
-- With a captcha, Google's notice (`CaptchaNotice`) is shown and the badge hidden (`web-captcha`).
+- **Captcha.** `options.captcha` is `{ provider, siteKey }`; the card asks the page's registered
+  client of that provider id (`captchaClients` of `@owlmeans/web-captcha`, exposed as
+  `EmailLoginModel.captchaClient`) for a token. The app registers the client explicitly — e.g.
+  `appendRecaptchaClient()` (`@owlmeans/web-captcha-recaptcha`) in its context factory. No client
+  for the advertised provider is `captcha-unavailable`, never a request without a token. The
+  client's notice (`CaptchaNotice`, `data-email-login-captcha`) is shown in the card's language when
+  the client ships one; its strings are the client's own, the defaults of `captcha.<key>` — an app
+  may still override them at the app tier. Refusals match the server's `captcha:` markers.
 
 ## Password panel
 

@@ -1,6 +1,6 @@
 import { AuthenticationType } from '@owlmeans/auth'
 import { ed25519BasicUIPlugin } from './basic-ed25519.js'
-import { reCaptchaPlugin } from './re-captcha.js'
+import { captchaPlugin } from './captcha.js'
 import { tunnelConsumerUIPlugin } from './tunnel-consumer.js'
 import { pluginMethodSource } from './methods.js'
 import { loginMethodsHelper } from '../../login/methods.js'
@@ -10,7 +10,7 @@ export { plugins, createAuthPluginHelper, authPluginHelper } from './registry.js
 export type { AuthPluginHelper } from './registry/types.js'
 
 plugins[AuthenticationType.BasicEd25519] = ed25519BasicUIPlugin
-plugins[AuthenticationType.ReCaptcha] = reCaptchaPlugin
+plugins[AuthenticationType.Captcha] = captchaPlugin
 plugins[AuthenticationType.WalletConsumer] = tunnelConsumerUIPlugin
 
 // Registered from here, not from `login/`, so that importing `@owlmeans/client-auth/login` never

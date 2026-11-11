@@ -11,6 +11,7 @@ export const createBotAliasUtils = (): BotAliasUtils => {
       simulate: `${base}:connection:simulate`,
     }),
     activity: Object.freeze({ list: `${base}:activity:list` }),
+    platform: Object.freeze({ list: `${base}:platform:list` }),
   })
 
   const botHookAliases = (base: string): BotHookAliases => Object.freeze({

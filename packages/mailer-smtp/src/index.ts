@@ -1,6 +1,7 @@
 export type * from './types.js'
 export type * from './settings/types.js'
 export * from './consts.js'
+export * from './transport.js'
 export * from './service.js'
 export * from './settings.js'
 export * from './assert.js'

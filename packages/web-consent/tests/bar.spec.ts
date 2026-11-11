@@ -3,6 +3,8 @@ import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 import type { Page } from '@owlmeans/test-ui'
 import { CONSENT_KEY, CONSENT_LOCALES, consentI18nHelper } from '@owlmeans/consent'
 import { HARNESS_URL } from './context.js'
+import { HARNESS_SIGNALS } from './harness/signals.js'
+import type { HarnessSignal } from './harness/signals.js'
 
 const TIMEOUT = 60_000
 
@@ -19,13 +21,10 @@ const stored = async (page: Page): Promise<Record<string, unknown> | null> =>
     return raw == null ? null : JSON.parse(raw) as Record<string, unknown>
   }, CONSENT_KEY)
 
-const lastUpdate = async (page: Page): Promise<Record<string, string> | null> =>
-  await page.evaluate(() => {
-    const layer = ((window as never as { dataLayer?: unknown[] }).dataLayer ?? [])
-      .map(item => Array.from(item as ArrayLike<unknown>))
-
-    return (layer.filter(entry => entry[1] === 'update').pop()?.[2] ?? null) as Record<string, string> | null
-  })
+/** What the store last signalled to the harness provider (`tests/harness/signals.ts`), per category. */
+const lastUpdate = async (page: Page): Promise<Record<string, boolean> | null> =>
+  await page.evaluate(name => ((window as never as Record<string, HarnessSignal[] | undefined>)[name] ?? [])
+    .filter(signal => signal.step === 'apply').pop()?.granted ?? null, HARNESS_SIGNALS)
 
 describe('@owlmeans/web-consent — the bar', () => {
   test('a first-time visitor meets the bar: three answers, the categories in force, the links', async () => {
@@ -68,7 +67,7 @@ describe('@owlmeans/web-consent — the bar', () => {
       expect(await page.locator('[data-consent-dialog]').count()).toBe(0)
       expect(await stored(page)).toMatchObject({ essential: true, analytics: false, marketing: false })
       expect((await stored(page))?.auto).toBeUndefined()
-      expect(await lastUpdate(page)).toMatchObject({ analytics_storage: 'denied', ad_storage: 'denied' })
+      expect(await lastUpdate(page)).toEqual({ essential: true, analytics: false, marketing: false })
     } finally {
       await close()
     }
@@ -81,7 +80,7 @@ describe('@owlmeans/web-consent — the bar', () => {
       await page.waitForSelector('[data-consent-reopen]')
 
       expect(await stored(page)).toMatchObject({ essential: true, analytics: true, marketing: true })
-      expect(await lastUpdate(page)).toMatchObject({ analytics_storage: 'granted', ad_storage: 'granted' })
+      expect(await lastUpdate(page)).toEqual({ essential: true, analytics: true, marketing: true })
       expect(await page.evaluate(() => document.documentElement.getAttribute('data-consent'))).toBe('decided')
     } finally {
       await close()

@@ -1,7 +1,6 @@
-import { ConsumerRegion, ConsumerRightsError, ENTITLING_STATUSES, PurchaseKind, type BillingProfileView, type ConsumerRightsPolicy, consumerRegionHelper } from '@owlmeans/payment'
+import { ConsumerRegion, ConsumerRightsError, ENTITLING_STATUSES, INTERNAL_PAYGATE, PurchaseKind, type BillingProfileView, type ConsumerRightsPolicy, consumerRegionHelper } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
-import { PURCHASE_ID_PREFIX, STRIPE_PAYGATE_ALIAS } from '../consts.js'
 import type {
   BillingProfileRecord, ConsumerEventRecord, PaymentSubscriptionRecord, PurchaseRecord, UnlockOptions,
 } from '../types.js'
@@ -11,12 +10,13 @@ import type { LockInput, LockResult, PurchaseDraft } from './types.js'
 import { paymentAccessOf } from '../access.js'
 import { paymentUtils } from '../utils.js'
 import { consumerFormatHelper } from './format.js'
+import { paygatesOf } from '../paygate/registry.js'
 import type { ConsumerEventDraft, ConsumerRecords } from './records/types.js'
 
 export const makeConsumerRecords = (ctx: ApiContext): ConsumerRecords => {
   const access = paymentAccessOf(ctx)
 
-  const purchaseIdOf = (externalId: string): string => `${PURCHASE_ID_PREFIX}:${externalId}`
+  const purchaseIdOf = (paygate: string, externalId: string): string => `${paygate}:${externalId}`
 
   const profileViewOf = (record: BillingProfileRecord, policy: ConsumerRightsPolicy | null): BillingProfileView => ({
     country: record.country,
@@ -52,24 +52,28 @@ export const makeConsumerRecords = (ctx: ApiContext): ConsumerRecords => {
     recordId, action, ...(step != null ? { step } : {}), ...(ok != null ? { ok } : {}),
   })) != null
 
-  /** The currency of the entity's entitling Stripe subscription — two of one customer cannot differ. */
+  /** The currency of the entity's entitling paygate subscription — two of one customer cannot differ. */
   const activeSubscriptionCurrency = async (entityId: string): Promise<string | undefined> => {
-    const row = await entitlingStripeSubscription(entityId)
+    const row = await entitlingPaygateSubscription(entityId)
 
     return row?.currency ?? undefined
   }
 
-  const entitlingStripeSubscription = async (
+  const entitlingPaygateSubscription = async (
     entityId: string,
   ): Promise<PaymentSubscriptionRecord | null> => await access.subscriptions().load(
-    { entityId, paygate: STRIPE_PAYGATE_ALIAS, status: [...ENTITLING_STATUSES] },
+    { entityId, paygate: { $ne: INTERNAL_PAYGATE }, status: [...ENTITLING_STATUSES] },
     { sort: [{ field: 'rank', order: 'desc' }, { field: 'createdAt', order: 'desc' }] },
   )
 
   const hasPaid = async (entityId: string): Promise<boolean> =>
-    await access.fulfillments().load({ entityId, paygate: STRIPE_PAYGATE_ALIAS, fulfilledAt: { $exists: true } }) != null
+    await access.fulfillments().load({ entityId, paygate: { $ne: INTERNAL_PAYGATE }, fulfilledAt: { $exists: true } }) != null
     || await access.subscriptions()
-      .load({ entityId, paygate: STRIPE_PAYGATE_ALIAS, initialPropagatedAt: { $exists: true } }) != null
+      .load({ entityId, paygate: { $ne: INTERNAL_PAYGATE }, initialPropagatedAt: { $exists: true } }) != null
+
+  /** The paygate a lock is recorded for: the one named, else the first registered one. */
+  const lockPaygateOf = (paygate: string | undefined): string =>
+    paygate ?? paygatesOf(ctx).all()[0]?.id ?? INTERNAL_PAYGATE
 
   const lockProfile = async (policy: ConsumerRightsPolicy | null, input: LockInput): Promise<LockResult> => {
     const country = input.country.trim().toUpperCase()
@@ -84,7 +88,8 @@ export const makeConsumerRecords = (ctx: ApiContext): ConsumerRecords => {
     }
 
     const region = consumerRegionHelper.regionOf(country, policy) ?? ConsumerRegion.Other
-    const settlement = (await access.stripePricingConfig())?.settlementCurrency?.toLowerCase()
+    const paygate = lockPaygateOf(input.paygate)
+    const settlement = (await paygatesOf(ctx).find(paygate)?.settlementCurrency())?.toLowerCase()
     const currency = (await activeSubscriptionCurrency(input.entityId))
       ?? (policy?.currencies != null && Object.keys(policy.currencies).length > 0
         ? consumerRegionHelper.chargeCurrencyOf(region, policy, input.currency ?? settlement ?? 'usd')
@@ -96,7 +101,7 @@ export const makeConsumerRecords = (ctx: ApiContext): ConsumerRecords => {
       currency: currency.toLowerCase(),
       language: input.language ?? consumerRegionHelper.billingLanguageOf(country, policy),
       source: input.source,
-      paygate: STRIPE_PAYGATE_ALIAS,
+      paygate,
       customerId: input.customerId,
       sessionId: input.sessionId,
       ipCountry: input.ipCountry?.toUpperCase(),
@@ -255,7 +260,7 @@ export const makeConsumerRecords = (ctx: ApiContext): ConsumerRecords => {
     if (latest?.email != null && latest.email !== '') {
       return latest.email
     }
-    const customer = await access.paygateCustomers().byEntity(entityId, STRIPE_PAYGATE_ALIAS)
+    const customer = await access.paygateCustomers().load({ entityId, paygate: { $ne: INTERNAL_PAYGATE }, email: { $exists: true } })
 
     return customer?.email ?? undefined
   }
@@ -272,13 +277,13 @@ export const makeConsumerRecords = (ctx: ApiContext): ConsumerRecords => {
     if (consumerFormatHelper.normalizeEmail(profile?.email) === wanted) {
       return true
     }
-    const customer = await access.paygateCustomers().byEntity(purchase.entityId, STRIPE_PAYGATE_ALIAS)
+    const customer = await access.paygateCustomers().byEntity(purchase.entityId, purchase.paygate)
 
     return consumerFormatHelper.normalizeEmail(customer?.email) === wanted
   }
 
   return {
-    purchaseIdOf, profileViewOf, unlockedProfileView, recordEvent, hasEvent, entitlingStripeSubscription, hasPaid,
+    purchaseIdOf, profileViewOf, unlockedProfileView, recordEvent, hasEvent, entitlingPaygateSubscription, hasPaid,
     lockProfile, unlockProfile, wasUnlocked, unconsentedWindows, createPurchase, patchPurchase, contactEmailOf,
     emailMatches,
   }

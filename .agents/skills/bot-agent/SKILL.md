@@ -1,13 +1,13 @@
 ---
 name: bot-agent
-description: How to use @owlmeans/bot-agent — the bridge that lets an @owlmeans/agent agent act on ONE chat-bot update. botAgentPlugin contributes the message (platform, chat, sender, text, replied-to text) and the instructions the handler passes (those of the application's own keyword groups the message matched) as context, and the bot's actions (reply, delete, warn, mute, ban, react) as never-throwing tools limited to what the platform supports and allow names, each recording the handler's ref; botAgentTools gives the tools without the plugin; botAgentHelper turns instructions and an update into instruction text, context and the opening turn. Auto-invoked when an AI bot's handler hands a message to an agent, when writing a target's bot agent module, or when importing botAgentPlugin.
+description: How to use @owlmeans/bot-agent — the bridge that lets an @owlmeans/agent agent act on ONE chat-bot update. botAgentPlugin contributes the message (platform — named by the connection's descriptor, bot.descriptor() —, chat, sender, text, replied-to text) and the instructions the handler passes (those of the application's own keyword groups the message matched) as context, and the bot's actions (reply, delete, warn, mute, ban, react) as never-throwing tools limited to what the platform supports and allow names, each recording the handler's ref; botAgentTools gives the tools without the plugin; botAgentHelper turns instructions and an update into instruction text, context and the opening turn. Auto-invoked when an AI bot's handler hands a message to an agent, when writing a target's bot agent module, or when importing botAgentPlugin.
 user-invocable: false
 ---
 
 # @owlmeans/bot-agent
 
 **Layer:** Server (its tools act through `@owlmeans/server-bot`'s `BotActions`; type-only edge)
-**Install:** `"@owlmeans/bot-agent": "^0.1.21"` in `dependencies`, plus the `@owlmeans/agent` and
+**Install:** `"@owlmeans/bot-agent": "^0.2.0-alpha.0"` in `dependencies`, plus the `@owlmeans/agent` and
 `@langchain/core` **peers**
 **Contract:** `@owlmeans/bot` (updates, action kinds, the text helper); actions: `@owlmeans/server-bot`
 
@@ -24,8 +24,8 @@ method, which records one activity whatever happens.
 | `botAgentPlugin({ update, bot, allow?, ref?, instruction? })` → `AgentPlugin` | The update and the instructions as context, the actions as tools; alias `BOT_AGENT_PLUGIN` (`'bot-agent'`), order `BOT_AGENT_ORDER` (30) |
 | `botAgentTools({ update, bot, allow?, ref? })` → `AgentToolSet` | The same tools without the plugin |
 | `botAgentHelper.instructionOf(instruction?)` | `instruction` (`string \| readonly string[]`) trimmed, empties and repeats dropped, joined by a blank line; `''` when none |
-| `botAgentHelper.contextOf(update, instruction?)` | The context blocks the plugin contributes |
-| `botAgentHelper.promptOf(update)` | The opening turn to `invoke` the agent with |
+| `botAgentHelper.contextOf(update, instruction?, descriptor?)` | The context blocks the plugin contributes — the platform named by `descriptor.title` (the plugin passes `bot.descriptor()`), else by its id |
+| `botAgentHelper.promptOf(update, descriptor?)` | The opening turn to `invoke` the agent with — pass `bot.descriptor()` so it names the platform by its title, not its id |
 | `BotAgentTool` | `reply` · `delete` · `warn` · `mute` · `ban` · `react` — the names the model calls |
 | `BOT_AGENT_TOOL_ACTIONS` · `BOT_AGENT_ACTIONS` · `BOT_AGENT_DONE` | Tool → `BotActionKind` (`warn` → `reply`); the default `allow`; `'done'` |
 | `BotAgentOptions` · `BotAgentToolsOptions` · `BotAgentHelper` | Types |
@@ -58,7 +58,7 @@ One or two markdown blocks, in this order — they land in the agent's project m
   records carries the update id and, as `ref`, the `ref` option (the id of the application's keyword
   group the handler followed; absent when not given).
 - An answer is `done`, or `{ error: <the action's error> }` — `BotActionResult.error`, ONE short
-  sentence ("WhatsApp cannot delete messages.", "A mute lasts at least one minute."), never its machine
+  sentence ("Acme cannot delete messages.", "A mute lasts at least one minute."), never its machine
   `code` — the `toolHelper` contract: the loop turns it into an error tool message the model reads and
   adapts to. A tool never throws; a wrong argument type is refused by the JSON schema inside `invoke`,
   which `safeInvokeTool` contains.
@@ -71,7 +71,7 @@ One or two markdown blocks, in this order — they land in the agent's project m
 - **`allow` is what the product lets the model do** — an answering bot `[Reply]`; a moderation bot
   `[Delete, Reply, Mute]` (`warn` is a reply); an intake bot `[Reply]`. Default: every tool action.
   It is intersected with `bot.supports(kind)` — never offer, and never describe in a prompt, an action
-  the platform lacks (WhatsApp: no `delete`, `mute`, `ban`; Slack: `delete` only with `userToken`).
+  the platform lacks (its descriptor's actions, plus what an optional credential `enables`).
 - **One plugin per update.** The alias is stable: `agent.use(botAgentPlugin(…))` for the next update
   REPLACES the previous one. Build the agent per update; never share a plugin across updates.
 - **The groups' instructions are the guidance.** The handler matches the message against the
@@ -104,7 +104,7 @@ import { DEFAULT_EFFORT, makeExecutionService, makePromptService, spectate } fro
 import { getModel, llmSpectator, ModelUnavailable } from '../lib/llm.js'
 
 /** The persona. What to do with a message comes from the instructions of the groups it matched, never from here. */
-const ROLE = 'You moderate a Telegram community for its owner. Judge the member\'s message against the '
+const ROLE = 'You moderate a chat community for its owner. Judge the member\'s message against the '
   + 'instructions of the keyword groups it matched and act only through your tools: delete what breaks a '
   + 'rule, warn the sender, mute a repeat offender. Never chat with the member.'
 
@@ -156,7 +156,7 @@ export const moderate = botHandler('moderate', async (update, bot, ctx) => {
     allow: [BotActionKind.Delete, BotActionKind.Reply, BotActionKind.Mute],
   }))
   try {
-    const { message } = await agent.invoke(botAgentHelper.promptOf(update), { action: 'moderate' })
+    const { message } = await agent.invoke(botAgentHelper.promptOf(update, bot.descriptor()), { action: 'moderate' })
     await bot.note(update, compactionHelper.messageText(message), { ref })   // what the agent did, on the activity
   } catch (error) {
     // Never rethrow: a retried update re-runs the agent and repeats the actions it already took.
@@ -175,8 +175,10 @@ export const moderate = botHandler('moderate', async (update, bot, ctx) => {
 
 ## Testing
 
-Category A, `bun test ./tests`: real `@owlmeans/server-bot` with its built-in plugins (static
-resources, mock Telegram and WhatsApp connections, messages simulated and dispatched by the runtime)
+Category A, `bun test ./tests`: real `@owlmeans/server-bot` over two test platforms
+(`makeTestBotPlatform` from `@owlmeans/server-bot/mock` — `community`, which does everything, and
+`shop`, which can reply, send and react only; static resources, mock connections, messages simulated
+and dispatched by the runtime)
 and a scripted model double (`tests/_tools/model.ts`, as in the agent's
 [testing](../agent/parts/testing.md) part) driving the loop; the specs' handlers match their own
 keyword lists with `botTextHelper` and pass `ref` and `instruction`, as a generated one does. Covered:
@@ -186,7 +188,7 @@ the tools and recovering from a refused or unoffered tool.
 
 ## Depends On
 
-- `@owlmeans/bot` — `BotUpdate`, `BotActionKind`, `BOT_PLATFORMS` (a handler also uses its `botTextHelper`)
+- `@owlmeans/bot` — `BotUpdate`, `BotActionKind`, `BotPlatformDescriptor` (a handler also uses its `botTextHelper`)
 - `@owlmeans/server-bot` — `BotActions`, `BotActionResult` (types only)
 - peers `@owlmeans/agent` (`AgentPlugin`, `toolHelper`), `@langchain/core` (`tool`)
 

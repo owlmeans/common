@@ -7,17 +7,20 @@ contracts they are written against live in `@owlmeans/bot`.
 ## Overview
 
 - `BotConnectionsPanel({ surface, platforms? })` — connect, verify, switch off and remove the bot accounts (live only; a
-  mock connection made through the API for tests shows a badge)
+  mock connection made through the API for tests shows a badge). The platforms, their credential
+  inputs, labels, hints, glyphs and pre-save links are the server's registered descriptors, read once
+  per surface through `platform.list`; `platforms` (string ids) narrows what a new connection may use
 - `BotActivityPanel({ surface, connection?, refLabel? })` — what the bot did, newest first, refreshed while visible;
   `refLabel(ref)` names the application's own record a row's handler followed (its keyword group)
-- `useBotConnections(surface)`, `useBotActivity(surface, { connection?, limit?, refreshMs? })` — the I/O half
+- `useBotConnections(surface)`, `useBotActivity(surface, { connection?, limit?, refreshMs? })`,
+  `useBotPlatforms(surface)` — the I/O half
 - `botErrorHelper`, `botViewHelper` — the error-copy keys and the row helpers, for a host that draws its own view
 - `cn` — the class-name merger the components are written against
 
 ## Installation
 
 ```bash
-bun add @owlmeans/web-bot@^0.1.21
+bun add @owlmeans/web-bot@^0.2.0-alpha.0
 ```
 
 The package ships its own private shadcn primitives and imports them with relative specifiers.
@@ -42,15 +45,20 @@ The relative depth follows the app's own layout.
 The surface must be client-bound in the application's context (`bindAll` over its api tree):
 
 ```tsx
-import { BotPlatform } from '@owlmeans/bot'
 import { BotActivityPanel, BotConnectionsPanel } from '@owlmeans/web-bot'
 
 const surface = appProtocols.api.bot.operator
 
-<BotConnectionsPanel surface={surface} platforms={[BotPlatform.Telegram]} />
+{/* `platforms`: the product's platform ids, among those the server registered */}
+<BotConnectionsPanel surface={surface} platforms={['chat']} />
 {/* `groups`: the application's own keyword-group records, read by the screen */}
 <BotActivityPanel surface={surface} refLabel={ref => groups.find(group => group.id === ref)?.name} />
 ```
+
+This package names no platform: a platform the server has no plugin for is not offered, and a
+surface without `platform.list` (a tree restated before the leaf existed) offers none. A refusal
+stored before the one platform marker (`bot:<id>:…`) is still explained as the platform's, by the
+registered id it starts with.
 
 Keyword groups are not part of this package: an application's groups are its own records with its
 own screens, and its bot handler matches messages against them. Test mode (mock connections,
@@ -68,6 +76,9 @@ import { i18nHelper, LIB_NAMESPACE } from '@owlmeans/i18n'
 i18nHelper.addI18nApp('en', 'bot', { connections: { title: 'Your bots' } }, { ns: LIB_NAMESPACE })
 ```
 
+A platform's own texts (credential labels and hints, its setup hint, its link) are not here: they
+travel in its descriptor, per language, and fall back to English.
+
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
 
@@ -76,7 +87,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

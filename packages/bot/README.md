@@ -1,16 +1,17 @@
 # @owlmeans/bot
 
-The runtime-free, browser-safe contract of OwlMeans chat bots on Telegram, WhatsApp, Discord and
-Slack: what each platform needs and can do, connections, the one Unicode-aware text helper a
-handler matches message text with, the `/command` parser, normalized updates and activity, the
-managing and hook protocol trees with their AJV schemas, and the bot error family. A shared package imports it to
-declare the bot routes; a server, a store, the panels and an agent's tools build on it. It stores,
-receives and sends nothing — that is `@owlmeans/server-bot`.
+The runtime-free, browser-safe contract of OwlMeans chat bots: the descriptor a platform plugin
+declares (what the platform needs and can do, and how a panel draws it), connections, the one
+Unicode-aware text helper a handler matches message text with, the `/command` parser, normalized
+updates and activity, the managing and hook protocol trees with their AJV schemas, and the bot error
+family. A shared package imports it to declare the bot routes; a server, a store, the panels and an
+agent's tools build on it. It names no platform and stores, receives and sends nothing — the server
+is `@owlmeans/server-bot`, each platform a plugin package of its own (`@owlmeans/bot-<platform>`).
 
 ## Installation
 
 ```bash
-bun add @owlmeans/bot@^0.1.21
+bun add @owlmeans/bot@^0.2.0-alpha.0
 ```
 
 ## Concepts
@@ -22,7 +23,12 @@ bun add @owlmeans/bot@^0.1.21
   and compares the text with `botTextHelper.matched`.
 - **Activity** — one thing the bot did or tried (`BotActivity`), recorded with `ok` / `error` and
   the handler's opaque `ref` (e.g. the id of the keyword group it followed).
-- **Descriptor** — `BOT_PLATFORMS[platform]`: credentials, receive modes, platform actions, setup.
+- **Platform** — a string id (`BotPlatformId`, matching `BOT_PLATFORM_ID_PATTERN`) owned by the
+  platform's plugin; the contract holds no list of platforms.
+- **Descriptor** — `BotPlatformDescriptor`, declared by the plugin: credentials (with per-language
+  labels and hints), receive modes, platform actions, setup, a neutral `glyph`, a per-language
+  `hint` and an optional pre-save `link` (an invite). The server lists the registered plugins'
+  descriptors on every managing tree (`platform.list`, `GET <base>/platforms`).
 
 ## Usage
 
@@ -43,24 +49,31 @@ const command = botCommandHelper.parse('/report@MyBot spam', 'MyBot')         //
 
 ## API
 
-- Enums: `BotPlatform`, `BotReceiveMode`, `BotTransport`, `BotConnectionStatus`, `BotActionKind`,
-  `BotTextMatch`, `BotUpdateKind`, `BotChatKind`
-- Constants: `BOT_PLATFORMS`, `BOT_*` limits (`BOT_TEXT_MAX`, `BOT_LABEL_MAX`,
-  `BOT_ACTIVITY_LIMIT_MAX`, `BOT_ID_PATTERN`, …), `BOT_MANAGE_PERMISSION`
+- Enums: `BotReceiveMode`, `BotTransport`, `BotConnectionStatus`, `BotActionKind`, `BotTextMatch`,
+  `BotUpdateKind`, `BotChatKind`
+- Types: `BotPlatformId`, `BotPlatformDescriptor`, `BotCredentialField`, `BotTexts`,
+  `BotPlatformGlyph`, `BotPlatformLink`, `BotConnection`, `BotUpdate`, `BotActivity`, …
+- Constants: `BOT_PLATFORM_ID_PATTERN`, `BOT_TEXT_FALLBACK_LANGUAGE`, `BOT_*` limits
+  (`BOT_TEXT_MAX`, `BOT_LABEL_MAX`, `BOT_ACTIVITY_LIMIT_MAX`, `BOT_ID_PATTERN`, …),
+  `BOT_MANAGE_PERMISSION`
 - Helpers: `botTextHelper` (`fold`, `tokensOf`, `matched`, `phrasesOf`), `botCommandHelper`
-  (`parse`), `botPlatformHelper` (`actionsOf`, `supports`)
-- Protocols: `makeBotProtocols`, `makeBotHookProtocols` and their types (`BotProtocols`,
-  `BotHookProtocols`, `BotProtocolOptions`, `BotHookProtocolOptions`, …)
+  (`parse`), `botPlatformHelper` (`actionsOf(descriptor, credentialsSet)`, `supports`)
+- Protocols: `makeBotProtocols` (connections, activity, `platform.list`), `makeBotHookProtocols` and
+  their types (`BotProtocols`, `BotSurfaceProtocols` — `platform` optional, what servers and panels
+  take —, `BotHookProtocols`, `BotProtocolOptions`, `BotHookProtocolOptions`, …)
 - Schemas: `BotConnectionInputSchema`, `BotSimulateInputSchema`, `BotIdParamsSchema`,
   `BotActivityQuerySchema`, `BotHookParamsSchema`, `BotChallengeQuerySchema`
 - Errors: `BotError`, `BotConnectionNotFound` (404), `BotCredentialsRejected` (422),
-  `BotSignatureRejected` (401), `BotTransportMismatch` (409), `BotUnsupportedAction` (422)
+  `BotSignatureRejected` (401), `BotTransportMismatch` (409), `BotUnsupportedAction` (422),
+  `BotErrorPlatform` (`bot:platform:<id>:<detail>` — the one wire class of every platform's API
+  refusal; a plugin's own error classes extend it without a type name of their own)
 
 ## Common pitfalls
 
 - Never put a guard in front of the hook tree: the platform signs the raw body.
-- Ask `botPlatformHelper.supports(...)` before an action — WhatsApp cannot delete, mute or ban;
-  Slack deletes only with the admin `userToken`.
+- Ask `botPlatformHelper.supports(descriptor, …)` before an action — a platform supports only its
+  descriptor's actions, and an optional credential may be what adds one.
+- Never hard-code a platform list: read the registered descriptors (`platform.list`).
 - Use `contains` for scripts written without spaces; `word` matches whole words and phrases.
 - `simulate` (mock connections only) is an API route for tests and smoke runs — no UI offers it.
 
@@ -79,7 +92,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/auth": "^0.2.0-alpha.0"` in `dependencies`
 
 Types, enums, errors and schemas only — no services, no wiring. Every other auth package builds on
 this vocabulary, so a symbol belongs here exactly when both a server and a browser need to agree on
@@ -38,7 +38,7 @@ it.
 | Export | Description |
 |--------|-------------|
 | `AuthRole` | **String** enum: `User`, `Guest`, `Service`, `System`, `Admin`, `Superuser`, `Blocked` |
-| `AuthenticationType` | How identity is proven: `BasicEd25519`, `OneTimeToken`, `ReCaptcha`, `WalletDid`, `RelyHandshake`, `WalletConsumer`, `WalletProvider`, `Google` (`'google-oauth'`), `Supervisor` (`'pk-supervisor'`) |
+| `AuthenticationType` | How identity is proven: `BasicEd25519`, `OneTimeToken`, `Captcha` (`'captcha'`), `WalletDid`, `RelyHandshake`, `WalletConsumer`, `WalletProvider`, `Google` (`'google-oauth'`), `Supervisor` (`'pk-supervisor'`) |
 | `AuthroizationType` (sic) | How a request carries authorization: `AuthToken`, `Ed25519BasicToken`, `Ed25519BasicSignature` |
 | `AuthenticationStage` | Client-side flow stage: `Error`, `Init`, `Allowence`, `Authenticate`, `Authentication`, `Authenticated` |
 | `AUTH_HEADER` / `AUTH_QUERY` | `'authorization'` / `'token'` |
@@ -49,8 +49,7 @@ it.
 | `AUTHEN`, `AUTHEN_INIT`, `AUTHEN_AUTHEN`, `AUTHEN_RELY` | Backend entrypoint aliases |
 | `CAUTHEN`, `CAUTHEN_AUTHEN`, `CAUTHEN_AUTHEN_DEFAULT`, `CAUTHEN_AUTHEN_TYPED`, `CAUTHEN_FLOW_ENTER` | Front-end entrypoint aliases |
 | `DISPATCHER`, `DISPATCHER_AUTHEN`, `DISPATCHER_SURROGATE` | Dispatcher and surrogate-window entrypoint aliases |
-| `MOD_RECAPTCHA`, `CMOD_RECAPTCHA` | reCAPTCHA plugin-record ids: the server's (secret + policy, a Backend record never advertised) and the browser's (site key, a Frontend record) |
-| `RECAPTCHA_GUARD` | `'guard:re-captcha'` — the guard alias of a route a reCAPTCHA-proven guest may call once (`makeReCaptchaGuard` in `@owlmeans/server-auth`) |
+| `CAPTCHA_GUARD` | `'guard:captcha'` — the guard alias of a route a captcha-proven guest may call once (`makeCaptchaGuard` in `@owlmeans/server-auth`) |
 
 ### Errors
 
@@ -154,9 +153,11 @@ Rules of thumb:
   handler-level checks around these types.
 - WebSocket wiring uses `Auth`, `AuthToken` and `AuthenticationStage` to move a token-bearing
   connection into an authenticated state.
-- `AuthenticationType.ReCaptcha` proves a solved challenge, never a person: its token is a guest
-  (`GUEST_ID`, `AuthRole.Guest`, `[AUTH_SCOPE]`), travels as `Authorization: RE-CAPTCHA <token>`,
-  is accepted only by a route guarded with `RECAPTCHA_GUARD`, and never becomes a session.
+- `AuthenticationType.Captcha` proves a solved challenge, never a person: its token is a guest
+  (`GUEST_ID`, `AuthRole.Guest`, `[AUTH_SCOPE]`), travels as `Authorization: CAPTCHA <token>`, is
+  accepted only by a route guarded with `CAPTCHA_GUARD`, and never becomes a session. Which captcha
+  provider judged it is the server's business (`@owlmeans/captcha`); the provider's config records
+  live in its own package, never here.
 - A provider login (Google/OIDC, OTP, supervisor) ultimately produces an ordinary `AuthPayload` with
   `userId`, `profileId`, `entitySlug` and `scopes`; `@owlmeans/server-auth-identity` stores the local
   identity behind it and returns that payload.

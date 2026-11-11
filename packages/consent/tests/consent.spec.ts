@@ -4,10 +4,12 @@ import {
   CONSENT_MARKETING, CONSENT_SCHEMA_VERSION, DEFAULT_CONSENT_CATEGORIES, DEFAULT_CONSENT_MESSAGES,
 } from '../src/consts.js'
 import { consentStorageHelper } from '../src/storage.js'
-import { consentModeHelper } from '../src/gtobserver.js'
+import { consentSignalHelper } from '../src/signal.js'
+import { consentTrackingHelper } from '../src/tracking.js'
 import { makeConsentStore } from '../src/store.js'
 import { consentI18nHelper } from '../src/i18n.js'
-import type { ConsentCategory } from '../src/types.js'
+import type { ConsentOptions, ConsentRecord } from '../src/types.js'
+import type { ConsentSignalProvider } from '../src/signal/types.js'
 
 /** A minimal browser: just the two stores this package writes to. */
 const browser = () => {
@@ -31,11 +33,27 @@ const browser = () => {
 
 const env = browser()
 
+/** The category globals the default set writes. */
+const GLOBALS = ['owlConsentEssential', 'owlConsentAnalytics', 'owlConsentMarketing']
+
 beforeEach(() => {
   env.reset()
-  delete (globalThis as any).dataLayer
-  delete (globalThis as any).cookieConsentSetup
+  consentSignalHelper.clear()
+  for (const name of GLOBALS) delete (globalThis as any)[name]
 })
+
+/** A provider that records what the host asked of it, and what the page looked like at the time. */
+const recorder = (id = 'recorder', journal: string[] = []) => {
+  const provider: ConsentSignalProvider & { journal: string[] } = {
+    id, journal,
+    defaults: (opts: ConsentOptions) => { journal.push(`${id}:defaults:${opts.storageKey ?? '-'}`) },
+    apply: (record: ConsentRecord) => {
+      journal.push(`${id}:apply:${String(record.analytics)}:global=${String((globalThis as any).owlConsentAnalytics)}`)
+    },
+  }
+
+  return provider
+}
 
 describe('storage', () => {
   test('a record round-trips through localStorage', () => {
@@ -85,46 +103,121 @@ describe('storage', () => {
   })
 })
 
-describe('consent mode signals', () => {
-  test('defaults deny everything except security storage', () => {
-    const defaults = consentModeHelper.consentDefaults()
+describe('the signal host', () => {
+  test('register replaces by id, list keeps registration order, unregister and clear remove', () => {
+    const first = recorder('a')
+    consentSignalHelper.register(first)
+    consentSignalHelper.register(recorder('b'))
+    const replacement = recorder('a')
+    consentSignalHelper.register(replacement)
 
-    expect(defaults.analytics_storage).toBe('denied')
-    expect(defaults.ad_storage).toBe('denied')
-    expect(defaults.ad_user_data).toBe('denied')
-    expect(defaults.ad_personalization).toBe('denied')
-    expect(defaults.security_storage).toBe('granted')
+    expect(consentSignalHelper.list().map(provider => provider.id)).toEqual(['a', 'b'])
+    expect(consentSignalHelper.get('a')).toBe(replacement)
+
+    consentSignalHelper.unregister('a')
+    expect(consentSignalHelper.get('a')).toBeNull()
+    consentSignalHelper.clear()
+    expect(consentSignalHelper.list()).toEqual([])
   })
 
-  test('an update maps each category onto the signals it drives', () => {
-    const update = consentModeHelper.consentUpdate({ [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
+  test('the store declares every provider\'s defaults on init, before it applies a stored record', () => {
+    consentStorageHelper.writeConsent({ [CONSENT_ANALYTICS]: true })
+    const journal: string[] = []
+    consentSignalHelper.register(recorder('a', journal))
+    consentSignalHelper.register(recorder('b', journal))
 
-    expect(update.analytics_storage).toBe('granted')
-    expect(update.ad_storage).toBe('denied')
-    // Required categories are granted whether or not the record says so.
-    expect(update.security_storage).toBe('granted')
+    makeConsentStore().init({ storageKey: CONSENT_KEY })
+
+    expect(journal).toEqual([
+      `a:defaults:${CONSENT_KEY}`, `b:defaults:${CONSENT_KEY}`,
+      'a:apply:true:global=true', 'b:apply:true:global=true',
+    ])
   })
 
-  test('a custom category set drives only the signals it names', () => {
-    const categories: ConsentCategory[] = [
-      { key: 'ads', labelKey: 'a', descriptionKey: 'b', signals: ['ad_storage'] },
-    ]
+  test('a save reaches every provider after the category globals are written', () => {
+    const provider = recorder()
+    consentSignalHelper.register(provider)
+    const store = makeConsentStore()
+    store.init()
+    store.save({ [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: true })
 
-    expect(Object.keys(consentModeHelper.consentDefaults(categories))).toEqual(['ad_storage'])
-    expect(consentModeHelper.consentUpdate({ ads: true }, categories)).toEqual({ ad_storage: 'granted' })
+    // The global was already written when the provider ran — a tag firing on its update reads it.
+    expect(provider.journal).toEqual(['recorder:defaults:-', 'recorder:apply:false:global=false'])
+    expect((globalThis as any).owlConsentMarketing).toBe(true)
+    expect((globalThis as any).owlConsentEssential).toBe(true)
   })
-})
 
-describe('applyConsent dispatches a DOM event', () => {
-  test('fires CONSENT_EVENT with the record after writing globals and pushing the update', () => {
+  test('with no provider registered the store still works and still dispatches the event', () => {
     const seen: unknown[] = []
     const listener = (event: Event) => { seen.push((event as CustomEvent).detail) }
     ;(globalThis as any).addEventListener(CONSENT_EVENT, listener)
+    try {
+      const store = makeConsentStore()
+      store.init()
+      expect(store.get().open).toBe(true)
+      store.acceptAll()
+
+      expect(store.get().open).toBe(false)
+      expect(store.granted(CONSENT_ANALYTICS)).toBe(true)
+      expect((globalThis as any).owlConsentAnalytics).toBe(true)
+      expect(seen).toHaveLength(1)
+    } finally {
+      ;(globalThis as any).removeEventListener(CONSENT_EVENT, listener)
+    }
+  })
+
+  test('a provider that throws stops neither the others nor the event', () => {
+    const journal: string[] = []
+    consentSignalHelper.register({ id: 'broken', defaults: () => { throw new Error('x') }, apply: () => { throw new Error('y') } })
+    consentSignalHelper.register(recorder('after', journal))
+    const seen: unknown[] = []
+    const listener = (event: Event) => { seen.push((event as CustomEvent).detail) }
+    ;(globalThis as any).addEventListener(CONSENT_EVENT, listener)
+    try {
+      consentSignalHelper.defaults({})
+      consentSignalHelper.apply({ [CONSENT_ANALYTICS]: true })
+
+      expect(journal).toEqual(['after:defaults:-', 'after:apply:true:global=true'])
+      expect(seen).toHaveLength(1)
+    } finally {
+      ;(globalThis as any).removeEventListener(CONSENT_EVENT, listener)
+    }
+  })
+
+  test('silent mode touches nothing: no provider, no global, no event', () => {
+    const provider = recorder()
+    consentSignalHelper.register(provider)
+    const seen: unknown[] = []
+    const listener = (event: Event) => { seen.push((event as CustomEvent).detail) }
+    ;(globalThis as any).addEventListener(CONSENT_EVENT, listener)
+    try {
+      const store = makeConsentStore()
+      store.init({ silent: true })
+      store.save({ [CONSENT_ANALYTICS]: true })
+
+      expect(provider.journal).toEqual([])
+      expect((globalThis as any).owlConsentAnalytics).toBeUndefined()
+      expect(seen).toEqual([])
+      // Storage and the decision itself are untouched by `silent`.
+      expect(store.granted(CONSENT_ANALYTICS)).toBe(true)
+    } finally {
+      ;(globalThis as any).removeEventListener(CONSENT_EVENT, listener)
+    }
+  })
+})
+
+describe('apply dispatches a DOM event', () => {
+  test('fires CONSENT_EVENT with the record after writing globals', () => {
+    const seen: unknown[] = []
+    const listener = (event: Event) => {
+      seen.push({ ...(event as CustomEvent).detail, global: (globalThis as any).owlConsentAnalytics })
+    }
+    ;(globalThis as any).addEventListener(CONSENT_EVENT, listener)
 
     try {
-      consentModeHelper.applyConsent({ [CONSENT_ANALYTICS]: true })
+      consentSignalHelper.apply({ [CONSENT_ANALYTICS]: true })
 
-      expect(seen).toEqual([{ record: { [CONSENT_ANALYTICS]: true } }])
+      expect(seen).toEqual([{ record: { [CONSENT_ANALYTICS]: true }, global: true }])
     } finally {
       ;(globalThis as any).removeEventListener(CONSENT_EVENT, listener)
     }
@@ -136,7 +229,7 @@ describe('applyConsent dispatches a DOM event', () => {
     ;(globalThis as any).addEventListener(CONSENT_EVENT, listener)
 
     try {
-      consentModeHelper.applyConsent({ [CONSENT_ANALYTICS]: true }, { silent: true })
+      consentSignalHelper.apply({ [CONSENT_ANALYTICS]: true }, { silent: true })
 
       expect(seen).toEqual([])
     } finally {
@@ -146,23 +239,44 @@ describe('applyConsent dispatches a DOM event', () => {
 })
 
 describe('the bootstrap script', () => {
-  const script = consentModeHelper.consentBootstrapScript()
-
-  test('declares the defaults before anything else can', () => {
-    expect(script).toContain("'consent','default'")
-    expect(script.indexOf("'consent','default'")).toBeLessThan(script.indexOf("'consent','update'"))
-  })
-
-  test('is idempotent through the setup flag', () => {
-    expect(script).toContain('cookieConsentSetup')
-  })
+  const script = consentTrackingHelper.consentBootstrapScript()
+  const run = (text: string) => {
+    // eslint-disable-next-line no-new-func
+    new Function(text)()
+  }
 
   test('reads the same storage key the package writes', () => {
     expect(script).toContain(JSON.stringify(CONSENT_KEY))
   })
 
-  test('pushes arguments, the shape gtag.js itself emits', () => {
-    expect(script).toContain('w.dataLayer.push(arguments)')
+  test('declares no signal of any provider', () => {
+    expect(script).not.toContain('dataLayer')
+    expect(script).not.toContain("'consent'")
+  })
+
+  test('writes a returning visitor\'s decision onto the category globals', () => {
+    consentStorageHelper.writeConsent({ [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
+    run(script)
+
+    expect((globalThis as any).owlConsentEssential).toBe(true)
+    expect((globalThis as any).owlConsentAnalytics).toBe(true)
+    expect((globalThis as any).owlConsentMarketing).toBe(false)
+  })
+
+  test('writes nothing for a visitor who has not decided', () => {
+    run(script)
+
+    expect((globalThis as any).owlConsentAnalytics).toBeUndefined()
+  })
+
+  test('a custom storage key and category set are honoured', () => {
+    consentStorageHelper.writeConsent({ chat: true }, { storageKey: 'custom' })
+    run(consentTrackingHelper.consentBootstrapScript({
+      storageKey: 'custom', categories: [{ key: 'chat', labelKey: 'c', descriptionKey: 'd', globalVar: 'owlConsentChat' }],
+    }))
+
+    expect((globalThis as any).owlConsentChat).toBe(true)
+    delete (globalThis as any).owlConsentChat
   })
 })
 

@@ -35,56 +35,6 @@
     "react": "Reaktion",
     "note": "Notiz"
   },
-  "credentials": {
-    "telegram": {
-      "token": {
-        "label": "Bot-Token",
-        "hint": "Von @BotFather in Telegram: /newbot legt einen Bot an, /token zeigt sein Token."
-      }
-    },
-    "whatsapp": {
-      "accessToken": {
-        "label": "Zugriffstoken",
-        "hint": "Ein dauerhaftes System-User-Token Ihrer Meta-App mit der Berechtigung für WhatsApp-Nachrichten."
-      },
-      "phoneNumberId": {
-        "label": "Telefonnummern-ID",
-        "hint": "WhatsApp → API Setup im Dashboard Ihrer Meta-App."
-      },
-      "appSecret": {
-        "label": "App-Geheimnis",
-        "hint": "App settings → Basic in Ihrer Meta-App; es belegt, dass jede eingehende Nachricht von Meta stammt."
-      },
-      "verifyToken": {
-        "label": "Verifizierungstoken",
-        "hint": "Wird für Sie erzeugt; fügen Sie es in die Webhook-Einstellungen Ihrer Meta-App ein."
-      }
-    },
-    "discord": {
-      "token": {
-        "label": "Bot-Token",
-        "hint": "Developer Portal → Ihre Anwendung → Bot → Reset Token. Aktivieren Sie dort auch den Message-Content-Intent."
-      },
-      "applicationId": {
-        "label": "Anwendungs-ID",
-        "hint": "Developer Portal → Ihre Anwendung → General Information."
-      }
-    },
-    "slack": {
-      "botToken": {
-        "label": "Bot-Token (xoxb-…)",
-        "hint": "Ihre Slack-App → OAuth & Permissions → Bot User OAuth Token."
-      },
-      "signingSecret": {
-        "label": "Signaturgeheimnis",
-        "hint": "Ihre Slack-App → Basic Information → App Credentials."
-      },
-      "userToken": {
-        "label": "Admin-Benutzertoken (xoxp-…)",
-        "hint": "Erlaubt dem Bot, Nachrichten zu löschen. Ein Workspace-Admin installiert es; ohne es verwarnt der Bot stattdessen."
-      }
-    }
-  },
   "connections": {
     "title": "Bot-Verbindungen",
     "description": "Die Bot-Konten, die diese Anwendung betreibt. Zugangsdaten werden verschlüsselt gespeichert und nie wieder angezeigt.",
@@ -103,12 +53,6 @@
     "setup-title": "Einrichtung in {{platform}} abschließen",
     "hook-url": "Webhook-URL",
     "hint": {
-      "telegram": "Fügen Sie den Bot Ihrer Gruppe als Administrator mit dem Recht hinzu, Nachrichten zu löschen und Nutzer zu sperren, damit er auf das Gelesene reagieren kann.",
-      "whatsapp": "Fügen Sie die Webhook-URL und das Verifizierungstoken unten in die Webhook-Einstellungen Ihrer Meta-App ein und abonnieren Sie dann das Feld messages.",
-      "discord": "Laden Sie den Bot mit den Berechtigungen, die seine Aktionen brauchen, auf Ihren Server ein und aktivieren Sie den Message-Content-Intent im Developer Portal.",
-      "slack": "Fügen Sie die URL unten als Request URL unter Event Subscriptions Ihrer Slack-App ein, abonnieren Sie Nachrichtenereignisse und fügen Sie den Bot seinen Kanälen hinzu.",
-      "discord-invite": "Bot auf einen Server einladen",
-      "discord-pending": "Der Einladungslink erscheint, sobald die Anwendungs-ID bekannt ist.",
       "after-save": "Nach dem Speichern zeigt die Verbindung die Webhook-URL und die Werte, die Sie in {{platform}} einfügen."
     }
   },
@@ -117,6 +61,7 @@
     "edit-title": "{{label}} bearbeiten",
     "description": "Fügen Sie die Zugangsdaten ein, die Sie von der Plattform erhalten haben. Sie werden einmal geschrieben und nie wieder angezeigt.",
     "platform": "Plattform",
+    "no-platforms": "Auf diesem Server ist noch keine Messaging-Plattform verfügbar.",
     "label": "Name",
     "label-placeholder": "Community-Moderator",
     "credentials": "Zugangsdaten",

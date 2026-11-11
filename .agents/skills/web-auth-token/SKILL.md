@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-auth-token
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-auth-token": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/web-auth-token": "^0.2.0-alpha.0"` in `dependencies`
 **Contracts:** `@owlmeans/auth-token` — records, `CreateAccessToken`, `authToken` aliases,
 `makeAuthTokenEntrypoints`
 

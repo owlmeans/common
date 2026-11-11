@@ -17,7 +17,7 @@ export interface SupportedBlueprintCase {
   categories: SupportedAppCategory[]
   categoryKind?: 'work' | 'game' | 'bot'
   planningResources?: string[]
-  /** A bot case's supported messaging platforms (`BotPlatform` values). */
+  /** A bot case's supported messaging platform ids, in the order the deployment offers them. */
   botPlatforms?: string[]
 }
 

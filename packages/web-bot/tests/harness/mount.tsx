@@ -11,7 +11,7 @@ import { bindAll, bindScreen } from '@owlmeans/client-entrypoint'
 import type { EntrypointTree } from '@owlmeans/entrypoint'
 import { openProtocol } from '@owlmeans/entrypoint'
 import { frontend, route } from '@owlmeans/route'
-import { BotPlatform, makeBotProtocols } from '@owlmeans/bot'
+import { makeBotProtocols } from '@owlmeans/bot'
 import { entrypoints as baseEntrypoints, makeContext } from '@owlmeans/web-client'
 import { BotActivityPanel, BotConnectionsPanel } from '../../src/index.js'
 
@@ -22,7 +22,8 @@ import { BotActivityPanel, BotConnectionsPanel } from '../../src/index.js'
  *
  * Query switches (one harness process serves every case):
  *   `?panel=connections|activity`  which panel to render
- *   `?platforms=telegram,slack`    the connections panel's `platforms`
+ *   `?platforms=relay,workspace`   the connections panel's `platforms`
+ *   `?restated=1`                  the surface without `platform.list` (a tree restated before the leaf)
  *   `?connection=<id>`             the activity panel's filter
  *   `?refs=g1:Spam,g2:Hours`       the activity panel's `refLabel` (ref → label); absent: no `refLabel`
  *   `?lng=<code>`                  render in that language
@@ -56,7 +57,9 @@ context.serviceRoute(SERVICE, true)
 context.serviceRoute(API, true)
 
 // The operator surface, declared as a target's `sources/common/src/bot-protocols.ts` declares it.
-const surface = makeBotProtocols({ base: { alias: 'api:bot:operator', path: '/bot/operator', service: API } })
+const declared = makeBotProtocols({ base: { alias: 'api:bot:operator', path: '/bot/operator', service: API } })
+const { platform: _platform, ...restated } = declared
+const surface = params.get('restated') === '1' ? restated : declared
 
 const list = <T extends string>(name: string): T[] | undefined => {
   const value = params.get(name)
@@ -66,7 +69,7 @@ const list = <T extends string>(name: string): T[] | undefined => {
 
 const panel = params.get('panel') ?? 'connections'
 const connection = params.get('connection') ?? undefined
-const platforms = list<BotPlatform>('platforms')
+const platforms = list<string>('platforms')
 const refs = list<string>('refs')
 /** What a generated screen passes: its own records' names by id (here, from the query). */
 const labels = new Map((refs ?? []).map(pair => pair.split(':') as [string, string]))

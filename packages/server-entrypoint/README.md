@@ -10,7 +10,7 @@ and a browser app binds the same protocols with `@owlmeans/client-entrypoint` in
 ## Installation
 
 ```bash
-bun add @owlmeans/server-entrypoint@^0.1.21
+bun add @owlmeans/server-entrypoint@^0.2.0-alpha.0
 ```
 
 ## Concepts
@@ -154,7 +154,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

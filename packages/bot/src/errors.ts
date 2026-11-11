@@ -70,9 +70,50 @@ export class BotUnsupportedAction extends BotError {
   }
 }
 
+/**
+ * A platform's API refused a call or failed — `bot:platform:<platform id>:<detail>`, the detail as the
+ * platform's plugin states it (its codes first, then the platform's own words).
+ *
+ * The ONE wire class of every platform: a plugin's own error class extends it WITHOUT declaring a
+ * type name of its own, so a refusal that crossed the wire is rebuilt as this class wherever the
+ * plugin is not loaded (a browser, another service). No status: the platform's fault answers 500.
+ */
+export class BotErrorPlatform extends BotError {
+  public static override typeName: string = `${BotError.typeName}Platform`
+
+  /** The refusal of `platform`, its detail as the plugin states it. */
+  public static of(platform: string, detail: string): BotErrorPlatform {
+    return new BotErrorPlatform(`${platform}:${detail}`)
+  }
+
+  /** The platform id the refusal came from (`''` when the message names none). */
+  public platform: string = ''
+  /** What the platform said, after its id. */
+  public detail: string = ''
+
+  /** `message` is `<platform id>:<detail>` — prefer {@link BotErrorPlatform.of}. */
+  constructor(message: string = 'unknown:error') {
+    super(`platform:${message}`)
+    this.type = BotErrorPlatform.typeName
+    this.readPlatform()
+  }
+
+  /** Platform and detail are read back from the message — also for an error rebuilt on the far side of a hop. */
+  public override finalizeUnmarshal(): void {
+    this.readPlatform()
+  }
+
+  private readPlatform(): void {
+    const found = /^bot:platform:([^:]*)(?::([\s\S]*))?$/.exec(this.message)
+    this.platform = found?.[1] ?? ''
+    this.detail = found?.[2] ?? ''
+  }
+}
+
 ResilientError.registerErrorClass(BotError)
 ResilientError.registerErrorClass(BotConnectionNotFound)
 ResilientError.registerErrorClass(BotCredentialsRejected)
 ResilientError.registerErrorClass(BotSignatureRejected)
 ResilientError.registerErrorClass(BotTransportMismatch)
 ResilientError.registerErrorClass(BotUnsupportedAction)
+ResilientError.registerErrorClass(BotErrorPlatform)

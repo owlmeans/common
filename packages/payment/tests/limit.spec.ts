@@ -85,7 +85,7 @@ const seats: LimitView = {
 const view: EntitlementView = {
   plan: {
     sku: 'pro-monthly', productSku: 'pro', title: 'Pro', rank: 10, free: false,
-    status: 'active' as EntitlementView['plan']['status'], paygate: 'stripe',
+    status: 'active' as EntitlementView['plan']['status'], paygate: 'card-gate',
   },
   capabilities: [
     { param: 'feature:whitelabel', scope: 'feature', permission: 'whitelabel', value: true, granted: true },

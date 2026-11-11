@@ -32,10 +32,28 @@ export const createPlanHelper = (): PlanHelper => {
   const planLookupKey = (product: PaymentProduct, plan: PaymentPlan): string =>
     product.type === ProductType.Consumable ? `${product.sku}-consumable` : plan.sku
 
-  const isSoldThrough = (product: PaymentProduct, plan: PaymentPlan, paygate: string): boolean =>
-    plan.free !== true && (plan.gateways ?? product.gateways ?? []).includes(paygate)
+  const gatewaysOf = (product: PaymentProduct, plan: PaymentPlan): string[] | undefined =>
+    plan.gateways ?? product.gateways ?? undefined
 
-  return { planRank, overriddenPlan, planLookupKey, isSoldThrough }
+  const isSoldThrough = (product: PaymentProduct, plan: PaymentPlan, paygate: string): boolean => {
+    if (plan.free === true) {
+      return false
+    }
+    const gateways = gatewaysOf(product, plan)
+
+    return gateways == null || gateways.includes(paygate)
+  }
+
+  const isForSale = (product: PaymentProduct, plan: PaymentPlan): boolean => {
+    if (plan.free === true) {
+      return false
+    }
+    const gateways = gatewaysOf(product, plan)
+
+    return gateways == null || gateways.length > 0
+  }
+
+  return { planRank, overriddenPlan, planLookupKey, isSoldThrough, isForSale }
 }
 
 export const planHelper = createPlanHelper()

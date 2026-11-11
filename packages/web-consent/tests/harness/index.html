@@ -5,13 +5,13 @@
     <title>@owlmeans/web-consent</title>
     <!--
       The bootstrap script is injected HERE, above the module below, because that is the only
-      placement that makes Consent Mode mean anything: a tag reads the state present when it loads,
-      so a decision pushed from a React bundle arrives after everything on the page has acted.
+      placement that makes a signal provider mean anything: a tag reads the state present when it
+      loads, so a decision pushed from a React bundle arrives after everything on the page has acted.
 
       It is injected by the harness server's `transformIndexHtml`, exactly as `manager-web`'s vite
-      plugin, the template's rollup config and the Astro layout do — so the string under test is
-      the one `consentBootstrapScript()` emits, inline and classic, not a copy and not a deferred
-      module.
+      plugin, the template's rollup config and the Astro layout stamp their tag's — so the string
+      under test is built from what `consentTrackingHelper` emits, inline and classic, not a copy
+      and not a deferred module.
     -->
     <!--owlmeans:consent-->
   </head>

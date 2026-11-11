@@ -4,6 +4,8 @@ import type { Resource } from '@owlmeans/resource'
 import { createStaticResource } from '@owlmeans/static-resource'
 import { configureLog } from '@owlmeans/log'
 import { RES_BOT_ACTIVITY, RES_BOT_CONNECTION, RES_BOT_UPDATE } from '../src/consts.js'
+import { makeTestBotPlatform } from '../src/mock/platform.js'
+import type { BotPlatformPlugin } from '../src/platforms/types.js'
 import { appendBot } from '../src/service.js'
 import type {
   BotActivityRecord, BotConnectionRecord, BotService, BotServiceOptions, BotUpdateRecord,
@@ -22,6 +24,8 @@ export interface TestBot {
   connections: Resource<BotConnectionRecord>
   updates: Resource<BotUpdateRecord>
   activities: Resource<BotActivityRecord>
+  /** The first plugin the service was given — a fresh test platform unless `options.platforms` names others. */
+  platform: BotPlatformPlugin
 }
 
 let stores = 0
@@ -30,7 +34,8 @@ let stores = 0
  * One real context per test: the three resources as `@owlmeans/static-resource` stores (a fresh key
  * each time, so tests never share rows — unless `store` names an earlier bot's, which is that bot's
  * process restarted), then `appendBot` — what a target's backend does with its Postgres resources.
- * A fast dispatcher; the secret is a fixture.
+ * A fast dispatcher; the secret is a fixture; one fresh test platform (its own mock state) unless
+ * `options.platforms` names the plugins.
  */
 export const makeTestBot = (options: BotServiceOptions = {}, store?: string): TestBot => {
   const key = store ?? `server-bot-tests-${++stores}`
@@ -41,9 +46,10 @@ export const makeTestBot = (options: BotServiceOptions = {}, store?: string): Te
   context.registerResource(connections)
   context.registerResource(updates)
   context.registerResource(activities)
-  const service = appendBot(context, { secret: () => SECRET, pollMs: 5, reconcileMs: 20, ...options })
+  const platforms = options.platforms ?? [makeTestBotPlatform()]
+  const service = appendBot(context, { secret: () => SECRET, pollMs: 5, reconcileMs: 20, ...options, platforms })
 
-  return { store: key, context, service, connections, updates, activities }
+  return { store: key, context, service, connections, updates, activities, platform: platforms[0] }
 }
 
 export const scopeOf = (): string => `scope-${randomUUID()}`

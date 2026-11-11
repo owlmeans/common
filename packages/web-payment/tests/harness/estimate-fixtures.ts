@@ -2,7 +2,7 @@ import { TaxBehavior, TaxEstimateStatus, TaxType } from '@owlmeans/payment'
 import type { PriceEstimate } from '@owlmeans/payment'
 import type { PriceEstimateControl } from '../../src/index.js'
 
-/** Canned `PriceEstimateControl`s for the Playwright harness — no server, no Stripe. */
+/** Canned `PriceEstimateControl`s for the Playwright harness — no server, no paygate. */
 export const ESTIMATE_FIXTURES: Record<string, PriceEstimateControl> = {
   pl: {
     country: 'PL', loading: false, failed: false, onCountryChange: () => {},

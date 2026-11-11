@@ -1,8 +1,8 @@
 import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 import type { RouteParent } from '@owlmeans/route'
-import type { BotPlatform } from '../consts.js'
 import type {
-  BotActivity, BotConnection, BotConnectionInput, BotSimulateInput, BotSimulateResult,
+  BotActivity, BotConnection, BotConnectionInput, BotPlatformDescriptor, BotPlatformId, BotSimulateInput,
+  BotSimulateResult,
 } from '../types.js'
 
 /** Where a bot tree mounts. Every leaf alias derives from `alias` (`<alias>:connection:list` …). */
@@ -49,7 +49,7 @@ export interface BotActivityQuery {
 
 /** The hook address: `/:platform/:connection`. */
 export interface BotHookParams {
-  platform: BotPlatform
+  platform: BotPlatformId
   connection: string
 }
 
@@ -58,21 +58,32 @@ export interface BotHookPayload {
   [key: string]: unknown
 }
 
-/** What the receive hook answers: 200 at once, or a handshake's challenge (Slack `url_verification`). */
+/** What the receive hook answers: 200 at once, or a handshake's challenge as JSON. */
 export interface BotHookReply {
   ok?: boolean
   challenge?: string
 }
 
-/** The subscription handshake WhatsApp sends as a GET (`hub.*`); answered with `hub.challenge`. */
+/**
+ * The query of a subscription handshake a platform sends as a GET — its keys are the platform's own,
+ * and its plugin reads them and names the text the hook answers with.
+ */
 export interface BotChallengeQuery {
-  'hub.mode'?: string
-  'hub.verify_token'?: string
-  'hub.challenge'?: string
+  [key: string]: string | string[] | undefined
 }
 
-/** The managing surface of one mount (operator or member). */
-export interface BotProtocols {
+/** The platforms branch of a managing tree. */
+export interface BotPlatformProtocols {
+  /** The descriptors of the platforms the server registered a plugin for, in registration order. */
+  list: EntrypointProtocol<{}, BotPlatformDescriptor[]>
+}
+
+/**
+ * A managing tree as a server binds it and a client calls it — what `serveBotEntrypoints` and the
+ * web panels take. `platform` is optional: a tree restated leaf by leaf before that leaf existed
+ * still binds and still renders (its panels then have no platform to offer).
+ */
+export interface BotSurfaceProtocols {
   /** Carries the guards and the gate; every leaf hangs under it. */
   base: EntrypointProtocol<OpenRequest, OpenValue>
   connection: {
@@ -87,6 +98,12 @@ export interface BotProtocols {
     /** Newest first. */
     list: EntrypointProtocol<{ query: BotActivityQuery }, BotActivity[]>
   }
+  platform?: BotPlatformProtocols
+}
+
+/** The managing surface of one mount (operator or member), as `makeBotProtocols` declares it. */
+export interface BotProtocols extends BotSurfaceProtocols {
+  platform: BotPlatformProtocols
 }
 
 /** The platforms' inbound surface — no guard: the platform signs. */

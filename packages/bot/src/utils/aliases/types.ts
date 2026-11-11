@@ -9,6 +9,7 @@ export interface BotAliases {
     readonly simulate: string
   }
   readonly activity: { readonly list: string }
+  readonly platform: { readonly list: string }
 }
 
 export interface BotHookAliases {

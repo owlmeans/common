@@ -3,14 +3,14 @@ import { INTERNAL_PAYGATE, LimitExhausted, LimitKind, PlanRequired, Subscription
 import type { PaymentSubscriptionRecord } from '../src/types.js'
 import {
   CAP_PREVIEW, CAP_WHITELABEL, FREE, future, makeFakeContext, past, PLANS_PRODUCT, PRO, TEAM,
-} from './fake-stripe.js'
-import type { FakeContext } from './fake-stripe.js'
+} from '@owlmeans/test-payment'
+import type { FakeContext } from '@owlmeans/test-payment'
 import { paymentAccessOf } from '../src/access.js'
 
 const seed = async (
   fake: FakeContext, planSku: string, overrides: Partial<PaymentSubscriptionRecord> = {},
 ): Promise<PaymentSubscriptionRecord> => await paymentAccessOf(fake.ctx).subscriptions().create({
-  entityId: 'entity-1', planSku, productSku: PLANS_PRODUCT, service: 'app', paygate: 'stripe',
+  entityId: 'entity-1', planSku, productSku: PLANS_PRODUCT, service: 'app', paygate: 'fake',
   externalId: `sub_${planSku}_${Math.random().toString(16).slice(2, 8)}`, status: SubscriptionStatus.Active,
   rank: planSku === TEAM ? 20 : planSku === PRO ? 10 : 0, createdAt: past(5), ...overrides,
 })
@@ -95,7 +95,7 @@ describe('@owlmeans/server-payment — the entitlement view', () => {
 
     const view = await paymentAccessOf(fake.ctx).entitlements().entitlements('entity-1')
     expect(view.plan).toEqual(expect.objectContaining({
-      sku: PRO, rank: 10, free: false, status: SubscriptionStatus.PastDue, paygate: 'stripe',
+      sku: PRO, rank: 10, free: false, status: SubscriptionStatus.PastDue, paygate: 'fake',
       subscriptionId: row.externalId, pastDue: true, fallbackSku: FREE, cancelAtPeriodEnd: true,
     }))
     expect(view.plan.subscribedAt?.getTime()).toBe(row.createdAt.getTime())

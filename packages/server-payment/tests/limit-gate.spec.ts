@@ -3,8 +3,8 @@ import type { AbstractRequest, AbstractResponse, GateService } from '@owlmeans/e
 import type { Auth } from '@owlmeans/auth'
 import { AuthForbidden, AuthRole } from '@owlmeans/auth'
 import { LIMIT_GATE, LimitExhausted, LimitWindow, planLimitHelper } from '@owlmeans/payment'
-import { makeFakeContext, PRO } from './fake-stripe.js'
-import type { FakeContext } from './fake-stripe.js'
+import { makeFakeContext, PRO } from '@owlmeans/test-payment'
+import type { FakeContext } from '@owlmeans/test-payment'
 import { paymentAccessOf } from '../src/access.js'
 
 const request = (auth: Partial<Auth> | null = {}): AbstractRequest => ({

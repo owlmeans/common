@@ -1020,7 +1020,7 @@ export const catalogue: ToolDefinition[] = [
     input: {
       projectId: z.string().optional(),
       backend: z.record(z.string(), z.string()).optional()
-        .describe('NAME → value for the backend, e.g. {"STRIPE_SECRET_KEY":"sk_live_…"}. Never shown back.'),
+        .describe('NAME → value for the backend, e.g. {"PAYMENT_API_KEY":"key_live_…"}. Never shown back.'),
       frontend: z.record(z.string(), z.string()).optional()
         .describe('NAME → value for the frontend — PUBLIC, built into the pages.'),
       scope: SCOPE_INPUT,

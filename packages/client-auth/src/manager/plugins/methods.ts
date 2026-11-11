@@ -11,7 +11,7 @@ import { authPluginHelper } from './registry.js'
  * The registry is global and is filled by side-effect imports, so "registered" means only that
  * some module was pulled into the bundle — three separate reasons why that is not enough:
  *
- * 1. No `method`: `re-captcha` is a STEP inside another flow, not a way to sign in.
+ * 1. No `method`: `captcha` is a STEP inside another flow, not a way to sign in.
  * 2. No renderer: a plugin that declares `requiresRenderer` throws the moment its screen mounts
  *    unless a UI package (`web-panel`, `mui-panel`) assigned one. An app that imported the plugin
  *    host without that package would be offering buttons whose only outcome is a broken page.

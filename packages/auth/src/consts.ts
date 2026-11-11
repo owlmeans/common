@@ -21,7 +21,9 @@ export enum AuthRole {
 export enum AuthenticationType {
   BasicEd25519 = 'basic-ed25519',
   OneTimeToken = 'one-time-token',
-  ReCaptcha = 're-captcha',
+  // A solved captcha challenge — proves a person, never an identity. Which captcha provider judged
+  // it is a server matter (`@owlmeans/captcha`); the token is a single-use guest credential.
+  Captcha = 'captcha',
   // @TODO think if it should be moved from here 
   // - it's too implementation specific
   // OwlMeans specific WalletProvider authentication type.
@@ -134,14 +136,11 @@ export const AUTH_QUERY = 'token'
 export const ENTITY_QUERY = 'entitySlug'
 export const PROFILE_QUERY = 'profile'
 
-export const MOD_RECAPTCHA = '_external:re-captcha'
-export const CMOD_RECAPTCHA = `_client-${MOD_RECAPTCHA.slice(1)}`
-
 /**
- * The guard of a route a reCAPTCHA-proven guest may call once: `Authorization: RE-CAPTCHA <token>`,
- * the token the auth manager's reCAPTCHA plugin issued (`makeReCaptchaGuard` in server-auth).
+ * The guard of a route a captcha-proven guest may call once: `Authorization: CAPTCHA <token>`, the
+ * token the auth manager's captcha plugin issued (`makeCaptchaGuard` in server-auth).
  */
-export const RECAPTCHA_GUARD = 'guard:re-captcha'
+export const CAPTCHA_GUARD = 'guard:captcha'
 
 export const GUEST_ID = '__guest'
 export const RELY_3RD = 'rely'

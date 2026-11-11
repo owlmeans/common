@@ -1,4 +1,3 @@
-import type Stripe from 'stripe'
 import type { InitializedService, LazyService } from '@owlmeans/context'
 import type { ResourceRecord } from '@owlmeans/resource'
 import type { MongoResource } from '@owlmeans/mongo-resource'
@@ -42,7 +41,7 @@ export interface PaymentPlan extends ProductPlan {
   quantityPolicy?: QuantityCheckoutPolicy
   /**
    * Exact prices in further currencies, major units by lowercase ISO 4217 code (`{ usd: 20 }`).
-   * Synced as the reusable Price's `currency_options`, never converted.
+   * Synced as further currencies of the reusable price, never converted.
    */
   currencyPrices?: Record<string, number>
 }
@@ -87,7 +86,7 @@ export interface PaymentPlanDef {
   defaultQuantity?: number
   /**
    * Exact prices in further currencies, major units by ISO 4217 code (`{ usd: 20 }`): a recurring
-   * or quantity plan's synced Price carries each as a `currency_options` entry at exactly this
+   * or quantity plan's synced reusable price carries each as a further currency at exactly this
    * amount, while its default currency (the settlement currency) is converted as before.
    */
   currencyPrices?: Record<string, number>
@@ -98,56 +97,11 @@ export interface PaymentPlanDef {
   withdrawal?: { components: PlanWithdrawalComponent[] }
 }
 
-/** File paths (or values) of the Stripe secrets. The webhook secret is an optional override. */
-export interface StripeSecretsDef { api: string; webhook?: string }
-export interface StripePluginConfig extends PluginConfig { api: string; webhook?: string }
-
-/** Stripe-only pricing settings — never a browser-visible field (see `PricingPolicy` for those). */
-export interface StripePricingDef {
-  /** Enable promotion-code entry on amount checkouts; absent/false keeps it disabled. */
-  amountPromotionCodes?: boolean
-  /** Overrides `STRIPE_FX_QUOTES_API_VERSION`, when Stripe moves or renames the preview. */
-  fxApiVersion?: string
-  /**
-   * Stripe settlement currency used when a catalogue price is declared in another currency.
-   * Recurring prices are converted during product sync; amount checkout is converted per session.
-   */
-  settlementCurrency?: string
-  /** Explicit Stripe payment methods for subscription Checkout; absent keeps Stripe's dynamic selection. */
-  subscriptionPaymentMethodTypes?: string[]
-  /** Payment methods for a specific subscription charge currency; overrides the default list. */
-  subscriptionPaymentMethodTypesByCurrency?: Record<string, string[]>
-  /**
-   * Let a matching `unspecified` price take the declared `tax.behavior` even when the Stripe
-   * account's own tax-settings default resolves to the opposite one — which changes what an
-   * existing subscriber is charged at their next renewal. Absent/`false`: such a price is left
-   * `unspecified` and a `log.error` explains why.
-   */
-  migrateUnspecifiedPrices?: boolean
-  /**
-   * The Stripe customer's e-mail is the application's: every checkout must pass
-   * `CreateLinkParams.email` (else `PaygateError('customer-email')`), which is written to the
-   * customer before the session — Checkout shows a customer's valid e-mail read-only, so no other
-   * address can be typed — and the portal configuration never offers to edit it.
-   */
-  lockCustomerEmail?: boolean
-  /**
-   * The billing country a checkout knows — the locked profile's, else `CreateLinkParams.country` —
-   * is pinned on the Stripe customer (replacing a saved address of another country before any lock)
-   * and Checkout never collects another (`customer_update.address: 'never'`, collection `'auto'`):
-   * tax is calculated on it whatever the card form's "Country or region" says, the first completed
-   * purchase locks it, and the portal never offers to edit the address. Where Stripe Tax needs more
-   * than a country (US: a postal code; CA, IN: a postal code or province) and the customer carries
-   * none, Checkout still collects the address — Stripe refuses a session otherwise.
-   */
-  lockCustomerCountry?: boolean
-}
-export interface StripePricingPluginConfig extends PluginConfig, StripePricingDef {}
-
-/** `declarePaymentPricing`'s argument: the browser-safe `PricingPolicy` plus Stripe-only settings. */
-export interface PricingDef extends PricingPolicy {
-  stripe?: StripePricingDef
-}
+/**
+ * `declarePaymentPricing`'s argument: the browser-safe `PricingPolicy`. A provider's own pricing
+ * settings are declared through its own package.
+ */
+export interface PricingDef extends PricingPolicy {}
 
 /**
  * The business the consumer contracts with — backend only, never advertised. `name` is what the
@@ -182,16 +136,6 @@ export interface ConsumerMailPluginConfig extends PluginConfig, ConsumerMailDef 
 /** `declareConsumerRights`'s argument: the advertised policy plus the backend-only trader and mail options. */
 export interface ConsumerRightsDef extends ConsumerRightsDeclaration { trader?: TraderDef, mail?: ConsumerMailDef }
 
-/** What the managed customer portal configuration shows. */
-export interface PortalBrandingDef {
-  headline?: string
-  privacyPolicyUrl?: string
-  termsOfServiceUrl?: string
-  /** Where the portal's "return" link leads when a session names none. Absolute URL. */
-  returnUrl: string
-}
-export interface PortalBrandingConfig extends PluginConfig, PortalBrandingDef {}
-
 // ---------------------------------------------------------------------------------------------
 // Gateway
 // ---------------------------------------------------------------------------------------------
@@ -204,7 +148,7 @@ export interface CreateLinkParams {
   service: string
   planSku?: string
   amountMinor?: number
-  /** Stripe Checkout and future paid-invoice language. Caller supplies a Stripe-supported locale. */
+  /** The checkout and future paid-invoice language. The caller supplies a locale the paygate supports. */
   locale?: string
   /**
    * Trusted application copy shown beside the Checkout confirmation button — never caller-provided
@@ -223,9 +167,12 @@ export interface CreateLinkParams {
   ipCountry?: string
   /**
    * The buyer's e-mail as the application verified it (the signed-in person's account). Read only
-   * under `stripe.lockCustomerEmail`, where it is required and pinned on the Stripe customer.
+   * under the paygate's customer e-mail lock (`customers.locks().email`), where it is required and
+   * pinned on the paygate customer.
    */
   email?: string
+  /** The paygate to check out through. Absent: the first registered paygate the plan is for sale through. */
+  paygate?: string
 }
 
 /** What a submit-text function is told about the session it labels. */
@@ -267,7 +214,7 @@ export interface CheckoutAttempt {
   /** Amount mode: the pre-tax charge in `currency`. */
   chargeMinor?: number
   currency: string
-  /** The session lifetime the gateway will set; absent: Stripe's default (24 h). */
+  /** The session lifetime the gateway will set; absent: the paygate's own default. */
   sessionTtlSeconds?: number
   expiresAt?: Date
   at: Date
@@ -290,7 +237,7 @@ export type CheckoutOutcome = 'paid' | 'expired' | 'failed'
 
 /**
  * How a checkout ended: `paid` (completed and paid), `expired`, or `failed` — an asynchronous
- * payment failure, or a session that never became usable (a later plugin vetoed, Stripe refused,
+ * payment failure, or a session that never became usable (a later plugin vetoed, the paygate refused,
  * a `created` threw; then `sessionId` may be absent and `reservationId` names the hold to release).
  */
 export interface CheckoutSettled {
@@ -320,7 +267,7 @@ export interface CheckoutPlugin {
   created?: (ctx: ApiContext, created: CheckoutCreated) => Promise<void>
   /** From the webhook (paid, expired, failed) or from a checkout that never became usable. */
   settled?: (ctx: ApiContext, settled: CheckoutSettled) => Promise<void>
-  /** The longest a session may stay open; the gateway uses the smallest, clamped to 30 min–24 h. */
+  /** The longest a session may stay open; the gateway uses the smallest, clamped into the paygate's `features.sessionTtl`. */
   sessionTtlSeconds?: number
 }
 
@@ -329,6 +276,11 @@ export interface PortalLinkOptions {
   /** The target plan of `PortalFlow.Change`. */
   planSku?: string
   returnUrl: string
+  /**
+   * The paygate whose portal opens. Absent: the paygate of the entity's entitling subscription, else
+   * the first registered paygate holding a customer of the entity.
+   */
+  paygate?: string
 }
 
 export interface PriceEstimateParams {
@@ -339,6 +291,8 @@ export interface PriceEstimateParams {
   planSku?: string
   /** ISO 3166-1 alpha-2. Absent: taken from the entity's paygate customer address. */
   country?: string
+  /** The paygate to estimate through. Absent: the first registered paygate the plan is for sale through. */
+  paygate?: string
 }
 
 export interface GrantInternalPlanOptions {
@@ -350,21 +304,21 @@ export interface GrantInternalPlanOptions {
 
 export interface SubscriptionRef {
   entityId?: string
-  /** The paygate subscription id (`sub_…`). */
+  /** The paygate subscription id. */
   subscriptionId?: string
+  /** The paygate of `subscriptionId`. Absent: its row's paygate, else the first registered one with subscriptions. */
+  paygate?: string
 }
 
 export interface GatewayService extends InitializedService {
-  /** `false` when registered with `manage: false`: every Stripe-calling method throws. */
+  /** `false` when registered with `manage: false`: every paygate-calling method throws. */
   managed: boolean
-  /** Whether the boot-time `bootstrapStripe` runs: the `bootstrap` option, else `managed`. */
+  /** Whether the boot-time paygate bootstrap runs: the `bootstrap` option, else `managed`. */
   bootstrap: boolean
   /** The alias whose host and base form the webhook URL: the `webhookService` option, else `cfg.service`. */
   readonly webhookService: string
-  /** The key of this deployment's Stripe rows: the `owner` option, else `cfg.service`. */
+  /** The key of this deployment's paygate rows: the `owner` option, else `cfg.service`. */
   readonly owner: string
-  /** The Stripe client every paygate call of this gateway uses: the `stripe` option, else the configured secret. */
-  stripe: StripeFactory
   createLink: (ctx: ApiContext, params: CreateLinkParams) => Promise<string>
   portalLink: (ctx: ApiContext, entityId: string, opts: PortalLinkOptions) => Promise<string>
   /** @throws PaygateError('unmanaged') when `managed` is `false`. */
@@ -396,7 +350,7 @@ export interface GatewayService extends InitializedService {
    * `createLink` enforces. Mongo and plugins only; works unmanaged.
    */
   amountPolicy: (ctx: ApiContext, entityId: string, productSku: string, planSku?: string) => Promise<AmountPolicyView>
-  /** The synced prices of a product's plans, per currency — stored rows, no Stripe call. */
+  /** The synced prices of a product's plans, per currency — stored rows, no paygate call. */
   planPrices: (ctx: ApiContext, productSku: string) => Promise<PlanPriceView[]>
 }
 
@@ -404,16 +358,17 @@ export interface PaymentGatewayOptions {
   dbAlias?: string
   serviceAlias?: string
   /**
-   * `false` for a process that must read entitlements but never talk to Stripe: no Stripe
+   * `false` for a process that must read entitlements but never talk to a paygate: no paygate
    * bootstrap at init, and `createLink` / `portalLink` / `resync*` / the webhook route throw
    * `PaygateError('unmanaged')`.
    */
   manage?: boolean
   /**
-   * Whether this process brings Stripe to the declared state at boot (`bootstrapStripe`: products,
-   * portal configuration, webhook endpoint). Default: `manage`. A managed process with `false`
-   * still serves checkout, the portal, estimates and the resyncs, and still runs a FORCED
-   * bootstrap (`resync`, an application's `stripeBootstrapOf(ctx).bootstrapStripe(stripe, { force: true })`).
+   * Whether this process brings every registered paygate to the declared state at boot
+   * (`paygateBootstrapOf(ctx).bootstrap()`: products, portal configuration, webhook endpoint).
+   * Default: `manage`. A managed process with `false` still serves checkout, the portal, estimates
+   * and the resyncs, and still runs a FORCED bootstrap (`resync`, an application's
+   * `paygateBootstrapOf(ctx).bootstrap({ force: true })`).
    * `true` on an unmanaged gateway is refused at construction.
    */
   bootstrap?: boolean
@@ -425,19 +380,14 @@ export interface PaymentGatewayOptions {
    */
   webhookService?: string
   /**
-   * The key this deployment's Stripe rows are stored under: the `payment-webhook` rows' `service`,
+   * The key this deployment's paygate rows are stored under: the `payment-webhook` rows' `service`,
    * the signing-secret lookup, the endpoint's `owlmeans:<owner>` description and `service`
    * metadata, the `portal:<owner>` fingerprint and the portal configuration's `service` metadata.
    * Default: `cfg.service`. Give every process sharing the database the same value, so they read
    * and replace one another's rows.
    */
   owner?: string
-  /** The Stripe client for this gateway's paygate calls. Default: the configured secret (`stripeClient`). */
-  stripe?: StripeFactory
 }
-
-/** A Stripe client for one context — the default reads the configured secret. */
-export interface StripeFactory { (ctx: ApiContext): Promise<Stripe> }
 
 /** @deprecated use `PaymentGatewayOptions` */
 export type PaymentResourceOptions = PaymentGatewayOptions
@@ -467,9 +417,9 @@ export interface AmountTopUpCompletion extends TopUpBase {
   sourceChargeAmountMinor: number
   /** The amount policy's catalogue currency. */
   amountCurrency: string
-  /** Pre-tax subtotal actually charged by Stripe, in `currency`. */
+  /** Pre-tax subtotal actually charged by the paygate, in `currency`. */
   chargeAmountMinor: number
-  /** Stripe integration/settlement currency. */
+  /** The charge currency of the paygate. */
   currency: string
 }
 export type TopUpCompletion = QuantityTopUpCompletion | AmountTopUpCompletion
@@ -960,7 +910,7 @@ export interface SyncedPriceOption {
   unitAmount: number
 }
 
-/** A reusable price as the last sync left it — what `planPrices` and checkout read without Stripe. */
+/** A reusable price as the last sync left it — what `planPrices` and checkout read without the paygate. */
 export interface SyncedPrice {
   planSku: string
   priceId: string
@@ -968,7 +918,7 @@ export interface SyncedPrice {
   /** The default currency and its amount. */
   currency: string
   unitAmount: number
-  /** `currency_options` besides the default currency. */
+  /** The further currencies besides the default currency. */
   options: SyncedPriceOption[]
   taxBehavior?: string
   interval?: 'month' | 'year'
@@ -1146,7 +1096,7 @@ export interface BillingProfileResource extends MongoResource<BillingProfileReco
  * subscription's first invoice (`subscription`). Renewals are not purchases.
  */
 export interface PurchaseRecord extends ResourceRecord {
-  /** `stripe:<session id>` (one-time) or `stripe:<subscription id>`. */
+  /** `<paygate>:<checkout session id>` (one-time) or `<paygate>:<subscription id>`. */
   purchaseId: string
   /** `CR-YYMMDD-XXXXXX` — what a consumer quotes. */
   contractRef: string
@@ -1184,8 +1134,8 @@ export interface PurchaseRecord extends ResourceRecord {
   units?: number
   taxBehavior?: string
   /**
-   * Stripe's own `consent.terms_of_service` of the checkout — absent when the session did not
-   * collect it (the policy's `checkoutTerms` off, or the fallback of a Dashboard without a terms URL).
+   * The terms acceptance the checkout itself collected — absent when the session did not collect it
+   * (the policy's `checkoutTerms` off, or a paygate that created the session without the checkbox).
    */
   termsAccepted?: boolean
   textVersion?: string
@@ -1409,6 +1359,8 @@ export interface ConsumerMailData {
 export interface ConsumerMailRenderer { (kind: ConsumerMailKind, data: ConsumerMailData, rendered: MailMessage): MailMessage | null | undefined | Promise<MailMessage | null | undefined> }
 
 export interface LockOptions {
+  /** The paygate the lock came from (its customer, its checkout). Default: the first registered paygate. */
+  paygate?: string
   customerId?: string
   sessionId?: string
   ipCountry?: string
@@ -1501,7 +1453,7 @@ export interface ConsumerRightsService extends LazyService {
 }
 
 /**
- * `appendConsumerRights` options. `manage`, `usage` and `stripe` apply to the service whenever the
+ * `appendConsumerRights` options. `manage` and `usage` apply to the service whenever the
  * call comes — before or after the gateway registered it; the resources' `dbAlias` / `serviceAlias`
  * are those of the first registration.
  */
@@ -1514,8 +1466,6 @@ export interface ConsumerRightsOptions {
   /** The application's usage meter; without one a withdrawal is left to an operator (`review`). */
   usage?: UsageMeter
   alias?: string
-  /** The paygate client; default: the configured Stripe secret. */
-  stripe?: StripeFactory
   dbAlias?: string
   serviceAlias?: string
 }
@@ -1586,7 +1536,7 @@ export type EntitlementGateOptions = CapabilityGateOptions
 
 export interface LimitGateOptions extends EntityResolverOption {}
 
-export interface StripeBootstrapOptions {
+export interface PaygateBootstrapOptions {
   /** Re-verify what the stored fingerprints say is in place. */
   force?: boolean
 }

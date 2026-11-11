@@ -94,13 +94,17 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 | Web | `web-*` (incl. `web-log`), `astro`; LEGACY `mui-panel`, `mui-oidc-rp` (maintain only) |
 | Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource` |
 | AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `bot-agent`, `viable-common`, `viable-log`, `viable-sdk` |
-| Mail | `mailer`, `mailer-smtp`, `server-mailer-mailgun` |
+| Mail | `mailer` (transport host), `mailer-smtp` |
 | Domain | `oidc`, `iam`, `payment`, `consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `planning`, `planning-auth`, `bot` |
-| Not framework | `_tpl`, `test`, `test-auth`, `test-integration`, `test-ui` |
+| Not framework | `_tpl`, `test`, `test-auth`, `test-integration`, `test-payment`, `test-ui` |
 
 ## Key Facts
 
 - 139 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
+- **Provider split:** packages here are provider-agnostic — contracts, plugin hosts, generic UI, test
+  helpers. A package that integrates one external provider (a chat platform, reCAPTCHA, Stripe, Mailgun,
+  the Google tag) is a plugin in the `connect` monorepo; common never depends on connect, and no provider
+  name, wire value, text or SDK enters a common package.
 - ESM only, output in `build/`; TypeScript `^7.0.2` (`/tsconfig`, `/bun`).
 - Versions are per package and deliberately uneven — never resynchronise (`/versions`, `/publishing`).
 - React is a peer dependency; crypto via `@noble/*` + `@scure/*`; validation via AJV + ajv-formats.
@@ -138,8 +142,8 @@ topic or `/<name>`. Every package has its own skill `/<package-name>` (`owlmeans
 - `/mui-panel`, `/mui-oidc-rp` — only when maintaining or migrating an app still on MUI
 - `/auth-protocol`, `/server-auth-identity` — auth protocol and local identity
 - `/login-plugins`, `/login-methods` — read both before touching a login dispatcher
-- `/consent` — cookie consent and tag managers (`/web-consent`, `/web-gtm`, `/astro`)
-- `/server-auth-otp` — email OTP login; mail transports `/mailer`, `/mailer-smtp`, `/server-mailer-mailgun`
+- `/consent` — cookie consent and head tags (`/web-consent`, `/astro`; the Google tag, Consent Mode and the tag-manager sink are connect's `web-gtm`)
+- `/server-auth-otp` — email OTP login; mail host and transports `/mailer`, `/mailer-smtp`
 - `/auth-email` — e-mail PIN/password sign-in (`/server-auth-email`, `/web-auth-email`); captcha `/captcha`, `/web-captcha`
 - `/server-auth-session` — seven-day session registry and Redis authority
 - `/oidc-versions` — before upgrading any OIDC/OAuth dependency

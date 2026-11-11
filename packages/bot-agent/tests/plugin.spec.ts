@@ -3,7 +3,7 @@ import { makeAgentModel, type AgentRun } from '@owlmeans/agent'
 import { BotActionKind } from '@owlmeans/bot'
 import { DEFAULT_EFFORT, makeExecutionService, makePromptService } from '@owlmeans/llm'
 import { BOT_AGENT_PLUGIN, BotAgentTool, botAgentPlugin } from '../src/index.js'
-import { makeTestBot, matchedGroups, receive, whatsAppUpdate, type KeywordGroup } from './context.js'
+import { makeTestBot, matchedGroups, receive, shopUpdate, type KeywordGroup } from './context.js'
 import { scriptedModel } from './_tools/model.js'
 
 /** The application's own keyword groups — the handler matches them, the plugin only hears their instructions. */
@@ -34,7 +34,7 @@ describe('@owlmeans/bot-agent — botAgentPlugin', () => {
     const [message, instruction, ...rest] = await plugin.context!(NO_RUN)
 
     expect(rest).toEqual([])
-    expect(message).toContain('Platform: Telegram')
+    expect(message).toContain('Platform: Community')
     expect(message).toContain('Chat: group "Gamers"')
     expect(message).toContain('Sender: Spammer (@spammer)')
     expect(message).toContain('> Free money at the CASINO, idiot!\n> Join now')
@@ -47,21 +47,21 @@ describe('@owlmeans/bot-agent — botAgentPlugin', () => {
 
   test('offers only the tools the platform supports and allow names', async () => {
     const bot = makeTestBot()
-    const telegram = await receive(bot, { text: 'casino' })
-    const whatsApp = await whatsAppUpdate(bot)
+    const community = await receive(bot, { text: 'casino' })
+    const shop = await shopUpdate(bot)
     const names = (options: Parameters<typeof botAgentPlugin>[0]): string[] =>
       Object.values(botAgentPlugin(options).tools!(NO_RUN)).map(item => item.name)
 
-    expect(names({ update: telegram.update, bot: telegram.actions })).toEqual([
+    expect(names({ update: community.update, bot: community.actions })).toEqual([
       BotAgentTool.Reply, BotAgentTool.Delete, BotAgentTool.Warn, BotAgentTool.Mute, BotAgentTool.Ban, BotAgentTool.React,
     ])
-    expect(names({ update: telegram.update, bot: telegram.actions, allow: [BotActionKind.Delete, BotActionKind.Mute] }))
+    expect(names({ update: community.update, bot: community.actions, allow: [BotActionKind.Delete, BotActionKind.Mute] }))
       .toEqual([BotAgentTool.Delete, BotAgentTool.Mute])
-    // WhatsApp can reply and react — never delete, mute or ban — and `warn` is a reply.
-    expect(names({ update: whatsApp.update, bot: whatsApp.actions })).toEqual([
+    // The shop platform can reply and react — never delete, mute or ban — and `warn` is a reply.
+    expect(names({ update: shop.update, bot: shop.actions })).toEqual([
       BotAgentTool.Reply, BotAgentTool.Warn, BotAgentTool.React,
     ])
-    expect(names({ update: whatsApp.update, bot: whatsApp.actions, allow: [BotActionKind.Delete, BotActionKind.Ban] }))
+    expect(names({ update: shop.update, bot: shop.actions, allow: [BotActionKind.Delete, BotActionKind.Ban] }))
       .toEqual([])
   })
 

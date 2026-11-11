@@ -12,10 +12,11 @@ const defaultPayload = (event: AnalyticsEvent): Record<string, unknown> => {
 }
 
 /**
- * An analytics plugin that sends only while a consent category is granted.
+ * An analytics plugin that sends only while a consent category is granted — the gate every
+ * analytics sink is built on; `send` is the sink (a tag package's queue, a beacon of your own).
  *
- * An event arriving without consent is DROPPED, never queued: a tag manager replays everything
- * already waiting in its queue when it loads, so a held event would be sent after a later grant —
+ * An event arriving without consent is DROPPED, never queued: a tag queue replays everything
+ * already waiting in it when its tag loads, so a held event would be sent after a later grant —
  * for a moment the visitor never agreed to be measured in.
  */
 export const consentedAnalyticsPlugin = (

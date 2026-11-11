@@ -13,7 +13,7 @@ account/profile records `@owlmeans/server-auth-identity`, and the browser side `
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth@^0.1.21
+bun add @owlmeans/server-auth@^0.2.0-alpha.0
 ```
 
 ## Concepts
@@ -144,27 +144,30 @@ registerPlugin('my-method', context => ({
 }) as AuthPlugin)
 ```
 
-### Accept a reCAPTCHA-proven guest on one route
+### Accept a captcha-proven guest on one route
 
-The manager's reCAPTCHA plugin signs a GUEST token (`GUEST_ID`, role Guest, `[AUTH_SCOPE]`) whatever
-identity the caller posts. A route takes it through the reCAPTCHA guard, which spends it once:
+The manager's captcha plugin signs a GUEST token (`GUEST_ID`, role Guest, `[AUTH_SCOPE]`) whatever
+identity the caller posts, once the provider named by the `MOD_CAPTCHA` host record
+(`@owlmeans/captcha`) accepted the token. There is no built-in provider: a provider package
+registers one in the context's captcha host. A route takes the token through the captcha guard,
+which spends it once:
 
 ```ts
-import { CMOD_RECAPTCHA, MOD_RECAPTCHA, RECAPTCHA_GUARD } from '@owlmeans/auth'
-import { clientPlugin, plugin } from '@owlmeans/config'
-import { makeReCaptchaGuard, reCaptchaTokenOf } from '@owlmeans/server-auth'
+import { CAPTCHA_GUARD } from '@owlmeans/auth'
+import { MOD_CAPTCHA } from '@owlmeans/captcha'
+import { plugin } from '@owlmeans/config'
+import { makeCaptchaGuard, captchaTokenOf } from '@owlmeans/server-auth'
 
-// config: the secret plus the policy (strings, '' = no check), and the browser's site key
-plugin(cfg, {
-  value: '/etc/master-secret/recaptcha-secret',
-  hostnames: 'example.org, example.com', minScore: '0.5', actions: 'inquiry',
-}, MOD_RECAPTCHA)
-clientPlugin(cfg, '/etc/app-config/recaptcha-site-key', CMOD_RECAPTCHA)
+// config: the host record turns the sign-in on — the provider and the policy (strings, '' = no check)
+plugin(cfg, { provider: 'my-provider', hostnames: 'example.org, example.com', minScore: '0.5', actions: 'inquiry' }, MOD_CAPTCHA)
 
-// context: the guard of the route's `guards: [RECAPTCHA_GUARD]` (`Authorization: RE-CAPTCHA <token>`)
-context.registerService(makeReCaptchaGuard())
+// context: the provider (a provider package's append helper), then the guard of the route's
+// `guards: [CAPTCHA_GUARD]` (`Authorization: CAPTCHA <token>`); at boot the guard refuses a
+// MOD_CAPTCHA record whose provider is not registered
+appendMyProvider(context)
+context.registerService(makeCaptchaGuard())
 // a pre-parse check that does not spend:
-const guest = await reCaptchaTokenOf(context).inspect(request) // null = 401
+const guest = await captchaTokenOf(context).inspect(request) // null = 401
 ```
 
 ## API
@@ -182,9 +185,9 @@ const guest = await reCaptchaTokenOf(context).inspect(request) // null = 401
 | `AUTHEN_TIMEFRAME` | const | `15 * 60 * 1000` ms — challenge lifetime and anti-replay window |
 | `makeRelyModel`, `makeProviderRely`, `makeConsumerRely` | function | Rely envelope models |
 | `AuthService`, `AuthServiceAppend`, `AuthSpent`, `RelyOptions` | type | Guard service, context mixin, cache record, rely options |
-| `makeReCaptchaGuard(alias = RECAPTCHA_GUARD)` | function | Guard of a route a reCAPTCHA guest calls once: verifies and spends `RE-CAPTCHA <token>` |
-| `makeReCaptchaTokenHelper(ctx)`, `reCaptchaTokenOf(ctx)` | function | `inspect(req)` / `verify(token)` (no spend) and `spend(guest)` |
-| `ReCaptchaGuest`, `ReCaptchaCarrier`, `ReCaptchaTokenHelper` | type | Inspection result, header carrier, token checks |
+| `makeCaptchaGuard(alias = CAPTCHA_GUARD)` | function | Guard of a route a captcha guest calls once: verifies and spends `CAPTCHA <token>` |
+| `makeCaptchaTokenHelper(ctx)`, `captchaTokenOf(ctx)` | function | `inspect(req)` / `verify(token)` (no spend) and `spend(guest)` |
+| `CaptchaGuest`, `CaptchaCarrier`, `CaptchaTokenHelper` | type | Inspection result, header carrier, token checks |
 
 ### `./manager`
 
@@ -211,13 +214,9 @@ const guest = await reCaptchaTokenOf(context).inspect(request) // null = 401
 |---|---|---|
 | `registerPlugin(type, factory)`, `plugins` | function / const | The module-level registry |
 | `authPluginHelper.getPlugin(type, context)`, `authPluginHelper.assertType(type, plugin)` | method | Resolution; `getPlugin` throws `AuthUnknown(type)` for an unregistered type |
-| `makeBasicEd25519Plugin`, `makeReCaptchaPlugin`, `makeBasicRelyPlugin` | function | Built-in plugin factories |
+| `makeBasicEd25519Plugin`, `makeCaptchaPlugin`, `makeBasicRelyPlugin` | function | Built-in plugin factories |
 | `makeSupervisorPlugin(context, opts)` | function | PK supervisor plugin factory |
-| `createReCaptchaVerifierService(alias?, opts?)`, `appendReCaptchaVerifierService(ctx, alias?, opts?)` | function | Google siteverify over `fetch` (https only); the plugin's seam |
-| `makeReCaptchaPolicyModel(record)` | function | The `MOD_RECAPTCHA` record's policy: `hostnames()`, `minScore()`, `actions()`, `assert(answer)` |
-| `RECAPTCHA_VERIFIER`, `RECAPTCHA_SITEVERIFY_URL`, `RECAPTCHA_VERIFY_TIMEOUT` | const | `'re-captcha-verifier'`, Google's endpoint, 10 s |
 | `AuthPlugin`, `AuthPluginFactory`, `AuthPluginHelper`, `RelyRecord`, `AuthRedisResource` | type | Plugin shapes |
-| `ReCaptchaResponse`, `ReCaptchaRequest`, `ReCaptchaVerifierService`, `ReCaptchaVerifierOptions`, `ReCaptchaFetch`, `ReCaptchaPluginConfig`, `ReCaptchaPolicyModel` | type | reCAPTCHA shapes |
 
 ## Common pitfalls
 
@@ -232,8 +231,8 @@ const guest = await reCaptchaTokenOf(context).inspect(request) // null = 401
   entity id.
 - Register `appendAuthService` before `appendAuthIdentityResources` and product gate services.
 - Import `./manager` only in the auth manager process.
-- A reCAPTCHA token is a guest token: the bearer exchange (`authenticate`) refuses it, and only
-  `makeReCaptchaGuard` accepts it — once.
+- A captcha token is a guest token: the bearer exchange (`authenticate`) refuses it, and only
+  `makeCaptchaGuard` accepts it — once.
 
 ## Related packages
 
@@ -254,7 +253,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

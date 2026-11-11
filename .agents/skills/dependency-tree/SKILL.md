@@ -22,8 +22,8 @@ The canonical reference is `tree.md` at the repo root. Read it directly when the
 3. **Cross-cutting domain** — `flow`, `oidc`, `iam`, `payment`, `wled`, `consent`, `common-inquiry`, `viable-log`, `mailer`, `auth-otp`, `llm-common`, `llm`, `agent-common`, `agent`, `planning`, `bot`, `viable-common`, and the abstract `queue` contract (its `redis-queue` driver sits in the storage layer, its `server-job` / `client-job` transports in the server and client layers)
 4. **Auth shared** — `auth-common` and the auth contracts (`auth-token`, `oauth`, `auth-email`)
 5. **API & API config** — `api`, `api-config`, `api-config-client`, `api-config-server`
-6. **Storage & infrastructure** — `mongo*`, `redis*`, `postgres*`, `storage*`, `image-resource`, `static-resource`, `kluster`, plus the drivers behind the abstract contracts: `redis-queue`, `mailer-smtp`, `server-mailer-mailgun`
-7. **Server** — `server-*`, including the queue's server-side transport `server-job`, `bot-agent` (the bot's actions as agent tools, over `server-bot`) and `captcha` (server-side reCAPTCHA verification, no prefix)
+6. **Storage & infrastructure** — `mongo*`, `redis*`, `postgres*`, `storage*`, `image-resource`, `static-resource`, `kluster`, plus the drivers behind the abstract contracts: `redis-queue`, `mailer-smtp`
+7. **Server** — `server-*`, including the queue's server-side transport `server-job`, `bot-agent` (the bot's actions as agent tools, over `server-bot`) and `captcha` (the server-side captcha host and policies, no prefix; providers live in connect)
 8. **Client (platform-agnostic)** — `client-*`, including the queue's client-side transport `client-job`
 9. **Web** — `web-*` (incl. `web-log`), the LEGACY Material-UI variants `mui-panel` / `mui-oidc-rp` (maintain only; new work uses the shadcn `web-panel` family), and the Astro integration `astro`
 10. **Native** — *external [owlmeans/native](https://github.com/owlmeans/native) monorepo*
@@ -39,7 +39,7 @@ Two concerns are split across layers on purpose. Reach for the member that match
 | Family | Contract (layer 3) | Driver (layer 6) | Server transport (layer 7) | Client transport (layer 8) |
 |---|---|---|---|---|
 | Jobs / queues | `queue` — job/queue contracts, transport, bridge, and the worker surface (`servedJobs`, `entrypointProcessor`, `queueWorkerMiddleware`) | `redis-queue` | `server-job` — job entrypoint declaration and serving (`jobEntrypointAliases`, `declareJobEntrypoints`, `serveJobEntrypoints`), the list/get/cancel/watch actions, and owner/resource utils | `client-job` — job helper, hooks and feed |
-| Mail | `mailer` — transport contract and the console/dev transport | `mailer-smtp`, `server-mailer-mailgun` | — | — |
+| Mail | `mailer` — the mailer host, the transport contract and the console/dev transport | `mailer-smtp` (provider HTTP transports live in OwlMeans connect) | — | — |
 
 The LLM/agent stack has no such split — every member is environment-agnostic and sits in layer 3. Its order is `llm-common` → `llm` (models, provider plugins, execution service) → `agent-common` (graph contracts, on `flow`) → `agent` (the runtime graph). A server package that runs a graph depends on `agent`; it does not re-implement one.
 

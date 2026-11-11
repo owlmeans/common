@@ -1,4 +1,4 @@
-import { BotError, type BotProtocols } from '@owlmeans/bot'
+import { BotError, type BotSurfaceProtocols } from '@owlmeans/bot'
 import type { BasicConfig, BasicContext, BasicEntrypoint } from '@owlmeans/context'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import { handlers } from '@owlmeans/server-api'
@@ -12,8 +12,11 @@ import type { BotServeOptions, BotService } from './types.js'
  * `scope` decides, per request, whose bots these are (the acting organization, or the application's
  * own); it is never read from the wire. The public origin for a connection's hook URL is the
  * request's (`x-forwarded-proto` + `x-forwarded-host` / `host`).
+ *
+ * `platform.list` answers the registered plugins' descriptors — the same for every scope, so it asks
+ * no scope; it is bound when the tree carries it (a tree restated before the leaf existed does not).
  */
-export const serveBotEntrypoints = (protocols: BotProtocols, opts: BotServeOptions): BasicEntrypoint[] => {
+export const serveBotEntrypoints = (protocols: BotSurfaceProtocols, opts: BotServeOptions): BasicEntrypoint[] => {
   const api = handlers<BasicContext<BasicConfig>>()
 
   const scoped = async (req: AbstractRequest, ctx: BasicContext<BasicConfig>): Promise<[BotService, string]> => {
@@ -26,6 +29,8 @@ export const serveBotEntrypoints = (protocols: BotProtocols, opts: BotServeOptio
   }
 
   const originOf = (req: AbstractRequest): string | undefined => botOriginHelper.originOf(req.headers)
+
+  const platforms = protocols.platform?.list
 
   return [
     bind(protocols.base),
@@ -58,5 +63,9 @@ export const serveBotEntrypoints = (protocols: BotProtocols, opts: BotServeOptio
         ...(limit != null && `${limit}` !== '' ? { limit: Number(limit) } : {}),
       })
     })),
+    ...(platforms != null
+      ? [bind(platforms, api.request(platforms, async (_req, ctx) =>
+        ctx.service<BotService>(opts.service ?? BOT_SERVICE).platforms()))]
+      : []),
   ]
 }

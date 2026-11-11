@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/basic-keys",
-  "version": "0.1.21",
+  "version": "0.2.0-alpha.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -49,8 +49,8 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.21",
-    "@owlmeans/test-auth": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
+    "@owlmeans/test-auth": "^0.2.0-alpha.0",
     "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
@@ -59,7 +59,7 @@
     "@noble/ciphers": "^2.4.0",
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
-    "@owlmeans/auth": "^0.1.21",
+    "@owlmeans/auth": "^0.2.0-alpha.0",
     "@scure/base": "^2.4.0",
     "canonicalize": "^5.1.0"
   },

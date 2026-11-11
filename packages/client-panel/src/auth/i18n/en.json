@@ -11,8 +11,8 @@
     },
     "submit": "Authenticate"
   },
-  "re-captcha": {
-    "guideline": "We need to make sure that you are not a robot. Please click in the white box below to prove that you are a human."
+  "captcha": {
+    "guideline": "We need to make sure that you are not a robot. Please complete the check below to prove that you are a human."
   },
   "wallet-provider": {
     "pin": {

@@ -27,8 +27,8 @@ export interface CatalogueHelper {
    * Empty when the plan is not of one of `productSkus`.
    */
   entitlementsOf: (entityId: string, productSkus?: string[]) => Promise<PermissionSet[]>
-  /** Every product sold through Stripe with the plans it sells there. */
-  stripePlansOf: () => Promise<Array<{ product: PaymentProduct, plans: PaymentPlan[] }>>
-  /** The plan an amount/quantity checkout of a consumable product sells: the named one, else the first. */
+  /** Every product with a plan sold through a paygate, with the plans it sells there (`planHelper.isSoldThrough`). */
+  plansSoldThrough: (paygate: string) => Promise<Array<{ product: PaymentProduct, plans: PaymentPlan[] }>>
+  /** The plan an amount/quantity checkout of a consumable product sells: the named one, else the first plan for sale. */
   consumablePlanOf: (productSku: string, planSku?: string) => Promise<{ product: PaymentProduct, plan: PaymentPlan }>
 }

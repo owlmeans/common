@@ -2,9 +2,8 @@
 import type { IntegrationGate, SmtpEnv } from '@owlmeans/test-integration'
 import { config, makeServerContext } from '@owlmeans/server-context'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import { MAILER_SERVICE } from '@owlmeans/mailer'
-import { makeSmtpMailerService } from '@owlmeans/mailer-smtp'
-import type { SmtpConfig, SmtpMailerService, SmtpSettings } from '@owlmeans/mailer-smtp'
+import { appendSmtpMailer } from '@owlmeans/mailer-smtp'
+import type { SmtpConfig, SmtpMailerTransport, SmtpSettings } from '@owlmeans/mailer-smtp'
 import { gateHelper } from '@owlmeans/test-integration'
 
 /**
@@ -28,19 +27,19 @@ export const recipient = (): string => gate.env.SMTP_TEST_TO as string
 
 export interface Booted {
   context: ServerContext<ServerConfig>
-  mailer: SmtpMailerService
+  mailer: SmtpMailerTransport
 }
 
-/** Real context, real service registration — the same path a server app takes. */
+/** Real context, real registration with the mailer host — the same path a server app takes. */
 export const boot = async (overrides: Partial<SmtpSettings> = {}): Promise<Booted> => {
   const cfg = config('smtp-test') as SmtpConfig
   cfg.smtp = { ...settings(), ...overrides }
 
   const context = makeServerContext(cfg) as unknown as ServerContext<ServerConfig>
-  context.registerService(makeSmtpMailerService(MAILER_SERVICE) as never)
+  const mailer = appendSmtpMailer(context)
 
   context.configure()
   await context.init()
 
-  return { context, mailer: context.service<SmtpMailerService>(MAILER_SERVICE) }
+  return { context, mailer }
 }

@@ -16,7 +16,7 @@ const PROMO_UNTIL = new Date('2026-12-31T00:00:00Z')
 
 const pro: EntitlementPlanView = {
   sku: 'pro-monthly', productSku: 'pro', title: 'Pro', rank: 10, free: false,
-  status: SubscriptionStatus.Active, paygate: 'stripe', subscribedAt: SUBSCRIBED,
+  status: SubscriptionStatus.Active, paygate: 'card-gate', subscribedAt: SUBSCRIBED,
 }
 const free: EntitlementPlanView = {
   sku: 'free-plan', productSku: 'pro', title: 'Free', rank: 0, free: true,

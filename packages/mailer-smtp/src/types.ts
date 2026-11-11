@@ -1,4 +1,4 @@
-import type { MailerService } from '@owlmeans/mailer'
+import type { MailerAppendOptions, MailerService, MailerTransport } from '@owlmeans/mailer'
 import type { ServerConfig } from '@owlmeans/server-context'
 
 /**
@@ -9,7 +9,7 @@ import type { ServerConfig } from '@owlmeans/server-context'
  * from a Kubernetes ConfigMap always arrives as text. The service coerces them.
  */
 export interface SmtpSettings {
-  /** SMTP server, e.g. `smtp.eu.mailgun.org`. */
+  /** SMTP server, e.g. `smtp.example.com`. */
   host: string
   /** Defaults to 465. */
   port?: number | string
@@ -29,15 +29,25 @@ export interface SmtpSettings {
   timeout?: number | string
 }
 
+declare module '@owlmeans/server-context' {
+  interface ServerConfig {
+    /** The SMTP relay `@owlmeans/mailer-smtp`'s transport delivers through. */
+    smtp?: SmtpSettings
+  }
+}
+
 export interface SmtpConfig extends ServerConfig {
   smtp: SmtpSettings
 }
 
-export interface SmtpMailerService extends MailerService {
+/** The SMTP transport: a `MailerTransport` that can also authenticate without sending, and let go. */
+export interface SmtpMailerTransport extends MailerTransport {
   /** Open a session and authenticate without submitting a message. Throws when the server rejects. */
   verify: () => Promise<true>
-  /** Release a pooled connection. A no-op for the default, non-pooled transport. */
+  /** Release the transport's connection. A no-op for the default, non-pooled transport. */
   close: () => Promise<void>
+  /** Validate `cfg.smtp` and, with `verifyOnInit`, authenticate with the relay. */
+  init: () => Promise<void>
 }
 
 export interface SmtpMailerOptions {
@@ -45,4 +55,19 @@ export interface SmtpMailerOptions {
   authenticated?: boolean
   /** Authenticate with the relay while the context initializes. */
   verifyOnInit?: boolean
+}
+
+export interface SmtpMailerTransportOptions extends SmtpMailerOptions {
+  /** The transport's id — `SMTP_MAILER` by default; also the prefix of every error it raises. */
+  id?: string
+}
+
+export interface SmtpMailerAppendOptions extends SmtpMailerTransportOptions, MailerAppendOptions {}
+
+/** The standalone SMTP service of the deprecated `makeSmtpMailerService`. */
+export interface SmtpMailerService extends MailerService {
+  /** Open a session and authenticate without submitting a message. Throws when the server rejects. */
+  verify: () => Promise<true>
+  /** Release a pooled connection. A no-op for the default, non-pooled transport. */
+  close: () => Promise<void>
 }

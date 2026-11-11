@@ -7,7 +7,7 @@ import { CaptchaLoadError } from '@owlmeans/web-captcha'
 import type { Translate } from './types.js'
 import type { EmailRefusal, EmailRefusalContext, EmailRefusalHelper } from './refusal/types.js'
 import { textUtils } from './utils/text.js'
-import { CAPTCHA_LOAD_ERROR } from './refusal/consts.local.js'
+import { CAPTCHA_LOAD_ERROR, CAPTCHA_REFUSAL } from './refusal/consts.local.js'
 
 export const createEmailRefusalHelper = (): EmailRefusalHelper => {
   /** Everything an error says about itself: its registered type and its message. */
@@ -37,14 +37,15 @@ export const createEmailRefusalHelper = (): EmailRefusalHelper => {
     const status = apiStatusHelper.httpStatusOf(error)
 
     if (error instanceof CaptchaLoadError || text.includes(CAPTCHA_LOAD_ERROR)) {
-      // The browser could not get a token at all — the script did not load or Google gave none.
+      // The browser could not get a token at all — no client, the script did not load, or the
+      // provider gave none.
       return { kind: 'captcha-unavailable' }
     }
     if (status === 429 || /Throttled|:throttled/.test(text)) {
       const retryAfter = retryAfterOf(error)
       return retryAfter != null ? { kind: 'throttled', retryAfter } : { kind: 'throttled' }
     }
-    if (text.includes('recaptcha')) {
+    if (CAPTCHA_REFUSAL.test(text)) {
       return { kind: status === 503 || text.includes('Unavailable') ? 'captcha-unavailable' : 'captcha' }
     }
     if (text.includes(EmailPasswordWeak.typeName) || status === 422) {

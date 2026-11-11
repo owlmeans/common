@@ -14,7 +14,7 @@ call as activity.
 ## Installation
 
 ```bash
-bun add @owlmeans/bot-agent@^0.1.21
+bun add @owlmeans/bot-agent@^0.2.0-alpha.0
 ```
 
 `@owlmeans/agent` and `@langchain/core` are peers.
@@ -36,7 +36,7 @@ export const moderate = botHandler('moderate', async (update, bot, ctx) => {
     update, bot, ref: groups[0].id, instruction: groups.map(group => group.instruction ?? ''),
     allow: [BotActionKind.Delete, BotActionKind.Reply],
   }))
-  await agent.invoke(botAgentHelper.promptOf(update), { action: 'moderate' })
+  await agent.invoke(botAgentHelper.promptOf(update, bot.descriptor()), { action: 'moderate' })
 })
 ```
 
@@ -46,7 +46,7 @@ export const moderate = botHandler('moderate', async (update, bot, ctx) => {
 |---|---|
 | `botAgentPlugin({ update, bot, allow?, ref?, instruction? })` | The `AgentPlugin`: the update and the instructions (`string \| string[]`) as context, the actions as tools; alias `BOT_AGENT_PLUGIN` |
 | `botAgentTools({ update, bot, allow?, ref? })` | The same tools without the plugin, as an `AgentToolSet` |
-| `botAgentHelper` | `instructionOf(instruction?)`, `contextOf(update, instruction?)`, `promptOf(update)` |
+| `botAgentHelper` | `instructionOf(instruction?)`, `contextOf(update, instruction?, descriptor?)`, `promptOf(update, descriptor?)` — the platform named by `descriptor.title` (`bot.descriptor()`), else its id |
 | `BotAgentTool`, `BOT_AGENT_TOOL_ACTIONS`, `BOT_AGENT_ACTIONS`, `BOT_AGENT_DONE`, `BOT_AGENT_ORDER` | Tool names, the action each performs, the default `allow`, the success answer, the plugin order |
 | `BotAgentOptions`, `BotAgentToolsOptions`, `BotAgentHelper` | Types |
 
@@ -63,7 +63,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

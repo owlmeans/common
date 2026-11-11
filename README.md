@@ -89,7 +89,7 @@ bun run test
 | **State store** | The browser's in-memory resource with live subscriptions, registered with `appendStateResource`. React reads it through `useStoreList` and `useStoreModel`. | [`state`](packages/state), [`client`](packages/client) |
 | **Flow** | A serializable step/transition state machine whose whole state is one string, so a multi-step process survives redirects and reloads. | [`flow`](packages/flow), [`client-flow`](packages/client-flow) |
 | **Resilient error** | A registered error class that marshals across a service boundary and is restored as the same class on the other side, with i18n-aware messages. | [`error`](packages/error) |
-| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.21` installs it. | [`agent-skills`](packages/agent-skills) |
+| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.2.0-alpha.1` installs it. | [`agent-skills`](packages/agent-skills) |
 
 ## How an application is shaped
 
@@ -244,15 +244,15 @@ application packages above, or add one when they need that specific feature.
 | Cross-cutting domain | [`agent`](packages/agent) | Context-aware LLM agents over LangGraph's functional API, and resumable checkpointed pipelines |
 |  | [`agent-common`](packages/agent-common) | Runtime-free agent contracts: conversation identity, the run lifecycle and pipeline declarations |
 |  | [`auth-otp`](packages/auth-otp) | Email-OTP sign-in contracts: the auth type, the service and cache names, the code length and lifetime |
-|  | [`bot`](packages/bot) | Runtime-free chat-bot contract for Telegram, WhatsApp, Discord and Slack: platform descriptors, connections, the Unicode-aware text helper, the managing and hook protocol trees, the bot errors |
+|  | [`bot`](packages/bot) | Runtime-free chat-bot contract: platform descriptors (string ids, per-language texts, neutral glyphs), connections, the Unicode-aware text helper, the managing and hook protocol trees with the platform list, the bot errors |
 |  | [`common-inquiry`](packages/common-inquiry) | Runtime-free contract of the customer inquiry widget: the widget config, the window runtime, the multipart submission, its limits and schemas |
-|  | [`consent`](packages/consent) | The cookie-consent model, its categories, the storage contract and Consent Mode v2 signalling |
+|  | [`consent`](packages/consent) | The provider-agnostic cookie-consent model, its categories, the storage contract and the signal-provider host |
 |  | [`flow`](packages/flow) | A serializable step/transition state machine whose whole state is one string |
 |  | [`iam`](packages/iam) | The provider-agnostic IAM service, permission definitions and grants, and `hasPermission` |
 |  | [`job`](packages/job) | Browser-safe application job projections, schemas and entrypoint contracts |
 |  | [`llm`](packages/llm) | The LLM inference runtime: provider plugins, the model factory, policy-driven execution and prompt composition |
 |  | [`llm-common`](packages/llm-common) | Runtime-free serializable contracts for LLM inference and execution |
-|  | [`mailer`](packages/mailer) | The MailerService contract and a console transport for development and tests |
+|  | [`mailer`](packages/mailer) | The mailer host (`MAILER_SERVICE`), the `MailerTransport` contract and a console transport for development and tests |
 |  | [`marketing-consent`](packages/marketing-consent) | Marketing-consent contracts: the opt-in/opt-out catalogue, revision-aware status, terms acceptance and the consent protocol tree |
 |  | [`oidc`](packages/oidc) | The OIDC names both sides share: the gate, the guard, requested scopes, provider descriptors and the dispatcher entrypoints |
 |  | [`payment`](packages/payment) | Provider-agnostic payment contracts: protocols, checkout policies, catalogue records, entitlement gates and consumer rights |
@@ -272,7 +272,7 @@ application packages above, or add one when they need that specific feature.
 | Storage and infrastructure | [`bot-postgres`](packages/bot-postgres) | Postgres tables for the three chat-bot resources of a generated target project: connections, the deduplicating inbox and the activity log |
 |  | [`image-resource`](packages/image-resource) | Image-shaped names and schemas over the shared stored-file types |
 |  | [`kluster`](packages/kluster) | The Kubernetes API client service and the `kluster:` config directive that resolves cluster addresses at boot |
-|  | [`mailer-smtp`](packages/mailer-smtp) | The SMTP (nodemailer) transport for the MailerService contract |
+|  | [`mailer-smtp`](packages/mailer-smtp) | The SMTP (nodemailer) transport for the mailer host |
 |  | [`marketing-consent-mongo`](packages/marketing-consent-mongo) | Mongo storage for the two marketing-consent resources |
 |  | [`marketing-consent-postgres`](packages/marketing-consent-postgres) | Postgres tables for the two marketing-consent resources of a generated target project |
 |  | [`mongo`](packages/mongo) | The MongoDB connection service, cluster setup and the field-encryption backend |
@@ -280,17 +280,16 @@ application packages above, or add one when they need that specific feature.
 |  | [`postgres`](packages/postgres) | The PostgreSQL connection service, its health checks and the least-privilege bootstrap path |
 |  | [`redis`](packages/redis) | The Redis connection service registered on a server context |
 |  | [`redis-queue`](packages/redis-queue) | The BullMQ-over-Redis driver for `@owlmeans/queue` |
-|  | [`server-mailer-mailgun`](packages/server-mailer-mailgun) | The Mailgun production email transport |
 |  | [`static-resource`](packages/static-resource) | An in-process Resource over a module-scope map, for records an app holds in memory |
 |  | [`storage-common`](packages/storage-common) | Shared object and file storage types, errors and model |
 |  | [`storage-resource`](packages/storage-resource) | An upload-only S3-compatible object storage resource with MIME sniffing |
 | Server | [`bot-agent`](packages/bot-agent) | Lets an `@owlmeans/agent` agent act on a chat-bot message: the message and the instructions its handler passes as context, the bot's supported actions as never-throwing tools |
-|  | [`captcha`](packages/captcha) | Server-side reCAPTCHA verification: the siteverify verifier, the sign-in plugin policy and a strict challenge-less check for score-based tokens |
+|  | [`captcha`](packages/captcha) | Provider-neutral server captcha: the provider host, the guest sign-in policy (`MOD_CAPTCHA`) and a strict challenge-less check; providers live in OwlMeans connect |
 |  | [`server-auth-email`](packages/server-auth-email) | The server half of e-mail sign-in: PIN and password through private auth plugins, remembered devices, captcha, throttles and developer routes |
 |  | [`server-auth-otp`](packages/server-auth-otp) | The email-OTP auth plugin and OtpService for passwordless sign-in |
 |  | [`server-auth-session`](packages/server-auth-session) | The seven-day session registry, with memory and Redis implementations |
 |  | [`server-auth-token`](packages/server-auth-token) | The server half of access tokens: the store, the verifying guard, the management handlers and the coguard |
-|  | [`server-bot`](packages/server-bot) | The chat-bot runtime: sealed connections, the signed hook and its inbox, the worker's dispatcher and receivers, never-throwing actions, the Telegram, WhatsApp, Discord and Slack platform plugins and an API-faithful mock transport |
+|  | [`server-bot`](packages/server-bot) | The chat-bot runtime: sealed connections, the signed hook and its inbox, the worker's dispatcher and receivers, never-throwing actions, the registry of the platform plugins an app passes, a test platform and conformance cases |
 |  | [`server-config`](packages/server-config) | `sservice()` for backend service routes, file-mounted config values and the server config shape |
 |  | [`server-context`](packages/server-context) | `makeServerContext()`, the server config shape and the file config reader |
 |  | [`server-iam`](packages/server-iam) | One-call OIDC relying-party wiring and the IAM gate for unscoped and resource-scoped permissions |
@@ -298,7 +297,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`server-marketing-consent`](packages/server-marketing-consent) | The database-agnostic MarketingConsentService and its guarded handlers |
 |  | [`server-oauth`](packages/server-oauth) | An OAuth 2.1 authorization server that mints ordinary access tokens on approval |
 |  | [`server-oidc-provider`](packages/server-oidc-provider) | An embedded OIDC identity provider on top of `oidc-provider` |
-|  | [`server-payment`](packages/server-payment) | Protocol-bound payment resources, entitlement gates and Stripe checkout |
+|  | [`server-payment`](packages/server-payment) | Protocol-bound payment resources, entitlement gates and a provider-agnostic paygate host |
 |  | [`server-planning`](packages/server-planning) | The planning service and plugin registry, the transition executor, the in-memory store, the handlers and the store conformance suite |
 |  | [`server-route`](packages/server-route) | Server-side route models: matching a request against a mounted path |
 |  | [`server-wl`](packages/server-wl) | The server half of the white-label contract: the provide entrypoint and its provider seams |
@@ -316,20 +315,19 @@ application packages above, or add one when they need that specific feature.
 |  | [`client-route`](packages/client-route) | Marking a route model as client-side and extracting its parameters |
 |  | [`client-socket`](packages/client-socket) | A self-restoring WebSocket connection to a socket entrypoint, with its status aggregator and hook |
 |  | [`client-wl`](packages/client-wl) | The reserved platform-neutral slot of the white-label stack |
-| Web | [`astro`](packages/astro) | Astro wiring for the browser packages: the head and noscript strings, the legal-page test and locale conversion |
+| Web | [`astro`](packages/astro) | Consent and head-tag wiring for Astro sites: the head/noscript/adopt strings, the legal-page test and locale conversion |
 |  | [`mui-oidc-rp`](packages/mui-oidc-rp) | The legacy MUI browser OIDC relying party |
 |  | [`mui-panel`](packages/mui-panel) | The legacy MUI v7 browser layer |
 |  | [`web-auth`](packages/web-auth) | Web authentication plugins for the shared client-auth registry, including the development supervisor login |
 |  | [`web-auth-email`](packages/web-auth-email) | The browser half of e-mail sign-in: the login method and screen, the password offer step and the password panel, in eight languages |
 |  | [`web-auth-token`](packages/web-auth-token) | The browser half of access tokens: the management panel and its hook |
 |  | [`web-bot`](packages/web-bot) | The browser half of chat bots: the connections and activity panels and their hooks over a bound bot surface |
-|  | [`web-captcha`](packages/web-captcha) | The invisible score-based reCAPTCHA v3 loader and its React hook, with no `@owlmeans/*` dependencies |
+|  | [`web-captcha`](packages/web-captcha) | Provider-neutral browser captcha: the client contract and registry, the notice helper and a React hook, with no `@owlmeans/*` dependencies |
 |  | [`web-consent`](packages/web-consent) | The React cookie-consent dialog, its re-open button, the cookie-policy page and the consent hooks |
 |  | [`web-db`](packages/web-db) | IndexedDB-backed browser storage |
 |  | [`web-flow`](packages/web-flow) | The browser flow service that rehydrates a flow from the URL, and `useFlow()` |
-|  | [`web-gtm`](packages/web-gtm) | The Google tag head snippet with Consent Mode defaults, the id validator and the CSP host lists |
 |  | [`web-inquiry`](packages/web-inquiry) | The browser SDK of the inquiry widget: one runtime injection, open/bind/button triggers with link fallback, the open analytics event |
-|  | [`web-log`](packages/web-log) | Consent-gated analytics plugins for `log`: the tag-manager `dataLayer` sender and a sender of your own |
+|  | [`web-log`](packages/web-log) | The consent gate for analytics plugins of `log` (a vendor's sink, e.g. connect's tag-manager sink, builds on it) |
 |  | [`web-marketing-consent`](packages/web-marketing-consent) | The browser half of marketing consent: the privacy-choices screen, the settings card and the login step |
 |  | [`web-oauth`](packages/web-oauth) | The consent, device-code and done screens an OAuth 2.1 sign-in ends on |
 |  | [`web-oidc-provider`](packages/web-oidc-provider) | The browser state behind an embedded OIDC provider's interaction screens |
@@ -340,6 +338,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`web-wl`](packages/web-wl) | The browser half of the white-label contract: the caching service and the logo component |
 | Test support | [`test`](packages/test) | Foundation test helpers: `.env` loading, required variables and environment gates |
 |  | [`test-auth`](packages/test-auth) | The only package with authentication mocks: fixture key pairs, trusted-record stores and guards |
+|  | [`test-payment`](packages/test-payment) | The payment test harness: in-memory resources, a catalogue, a fake paygate and a context for the paygate host and its providers |
 |  | [`test-integration`](packages/test-integration) | The env-gated integration harness: service gates and per-run namespaces |
 |  | [`test-ui`](packages/test-ui) | Playwright-as-a-library helpers for bun-test component acceptance tests |
 
@@ -352,7 +351,7 @@ Published packages include generated, version-matched guidance in `agent-meta/`.
 installing OwlMeans packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.2.0-alpha.1
 ```
 
 The installer copies applicable skills to `.agents/skills/`; `AGENTS.md` documents the generated

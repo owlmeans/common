@@ -14,7 +14,7 @@ const ajv = new Ajv({ strict: false, validateFormats: false })
 
 const plan: ProductPlan = {
   productSku: 'pro-product', sku: 'pro-monthly', status: PlanStatus.Active,
-  duration: PlanDuration.Monthly, price: 20, title: 'Pro', rank: 10, gateways: ['stripe'],
+  duration: PlanDuration.Monthly, price: 20, title: 'Pro', rank: 10, gateways: ['card-gate'],
   capabilities: [{
     scope: 'feature', permissions: { whitelabel: true },
     promo: { until: new Date('2026-10-01T00:00:00.000Z'), grandfather: true },
@@ -57,7 +57,7 @@ describe('plan declarations', () => {
 
   test('reject paygate alias maps and the misspelled suspension date', () => {
     expect(validate({ ...plan, suspendedAt: new Date() })).toBe(true)
-    expect(validate({ ...plan, payagateAliases: { stripe: 'price_1' } })).toBe(false)
+    expect(validate({ ...plan, payagateAliases: { 'card-gate': 'price_1' } })).toBe(false)
     expect(validate({ ...plan, supsendedAt: new Date() })).toBe(false)
   })
 })
@@ -66,7 +66,7 @@ describe('wire shapes', () => {
   test('the entitlement view schema accepts a full view as the wire carries it', () => {
     const view = entitlementViewHelper.entitlementViewOf(plan, {
       sku: plan.sku, productSku: plan.productSku, title: plan.title, rank: 10, free: false,
-      status: SubscriptionStatus.PastDue, paygate: 'stripe', subscriptionId: 'sub_1', pastDue: true,
+      status: SubscriptionStatus.PastDue, paygate: 'card-gate', subscriptionId: 'sub_1', pastDue: true,
       subscribedAt: new Date('2026-09-01T00:00:00.000Z'), periodEnd: new Date('2026-10-01T00:00:00.000Z'),
       fallbackSku: 'free-plan',
     }, [{ key: 'seats', window: 'occupancy', used: 1 }], new Date('2026-10-15T00:00:00.000Z'))
@@ -125,7 +125,7 @@ describe('pricing policy and price estimate schemas', () => {
     expect(validatePolicy(JSON.parse(JSON.stringify(DEFAULT_PRICING_POLICY)))).toBe(true)
   })
 
-  test('the policy carries no Stripe-specific field (api version, migration switch)', () => {
+  test('the policy carries no provider-specific field (api version, migration switch)', () => {
     for (const forbidden of ['fxApiVersion', 'migrateUnspecifiedPrices', 'stripe']) {
       expect(validatePolicy({ ...DEFAULT_PRICING_POLICY, [forbidden]: 'x' })).toBe(false)
     }

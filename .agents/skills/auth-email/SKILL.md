@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/auth-email
 
 **Layer:** Auth shared (L6 — `auth`, `auth-common`, `context`, `entrypoint`, `error`, `route`; `ajv` + `ajv-formats` peers)
-**Install:** `"@owlmeans/auth-email": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/auth-email": "^0.2.0-alpha.0"` in `dependencies`
 **Halves:** `@owlmeans/server-auth-email` serves the routes, `@owlmeans/web-auth-email` signs a
 person in. This package holds no behaviour — the tree, schemas, views, constants and errors both
 sides must agree on.
@@ -31,7 +31,7 @@ Default base `/auth/email` (`EMAIL_AUTH_API_PATH`):
 
 | Protocol | Method + path | Guard | Body → answer |
 |---|---|---|---|
-| `options` | GET `/options` | none | → `{ password, captcha: { provider, siteKey } \| null, pinLength }` |
+| `options` | GET `/options` | none | → `{ password, captcha: { provider, siteKey } \| null, pinLength }` — `provider` is the server's captcha provider id (`EmailAuthCaptchaView`); the browser solves it with the client of that id |
 | `pin` | POST `/pin` | none | `{ email, locale?, captcha? }` → `{ challenge }` |
 | `signIn` | POST `/sign-in` | none | PIN `{ email, device, challenge, pin }` or password `{ email, device, password, captcha? }` → `{ token?, offer?, challenge?, reason? }` |
 | `password.status` | GET `/password` | `opts.guards` + `opts.gate` | → `{ enabled, set, declined, updatedAt?, devicePin? }` |
@@ -76,7 +76,7 @@ interface has no index signature — cast it for `bindAll`, as for marketing con
 | `EMAIL_IDENTITY_TYPE` | `'email-otp'` | the identity-LINKING details type (= `OTP_AUTH_TYPE`), so OTP and e-mail sign-in land on one account per address; never a token type |
 | `EMAIL_CONFIRM_ENVELOPE` / `EMAIL_WAIVER_ENVELOPE` | `'email-confirm'` / `'email-waiver'` | signed envelope types |
 | `EMAIL_WAIVER_HEADER` | `'x-owlmeans-email-waiver'` | where a developer waiver travels |
-| `EMAIL_CAPTCHA_ACTION_PIN` / `_PASSWORD` | `'email_pin'` / `'email_password'` | the exact reCAPTCHA actions |
+| `EMAIL_CAPTCHA_ACTION_PIN` / `_PASSWORD` | `'email_pin'` / `'email_password'` | the exact captcha actions |
 | `EMAIL_PIN_LENGTH` / `EMAIL_PIN_PATTERN` | `6` / `'^[0-9]{6}$'` | |
 | `EMAIL_DEVICE_TTL_DAYS` / `EMAIL_DEVICE_LIMIT` / `EMAIL_DEVICE_ID_PATTERN` | `30` / `10` / `'^[A-Za-z0-9_-]{22,64}$'` | the device id is 16 random bytes, base64url |
 | `EMAIL_OFFER_TTL_SECONDS` / `EMAIL_WAIVER_TTL_SECONDS` | `900` / `7200` | |
