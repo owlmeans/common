@@ -1,5 +1,8 @@
 import { HumanMessage } from '@langchain/core/messages'
 import type { JSONSchemaType } from 'ajv'
+import { mediaHelper } from '@owlmeans/llm'
+import type { ImagePart } from '@owlmeans/llm'
+import { logger } from '@owlmeans/log'
 import { ReaderTask } from './consts.js'
 import { textUtils } from './utils/text.js'
 import type { PageModel } from './models/page/types.js'
@@ -8,6 +11,8 @@ import { designFactsHelper } from './design/facts.js'
 import { renderDesignMd } from './design/render.js'
 import { DESIGN_SCHEMA } from './design/schemas.js'
 import type { DesignAnalyst, DesignAnalystOptions, DesignDraft, DesignFacts } from './design/types.js'
+
+const log = logger('llm-reader')
 
 /** The facts as the model reads them — compact, labelled, every value as measured. */
 const factsText = (page: PageModel, facts: DesignFacts): string => {
@@ -56,20 +61,33 @@ export const makeDesignAnalyst = (page: PageModel, options: DesignAnalystOptions
     return page.rendered != null ? designFactsHelper.merge(measured, page.rendered) : measured
   }
 
+  /** The rendered screenshot as an image part — only for a model that sees, and only while it is within the limits. */
+  const screenshotFor = (sees: boolean): ImagePart | undefined => {
+    const screenshot = page.rendered?.screenshot
+    if (screenshot == null || !sees) return undefined
+    try {
+      return mediaHelper.image(screenshot, 'image/jpeg')
+    } catch (e) {
+      log.warn('Design screenshot left out', { url: page.url, error: e })
+      return undefined
+    }
+  }
+
   const analyze: DesignAnalyst['analyze'] = async (designOptions = {}) => {
     const measured = await facts(designOptions)
-    const screenshot = page.rendered?.screenshot
+    const model = options.models.model(ReaderTask.Design)
+    const screenshot = screenshotFor(model.capabilities?.().vision === true)
     const input = screenshot != null
       ? [new HumanMessage({
         content: [
           { type: 'text', text: factsText(page, measured) },
           { type: 'text', text: 'Screenshot of the first viewport:' },
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${Buffer.from(screenshot).toString('base64')}` } },
+          screenshot,
           { type: 'text', text: `${DESIGN_INSTRUCTION} Answer as JSON.` },
         ],
       })]
       : [{ role: 'user', content: factsText(page, measured) }, { role: 'user', content: DESIGN_INSTRUCTION }]
-    const draft = await options.models.model(ReaderTask.Design).invoke<DesignDraft>(
+    const draft = await model.invoke<DesignDraft>(
       input, DESIGN_SCHEMA as unknown as JSONSchemaType<DesignDraft>, { action: 'reader-design', stable: screenshot != null ? 0 : 1 },
     )
     const { markdown, tokens, warnings } = renderDesignMd({ ...draft, name: draft.name || textUtils.siteOf(page.url) }, measured)

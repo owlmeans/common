@@ -3,7 +3,7 @@ name: testing
 description: The reader's specs — real local servers (fixture site, HTTP proxy, SOCKS server), offline fetch/proxy/bridge/page/image/design specs, the Node-runtime spec, and the gated live analysis, public-web and real-proxy specs.
 metadata:
   purposes: test
-  mentions: ANTHROPIC_SECRET, OPENAI_SECRET, LLM_READER_LIVE_WEB, LLM_READER_PROXIES, servers.ts, context.ts, node-transport.spec.ts, analyst.live.spec.ts, web.live.spec.ts, proxy.live.spec.ts
+  mentions: ANTHROPIC_SECRET, OPENAI_SECRET, LLM_READER_LIVE_WEB, LLM_READER_PROXIES, servers.ts, context.ts, bundle.spec.ts, node-transport.spec.ts, analyst.live.spec.ts, web.live.spec.ts, proxy.live.spec.ts
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
@@ -22,11 +22,15 @@ first — `node-transport.spec.ts` runs the built package.
   variant, absolute-form, the 407 challenge, marked failures), `page.spec` and `images.spec` (metadata
   evidence, content method, signals, links, the DOM index, every picture-context case), `design.spec`
   (facts from the fixture stylesheet; `renderDesignMd` checked by the official linter), `modes.spec`
-  (a bare-model reader reads in text mode; explicit DOM mode without an execution is refused).
+  (a bare-model reader reads in text mode; explicit DOM mode without an execution is refused),
+  `bundle.spec` (the `tests/fixtures/bundle` prototype — content types, the directory index, a 404,
+  the network's refusals, traversal and encoded separators, symbolic links inside and outside a
+  temporary root, non-bundle URLs through the guard, its page model and its design facts and blocks
+  with no model).
 - `node-transport.spec` spawns real Node (skipped when `node` is Bun's shim or `build/` is missing)
   and proves the undici path and the bridge there.
 - Gated: `analyst.live.spec` (gates `anthropic` or `openai` — Anthropic `claude-haiku-5-5` when its
-  key is set, it also reads pictures), in DOM mode unless a test asks for text: describe, classify of
+  key is set; both live configs declare `vision: true`, so pictures are read), in DOM mode unless a test asks for text: describe, classify of
   all four fixtures, author and date (text mode, and DOM mode by default), links by intent, image roles
   and a vision caption, a linted DESIGN.md.
   `web.live.spec` (`LLM_READER_LIVE_WEB=1`): a public page direct, HTTPS through the HTTP proxy and

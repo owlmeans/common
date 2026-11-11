@@ -2,7 +2,7 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { InitializedService } from '@owlmeans/context'
 import type {
   CumulativeResults, ExecutionEffort, ExecutionLevel, ExecutionState, FileProviderRef, Inquiry,
-  InquiryAnswer, InquiryConfig, LlmPurpose, ModelConfigOverride, ModelPolicy, ModelRole,
+  InquiryAnswer, InquiryConfig, LlmPurpose, ModelCapabilities, ModelConfigOverride, ModelPolicy, ModelRole,
   PromptPolicy, TaskExecutionState,
 } from '@owlmeans/llm-common'
 import type { LlmService, TemperatureFactory } from '../types.js'
@@ -195,6 +195,15 @@ export interface ExecutionService<S extends ExecutionShape = ExecutionShape> ext
    * was asked on keeps its own tier.
    */
   utility: (exec: S['exec'], override?: ModelConfigOverride) => BaseChatModel
+  /**
+   * What the model that will answer accepts — images (`vision`), PDFs (`documents`) — rung by rung.
+   *
+   * A helper execution asked without a role answers for its own resolved `model`; otherwise the role
+   * is resolved through the SAME ladder as {@link model} (roleOverrides → modelOverrides → effort
+   * tier), so an override that pins another model reports that model. A call carrying media is
+   * sent only to the rungs that accept it.
+   */
+  capabilities: (exec: S['exec'], role?: ModelRole, override?: ModelConfigOverride) => ModelCapabilities
   /**
    * A factory that re-resolves the same role at another temperature. `baseOverride` is
    * layered UNDER the temperature patch, so a caller-chosen budget (see

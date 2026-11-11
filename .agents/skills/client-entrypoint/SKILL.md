@@ -42,8 +42,26 @@ not add an explicit result generic. `entrypointRef<Request, Response>(alias)` is
 dynamic remote declaration that cannot be imported.
 
 Client calls include only contract request sections plus `CallOptions` (`auth`, host/port/base,
-timeout, signal). `url` accepts params/query plus the same address options. The route transport is
-chosen by the declaration; callers do not branch for HTTP, socket, or queue.
+timeout, signal, `onUploadProgress`/`onDownloadProgress`). `url` accepts params/query plus the same
+address options. The route transport is chosen by the declaration; callers do not branch for HTTP,
+socket, or queue.
+
+An upload goes to a streamed-body route (`streamBody()` of `@owlmeans/route`, served by
+`streamedBody()` of `@owlmeans/server-api`). The body is a `BinaryBody` — a `Blob`/`File`, bytes,
+or a Node `Readable` in Bun — sent as is (`/api`); in a browser and in Bun alike:
+
+```ts
+const material = await context.entrypoint(materialProtocols.upload).call({
+  params: { id }, body: file,
+  onUploadProgress: ({ loaded, total }) => setProgress(total != null ? loaded / total : 0),
+  timeout: 120_000, signal: controller.signal,
+})
+```
+
+- A streamed-body route gets no `{}` default body: an absent body stays absent.
+- `validateOnCall` validates every section that HAS a schema (`params`, `query`, `body`) and skips a
+  streamed route's body; a section the contract left without a schema is never compiled.
+- `authMiddleware` (`@owlmeans/auth-common`) still stamps the guard's token on such a call.
 
 `ensureEntrypointFailureService(context)` returns the context-local failure plugin host. Register
 an `onFailure` plugin there to observe a rejected remote `invoke`/`call`, show a toast, or collect

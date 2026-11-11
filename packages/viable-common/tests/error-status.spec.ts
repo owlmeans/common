@@ -15,6 +15,7 @@ const DECLARED: Record<string, number | undefined> = {
   ConnectError: undefined,
   ConnectSessionNotFound: 404,
   ConnectOpUnknown: 404,
+  ConnectMaterialUnknown: 404,
   ConnectCallLost: 410,
   ConnectSessionGone: 409,
   LocalSlotUnsupported: 409,

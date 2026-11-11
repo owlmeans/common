@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/upload",
+  "version": "0.1.22-rc.0",
+  "generatedAt": "2026-11-10T17:39:44.213Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "upload",
+      "category": "package-specific",
+      "file": "skills/upload/SKILL.md",
+      "canonicalPath": ".agents/skills/upload/SKILL.md"
+    }
+  ]
+}

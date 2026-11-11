@@ -1,5 +1,5 @@
 import type { Readable } from 'node:stream'
-import type { FileVerdict } from './inspector/types.js'
+import type { FileVerdict } from '@owlmeans/file-inspector'
 
 /** What is known about a file. Every field is a claim until a verdict confirms it. */
 export interface FileInfo {

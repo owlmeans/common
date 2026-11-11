@@ -1,4 +1,4 @@
-import { ModelEffort } from '@owlmeans/llm-common'
+import { ModelEffort, type MediaRequestLimits } from '@owlmeans/llm-common'
 import type { EffortSupport, AnthropicModelSupport } from './types.js'
 import { ALL_EFFORTS, NO_XHIGH, UP_TO_HIGH } from './consts.local.js'
 
@@ -202,4 +202,34 @@ export enum CacheBoundary {
   Project = 'project',
   /** BP4 — end of the caller's stable lead messages: stable for one batch of calls. */
   Stable = 'stable',
+}
+
+/**
+ * Anthropic's per-request media limits (platform.claude.com/docs/en/build-with-claude/vision and
+ * pdf-support, 2026-11): 100 images on a model with a 200k-token window, 600 on a larger one, and a
+ * 128 MB request — base64, so 96 000 000 raw bytes. A preset that leaves `contextWindow` unset gets
+ * the smaller image count.
+ */
+export const ANTHROPIC_MEDIA_LIMITS = Object.freeze({
+  images: 100,
+  largeWindowImages: 600,
+  largeWindow: 200_000,
+  mediaBytes: 96_000_000,
+})
+
+/**
+ * OpenAI's per-request media limits (developers.openai.com/api/docs/guides/images-vision and
+ * file-inputs, 2026-11): 1500 images, files under 50 MB together, a 512 MB payload — base64, so
+ * 384 000 000 raw bytes.
+ */
+export const OPENAI_MEDIA_LIMITS: Readonly<MediaRequestLimits> = Object.freeze({
+  images: 1500,
+  documentBytes: 50_000_000,
+  mediaBytes: 384_000_000,
+})
+
+/** The two ways an OpenAI client takes media: the Responses API (`input_file`) and chat completions (`file`). */
+export enum OpenAiMediaDialect {
+  Responses = 'responses',
+  Chat = 'chat',
 }

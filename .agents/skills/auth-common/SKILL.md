@@ -36,8 +36,8 @@ entity a token names.
 |--------|-------------|
 | `authProtocols` | The shared auth protocol tree — `AUTHEN*`, `CAUTHEN*`, `DISPATCHER`, `DISPATCHER_SURROGATE`, `DISPATCHER_AUTHEN`. Server and client packages bind the entries they serve |
 | `managerProtocols` | The auth-manager web API protocol tree (profile → entity slug, auth delegation) |
-| `makeBasicEd25519Guard(resource, opts?)` | The `GUARD_ED25519` guard service: signs outgoing requests as a client, verifies time/nonce/signature as a server |
-| `signBasicEd25519Request({ body?, credential, key })` | The guard's signing half as a pure helper: `{ authorization, headers }` for a request the guard accepts — no context needed |
+| `makeBasicEd25519Guard(resource, opts?)` | The `GUARD_ED25519` guard service: signs outgoing requests as a client, verifies time/nonce/signature as a server; raw bytes sign as `{}` |
+| `signBasicEd25519Request({ body?, credential, key })` | The guard's signing half as a pure helper: `{ authorization, headers }` for a request the guard accepts — no context needed; raw bytes sign as `{}` |
 | `authMiddleware` | Loading-stage context middleware that attaches the guard's token to every guarded backend entrypoint's `invoke`/`call` |
 | `SurrogateQuery`, `SurrogateQuerySchema` | The surrogate window's `intent` / `next` / `method` query |
 
@@ -147,6 +147,13 @@ token's slug only; both write `'-'` when neither is available. Read the gate you
   `KeyPairModel` with the private key. Send `authorization` plus BOTH returned headers (lowercase
   `x-auth-time`, `x-auth-nonce`) and the body byte-for-byte as signed — an absent body is signed as
   `{}`, the time precedes the nonce in the signed payload, and the guard rebuilds exactly that.
+- **Raw bytes are never signed.** A body of raw bytes — a `Blob`, an `ArrayBuffer`, a typed array or
+  `Buffer`, a Node stream: what a streamed-body route (`streamBody()`, `@owlmeans/route`) carries — is
+  signed as `{}` by both halves (one private `signedPayloadOf`), because the caller cannot read its
+  stream twice and the server's guard runs before the body is read. Such a call passes the guard
+  as it is (never dress the stream with a `toJSON`); the signature proves the caller and the moment,
+  not the bytes, and — as on every route — not the path or query. A route that must prove its bytes
+  takes their digest in the query and refuses a stored body whose digest differs.
 - OIDC used only to sign in authorizes with a product gate, not `OIDC_GATE` (`server-oidc-rp` → Rules).
 - The trust resource (`TRUSTED`, from `@owlmeans/config`) is the system's source of truth for known
   signing identities — the auth service, peer services, wallet providers, supervisors.

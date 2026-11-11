@@ -8,6 +8,7 @@ import { logger } from '@owlmeans/log'
 import { httpErrorHelper } from './error.js'
 import { payloadHelper } from './payload.js'
 import { authorize } from './guards.js'
+import { streamBodyUtils } from './stream.js'
 import { RouteProtocols } from '@owlmeans/route'
 import type { ServerConfig2, ServerContext2 } from './types.local.js'
 
@@ -61,11 +62,14 @@ export const createServerHandler = (module: ServerEntrypoint<FastifyRequest>, lo
         reply.code(OK).send(response.value)
       }
     } catch (error) {
+      // A streamed body that failed (over its limit, the client gone) is the cause, whatever the
+      // handler made of its stream's error.
+      const failure = streamBodyUtils.failureOf(req) ?? error as Error
       if (module.fixer != null) {
         const fixer: FixerService = context.service(module.fixer)
-        fixer.handle(reply, ResilientError.ensure(error as Error))
+        fixer.handle(reply, ResilientError.ensure(failure))
         return
       }
-      httpErrorHelper.handleError(error as Error, reply, httpErrorHelper.errorExposure(context.cfg))
+      httpErrorHelper.handleError(failure, reply, httpErrorHelper.errorExposure(context.cfg))
     }
   }

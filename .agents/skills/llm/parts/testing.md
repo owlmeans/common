@@ -3,7 +3,7 @@ name: testing
 description: The package's offline and gated specs, the golden prompt bytes, and the stream fixtures.
 metadata:
   purposes: test
-  mentions: ANTHROPIC_SECRET, OPENAI_SECRET, OPENROUTER_SECRET, results.spec.ts, model.spec.ts, anthropic-families.spec.ts, stream-sdk.spec.ts, search.spec.ts, search-live.spec.ts
+  mentions: ANTHROPIC_SECRET, OPENAI_SECRET, OPENROUTER_SECRET, media.spec.ts, capabilities.spec.ts, trace.spec.ts, tokens.spec.ts, results.spec.ts, model.spec.ts, anthropic-families.spec.ts, stream-sdk.spec.ts, search.spec.ts, search-live.spec.ts
 ---
 
 # @owlmeans/llm — Tests
@@ -25,6 +25,19 @@ pins the refusal of a hidden property name before any request. `plugins.spec.ts`
 `Compatible` provider offline and the cache dialects: `patchPrompt` on both providers (lifetime
 order, cumulative minimums, budget, OpenAI blocks and tool `input_text`, nothing on `compatible`),
 marker stripping, `loopCache`, and a fallback in another dialect prepared again.
+
+`media.spec.ts` pins the parts (shapes, measured metadata, refusals by type, signature and size)
+and their wire through REAL clients with a recording transport (`tests/wire.ts`: a 400 or a
+chat-completions stream, a generated PNG, a minimal PDF): Anthropic's native blocks, chat
+completions, the Responses API, compatible; request limits and hand-built images refused before a
+request; `mediaHelper.render`; markers with media in the final message and on an image that closes
+a stable lead (Anthropic, OpenAI explicit). `capabilities.spec.ts` covers the rung-by-rung answer
+from models, configs and executions (overrides, pins, helpers) and the per-call ladder: a blind
+primary skipped, a blind fallback never asked under retries, nothing accepting refused.
+`trace.spec.ts` checks that no payload reaches a spectator entry or a null capture, every spelling
+included. `tokens.spec.ts` covers counts, the estimate's bound, and `fit` (priorities, boundary
+cuts, markers, `minTokens`, shared groups, determinism, never over budget). `media-live.spec.ts`
+(gates `anthropic`, `openai`) captions a tiny generated PNG on a cheap vision model.
 
 `transport.spec.ts` pins the transport seam over real clients built by the plugins — a fetch handed to the OpenAI Responses, chat-completions, Anthropic and compatible clients, its survival across `refine` and `bindTools`, and `detach` — with a recording fetch that answers 400 (no layer retries it).
 

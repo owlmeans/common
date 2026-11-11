@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { z } from 'zod'
 import {
   ConnectHarness, ConnectLlm, ConnectTarget, WorkloadKind, type ConnectGitState, type ConnectProductionDomain,
@@ -23,7 +26,8 @@ const SCOPE_TOOLS = [
   'project_settings', 'update_project_settings', 'set_platform_credit', 'project_configuration',
   'update_project_configuration', 'recollect_configuration', 'organization_branding', 'update_organization_branding',
   'backfill_project_branding', 'list_access_tokens', 'revoke_access_token', 'privacy_choices',
-  'withdraw_marketing_consent', 'pickup_intent', 'list_files', 'read_file', 'write_file', 'delete_file',
+  'withdraw_marketing_consent', 'pickup_intent', 'create_project_with_files', 'list_materials', 'read_material',
+  'list_files', 'read_file', 'write_file', 'delete_file',
   'preview_control', 'git_status', 'git_history', 'git_commit', 'git_discard', 'git_revert', 'connect_github',
   'publish_to_github', 'github_sync', 'disconnect_github', 'github_repositories', 'link_github_origin',
   'production_status', 'publish_production', 'production_control', 'custom_domain', 'production_auth',
@@ -191,7 +195,69 @@ interface Case {
   isError?: boolean
 }
 
+/** Files on this machine for `create_project_with_files` — the tool reads the disk itself. */
+const MATERIALS_DIR = mkdtempSync(join(tmpdir(), 'viable-sdk-presentation-'))
+writeFileSync(join(MATERIALS_DIR, 'brief.md'), '# A bakery shop')
+
+const CREATED = {
+  project: { id: 'p1', name: 'Bakery', alias: 'bakery', status: 'draft', description: 'A bakery shop.' },
+  agent: { locked: false, lockedAt: '2026-11-10T10:00:00.000Z' },
+  session: { id: 'sess-1', target: ConnectTarget.Cloud, llm: ConnectLlm.Cloud, status: 'open', pending: 0 },
+  updatedAt: '2026-11-10T10:00:00.000Z',
+}
+
+const CATALOGUE = {
+  state: 'drafting', files: 1, bytes: 15, rejected: 1,
+  entries: [
+    {
+      path: 'brief.md', name: 'brief.md', size: 15, mime: 'text/markdown', kind: 'text', digest: 'ab12', status: 'catalogued',
+      purpose: 'specification', description: 'The brief.', transcript: 'docs/materials/transcripts/brief.md.md',
+      // A row's platform keys must never be echoed, even if a platform sent them.
+      createdAt: '2026-11-10T10:00:00.000Z', entityId: 'org-1',
+    },
+    { path: 'tool.exe', name: 'tool.exe', size: 4, status: 'rejected', reason: 'executable' },
+  ],
+}
+
 const CASES: Case[] = [
+  // a new project's files
+  {
+    tool: 'create_project_with_files', args: { prompt: 'A bakery shop', paths: [join(MATERIALS_DIR, 'brief.md')] },
+    answers: {
+      'materials.create': CREATED,
+      'materials.upload': [{
+        index: 0, path: 'brief.md',
+        files: [{ id: 'f1', path: 'brief.md', name: 'brief.md', size: 15, status: 'accepted', kind: 'text', digest: 'ab12' }],
+      }],
+      'materials.seal': { id: 'p1', status: 'sealed' },
+    },
+    check: presented => {
+      expect([presented.files, presented.pending, presented.sealed]).toEqual([[{ path: 'brief.md', status: 'accepted' }], false, true])
+      expect((presented.project as Record<string, unknown>).id).toBe('p1')
+    },
+  },
+  {
+    tool: 'list_materials', args: {}, answers: { 'materials.catalogue': CATALOGUE },
+    check: presented => {
+      expect([presented.state, presented.files, presented.rejected]).toEqual(['drafting', 1, 1])
+      expect((presented.entries as Array<Record<string, unknown>>).map(entry => [entry.path, entry.purpose ?? null, entry.reason ?? null]))
+        .toEqual([['brief.md', 'specification', null], ['tool.exe', null, 'executable']])
+    },
+  },
+  {
+    tool: 'list_materials', args: {}, answers: { 'materials.catalogue': { state: null, files: 0, bytes: 0, rejected: 0, entries: [] } },
+    check: presented => expect([presented.state, presented.entries]).toEqual([null, []]),
+  },
+  {
+    tool: 'read_material', args: { path: 'brief.md' },
+    answers: { 'materials.read': { path: 'brief.md', source: 'transcript', text: '# A bakery shop', length: 15 } },
+    check: presented => expect(presented).toEqual({ projectId: 'p1', path: 'brief.md', source: 'transcript', length: 15, truncated: false }),
+  },
+  {
+    tool: 'read_material', args: { path: 'logo.png' },
+    answers: { 'materials.read': { path: 'logo.png', source: null, text: '', length: 0 } },
+    check: presented => expect(presented.source).toBeNull(),
+  },
   // settings, configuration, branding
   {
     tool: 'project_settings', args: {}, answers: { projectBranding: SETTINGS },

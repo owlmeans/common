@@ -1,5 +1,5 @@
 import type { Browser, LaunchOptions } from 'playwright'
-import type { FetchRequest, PageRenderer, RenderedBlock, StyleSample } from '@owlmeans/llm-reader'
+import type { FetchRequest, LocalBundle, PageRenderer, RenderedBlock, StyleSample } from '@owlmeans/llm-reader'
 
 export interface PlaywrightRendererOptions {
   /** Your own browser, or how to get one; otherwise Chromium is launched headless on first use. */
@@ -12,6 +12,12 @@ export interface PlaywrightRendererOptions {
   waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit'
   settle?: number
   userAgent?: string
+  /**
+   * Local bundles (`createLocalBundlePlugin`) whose synthetic origins every page may load from: a
+   * request under one is answered from its root (`page.route`), never resolved or sent. A render
+   * request's own `bundle` — set by the reader for a bundle URL — is routed the same way.
+   */
+  bundles?: LocalBundle[]
 }
 
 /** A {@link PageRenderer} on Playwright; `close` shuts down a browser it launched itself. */

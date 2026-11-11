@@ -7,3 +7,6 @@ export const MIN_PART_SIZE = 5 * 1024 * 1024
 export const MAX_PARTS = 10_000
 
 export const DEFAULT_UPLOAD_CONCURRENCY = 2
+
+/** S3's most keys per DeleteObjects request. */
+export const S3_DELETE_BATCH_SIZE = 1000

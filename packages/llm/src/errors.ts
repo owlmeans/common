@@ -115,6 +115,55 @@ export class LlmSearchUnsupportedError extends LlmMissconfiguredError {
   }
 }
 
+/**
+ * A media part (an image, a document) cannot be sent. Fatal in every retry loop: no attempt, rung
+ * or climb changes the bytes, their type or the models that accept them.
+ */
+export class LlmMediaError extends LlmError {
+  public static override typeName = `Media${LlmError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`media:${message}`)
+    this.type = LlmMediaError.typeName
+  }
+}
+
+/** The part's type is not accepted (an image other than png/jpeg/gif/webp, a non-PDF document), or its bytes are not what its type says. */
+export class LlmMediaTypeError extends LlmMediaError {
+  public static override typeName = `Type${LlmMediaError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`type:${message}`)
+    this.type = LlmMediaTypeError.typeName
+  }
+}
+
+/** A documented provider limit is exceeded — a part's size or side, or a request's count or total. Nothing is resized. */
+export class LlmMediaLimitError extends LlmMediaError {
+  public static override typeName = `Limit${LlmMediaError.typeName}`
+
+  /** The limit that was exceeded. */
+  public limit?: number
+
+  /** What the part or request measured. */
+  public actual?: number
+
+  constructor(message: string = 'error') {
+    super(`limit:${message}`)
+    this.type = LlmMediaLimitError.typeName
+  }
+}
+
+/** No rung of the role accepts what the call carries (`ModelConfig.vision` / `documents`). */
+export class LlmMediaUnsupportedError extends LlmMediaError {
+  public static override typeName = `Unsupported${LlmMediaError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`unsupported:${message}`)
+    this.type = LlmMediaUnsupportedError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(LlmError)
 ResilientError.registerErrorClass(LlmModelError)
 ResilientError.registerErrorClass(LlmOutputRejection)
@@ -123,3 +172,7 @@ ResilientError.registerErrorClass(LlmPluginError)
 ResilientError.registerErrorClass(LlmRetryExceededError)
 ResilientError.registerErrorClass(LlmSearchError)
 ResilientError.registerErrorClass(LlmSearchUnsupportedError)
+ResilientError.registerErrorClass(LlmMediaError)
+ResilientError.registerErrorClass(LlmMediaTypeError)
+ResilientError.registerErrorClass(LlmMediaLimitError)
+ResilientError.registerErrorClass(LlmMediaUnsupportedError)

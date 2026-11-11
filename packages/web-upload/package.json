@@ -1,0 +1,83 @@
+{
+  "name": "@owlmeans/web-upload",
+  "version": "0.1.22-rc.0",
+  "description": "File and folder upload UI for OwlMeans web applications: a headless upload queue (local precheck against the upload policy, per-entry and overall violations, concurrent upload with progress and abort through @owlmeans/client-upload, archives expanded into the entries they produced), dropped-folder traversal, and shadcn/Tailwind v4 parts — a drop zone over any content, file and folder pickers, a compact file list with progress and localized rejection reasons.",
+  "license": "MIT",
+  "homepage": "https://owlmeans.com/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owlmeans/common.git",
+    "directory": "packages/web-upload"
+  },
+  "bugs": {
+    "url": "https://github.com/owlmeans/common/issues"
+  },
+  "author": "Igor Tkachenko <igor.tkachenko@owlmeans.com> (https://owlmeans.com)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 403 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/client": "^0.1.21",
+    "@owlmeans/client-i18n": "^0.1.21",
+    "@owlmeans/client-upload": "^0.1.22-rc.0",
+    "@owlmeans/context": "^0.1.21",
+    "@owlmeans/i18n": "^0.1.21",
+    "@owlmeans/log": "^0.1.21",
+    "@owlmeans/upload": "^0.1.22-rc.0"
+  },
+  "peerDependencies": {
+    "class-variance-authority": "*",
+    "clsx": "*",
+    "lucide-react": "*",
+    "react": "*",
+    "react-dom": "*",
+    "tailwind-merge": "*",
+    "tailwindcss": "*"
+  },
+  "devDependencies": {
+    "@owlmeans/client-context": "^0.1.21",
+    "@owlmeans/client-entrypoint": "^0.1.21",
+    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/file-streams": "^0.1.22-rc.0",
+    "@owlmeans/server-api": "^0.1.21",
+    "@owlmeans/server-context": "^0.1.21",
+    "@owlmeans/server-upload": "^0.1.22-rc.0",
+    "@owlmeans/static-resource": "^0.1.21",
+    "@owlmeans/test-ui": "^0.1.21",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/bun": "^1.4.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.71.0",
+    "nodemon": "^3.1.14",
+    "playwright": "^1.64.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

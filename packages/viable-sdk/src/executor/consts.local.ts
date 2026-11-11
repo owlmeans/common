@@ -86,3 +86,11 @@ export const TARGET_SCRIPT = 'dist/index.js'
 export const LAYOUT_MARKER_PATHS: Array<[TargetLayout, string]> = LAYOUT_MARKERS.map(
   ([layout, marker]) => [layout, path.join(...marker.split('/'))]
 )
+
+/**
+ * The base64 alphabet with its trailing padding, checked together with a length that is a multiple
+ * of four — the publisher's own check. Linear on purpose: a pattern repeating a group per four
+ * characters backtracks through the whole payload and gives up far below the ceiling (a stack
+ * overflow under Node, a silent no-match under Bun), which refused valid media of a few megabytes.
+ */
+export const BASE64_PAYLOAD = /^[A-Za-z0-9+/]*={0,2}$/

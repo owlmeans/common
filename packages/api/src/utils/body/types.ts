@@ -5,8 +5,10 @@ export interface RequestBody {
   data: unknown
   /** A `content-type` the request lacked and must carry. */
   contentType?: string
-  /** `data` is final text — axios must not transform it again. */
+  /** `data` is final text or bytes — axios must not transform it again. */
   verbatim: boolean
+  /** `data` is raw bytes (`binaryBodyOf`): sent as is, never serialized. */
+  binary?: boolean
 }
 
 /** How a request's body travels: its content type and the text a scalar body becomes. */
@@ -34,4 +36,16 @@ export interface BodyUtils {
    *   which serializes an object or an array as JSON.
    */
   requestBodyOf: (body: unknown, headers: Record<string, unknown> | undefined, method?: RouteMethod, schema?: object) => RequestBody
+  /**
+   * A `Blob`/`File`, an `ArrayBuffer`, a typed array or `Buffer`, or a Node stream (anything with
+   * `pipe`) — a body that travels as raw bytes.
+   */
+  isBinaryBody: (body: unknown) => boolean
+  /**
+   * What a binary body becomes on the wire: the bytes as they are, under the caller's own
+   * `content-type` or else `defaultType` (`application/octet-stream` when absent). A typed array is
+   * narrowed to its own bytes (axios would send its whole underlying buffer); a `Blob` whose type
+   * differs is re-typed, so Node's adapter does not replace the content type with the blob's.
+   */
+  binaryBodyOf: (body: unknown, headers: Record<string, unknown> | undefined, defaultType?: string) => RequestBody
 }

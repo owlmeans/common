@@ -31,12 +31,12 @@ New auth mocks belong in `@owlmeans/test-auth`, never in a package's own `tests/
 
 ## Package → category map
 
-116 packages, one category each.
+147 packages, one category each.
 
-- **A** (60): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `auth-email`, `basic-ids`, `bot`, `bot-agent`, `captcha`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-resource`, `client-route`, `client-socket`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `flow`, `i18n`, `iam`, `image-resource`, `llm-common`, `mailer`, `payment`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-bot`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-config`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `web-auth-email`, `web-captcha`, `web-db`, `web-gtm`, `web-inquiry`, `web-router-react-router`
-- **B** (21): `auth`, `auth-common`, `auth-otp`, `basic-envelope`, `basic-keys`, `client-auth`, `client-did`, `client-iam`, `client-payment`, `did`, `mui-oidc-rp`, `oidc`, `server-auth`, `server-auth-email`, `server-auth-otp`, `server-oidc-provider`, `server-oidc-rp`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `wled`
-- **C** (18): `bot-postgres`, `kluster`, `llm` (live inference providers), `llm-reader` (live models, the public web), `llm-reader-playwright` (a browser), `mailer-smtp`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-mailer-mailgun`, `storage-resource`
-- **D** (12): `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-bot`, `web-client`, `web-consent`, `web-flow`, `web-panel`, `web-router`, `web-wl`
+- **A** (81): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `auth-email`, `auth-token`, `basic-ids`, `bot`, `bot-agent`, `captcha`, `cli-auth`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-planning`, `client-resource`, `client-route`, `client-socket`, `client-upload`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `file-inspector`, `flow`, `i18n`, `iam`, `image-resource`, `job`, `llm-common`, `log`, `mailer`, `marketing-consent`, `oauth`, `payment`, `planning`, `planning-auth`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-auth-session`, `server-auth-token`, `server-bot`, `server-config`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-oauth`, `server-planning`, `server-route`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `upload`, `viable-common`, `viable-log`, `viable-sdk`, `web-auth-email`, `web-auth-token`, `web-captcha`, `web-db`, `web-gtm`, `web-inquiry`, `web-log`, `web-router-react-router`
+- **B** (23): `auth`, `auth-common`, `auth-otp`, `basic-envelope`, `basic-keys`, `client-auth`, `client-did`, `client-iam`, `client-payment`, `did`, `mui-oidc-rp`, `oidc`, `server-auth`, `server-auth-email`, `server-auth-otp`, `server-marketing-consent`, `server-oidc-provider`, `server-oidc-rp`, `server-upload`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `wled`
+- **C** (22): `bot-postgres`, `file-streams`, `kluster`, `llm` (live inference providers), `llm-reader` (live models, the public web), `llm-reader-playwright` (a browser), `mailer-smtp`, `marketing-consent-mongo`, `marketing-consent-postgres`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-mailer-mailgun`, `server-payment`, `storage-resource`
+- **D** (16): `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-bot`, `web-client`, `web-consent`, `web-flow`, `web-marketing-consent`, `web-oauth`, `web-panel`, `web-payment`, `web-router`, `web-upload`, `web-wl`
 - **None** (5): `_tpl`, and the four harness packages themselves — `test`, `test-auth`, `test-integration`, `test-ui`
 
 A **contract** package and its **backend** split across categories. `queue`, `resource`,
@@ -49,9 +49,18 @@ while one whose code issues real commands against the service is C even when it 
 `redis-resource` imports `ioredis` for types alone and drives the client the db service hands it;
 `mongo-resource` carries its driver as a devDependency, for its specs only. Both are C.
 
+A C package keeps every spec it can offline. `storage-resource` opens `s3Gate` only for the
+round trips against a real store (`create.spec.ts`, the bucket half of `ensure.spec.ts`); its
+bucket-model, upload-verification and start-up-ensure specs run with no gate against local
+stand-ins (`tests/harness`: a silent server, a closed port, an unreachable store that a refused body
+never reaches). `file-streams` gates only `s3.spec.ts` and `backed.spec.ts` the same way. `file-inspector`, `upload`, `storage-common` and `client-upload` are A: bytes,
+schemas and a stand-in server on a local port. `server-upload` is B (a mock guard from
+`@owlmeans/test-auth` in front of its handlers) and `web-upload` D.
+
 `server-auth-otp` and `server-auth-email` are B — they sign and verify through a fixture trusted key
 — and carry env-gated Redis/Mongo specs (`redisGate`, `mongoGate`) for their stores, exactly as a C
-package would. `captcha` is A: Google is reached only through the `CAPTCHA_VERIFIER` seam or an
+package would. `agent` is A the same way: its one live spec (`media-live.spec.ts`) opens a
+`makeGates` gate on the provider secrets and self-skips without them. `captcha` is A: Google is reached only through the `CAPTCHA_VERIFIER` seam or an
 injected `fetch`. `web-captcha` and `web-auth-email` are A: their specs drive the loader over a
 stand-in `document`/`window` and the pure halves (`emailLoginStateHelper`, `emailRefusalHelper`,
 the storage helper, the offer step, the panel helper, i18n parity); the rendered card is an

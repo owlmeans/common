@@ -1,5 +1,5 @@
 import type { AppType, EntrypointReference } from '@owlmeans/context'
-import type { RouteProtocols, RouteMethod } from './consts'
+import type { RouteProtocols, RouteMethod, STREAM_BODY } from './consts'
 
 /** A built-in or package-owned transport identifier. */
 export type RouteProtocol = RouteProtocols | (string & {})
@@ -27,7 +27,10 @@ export interface RouteDeclaration extends BasicRoute {
   method?: RouteMethod
   protocol?: RouteProtocol
   secure?: boolean
-  /** Transport-owned declaration data. The package defining `protocol` owns and validates it. */
+  /**
+   * Transport-owned declaration data. The package defining `protocol` owns and validates it; for
+   * the built-in HTTP protocol it is a {@link StreamBodyDeclaration} or nothing.
+   */
   protocolOptions?: unknown
   /** How long a caller waits for an answer, in milliseconds, when the transport supports it. */
   timeout?: number
@@ -65,4 +68,30 @@ export type RouteParent = string | EntrypointReference
 export interface RouteOptions extends Omit<Partial<RouteDeclaration>, 'parent'> {
   /** A parent protocol is preferred in application declarations; strings remain adapter input. */
   parent?: RouteParent
+}
+
+/**
+ * `protocolOptions` of an HTTP (`RouteProtocols.WEB`) route whose request body travels as raw bytes:
+ * the server hands the handler the request stream unbuffered, the client sends a binary body as is.
+ * Made with `streamBody()`.
+ */
+export interface StreamBodyDeclaration {
+  readonly body: typeof STREAM_BODY
+  /** The largest body accepted, in bytes; a larger one answers 413. */
+  readonly maxBytes: number
+  /** The accepted content types; any other answers 415. Defaults to `application/octet-stream`. */
+  readonly types?: readonly string[]
+}
+
+/** What `streamBody()` is given. */
+export interface StreamBodyOptions {
+  maxBytes: number
+  types?: readonly string[]
+}
+
+/** A streamed body as the transports read it — `streamBodyOf(route)` — with the default type filled in. */
+export interface StreamBody {
+  readonly maxBytes: number
+  /** Never empty; the first one is what a client sends a binary body as when the call names none. */
+  readonly types: readonly string[]
 }

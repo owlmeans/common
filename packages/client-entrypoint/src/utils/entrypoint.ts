@@ -5,6 +5,7 @@ import { ClientValidationError } from '../errors.js'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { EntrypointRef } from '../types.js'
 import formatsPlugin from 'ajv-formats'
+import { streamBodyOf } from '@owlmeans/route'
 
 export { isEntrypoint } from '@owlmeans/entrypoint/utils'
 
@@ -27,7 +28,11 @@ export const validate: <T, R extends AbstractRequest = AbstractRequest>(ref: Ent
     if (ep.filter == null) {
       throw new SyntaxError(`Entrypoint ${req.alias} has no filter to validate against`)
     }
-    const results = await Promise.all(Object.entries(ep.filter).filter(([key]) => !['headers', 'response'].includes(key))
+    // A streamed-body route's body is raw bytes — there is nothing to validate against a schema.
+    const streamed = streamBodyOf(ep.route.route) != null
+    const results = await Promise.all(Object.entries(ep.filter)
+      .filter(([key, filter]) => filter != null && !['headers', 'response'].includes(key)
+        && !(streamed && key === 'body'))
       .map(async ([key, filter]) => {
         if (req[key as keyof typeof req] == null) {
           throw new SyntaxError(`Request has no required section ${key}`)

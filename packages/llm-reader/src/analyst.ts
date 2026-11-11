@@ -1,5 +1,7 @@
 import { HumanMessage } from '@langchain/core/messages'
 import { memoHelper } from '@owlmeans/context'
+import { mediaHelper } from '@owlmeans/llm'
+import type { ImagePart } from '@owlmeans/llm'
 import type { JSONSchemaType } from 'ajv'
 import { ImageKind, ImageRole, PageType, ReaderMode, ReaderTask } from './consts.js'
 import { ReaderConfigError } from './errors.js'
@@ -164,13 +166,16 @@ export const makePageAnalyst = (page: PageModel, options: AnalystOptions): PageA
     return picked.slice(0, limit)
   }
 
-  /** Data URL of a picture a vision model can take, or `undefined`. */
-  const loadImage = async (image: PageImage, key: string | undefined): Promise<string | undefined> => {
+  /**
+   * A picture as an image part a vision model can take, or `undefined` — a fetch that failed, a type
+   * no provider reads, bytes that are not what the server said they are.
+   */
+  const loadImage = async (image: PageImage, key: string | undefined): Promise<ImagePart | undefined> => {
     if (options.fetcher == null || !/^https?:/.test(image.url)) return undefined
     try {
       const fetched = await options.fetcher.fetch({ url: image.url, purpose: 'image', maxBytes: VISION_MAX_BYTES, ...(key != null ? { key } : {}) })
       if (fetched.bytes == null || !VISION_TYPES.has(fetched.contentType)) return undefined
-      return `data:${fetched.contentType};base64,${Buffer.from(fetched.bytes).toString('base64')}`
+      return mediaHelper.image(fetched.bytes, fetched.contentType)
     } catch {
       return undefined
     }
@@ -185,7 +190,7 @@ export const makePageAnalyst = (page: PageModel, options: AnalystOptions): PageA
       .filter(image => !image.decorative && image.kind !== ImageKind.Svg && image.kind !== ImageKind.Icon
         && ![ImageRole.Tracking, ImageRole.Icon, ImageRole.Logo, ImageRole.Avatar].includes(image.role ?? image.hint ?? ImageRole.Other))
       .sort((a, b) => rank(a) - rank(b))
-    const loaded: { image: PageImage, data: string }[] = []
+    const loaded: { image: PageImage, data: ImagePart }[] = []
     for (const image of candidates) {
       if (loaded.length >= limit) break
       const data = await loadImage(image, key)
@@ -197,7 +202,7 @@ export const makePageAnalyst = (page: PageModel, options: AnalystOptions): PageA
         { type: 'text', text: VISION_INSTRUCTION },
         ...batch.flatMap(({ image, data }) => [
           { type: 'text', text: `Picture ${image.id}${image.alt ? ` (alt: "${image.alt}")` : ''}:` },
-          { type: 'image_url', image_url: { url: data } },
+          data,
         ]),
       ]
       const answer = await options.models.model(ReaderTask.Vision).invoke<{ descriptions: { id: string, description: string }[] }>(
@@ -212,6 +217,10 @@ export const makePageAnalyst = (page: PageModel, options: AnalystOptions): PageA
   }
 
   const images: PageAnalyst['images'] = async (imagesOptions = {}) => {
+    // Asked before any call is spent: a model that cannot see would only be refused the pictures.
+    if (imagesOptions.vision === true && options.models.model(ReaderTask.Vision).capabilities?.().vision !== true) {
+      throw new ReaderConfigError('no-vision-model')
+    }
     const pictures = page.images()
       .filter(image => imagesOptions.skipTracking === false || image.hint !== ImageRole.Tracking)
       .map(image => ({ ...image }))

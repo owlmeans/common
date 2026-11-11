@@ -94,9 +94,11 @@ right for callers with no stable persona, wrong for a coder. Detail: [[agent-ski
 ## Tool loops
 
 `makeAgentModel` composes once per run (plugin contributions and `context` → the project message),
-sends `[system, project message, opening + Tail, …rounds]`, and on every round calls
-`plugin.loopCache(wire, agentModel, hints)` on copies; `hints` carry the system blocks, the project
-message's index and the resolved lifetimes. The plugin is `llmPluginRegistry.resolveFor(model)`:
+sends `[system, project message, opening + Tail, …rounds]`, and on every round first renders the
+whole wire for the answering rung (`mediaHelper.render` — every image and PDF part in that
+provider's spelling, on copies) and only then calls `plugin.loopCache(wire, agentModel, hints)` on
+those copies, so a marker that closes a message ending in media lands on the provider's own block;
+`hints` carry the system blocks, the project message's index and the resolved lifetimes. The plugin is `llmPluginRegistry.resolveFor(model)`:
 the configured provider's plugin, else instance lookup on the UNBOUND model — a `bindTools` binding
 is owned by no plugin, and instance lookup alone sends any `ChatOpenAI` to `compatible`. What each
 provider marks per round: the `caching-providers` part.

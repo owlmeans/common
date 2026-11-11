@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "package": "@owlmeans/llm",
   "version": "0.1.22-rc.0",
-  "generatedAt": "2026-11-09T19:08:58.665Z",
+  "generatedAt": "2026-11-10T17:39:44.212Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -33,6 +33,35 @@
             "ExecutionPlugin",
             "executionPolicyHelper",
             "collaboratorKeys"
+          ]
+        },
+        {
+          "name": "media",
+          "file": "skills/llm/parts/media.md",
+          "description": "Images and PDFs in model calls — the vision/documents capability flags and who answers a media call, the checked provider-neutral parts mediaHelper builds, each provider plugin's wire spelling, the documented size and count limits, and traces that never carry a payload.",
+          "purposes": [
+            "agent",
+            "data",
+            "config"
+          ],
+          "mentions": [
+            "mediaHelper",
+            "createMediaHelper",
+            "ImagePart",
+            "DocumentPart",
+            "MediaPart",
+            "capabilityHelper",
+            "ladder",
+            "ModelCapabilities",
+            "LlmMediaTypeError",
+            "LlmMediaLimitError",
+            "LlmMediaUnsupportedError",
+            "MEDIA_LIMITS",
+            "ANTHROPIC_MEDIA_LIMITS",
+            "OPENAI_MEDIA_LIMITS",
+            "OpenAiMediaDialect",
+            "mediaDialect",
+            "mediaLimits"
           ]
         },
         {
@@ -70,6 +99,8 @@
           "mentions": [
             "LlmPlugin",
             "llmPluginRegistry",
+            "mediaDialect",
+            "mediaLimits",
             "llmTransportRegistry",
             "LlmTransport",
             "LlmFetch",
@@ -139,12 +170,36 @@
             "ANTHROPIC_SECRET",
             "OPENAI_SECRET",
             "OPENROUTER_SECRET",
+            "media.spec.ts",
+            "capabilities.spec.ts",
+            "trace.spec.ts",
+            "tokens.spec.ts",
             "results.spec.ts",
             "model.spec.ts",
             "anthropic-families.spec.ts",
             "stream-sdk.spec.ts",
             "search.spec.ts",
             "search-live.spec.ts"
+          ]
+        },
+        {
+          "name": "tokens",
+          "file": "skills/llm/parts/tokens.md",
+          "description": "Token counts and budgets — the o200k tokenizer behind the @owlmeans/llm/tokens subpath, the fast estimate, and fitting prioritized parts (a prompt, specification files) into a budget with paragraph and sentence trims and explicit omission markers.",
+          "purposes": [
+            "agent",
+            "data"
+          ],
+          "mentions": [
+            "tokenBudgetHelper",
+            "createTokenBudgetHelper",
+            "TokenBudgetPart",
+            "TokenBudgetFit",
+            "TokenBudgetEntry",
+            "TokenBudgetStatus",
+            "TokenBudgetFitOptions",
+            "TOKEN_BUDGET_SEPARATOR",
+            "gpt-tokenizer"
           ]
         },
         {

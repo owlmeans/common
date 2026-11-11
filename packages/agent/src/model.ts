@@ -1,5 +1,5 @@
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
-import type { AIMessageChunk, BaseMessage, BaseMessageLike, MessageFieldWithRole, ToolCall } from '@langchain/core/messages'
+import type { AIMessageChunk, BaseMessage, BaseMessageLike, ToolCall } from '@langchain/core/messages'
 import { addMessages, entrypoint, task } from '@langchain/langgraph'
 import { createIdOfLength } from '@owlmeans/basic-ids'
 import { makeFlowModel } from '@owlmeans/flow'
@@ -21,6 +21,7 @@ import type {
 } from './types.js'
 import { toolHelper } from './helpers/tools.js'
 import { compactionHelper } from './helpers/compaction.js'
+import { loopMediaUtils } from './utils/media.js'
 
 const log = logger('agent')
 
@@ -95,8 +96,7 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
 
   const conversation = options.conversation ?? conversationFor(exec.purpose)
   const prompts = options.prompts ?? exec.prompts
-  const provider = options.provider ?? llmPluginRegistry.resolveFor(agentModel)
-  const modelId = modelIdOf(agentModel)
+  const primaryProvider = options.provider ?? llmPluginRegistry.resolveFor(agentModel)
   const purpose = exec.purpose
 
   const registry: AgentPlugin[] = []
@@ -133,9 +133,18 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
     invoke: async (input, args = {}) => {
       const action = args.action ?? DEFAULT_ACTION
       const opening = typeof input === 'string' ? new HumanMessage({ content: input }) : input
-      const promptText = typeof input === 'string'
-        ? input
-        : typeof opening.content === 'string' ? opening.content : ''
+      // Its text parts: an image or a PDF beside the words is not part of what was asked in words.
+      const promptText = typeof input === 'string' ? input : compactionHelper.messageText(opening)
+
+      // The run is answered by the first rung that accepts what the opening carries — the primary
+      // unless it is blind to it — and refused before anything is asked when none does. Everything
+      // provider-shaped below (tools, cache marks, media spelling, the billed id) is that rung's.
+      const rung = loopMediaUtils.answering(agentModel, loopMediaUtils.needsOf([opening]))
+      const answering = rung.model
+      const provider = rung.index === 0 ? primaryProvider : llmPluginRegistry.resolveFor(answering)
+      const modelId = modelIdOf(answering)
+      // The provider's request limits, checked before any plugin or prompt side call spends a request.
+      loopMediaUtils.render([opening], rung)
 
       const chain = ordered()
       const flow: FlowModel = await makeFlowModel(agentRunFlow)
@@ -178,7 +187,7 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
           { ...exec.prompt, context },
           [],
           {
-            model: agentModel, provider, purpose, files: exec.files, utility: options.utility, action,
+            model: answering, provider, purpose, files: exec.files, utility: options.utility, action,
             results: exec.results,
           },
         )
@@ -198,9 +207,9 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
       }
       const cached = composed?.cache.enabled !== false
 
-      const tooled = agentModel.bindTools?.(Object.values(toolSet)) ?? agentModel
+      const tooled = answering.bindTools?.(Object.values(toolSet)) ?? answering
       // `tool_choice` is sent only where tools are declared: both providers refuse it without them.
-      const choosable = agentModel.bindTools != null && Object.keys(toolSet).length > 0
+      const choosable = answering.bindTools != null && Object.keys(toolSet).length > 0
 
       const stop = args.stop
       const halted = (): boolean => stop?.aborted === true
@@ -227,11 +236,14 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
 
         const [first, ...rest] = messages as BaseMessage[]
         const opening = composed?.tail != null && first != null ? withTail(first, composed.tail) : [first]
-        const wire = [...head, ...opening, ...rest].filter(message => message != null)
+        // Every round is spelled for the answering model's provider — media parts of the opening
+        // and of any message after it — BEFORE it is marked, so a marker lands on the provider's
+        // own block. The transcript keeps the neutral parts.
+        const wire = loopMediaUtils.render([...head, ...opening, ...rest].filter(message => message != null), rung)
         // Each round strips and re-marks copies: the system and project message once, and the
         // growing conversation read back from the round before.
         const patch = cached
-          ? provider?.loopCache?.(wire as unknown as MessageFieldWithRole[], agentModel, hints)
+          ? provider?.loopCache?.(wire, answering, hints)
           : undefined
 
         // Never a stop signal: an abort inside this task fails the whole run, an aborted call is
@@ -335,10 +347,12 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
               error = `Error during tool call: ${(e as Error).message}`
             }
 
+            // A tool result is text: a tool cannot hand the model an image (a tool that needs a
+            // model to SEE something makes its own media call and returns what it saw).
             return new ToolMessage({
               tool_call_id: toolCall.id!,
               name: toolCall.name,
-              content: error ?? (typeof output === 'string' ? output : JSON.stringify(output)),
+              content: error ?? loopMediaUtils.toolText(output),
               status: error != null ? 'error' : 'success',
             })
           }))

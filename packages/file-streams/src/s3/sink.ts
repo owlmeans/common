@@ -1,5 +1,5 @@
+import { EXTENSION_MIME } from '@owlmeans/file-inspector'
 import type { FileSink, SinkInput, SinkResult, SinkWriteOptions } from '../types.js'
-import { EXTENSION_MIME } from '../inspector/consts.js'
 import { nameUtils } from '../utils/names.js'
 import { streamUtils } from '../utils/streams.js'
 import type { S3SinkOptions } from './types.js'

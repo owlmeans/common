@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test'
 import { writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { FilePropertyError } from '@owlmeans/storage-common'
 import { makeStorageBucketModel } from '@owlmeans/storage-resource'
@@ -57,5 +58,20 @@ describe('@owlmeans/file-streams — context service', () => {
     expect(verdict.detected?.kind).toBe(FileKind.Image)
     expect(files.transfer()).toBe(files.transfer())
     expect(await files.archives().detect(createBufferSource(PNG))).toBeNull()
+  })
+
+  test('builds the workspace from config and backed workspaces per bucket entry and prefix, without I/O until used', async () => {
+    const entry = { url: 'media.s3.eu-central-1.amazonaws.com', apiKey: 'key:secret', basePrefix: 'tenant' }
+    const { files } = await boot({ storageBuckets: { media: entry }, fileStreams: { workspace: { root: 'owlmeans-fs-service-workspace' } } })
+    expect(files.workspace().root).toBe(join(tmpdir(), 'owlmeans-fs-service-workspace'))
+    expect(files.workspace()).toBe(files.workspace())
+
+    const backed = files.backed('media', { prefix: 'materials' })
+    expect(files.backed('media', { prefix: 'materials' })).toBe(backed)
+    expect(files.backed('media')).not.toBe(backed)
+    expect(backed.bucket).toBe(files.bucket('media'))
+    expect(backed.scope({ organization: 'acme', project: 'slot-1', purpose: 'new-project' }).key('a.png'))
+      .toBe('tenant/materials/acme/slot-1/new-project/a.png')
+    expect(() => files.backed('unknown')).toThrow(FilePropertyError)
   })
 })

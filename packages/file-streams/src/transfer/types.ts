@@ -1,4 +1,4 @@
-import type { FileInspector, FileVerdict, VerifyPolicy } from '../inspector/types.js'
+import type { FileInspector, FileVerdict, VerifyPolicy } from '@owlmeans/file-inspector'
 import type { FileInfo, FileSink, FileSource, SignalOptions, SinkResult, TreeSink } from '../types.js'
 
 export interface TransferLimits {

@@ -103,6 +103,17 @@ export const makeLocalSlotExecutor = (
 
               return {}
 
+            case SlotFileCommand.WriteBinaryFile:
+              await fileHelper.writeBinaryFile(args?.filePath, args?.base64)
+              integrityHelper.forgetIntegrity()
+
+              return {}
+
+            case SlotFileCommand.ReadBinaryFile:
+              // Bare `{ base64, size }`, the publisher's shape: file-streams' workload source and the
+              // agent's remote helper read `base64` off it.
+              return await fileHelper.readBinaryFile(args?.filePath)
+
             case SlotFileCommand.WriteSource:
               await fileHelper.writeSource(args?.file)
               integrityHelper.forgetIntegrity()

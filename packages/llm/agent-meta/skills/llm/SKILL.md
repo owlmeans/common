@@ -1,6 +1,6 @@
 ---
 name: llm
-description: How to use @owlmeans/llm — the LLM inference runtime (four-method model, provider plugins, model factory service, policy-driven execution abstraction, and the prompt/skill composition service). Auto-invoked when importing the model, an LlmPlugin, the LlmService, the execution service, or the prompt service.
+description: How to use @owlmeans/llm — the LLM inference runtime (four-method model, provider plugins, model factory service, policy-driven execution abstraction, the prompt/skill composition service, image and PDF parts with the models' vision/documents capabilities, and token budgets). Auto-invoked when importing the model, an LlmPlugin, the LlmService, the execution service, the prompt service, mediaHelper or tokenBudgetHelper.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -38,6 +38,8 @@ symbol "because a test needs it".
 | `llmPluginRegistry.effortSupportOf(config)` · `OPENAI_EFFORT_SUPPORT`, `OPENAI_HIDDEN_PROPERTY_NAMES`, `ANTHROPIC_MODEL_SUPPORT` / `anthropicSupportHelper.anthropicSupportOf(model)` · `REASONING_MIN_MAX_TOKENS` | Which `ModelConfig.effort` levels a model accepts, and the per-family Anthropic facts beside them — see "Fallback chains and provider effort" in the `presets` part. |
 | `ThinkingOff`, `anthropicSupportHelper.thinkingOffFor(config)` · `anthropicSupportHelper.rejectsForcedTool(model)` | The Anthropic off switch a config sends (`disabled`, `between_tools`, or none), and whether a model refuses a pinned `tool_choice`. |
 | `retryHelper.{withRetry, registerFatalError, isFatalError}`, `spectate(spectator, callType)(input, message, action, retries, startedAt?, model?)`, `normalizeInput`, `jsonHelper.{parseJsonContent, coerceToSchema}`, `resolveFallbacks`, `PROVIDER_NEUTRAL_FIELDS` | Helpers usable alongside a model. `spectate`'s `model` is the ANSWERING rung's id, put on the entry only when known; `normalizeInput` copies the caller's messages, so preparing never edits them. Also at `@owlmeans/llm/helpers`. |
+| `mediaHelper`, `capabilityHelper`, `capabilities()` on the execution service, model and LLM service, `LlmMedia*Error` | Checked, provider-neutral image/PDF parts; what the answering model accepts (`vision` / `documents`) — `media` part. |
+| `tokenBudgetHelper` (`@owlmeans/llm/tokens`) · `TokenBudgetStatus` | o200k counts and a priority budget fit with omission markers — `tokens` part. |
 | `LlmError`, `LlmModelError`, `LlmOutputRejection`, `LlmMissconfiguredError`, `LlmPluginError`, `LlmRetryExceededError` | `ResilientError` family. `LlmModelError` is the RETRYABLE one; `LlmOutputRejection(reason, details)` is the one a `filter` throws to refuse an answer with details its `guide` reads. |
 | `executionPolicyHelper.{mergePrompt, mergeFocus, mergePolicy, resolveRole, effortPatch}`, `executionStateHelper.freezeResults` | Execution merge helpers; `mergePrompt` unions skills, takes the deepest role, unions `focus` lists (the deepest `late` wins) and merges `cacheTtl` objects key by key; `freezeResults` deep-freezes a results view. |
 | `DEFAULT_MODEL_RETRIES`, `MODEL_STREAM_TIMEOUT_MS` (3 min idle), `FALLBACK_AFTER_ATTEMPTS`, `TEMPERATURE_PER_EFFORT_STEP`, `DEFAULT_EFFORT`, `EFFORT_TABLE`, `MAX_CACHE_BREAKPOINTS`, `MIN_CACHEABLE_TOKENS`, `DEFAULT_CACHE_TTL`, `PROJECT_CONTEXT_HEADER`, `TAIL_SCHEMA_INSTRUCTION`, `LLM_SERVICE`, `EXECUTION_SERVICE`, `PROMPT_SERVICE` | Tuning + aliases. |
@@ -80,13 +82,14 @@ blank tool results are stubbed to keep their `tool_use` pairing). Details: packa
 
 - `@owlmeans/llm-common` · `@owlmeans/context` · `@owlmeans/error` · `@owlmeans/basic-ids` · `ajv`
 - `@anthropic-ai/sdk` — runtime, for the `BadRequestError` the fatal-error rules are written around
+- `gpt-tokenizer` (the `./tokens` subpath only) · `@noble/hashes` (trace digests of media)
 - peer `@langchain/core`, `@langchain/openai`, `@langchain/anthropic`
 
 ## Related
 
 - [[llm-common]] — the serializable contracts · [[llm-prompt-caching]] — prompt composition, block
   order and the cache invariants
-- [[owlmeans-context]] — service registration · [[error]] — the `ResilientError` family
+- [[owlmeans-context]] — service registration · [[error]] — `ResilientError`
 
 ## Parts
 
@@ -97,5 +100,7 @@ blank tool results are stubbed to keep their `tool_use` pairing). Details: packa
 | [retries](parts/retries.md) | writing a retry or validation loop around model calls, guiding a refused answer into the next attempt (`guide`), or a call that hangs or retries too long |
 | [presets](parts/presets.md) | writing or changing a model preset, a fallback rung or an effort level |
 | [reasoning](parts/reasoning.md) | turning reasoning on or off for a role, or diagnosing an empty or reasoning-only completion |
+| [media](parts/media.md) | sending images or PDFs, asking whether a model accepts them (`vision`, `documents`), a provider's media spelling, or a trace that must not carry a payload |
+| [tokens](parts/tokens.md) | counting tokens, or fitting a prompt and documents into a token budget |
 | [web-search](parts/web-search.md) | asking a provider to search the web (`webSearch`), adding a search dialect to a plugin, or a search that came back unsourced, out of its domains, or through a proxy |
 | [testing](parts/testing.md) | running or adding tests of this package |

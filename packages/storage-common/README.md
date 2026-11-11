@@ -7,7 +7,9 @@ Shared types and schemas for OwlMeans object storage — file metadata, instance
 - `StoredFileMeta` / `StoredFile` / `StoredFileWithData` — file record types
 - `StoredFileInstance` / `StoredFilePayload` — per-variant instance types (URL + size)
 - `StoredFileStatus` / `StoredFileFormat` — enums for file lifecycle state and encoding
-- Used by `@owlmeans/storage-resource` and `@owlmeans/image-resource`
+- `FileScope` / `FileScopeSchema` / `fileScopeHelper` — where a task's files live:
+  `<organization>/<project?>/<purpose>`, on disk and in a bucket alike
+- Used by `@owlmeans/storage-resource`, `@owlmeans/image-resource` and `@owlmeans/file-streams`
 
 ## Installation
 
@@ -45,6 +47,23 @@ Extends `StoredFileMeta` with `instances: { [key: string]: StoredFilePayload }` 
 ### `StoredFileFormat`
 
 `Bytes` | `Base64`
+
+### `FileScope` and `fileScopeHelper`
+
+```typescript
+import { fileScopeHelper } from '@owlmeans/storage-common'
+import type { FileScope } from '@owlmeans/storage-common'
+
+const scope: FileScope = { organization: 'acme', project: 'slot-12', purpose: 'new-project' }
+fileScopeHelper.pathOf(scope)                 // 'acme/slot-12/new-project'
+fileScopeHelper.pathOf({ organization: 'acme', purpose: 'upload' })   // 'acme/upload'
+fileScopeHelper.parse('acme/upload')          // { organization: 'acme', purpose: 'upload' }
+fileScopeHelper.isSegment('..')               // false
+fileScopeHelper.assert(value)                 // FileScopeError('<field>') unless a valid scope
+```
+
+Every field is one segment: 1–128 characters of `[A-Za-z0-9][A-Za-z0-9._-]*` (`FileScopeSchema`
+validates the same with AJV).
 
 ## Related Packages
 

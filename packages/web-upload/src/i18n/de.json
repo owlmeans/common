@@ -1,0 +1,48 @@
+{
+  "pickers": {
+    "files": "Dateien hinzufügen",
+    "folder": "Ordner hinzufügen"
+  },
+  "dropzone": {
+    "title": "Zum Hinzufügen loslassen",
+    "hint": "Dateien und ganze Ordner kommen in die Liste",
+    "description": "Ziehen Sie Dateien oder Ordner auf diesen Bereich, fügen Sie Dateien ein oder nutzen Sie die Schaltflächen „Dateien hinzufügen“ und „Ordner hinzufügen“.",
+    "added": "Hinzugefügte Dateien: {count}"
+  },
+  "list": "Dateien",
+  "status": {
+    "queued": "Bereit",
+    "uploading": "Wird hochgeladen… {percent}",
+    "accepted": "Hochgeladen",
+    "rejected": "Abgelehnt",
+    "failed": "Fehlgeschlagen"
+  },
+  "reason": {
+    "limits": "Überschreitet die Upload-Grenzen",
+    "type-mismatch": "Der Inhalt passt nicht zu Name oder Typ",
+    "dangerous": "Als potenziell gefährlich abgelehnt",
+    "refused-kind": "Diese Dateiart wird nicht angenommen",
+    "archive-invalid": "Das Archiv lässt sich nicht sicher entpacken",
+    "path-invalid": "Dieser Name oder Ordnerpfad ist nicht erlaubt",
+    "duplicate": "Eine andere Datei hat denselben Pfad"
+  },
+  "limit": {
+    "file-bytes": "Größer als {max}, die Grenze für eine Datei",
+    "files": "Über der Grenze für die Anzahl der Dateien: {max}",
+    "total-bytes": "Über der Grenze für die Gesamtgröße: {max}"
+  },
+  "failed": "Nicht hochgeladen – wird erneut gesendet",
+  "from": "Aus {archive}",
+  "remove": "{path} entfernen",
+  "totals": "Dateien: {count} · {size}",
+  "progress": "{loaded} von {total} hochgeladen",
+  "hints": "Grenzen — Dateien: {files}, eine Datei: {file}, insgesamt: {total}",
+  "violation": {
+    "max-files": "Zu viele Dateien: {count}, höchstens {max}",
+    "max-total-bytes": "Insgesamt zu groß: {size}, höchstens {max}",
+    "max-file-bytes": "Dateien größer als {max}: {count}"
+  },
+  "units": {
+    "byte": "B"
+  }
+}

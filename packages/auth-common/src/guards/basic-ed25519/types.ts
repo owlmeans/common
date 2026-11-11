@@ -28,7 +28,11 @@ export interface SignedRequestReplayResource extends BasicResource {
 
 /** What `signBasicEd25519Request` signs: the request body and the signer's identity. */
 export interface BasicEd25519SignInput {
-  /** The body exactly as it will be sent; an absent body is signed as `{}`, as the guard verifies it. */
+  /**
+   * The body exactly as it will be sent. An absent body and raw bytes (a `Blob`, an `ArrayBuffer`, a
+   * typed array, a stream — a streamed-body route's) are signed as `{}`, as the guard verifies them:
+   * such bytes are not covered by the signature.
+   */
   body?: unknown
   /** The signer's trusted-record `id` — the guard loads the verifying key by it. */
   credential: string

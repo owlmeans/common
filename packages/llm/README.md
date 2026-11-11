@@ -118,6 +118,40 @@ answered unsearched). Each search is one direct request to the provider — neve
 `llmTransportRegistry` or an SDK client — so an installed LLM proxy cannot reroute it. A domain
 bound is enforced on the result even when a provider's filter leaks.
 
+### Show it pictures and PDFs
+
+```typescript
+import { HumanMessage } from '@langchain/core/messages'
+import { mediaHelper } from '@owlmeans/llm'
+
+if (executions.capabilities(helper).vision) {            // what the model that will answer accepts
+  const answer = await makeLlmModel(helper, spectator).ask([new HumanMessage({ content: [
+    mediaHelper.text('What does this sketch show?'),
+    mediaHelper.image(bytes, 'image/png'),               // png, jpeg, gif, webp — checked, never resized
+    mediaHelper.document(pdfBytes, { name: 'brief.pdf' }),
+  ] })], { action: 'read-sketch' })
+}
+```
+
+A part is provider-neutral; the rung's plugin spells it for Anthropic, the OpenAI Responses API,
+chat completions or a compatible endpoint before the request leaves. A model accepts media only
+when its config says so (`ModelConfig.vision`, `documents`): a call carrying media runs on the
+rungs that do and is refused (`LlmMediaUnsupportedError`) when none does. Traces store a
+`{ type, mime, bytes, sha256 }` placeholder, never the payload.
+
+### Fit text into a token budget
+
+```typescript
+import { tokenBudgetHelper } from '@owlmeans/llm/tokens'
+
+const brief = tokenBudgetHelper.fit([
+  { id: 'prompt', text: prompt, priority: 10 },
+  { id: 'spec.md', text: spec, priority: 5, minTokens: 200 },
+], 80_000)
+brief.text            // what fitted, in input order; trimmed parts end in an omission marker
+brief.trimmed         // ['spec.md'] …
+```
+
 ### Add a provider
 
 ```typescript
@@ -172,7 +206,23 @@ skills, sent in the uncached tail), `temperature` (`invoke` only).
 
 `retryHelper` (`withRetry`, `registerFatalError`, `isFatalError`) · `jsonHelper` (`parseJsonContent`,
 `coerceToSchema`) · `cacheHelper` (`readCacheUsage`, `hasCacheActivity`, `withCacheTiers`) · `spectate` ·
-`normalizeInput` · `resolveFallbacks`. Also exported from `@owlmeans/llm/helpers`.
+`normalizeInput` · `resolveFallbacks` · `mediaHelper` (`image`, `document`, `text`, `isMedia`, `redact`,
+`render`) · `capabilityHelper` (`of`, `fromConfigs`, `accepts`, `ladder`). Also exported from `@owlmeans/llm/helpers`.
+
+### Media and capabilities
+
+| Export | Use for |
+|--------|---------|
+| `ModelConfig.vision` / `documents` | The model accepts images / PDFs. Unset means it does not. |
+| `ExecutionService.capabilities(exec, role?, override?)` · `LlmModel.capabilities()` · `LlmService.capabilities(alias, override?)` | `ModelCapabilities { vision, documents, rungs }` of the model that will answer — role overrides, model pins and fallbacks included. |
+| `mediaHelper.image(data, mime)` · `.document(data, { mime?, name? })` · `.text(text)` | Neutral content parts from bytes, base64 or a data URL; `createMediaHelper(limits)` narrows the limits. |
+| `LlmMediaTypeError` · `LlmMediaLimitError` · `LlmMediaUnsupportedError` | A type or signature refused, a documented size or count exceeded, no rung that accepts the media — all fatal. |
+
+### Token budgets (`@owlmeans/llm/tokens`)
+
+`tokenBudgetHelper.count(text)` (o200k) · `.estimate(text)` (no tokenizer) · `.within(text, budget)` ·
+`.fit(parts, budget, { separator?, marker? })` → `{ text, tokens, parts, kept, trimmed, dropped }`. A
+subpath of its own, so the tokenizer tables load only where they are used.
 
 Everything under `src/utils/` is library-private and deliberately not exported.
 
@@ -199,8 +249,8 @@ Exported from `@owlmeans/llm/plugins` as well as the root: `llmPluginRegistry` (
 bun test ./tests
 ```
 
-Offline specs always run. The live specs (`tests/model.spec.ts`, `tests/search-live.spec.ts`)
-are gated: set `ANTHROPIC_SECRET`, `OPENAI_SECRET` and/or `OPENROUTER_SECRET` (optionally
+Offline specs always run. The live specs (`tests/model.spec.ts`, `tests/search-live.spec.ts`,
+`tests/media-live.spec.ts`) are gated: set `ANTHROPIC_SECRET`, `OPENAI_SECRET` and/or `OPENROUTER_SECRET` (optionally
 `OPENROUTER_URL`) in the repo root `.env`. With none set they self-skip with a printed reason —
 never a failure.
 
@@ -211,6 +261,7 @@ never a failure.
 - `@owlmeans/error` — `ResilientError` family
 - `@owlmeans/basic-ids` — diagnostic ids
 - `ajv` — schema validation
+- `gpt-tokenizer` — o200k token counts (`./tokens`) · `@noble/hashes` — trace digests of media
 - peer `@langchain/core`, `@langchain/openai`, `@langchain/anthropic`
 
 <!-- owlmeans:agent-guidance:start -->

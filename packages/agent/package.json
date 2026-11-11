@@ -75,7 +75,8 @@
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2",
     "zod": "^4.6.7",
-    "@langchain/langgraph-checkpoint": "^1.2.1"
+    "@langchain/langgraph-checkpoint": "^1.2.1",
+    "@owlmeans/test": "^0.1.22-rc.0"
   },
   "dependencies": {
     "@owlmeans/agent-common": "^0.1.21",

@@ -140,6 +140,30 @@ export const storyProtocols = {
 } as const
 ```
 
+### A streamed upload body
+
+The built-in HTTP protocol owns one `protocolOptions` kind: `streamBody({ maxBytes, types? })`, a
+route whose request body is raw bytes. The server hands the handler the request stream unbuffered
+(`streamedBody(request)` of `@owlmeans/server-api`: 413 past `maxBytes`, 415 outside `types`); the
+client sends a `Blob`, bytes or a Node stream as is.
+
+```ts
+import { contract, protocol, typed, type BinaryBody } from '@owlmeans/entrypoint'
+import { backend, route, RouteMethod, streamBody } from '@owlmeans/route'
+
+export const materialProtocols = {
+  upload: protocol(
+    route('my-app:api:material:upload', '/material/:id/file', backend({
+      method: RouteMethod.PUT,
+      protocolOptions: streamBody({ maxBytes: 12 * 1024 * 1024 }), // types default to ['application/octet-stream']
+    })),
+    contract.request({ params: typed<{ id: string }>(IdSchema), body: typed<BinaryBody>() }, typed<Material>()),
+  ),
+} as const
+
+streamBodyOf(materialProtocols.upload.route.route) // { maxBytes: 12582912, types: ['application/octet-stream'] }
+```
+
 ### Reading where a route answers
 
 Once protocols are registered on a context, the entrypoint accessors answer address questions. The
@@ -183,6 +207,10 @@ addresses.resolveAddress(declaration)
 | `service(alias, opts?)` | function | Set `service` on `opts` (mutated and returned) |
 | `rtype(type, opts?)` | function | Set an arbitrary `AppType`; the primitive behind `backend()` / `frontend()` |
 | `normalizePath(path)` | function | Trim whitespace and one leading and trailing `/` |
+| `streamBody({ maxBytes, types? })` | function | HTTP `protocolOptions` of a streamed-body route; validated eagerly, frozen |
+| `streamBodyOf(route)` | function | The route's `StreamBody` (`{ maxBytes, types }`, default type filled in), or `null` for any other route |
+| `STREAM_BODY`, `DEFAULT_STREAM_TYPE` | const | `'stream'`, `'application/octet-stream'` |
+| `StreamBodyDeclaration`, `StreamBodyOptions`, `StreamBody` | interface | The declaration, the builder's input and the resolved form |
 | `RouteMethod` | enum | `GET = 'get'`, `POST = 'post'`, `PATCH = 'patch'`, `PUT = 'put'`, `DELETE = 'delete'` |
 | `RouteProtocols` | enum | Generic built-ins: `WEB = 'http'`, `SOCKET = 'ws'` |
 | `SEP` | const | Path separator `'/'` |
@@ -226,7 +254,8 @@ and `serviceRouteHelper` are pure and take no context.
 - `path` is only this route's segment. Do not repeat the parent's path in it; `resolvePath()` joins
   the chain.
 - Custom transport options are opaque here. Validate them through the package that owns the
-  protocol.
+  protocol. The one HTTP kind, `streamBody()`, is validated by the builder and by `streamBodyOf()`.
+- A streamed body is POST, PUT or PATCH; `@owlmeans/server-api` refuses to serve any other method.
 - Do not pass a context to the pure `./utils` helpers: `routeDeclarationHelper.overrideParams(ctx, decl)`
   writes route fields into the context object instead of resolving anything.
 - A mis-wired tree (no `cfg.services`, a service without a host, a parentship cycle) throws

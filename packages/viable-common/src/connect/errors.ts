@@ -94,6 +94,21 @@ export class ConnectOpUnknown extends ConnectError {
 }
 
 /**
+ * The path names none of the project's usable materials — never uploaded, refused on upload, removed
+ * by the analysis, or withdrawn. The message carries the path. Answered 404.
+ */
+export class ConnectMaterialUnknown extends ConnectError {
+  public static override typeName = `MaterialUnknown${ConnectError.typeName}`
+  /** The addressed material is absent or not usable: answered 404. */
+  public static httpStatus = 404
+
+  constructor(message: string = 'error') {
+    super(`material-unknown:${message}`)
+    this.type = ConnectMaterialUnknown.typeName
+  }
+}
+
+/**
  * A delegated write answered early (`{ pending }`) whose outcome was never recorded: the platform
  * process holding it stopped and its heartbeat went stale (`CONNECT_CALL_LOST_MS`). Whether it took
  * effect is unknown, so it is read from the domain's status before anything is repeated. The message
@@ -289,6 +304,7 @@ ResilientError.registerErrorClass(ConnectOpTimeout)
 ResilientError.registerErrorClass(ConnectOpRefused)
 ResilientError.registerErrorClass(LocalSlotUnsupported)
 ResilientError.registerErrorClass(ConnectOpUnknown)
+ResilientError.registerErrorClass(ConnectMaterialUnknown)
 ResilientError.registerErrorClass(ConnectCallLost)
 ResilientError.registerErrorClass(ConnectOutOfCredits)
 ResilientError.registerErrorClass(ConnectConsentRequired)

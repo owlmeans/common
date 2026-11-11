@@ -20,3 +20,9 @@ export enum RouteProtocols {
   WEB = 'http',
   SOCKET = 'ws'
 }
+
+/** `protocolOptions.body` of an HTTP route whose request body is handed to the handler as a raw stream. */
+export const STREAM_BODY = 'stream'
+
+/** The content type a streamed-body route accepts when its declaration names none. */
+export const DEFAULT_STREAM_TYPE = 'application/octet-stream'

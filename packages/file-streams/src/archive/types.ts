@@ -1,4 +1,4 @@
-import type { FileInspector, VerifyPolicy } from '../inspector/types.js'
+import type { FileInspector, VerifyPolicy } from '@owlmeans/file-inspector'
 import type { FileSource, SignalOptions, SinkResult, TreeSink } from '../types.js'
 import type { ArchiveFormat } from './consts.js'
 

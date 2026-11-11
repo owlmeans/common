@@ -27,8 +27,9 @@ set on the root counts for every element it is inherited by. The facts:
 
 A rendered page (`page.rendered`, from a `PageRenderer`) has its computed-style samples merged over
 the parse — colors on screen, the type scale, radii and shadows (`source: 'both'`) — and its
-screenshot goes to the model with the facts. `reader.design` renders a URL first whenever a renderer
-is configured.
+screenshot goes to the model with the facts — only when the design model accepts images
+(`capabilities().vision`); otherwise the facts alone. `reader.design` renders a URL first whenever a
+renderer is configured; a local bundle (the `fetching` part) is measured and rendered the same way.
 
 ## The document is rendered, not written
 

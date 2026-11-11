@@ -1,0 +1,48 @@
+{
+  "pickers": {
+    "files": "Añadir archivos",
+    "folder": "Añadir carpeta"
+  },
+  "dropzone": {
+    "title": "Suelta para añadir",
+    "hint": "Los archivos y las carpetas enteras pasan a la lista",
+    "description": "Arrastra archivos o carpetas sobre esta zona, pega archivos o usa los botones Añadir archivos y Añadir carpeta.",
+    "added": "Archivos añadidos: {count}"
+  },
+  "list": "Archivos",
+  "status": {
+    "queued": "Listo",
+    "uploading": "Subiendo… {percent}",
+    "accepted": "Subido",
+    "rejected": "Rechazado",
+    "failed": "Error"
+  },
+  "reason": {
+    "limits": "Supera los límites de subida",
+    "type-mismatch": "Su contenido no coincide con su nombre o tipo",
+    "dangerous": "Rechazado por ser potencialmente peligroso",
+    "refused-kind": "No se aceptan archivos de este tipo",
+    "archive-invalid": "El archivo comprimido no se puede descomprimir de forma segura",
+    "path-invalid": "Este nombre o ruta de carpeta no está permitido",
+    "duplicate": "Otro archivo tiene la misma ruta"
+  },
+  "limit": {
+    "file-bytes": "Mayor que {max}, el límite por archivo",
+    "files": "Supera el límite de número de archivos: {max}",
+    "total-bytes": "Supera el límite de tamaño total: {max}"
+  },
+  "failed": "No se subió; se enviará de nuevo",
+  "from": "De {archive}",
+  "remove": "Quitar {path}",
+  "totals": "Archivos: {count} · {size}",
+  "progress": "Subido {loaded} de {total}",
+  "hints": "Límites — archivos: {files}, un archivo: {file}, en total: {total}",
+  "violation": {
+    "max-files": "Demasiados archivos: {count}, como máximo {max}",
+    "max-total-bytes": "Demasiado grande en total: {size}, como máximo {max}",
+    "max-file-bytes": "Archivos mayores que {max}: {count}"
+  },
+  "units": {
+    "byte": "B"
+  }
+}

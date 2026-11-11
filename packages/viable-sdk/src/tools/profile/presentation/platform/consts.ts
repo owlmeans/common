@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ProjectStatusOutput } from '../work/schemas.js'
 
 /** One indented frame of a stack trace — never part of what a person reads. */
 export const STACK_LINE = /^\s+at\s/
@@ -128,6 +129,52 @@ const WORKLOAD = z.object({
 })
 
 export const PREVIEW_OUTPUT = { projectId: PROJECT_ID, preview: WORKLOAD.nullable() }
+
+// --- a new project's files ----------------------------------------------------------------------
+
+const MATERIAL_OUTCOME = z.object({
+  path: z.string(),
+  status: z.string().describe('accepted, rejected (by the platform), refused (before sending), failed (to send) or unreadable.'),
+  reason: z.string().optional(),
+  from: z.string().optional().describe('The archive the file was unpacked from.'),
+})
+
+export const PROJECT_WITH_FILES_OUTPUT = {
+  ...ProjectStatusOutput,
+  files: z.array(MATERIAL_OUTCOME),
+  pending: z.boolean().describe('Files are still being sent; the upload is sealed after the last one.'),
+  sealed: z.boolean().describe('The upload is sealed and the drafting started.'),
+}
+
+const MATERIAL_ENTRY = z.object({
+  path: z.string().describe('What read_material takes.'),
+  name: z.string(),
+  size: z.number(),
+  status: z.string().describe('received, catalogued, placed, removed or rejected.'),
+  kind: z.string().optional(),
+  purpose: z.string().optional(),
+  description: z.string().optional(),
+  reason: z.string().optional(),
+  placedAt: z.string().optional().describe('Where the file now lives in the project\'s tree.'),
+  from: z.string().optional(),
+})
+
+export const MATERIALS_OUTPUT = {
+  projectId: PROJECT_ID,
+  state: z.string().nullable().describe('Where the files stand; null for a project created without files.'),
+  files: z.number(),
+  rejected: z.number(),
+  lastError: z.string().optional(),
+  entries: z.array(MATERIAL_ENTRY),
+}
+
+export const MATERIAL_TEXT_OUTPUT = {
+  projectId: PROJECT_ID,
+  path: z.string(),
+  source: z.string().nullable().describe('transcript, text, or null for a file without text.'),
+  length: z.number().describe('The whole text\'s length in characters.'),
+  truncated: z.boolean().describe('The text carries only the first part.'),
+}
 
 // --- git and GitHub ------------------------------------------------------------------------------
 

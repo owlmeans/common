@@ -42,6 +42,7 @@
         "@langchain/langgraph": "^1.5.3",
         "@langchain/langgraph-checkpoint": "^1.2.1",
         "@owlmeans/dep-config": "^0.1.21",
+        "@owlmeans/test": "^0.1.22-rc.0",
         "@types/bun": "^1.4.4",
         "@types/node": "^26.6.5",
         "nodemon": "^3.1.14",
@@ -829,6 +830,30 @@
         "react": "*",
       },
     },
+    "packages/client-upload": {
+      "name": "@owlmeans/client-upload",
+      "version": "0.1.22-rc.0",
+      "dependencies": {
+        "@owlmeans/api": "^0.1.21",
+        "@owlmeans/context": "^0.1.21",
+        "@owlmeans/entrypoint": "^0.1.21",
+        "@owlmeans/upload": "^0.1.22-rc.0",
+      },
+      "devDependencies": {
+        "@owlmeans/client-context": "^0.1.21",
+        "@owlmeans/client-entrypoint": "^0.1.21",
+        "@owlmeans/dep-config": "^0.1.21",
+        "@owlmeans/file-streams": "^0.1.22-rc.0",
+        "@owlmeans/server-api": "^0.1.21",
+        "@owlmeans/server-context": "^0.1.21",
+        "@owlmeans/server-upload": "^0.1.22-rc.0",
+        "@owlmeans/static-resource": "^0.1.21",
+        "@types/bun": "^1.4.4",
+        "@types/node": "^26.6.5",
+        "nodemon": "^3.1.14",
+        "typescript": "^7.0.2",
+      },
+    },
     "packages/client-wl": {
       "name": "@owlmeans/client-wl",
       "version": "0.1.21",
@@ -965,21 +990,41 @@
         "typescript": "^7.0.2",
       },
     },
+    "packages/file-inspector": {
+      "name": "@owlmeans/file-inspector",
+      "version": "0.1.22-rc.0",
+      "dependencies": {
+        "@file-type/cfbf": "^0.2.2",
+        "@file-type/xml": "^1.2.0",
+        "@owlmeans/error": "^0.1.21",
+        "@owlmeans/log": "^0.1.21",
+        "@owlmeans/storage-common": "^0.1.21",
+        "file-type": "^22.2.0",
+        "strtok3": "^10.7.0",
+      },
+      "devDependencies": {
+        "@owlmeans/dep-config": "^0.1.21",
+        "@types/bun": "^1.4.4",
+        "@types/node": "^26.6.5",
+        "@types/yazl": "^3.3.1",
+        "nodemon": "^3.1.14",
+        "tar-stream": "^3.2.2",
+        "typescript": "^7.0.2",
+        "yazl": "^3.3.1",
+      },
+    },
     "packages/file-streams": {
       "name": "@owlmeans/file-streams",
       "version": "0.1.22-rc.0",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1158.0",
-        "@file-type/cfbf": "^0.2.2",
-        "@file-type/xml": "^1.2.0",
         "@owlmeans/context": "^0.1.21",
         "@owlmeans/error": "^0.1.21",
+        "@owlmeans/file-inspector": "^0.1.22-rc.0",
         "@owlmeans/log": "^0.1.21",
         "@owlmeans/storage-common": "^0.1.21",
         "@owlmeans/storage-resource": "^0.1.22-rc.0",
-        "file-type": "^22.2.0",
         "socks": "^2.8.10",
-        "strtok3": "^10.7.0",
         "tar-stream": "^3.2.2",
         "yauzl": "^3.4.0",
         "yazl": "^3.3.1",
@@ -987,8 +1032,8 @@
       "devDependencies": {
         "@owlmeans/dep-config": "^0.1.21",
         "@owlmeans/server-context": "^0.1.21",
-        "@owlmeans/test": "^0.1.21",
-        "@owlmeans/test-integration": "^0.1.21",
+        "@owlmeans/test": "^0.1.22-rc.0",
+        "@owlmeans/test-integration": "^0.1.22-rc.0",
         "@types/bun": "^1.4.4",
         "@types/node": "^26.6.5",
         "@types/yauzl": "^3.4.0",
@@ -1099,12 +1144,14 @@
       "version": "0.1.22-rc.0",
       "dependencies": {
         "@anthropic-ai/sdk": "^1.3.0",
+        "@noble/hashes": "^2.4.0",
         "@owlmeans/basic-ids": "^0.1.21",
         "@owlmeans/context": "^0.1.21",
         "@owlmeans/error": "^0.1.21",
         "@owlmeans/llm-common": "^0.1.21",
         "@owlmeans/log": "^0.1.21",
         "ajv": "^8.20.0",
+        "gpt-tokenizer": "^4.1.0",
       },
       "devDependencies": {
         "@langchain/anthropic": "^1.6.0",
@@ -1808,8 +1855,11 @@
         "pino-pretty": "^13.2.0",
       },
       "devDependencies": {
+        "@owlmeans/client-context": "^0.1.21",
+        "@owlmeans/client-entrypoint": "^0.1.21",
         "@owlmeans/dep-config": "^0.1.21",
         "@owlmeans/resource": "^0.1.21",
+        "@owlmeans/test-auth": "^0.1.21",
         "@types/bun": "^1.4.4",
         "@types/node": "^26.6.5",
         "nodemon": "^3.1.14",
@@ -2414,6 +2464,37 @@
         "fastify": "*",
       },
     },
+    "packages/server-upload": {
+      "name": "@owlmeans/server-upload",
+      "version": "0.1.22-rc.0",
+      "dependencies": {
+        "@owlmeans/auth-common": "^0.1.21",
+        "@owlmeans/context": "^0.1.21",
+        "@owlmeans/entrypoint": "^0.1.21",
+        "@owlmeans/file-inspector": "^0.1.22-rc.0",
+        "@owlmeans/file-streams": "^0.1.22-rc.0",
+        "@owlmeans/log": "^0.1.21",
+        "@owlmeans/resource": "^0.1.21",
+        "@owlmeans/server-api": "^0.1.21",
+        "@owlmeans/server-entrypoint": "^0.1.21",
+        "@owlmeans/storage-common": "^0.1.21",
+        "@owlmeans/upload": "^0.1.22-rc.0",
+      },
+      "devDependencies": {
+        "@owlmeans/api": "^0.1.21",
+        "@owlmeans/client-context": "^0.1.21",
+        "@owlmeans/client-entrypoint": "^0.1.21",
+        "@owlmeans/dep-config": "^0.1.21",
+        "@owlmeans/route": "^0.1.21",
+        "@owlmeans/server-context": "^0.1.21",
+        "@owlmeans/static-resource": "^0.1.21",
+        "@owlmeans/test-auth": "^0.1.21",
+        "@types/bun": "^1.4.4",
+        "@types/node": "^26.6.5",
+        "nodemon": "^3.1.14",
+        "typescript": "^7.0.2",
+      },
+    },
     "packages/server-wl": {
       "name": "@owlmeans/server-wl",
       "version": "0.1.21",
@@ -2482,6 +2563,7 @@
       },
       "devDependencies": {
         "@owlmeans/dep-config": "^0.1.21",
+        "@types/bun": "^1.4.4",
         "nodemon": "^3.1.14",
         "typescript": "^7.0.2",
       },
@@ -2496,6 +2578,7 @@
         "@aws-sdk/client-s3": "^3.1158.0",
         "@owlmeans/context": "^0.1.21",
         "@owlmeans/error": "^0.1.21",
+        "@owlmeans/file-inspector": "^0.1.22-rc.0",
         "@owlmeans/log": "^0.1.21",
         "@owlmeans/resource": "^0.1.21",
         "@owlmeans/server-context": "^0.1.21",
@@ -2504,8 +2587,8 @@
       },
       "devDependencies": {
         "@owlmeans/dep-config": "^0.1.21",
-        "@owlmeans/test": "^0.1.21",
-        "@owlmeans/test-integration": "^0.1.21",
+        "@owlmeans/test": "^0.1.22-rc.0",
+        "@owlmeans/test-integration": "^0.1.22-rc.0",
         "@types/bun": "^1.4.4",
         "@types/node": "^26.6.5",
         "nodemon": "^3.1.14",
@@ -2594,6 +2677,27 @@
         "react-dom",
       ],
     },
+    "packages/upload": {
+      "name": "@owlmeans/upload",
+      "version": "0.1.22-rc.0",
+      "dependencies": {
+        "@owlmeans/entrypoint": "^0.1.21",
+        "@owlmeans/error": "^0.1.21",
+        "@owlmeans/file-inspector": "^0.1.22-rc.0",
+        "@owlmeans/route": "^0.1.21",
+      },
+      "devDependencies": {
+        "@owlmeans/dep-config": "^0.1.21",
+        "@types/bun": "^1.4.4",
+        "ajv": "^8.20.0",
+        "ajv-formats": "^3.0.1",
+        "nodemon": "^3.1.14",
+        "typescript": "^7.0.2",
+      },
+      "peerDependencies": {
+        "ajv": "*",
+      },
+    },
     "packages/viable-common": {
       "name": "@owlmeans/viable-common",
       "version": "0.1.21",
@@ -2611,6 +2715,7 @@
         "@owlmeans/planning": "^0.1.21",
         "@owlmeans/resource": "^0.1.21",
         "@owlmeans/route": "^0.1.21",
+        "@owlmeans/upload": "^0.1.22-rc.0",
       },
       "devDependencies": {
         "@langchain/core": "^1.3.1",
@@ -2647,6 +2752,7 @@
         "@owlmeans/client-context": "^0.1.21",
         "@owlmeans/client-entrypoint": "^0.1.21",
         "@owlmeans/client-planning": "^0.1.21",
+        "@owlmeans/client-upload": "^0.1.22-rc.0",
         "@owlmeans/config": "^0.1.21",
         "@owlmeans/context": "^0.1.21",
         "@owlmeans/entrypoint": "^0.1.21",
@@ -2654,6 +2760,7 @@
         "@owlmeans/planning": "^0.1.21",
         "@owlmeans/route": "^0.1.21",
         "@owlmeans/socket": "^0.1.21",
+        "@owlmeans/upload": "^0.1.22-rc.0",
         "@owlmeans/viable-common": "^0.1.21",
         "ajv": "^8.20.0",
         "fs-extra": "^11.4.1",
@@ -3379,6 +3486,55 @@
         "react-router": "^8.5.1",
       },
     },
+    "packages/web-upload": {
+      "name": "@owlmeans/web-upload",
+      "version": "0.1.22-rc.0",
+      "dependencies": {
+        "@owlmeans/client": "^0.1.21",
+        "@owlmeans/client-i18n": "^0.1.21",
+        "@owlmeans/client-upload": "^0.1.22-rc.0",
+        "@owlmeans/context": "^0.1.21",
+        "@owlmeans/i18n": "^0.1.21",
+        "@owlmeans/log": "^0.1.21",
+        "@owlmeans/upload": "^0.1.22-rc.0",
+      },
+      "devDependencies": {
+        "@owlmeans/client-context": "^0.1.21",
+        "@owlmeans/client-entrypoint": "^0.1.21",
+        "@owlmeans/dep-config": "^0.1.21",
+        "@owlmeans/file-streams": "^0.1.22-rc.0",
+        "@owlmeans/server-api": "^0.1.21",
+        "@owlmeans/server-context": "^0.1.21",
+        "@owlmeans/server-upload": "^0.1.22-rc.0",
+        "@owlmeans/static-resource": "^0.1.21",
+        "@owlmeans/test-ui": "^0.1.21",
+        "@tailwindcss/vite": "^4.3.3",
+        "@types/bun": "^1.4.4",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@vitejs/plugin-react": "^6.1.2",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "lucide-react": "^1.71.0",
+        "nodemon": "^3.1.14",
+        "playwright": "^1.64.1",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1",
+        "tailwind-merge": "^3.7.0",
+        "tailwindcss": "^4.3.3",
+        "typescript": "^7.0.2",
+        "vite": "^8.3.5",
+      },
+      "peerDependencies": {
+        "class-variance-authority": "*",
+        "clsx": "*",
+        "lucide-react": "*",
+        "react": "*",
+        "react-dom": "*",
+        "tailwind-merge": "*",
+        "tailwindcss": "*",
+      },
+    },
     "packages/web-wl": {
       "name": "@owlmeans/web-wl",
       "version": "0.1.21",
@@ -3741,6 +3897,8 @@
 
     "@owlmeans/client-socket": ["@owlmeans/client-socket@workspace:packages/client-socket"],
 
+    "@owlmeans/client-upload": ["@owlmeans/client-upload@workspace:packages/client-upload"],
+
     "@owlmeans/client-wl": ["@owlmeans/client-wl@workspace:packages/client-wl"],
 
     "@owlmeans/common-inquiry": ["@owlmeans/common-inquiry@workspace:packages/common-inquiry"],
@@ -3760,6 +3918,8 @@
     "@owlmeans/entrypoint": ["@owlmeans/entrypoint@workspace:packages/entrypoint"],
 
     "@owlmeans/error": ["@owlmeans/error@workspace:packages/error"],
+
+    "@owlmeans/file-inspector": ["@owlmeans/file-inspector@workspace:packages/file-inspector"],
 
     "@owlmeans/file-streams": ["@owlmeans/file-streams@workspace:packages/file-streams"],
 
@@ -3879,6 +4039,8 @@
 
     "@owlmeans/server-socket": ["@owlmeans/server-socket@workspace:packages/server-socket"],
 
+    "@owlmeans/server-upload": ["@owlmeans/server-upload@workspace:packages/server-upload"],
+
     "@owlmeans/server-wl": ["@owlmeans/server-wl@workspace:packages/server-wl"],
 
     "@owlmeans/socket": ["@owlmeans/socket@workspace:packages/socket"],
@@ -3898,6 +4060,8 @@
     "@owlmeans/test-integration": ["@owlmeans/test-integration@workspace:packages/test-integration"],
 
     "@owlmeans/test-ui": ["@owlmeans/test-ui@workspace:packages/test-ui"],
+
+    "@owlmeans/upload": ["@owlmeans/upload@workspace:packages/upload"],
 
     "@owlmeans/viable-common": ["@owlmeans/viable-common@workspace:packages/viable-common"],
 
@@ -3944,6 +4108,8 @@
     "@owlmeans/web-router": ["@owlmeans/web-router@workspace:packages/web-router"],
 
     "@owlmeans/web-router-react-router": ["@owlmeans/web-router-react-router@workspace:packages/web-router-react-router"],
+
+    "@owlmeans/web-upload": ["@owlmeans/web-upload@workspace:packages/web-upload"],
 
     "@owlmeans/web-wl": ["@owlmeans/web-wl@workspace:packages/web-wl"],
 
@@ -4562,6 +4728,8 @@
     "globby": ["globby@16.2.4", "", { "dependencies": { "@sindresorhus/merge-streams": "^4.0.0", "fast-glob": "^3.3.3", "ignore": "^7.0.5", "is-path-inside": "^4.0.0", "micromatch": "^4.0.8", "slash": "^5.1.0", "unicorn-magic": "^0.4.0" } }, "sha512-c8B/VNLmxRcmqqenRA9t+9IyOjf9+V6lTxPaUJLqOCONdQkWZ0ETYgX0qbtJqPsgCNusT9MZ5Jeidw8Eb9tn2g=="],
 
     "gopd": ["gopd@1.2.0", "", {}, "sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg=="],
+
+    "gpt-tokenizer": ["gpt-tokenizer@4.1.0", "", {}, "sha512-r7Op7S3iPy9vGpcfHmfIlLN/+/mNL2kXDy3N/ppp2xC2pm57pyYTt3fqsncMZ/yfIT+d3mTGhd7H6fcF/qiqWg=="],
 
     "graceful-fs": ["graceful-fs@4.2.11", "", {}, "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="],
 

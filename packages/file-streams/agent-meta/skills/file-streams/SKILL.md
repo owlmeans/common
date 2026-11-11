@@ -1,6 +1,6 @@
 ---
 name: file-streams
-description: "How to use @owlmeans/file-streams — online files as Node streams: URL downloads under a connect-time SSRF policy, HTTP and SOCKS proxy plugins (a list or a callback by key and URL), the Google Drive resolver, S3 buckets addressed exactly like storage-resource, folders, buffers and Viable ephemeral workloads; zip/tar/tar.gz/gz with traversal and bomb guards; file-type verification (office, pdf, csv, media, images, source code) from a head or a few range reads. Auto-invoked when downloading a file, moving bytes between HTTP, S3, disk and a workload, extracting or packing an archive, checking that a file is what it claims, or configuring outbound proxies."
+description: "How to use @owlmeans/file-streams — online files as Node streams: URL downloads under a connect-time SSRF policy, HTTP and SOCKS proxy plugins (a list or a callback by key and URL), the Google Drive resolver, S3 buckets addressed exactly like storage-resource (with prefix listing and removal), folders, buffers and Viable ephemeral workloads (writes and reads); scoped temporary workspaces nested by organization/project/purpose and mirrored to a bucket for restore after a restart; zip/tar/tar.gz/gz with traversal and bomb guards; file-type verification (office, pdf, csv, media, images, source code) from a head or a few range reads. Auto-invoked when downloading a file, moving bytes between HTTP, S3, disk and a workload, keeping uploaded files in a service tmp folder backed by S3, extracting or packing an archive, checking that a file is what it claims, or configuring outbound proxies."
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -22,18 +22,21 @@ iterable or a `Uint8Array` is accepted where a source is built.
 | `httpClient` / `createHttpClient(opts)` | Requests under the network policy, through proxies, redirects and resolvers; `.source(url)` is a re-openable, Range-capable source |
 | `createFileSource`, `createBufferSource`, `createStreamSource` | A file on disk, bytes in memory (a screenshot), a stream opened elsewhere (one-shot) |
 | `createFileSink`, `createDirectorySink`, `createBufferSink` | Atomic file write, a confined directory tree, an in-memory collector |
-| `createS3Bucket(entry or model, opts)` | A `cfg.storageBuckets` entry as `source`, `sink`, `tree`, `head`, `remove`, `instanceOf` |
-| `makeWorkloadSink(writer, { root })` | A Viable ephemeral workload as a tree, through its `writeBinaryFile` port |
+| `createS3Bucket(entry or model, opts)` | A `cfg.storageBuckets` entry as `source`, `sink`, `tree`, `head`, `remove`, `list`, `removePrefix`, `instanceOf` |
+| `makeWorkloadSink(writer, { root })` / `makeWorkloadSource(reader, { root })` | A Viable ephemeral workload as a tree, through its `writeBinaryFile` port; its files as sources, through `readBinaryFile` |
+| `createWorkspace({ root?, dirMode?, fileMode? })` | A service's temporary files, one confined folder per `FileScope` (`scope`, `scopes`, `prune`) |
+| `createBackedWorkspace({ workspace, bucket, prefix? })` | Scopes mirrored to a bucket under the same nesting: `put`, `restore`, `list`, `remove`, `evict`, `drop` |
+| `fileScopeHelper`, `FileScope`, `FileScopeSchema`, `FileScopeError` | Re-exported from `@owlmeans/storage-common`: the `<organization>/<project?>/<purpose>` nesting |
 | `transferHelper.copy(source, sink, opts)` / `.copyInto(source, tree, opts)` | One file moved under limits, its head verified before the sink sees a byte |
-| `fileInspector.probe(source)` / `.inspect(bytes, claims)` / `.enforce(verdict, policy)` | What a file really is, against what it claims |
+| `fileInspector.probe(source)` / `.inspect(bytes, claims)` / `.enforce(verdict, policy)` | What a file really is, against what it claims — re-exported from `@owlmeans/file-inspector` |
 | `archiveHelper.extract / list / pack / gzip / gunzip / detect` | zip, tar, tar.gz and gz, detected from bytes |
 | `createProxyRouter`, `createHttpProxyPlugin`, `createSocksProxyPlugin` | Proxy selection and the built-in protocol plugins |
 | `createGoogleDriveResolver(opts)` / `googleDriveResolver` | Drive and Docs links to the bytes behind them (on by default in `createHttpClient`) |
 | `createNetworkPolicy(opts)` | What may be reached; every connection goes through it |
 | `appendFileStreamsService(ctx, alias?, opts?)` | The objects configured from `cfg.fileStreams` and `cfg.storageBuckets` |
-| `FileKind`, `ArchiveFormat`, `WORKLOAD_MAX_FILE_BYTES` | Enums and ceilings |
+| `FileKind`, `ArchiveFormat`, `WORKLOAD_MAX_FILE_BYTES`, `S3_DELETE_BATCH_SIZE`, `WORKSPACE_SCOPE_MARKER` | Enums, ceilings, the reserved marker name |
 | `NetworkPolicyError`, `HttpError` (`.status`), `ProxyError`, `LimitError`, `SourceError`, `PathError`, `ArchiveError`, `ResolverError`, `WorkloadError` | Failures, by message code (`file-streams:<area>:<reason>`) |
-| `FileMimicryError`, `FileKindError` (storage `FileTypeError`), `S3TransferError` (storage `StorageApiError`) | Type refusals and S3 failures a storage-resource catch site already handles |
+| `FileMimicryError`, `FileKindError` (storage `FileTypeError`, from file-inspector), `S3TransferError` (storage `StorageApiError`) | Type refusals and S3 failures a storage-resource catch site already handles |
 
 ## Usage
 
@@ -65,9 +68,10 @@ await pooled.request(url, { proxyKey: entityId })
 ```
 
 `copy` reads the head of the very stream it moves (no second download), verifies it, and replays
-it into the sink. Verification is on by default: a kind mismatch is refused, executable content
-under a passive claim (an image, a pdf, office, media, csv) is always refused, an inconclusive
-verdict passes unless `refuseInconclusive`; `verify: false` turns it off.
+it into the sink. Verification is on by default: a kind mismatch is refused, dangerous content (an
+executable under another claim, a script under a passive one, a PDF with active content in the head
+sample) is always refused, `verify.refuse` refuses kinds outright, an inconclusive verdict passes
+unless `refuseInconclusive`; `verify: false` turns it off.
 
 ## The Viable workload
 
@@ -86,43 +90,26 @@ base64 limit); `maxFileBytes` lowers it, and an oversized file is refused before
 (`WorkloadError('too-large')`). Larger files need a product route (chunked writes, or the workload
 pulling a URL itself — it has public egress and can run this package).
 
-## Network policy and proxies
+Reads go the other way through `makeWorkloadSource(reader, { root })` (`readBinaryFile`, same
+ceiling): the [workspaces](parts/workspaces.md) part.
 
-- Loopback, private, link-local, CGNAT, multicast, reserved and documentation ranges are refused,
-  and the IPv4 inside a mapped, NAT64, 6to4 or Teredo address is checked too; internal names
-  (`localhost`, `.local`, `.internal`, `.svc`, `.cluster.local`, `.home.arpa`) are refused before DNS.
-- The check is pinned to the connect: a direct socket goes to the address just resolved and
-  checked, a proxy tunnel carries that address (TLS keeps the host name for SNI and certificates).
-  Every redirect hop is checked again; https → http is refused; `Authorization`, `Cookie`,
-  `Proxy-Authorization` and `sensitiveHeaders` never cross origins.
-- A local stand-in or an in-cluster origin needs `network: { allowCidrs: [...] }` (or
-  `allowPrivate`). S3 traffic through the SDK is not policed — its endpoint is operator config.
-- Built-in plugins: `http`/`https` endpoints (CONNECT for https targets, absolute-form forward for
-  plain http — which a proxy resolves itself, so pinning holds only through CONNECT:
-  `createHttpProxyPlugin({ httpTargets: 'connect' })`), and `socks4`/`socks4a`/`socks5`/`socks5h`.
-  Remote-DNS endpoints (`socks5h`, `socks4a`) still pre-check the name locally and are refused when
-  it does not resolve unless `trustProxyDns`.
-- Bun's own `fetch({ proxy })` speaks only http/https proxies and undici dispatchers are unreliable
-  under Bun, so the client is `node:http(s)` over a socket it connects itself — Bun 1.4.2 honours
-  the `createConnection` option, an Agent's `createConnection`, the `lookup` option and TLS over an
-  existing socket.
+## Workspaces
+
+`createWorkspace().scope({ organization, project?, purpose })` is the folder
+`<root>/<organization>/<project?>/<purpose>` (segments by `fileScopeHelper`); a backed workspace
+mirrors every scope to `<basePrefix>/<prefix?>/<scope path>/<path>` in a bucket, and the bucket is the
+authority — a pod restart loses the tmp folder, `restore()` brings the scope back. Paths are confined
+(no `..`, no absolute paths, no existing symlink from the workspace root, the marker name reserved);
+a relative `root` lives under `os.tmpdir()`. Full rules, overlap and prune semantics, prefix
+operations: the [workspaces](parts/workspaces.md) part.
 
 ## Detection
 
-`file-type` (signatures) with `@file-type/cfbf` (legacy doc/xls/ppt by the root CLSID) and
-`@file-type/xml` (svg, xhtml, kml…), then a text sniffer for what signatures cannot see: encoding,
-csv/tsv (delimiter consistency), json, html, svg without a prolog, shebang scripts and source code by
-extension. file-type misses csv, svg, text and code and reports legacy office as `cfb`; it calls a
-`<!DOCTYPE html>` page `xml`, so the sniffer's html/svg reading wins over a generic `xml`.
-
-A verdict compares the detected type with the declared one (extension of the name, URL or
-Content-Disposition, and the declared media type): `match` (containers count — docx in a zip
-claim, tar.gz in a gz claim, svg in an xml claim, code as text), `mismatch` (with reasons such as
-`html-error-page`, `binary-as-text`, `executable-content`) or `inconclusive` (`head-only`,
-`no-claim`, `unrecognized`). `details` carry the csv shape, the language, `active` (scripted
-svg/html — the S3 sink then writes `attachment`), `formatDiffers` (a png named `.jpg`) and the PDF
-trailer. Random access lets a probe seek (CFB directory sectors, zip entries behind a large stored
-one) within its budget; without it a head-only verdict on an office claim stays inconclusive.
+Verification is `@owlmeans/file-inspector` (its `file-inspector` skill: verdicts, policies, kinds,
+active PDF, probes). This package re-exports its inspector, kinds, tables, verdict types and the two
+refusals unchanged, and every source here (`FileSource`) is a file-inspector `ProbeSource` as is: a
+probe seeks through `ranges()` when the origin has them and reads the head of `open()` otherwise. The
+S3 sink takes the Content-Type from the verdict and writes `attachment` for active svg/html.
 
 ## Archives
 
@@ -145,55 +132,52 @@ entries already written.
 | Probe | 1 MiB budget · 64 KiB head sample |
 | Archives | 10 000 entries · 512 MiB per entry · 2 GiB total · ratio 200 · depth 1 |
 | S3 | 8 MiB parts (≥ 5 MiB), 2 in flight; one PutObject when the body fits a part; aborted on failure |
-| Workload | 12 MiB per file (`WORKLOAD_MAX_FILE_BYTES`), one retry |
-
-## Google Drive
-
-Share links (`/file/d/<id>/…`, `open?id=`, `uc?id=`) become `drive.usercontent.google.com/download`;
-the "can't scan this file for viruses" page is followed through its own `download-form` (action must
-be a Google origin; hidden `confirm`/`uuid` carried), then the legacy `confirm=` link, then a
-`download_warning` cookie. Docs, Sheets, Slides and Drawings links become export URLs (docx, xlsx,
-pptx, png by default; csv/tsv keep the `gid`). Folders, quota pages, sign-in redirects and forms
-posting elsewhere fail as `ResolverError('google-drive:<reason>')`. The page flow is the one gdown
-documents; it is reverse-engineered, so `FILE_STREAMS_LIVE_DRIVE_URL` exercises it against Google.
+| Workload | 12 MiB per file (`WORKLOAD_MAX_FILE_BYTES`), one retry, writes and reads |
+| Workspace | `<os.tmpdir()>/owlmeans-workspace`, folders `0o700`, files `0o600` |
+| S3 prefixes | ListObjectsV2 all pages; DeleteObjects ≤ 1000 keys, checksummed by Content-MD5 |
 
 ## Service
 
 `appendFileStreamsService(ctx)` registers `file-streams`: `http()`, `transfer()`, `inspector()`,
-`archives()` and `bucket(configKey)`, built lazily from `cfg.fileStreams`
-(`limits`, `network`, `proxies: [{ url, username?, password? }]`, `proxyStrategy`, `userAgent`) and
-`cfg.storageBuckets`. Proxy entries are objects so a server context resolves their secret-file
-leaves; callbacks and plugins come through the options argument.
+`archives()`, `bucket(configKey)`, `workspace()` and `backed(configKey, { prefix? })` (one object per
+key and prefix, over the configured workspace and transfer helper), built lazily from
+`cfg.fileStreams` (`limits`, `network`, `proxies: [{ url, username?, password? }]`, `proxyStrategy`,
+`userAgent`, `workspace: { root?, dirMode?, fileMode? }`) and `cfg.storageBuckets`. Proxy entries are
+objects so a server context resolves their secret-file leaves; callbacks and plugins come through the
+options argument. A server context reads EVERY string leaf starting with `/` as a file, so
+`workspace.root` is given relative to `os.tmpdir()` (or as a file holding an absolute path).
 
 ## External docs
 
-- https://www.npmjs.com/package/file-type — v22: signature detection only (no csv/svg/text/code, legacy office as `cfb`); web-stream APIs; `fileTypeFromTokenizer` reads random-access tokenizers; one `FileTypeParser` per call (not concurrency-safe); `maxBufferSize` bounds detector reads
-- https://github.com/Borewit/file-type-cfbf — `detectCfbf` names doc/xls/ppt/msi/vsd/pub/wps by the root entry's CLSID (needs the first directory sector reachable)
-- https://github.com/Borewit/file-type-xml — `createXmlDetector({ sampleSize })`: svg, xhtml, kml, rss and generic xml from a bounded sample
-- https://bun.com/docs/runtime/networking/fetch — Bun `fetch({ proxy })` accepts http/https proxy URLs only (no SOCKS) (Bun 1.4)
-- https://undici.nodejs.org/api/Socks5ProxyAgent — undici's SOCKS5 agent is experimental; dispatchers are not relied on under Bun
 - https://github.com/thejoshwolfe/yauzl — central-directory zip reading, `fromRandomAccessReader` (override `read` and `_readStreamForRange`), `validateEntrySizes`, automatic `validateFileName` (v3)
 - https://github.com/mafintosh/tar-stream — v3 ships streamx typings; destroying an entry destroys the extract, so entries are drained
-- https://docs.rs/modde-sources/latest/src/modde_sources/gdrive/mod.rs.html — the usercontent download host and the virus-scan form flow (`confirm`, `uuid`) public Drive downloads take; no official Google documentation exists for it
 
 ## Tests
 
 Category C. Offline specs run against local stand-ins (`tests/harness/`: an origin with Range,
 redirects and stalls, a CONNECT/forward proxy, a SOCKS5 server, a fake Drive, a workload
-`/command/` receiver with the real limits) and code-built fixtures; `s3.spec.ts` needs the S3 gate
-(path-style for a non-AWS endpoint, objects under a random prefix, deleted after); `live.spec.ts`
-needs `FILE_STREAMS_LIVE=1` (and `FILE_STREAMS_LIVE_DRIVE_URL`).
+`/command/` receiver answering `writeBinaryFile` and `readBinaryFile` with the real limits) and
+code-built fixtures; `workspace.spec.ts` runs offline over a temporary root; `s3.spec.ts` and
+`backed.spec.ts` need the S3 gate (path-style for a non-AWS endpoint, objects under a random base
+prefix, deleted after); `live.spec.ts` needs `FILE_STREAMS_LIVE=1` (and `FILE_STREAMS_LIVE_DRIVE_URL`).
 
 ## Depends On
 
-- `@owlmeans/storage-resource` (the bucket model), `@owlmeans/storage-common` (errors, instances),
-  `@owlmeans/context`, `@owlmeans/error`, `@owlmeans/log`
-- `@aws-sdk/client-s3`, `file-type`, `@file-type/cfbf`, `@file-type/xml`, `strtok3` (one copy with
-  file-type's — its `instanceof EndOfStreamError` checks break on a second), `socks`, `tar-stream`,
-  `yauzl`, `yazl`
+- `@owlmeans/file-inspector` (detection, re-exported), `@owlmeans/storage-resource` (the bucket
+  model), `@owlmeans/storage-common` (errors, instances), `@owlmeans/context`, `@owlmeans/error`,
+  `@owlmeans/log`
+- `@aws-sdk/client-s3`, `socks`, `tar-stream`, `yauzl`, `yazl`
 
 ## Related
 
+- [[file-inspector]] — what a file is: verdicts, policies, kinds, active PDF, safe names
 - [[storage-resource]] — the upload resource and the bucket model
-- [[storage-common]] — stored-file types and errors
+- [[storage-common]] — stored-file types and errors, `FileScope` and `fileScopeHelper`
 - [[logging]] — scopes `file-streams:<area>`; URLs are logged redacted, contents never
+
+## Parts
+
+| Part | Load it when |
+|---|---|
+| [network](parts/network.md) | changing what may be reached, routing through proxies, or downloading Google Drive and Docs links |
+| [workspaces](parts/workspaces.md) | keeping files in a service tmp folder by scope, mirroring them to a bucket, restoring after a restart, listing or deleting a bucket prefix, or reading files back from a workload |

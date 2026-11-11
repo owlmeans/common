@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "package": "@owlmeans/agent",
   "version": "0.1.21",
-  "generatedAt": "2026-11-05T11:16:21.543Z",
+  "generatedAt": "2026-11-10T17:39:44.218Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -28,6 +28,22 @@
             "DEFAULT_RESULT_SUMMARY_SCHEMA",
             "ctx.results",
             "withResults"
+          ]
+        },
+        {
+          "name": "media",
+          "file": "skills/agent/parts/media.md",
+          "description": "Images and PDFs in an agent run — the opening that carries mediaHelper parts, the rung that answers it (a blind primary hands the run to a seeing fallback), refusal before any request, per-round rendering ahead of the cache marks, redacted traces, and why a tool result is always text.",
+          "purposes": [
+            "agent"
+          ],
+          "mentions": [
+            "mediaHelper",
+            "LlmMediaUnsupportedError",
+            "LlmMediaLimitError",
+            "capabilityHelper",
+            "vision",
+            "documents"
           ]
         },
         {
@@ -64,7 +80,11 @@
             "test"
           ],
           "mentions": [
-            "FakeStreamingChatModel"
+            "FakeStreamingChatModel",
+            "OPENAI_SECRET",
+            "ANTHROPIC_SECRET",
+            "media.spec.ts",
+            "media-live.spec.ts"
           ]
         }
       ]

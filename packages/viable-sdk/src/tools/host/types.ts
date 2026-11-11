@@ -31,4 +31,15 @@ export interface ToolHostHelper {
    * and so is the handover a blocked tool answers with.
    */
   performsModelTasks: (host: ToolHost) => boolean
+  /**
+   * Whether this host runs on the user's machine and may read its files — the stdio connector in
+   * either target. The URL-configured host has no disk of its own.
+   */
+  readsDisk: (host: ToolHost) => boolean
+  /**
+   * Whether this host may send files from the user's machine into a NEW project (its materials):
+   * a host that reads the disk — but never a project developed fully locally with the parent's own
+   * models (target `local` AND llm `local`), whose files the parent agent already holds.
+   */
+  uploadsMaterials: (host: ToolHost) => boolean
 }

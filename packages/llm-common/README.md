@@ -69,13 +69,19 @@ export interface MyExecutionState extends ExecutionState {
 | `StructuredMode` | `Native` (provider JSON-schema mode) vs `Tool` (forced tool call). |
 | `SpectatorContentType` | `Text` · `Json` · `ToolCall`. |
 | `SPECTATOR_GENERAL` | Default entry kind for consumers that do not classify calls. |
+| `MediaKind` | `Image` · `Document` · `Audio` · `Video` · `File` — what a binary content part is. |
+| `MEDIA_IMAGE_TYPES`, `MEDIA_DOCUMENT_TYPES` | The image types (png, jpeg, gif, webp) and document type (PDF) every built-in provider accepts. |
+| `MEDIA_LIMITS` | Per-part limits in raw bytes and pixels: image 7 500 000 bytes and 8000 px, PDF 50 000 000 bytes. |
 
 ### Types
 
 | Export | Description |
 |--------|-------------|
 | `ModelRole` | Open `string`. Declare your own enum; its values stay assignable. |
-| `ModelConfigPatch` | JSON-safe subset of a runtime model config — never credentials. |
+| `ModelConfigPatch` | JSON-safe subset of a runtime model config — never credentials; includes the `vision` / `documents` capability flags. |
+| `ModelCapabilities`, `RungCapabilities`, `MediaNeeds` | What a resolved model accepts, rung by rung, and what a call's content needs. |
+| `MediaPlaceholder` | `{ type, mime, bytes, sha256 }` — what a trace stores in place of a binary part. |
+| `MediaLimits`, `MediaRequestLimits` | Per-part and per-request media limit shapes. |
 | `ModelConfigOverride` | `string` (a config alias) or a `ModelConfigPatch`. |
 | `ModelPolicy` | `{ effort, roleOverrides?, modelOverrides? }` — inherited by every refinement. |
 | `ExecutionState` | `{ level, purpose, policy }` — the persistable core. |

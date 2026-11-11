@@ -92,15 +92,15 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 | Server | `server-*`, `captcha` |
 | Client (platform-agnostic) | `client-*` (`client-iam` and `client-auth` pull in the web layer) |
 | Web | `web-*` (incl. `web-log`), `astro`; LEGACY `mui-panel`, `mui-oidc-rp` (maintain only) |
-| Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource`, `file-streams` |
+| Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource`, `file-inspector`, `file-streams` |
 | AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `bot-agent`, `llm-reader`, `llm-reader-playwright`, `viable-common`, `viable-log`, `viable-sdk` |
 | Mail | `mailer`, `mailer-smtp`, `server-mailer-mailgun` |
-| Domain | `oidc`, `iam`, `payment`, `consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `planning`, `planning-auth`, `bot` |
+| Domain | `oidc`, `iam`, `payment`, `consent`, `marketing-consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `job`, `planning`, `planning-auth`, `bot`, `upload` |
 | Not framework | `_tpl`, `test`, `test-auth`, `test-integration`, `test-ui` |
 
 ## Key Facts
 
-- 142 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
+- 147 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
 - ESM only, output in `build/`; TypeScript `^7.0.2` (`/tsconfig`, `/bun`).
 - Versions are per package and deliberately uneven — never resynchronise (`/versions`, `/publishing`).
 - React is a peer dependency; crypto via `@noble/*` + `@scure/*`; validation via AJV + ajv-formats.
@@ -147,6 +147,7 @@ topic or `/<name>`. Every package has its own skill `/<package-name>` (`owlmeans
 - `/queue` — jobs and queues (`/redis-queue`, `/server-job`, `/client-job`, `/scheduled-jobs`)
 - `/resource-choice` — at design time, before registering a resource or declaring a job
 - `/entitlements` — plans, limits and gates (`/payment`, `/server-payment`, `/client-payment`, `/web-payment`)
+- `/upload` — file and folder uploads (`/server-upload`, `/client-upload`, `/web-upload`); byte-level file checks `/file-inspector`
 - `/llm-prompt-caching` — before changing anything sent ahead of a request's first per-call byte
 - `/inquiry` — before adding a way for a run to ask a person
 - `/supervisor-auth` — e2e tests needing a supervisor login

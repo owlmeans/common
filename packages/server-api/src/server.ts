@@ -4,13 +4,14 @@ import { assertContext, createService } from '@owlmeans/context'
 import { canServeModule, payloadHelper, createServerHandler, fixFormatDates } from './utils/index.js'
 import { DEFAULT_ALIAS, CLOSED_HOST, PORT, OPENED_HOST } from './consts.js'
 import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
-import { RouteMethod } from '@owlmeans/route'
+import { RouteMethod, streamBodyOf } from '@owlmeans/route'
 import { provideResponse } from '@owlmeans/entrypoint'
 import { TOKEN_UPDATE } from '@owlmeans/auth-common'
 import { INCIDENT_ID_HEADER } from './utils/consts.js'
 import { DENIAL_KIND_HEADER } from '@owlmeans/api'
 import { logger } from '@owlmeans/log'
 import { fastifyLogUtils } from './utils/log.js'
+import { streamBodyUtils } from './utils/stream.js'
 
 import Fastify from 'fastify'
 import type { FastifyRequest } from 'fastify'
@@ -159,38 +160,54 @@ export const createApiServer = (alias: string): ApiServer => {
       }, Promise.resolve(context))
     })
 
-    context.entrypoints<ServerEntrypoint<FastifyRequest>>()
-      .filter(module => canServeModule(context, module) && !module.route.isIntermediate())
-      .forEach(module => {
-        const method = module.route.route.method ?? RouteMethod.GET
-        if (module.handle == null) {
-          return
-        }
-        server.route({
-          url: module.mount(), method,
+    for (const module of context.entrypoints<ServerEntrypoint<FastifyRequest>>()
+      .filter(module => canServeModule(context, module) && !module.route.isIntermediate())) {
+      const method = module.route.route.method ?? RouteMethod.GET
+      if (module.handle == null) {
+        continue
+      }
+      // A streamed body is served in a scope of its own: its parser hands the handler the request
+      // stream, and nothing about it reaches the routes below (`utils/stream.ts`).
+      const streamed = streamBodyOf(module.route.route)
+      if (streamed != null) {
+        await streamBodyUtils.register(server, {
+          alias: module.alias, url: module.mount(), method, body: streamed,
           schema: {
-            consumes: [
-              'application/json',
-              'application/x-www-form-urlencoded',
-              'multipart/form-data',
-            ],
+            consumes: [...streamed.types],
             querystring: fixFormatDates(module.filter?.query ?? {}),
-            ...(
-              [
-                RouteMethod.POST,
-                RouteMethod.PATCH,
-                RouteMethod.PUT
-              ].includes(method)
-                ? { body: fixFormatDates(module.filter?.body ?? {}) }
-                : {}
-            ),
             params: fixFormatDates(module.filter?.params ?? {}),
             response: module.filter?.response,
             headers: fixFormatDates(module.filter?.headers ?? {})
           },
-          handler: createServerHandler(module, location)
+          handler: createServerHandler(module, location),
         })
+        continue
+      }
+      server.route({
+        url: module.mount(), method,
+        schema: {
+          consumes: [
+            'application/json',
+            'application/x-www-form-urlencoded',
+            'multipart/form-data',
+          ],
+          querystring: fixFormatDates(module.filter?.query ?? {}),
+          ...(
+            [
+              RouteMethod.POST,
+              RouteMethod.PATCH,
+              RouteMethod.PUT
+            ].includes(method)
+              ? { body: fixFormatDates(module.filter?.body ?? {}) }
+              : {}
+          ),
+          params: fixFormatDates(module.filter?.params ?? {}),
+          response: module.filter?.response,
+          headers: fixFormatDates(module.filter?.headers ?? {})
+        },
+        handler: createServerHandler(module, location)
       })
+    }
 
     service.initialized = true
   })

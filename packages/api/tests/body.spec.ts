@@ -3,6 +3,7 @@ import { provideResponse, type AbstractRequest } from '@owlmeans/entrypoint'
 import { RouteMethod } from '@owlmeans/route'
 import { createApiService } from '../src/service.js'
 import { bodyUtils } from '../src/utils/body.js'
+import { Readable } from 'node:stream'
 
 const STRING = { type: 'string' }
 
@@ -54,6 +55,35 @@ describe('what a request body becomes', () => {
     expect(bodyUtils.isJsonContentType('application/vnd.api+json')).toBe(true)
     expect(bodyUtils.isJsonContentType('application/jsonp')).toBe(false)
     expect(bodyUtils.isJsonContentType('text/plain')).toBe(false)
+  })
+})
+
+describe('a binary body', () => {
+  test('bytes, a Blob and a Node stream are binary; JSON values are not', () => {
+    for (const body of [new ArrayBuffer(2), new Uint8Array(2), Buffer.from('a'), new Blob(['a']), Readable.from([])]) {
+      expect(bodyUtils.isBinaryBody(body)).toBe(true)
+    }
+    for (const body of [{ a: 1 }, [1], 'abc', 5, null, undefined]) {
+      expect(bodyUtils.isBinaryBody(body)).toBe(false)
+    }
+  })
+
+  test('it goes as is under octet-stream, the route\'s declared type or the caller\'s own', () => {
+    const bytes = Buffer.from('abc')
+    expect(bodyUtils.binaryBodyOf(bytes, {})).toEqual({ data: bytes, contentType: 'application/octet-stream', verbatim: true, binary: true })
+    expect(bodyUtils.binaryBodyOf(bytes, {}, 'application/pdf').contentType).toBe('application/pdf')
+    const own = bodyUtils.binaryBodyOf(bytes, { 'Content-Type': 'image/png' }, 'application/pdf')
+    expect(own.contentType).toBeUndefined()
+    expect(own.data).toBe(bytes)
+  })
+
+  test('a typed-array view is narrowed to its own bytes and a Blob re-typed', async () => {
+    const view = new Uint8Array([1, 2, 3, 4, 5]).subarray(1, 3)
+    expect([...(bodyUtils.binaryBodyOf(view, {}).data as Uint8Array)]).toEqual([2, 3])
+
+    const blob = bodyUtils.binaryBodyOf(new Blob(['xyz'], { type: 'image/png' }), {}).data as Blob
+    expect(blob.type).toBe('application/octet-stream')
+    expect(await blob.text()).toBe('xyz')
   })
 })
 

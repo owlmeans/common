@@ -1,4 +1,5 @@
 import { AgentStopScope, ConnectFeedDetail, IamGrantMode, ModerationCategory, StoryBatchOutcome, WorkloadKind } from '@owlmeans/viable-common'
+import type { MaterialOutcomeStatus } from './materials/types.js'
 
 /** What a production body leaves of a confirmation or consent refusal (`@owlmeans/api` `ApiStatusError`). */
 export const BARE_428 = 'api:client:status:428'
@@ -270,3 +271,64 @@ export const BATCH_STALLED_WORDS = 'the story it started stopped moving and noth
 export const STORY_STOP_ROLLBACK = 'the story in progress stops at its next step, and every change made since'
   + ' that run started — edits saved in the web editor meanwhile included — is rolled back; the story returns'
   + ' to planned'
+
+/**
+ * How long `create_project_with_files` waits for its files before it answers — inside the tool
+ * deadline and the delegated handover's wait. An upload still running then goes on in this process
+ * and is sealed when its last file is in; the answer says so and names the status to read.
+ */
+export const MATERIALS_ANSWER_MS = 35_000
+
+/** Files `create_project_with_files` sends at once. */
+export const MATERIALS_UPLOAD_CONCURRENCY = 3
+
+/**
+ * Why a file was refused (an upload reason) or taken out (a removal reason), in a few words — the
+ * value itself stays in the structured part. A reason this table does not know is shown as it is.
+ */
+export const MATERIAL_REASON_PHRASES: Readonly<Record<string, string>> = Object.freeze({
+  limits: 'over the limits (50 files, 12 MiB each, 50 MiB in all)',
+  limit: 'over the limits (50 files, 12 MiB each, 50 MiB in all)',
+  'type-mismatch': 'its bytes are not what its name says',
+  dangerous: 'active content (scripts or macros) the platform does not keep',
+  'refused-kind': 'a program or a compiled binary',
+  executable: 'a program or a compiled binary',
+  'archive-invalid': 'an archive that cannot be unpacked safely',
+  'path-invalid': 'a path that escapes the upload or names a reserved place',
+  duplicate: 'a second file at the same path',
+  'prompt-injection': 'text that addresses the agent instead of describing the product',
+  unreadable: 'it could not be read on this machine',
+  empty: 'nothing to send there (an empty folder, or a link — links are never followed)',
+})
+
+/**
+ * What a project's files are doing, by the platform's upload state — said after the catalogue. A
+ * state this table does not know is shown as it is.
+ */
+export const MATERIALS_STATE_PHRASES: Readonly<Record<string, string>> = Object.freeze({
+  uploading: 'files are still arriving; the drafting starts once the upload is sealed',
+  sealed: 'the upload is sealed; the platform is about to read the files',
+  drafting: 'the platform is reading the files and drafting the project from them — project_status shows the draft',
+  drafted: 'the project was drafted from the files — read project_status, then confirm_project builds it',
+  placing: 'the files are being placed into the project\'s tree',
+  placed: 'the files are in the project\'s tree (docs/materials, and web assets under sources/web/public/assets)',
+  purged: 'the files were discarded',
+  failed: 'reading the files failed',
+})
+
+/** The order `create_project_with_files` counts and lists what became of each file in. */
+export const MATERIAL_OUTCOME_ORDER: readonly MaterialOutcomeStatus[] = Object.freeze([
+  'accepted', 'rejected', 'refused', 'failed', 'unreadable',
+])
+
+/** How each outcome is counted. */
+export const MATERIAL_OUTCOME_LABELS: Readonly<Record<MaterialOutcomeStatus, string>> = Object.freeze({
+  accepted: 'accepted',
+  rejected: 'rejected by the platform',
+  refused: 'refused before sending',
+  failed: 'failed to send',
+  unreadable: 'not readable here',
+})
+
+/** The longest description a `list_materials` line quotes. */
+export const MATERIAL_DESCRIPTION_CUT = 200

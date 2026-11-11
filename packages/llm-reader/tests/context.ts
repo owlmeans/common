@@ -19,10 +19,10 @@ export const gates = makeGates({
 
 export const reason = (gate: (typeof gates)[keyof typeof gates]): string | null => 'skip' in gate ? gate.reason : null
 
-/** The live model: Anthropic when its key is set (it also reads pictures), OpenAI otherwise. */
+/** The live model: Anthropic when its key is set, OpenAI otherwise — both declared to read pictures (`vision`). */
 export const liveConfigs = (): ModelConfig[] => process.env.ANTHROPIC_SECRET != null && process.env.ANTHROPIC_SECRET !== ''
-  ? [{ alias: DEFAULT_READER_ROLE, provider: ModelProvider.Anthropic, model: 'claude-haiku-5-5', secret: process.env.ANTHROPIC_SECRET, maxTokens: 8192, maxTokensCap: 32000 }]
-  : [{ alias: DEFAULT_READER_ROLE, provider: ModelProvider.OpenAI, model: 'gpt-5.4-mini', secret: process.env.OPENAI_SECRET!, maxTokens: 8192, maxTokensCap: 32000 }]
+  ? [{ alias: DEFAULT_READER_ROLE, provider: ModelProvider.Anthropic, model: 'claude-haiku-5-5', secret: process.env.ANTHROPIC_SECRET, maxTokens: 8192, maxTokensCap: 32000, vision: true }]
+  : [{ alias: DEFAULT_READER_ROLE, provider: ModelProvider.OpenAI, model: 'gpt-5.4-mini', secret: process.env.OPENAI_SECRET!, maxTokens: 8192, maxTokensCap: 32000, vision: true }]
 
 export const liveSkip = reason(gates.anthropic) != null && reason(gates.openai) != null
   ? `${reason(gates.anthropic)}; ${reason(gates.openai)}`

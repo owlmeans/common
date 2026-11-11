@@ -29,6 +29,25 @@ appendAgentsService(context, { conversations, plugins: [summarizePlugin({ store 
 const agent = context.agents().agent({ exec, tools })
 ```
 
+## Images and PDFs
+
+The opening may carry `@owlmeans/llm` media parts; the run is answered by the first rung of the
+model's ladder whose config declares `vision` (`documents` for a PDF), and each round is spelled in
+that provider's own form before it is cache-marked. No rung accepting the media, or a request over
+the provider's limits, is refused before the run starts.
+
+```ts
+import { HumanMessage } from '@langchain/core/messages'
+import { mediaHelper } from '@owlmeans/llm'
+
+await agent.invoke(new HumanMessage({
+  content: [mediaHelper.text('Rebuild this layout.'), mediaHelper.image(screenshot, 'image/png')],
+}))
+```
+
+A tool result is always text — a binary part a tool returns reaches the model as a placeholder. A
+tool that needs a model to see something makes its own media call and returns what it saw.
+
 ## Plugins
 
 `AgentPlugin` is the optional-capability seam: a plugin may contribute what the agent knows

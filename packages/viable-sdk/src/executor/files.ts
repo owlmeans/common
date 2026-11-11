@@ -2,12 +2,13 @@ import fs from 'fs-extra'
 import { globHelper } from './glob.js'
 import fsp from 'node:fs/promises'
 import p from 'node:path'
+import { randomUUID } from 'node:crypto'
 
-import { BINARY_PROBE_BYTES, CENSUS_MAX_ENTRIES, CENSUS_MAX_HEAD_BYTES, CONNECT_MARKER_DIR, METADATA_SUFFIXES, SOURCE_LIST_EXCLUSIONS, SubProject, type FileStat, type StatTreeResult, censusHelper } from '@owlmeans/viable-common'
+import { BINARY_PROBE_BYTES, CENSUS_MAX_ENTRIES, CENSUS_MAX_HEAD_BYTES, CONNECT_MARKER_DIR, METADATA_SUFFIXES, SLOT_BINARY_MAX_BASE64_CHARS, SLOT_BINARY_MAX_BYTES, SOURCE_LIST_EXCLUSIONS, SubProject, type FileStat, type SlotReadBinaryFileResult, type StatTreeResult, censusHelper } from '@owlmeans/viable-common'
 
 import { FileCommandRefused, SandboxPathError } from './errors.js'
 import { makeLayoutHelper } from './layout.js'
-import { WALK_SKIP } from './consts.local.js'
+import { BASE64_PAYLOAD, WALK_SKIP } from './consts.local.js'
 import type { LocalSourceFile, SourceListOptions } from './types.js'
 import type { LocalFileHelper } from './files/types.js'
 
@@ -301,6 +302,43 @@ ${present.map(path => `          "${path}"`).join(',\n')}
       const path = resolveInProject(file.path, { rootPath })
       await fs.ensureDir(p.dirname(path))
       await fs.writeFile(path, file.code)
+    },
+
+    writeBinaryFile: async (filePath: string, base64: string): Promise<void> => {
+      if (typeof base64 !== 'string' || base64.length > SLOT_BINARY_MAX_BASE64_CHARS
+        || base64.length % 4 !== 0 || !BASE64_PAYLOAD.test(base64)) {
+        throw new FileCommandRefused('Invalid binary media payload')
+      }
+      const path = resolveInProject(filePath, { rootPath })
+      await fs.ensureDir(p.dirname(path))
+      const temporary = `${path}.${randomUUID()}.tmp`
+      try {
+        await fs.writeFile(temporary, Buffer.from(base64, 'base64'), { flag: 'wx' })
+        await fs.rename(temporary, path)
+      } finally {
+        await fs.rm(temporary, { force: true })
+      }
+    },
+
+    readBinaryFile: async (filePath: string): Promise<SlotReadBinaryFileResult> => {
+      const path = resolveInProject(filePath, { rootPath })
+      // The NAME is confined above; what it resolves to is confined here. A link inside the tree
+      // that points at `~/.ssh` would otherwise hand a developer's key to whoever asked.
+      const real = await fs.realpath(path)
+      const root = await fs.realpath(p.resolve(rootPath))
+      if (real !== root && !real.startsWith(wrapWithSlashes(root))) {
+        throw new SandboxPathError(filePath)
+      }
+      const stat = await fs.stat(real)
+      if (!stat.isFile()) {
+        throw new FileCommandRefused(`readBinaryFile reads a regular file only: ${filePath}`)
+      }
+      if (stat.size > SLOT_BINARY_MAX_BYTES) {
+        throw new FileCommandRefused(`readBinaryFile refuses ${stat.size} bytes (limit ${SLOT_BINARY_MAX_BYTES}): ${filePath}`)
+      }
+      const bytes = await fs.readFile(real)
+
+      return { base64: bytes.toString('base64'), size: bytes.length }
     },
 
     deleteFile: async (filePath: string, noThrow = true): Promise<void> => {

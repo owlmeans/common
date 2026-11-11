@@ -1,3 +1,4 @@
+import type { LocalBundle } from '../fetch/bundle/types.js'
 import type { AddressGuard } from '../fetch/guard/types.js'
 import type { ProxyLease } from '../fetch/proxy/types.js'
 
@@ -24,6 +25,11 @@ export interface RenderRequest {
   screenshot?: boolean
   /** Sample computed styles, custom properties and block geometry. */
   styles?: boolean
+  /**
+   * The local bundle the page belongs to: every request under its origin is answered from the bundle,
+   * every other one still goes through `guard`. The reader sets it for a URL a bundle plugin serves.
+   */
+  bundle?: LocalBundle
 }
 
 /** Computed styles aggregated over the visible elements of one role, weighted by on-screen area. */

@@ -12,6 +12,9 @@ export * from './helpers/index.js'
 export * from './execution/index.js'
 export * from './inquiry/index.js'
 export * from './prompt/index.js'
+// Types and vocabulary only: the tokenizer itself loads from `@owlmeans/llm/tokens`.
+export type * from './tokens/budget/types.js'
+export * from './tokens/budget/consts.js'
 export type * from './plugins/types.js'
 export type * from './plugins/registry/types.js'
 export type * from './plugins/transport/types.js'
@@ -25,7 +28,7 @@ export { anthropicPlugin, anthropicSupportOf, rejectsForcedTool, rejectsSampling
 export { anthropicSupportHelper, createAnthropicSupportHelper } from './plugins/anthropic/support.js'
 export {
   ANTHROPIC_FAMILY, ANTHROPIC_MODEL_SUPPORT, NO_SAMPLING_PREFIXES, ThinkingOff, CacheBoundary, CacheDialect,
-  OPENAI_EXPLICIT_CACHE_PREFIXES,
+  OPENAI_EXPLICIT_CACHE_PREFIXES, ANTHROPIC_MEDIA_LIMITS, OPENAI_MEDIA_LIMITS, OpenAiMediaDialect,
 } from './plugins/consts.js'
 export type { AnthropicModelSupport } from './plugins/types.js'
 export { compatiblePlugin } from './plugins/compatible.js'

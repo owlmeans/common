@@ -46,8 +46,38 @@ export class HandlerMisconfiguredError extends ApiError {
   }
 }
 
+/**
+ * A streamed body (`streamBody()` route) passed its declared `maxBytes` while the handler was reading
+ * it. The stream is destroyed with it, and the request answers 413 whatever the handler threw.
+ */
+export class StreamBodyTooLargeError extends ApiError {
+  public static override typeName = 'StreamBodyTooLargeError'
+  public static httpStatus = 413
+
+  constructor(message: string = 'error') {
+    super(`stream:too-large:${message}`)
+    this.type = StreamBodyTooLargeError.typeName
+  }
+}
+
+/**
+ * A streamed body ended before it was complete — the client aborted the upload or the connection
+ * broke. The handler's stream errors with it; there is nobody left to read the answer.
+ */
+export class StreamBodyAbortedError extends ApiError {
+  public static override typeName = 'StreamBodyAbortedError'
+  public static httpStatus = 400
+
+  constructor(message: string = 'error') {
+    super(`stream:aborted:${message}`)
+    this.type = StreamBodyAbortedError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(AuthFailedError)
 ResilientError.registerErrorClass(AccessError)
 ResilientError.registerErrorClass(NoFileError)
 ResilientError.registerErrorClass(HandlerMisconfiguredError)
+ResilientError.registerErrorClass(StreamBodyTooLargeError)
+ResilientError.registerErrorClass(StreamBodyAbortedError)
 

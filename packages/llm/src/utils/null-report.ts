@@ -2,6 +2,7 @@ import { createIdOfLength } from '@owlmeans/basic-ids'
 import type { NullCapture } from '@owlmeans/llm-common'
 import { logger } from '@owlmeans/log'
 import type { LlmSpectator } from '../types.js'
+import { mediaUtils } from './media.js'
 import type { NullReportParams, RefinedKwargs } from './null-report/types.js'
 
 const log = logger('llm')
@@ -46,13 +47,14 @@ const buildNullReport = (p: NullReportParams): NullCapture => {
       topP: kwargs.topP,
     },
     request: {
-      messages: p.msgs as unknown[],
+      // Replayable, but never a payload: a binary part is its placeholder.
+      messages: p.msgs.map(msg => mediaUtils.redactMessage(msg)),
       schema: p.schema,
       useCache: p.useCache,
       ...(p.stable != null ? { stable: p.stable } : {}),
     },
     response: raw != null ? {
-      content: raw.content,
+      content: mediaUtils.redactContent(raw.content),
       additional_kwargs: raw.additional_kwargs,
       response_metadata: raw.response_metadata,
       usage_metadata: raw.usage_metadata,
@@ -116,7 +118,7 @@ export const reportNull = async (
       },
       request: p.msgs.map(msg => ({
         role: (msg as { role?: string }).role ?? 'unknown',
-        chars: typeof msg.content === 'string' ? msg.content.length : JSON.stringify(msg.content ?? '').length,
+        chars: typeof msg.content === 'string' ? msg.content.length : JSON.stringify(mediaUtils.redactContent(msg.content) ?? '').length,
       })),
       response: capture.response != null ? {
         contentChars: typeof content === 'string' ? content.length : JSON.stringify(content ?? '').length,

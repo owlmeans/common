@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TransitionAction, WorkcardKind } from '@owlmeans/planning'
-import { AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, STORY_BATCH_MAX, type StoryBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
+import { MATERIAL_PATH_MAX, MATERIALS_LIMITS, AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, STORY_BATCH_MAX, type StoryBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
 import {
   COMMIT_WAIT_MS, HANDOVER_WAIT_MS, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
 } from '../consts.js'
@@ -22,6 +22,7 @@ import { gitToolHelper } from './git.js'
 import { productionToolHelper } from './production.js'
 import { iamToolHelper } from './iam.js'
 import { feedToolHelper } from './feed.js'
+import { materialsToolHelper } from './materials.js'
 import { controlToolHelper } from './control.js'
 import { statusTextHelper } from './status.js'
 import { storyHelper } from './stories.js'
@@ -30,12 +31,22 @@ import type { CatalogueHelper } from './catalogue/types.js'
 import { toolHostHelper } from './host.js'
 import { makeHandoverHelper } from './handover.js'
 import { makeToolProfileModel } from './profile.js'
-import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, INFERENCE_LEVELS, INFERENCE_MODES, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, SOURCES_KIND, STOP_SCOPES, WRITE } from './consts.local.js'
+import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, INFERENCE_LEVELS, INFERENCE_MODES, MATERIALS_ANSWER_MS, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, SOURCES_KIND, STOP_SCOPES, WRITE } from './consts.local.js'
 
 export { ToolHostKind }
 
 const ok = <Structured extends object>(text: string, structured?: Structured) => ({ text, structured })
 const fail = (text: string) => ({ text, isError: true })
+
+/** A promise's value if it settles within `ms`, else `null` — the promise itself runs on either way. */
+const within = async <T>(promise: Promise<T>, ms: number): Promise<T | null> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([promise, new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), ms) })])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 /**
  * A conversion refusal is an ANSWER, so it comes back as one.
@@ -657,6 +668,128 @@ export const catalogue: ToolDefinition[] = [
       if (sessionId != null) await ensureSession(deps, status.project.id)
 
       return projectResult(status)
+    },
+  },
+
+  {
+    name: 'create_project_with_files',
+    title: 'Start a project from a description and files',
+    description:
+      'Describe the application and name the files and folders on this machine that go with it — a'
+      + ' specification or brief, a logo, icons, fonts, stylesheets, sketches, an HTML prototype, media.'
+      + ' Each file is checked first (at most 50 files, 12 MiB each, 50 MiB in all; programs refused) and'
+      + ' a refusal is reported per file before anything is sent. The platform then reads the files and'
+      + ' writes the specification, name and vision from the description and their text — model work that'
+      + ' spends credits (the plan\'s project allowance first). Returns the project status and what became'
+      + ' of each file; read the draft with project_status and call confirm_project. Each call creates'
+      + ' another project, so calling it again spends again.',
+    input: {
+      prompt: z.string().min(1),
+      paths: z.array(z.string().min(1)).min(1).max(MATERIALS_LIMITS.files).describe(
+        'Files and folders on this machine — absolute, or relative to the project directory. A folder is'
+          + ' sent with every file under it, its own name kept as the first segment; links are never followed.'
+      ),
+    },
+    availability: toolHostHelper.uploadsMaterials,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const started = Date.now()
+      const { inputs, unreadable } = await materialsToolHelper.inputsOf(args.paths as string[], deps.dir)
+      const checked = materialsToolHelper.precheck(inputs)
+      const before = [...unreadable, ...checked.refused]
+      if (checked.admitted.length === 0) {
+        return fail(`Nothing was created: none of the files can be sent.\n${materialsToolHelper.renderOutcomes(before)}`)
+      }
+
+      // As create_project: in the delegated mode the platform's checks of the prompt go to a session
+      // that names no project yet, and everything after them to the project's own.
+      const sessionId = toolHostHelper.performsModelTasks(deps.host) ? await unattachedSessionId(deps) : undefined
+      const status = await deps.api.materials.create({
+        prompt: args.prompt as string,
+        materials: checked.totals,
+        target: deps.host.target === ConnectTarget.Local ? ConnectTarget.Local : ConnectTarget.Cloud,
+        ...(sessionId != null ? { sessionId } : {}),
+      })
+      const projectId = status.project.id
+      deps.attach(projectId)
+      // The seal hands the drafting to the project's delegating session: it must be attached first.
+      if (sessionId != null) await ensureSession(deps, projectId)
+
+      const sending = materialsToolHelper.send(deps, projectId, checked.admitted)
+      const remaining = MATERIALS_ANSWER_MS - (Date.now() - started)
+      const sent = remaining > 0 ? await within(sending, remaining) : null
+      if (sent == null) {
+        // Still sending: the upload goes on in this process and is sealed after its last file.
+        void sending.then(done => {
+          deps.log(`create_project_with_files ${projectId}: ${done.files.length} file(s) answered, sealed: ${done.sealed}`)
+          if (done.error != null) deps.notify?.('warning', `The files of ${projectId} were sent, but the drafting could not start: ${done.error}`)
+        }).catch((e: unknown) => deps.log(`create_project_with_files ${projectId}: ${refusalHelper.refusalMessage(e)}`))
+
+        return ok(
+          `Project ${projectId} is created; ${checked.admitted.length} file(s) are still being sent from this`
+          + ' machine. The upload is sealed after the last one and the drafting starts then — read'
+          + ` list_materials ${JSON.stringify({ projectId })} for each file, then project_status for the draft.`
+          + (before.length > 0 ? `\n${materialsToolHelper.renderOutcomes(before)}` : '')
+          + `\n\n${statusTextHelper.renderProjectStatus(status)}`,
+          { project: status as unknown as Record<string, unknown>, files: before, pending: true, sealed: false },
+        )
+      }
+
+      const files = [...before, ...sent.files]
+      const lead = sent.sealed
+        ? 'The files are in and the upload is sealed: the platform reads them and drafts the project from'
+          + ' them and the description. Read project_status until the draft is in, then confirm_project.'
+        : `The files were sent, but the drafting could not start: ${sent.error ?? 'the upload could not be sealed'}.`
+
+      return {
+        text: `${materialsToolHelper.renderOutcomes(files)}\n${lead}\n\n${statusTextHelper.renderProjectStatus(status)}`,
+        structured: { project: status as unknown as Record<string, unknown>, files, pending: false, sealed: sent.sealed },
+      }
+    },
+  },
+
+  {
+    name: 'list_materials',
+    title: 'The files a project was created with',
+    description:
+      'Every file the project was given at its creation — accepted, refused and removed alike — with its'
+      + ' purpose (specification, logo, icon, font, prototype, media…), status, description and where it'
+      + ' was placed, and where the files stand while the platform reads them. read_material reads one'
+      + ' file\'s text.',
+    input: { projectId: z.string().optional() },
+    availability: toolHostHelper.anyHost,
+    annotations: READ_ONLY,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const catalogue = await deps.api.materials.catalogue(project)
+
+      return ok(materialsToolHelper.renderCatalogue(project, catalogue), { projectId: project, ...catalogue })
+    },
+  },
+
+  {
+    name: 'read_material',
+    title: 'Read one of a project\'s files',
+    description:
+      'The text of one file the project was created with: the platform\'s markdown transcript of a'
+      + ' document (a PDF, a Word file, a page, hand notes) or a text file\'s own content. An image, a font'
+      + ' or media has no text — list_materials describes it.',
+    input: {
+      projectId: z.string().optional(),
+      path: z.string().min(1).max(MATERIAL_PATH_MAX).describe('The file\'s path as list_materials prints it.'),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: READ_ONLY,
+    run: async (args, deps) => {
+      const path = pathOf(args)
+      if (path == null) return fail('Name the file with path — list_materials shows them.')
+      const project = projectOf(args, deps)
+      const text = await deps.api.materials.read(project, path)
+
+      return ok(materialsToolHelper.renderText(text), {
+        projectId: project, path: text.path, source: text.source, length: text.length,
+        ...(text.truncated === true ? { truncated: true } : {}),
+      })
     },
   },
 

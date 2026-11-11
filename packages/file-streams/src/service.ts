@@ -1,22 +1,28 @@
 import { createService, memoHelper } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { FilePropertyError } from '@owlmeans/storage-common'
+import { createFileInspector } from '@owlmeans/file-inspector'
 import { createArchiveHelper } from './archive.js'
+import { createBackedWorkspace } from './backed-workspace.js'
+import type { BackedWorkspace } from './backed-workspace/types.js'
 import { FILE_STREAMS_SERVICE } from './consts.js'
 import { createHttpClient } from './http.js'
-import { createFileInspector } from './inspector.js'
 import { parseProxyEndpoint } from './proxy/endpoint.js'
 import type { ProxyEndpoint } from './proxy/types.js'
 import { createS3Bucket } from './s3.js'
 import type { S3Bucket } from './s3/types.js'
-import type { FileStreamsProxyConfig, FileStreamsService, FileStreamsServiceOptions } from './service/types.js'
+import type {
+  FileStreamsBackedOptions, FileStreamsProxyConfig, FileStreamsService, FileStreamsServiceOptions,
+} from './service/types.js'
 import type { Config, Context } from './service/types.local.js'
 import { createTransferHelper } from './transfer.js'
+import { createWorkspace } from './workspace.js'
 
 export const createFileStreamsService = (
   alias: string = FILE_STREAMS_SERVICE, options: FileStreamsServiceOptions = {}
 ): FileStreamsService => {
   const buckets = new Map<string, S3Bucket>()
+  const backedWorkspaces = new Map<string, BackedWorkspace>()
 
   const configOf = (): Config => service.assertCtx<Config, Context>(alias).cfg
 
@@ -63,7 +69,21 @@ export const createFileStreamsService = (
     return known
   }
 
-  const service: FileStreamsService = createService<FileStreamsService>(alias, { http, bucket, transfer, inspector, archives })
+  const workspace = memoHelper.once(() => createWorkspace(configOf().fileStreams?.workspace))
+
+  const backed = (bucketConfigKey: string, backedOptions: FileStreamsBackedOptions = {}): BackedWorkspace => {
+    const key = `${bucketConfigKey}\u0000${backedOptions.prefix ?? ''}`
+    let known = backedWorkspaces.get(key)
+    if (known == null) {
+      known = createBackedWorkspace({ workspace: workspace(), bucket: bucket(bucketConfigKey), prefix: backedOptions.prefix, transfer: transfer() })
+      backedWorkspaces.set(key, known)
+    }
+    return known
+  }
+
+  const service: FileStreamsService = createService<FileStreamsService>(alias, {
+    http, bucket, transfer, inspector, archives, workspace, backed,
+  })
 
   return service
 }

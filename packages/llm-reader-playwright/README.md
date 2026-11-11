@@ -13,7 +13,7 @@ bunx playwright install chromium
 ## Usage
 
 ```typescript
-import { createLlmReader, createProxyPlugin } from '@owlmeans/llm-reader'
+import { createLlmReader, createLocalBundlePlugin, createProxyPlugin } from '@owlmeans/llm-reader'
 import { createPlaywrightRenderer, makePlaywrightFetchPlugin } from '@owlmeans/llm-reader-playwright'
 
 const renderer = createPlaywrightRenderer()
@@ -24,6 +24,10 @@ await reader.page('https://spa.example.com')       // an app shell is re-read re
 
 // Or render every page fetch:
 createLlmReader({ plugins: [createProxyPlugin({ proxies }), makePlaywrightFetchPlugin(renderer)] })
+
+// A local prototype (an uploaded home.html with its css and pictures), rendered from disk:
+const bundle = createLocalBundlePlugin({ root: '/uploads/prototype' })
+await createLlmReader({ renderer, plugins: [bundle], models }).design(bundle.urlOf('home.html'))
 ```
 
 The browser goes through the reader's proxy lease (SOCKS proxies through the reader's bridge), and
@@ -34,7 +38,7 @@ every request a page makes passes the reader's address guard; refused ones are l
 
 | Export | Purpose |
 |---|---|
-| `createPlaywrightRenderer(options)` | `render({ url, lease?, guard?, styles?, screenshot? })` → `RenderedPage`; `close()`. Options: `browser`, `launch`, `viewport`, `timeout`, `waitUntil`, `settle`, `userAgent`. |
+| `createPlaywrightRenderer(options)` | `render({ url, lease?, guard?, styles?, screenshot?, bundle? })` → `RenderedPage`; `close()`. Options: `browser`, `launch`, `viewport`, `timeout`, `waitUntil`, `settle`, `userAgent`, `bundles` (local bundles routed from disk under their synthetic origins; every other request still guarded). |
 | `makePlaywrightFetchPlugin(renderer, { when? })` | A reader fetch plugin that renders page requests. |
 
 ## Tests

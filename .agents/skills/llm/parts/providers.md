@@ -3,7 +3,7 @@ name: providers
 description: The LlmPlugin seam that replaces provider ifs, the sampling parameters each family rejects, plugin registration order, and classifying a provider error by walking cause.
 metadata:
   purposes: agent, config
-  mentions: LlmPlugin, llmPluginRegistry, llmTransportRegistry, LlmTransport, LlmFetch, resolveFor, patchPrompt, loopCache, cacheDialect, anthropicPlugin, openAiPlugin, compatiblePlugin, openAiFamily, NO_SAMPLING_PREFIXES, RESPONSES_API_PREFIXES, usesResponsesApi, rejectsSampling, isBadRequest, @owlmeans/llm/plugins
+  mentions: LlmPlugin, llmPluginRegistry, mediaDialect, mediaLimits, llmTransportRegistry, LlmTransport, LlmFetch, resolveFor, patchPrompt, loopCache, cacheDialect, anthropicPlugin, openAiPlugin, compatiblePlugin, openAiFamily, NO_SAMPLING_PREFIXES, RESPONSES_API_PREFIXES, usesResponsesApi, rejectsSampling, isBadRequest, @owlmeans/llm/plugins
 ---
 
 # @owlmeans/llm — Provider plugins
@@ -29,6 +29,7 @@ metadata:
 | `isFatal` | "this error can never be retried" |
 | `search` | the provider's web-search dialect (`webSearch`); declared per plugin, never in a family spread — see the `web-search` part |
 | `suppressesThinking` | whether the plugin turns reasoning off on the wire FOR THIS CONFIG, which is what drops the `/no_think` prompt directive from the prepared messages |
+| `media` / `mediaDialect` / `mediaLimits` | the provider's spelling of a neutral image or PDF part, which spelling a config gets (a change between rungs re-prepares), and the per-request media limits — see the `media` part |
 
 ### A provider that removes a parameter is a plugin concern too
 

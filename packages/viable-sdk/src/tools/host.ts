@@ -18,7 +18,15 @@ export const createToolHostHelper = (): ToolHostHelper => {
   const performsModelTasks = (host: ToolHost): boolean =>
     delegatedLlm(host) && sessionCapable(host)
 
-  return { anyHost, localTarget, cloudTarget, withExecutor, delegatedLlm, sessionCapable, performsModelTasks }
+  const readsDisk = (host: ToolHost): boolean => host.kind === ToolHostKind.Stdio
+
+  const uploadsMaterials = (host: ToolHost): boolean =>
+    readsDisk(host) && !(localTarget(host) && delegatedLlm(host))
+
+  return {
+    anyHost, localTarget, cloudTarget, withExecutor, delegatedLlm, sessionCapable, performsModelTasks, readsDisk,
+    uploadsMaterials,
+  }
 }
 
 export const toolHostHelper = createToolHostHelper()

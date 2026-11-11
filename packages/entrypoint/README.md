@@ -136,8 +136,23 @@ const link = await context.entrypoint(storyProtocols.get).url({ params: { id: va
 ```
 
 `call()` resolves the value, `invoke()` also returns the `EntrypointOutcome`, `url()` builds the
-address. `CallOptions` (`auth`, `host`, `base`, `unsecure`, `timeout`, `signal`) ride alongside the
-request sections and are never part of the payload contract.
+address. `CallOptions` (`auth`, `host`, `base`, `unsecure`, `timeout`, `signal`,
+`onUploadProgress`, `onDownloadProgress`) ride alongside the request sections and are never part of
+the payload contract.
+
+An upload route types its body `typed<BinaryBody>()` (a `Blob`/`File`, an `ArrayBuffer`, a typed
+array, or a Node `Readable` structurally — no schema) and declares `streamBody()` in its route's
+`protocolOptions` (`@owlmeans/route`); the server reads it with `streamedBody(request)`
+(`@owlmeans/server-api`):
+
+```ts
+const upload = protocol(
+  route(aliases.upload, '/:id/file', backend({ parent: base, method: RouteMethod.PUT, protocolOptions: streamBody({ maxBytes }) })),
+  contract.request({ params: typed<{ id: string }>(IdSchema), body: typed<BinaryBody>() }, typed<Material>()),
+)
+
+await context.entrypoint(upload).call({ params: { id }, body: file, onUploadProgress: ({ loaded, total }) => show(loaded, total) })
+```
 
 ### 4. Gates, socket carriers, derived types
 
@@ -232,6 +247,8 @@ tree and its protocols are left untouched.
 | `EntrypointRequestMeta` | interface | `alias`, `auth`, `entity`, `path`, `canceled`, `cancel` |
 | `RegisteredEntrypoint<Request, Response>` | interface | Context-bound entrypoint with `call`, `invoke`, `url`, `validate` |
 | `CallOptions`, `CallArguments`, `UrlArguments` | types | Addressing/transport controls and argument tuples of `call` / `url` |
+| `TransferProgress`, `TransferProgressListener` | interfaces | `{ loaded, total?, progress?, bytes, rate?, estimated? }` and the `onUploadProgress` / `onDownloadProgress` callback |
+| `BinaryBody`, `BinaryStream` | type, interface | The body of a streamed-body route: `Blob \| ArrayBuffer \| ArrayBufferView \| BinaryStream` (a Node `Readable`, structurally) |
 | `EntrypointResult<Response>` | interface | `{ value, outcome }` returned by `invoke()` |
 | `MaterializedEntrypoint<Protocol>` | type | `CommonEntrypoint` carrying its `protocol` |
 
@@ -241,7 +258,7 @@ tree and its protocols are left untouched.
 |---|---|---|
 | `CommonEntrypoint` | interface | Bound entrypoint: `alias`, `route`, `sticky`, `guards`, `gate`, `gateParams`, `filter`, `handle`, and context-computed `segment()`, `path()`, `mount()`, `service()`, `address()`, `isLocal()`, `parent()`, `getGuards()`, `getGates()` |
 | `CommonEntrypointOptions` | interface | Partial `CommonEntrypoint` options |
-| `AbstractRequest<T>` | interface | Request with `alias`, `auth`, `entity`, `params`, `body`, `query`, `headers`, `path`, `timeout`, `signal` |
+| `AbstractRequest<T>` | interface | Request with `alias`, `auth`, `entity`, `params`, `body`, `query`, `headers`, `path`, `timeout`, `signal`, `onUploadProgress`, `onDownloadProgress` |
 | `AbstractResponse<T>` | interface | Response with `value`, `outcome`, `error`, `resolve(value, outcome?)`, `reject(error)` |
 | `ResolvedEntity` | interface | Organization as handlers see it: `id` (stable key), `slug`, `iamKey` |
 | `EntrypointHandler`, `EntrypointMatch`, `EntrypointAssert` | interfaces | Handler, guard-match and gate-assert signatures |

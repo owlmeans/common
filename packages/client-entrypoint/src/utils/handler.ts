@@ -4,7 +4,7 @@ import { type AbstractRequest, type EntrypointHandler, type EntrypointTransport,
 import type { ClientEntrypoint, EntrypointInvoke, EntrypointUrlOptions, ClientEntrypointOptions, EntrypointRef, ClientRequest, EntrypointFailureService } from '../types.js'
 import { validate } from './entrypoint.js'
 import { clientRouteHelper } from '@owlmeans/client-route'
-import { PARAM, RouteMethod, RouteProtocols } from '@owlmeans/route'
+import { PARAM, RouteMethod, RouteProtocols, streamBodyOf } from '@owlmeans/route'
 import { stringify } from 'qs'
 import { assertContext, memoHelper } from '@owlmeans/context'
 import { makeSecurityHelper } from '@owlmeans/config'
@@ -70,13 +70,15 @@ export const makeApiCallHelper = <T, R extends AbstractRequest = AbstractRequest
       return { value: null, outcome: EntrypointOutcome.Ok }
     }
 
+    // A streamed-body route carries raw bytes, never a JSON default: an absent body stays absent.
+    const streamed = streamBodyOf(ep.route.route) != null
     const request: AbstractRequest = {
       alias: ep.alias,
       params: req?.params ?? {},
       // JSON transports must send a body for mutation methods even when the contract has no
       // payload.  Keeping that rule here makes every typed caller use `call({ params })`, never
       // an SDK-specific `{ body: {} }` workaround.
-      body: req?.body ?? ([RouteMethod.POST, RouteMethod.PUT, RouteMethod.PATCH]
+      body: req?.body ?? (!streamed && [RouteMethod.POST, RouteMethod.PUT, RouteMethod.PATCH]
         .includes(ep.route.route.method ?? RouteMethod.GET) ? {} : undefined),
       headers: req?.headers ?? {},
       query: req?.query ?? {},
@@ -85,6 +87,8 @@ export const makeApiCallHelper = <T, R extends AbstractRequest = AbstractRequest
       path: ep.path(),
       timeout: req?.timeout,
       signal: req?.signal,
+      ...(req?.onUploadProgress != null ? { onUploadProgress: req.onUploadProgress } : {}),
+      ...(req?.onDownloadProgress != null ? { onDownloadProgress: req.onDownloadProgress } : {}),
     }
     if (req?.cancel != null) {
       const cancel = req.cancel

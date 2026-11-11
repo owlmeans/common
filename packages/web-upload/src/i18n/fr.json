@@ -1,0 +1,48 @@
+{
+  "pickers": {
+    "files": "Ajouter des fichiers",
+    "folder": "Ajouter un dossier"
+  },
+  "dropzone": {
+    "title": "Déposez pour ajouter",
+    "hint": "Les fichiers et les dossiers entiers rejoignent la liste",
+    "description": "Faites glisser des fichiers ou des dossiers sur cette zone, collez des fichiers ou utilisez les boutons Ajouter des fichiers et Ajouter un dossier.",
+    "added": "Fichiers ajoutés : {count}"
+  },
+  "list": "Fichiers",
+  "status": {
+    "queued": "Prêt",
+    "uploading": "Envoi… {percent}",
+    "accepted": "Envoyé",
+    "rejected": "Refusé",
+    "failed": "Échec"
+  },
+  "reason": {
+    "limits": "Dépasse les limites d’envoi",
+    "type-mismatch": "Son contenu ne correspond pas à son nom ou à son type",
+    "dangerous": "Refusé car potentiellement dangereux",
+    "refused-kind": "Ce type de fichier n’est pas accepté",
+    "archive-invalid": "L’archive ne peut pas être décompressée en toute sécurité",
+    "path-invalid": "Ce nom ou ce chemin de dossier n’est pas autorisé",
+    "duplicate": "Un autre fichier a le même chemin"
+  },
+  "limit": {
+    "file-bytes": "Plus grand que {max}, la limite pour un fichier",
+    "files": "Au-delà de la limite du nombre de fichiers : {max}",
+    "total-bytes": "Au-delà de la limite de taille totale : {max}"
+  },
+  "failed": "Non envoyé — il sera renvoyé",
+  "from": "Extrait de {archive}",
+  "remove": "Retirer {path}",
+  "totals": "Fichiers : {count} · {size}",
+  "progress": "{loaded} envoyés sur {total}",
+  "hints": "Limites — fichiers : {files}, un fichier : {file}, au total : {total}",
+  "violation": {
+    "max-files": "Trop de fichiers : {count}, au plus {max}",
+    "max-total-bytes": "Trop volumineux au total : {size}, au plus {max}",
+    "max-file-bytes": "Fichiers de plus de {max} : {count}"
+  },
+  "units": {
+    "byte": "o"
+  }
+}

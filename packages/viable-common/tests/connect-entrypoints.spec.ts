@@ -57,8 +57,10 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.project.steer.alias).toBe(connect.project.steer)
     expect(tree.project.batch.start.alias).toBe(connect.project.batch.start)
     expect(tree.client.identify.alias).toBe(connect.client.identify)
-    expect(protocols(tree)).toHaveLength(113)
-    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(113)
+    expect(tree.project.createWithMaterials.alias).toBe(connect.project.createWithMaterials)
+    expect(tree.project.materials.file.alias).toBe(connect.project.materials.file)
+    expect(protocols(tree)).toHaveLength(122)
+    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(122)
   })
 
   test('declares exactly the routes a connector calls — every alias, reference and path, and no socket', () => {
@@ -67,8 +69,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       .map(protocol => `${protocol.route.route.method!.toUpperCase()} ${protocol.route.route.path}`).sort()
 
     expect(addresses).toEqual([
-      'DELETE /project/:id', 'DELETE /project/:id/files/content',
-      'GET /access-tokens', 'GET /blueprints', 'GET /branding', 'GET /call/:callId', 'GET /client', 'GET /convert/:id', 'GET /convert/:id/check',
+      'DELETE /:id/file/:file', 'DELETE /project/:id', 'DELETE /project/:id/files/content',
+      'GET /:id', 'GET /:id/catalogue', 'GET /:id/content', 'GET /access-tokens', 'GET /blueprints', 'GET /branding', 'GET /call/:callId', 'GET /client', 'GET /convert/:id', 'GET /convert/:id/check',
       'GET /iam/users', 'GET /llm', 'GET /notifications', 'GET /pipeline/:id/:runId',
       'GET /privacy', 'GET /project', 'GET /project/:id/activity', 'GET /project/:id/batch',
       'GET /project/:id/branding', 'GET /project/:id/config', 'GET /project/:id/files', 'GET /project/:id/files/changes',
@@ -80,6 +82,7 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'GET /project/:id/kits', 'GET /project/:id/llm', 'GET /project/:id/production',
       'GET /project/:id/production/auth', 'GET /project/:id/status',
       'GET /project/:id/story/:storyId/status', 'GET /session/:sessionId/ops', 'GET /slot',
+      'POST /:id/draft', 'POST /:id/seal',
       'POST /access-tokens/:id/revoke', 'POST /branding', 'POST /branding/backfill',
       'POST /convert', 'POST /convert/:id/proceed', 'POST /convert/:id/purge', 'POST /convert/:id/start',
       'POST /intent/pickup', 'POST /llm',
@@ -109,15 +112,16 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /project/:id/reinit', 'POST /project/:id/rename',
       'POST /project/:id/sandbox/rebuild', 'POST /project/:id/sandbox/restart', 'POST /project/:id/sandbox/run',
       'POST /project/:id/sandbox/stop', 'POST /project/:id/steer', 'POST /project/:id/stop',
-      'POST /project/attach', 'POST /session',
+      'POST /project/attach', 'POST /project/with-materials', 'POST /session',
       'POST /session/:sessionId/close', 'POST /session/:sessionId/ops/:opId', 'POST /session/delegated',
+      'PUT /:id/file',
     ])
     expect(declared.every(protocol => protocol.route.route.protocol !== RouteProtocols.SOCKET)).toBe(true)
     // The alias table, the tree and the typed references name the same routes.
     const leaves = (value: object): string[] => Object.values(value).flatMap(entry =>
       typeof entry === 'string' ? [entry] : 'alias' in entry ? [entry.alias as string] : leaves(entry))
     expect(leaves(connect).sort()).toEqual(declared.map(protocol => protocol.alias).sort())
-    const bases = [connect.base, connect.account.base]
+    const bases = [connect.base, connect.account.base, connect.project.materials.base]
     expect(leaves(connectRef).sort()).toEqual(declared.map(protocol => protocol.alias).filter(alias => !bases.includes(alias)).sort())
   })
 

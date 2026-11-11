@@ -3,6 +3,7 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { logThrottle, logger } from '@owlmeans/log'
 import { LLM_SERVICE } from './consts.js'
 import { LlmMissconfiguredError } from './errors.js'
+import { capabilityHelper } from './helpers/capabilities.js'
 import { resolveFallbacks } from './helpers/fallback.js'
 import { llmPluginRegistry } from './plugins/registry.js'
 import type { LlmService, LlmServiceOptions, ModelConfig, WithLlmService, LlmServiceApi } from './types.js'
@@ -162,6 +163,8 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
 
       return model
     },
+
+    capabilities: (alias, override = {}) => capabilityHelper.fromConfigs(resolveFallbacks(resolveConfig(alias, override))),
 
     webSearch: (alias, override = {}) => {
       // The primary rung only — a search is one direct request, never an escalation ladder.

@@ -5,6 +5,7 @@ import type { StorageBucketModel, StorageConfig } from '@owlmeans/storage-resour
 import type { StoredFileInstance } from '@owlmeans/storage-common'
 import { S3TransferError } from './errors.js'
 import { DEFAULT_PART_SIZE, DEFAULT_UPLOAD_CONCURRENCY, MIN_PART_SIZE } from './s3/consts.js'
+import { makeS3PrefixOps } from './s3/prefix.js'
 import { makeS3Sink } from './s3/sink.js'
 import { makeS3Source } from './s3/source.js'
 import type { S3Bucket, S3BucketOptions, S3ObjectInfo, S3SinkOptions } from './s3/types.js'
@@ -33,6 +34,7 @@ export const createS3Bucket = (config: StorageBucketModel | StorageConfig, optio
     concurrency: Math.max(1, options.concurrency ?? DEFAULT_UPLOAD_CONCURRENCY),
   }
   const uploader = makeS3Uploader(core)
+  const { list, removePrefix } = makeS3PrefixOps(core)
 
   const urlOf = (prefix: string): string => model.urlOf(pathUtils.entry(prefix))
 
@@ -77,5 +79,5 @@ export const createS3Bucket = (config: StorageBucketModel | StorageConfig, optio
     created = undefined
   }
 
-  return { model, keyOf, urlOf, source, sink, tree, head, remove, instanceOf, close }
+  return { model, keyOf, urlOf, source, sink, tree, head, remove, list, removePrefix, instanceOf, close }
 }

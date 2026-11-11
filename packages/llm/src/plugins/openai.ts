@@ -14,8 +14,9 @@ import { pluginUtils } from './utils.js'
 import { llmTransportRegistry } from './transport.js'
 import {
   CacheBoundary, CacheDialect, OPENAI_EFFORT_SUPPORT, OPENAI_EXPLICIT_CACHE_PREFIXES, OPENAI_FAMILY,
-  OPENAI_HIDDEN_PROPERTY_NAMES, REASONING_MIN_MAX_TOKENS, RESPONSES_API_PREFIXES,
+  OPENAI_HIDDEN_PROPERTY_NAMES, OPENAI_MEDIA_LIMITS, OpenAiMediaDialect, REASONING_MIN_MAX_TOKENS, RESPONSES_API_PREFIXES,
 } from './consts.js'
+import type { DocumentPart, MediaPart } from '../helpers/media/types.js'
 import {
   OPENAI_BREAKPOINT, OPENAI_EXPLICIT_OPTIONS, OPENAI_MARKABLE_BLOCKS, OPENAI_TOOL_OUTPUT_BLOCKS,
 } from './consts.local.js'
@@ -30,6 +31,10 @@ import { OPENAI_API_URL } from './openai/consts.local.js'
 /** Whether this model id goes through the Responses API and therefore rejects sampling. */
 export const usesResponsesApi = (model: string | undefined): boolean =>
   model != null && RESPONSES_API_PREFIXES.some(prefix => model.startsWith(prefix))
+
+const dataUrlOf = (part: MediaPart): string => `data:${part.mimeType};base64,${part.data}`
+
+const isPdf = (part: MediaPart): part is DocumentPart => part.type === 'file' && part.mimeType === 'application/pdf'
 
 const openAiEffort = (model: string | undefined): EffortSupport | undefined => {
   const entry = model != null ? OPENAI_EFFORT_SUPPORT.find(e => model.startsWith(e.prefix)) : undefined
@@ -207,6 +212,10 @@ export const openAiFamily: OpenAiFamily = {
    */
   isFatal: (e: unknown): Error | null => pluginUtils.isBadRequest(e) ? e as Error : null,
 
+  media: (part: MediaPart): unknown => part.type === 'image'
+    ? { type: 'image_url', image_url: { url: dataUrlOf(part) } }
+    : isPdf(part) ? { type: 'file', file: { filename: part.metadata.filename, file_data: dataUrlOf(part) } } : undefined,
+
   refine: ({ base, attempt, rungAttempt, temperature, maxOutputCap }: LlmRefineParams): BaseChatModel => {
     const model = base as ChatOpenAI
     const currentTemperature = temperature ?? model.temperature ?? 0
@@ -282,6 +291,19 @@ export const openAiPlugin: LlmPlugin = {
   effort: config => openAiEffort(config.model),
 
   cacheDialect: config => dialectOf(config),
+
+  mediaDialect: config => usesResponsesApi(config.model) ? OpenAiMediaDialect.Responses : OpenAiMediaDialect.Chat,
+
+  /**
+   * The Responses API keeps only its own `input_file` for a PDF (the converter drops a chat `file`
+   * block without a word), and chat completions forwards an `input_file` it does not know into a 400 —
+   * so a PDF is spelled per API. Images go as `image_url` on both.
+   */
+  media: (part, config) => isPdf(part) && usesResponsesApi(config.model)
+    ? { type: 'input_file', filename: part.metadata.filename, file_data: dataUrlOf(part) }
+    : openAiFamily.media(part, config),
+
+  mediaLimits: () => OPENAI_MEDIA_LIMITS,
 
   /**
    * Explicit mode (GPT-5.6+ through the Responses API): `prompt_cache_breakpoint` on the plan's

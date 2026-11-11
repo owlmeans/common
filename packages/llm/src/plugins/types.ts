@@ -2,9 +2,10 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/core/callbacks/base'
 import type { MessageFieldWithRole } from '@langchain/core/messages'
 import type {
-  CacheTtl, CacheTtlPolicy, ModelEffort, PromptBlock, PromptRegion, StructuredMode,
+  CacheTtl, CacheTtlPolicy, MediaRequestLimits, ModelEffort, PromptBlock, PromptRegion, StructuredMode,
 } from '@owlmeans/llm-common'
 import type { ModelConfig } from '../types.js'
+import type { MediaPart } from '../helpers/media/types.js'
 import type { CacheBoundary, ThinkingOff } from './consts.js'
 import type { LlmSearchDialect } from '../search/types.js'
 
@@ -216,6 +217,27 @@ export interface LlmPlugin {
   isFatal?: (e: unknown) => Error | null
 
   /**
+   * This provider's spelling of a neutral media part (`mediaHelper.image` / `document`) for the
+   * rung's config — or `undefined` to send the part as built (a langchain standard block). Applied
+   * to the prepared copies before any cache marker is placed, so a marker lands on the provider's
+   * own block. Omitted: every part goes out as built.
+   */
+  media?: (part: MediaPart, config: Partial<ModelConfig>) => unknown
+
+  /**
+   * Which of the plugin's media spellings a config gets, when there is more than one (OpenAI: the
+   * Responses API and chat completions take a PDF differently). A change between rungs prepares
+   * the request again. Omitted: one spelling.
+   */
+  mediaDialect?: (config: Partial<ModelConfig>) => string
+
+  /**
+   * The per-request media limits the provider documents for a config. A prepared request over one
+   * is refused with `LlmMediaLimitError` before it leaves. Omitted: only the per-part limits apply.
+   */
+  mediaLimits?: (config: Partial<ModelConfig>) => MediaRequestLimits
+
+  /**
    * Run one provider-hosted web search in this provider's dialect, straight to the provider:
    * through the `fetch` it is handed, never through `llmTransportRegistry` or an SDK client (an
    * SDK reads `*_BASE_URL` from the environment). Omitted: the provider cannot search
@@ -242,6 +264,11 @@ export interface OpenAiFamily {
   /** A 400 means the request itself is malformed — retrying re-sends the same shape. */
   isFatal: (e: unknown) => Error | null
   refine: (params: LlmRefineParams) => BaseChatModel
+  /**
+   * The chat-completions spelling of a media part: an image as `image_url` with a data URL (the
+   * Responses converter turns it into `input_image`), a PDF as `file` with `file_data`.
+   */
+  media: (part: MediaPart, config: Partial<ModelConfig>) => unknown
 }
 
 /** What one Anthropic model family accepts, where the families differ in ways that are a 400. */

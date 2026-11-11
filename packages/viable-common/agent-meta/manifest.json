@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "package": "@owlmeans/viable-common",
   "version": "0.1.21",
-  "generatedAt": "2026-11-05T11:16:21.551Z",
+  "generatedAt": "2026-11-10T19:33:43.012Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -17,7 +17,41 @@
       "name": "viable-common",
       "category": "package-specific",
       "file": "skills/viable-common/SKILL.md",
-      "canonicalPath": ".agents/skills/viable-common/SKILL.md"
+      "canonicalPath": ".agents/skills/viable-common/SKILL.md",
+      "parts": [
+        {
+          "name": "materials",
+          "file": "skills/viable-common/parts/materials.md",
+          "description": "The materials contract — files a person attaches to a NEW project's prompt: purposes, statuses, removal reasons and uses, the platform's catalogue record and its schema, the target's docs/materials/index.md document (render, parse, relevance), the workload directories and keep list, the upload limits and the brief budget.",
+          "purposes": [
+            "data",
+            "agent",
+            "config"
+          ],
+          "mentions": [
+            "MaterialPurpose",
+            "MaterialStatus",
+            "MaterialRemoval",
+            "MaterialUseBy",
+            "MaterialUseTarget",
+            "ProjectMaterialRecord",
+            "ProjectMaterialRecordSchema",
+            "MaterialIndexEntry",
+            "MaterialIndexEntrySchema",
+            "materialIndexHelper",
+            "MATERIALS_DIR",
+            "MATERIALS_INDEX",
+            "MATERIALS_ASSETS_DIR",
+            "MATERIALS_ASSET_PURPOSES",
+            "MATERIALS_KEEP",
+            "MATERIALS_LIMITS",
+            "MATERIALS_UPLOAD_POLICY",
+            "MATERIAL_TEXT_KINDS",
+            "MATERIALS_BRIEF_TOKENS",
+            "MATERIALS_SCOPE_PURPOSE"
+          ]
+        }
+      ]
     }
   ]
 }

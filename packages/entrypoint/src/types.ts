@@ -92,6 +92,43 @@ export interface AbstractRequest<T extends {} = {}> {
   // Abort signal forwarded to the transport (axios) so a caller can cancel/abort an
   // in-flight request (e.g. a timeout-driven AbortController).
   signal?: AbortSignal
+  /** Called as the request body is sent, when the transport can report it (HTTP). */
+  onUploadProgress?: TransferProgressListener
+  /** Called as the response body is received, when the transport can report it (HTTP). */
+  onDownloadProgress?: TransferProgressListener
+}
+
+/** How far one direction of a transfer has got, as the transport reports it. */
+export interface TransferProgress {
+  /** Bytes transferred so far. */
+  loaded: number
+  /** The whole size, when it is known in advance. */
+  total?: number
+  /** `loaded / total`, when the total is known. */
+  progress?: number
+  /** Bytes transferred since the previous report. */
+  bytes: number
+  /** Bytes per second, when the transport measures it. */
+  rate?: number
+  /** Seconds left, when the transport estimates it. */
+  estimated?: number
+}
+
+export interface TransferProgressListener {
+  (progress: TransferProgress): void
+}
+
+/**
+ * A request body sent as raw bytes to a streamed-body route (`streamBody()` of `@owlmeans/route`):
+ * a `Blob`/`File`, an `ArrayBuffer`, a typed array or a Node `Buffer`, or a Node `Readable` (Bun and
+ * Node only). Declare it as the protocol's body type with `typed<BinaryBody>()` — no schema.
+ */
+export type BinaryBody = Blob | ArrayBuffer | ArrayBufferView | BinaryStream
+
+/** A Node readable stream, structurally — this package does not depend on Node's types. */
+export interface BinaryStream {
+  pipe: (destination: never, options?: never) => unknown
+  on: (event: never, listener: never) => unknown
 }
 
 /**
@@ -220,6 +257,8 @@ export interface CallOptions {
   unsecure?: boolean
   timeout?: number
   signal?: AbortSignal
+  onUploadProgress?: TransferProgressListener
+  onDownloadProgress?: TransferProgressListener
 }
 
 /** A type-only contract source, optionally paired with an AJV schema. */

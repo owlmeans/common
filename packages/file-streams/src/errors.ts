@@ -1,5 +1,5 @@
 import { ResilientError } from '@owlmeans/error'
-import { FileTypeError, StorageApiError } from '@owlmeans/storage-common'
+import { StorageApiError } from '@owlmeans/storage-common'
 
 export class FileStreamsError extends ResilientError {
   public static override typeName: string = 'FileStreamsError'
@@ -105,26 +105,6 @@ export class WorkloadError extends FileStreamsError {
   }
 }
 
-/** Content that is not what its name or declared type claims. A storage `FileTypeError`. */
-export class FileMimicryError extends FileTypeError {
-  public static override typeName: string = `${FileTypeError.typeName}Mimicry`
-
-  constructor(message: string = 'error') {
-    super(`mimicry:${message}`)
-    this.type = FileMimicryError.typeName
-  }
-}
-
-/** Content of a kind the verify policy does not allow. A storage `FileTypeError`. */
-export class FileKindError extends FileTypeError {
-  public static override typeName: string = `${FileTypeError.typeName}Kind`
-
-  constructor(message: string = 'error') {
-    super(`kind:${message}`)
-    this.type = FileKindError.typeName
-  }
-}
-
 /** An S3 operation that failed: `s3:<op>`. A storage `StorageApiError`. */
 export class S3TransferError extends StorageApiError {
   public static override typeName: string = `${StorageApiError.typeName}S3`
@@ -145,6 +125,4 @@ ResilientError.registerErrorClass(PathError)
 ResilientError.registerErrorClass(ArchiveError)
 ResilientError.registerErrorClass(ResolverError)
 ResilientError.registerErrorClass(WorkloadError)
-ResilientError.registerErrorClass(FileMimicryError)
-ResilientError.registerErrorClass(FileKindError)
 ResilientError.registerErrorClass(S3TransferError)

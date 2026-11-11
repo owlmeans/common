@@ -4,7 +4,7 @@ import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/cor
 import type { JSONSchemaType } from 'ajv'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  CumulativeResults, FileProviderRef, LlmPurpose, ModelEffort, ModelProvider, NullCapture,
+  CumulativeResults, FileProviderRef, LlmPurpose, ModelCapabilities, ModelEffort, ModelProvider, NullCapture,
   PromptFocus, SpectatorArgument, SpectatorEntryLogged,
 } from '@owlmeans/llm-common'
 import type { PromptInput, PromptService } from './prompt/types.js'
@@ -214,6 +214,12 @@ export interface LlmModel {
   talk: (input: ModelInput, options: LlmTalkOptions) => Promise<AIMessage>
   invoke: <T>(input: ModelInput, schema: JSONSchemaType<T>, options: LlmInvokeOptions<T>) => Promise<T>
   request: <T>(input: ModelInput, schema: JSONSchemaType<T>, options: LlmRequestOptions) => Promise<AIMessage>
+  /**
+   * What the model behind this object accepts, rung by rung. A call carrying images or documents
+   * is sent only to the rungs that accept them, and refused with `LlmMediaUnsupportedError`
+   * before any request when none does.
+   */
+  capabilities: () => ModelCapabilities
 }
 
 /**
@@ -309,6 +315,15 @@ export interface ModelConfig {
    * prompt spends" and keeps presets honest about leaving room for input.
    */
   combinedWindow?: boolean
+  /**
+   * The model accepts image input (png, jpeg, gif, webp). Unset means it does NOT: a call carrying
+   * an image skips this rung, and is refused when no rung accepts it. A fact about the model, like
+   * `maxOutput` — a same-provider `fallback` inherits it, so a fallback that changes `model` must
+   * restate it; one on another provider never inherits it.
+   */
+  vision?: boolean
+  /** The model accepts PDF documents. Same rules as {@link ModelConfig.vision}. */
+  documents?: boolean
   topP?: number
   baseUrl?: string
   organization?: string
@@ -433,6 +448,12 @@ export interface LlmService extends InitializedService {
    * search goes to the provider directly, so an installed LLM proxy never reroutes it.
    */
   webSearch: (alias: string, override?: Partial<ModelConfig>) => WebSearch
+
+  /**
+   * What the model registered under `alias` accepts, rung by rung — resolved exactly as
+   * {@link getModel} resolves it (presets, override, the fallback chain), without building a client.
+   */
+  capabilities: (alias: string, override?: Partial<ModelConfig>) => ModelCapabilities
 }
 
 export interface WithLlmService {
@@ -440,4 +461,4 @@ export interface WithLlmService {
 }
 
 /** The part of {@link LlmService} this package implements — see {@link llmServiceApi}. */
-export interface LlmServiceApi extends Pick<LlmService, 'models' | 'callbacks' | 'addCallbacks' | 'getModel' | 'configs' | 'webSearch'> {}
+export interface LlmServiceApi extends Pick<LlmService, 'models' | 'callbacks' | 'addCallbacks' | 'getModel' | 'configs' | 'webSearch' | 'capabilities'> {}

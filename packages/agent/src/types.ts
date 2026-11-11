@@ -50,8 +50,9 @@ export interface AgentOptions {
    */
   utility?: () => BaseChatModel | undefined
   /**
-   * Provider plugin used for cache placement. Resolved from the model when omitted
-   * (`llmPluginRegistry.resolveFor`, so a model the service built gets its own provider's).
+   * Provider plugin used for cache placement on the primary. Resolved from the model when omitted
+   * (`llmPluginRegistry.resolveFor`, so a model the service built gets its own provider's). A
+   * fallback that answers a run the primary cannot see (an image, a PDF) is marked by its own.
    */
   provider?: LlmPlugin
   maxTurns?: number
@@ -116,7 +117,7 @@ export interface AgentRun {
   conversation: ConversationRef
   exec: Execution
   flow: FlowModel
-  /** The ask that opened the run. */
+  /** The text of the ask that opened the run — its text parts when it also carries images or PDFs. */
   prompt: string
   action: string
 }
@@ -169,6 +170,11 @@ export interface AgentPlugin {
 
 export interface AgentModel {
   use: (plugin: AgentPlugin) => void
+  /**
+   * Run the loop. A `HumanMessage` may carry `mediaHelper` image / PDF parts: the first rung of the
+   * model's ladder that accepts them answers, and `LlmMediaUnsupportedError` / `LlmMediaLimitError`
+   * refuse the run before it starts when none does or a provider limit is exceeded.
+   */
   invoke: (input: string | HumanMessage, args?: AgentInvokeArgs) => Promise<AgentResult>
   conversation: () => ConversationRef
 }

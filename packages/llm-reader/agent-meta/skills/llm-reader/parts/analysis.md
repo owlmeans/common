@@ -80,5 +80,8 @@ OpenAI hides such a property from the model, and `@owlmeans/llm` refuses the sch
 - `images({ classify = true, vision = false, visionLimit = 4, skipTracking = true, key?, mode? })` — the
   inventory, plus each picture's `role` and one-sentence `usage` from one call; `vision` captions the
   most informative pictures (hero, illustration, photo, product, chart …; never icons, logos,
-  avatars or tracking pixels), fetched through the same fetcher and key, sent as `image_url` blocks
-  (JPEG/PNG/WebP/GIF ≤ 4 MB, four per call).
+  avatars or tracking pixels), fetched through the same fetcher and key, sent as checked
+  `mediaHelper.image` parts the model's provider plugin spells (JPEG/PNG/WebP/GIF ≤ 4 MB, four per
+  call; a picture whose bytes are not its type is skipped). It needs a vision model —
+  `ModelConfig.vision` — and is refused with `ReaderConfigError('no-vision-model')` before any call
+  otherwise.

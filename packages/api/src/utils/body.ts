@@ -1,6 +1,6 @@
 import qs from 'qs'
 import { RouteMethod } from '@owlmeans/route'
-import { FORM_CONTENT_TYPE } from './consts.local.js'
+import { BINARY_CONTENT_TYPE, FORM_CONTENT_TYPE } from './consts.local.js'
 import { JSON_CONTENT_TYPE } from './consts.js'
 import type { BodyUtils, RequestBody } from './body/types.js'
 
@@ -64,7 +64,40 @@ export const createBodyUtils = (): BodyUtils => {
     return { data: body, verbatim: false }
   }
 
-  return { contentTypeOf, isJsonContentType, jsonScalarBody, requestBodyOf }
+  const isBlob = (body: unknown): body is Blob =>
+    typeof Blob !== 'undefined' && body instanceof Blob
+
+  const isBinaryBody = (body: unknown): boolean =>
+    body != null && typeof body === 'object' && (
+      isBlob(body) || body instanceof ArrayBuffer || ArrayBuffer.isView(body)
+      || typeof (body as { pipe?: unknown }).pipe === 'function'
+    )
+
+  /** The view's own bytes: a Node `Buffer` as it is, any other view without the rest of its buffer. */
+  const bytesOf = (view: ArrayBufferView): unknown => {
+    const NodeBuffer = (globalThis as { Buffer?: { isBuffer: (value: unknown) => boolean, from: (buffer: ArrayBufferLike, offset: number, length: number) => unknown } }).Buffer
+    if (NodeBuffer != null) {
+      return NodeBuffer.isBuffer(view) ? view : NodeBuffer.from(view.buffer, view.byteOffset, view.byteLength)
+    }
+
+    return view.byteOffset === 0 && view.byteLength === view.buffer.byteLength
+      ? view.buffer
+      : view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength)
+  }
+
+  const binaryBodyOf = (
+    body: unknown, headers: Record<string, unknown> | undefined, defaultType?: string
+  ): RequestBody => {
+    const own = contentTypeOf(headers)
+    const type = own ?? defaultType ?? BINARY_CONTENT_TYPE
+    const data = isBlob(body)
+      ? (body.type === type ? body : new Blob([body], { type }))
+      : ArrayBuffer.isView(body) ? bytesOf(body) : body
+
+    return { data, ...(own == null ? { contentType: type } : {}), verbatim: true, binary: true }
+  }
+
+  return { contentTypeOf, isJsonContentType, jsonScalarBody, requestBodyOf, isBinaryBody, binaryBodyOf }
 }
 
 export const bodyUtils = createBodyUtils()

@@ -53,9 +53,20 @@ export class FileTypeError extends StoredFileError {
   }
 }
 
+/** A file scope refused: `organization`, `project`, `purpose` (an invalid segment), `path`, `shape`. */
+export class FileScopeError extends StoredFileError {
+  public static override typeName: string = `${StoredFileError.typeName}Scope`
+
+  constructor(message: string = 'error') {
+    super(`scope:${message}`)
+    this.type = FileScopeError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(StoredFileError)
 ResilientError.registerErrorClass(OrphanFileError)
 ResilientError.registerErrorClass(FilePropertyError)
 ResilientError.registerErrorClass(FileStreamError)
 ResilientError.registerErrorClass(StorageApiError)
 ResilientError.registerErrorClass(FileTypeError)
+ResilientError.registerErrorClass(FileScopeError)

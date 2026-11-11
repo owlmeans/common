@@ -1,12 +1,14 @@
 import type { InitializedService } from '@owlmeans/context'
+import type { FileInspector, FileInspectorOptions } from '@owlmeans/file-inspector'
 import type { ArchiveHelper, ArchiveLimits } from '../archive/types.js'
+import type { BackedWorkspace } from '../backed-workspace/types.js'
 import type { HttpClient } from '../http/types.js'
-import type { FileInspector, FileInspectorOptions } from '../inspector/types.js'
 import type { AddressResolver, NetworkPolicyOptions } from '../network/types.js'
 import type { ProxyCredentialsProvider, ProxyPlugin, ProxyRouterOptions, ProxyStrategy } from '../proxy/types.js'
 import type { UrlResolver } from '../resolvers/types.js'
 import type { S3Bucket, S3BucketOptions } from '../s3/types.js'
 import type { TransferHelper, TransferLimits } from '../transfer/types.js'
+import type { Workspace, WorkspaceOptions } from '../workspace/types.js'
 
 /** A proxy in config; string leaves may be secret files (`/etc/…`), which server contexts resolve. */
 export interface FileStreamsProxyConfig {
@@ -24,6 +26,17 @@ export interface FileStreamsConfig {
   proxies?: FileStreamsProxyConfig[]
   proxyStrategy?: ProxyStrategy
   userAgent?: string
+  /**
+   * The temporary workspace: `root`, folder and file modes. A server context reads every string leaf
+   * starting with `/` as a secret file, so give `root` relative to `os.tmpdir()` (default
+   * `owlmeans-workspace`), or as a file that holds an absolute path.
+   */
+  workspace?: WorkspaceOptions
+}
+
+export interface FileStreamsBackedOptions {
+  /** Objects land under `<prefix>/` inside the bucket's base prefix. */
+  prefix?: string
 }
 
 export interface FileStreamsConfigAppend {
@@ -51,4 +64,8 @@ export interface FileStreamsService extends InitializedService {
   transfer: () => TransferHelper
   inspector: () => FileInspector
   archives: () => ArchiveHelper
+  /** The workspace configured by `cfg.fileStreams.workspace`. */
+  workspace: () => Workspace
+  /** The workspace mirrored to the bucket of a `cfg.storageBuckets` entry (one object per key and prefix). */
+  backed: (bucketConfigKey: string, options?: FileStreamsBackedOptions) => BackedWorkspace
 }

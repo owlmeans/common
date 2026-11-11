@@ -57,6 +57,26 @@ await reader.close()
 
 In a context: `appendLlmReaderService(context, options)`, then `context.reader().using(models)`.
 
+### A local prototype
+
+```typescript
+import { createLlmReader, createLocalBundlePlugin } from '@owlmeans/llm-reader'
+
+const bundle = createLocalBundlePlugin({ root: '/uploads/prototype' })   // home.html, css/, img/
+const local = createLlmReader({ plugins: [bundle], models })             // the bundle plugin first
+const home = bundle.urlOf('home.html')                                    // https://bundle.local/home.html
+const page = await local.page(home)                                       // blocks, links, pictures — no model
+const { markdown } = await local.design(home)                             // DESIGN.md of the prototype
+```
+
+Files are served from the root under the synthetic origin with their content types; `..`, encoded
+separators, absolute paths and symbolic links that leave the root are refused. Any other URL — a
+prototype's external font or picture — still goes through the fetcher, its proxies and the address
+guard. With `@owlmeans/llm-reader-playwright` a bundle page renders from disk too.
+
+Pictures are sent only to a model that sees: `design` attaches the screenshot when the design
+model's `ModelConfig.vision` is set, and `images({ vision: true })` refuses a model without it.
+
 ## API
 
 | Export | Purpose |
@@ -66,6 +86,7 @@ In a context: `appendLlmReaderService(context, options)`, then `context.reader()
 | `makeReaderModels(exec, { executions, roles?, spectator? })` | Models per reader task, refined from an execution. |
 | `createPageFetcher(options)` | The fetcher on its own. |
 | `createProxyPlugin(options)` | The proxy plugin; `lease(request)` hands a proxy to other clients. |
+| `createLocalBundlePlugin({ root, origin? })` | A local directory served under a synthetic origin (default `https://bundle.local`), confined to its root; `urlOf(path)`, `read(url)`, `serves(url)`. |
 | `createAddressGuard(options)` | The private-address guard. |
 | `makePageModel({ url, html })` | Parse HTML you already have. |
 | `renderDesignMd(draft, facts)` | Render a DESIGN.md from a token draft. |
@@ -76,7 +97,8 @@ In a context: `appendLlmReaderService(context, options)`, then `context.reader()
 bun run build && bun test ./tests
 ```
 
-Offline specs run against real local servers (a fixture site, an HTTP proxy, a SOCKS server).
+Offline specs run against real local servers (a fixture site, an HTTP proxy, a SOCKS server) and a
+local bundle fixture (`tests/fixtures/bundle`).
 Live specs are gated: `ANTHROPIC_SECRET` or `OPENAI_SECRET` (analysis), `LLM_READER_LIVE_WEB=1`
 (the public web), `LLM_READER_PROXIES` (real proxies) in the repo root `.env`.
 

@@ -17,12 +17,12 @@ The canonical reference is `tree.md` at the repo root. Read it directly when the
 
 ## Layers (high-level)
 
-1. **Configuration & tooling** — `dep-config`, `agent-skills`, `create-app`
+1. **Configuration & tooling** — `dep-config`, `agent-skills`, `create-app`, `cli-auth`, `viable-sdk`
 2. **Core foundations** — environment-agnostic primitives (`context`, `log`, `error`, `auth`, `route`, `router`, `entrypoint`, `resource`, `config`, `did`, `basic-*`, `i18n`, `state`, `socket`)
-3. **Cross-cutting domain** — `flow`, `oidc`, `iam`, `payment`, `wled`, `consent`, `common-inquiry`, `viable-log`, `mailer`, `auth-otp`, `llm-common`, `llm`, `agent-common`, `agent`, `planning`, `bot`, `viable-common`, and the abstract `queue` contract (its `redis-queue` driver sits in the storage layer, its `server-job` / `client-job` transports in the server and client layers)
+3. **Cross-cutting domain** — `flow`, `oidc`, `iam`, `payment`, `wled`, `consent`, `marketing-consent`, `common-inquiry`, `viable-log`, `mailer`, `auth-otp`, `llm-common`, `llm`, `agent-common`, `agent`, `planning`, `bot`, `viable-common`, the browser-safe `upload` and `job` contracts, and the abstract `queue` contract (its `redis-queue` driver sits in the storage layer, its `server-job` / `client-job` transports in the server and client layers)
 4. **Auth shared** — `auth-common` and the auth contracts (`auth-token`, `oauth`, `auth-email`)
 5. **API & API config** — `api`, `api-config`, `api-config-client`, `api-config-server`
-6. **Storage & infrastructure** — `mongo*`, `redis*`, `postgres*`, `storage*`, `image-resource`, `static-resource`, `file-streams`, `kluster`, plus the drivers behind the abstract contracts: `redis-queue`, `mailer-smtp`, `server-mailer-mailgun`
+6. **Storage & infrastructure** — `mongo*`, `redis*`, `postgres*`, `storage*`, `image-resource`, `static-resource`, `file-inspector`, `file-streams`, `kluster`, plus the drivers behind the abstract contracts: `redis-queue`, `mailer-smtp`, `server-mailer-mailgun`
 7. **Server** — `server-*`, including the queue's server-side transport `server-job`, `bot-agent` (the bot's actions as agent tools, over `server-bot`) and `captcha` (server-side reCAPTCHA verification, no prefix)
 8. **Client (platform-agnostic)** — `client-*`, including the queue's client-side transport `client-job`
 9. **Web** — `web-*` (incl. `web-log`), the LEGACY Material-UI variants `mui-panel` / `mui-oidc-rp` (maintain only; new work uses the shadcn `web-panel` family), and the Astro integration `astro`
@@ -30,16 +30,17 @@ The canonical reference is `tree.md` at the repo root. Read it directly when the
 
 A prefix is not proof of a layer. `client-iam` depends on `web-client` and `web-oidc-rp`, so it is browser-only; check `tree.md` before assuming a `client-*` package is safe for React Native. `client-auth` depends on `web-flow`, so it too pulls the web layer in.
 
-`tree.md` covers the 124 framework packages. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are not framework packages and are out of scope for it.
+`tree.md` covers the 142 framework packages. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are not framework packages and are out of scope for it.
 
 ## Families that span layers
 
-Two concerns are split across layers on purpose. Reach for the member that matches the layer you are in, never the one whose name reads closest:
+Three concerns are split across layers on purpose. Reach for the member that matches the layer you are in, never the one whose name reads closest:
 
 | Family | Contract (layer 3) | Driver (layer 6) | Server transport (layer 7) | Client transport (layer 8) |
 |---|---|---|---|---|
 | Jobs / queues | `queue` — job/queue contracts, transport, bridge, and the worker surface (`servedJobs`, `entrypointProcessor`, `queueWorkerMiddleware`) | `redis-queue` | `server-job` — job entrypoint declaration and serving (`jobEntrypointAliases`, `declareJobEntrypoints`, `serveJobEntrypoints`), the list/get/cancel/watch actions, and owner/resource utils | `client-job` — job helper, hooks and feed |
 | Mail | `mailer` — transport contract and the console/dev transport | `mailer-smtp`, `server-mailer-mailgun` | — | — |
+| Uploads | `upload` — policy, sessions, prechecks and the protocol tree; browser-safe (`FileKind` from `file-inspector/kinds` only) | `file-inspector` (verification), `file-streams` (spool, archives, trees) | `server-upload` — sessions, intake, receivers, handlers | `client-upload` (browser and Bun); UI `web-upload` (web layer, private shadcn primitives) |
 
 The LLM/agent stack has no such split — every member is environment-agnostic and sits in layer 3. Its order is `llm-common` → `llm` (models, provider plugins, execution service) → `agent-common` (graph contracts, on `flow`) → `agent` (the runtime graph). A server package that runs a graph depends on `agent`; it does not re-implement one.
 

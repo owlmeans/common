@@ -4,6 +4,7 @@ import { SpectatorContentType } from '@owlmeans/llm-common'
 import type { SpectatorEntryMessage } from '@owlmeans/llm-common'
 import { logger } from '@owlmeans/log'
 import type { LlmSpectator, ModelInputItem } from '../types.js'
+import { mediaUtils } from '../utils/media.js'
 import { cacheHelper } from './cache.js'
 
 const log = logger('llm')
@@ -17,7 +18,11 @@ const log = logger('llm')
 const asText = (content: unknown): string =>
   typeof content === 'string' ? content : JSON.stringify(content) ?? ''
 
-/** Normalize one prompt message into the spectator's storage shape. */
+/**
+ * Normalize one prompt message into the spectator's storage shape. A binary part (an image, a PDF)
+ * is stored as its placeholder `{ type, mime, bytes, sha256 }` in `content` and `raw` alike — a trace
+ * never carries a payload.
+ */
 const describeInput = (msg: ModelInputItem, callType: string): SpectatorEntryMessage => {
   const entry: SpectatorEntryMessage = {
     callType,
@@ -27,16 +32,17 @@ const describeInput = (msg: ModelInputItem, callType: string): SpectatorEntryMes
   }
 
   if (msg instanceof BaseMessage) {
+    const content = mediaUtils.redactContent(msg.content)
     entry.type = msg.type
-    entry.content = asText(msg.content)
+    entry.content = asText(content)
     entry.name = msg.name
     entry.contentType = typeof msg.content === 'string' ? SpectatorContentType.Text : SpectatorContentType.Json
     entry.usage = 'usage_metadata' in msg ? msg.usage_metadata as UsageMetadata : undefined
-    entry.raw = JSON.stringify({ message: msg, content: msg.content, meta: msg.response_metadata })
+    entry.raw = JSON.stringify({ message: mediaUtils.redactMessage(msg), content, meta: msg.response_metadata })
   } else if (typeof msg === 'object' && 'content' in msg) {
     entry.type = msg.role as string ?? 'unknown'
-    entry.content = asText(msg.content ?? msg)
-    entry.raw = JSON.stringify(msg)
+    entry.content = asText(mediaUtils.redactContent(msg.content) ?? msg)
+    entry.raw = JSON.stringify(mediaUtils.redactMessage(msg))
   } else {
     entry.content = asText(msg)
     entry.raw = JSON.stringify(msg)
@@ -62,6 +68,7 @@ export const spectate = (spectator: LlmSpectator, callType: string) =>
     model?: string,
   ) => {
     const messages = input.map(msg => describeInput(msg, callType))
+    const content = mediaUtils.redactContent(message.content)
 
     const completion: SpectatorEntryMessage = {
       type: message.type,
@@ -70,14 +77,14 @@ export const spectate = (spectator: LlmSpectator, callType: string) =>
       name: message.name,
       contentType: typeof message.content === 'string' ? SpectatorContentType.Text : SpectatorContentType.Json,
       usage: message.usage_metadata,
-      raw: JSON.stringify({ message, content: message.content, meta: message.response_metadata }),
+      raw: JSON.stringify({ message: mediaUtils.redactMessage(message), content, meta: message.response_metadata }),
     }
 
     if (message.tool_calls != null && message.tool_calls.length > 0) {
       completion.content = asText(message.tool_calls)
       completion.contentType = SpectatorContentType.ToolCall
     } else {
-      completion.content = asText(message.content)
+      completion.content = asText(content)
     }
 
     // Silent unless the provider reported cache activity, so it costs nothing when

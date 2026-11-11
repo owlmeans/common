@@ -1,6 +1,6 @@
 ---
 name: llm-reader
-description: How to use @owlmeans/llm-reader — fetch web pages directly or through HTTP/SOCKS proxies (a list or a key→proxy callback), parse them (metadata with its evidence, main content as Markdown, links, pictures with the context they are used in, a ref-addressed DOM), and have a model read them in text mode or as a DOM-exploring @owlmeans/agent agent — describe (the default Markdown description), classify, extract, pick links, classify and caption images — and write the page's design system as a DESIGN.md. Auto-invoked when importing createLlmReader, appendLlmReaderService, createProxyPlugin, createPageFetcher, makePageModel or makeReaderModels.
+description: How to use @owlmeans/llm-reader — fetch web pages directly or through HTTP/SOCKS proxies (a list or a key→proxy callback), parse them (metadata with its evidence, main content as Markdown, links, pictures with the context they are used in, a ref-addressed DOM), and have a model read them in text mode or as a DOM-exploring @owlmeans/agent agent — describe (the default Markdown description), classify, extract, pick links, classify and caption images — and write the page's design system as a DESIGN.md — of a live site or of a local html/css bundle (an uploaded prototype). Auto-invoked when importing createLlmReader, appendLlmReaderService, createProxyPlugin, createLocalBundlePlugin, createPageFetcher, makePageModel or makeReaderModels.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -39,6 +39,7 @@ await reader.design(url)                       // { markdown: DESIGN.md, tokens,
 | `createPageFetcher(options)` · `ReaderFetchPlugin` | The fetcher: a middleware chain, guarded manual redirects, byte caps, charset decoding. |
 | `createProxyPlugin(options)` · `ProxyPlugin.lease(request)` | The integrated proxy plugin — see the `fetching` part. |
 | `createAddressGuard(options)` | Refuses non-public targets; the reader, the bridge and the renderer all check through it. |
+| `createLocalBundlePlugin({ root, origin? })` · `LocalBundle` | A local directory served under a synthetic origin (`https://bundle.local`), confined to its root — see the `fetching` part. |
 | `createSocksBridge(options)` · `createFetchTransport()` | The local HTTP-proxy bridge in front of SOCKS proxies, and the runtime transport (Bun fetch / Node undici). |
 | `makePageModel(source)` | A parsed page: `meta`, `content`, `outline`, `links`, `images`, `signals`, `stylesheets`, `styles`, `dom`, all lazy and computed once. |
 | `makePageAnalyst(page, options)` · `makeDesignAnalyst(page, options)` | The model-backed reading of one page, and its design write-up. |
@@ -63,6 +64,11 @@ await reader.design(url)                       // { markdown: DESIGN.md, tokens,
   third-party APIs outside the fetcher, proxy and guard.
 - **DOM mode is the default** for every model-backed task when the reader has an execution; text
   mode (`mode: ReaderMode.Text`) is one cheaper call, and the only mode of a bare-model reader.
+- **Pictures go only to a model that sees.** A picture is a checked `mediaHelper.image` part
+  (`@owlmeans/llm`); `design` attaches the screenshot only when the design model's
+  `capabilities().vision` is true, and `images({ vision: true })` on a model without it is a
+  `ReaderConfigError('no-vision-model')` before any call — `ModelConfig.vision` is the consumer's
+  declaration.
 - **Model answers are checked against the page.** Key links and selected links must be URLs the page
   has, image ids must exist, DOM-mode evidence quotes must appear in the cited node.
 - **The model never writes Markdown structure or YAML the package can render.** `describe` and
@@ -72,7 +78,7 @@ await reader.design(url)                       // { markdown: DESIGN.md, tokens,
 
 | Part | Load it when |
 |---|---|
-| [fetching](parts/fetching.md) | fetching through proxies (list, callback, strategies, failover), the SOCKS bridge, the address guard, Bun vs Node, or a proxy that is bypassed or failing |
+| [fetching](parts/fetching.md) | fetching through proxies (list, callback, strategies, failover), the SOCKS bridge, the address guard, Bun vs Node, a local bundle (an uploaded html/css prototype), or a proxy that is bypassed or failing |
 | [analysis](parts/analysis.md) | describing, classifying or extracting from a page, text vs DOM mode, links by intent, pictures with their context, vision captions |
 | [design](parts/design.md) | the design facts, the DESIGN.md format the reader emits, or a design write-up that looks wrong |
 | [testing](parts/testing.md) | running or adding tests of this package |

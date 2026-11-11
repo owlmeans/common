@@ -1,9 +1,9 @@
 ---
 name: fetching
-description: Fetching pages through the reader's fetcher — the integrated proxy plugin (list, key→proxy callback, strategies, cooldown, failover), the local SOCKS bridge, the Bun and Node transports, NO_PROXY fail-closed, and the address guard.
+description: Fetching pages through the reader's fetcher — the integrated proxy plugin (list, key→proxy callback, strategies, cooldown, failover), the local SOCKS bridge, the Bun and Node transports, NO_PROXY fail-closed, the address guard, and local bundles served under a synthetic origin.
 metadata:
   purposes: server-api, config
-  mentions: createPageFetcher, createProxyPlugin, ProxyResolver, ProxyLease, ProxyStrategy, createSocksBridge, createFetchTransport, createAddressGuard, BRIDGE_ERROR_HEADER, BRIDGE_REFUSED_HEADER, NO_PROXY, ReaderProxyError, ReaderRefusedError
+  mentions: createPageFetcher, createProxyPlugin, createLocalBundlePlugin, LocalBundle, LocalBundlePlugin, DEFAULT_BUNDLE_ORIGIN, ProxyResolver, ProxyLease, ProxyStrategy, createSocksBridge, createFetchTransport, createAddressGuard, BRIDGE_ERROR_HEADER, BRIDGE_REFUSED_HEADER, NO_PROXY, ReaderProxyError, ReaderRefusedError
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
@@ -59,6 +59,29 @@ createProxyPlugin({
   `ReaderProxyError('no-proxy-bypass:…')`.
 - On Bun a 407 or 502 answer to CONNECT resolves as an ordinary `Response`; the fetcher reads it as a
   proxy failure (407, or the bridge's `x-owlmeans-proxy-error` header), never as the page.
+
+## Local bundles
+
+`createLocalBundlePlugin({ root, origin = 'https://bundle.local' })` serves a directory — an
+uploaded `home.html` with its css and pictures — under a synthetic origin, so every reader task
+works on it unchanged: `reader.page(bundle.urlOf('home.html'))`, `describe`, `extract`, `images`,
+`design`. Put it FIRST in `plugins`: a request under its origin is answered from disk (no proxy,
+no DNS, no guard — the origin is never resolved), every other one goes on down the chain to the
+proxy plugin, the address guard and the network, so a prototype's external fonts or pictures are
+still guarded.
+
+- **Confined to the root.** `urlOf(path)` refuses an absolute path, a drive letter and `..`; `read`
+  refuses a decoded segment that is `.`/`..` or holds `/`, `\` or NUL (the URL parser already folds a
+  plain `..` back inside); a symbolic link is followed only while its real path stays under the
+  root's real path — `ReaderRefusedError('bundle-escape:…')` otherwise.
+- **Answered like the network.** A content type by extension (`BUNDLE_CONTENT_TYPES`, else
+  `application/octet-stream`), text decoded by `<meta charset>`/BOM sniff or UTF-8, the same byte
+  caps and the same refusals (a picture as a page, a page as a picture); a missing file is a 404
+  page, a directory answers with its `index.html`.
+- **Rendered pages.** For a bundle URL `reader.page(url, { render: true })` and `design` skip the
+  lease and the guard check of the page itself and hand the renderer `RenderRequest.bundle`;
+  `@owlmeans/llm-reader-playwright` routes the origin to the bundle (`page.route`) while every
+  other request of the page still goes through the guard.
 
 ## The SOCKS bridge
 

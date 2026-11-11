@@ -8,7 +8,9 @@ import type { PlaywrightRenderer, PlaywrightRendererOptions } from './renderer/t
  * Render pages in Chromium (or the browser you pass). Each page gets its own browser context:
  * its proxy is the reader's lease (`endpoint()` — the upstream, or the SOCKS bridge, which
  * challenges with a 407 so Chromium sends the route credentials), every request it makes is put
- * through the reader's address guard, downloads are off and service workers blocked.
+ * through the reader's address guard, downloads are off and service workers blocked. A page of a
+ * local bundle (`bundles`, or the request's own `bundle`) is served from disk under its synthetic
+ * origin, while everything it loads from elsewhere still passes the guard.
  */
 export const createPlaywrightRenderer = (options: PlaywrightRendererOptions = {}): PlaywrightRenderer => {
   let launched: Promise<Browser> | undefined
@@ -34,14 +36,24 @@ export const createPlaywrightRenderer = (options: PlaywrightRendererOptions = {}
         : {}),
     })
     const blocked: string[] = []
+    const bundles = [...(options.bundles ?? []), ...(request.bundle != null ? [request.bundle] : [])]
     try {
-      if (request.guard != null) {
+      if (request.guard != null || bundles.length > 0) {
         const guard = request.guard
         await context.route('**/*', async route => {
           const url = route.request().url()
           if (url.startsWith('data:') || url.startsWith('blob:')) return route.continue()
+          // A bundle file is answered from disk; its synthetic origin never reaches DNS or a proxy.
+          const bundle = bundles.find(candidate => candidate.serves(url))
           try {
-            await guard.check(url, endpoint == null)
+            if (bundle != null) {
+              const file = await bundle.read(url)
+              await route.fulfill(file != null
+                ? { status: 200, contentType: file.contentType, body: Buffer.from(file.bytes) }
+                : { status: 404, contentType: 'text/plain', body: '' })
+              return
+            }
+            await guard?.check(url, endpoint == null)
             await route.continue()
           } catch {
             blocked.push(url)

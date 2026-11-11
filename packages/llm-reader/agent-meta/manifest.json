@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "package": "@owlmeans/llm-reader",
   "version": "0.1.22-rc.0",
-  "generatedAt": "2026-11-09T20:28:13.778Z",
+  "generatedAt": "2026-11-10T17:39:44.215Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -63,7 +63,7 @@
         {
           "name": "fetching",
           "file": "skills/llm-reader/parts/fetching.md",
-          "description": "Fetching pages through the reader's fetcher — the integrated proxy plugin (list, key→proxy callback, strategies, cooldown, failover), the local SOCKS bridge, the Bun and Node transports, NO_PROXY fail-closed, and the address guard.",
+          "description": "Fetching pages through the reader's fetcher — the integrated proxy plugin (list, key→proxy callback, strategies, cooldown, failover), the local SOCKS bridge, the Bun and Node transports, NO_PROXY fail-closed, the address guard, and local bundles served under a synthetic origin.",
           "purposes": [
             "server-api",
             "config"
@@ -71,6 +71,10 @@
           "mentions": [
             "createPageFetcher",
             "createProxyPlugin",
+            "createLocalBundlePlugin",
+            "LocalBundle",
+            "LocalBundlePlugin",
+            "DEFAULT_BUNDLE_ORIGIN",
             "ProxyResolver",
             "ProxyLease",
             "ProxyStrategy",
@@ -98,6 +102,7 @@
             "LLM_READER_PROXIES",
             "servers.ts",
             "context.ts",
+            "bundle.spec.ts",
             "node-transport.spec.ts",
             "analyst.live.spec.ts",
             "web.live.spec.ts",

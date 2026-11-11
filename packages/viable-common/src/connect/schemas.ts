@@ -42,6 +42,10 @@ import type {
 import { EntitySlugSchema, GroupKeySchema, ProfileIdSchema } from '../iam-console/consts.local.js'
 import type { ConnectPullQuery, ConnectSession, ConnectSessionOpen, ConnectSessionParams } from './session/types.js'
 import type { ConnectLlmBody, ConnectProjectLlmBody } from './settings/types.js'
+import { MATERIAL_PATH_MAX, MATERIALS_LIMITS } from '../materials/consts.js'
+import type {
+  ConnectCreateWithMaterialsBody, ConnectMaterialQuery, ConnectMaterialsAnnouncement, ConnectMaterialsDraftBody,
+} from './materials/types.js'
 
 /**
  * A nullable ENUM carries `null` as one of its values.
@@ -851,3 +855,44 @@ export const ConnectActivityQuerySchema = {
   required: [],
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConnectActivityQuery>
+
+/**
+ * What a create with files announces — within the limits of the expanded set (an archive counted as
+ * one file of its own size), numbers only: the platform keeps the announcement on the slot, whose
+ * schema is re-applied as a Mongo `$jsonSchema`.
+ */
+export const ConnectMaterialsAnnouncementSchema = {
+  type: 'object',
+  properties: {
+    files: { type: 'number', minimum: 1, maximum: MATERIALS_LIMITS.files, multipleOf: 1 },
+    bytes: { type: 'number', minimum: 0, maximum: MATERIALS_LIMITS.totalBytes, multipleOf: 1 },
+  },
+  required: ['files', 'bytes'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectMaterialsAnnouncement>
+
+/** The create body — exactly `ConnectCreateBodySchema`'s properties — plus the announcement. */
+export const ConnectCreateWithMaterialsBodySchema = {
+  type: 'object',
+  properties: {
+    ...ConnectCreateBodySchema.properties,
+    materials: ConnectMaterialsAnnouncementSchema,
+  },
+  required: ['prompt', 'materials'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectCreateWithMaterialsBody>
+
+/** One material, by the original relative path the upload accepted. */
+export const ConnectMaterialQuerySchema = {
+  type: 'object',
+  properties: { path: { type: 'string', minLength: 1, maxLength: MATERIAL_PATH_MAX } },
+  required: ['path'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectMaterialQuery>
+
+export const ConnectMaterialsDraftBodySchema = {
+  type: 'object',
+  properties: { force: { type: 'boolean', nullable: true } },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectMaterialsDraftBody>

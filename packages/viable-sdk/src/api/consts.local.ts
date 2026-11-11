@@ -32,3 +32,9 @@ export const COLLECT_PAUSE_MS = 1_000
 
 /** What a platform older than a route answers for it — read as "this platform cannot say". */
 export const NOT_FOUND = 404
+
+/**
+ * One material's HTTP deadline: a file of up to `MATERIALS_LIMITS.fileBytes` over a slow line. An
+ * upload runs past its tool's answer when it must, so this bounds the file, never the tool.
+ */
+export const MATERIALS_FILE_TIMEOUT_MS = 120_000

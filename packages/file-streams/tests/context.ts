@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { DeleteObjectsCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,7 +10,9 @@ import { gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, S3Env } from '@owlmeans/test-integration'
 import type { StorageConfig } from '@owlmeans/storage-resource'
 import { appendFileStreamsService, createHttpClient, FILE_STREAMS_SERVICE } from '../src/index.js'
-import type { FileStreamsConfig, FileStreamsService, FileStreamsServiceOptions, HttpClient, HttpClientOptions } from '../src/index.js'
+import type {
+  FileStreamsConfig, FileStreamsService, FileStreamsServiceOptions, HttpClient, HttpClientOptions, S3Bucket,
+} from '../src/index.js'
 
 /** S3 gate: empty `S3_*` variables print a skip, never a failure. */
 export const s3: IntegrationGate<S3Env> = gateHelper.s3Gate()
@@ -69,6 +72,23 @@ export const bucketConfig = (basePrefix: string): StorageConfig => {
     apiKey: `${s3.env.S3_KEY as string}:${s3.env.S3_SECRET as string}`,
     basePrefix,
     acl: false,
+  }
+}
+
+/** Deletes every object under the bucket's random base prefix — a spec's own cleanup, outside the API under test. */
+export const purgeBasePrefix = async (bucket: S3Bucket): Promise<void> => {
+  const client = bucket.model.createClient()
+  try {
+    for (;;) {
+      const page = await client.send(new ListObjectsV2Command({ Bucket: bucket.model.bucket, Prefix: `${bucket.model.basePrefix}/` }))
+      const keys = (page.Contents ?? []).map(object => ({ Key: object.Key as string }))
+      if (keys.length === 0) {
+        return
+      }
+      await client.send(new DeleteObjectsCommand({ Bucket: bucket.model.bucket, Delete: { Objects: keys, Quiet: true } }))
+    }
+  } finally {
+    client.destroy()
   }
 }
 

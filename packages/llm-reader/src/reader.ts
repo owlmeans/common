@@ -9,11 +9,15 @@ import type { ReaderModels } from './execution/types.js'
 import { createPageFetcher } from './fetch/fetcher.js'
 import type { FetchedResource, PageFetcher } from './fetch/fetcher/types.js'
 import type { ProxyPlugin } from './fetch/proxy/types.js'
+import type { LocalBundlePlugin } from './fetch/bundle/types.js'
 import { makePageModel } from './models/page.js'
 import type { PageModel } from './models/page/types.js'
 import type { LlmReader, LlmReaderOptions, ReadOptions, ReaderTarget } from './reader/types.js'
 
 const isPage = (target: ReaderTarget): target is PageModel => typeof target === 'object' && 'dom' in target
+
+const isBundle = (plugin: unknown): plugin is LocalBundlePlugin =>
+  typeof (plugin as LocalBundlePlugin).serves === 'function' && typeof (plugin as LocalBundlePlugin).read === 'function'
 
 const isModels = (models: ReaderModels | LlmModel): models is ReaderModels =>
   typeof (models as ReaderModels).helper === 'function'
@@ -30,6 +34,7 @@ const singleModel = (model: LlmModel): ReaderModels => ({ model: () => model, he
 export const createLlmReader = (options: LlmReaderOptions = {}): LlmReader => {
   const fetcher: PageFetcher = options.fetcher ?? createPageFetcher(options)
   const proxy = options.plugins?.find((plugin): plugin is ProxyPlugin => typeof (plugin as ProxyPlugin).lease === 'function')
+  const bundles = options.plugins?.filter(isBundle) ?? []
 
   const build = (models: ReaderModels | LlmModel | undefined): LlmReader => {
     const resolved = models == null ? undefined : isModels(models) ? models : singleModel(models)
@@ -58,12 +63,15 @@ export const createLlmReader = (options: LlmReaderOptions = {}): LlmReader => {
 
     const render = async (url: string, read: ReadOptions): Promise<PageModel> => {
       const renderer = options.renderer!
-      const lease = await proxy?.lease({ url, ...(read.key != null ? { key: read.key } : {}) })
-      await fetcher.guard.check(url, lease == null)
+      // A bundle page is answered from disk: no proxy, and its synthetic origin is never resolved.
+      const bundle = bundles.find(plugin => plugin.serves(url))
+      const lease = bundle == null ? await proxy?.lease({ url, ...(read.key != null ? { key: read.key } : {}) }) : undefined
+      if (bundle == null) await fetcher.guard.check(url, lease == null)
       try {
         const rendered = await renderer.render({
           url, guard: fetcher.guard, screenshot: true, styles: true,
-          ...(lease != null ? { lease } : {}), ...(read.signal != null ? { signal: read.signal } : {}),
+          ...(lease != null ? { lease } : {}), ...(bundle != null ? { bundle } : {}),
+          ...(read.signal != null ? { signal: read.signal } : {}),
         })
         lease?.report({ ok: true, status: rendered.status })
         return makePageModel({ url, html: rendered.html, rendered })
