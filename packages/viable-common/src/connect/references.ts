@@ -23,6 +23,7 @@ import type {
   ConnectGithubPublishBody, ConnectGithubRepoList, ConnectGithubRepoQuery,
 } from './git/types.js'
 import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } from './kit/types.js'
+import type { ConnectAppParams, ConnectAppRestartBody, ConnectAppsView } from './apps/types.js'
 import type {
   ConnectCreateWithMaterialsBody, ConnectMaterialCatalogue, ConnectMaterialQuery, ConnectMaterialsDraftBody,
   ConnectMaterialsState, ConnectMaterialText,
@@ -152,6 +153,7 @@ export const connectRef: ConnectReferences = {
         params: { id: string }, body: ConnectKitApplyBody
       }, ConnectKitApplyResult>(connect.project.kit.apply),
     },
+    apps: entrypointRef<{ params: { id: string } }, ConnectAppsView>(connect.project.apps),
     branding: {
       get: entrypointRef<{
         params: { id: string }, query?: ConnectScopeQuery
@@ -213,6 +215,9 @@ export const connectRef: ConnectReferences = {
     restart: entrypointRef<{ params: { id: string } }, ConnectSlotView>(connect.sandbox.restart),
     stop: entrypointRef<{ params: { id: string } }, ConnectSlotView>(connect.sandbox.stop),
     rebuild: entrypointRef<{ params: { id: string } }, ConnectSlotView>(connect.sandbox.rebuild),
+    restartApp: entrypointRef<{
+      params: ConnectAppParams, body: ConnectAppRestartBody
+    }, ConnectAppsView>(connect.sandbox.restartApp),
   },
   client: {
     identify: entrypointRef<{}, ConnectClientView>(connect.client.identify),

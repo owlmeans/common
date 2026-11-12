@@ -89,6 +89,7 @@ export const createStatusTextHelper = (): StatusTextHelper => {
     const lines = [
       `${status.story.code} · ${status.story.title}`,
       `story: ${status.story.status} (${status.story.intrinsic})`,
+      ...(extra.apps != null && extra.apps.length > 0 ? [`${extra.apps.length > 1 ? 'apps' : 'app'}: ${extra.apps.join(', ')}`] : []),
       ...(extra.landing === true ? [LANDING_NOTE] : []),
       ...runLines(status.run),
     ]

@@ -1,4 +1,5 @@
 import { TargetLayout } from '../consts.js'
+import { TOPOLOGY_FILE } from '../../metadata/consts.js'
 import type { TargetLayoutManifest } from '../types.js'
 import { V1_MANIFEST, V2_MANIFEST } from './consts.local.js'
 
@@ -34,10 +35,14 @@ export const TARGET_LAYOUT_PROBE_FILES: readonly string[] =
  *
  * The verifier is pure and does no IO of its own — the publisher reads these from the PVC, and
  * a test reads them from the template tree. A path that does not exist is passed as `null`,
- * which the verifier reports rather than skipping: absence is a violation for everything here.
+ * which the verifier reports rather than skipping: absence is a violation for everything here —
+ * except the topology record, which only decides whether the tree is split into apps (and then
+ * what else to read: `targetIntegrityHelper.readPlan` / `collectTargetFiles`).
  */
 export const TARGET_INTEGRITY_FILES: readonly string[] = [
   ...new Set(Object.values(TARGET_LAYOUTS).flatMap(manifest => manifest.files)),
+  // The topology record decides whether the tree is split into apps — read, never required.
+  TOPOLOGY_FILE,
 ]
 
 /**

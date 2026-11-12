@@ -38,7 +38,7 @@
     "@owlmeans/error": "^0.1.21",
     "@owlmeans/file-inspector": "^0.1.22-rc.0",
     "@owlmeans/log": "^0.1.21",
-    "@owlmeans/storage-common": "^0.1.21",
+    "@owlmeans/storage-common": "^0.1.22-rc.0",
     "@owlmeans/storage-resource": "^0.1.22-rc.0",
     "socks": "^2.8.10",
     "tar-stream": "^3.2.2",
@@ -47,7 +47,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.21",
-    "@owlmeans/server-context": "^0.1.21",
+    "@owlmeans/server-context": "^0.1.22-rc.0",
     "@owlmeans/test": "^0.1.22-rc.0",
     "@owlmeans/test-integration": "^0.1.22-rc.0",
     "@types/bun": "^1.4.4",

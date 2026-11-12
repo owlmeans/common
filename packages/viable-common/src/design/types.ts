@@ -44,6 +44,11 @@ export interface StoryDesignScreen {
    * one TAB per heavy form. Absent on a design written before the step, and on a one-component screen.
    */
   composition?: StoryScreenComposition
+  /**
+   * The area this screen hangs under, by KEY — set only when it is not the story's own area (a
+   * story reaching further areas). Absent: the story's area (`areaKey ?? area`).
+   */
+  area?: string
 }
 
 /** One tab of a tabbed screen: an id for the URL, a label a person reads, the components it holds. */
@@ -77,6 +82,8 @@ export interface StoryDesignComponent {
   screen: string
   entities: string[]
   specs: { ux: string, ui: string }
+  /** The app whose web package holds this component; absent is `main`. */
+  app?: string
   // `outcome` is deliberately ABSENT. Where a successful submit returns the actor is read per call
   // from the live registry, because the registry gains this story's own screens as the run goes;
   // a value decided at design time returns the user to a placeholder.
@@ -128,6 +135,8 @@ export interface StoryDesignApi {
   endpoints: StoryDesignEndpoint[]
   /** Required operations; a read dependency does not acquire an unrelated management workflow. */
   operations?: StoryRecordOperation[]
+  /** The app whose api package serves this group — one copy per touched app; absent is `main`. */
+  app?: string
 }
 
 export type StoryRecordOperation = 'list' | 'get' | 'create' | 'update' | 'remove'
@@ -137,6 +146,8 @@ export interface StoryDesignStore {
   entity: string
   type: string
   api: string
+  /** The app whose web package holds this store — one copy per touched app; absent is `main`. */
+  app?: string
 }
 
 /** What the design was written against, so a reader can tell whether it still applies. */
@@ -175,6 +186,10 @@ export interface StoryDesign {
   code: string
   narrative: string
   area: ProjectArea
+  /** The story's custom area, by key (the card's `areaKey`); absent reads as the key `area` names. */
+  areaKey?: string
+  /** Further area keys the story reaches (the card's `areas`); absent or empty — its area alone. */
+  areas?: string[]
   /**
    * What the scaffold reserved when it drew the application.
    *

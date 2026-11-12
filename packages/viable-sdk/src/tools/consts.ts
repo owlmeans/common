@@ -226,6 +226,16 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       absent: 'no project tools are offered here',
     },
     {
+      id: 'apps',
+      title: 'A project\'s applications',
+      what: 'Every project has main, at the root of its address; a project split into applications serves'
+        + ' each of them under its own path (/admin, /backoffice, …) of that one address, each with its own'
+        + ' interface and server. List them — the areas each serves, and how its interface and server stand'
+        + ' — and restart one while the others keep serving: in the preview, or in the run on this machine.',
+      tools: ['project_apps', 'restart_project_app'],
+      absent: 'a project\'s applications are not offered here',
+    },
+    {
       id: 'materials',
       title: 'A new project\'s files',
       what: 'A project may start from files — a specification or brief, a logo, icons, fonts, stylesheets,'

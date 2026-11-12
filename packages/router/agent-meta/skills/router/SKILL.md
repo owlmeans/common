@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/router
 
 **Layer:** Core (L1)
-**Install:** `"@owlmeans/router": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/router": "^0.1.22-rc.0"` in `dependencies`
 
 `@owlmeans/router` is the **plugin host** for OwlMeans UI routing. It does not talk to any
 concrete router; it defines the contract, holds a registry of routing plugins, and selects the
@@ -32,6 +32,7 @@ OwlMeans in-browser router) and `@owlmeans/web-router-react-router` (opt-in reac
 | `UseParamsHook`, `UseLocationHook`, `UseNavigateHook`, `UseSearchParamsHook` | The hook signatures a plugin must satisfy. |
 | `Location`, `Path`, `NavigateFunction`, `NavigateOptions`, `SetSearchParams` | The navigation value types those hooks trade in. |
 | `defaultRouterEnv()` | Default environment (`window`-based); override per-request for SSR. |
+| `routerBaseHelper` / `RouterBaseHelper` | The application base: `normalize(base)` (`''`/`'/'` → `''`, `admin` → `/admin`), `strip(pathname, base)`, `join(base, path)` (only a root-relative path is prefixed), `baseOf(ctx)` (`cfg.services[cfg.service].base`). Identity at the root. |
 | Constants | `ROUTER_SERVICE` / `DEFAULT_ALIAS` (`'router-service'`), `DEFAULT_ROUTER_PRIORITY`, `ROUTER_PLUGIN`. |
 
 ## Cascade selection
@@ -59,6 +60,14 @@ context is still in the Loading stage. `context.service()` throws for an uniniti
 service, which would make `ensureRouterService` (and therefore `appendReactRouter` /
 `appendWebRouter` on an existing host) fail exactly where apps are told to call them. Keep the host
 lazy when extending it.
+
+## The application base
+
+A plugin's `compile(routes, ctx)` receives the context (the facade passes `service.ctx`), and reads
+the application's base with `routerBaseHelper.baseOf(ctx)`. Routes, matching and every location a
+plugin hands out stay base-less; the plugin joins the base onto a pushed/replaced address and strips
+it from the browser's pathname. A root base (`''`, `'/'`, unset) must leave every address
+byte-identical — `tests/base.spec.ts` pins it.
 
 ## The matcher
 

@@ -1,7 +1,7 @@
 ---
 node: routing
 scope: "packages/router/**, packages/web-router/**, packages/web-router-react-router/**"
-updated: 2026-09
+updated: 2026-11
 ---
 
 # Routing (plugin system)
@@ -23,6 +23,10 @@ the package layers.
 - `@owlmeans/web-router-react-router` = opt-in react-router v7 plugin; `appendReactRouter(ctx)`
   registers at priority 100 → wins the cascade. The only supported react-router path.
 - SSR is pre-designed (`RouterEnv.{ssr,request}` + cascade) but NOT implemented — browser only.
+- Base path: an application may be served under `/<mount>` of its host — its own
+  frontend service's `base`. Router space stays base-less; `routerBaseHelper` (router) /
+  `clientBaseOf`/`useHref` (client) join it at the browser boundaries (history, href, window,
+  `next=`) and strip it on read. One shared session per host (no `web-db` key prefix).
 
 ## Invariants
 

@@ -5,6 +5,7 @@ import type { Location } from '@owlmeans/router'
 import { useContext, useNavigate } from '@owlmeans/client'
 
 import type { PanelNavConfig, PanelNavItem, PanelNavModel, PanelNavSection } from './types.js'
+import { makePanelNavPathHelper } from './path.js'
 
 const visibleItems = (section: PanelNavSection): PanelNavItem[] => section.items.filter((item) => item.hidden !== true)
 
@@ -26,22 +27,16 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
   const location: Location<ClientRoute> = context.router().useLocation()
 
   const state = location.state as ClientRoute | null
+  // Base-less, like every path the entrypoints declare: the router strips the application's base.
   const pathname = location.pathname
+  const paths = useMemo(() => makePanelNavPathHelper(context), [context])
 
   return useMemo(() => {
     const sections = config.sections
       .filter((section) => section.hidden !== true)
       .map((section) => ({ ...section, items: visibleItems(section) }))
 
-    const pathOf = (alias: string): string | null => {
-      try {
-        return normalizePath(context.entrypoint<ClientEntrypoint<string>>(alias).path())
-      } catch {
-        // A protocol the app never bound addresses nothing — it cannot be the current screen,
-        // and it must not take the menu down with it.
-        return null
-      }
-    }
+    const { pathOf } = paths
 
     const all = sections.flatMap((section) => section.items)
 
@@ -119,13 +114,9 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
       goItem: (item) => nav.press(item.alias),
       hrefOf: (target) => {
         const alias = 'alias' in target ? target.alias : target.items[0]?.alias
-        if (alias == null) {
-          return undefined
-        }
-        const path = pathOf(alias)
 
-        return path == null || path.includes(':') ? undefined : path
+        return alias == null ? undefined : paths.hrefOf(alias)
       }
     }
-  }, [config, pathname, state?.alias, context, nav])
+  }, [config, pathname, state?.alias, context, nav, paths])
 }

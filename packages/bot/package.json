@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/bot",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "description": "Runtime-free, browser-safe contract of OwlMeans chat bots — platforms (Telegram, WhatsApp, Discord, Slack) and their descriptors, connections, normalized updates and activity, the Unicode-aware text helper and command parser, the operator/member and hook protocol trees with their AJV schemas, and the bot error family.",
   "homepage": "https://owlmeans.com/docs/",
@@ -34,9 +34,9 @@
   },
   "dependencies": {
     "@owlmeans/context": "^0.1.21",
-    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.22-rc.0",
     "@owlmeans/error": "^0.1.21",
-    "@owlmeans/route": "^0.1.21"
+    "@owlmeans/route": "^0.1.22-rc.0"
   },
   "peerDependencies": {
     "ajv": "*"

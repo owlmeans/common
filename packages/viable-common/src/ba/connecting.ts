@@ -1,5 +1,5 @@
-import type { StoryDraft } from "../areas/types.js"
-import type { ConnectingStoryDraft, MergedStoryDraft } from "./types.js"
+import type { StoryAreaKey, StoryDraft } from "../areas/types.js"
+import type { ConnectingStoryDraft } from "./types.js"
 import { StoryKind } from "./consts.js"
 import type { ConnectingStoryHelper } from './connecting/types.js'
 
@@ -9,15 +9,13 @@ export const createConnectingStoryHelper = (): ConnectingStoryHelper => {
   /** Collapse case and whitespace, so "the same story twice" is recognised as such. */
   const canonical = (story: string): string => story.trim().replace(/\s+/g, ' ').toLowerCase()
 
-  const mergeConnectingStories = (
-    flow: StoryDraft[], connecting: ConnectingStoryDraft[]
-  ): MergedStoryDraft[] => {
+  const mergeConnectingStories: ConnectingStoryHelper['mergeConnectingStories'] = (flow, connecting) => {
     if (flow.length < 1) {
       return []
     }
 
     const seen = new Set(flow.map(({ story }) => canonical(story)))
-    const placed: Array<{ draft: ConnectingStoryDraft, at: number }> = []
+    const placed: Array<{ draft: ConnectingStoryDraft & StoryAreaKey, at: number }> = []
 
     for (const draft of connecting) {
       const text = canonical(draft.story)
@@ -45,15 +43,20 @@ export const createConnectingStoryHelper = (): ConnectingStoryHelper => {
       .slice(0, connectingStoryCap(flow.length))
 
     // Bucket N holds what comes immediately after flow story N (1-based, as the prompt numbers them).
-    const buckets: ConnectingStoryDraft[][] = flow.map(() => [])
+    const buckets: Array<Array<ConnectingStoryDraft & StoryAreaKey>> = flow.map(() => [])
     for (const { draft, at } of surviving) {
       buckets[at - 1]!.push(draft)
     }
 
-    return flow.flatMap(({ story, area }, index) => [
-      { story, area, kind: StoryKind.Flow },
-      ...buckets[index]!.map(draft => (
-        { story: draft.story.trim(), area: draft.area, kind: StoryKind.Connective, after: index + 1 }
+    // A project's own area travels with the story that names it; a draft naming none is merged exactly
+    // as it always was.
+    const keyOf = (draft: StoryDraft & StoryAreaKey): StoryAreaKey =>
+      typeof draft.areaKey === 'string' && draft.areaKey !== '' ? { areaKey: draft.areaKey } : {}
+
+    return flow.flatMap((draft, index) => [
+      { story: draft.story, area: draft.area, ...keyOf(draft), kind: StoryKind.Flow },
+      ...buckets[index]!.map(connecting => (
+        { story: connecting.story.trim(), area: connecting.area, ...keyOf(connecting), kind: StoryKind.Connective, after: index + 1 }
       )),
     ])
   }

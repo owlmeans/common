@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-did",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,11 +32,11 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.21",
-    "@owlmeans/client": "^0.1.21",
-    "@owlmeans/client-context": "^0.1.21",
-    "@owlmeans/client-resource": "^0.1.21",
+    "@owlmeans/client": "^0.1.22-rc.0",
+    "@owlmeans/client-context": "^0.1.22-rc.0",
+    "@owlmeans/client-resource": "^0.1.22-rc.0",
     "@owlmeans/context": "^0.1.21",
-    "@owlmeans/did": "^0.1.21",
+    "@owlmeans/did": "^0.1.22-rc.0",
     "@owlmeans/log": "^0.1.21",
     "@owlmeans/state": "^0.1.21"
   },

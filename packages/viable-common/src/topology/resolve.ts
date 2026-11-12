@@ -108,6 +108,10 @@ export const createTopologyHelper = (): TopologyHelper => {
   const sameTopology = (a: TopologyDescriptor, b: TopologyDescriptor): boolean =>
     JSON.stringify(orderPackages(a.packages)) === JSON.stringify(orderPackages(b.packages))
       && a.dir === b.dir
+      // The app map changes what the record says without always changing a package (an area bound
+      // to another app), so it is compared too; two records without one compare as before.
+      && JSON.stringify(a.apps ?? null) === JSON.stringify(b.apps ?? null)
+      && JSON.stringify(a.areas ?? null) === JSON.stringify(b.areas ?? null)
 
   return {
     orderPackages, resolveTopology, topologyOf, packageForRole, packagesForRole, packageForArea, packageDir,

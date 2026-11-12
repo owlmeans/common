@@ -72,3 +72,47 @@ describe('surrogateLoginStep', () => {
     expect(surrogateLoginStep('', null)).toBe(SurrogateLoginStep.Authenticate)
   })
 })
+
+describe('the surrogate window of an application served under a base', () => {
+  const env = { hasWindow: true, embedded: true, surrogate: false, hasOpener: false }
+
+  /** A browser application's context whose own frontend service carries `base`, the surrogate bound. */
+  const contextWith = async (base?: string) => {
+    const { AppType, makeBasicContext } = await import('@owlmeans/context')
+    const { authProtocols } = await import('@owlmeans/auth-common')
+    const { bindScreen, stab } = await import('@owlmeans/client-entrypoint')
+    const context = makeBasicContext({
+      ready: false, service: 'web-client-tests', type: AppType.Frontend,
+      services: {
+        'web-client-tests': { service: 'web-client-tests', type: AppType.Frontend, host: 'example.com', ...(base != null ? { base } : {}) },
+      },
+    })
+    context.registerEntrypoint(bindScreen(authProtocols.surrogate, stab))
+
+    return context
+  }
+
+  /** Begin a sign-in from a framed document whose `window.open` the browser refuses; returns what it tried to open. */
+  const openedFor = async (base: string | undefined, url: string): Promise<{ opened: string[], outcome: string }> => {
+    const opened: string[] = []
+    stubWindow({ open: (address: string) => { opened.push(address); return null } })
+    const { makeSurrogateLoginPlugin } = await import('../src/login/surrogate.js')
+    const ctx = await contextWith(base)
+    const outcome = await makeSurrogateLoginPlugin().begin(ctx as never, { url }, env)
+
+    return { opened, outcome }
+  }
+
+  test('the window opens on the surrogate route under the base; the dispatcher address rides as next', async () => {
+    const { LoginOutcome } = await import('@owlmeans/client-auth/login')
+    // `/app/dispatcher` is what `useLogin` hands over for an application served under `/app`.
+    expect(await openedFor('/app', '/app/dispatcher'))
+      .toEqual({ opened: ['/app/surrogate?intent=login&next=%2Fapp%2Fdispatcher'], outcome: LoginOutcome.Blocked })
+  })
+
+  test('at the root the window opens exactly where it always did', async () => {
+    for (const base of [undefined, '', '/']) {
+      expect((await openedFor(base, '/dispatcher')).opened).toEqual(['/surrogate?intent=login&next=%2Fdispatcher'])
+    }
+  })
+})

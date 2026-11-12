@@ -1,4 +1,4 @@
-import type { TargetFileMap, TargetIntegrityReport } from '@owlmeans/viable-common'
+import type { TargetFileCollection, TargetFileMap, TargetIntegrityReport } from '@owlmeans/viable-common'
 
 /**
  * Whether a directory still holds the generated application — the check in front of every spawn.
@@ -7,8 +7,16 @@ import type { TargetFileMap, TargetIntegrityReport } from '@owlmeans/viable-comm
  * connector itself changes the tree.
  */
 export interface IntegrityHelper {
-  /** Read the manifest's files from a tree; a path that cannot be read comes back as `null`. */
+  /**
+   * Read the manifest's files from a tree; a path that cannot be read comes back as `null`.
+   *
+   * Two passes (`targetIntegrityHelper.collectTargetFiles`): the base set, then whatever the topology
+   * record asks for — every extra app's package files of a project split into apps. A project that
+   * is not split reads exactly the base set.
+   */
   readTargetFiles: (dir: string) => Promise<TargetFileMap>
+  /** {@link readTargetFiles} with the `sources/` listing a split project's `workspace-package` rule needs. */
+  collectTargetFiles: (dir: string) => Promise<TargetFileCollection>
   /** Verify the tree, reusing a verdict from the last couple of seconds. */
   verifyTarget: (dir: string) => Promise<TargetIntegrityReport>
   /** Drop the memoized verdict — called wherever the connector itself changes the tree. */

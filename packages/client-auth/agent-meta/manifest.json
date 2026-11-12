@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/client-auth",
-  "version": "0.1.21",
-  "generatedAt": "2026-11-05T11:16:21.508Z",
+  "version": "0.1.22-rc.0",
+  "generatedAt": "2026-11-11T20:57:15.673Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

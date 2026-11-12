@@ -76,7 +76,7 @@
     "@owlmeans/basic-ids": "^0.1.21",
     "@owlmeans/context": "^0.1.21",
     "@owlmeans/error": "^0.1.21",
-    "@owlmeans/llm-common": "^0.1.21",
+    "@owlmeans/llm-common": "^0.1.22-rc.0",
     "@owlmeans/log": "^0.1.21",
     "ajv": "^8.20.0",
     "gpt-tokenizer": "^4.1.0"

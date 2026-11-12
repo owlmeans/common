@@ -126,4 +126,15 @@ export enum IntegrityRule {
   RequiredDependency = 'required-dependency',
   EntryMarker = 'entry-marker',
   InstallConfig = 'install-config',
+  /**
+   * A project split into apps (two or more in its topology record): the record's app list itself is
+   * ill-formed — a duplicate name, mount, index or package, a reserved or ill-shaped mount, an index
+   * outside 1..9, an entry that is no app, or an app package the record's packages do not name.
+   */
+  AppMap = 'app-map',
+  /**
+   * A project split into apps: a `sources/*` package the record does not name — checked only when
+   * the caller lists the workspace directory.
+   */
+  WorkspacePackage = 'workspace-package',
 }

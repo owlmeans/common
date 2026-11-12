@@ -1,4 +1,5 @@
 import { DISPATCHER_SURROGATE } from '@owlmeans/auth'
+import { clientBaseOf } from '@owlmeans/client'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { LOGIN_INTENT_QUERY, LOGIN_METHOD_QUERY, LOGIN_NEXT_QUERY } from './consts.js'
 import type { LoginContext } from './types.js'
@@ -12,6 +13,10 @@ import type { SurrogateTarget } from './surrogate/types.js'
  * back to opening the dispatcher directly, which is exactly what it used to do. That fallback is
  * the whole compatibility story for already-deployed applications, so it must never be removed in
  * favour of throwing.
+ *
+ * The address is a window's (`window.open`), so it carries the application's base — the surrogate
+ * route as declared at the root. `next` is passed through as given: callers hand over an address
+ * that already left the router.
  */
 export const surrogatePath = (ctx: LoginContext, target: SurrogateTarget): string | null => {
   if (!ctx.hasEntrypoint(DISPATCHER_SURROGATE)) {
@@ -33,5 +38,5 @@ export const surrogatePath = (ctx: LoginContext, target: SurrogateTarget): strin
     query.set(LOGIN_METHOD_QUERY, target.method)
   }
 
-  return `${path}?${query.toString()}`
+  return `${clientBaseOf(ctx).href(path)}?${query.toString()}`
 }

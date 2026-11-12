@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-router",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -36,7 +36,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.21",
-    "@owlmeans/test-ui": "^0.1.21",
+    "@owlmeans/test-ui": "^0.1.22-rc.0",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@owlmeans/context": "^0.1.21",
-    "@owlmeans/router": "^0.1.21"
+    "@owlmeans/router": "^0.1.22-rc.0"
   },
   "publishConfig": {
     "access": "public"

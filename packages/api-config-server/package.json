@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/api-config-server",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,10 +31,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api-config": "^0.1.21",
-    "@owlmeans/server-api": "^0.1.21",
-    "@owlmeans/server-context": "^0.1.21",
-    "@owlmeans/server-entrypoint": "^0.1.21"
+    "@owlmeans/api-config": "^0.1.22-rc.0",
+    "@owlmeans/server-api": "^0.1.22-rc.0",
+    "@owlmeans/server-context": "^0.1.22-rc.0",
+    "@owlmeans/server-entrypoint": "^0.1.22-rc.0"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.21",

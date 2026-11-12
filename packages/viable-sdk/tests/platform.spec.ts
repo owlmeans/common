@@ -176,6 +176,17 @@ describe('viable-sdk — describe_platform', () => {
     )
   })
 
+  test('a project\'s applications are one group, offered on every host and named in the instructions', () => {
+    const apps = PLATFORM_CATALOGUE.capabilities.find(one => one.id === 'apps')
+
+    expect(apps?.tools).toEqual(['project_apps', 'restart_project_app'])
+    for (const where of [host(), url, host({ target: ConnectTarget.Cloud, llm: ConnectLlm.Cloud })]) {
+      expect(renderPlatform(PLATFORM_CATALOGUE, where)).toContain('project_apps, restart_project_app')
+      expect(serverInstructions({ host: where }))
+        .toContain('a project\'s applications, each under its own path (project_apps, restart_project_app)')
+    }
+  })
+
   test('the render is byte-stable', () => {
     // It is meant to be read once and kept; a rendering that varied per call would defeat every
     // cache it sits in.

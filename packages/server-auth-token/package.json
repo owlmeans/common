@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-auth-token",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "description": "The server half of OwlMeans access tokens — the store, the guard that verifies a presented token, the management handlers and the coguard that admits one on an existing route.",
   "homepage": "https://owlmeans.com/docs/",
@@ -35,16 +35,16 @@
   "dependencies": {
     "@noble/hashes": "^2.4.0",
     "@owlmeans/auth": "^0.1.21",
-    "@owlmeans/auth-common": "^0.1.21",
-    "@owlmeans/auth-token": "^0.1.21",
+    "@owlmeans/auth-common": "^0.1.22-rc.0",
+    "@owlmeans/auth-token": "^0.1.22-rc.0",
     "@owlmeans/context": "^0.1.21",
-    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.22-rc.0",
     "@owlmeans/log": "^0.1.21",
-    "@owlmeans/mongo-resource": "^0.1.21",
+    "@owlmeans/mongo-resource": "^0.1.22-rc.0",
     "@owlmeans/resource": "^0.1.21",
-    "@owlmeans/server-api": "^0.1.21",
-    "@owlmeans/server-auth-identity": "^0.1.21",
-    "@owlmeans/server-context": "^0.1.21",
+    "@owlmeans/server-api": "^0.1.22-rc.0",
+    "@owlmeans/server-auth-identity": "^0.1.22-rc.0",
+    "@owlmeans/server-context": "^0.1.22-rc.0",
     "@scure/base": "^2.4.0"
   },
   "devDependencies": {

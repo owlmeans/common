@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent-common",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -40,8 +40,8 @@
   },
   "dependencies": {
     "@owlmeans/error": "^0.1.21",
-    "@owlmeans/flow": "^0.1.21",
-    "@owlmeans/llm-common": "^0.1.21",
+    "@owlmeans/flow": "^0.1.22-rc.0",
+    "@owlmeans/llm-common": "^0.1.22-rc.0",
     "@owlmeans/resource": "^0.1.21"
   },
   "publishConfig": {

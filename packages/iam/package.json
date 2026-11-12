@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/iam",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -34,10 +34,10 @@
   "dependencies": {
     "@owlmeans/auth": "^0.1.21",
     "@owlmeans/context": "^0.1.21",
-    "@owlmeans/entrypoint": "^0.1.21",
+    "@owlmeans/entrypoint": "^0.1.22-rc.0",
     "@owlmeans/error": "^0.1.21",
-    "@owlmeans/oidc": "^0.1.21",
-    "@owlmeans/route": "^0.1.21"
+    "@owlmeans/oidc": "^0.1.22-rc.0",
+    "@owlmeans/route": "^0.1.22-rc.0"
   },
   "peerDependencies": {
     "ajv": "*"

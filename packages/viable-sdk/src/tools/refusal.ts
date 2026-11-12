@@ -494,6 +494,24 @@ export const createRefusalHelper = (): RefusalHelper => {
         + ' list_access_tokens shows them.',
     },
 
+    // ── A project's applications ─────────────────────────────────────────────────────────────────
+    {
+      marker: 'slot-app:unknown:',
+      phrase: app => `The preview serves no application${aside(app)}. project_apps lists the project's`
+        + ' applications by name. Nothing was restarted.',
+    },
+    {
+      marker: 'slot-app:restart-unsupported',
+      phrase: () => 'This project\'s preview runs a runtime older than restarting one application on its own,'
+        + ' so nothing was restarted. Restart the whole preview with preview_control { action: restart } —'
+        + ' that also brings the current runtime.',
+    },
+    {
+      marker: 'slot-app:apps-unsupported',
+      phrase: () => 'This project\'s preview runs a runtime that addresses only its main application. Restart'
+        + ' the whole preview with preview_control { action: restart } — that brings the current runtime.',
+    },
+
     // ── The project is busy ──────────────────────────────────────────────────────────────────────
     {
       marker: 'viable-project:agent:occupied:',

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-wl",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,10 +31,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.21",
-    "@owlmeans/client-entrypoint": "^0.1.21",
+    "@owlmeans/client": "^0.1.22-rc.0",
+    "@owlmeans/client-entrypoint": "^0.1.22-rc.0",
     "@owlmeans/context": "^0.1.21",
-    "@owlmeans/wled": "^0.1.21"
+    "@owlmeans/wled": "^0.1.22-rc.0"
   },
   "peerDependencies": {
     "react": "*"

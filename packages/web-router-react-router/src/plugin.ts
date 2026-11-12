@@ -1,4 +1,5 @@
 import type { LibraryRouter, RouteParams, RouterPlugin } from '@owlmeans/router'
+import { routerBaseHelper } from '@owlmeans/router'
 import type { RouteObject as ReactRouteObject } from 'react-router'
 import {
   Outlet, RouterProvider, createBrowserRouter,
@@ -17,7 +18,16 @@ export const makeReactRouterPlugin = (): RouterPlugin => ({
   priority: REACT_ROUTER_PRIORITY,
   mode: 'browser',
   match: () => true,
-  compile: routes => createBrowserRouter(routes as ReactRouteObject[]) as unknown as LibraryRouter,
+  // The application's own base becomes react-router's `basename`: routes, `useLocation()` and
+  // `navigate('/x')` stay base-less, the browser address carries it. A root base passes no options
+  // at all, exactly as before.
+  compile: (routes, ctx) => {
+    const basename = routerBaseHelper.baseOf(ctx)
+
+    return createBrowserRouter(
+      routes as ReactRouteObject[], basename !== '' ? { basename } : undefined
+    ) as unknown as LibraryRouter
+  },
   provider: () => RouterProvider,
   outlet: () => Outlet,
   useParams: <T extends RouteParams = RouteParams>() => rrUseParams() as T,

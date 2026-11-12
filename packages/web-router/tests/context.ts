@@ -31,3 +31,30 @@ export const getHarnessUrl = async (): Promise<string> => {
 }
 
 export const HARNESS_URL = await getHarnessUrl()
+
+const baseUrls = new Map<string, string>()
+
+/**
+ * Boot a Vite dev server serving `tests/harness-base/` under `base` (`/app/` — the page then lives
+ * at `http://localhost:<port>/app/`, deep links included — or `/` for the root run). The harness
+ * reads the same value as its frontend service's `base`, so the router sees the mount the host
+ * serves it under. One server per base per `bun test` process.
+ */
+export const getBaseHarnessUrl = async (base: string): Promise<string> => {
+  const known = baseUrls.get(base)
+  if (known != null) return known
+  const server = await createServer({
+    configFile: false,
+    root: resolve(here, './harness-base'),
+    base,
+    plugins: [react()],
+    resolve: { dedupe: ['react', 'react-dom'] },
+    server: { port: 0 },
+    logLevel: 'warn'
+  })
+  await server.listen()
+  const local = server.resolvedUrls?.local?.[0]
+  if (local == null) throw new Error('vite did not expose a local URL')
+  baseUrls.set(base, local)
+  return local
+}

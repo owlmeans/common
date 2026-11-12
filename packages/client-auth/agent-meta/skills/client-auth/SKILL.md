@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-auth
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-auth": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/client-auth": "^0.1.22-rc.0"` in `dependencies`
 
 Five subpaths, five jobs:
 
@@ -114,6 +114,10 @@ phrases it the same way:
   (`flowLandingOf(ctx).resumeSuspendedFlow`, one-shot, an entrypoint alias plus its query — parked
   by a flow's `.suspendFlow` or by `useLogin(target)`), else `HOME` — read BEFORE `alias` is
   defaulted to `HOME`. Login plugins that navigate on their own do the same — see `login-plugins`.
+- Every sign-in address that leaves the router carries the application's base
+  (`clientBaseOf(ctx).href`, `@owlmeans/client`): `useLogin()`'s href and `url`, `surrogatePath`
+  (the window's own route; `next` is passed through as given, already base-joined by the caller) and
+  a sign-in method's `login.begin({ url })`. At the root they are the declared paths.
 - A control that leads to a screen through sign-in is `useLogin(target)`. Never navigate to a guarded
   screen to start a sign-in, and never hand a plugin a continuation that goes anywhere but the
   dispatcher: the landing is the dispatcher's decision.

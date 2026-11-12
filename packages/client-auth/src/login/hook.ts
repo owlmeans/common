@@ -1,5 +1,5 @@
 import { useCallback, type MouseEvent } from 'react'
-import { useContext, useNavigate } from '@owlmeans/client'
+import { clientBaseOf, useContext, useNavigate } from '@owlmeans/client'
 import type { ClientContext } from '@owlmeans/client-context'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { DISPATCHER } from '@owlmeans/auth'
@@ -31,12 +31,16 @@ import { loginStartOf } from './start.js'
  * while the app is still being imported, before `registerEntrypoints` has put anything on the
  * context, and a top-level lookup throws `Entrypoint dispatcher not found` — which escapes during
  * import, takes the whole render down, and paints an empty page with no component at fault.
+ *
+ * The address carries the application's base (`/admin/dispatcher` for an application served under
+ * `/admin`), because it leaves the router — a rendered `href`, a window, a `next=` — and is the
+ * dispatcher's path as declared at the root.
  */
 export const useLogin = (target?: string): readonly [string, (event?: MouseEvent) => void] => {
   const context = useContext() as unknown as ClientContext
   const nav = useNavigate()
   const dispatcher = context.entrypoint<ClientEntrypoint>(DISPATCHER)
-  const path = dispatcher.path()
+  const path = clientBaseOf(context).href(dispatcher.path())
 
   const onLogin = useCallback((event?: MouseEvent) => {
     event?.preventDefault()

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, type MouseEvent } from 'react'
-import { useContext, useNavigate } from '@owlmeans/client'
+import { clientBaseOf, useContext, useNavigate } from '@owlmeans/client'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { DISPATCHER } from '@owlmeans/auth'
 import {
@@ -198,7 +198,8 @@ export const useEmailLogin = (opts: UseEmailLoginOptions = {}): EmailLoginModel 
   const otherOptions = useMemo((): EmailLoginOtherOptions | null => {
     let href: string
     try {
-      href = ctx.entrypoint<ClientEntrypoint>(DISPATCHER).path()
+      // A rendered `href`: the dispatcher's path with the application's base.
+      href = clientBaseOf(ctx).href(ctx.entrypoint<ClientEntrypoint>(DISPATCHER).path())
     } catch {
       return null
     }

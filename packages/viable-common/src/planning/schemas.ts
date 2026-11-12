@@ -1,6 +1,8 @@
 import type { JSONSchemaType } from 'ajv'
 import { CODE_MAX, IntrinsicPolicy, IntrinsicStatus, SpecificationFormat, WorkcardKind, AnyTypeSchema, ProjectTypeSchema, RelationshipType, SpecificationSlot, StatusFlowSchema, WorkcardTypeSchema } from '@owlmeans/planning'
-import { ORIGIN_TENANCY_LIST_MAX, ORIGIN_TENANCY_WORD_MAX, ProjectArea, TENANCY_QUOTE_MAX } from '../areas/consts.js'
+import { AREA_KEY_MAX, AREA_KEY_PATTERN, ORIGIN_TENANCY_LIST_MAX, ORIGIN_TENANCY_WORD_MAX, ProjectArea, TENANCY_QUOTE_MAX } from '../areas/consts.js'
+import { TARGET_AREA_MAX } from '../topology/apps/consts.js'
+import { ViableAppsDecisionSchema } from '../topology/schemas.js'
 import { BotPlatform } from '@owlmeans/bot'
 import { BotKit, CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
 import { REQUIREMENTS_VERSION, StoryKind } from '../ba/consts.js'
@@ -101,6 +103,9 @@ export const ViableProjectFieldsSchema = {
       required: ['operators', 'users', 'by', 'at'],
       additionalProperties: false,
     },
+    // An absent `apps` is one app, `main`, over the four standard areas — never written for a
+    // project that has not been split. The rules between entries are `appMapHelper.validate`'s.
+    apps: { ...ViableAppsDecisionSchema, nullable: true },
   },
   required: [],
   additionalProperties: false,
@@ -122,6 +127,15 @@ export const ViableStoryFieldsSchema = {
     warning: { type: 'string', maxLength: 1024, nullable: true },
     kind: { type: 'string', enum: [...Object.values(StoryKind), null], nullable: true },
     landing: { type: 'boolean', nullable: true },
+    // `area` keeps holding the KIND; a custom area is named by key beside it (absent ⇒ key = kind).
+    areaKey: { type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source, nullable: true },
+    areas: {
+      type: 'array',
+      items: { type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source },
+      maxItems: TARGET_AREA_MAX,
+      uniqueItems: true,
+      nullable: true,
+    },
   },
   required: ['area', 'primary'],
   additionalProperties: false,

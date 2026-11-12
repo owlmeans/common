@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/marketing-consent-postgres",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "description": "Postgres-backed resources for @owlmeans/marketing-consent — the state and log tables of a generated target project, compiled from the shared AJV schema in @owlmeans/server-marketing-consent.",
   "homepage": "https://owlmeans.com/docs/",
@@ -34,10 +34,10 @@
   },
   "dependencies": {
     "@owlmeans/context": "^0.1.21",
-    "@owlmeans/marketing-consent": "^0.1.21",
-    "@owlmeans/postgres-resource": "^0.1.21",
+    "@owlmeans/marketing-consent": "^0.1.22-rc.0",
+    "@owlmeans/postgres-resource": "^0.1.22-rc.0",
     "@owlmeans/resource": "^0.1.21",
-    "@owlmeans/server-marketing-consent": "^0.1.21"
+    "@owlmeans/server-marketing-consent": "^0.1.22-rc.0"
   },
   "peerDependencies": {
     "ajv": "*",

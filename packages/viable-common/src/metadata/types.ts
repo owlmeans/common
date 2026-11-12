@@ -211,6 +211,11 @@ export interface RegistryAllocation extends Record<string, unknown> {
   /** The area a screen belongs to — one of the four {@link ProjectArea} values. */
   area?: string
   /**
+   * The app whose package holds the allocation, by name — written ONLY when it is not `main`, so
+   * every registry of a one-app project stays byte for byte what it was.
+   */
+  app?: string
+  /**
    * Top-menu group of a screen: an English NAME, never a URL segment. What the menu SHOWS for it is
    * {@link RegistryAllocation.sectionLabel}.
    */

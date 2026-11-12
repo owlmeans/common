@@ -452,6 +452,22 @@ describe('viable-common - the follows anchor', () => {
       { story: 'Queue', kind: StoryKind.Connective, after: 3 },
     ])
   })
+
+  test('a project\'s own area travels with the story naming it; a story naming none carries no key', () => {
+    const merged = connectingStoryHelper.mergeConnectingStories([
+      { story: 'One', area: ProjectArea.Operator, areaKey: 'field-ops' },
+      { story: 'Two', area: ProjectArea.User, areaKey: null },
+    ], [
+      { story: 'Crew queue', area: ProjectArea.Operator, areaKey: 'field-ops', kind: ConnectingStoryKind.Queue, after: 1 },
+    ])
+
+    expect(merged).toEqual([
+      { story: 'One', area: ProjectArea.Operator, areaKey: 'field-ops', kind: StoryKind.Flow },
+      { story: 'Crew queue', area: ProjectArea.Operator, areaKey: 'field-ops', kind: StoryKind.Connective, after: 1 },
+      { story: 'Two', area: ProjectArea.User, kind: StoryKind.Flow },
+    ])
+    expect(Object.keys(merged[2]!)).toEqual(['story', 'area', 'kind'])
+  })
 })
 
 describe('viable-common - the project refusals', () => {

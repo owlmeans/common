@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.22-rc.0"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -41,8 +41,8 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 | `PLATFORM_CATALOGUE` (`pipelines`, `features`, `capabilities`) · `renderPlatform(catalogue, host)` · `GENERATED_SUMMARY` | What `describe_platform` renders, and the one-sentence product summary `describe_capabilities` ends with |
 | `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` (`client?`, `profile?` beside `extensions?`) · `ToolDeps` (`detach?`, `release?`, `inflight?` beside `attach`) · `ToolAnnotations` · `toolHostHelper` (`anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks`/`readsDisk`/`uploadsMaterials`) | The host description and the availability predicates |
 | `materialsToolHelper` (`inputsOf`/`precheck`/`send`/`renderOutcomes`/`renderCatalogue`/`renderText`/`reasonPhrase`) · `MaterialOutcome` · `MaterialsUploadOptions` | A new project's files: the disk read, the precheck against `MATERIALS_UPLOAD_POLICY`, the send-and-seal, the words |
-| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper` (the publisher's file commands, `writeBinaryFile`/`readBinaryFile` included), `createLocalShellHelper`, `makeLocalGitHelper(dir).dispatchGitCommand`, `integrityHelper` (`verifyTarget`/`forgetIntegrity`), `makeLayoutHelper(dir)` (`targetPaths`/`apiPath`/`webPath`/`workerPath`), `makeTargetEnvHelper(dir)` (`backendEnv`/`frontendEnv`), `healthHelper` (`classifyTargetHealth`/`readTargetHealth`), `runBootCheck`, `confineToProject`, `spawnHelper` | The publisher's workload, on somebody's laptop |
-| `./run`: `makeLocalRunHelper(dir)` (`runLocal`, `stopLocal`, `localStatus`), `createLocalServer`, `makeRunStateHelper(dir)` (`startApi`/`startWorker`/`restartApi`, `readRun`/`writeRun`/`clearRun`), `runProcessHelper.stopProcess` | Building and running the generated app locally |
+| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper` (the publisher's file commands, `writeBinaryFile`/`readBinaryFile` included), `createLocalShellHelper`, `makeLocalGitHelper(dir).dispatchGitCommand`, `integrityHelper` (`verifyTarget`/`collectTargetFiles`/`readTargetFiles`/`forgetIntegrity`), `makeLayoutHelper(dir)` (`targetPaths`/`apps`/`apiPath(app?)`/`webPath(app?)`/`workerPath`), `makeTargetEnvHelper(dir)` (`backendEnv(app?)`/`frontendEnv(app?)`), `healthHelper` (`classifyTargetHealth`/`readTargetHealth`), `runBootCheck`, `confineToProject`, `spawnHelper` | The publisher's workload, on somebody's laptop |
+| `./run`: `makeLocalRunHelper(dir)` (`runLocal`, `stopLocal`, `localStatus`), `createLocalServer(getWebDir, { apiPort?, apps? })`, `makeRunStateHelper(dir)` (`startApi(env?, app?)`/`startWorker`/`restartApi(app?)`, `readRun`/`writeRun`/`clearRun`), `runProcessHelper.stopProcess` | Building and running the generated app locally — every app of a split project on the one web port |
 | `makeMarkerHelper(dir)` (`readMarker`/`writeMarker`/`discoverProject`/`isViableTree`) · `makeProjectEnvHelper(dir)` (`readEnv`/`writeEnv`/`envStatus`) · `dotenvHelper.replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
 | `SdkError`, `SdkAuthError`, `SdkMisconfigured`, `SdkUnsupported` | Registered `ResilientError` classes |
 | `ENV_TOKEN`, `ENV_API_URL`, `ENV_MCP_URL`, `ENV_TARGET`, `ENV_LLM`, `ENV_HARNESS`, `ENV_PROJECT_DIR` · `DEFAULT_MCP_URL` · `resolveMcpUrl(values)` · `TOOL_DEADLINE_MS` (45 s) · `HANDOVER_WAIT_MS` (40 s) · `COMMIT_WAIT_MS` (20 s) · `COMMIT_POLL_SEC` · `STORY_PAGE_SIZE` · `NEXT_TASK_WAIT_MS` · `PULL_WAIT_MS` | Configuration and deadlines |
@@ -137,7 +137,9 @@ precheck —, `.remove(projectId, fileId)`, `.seal`, `.draft(projectId, force?)`
 path)`; the tree has no `open` and no `abort`), files
 (`list`, `get(projectId, path)`, `save(projectId, path, content)`, `remove(projectId, path)`,
 `meta(projectId, { kind, category? })` — the category sent only when named), the preview's
-`sandbox` (`run`, `restart`, `stop`, `rebuild` → `ConnectSlotView`), the organization's `slot.list`,
+`sandbox` (`run`, `restart`, `stop`, `rebuild` → `ConnectSlotView`; `restartApp(projectId, app, { api?, web? })`
+→ `ConnectAppsView`, only the sides named), a project's applications (`project.apps(projectId)` →
+`ConnectAppsView`), the organization's `slot.list`,
 `client()` (how the platform sees this connection, `ConnectClientView`; `null` when an older platform
 answers the route 404 — any other failure throws), pipeline state, conversion (`create`, `check`, `start(projectId, body?)`, `proceed(projectId, body)`
 — the bodies are the route's, `confirm` included —, `status`, `purge`) and inquiry answers. There is
@@ -414,6 +416,32 @@ process are on the user's machine, read and run directly.
   goes on after the answer under the project lock. Never the production site.
 - **`list_slots`** (any host, any target) — every workload of the organization, one line each plus
   its warnings. `viable-slot:not-found:` is phrased as a project with no workload yet.
+
+## A project's applications: `project_apps` and `restart_project_app`, on every host and target
+
+A project is `main` at its address's root plus, when split, one app per group of areas under its own
+mount (`/admin`, `/backoffice`, …) — each with its interface and server. Both tools are in the
+`apps` capability group, `anyHost`, under every profile (listing annotations: `project_apps` READ,
+`restart_project_app` ADDS — it repeats; output `APPS_OUTPUT`, presenter `presentation/platform/apps.ts`).
+
+- **`project_apps { projectId? }`** → `api.project.apps` → `appsToolHelper.renderApps` (`tools/apps.ts`):
+  one line per app (`name · /mount · areas … · interface … · server …`, the capped cause beneath),
+  the worker, and `next:` naming the failing app's restart. A local project: the platform's map, and
+  where each app answers in the local run (`localStatus().apps`).
+- **`restart_project_app { projectId?, app, web? }`** — cloud: `api.sandbox.restartApp` (`web: true` →
+  `{ api: true, web: true }`, else `{}`); local: the run record must hold the app, then
+  `makeRunStateHelper(dir).restartApi(app)` — the platform is never asked.
+- **Refusals** (`REFUSALS`): `slot-app:unknown:` ("serves no application … project_apps lists"),
+  `slot-app:restart-unsupported` / `slot-app:apps-unsupported` ("restart the whole preview with
+  preview_control { action: restart }" — `restart_preview` under a listing). A bare 404 is told apart
+  by `appsToolHelper.routeMissing`: no app marker AND `project.status` still answers ⇒ an older
+  platform — "This platform reports one application (main)"; a restart then also reads
+  `project.apps` (404 again ⇒ restart the whole preview; else "serves no application" + the list).
+- **Stories**: `renderStories(items, page, total, apps?)` adds ` · app: <name>` (` · apps: a, b`)
+  after the landing flag, the area still last, and `renderStoryStatus` an `app:` line — only for a
+  card naming `fields.areaKey` / `fields.areas` (`appsToolHelper.storyApps` reads the project card
+  once, only then). Every other line, and `project_status` / `session_status`, stays byte-identical
+  (`apps-tools.spec.ts`).
 
 ## A cloud target's git and its GitHub connection are the web Git dialog's own calls
 
@@ -936,7 +964,10 @@ and cannot tell whether a pod or a laptop produced one, so an ordinary failure c
 same shape ("error text or null"), and only an unknown command — a protocol fault rather than a
 project fault — escapes as an exception. Everything is resolved per call rather than closed over,
 because a re-initialization replaces the tree under a running connector. The integrity verdict is
-forgotten after every command that changes the tree.
+forgotten after every command that changes the tree, and reads the tree in the manifest's two passes
+exactly as the publisher does (`targetIntegrityHelper.collectTargetFiles` + the `sources/` listing),
+so a target split into apps runs here as it builds in a slot and a one-app tree answers the one-pass
+report byte for byte (`tests/executor-integrity.spec.ts`).
 
 Rules for the local executor:
 
@@ -1053,6 +1084,19 @@ shape — the same ports, the same argv marker, the same environment, and the sa
 the only proof" rule about restarts. Nothing from the publisher's public-hostname policy (robots,
 CSP, the preview error reporter, the build-state header) is reproduced: a loopback address has no
 reputation to spend and no crawler to answer.
+
+**A split project runs every app on the one web port.** `makeLayoutHelper(dir).apps()` reads the
+target's topology record (`.agents/memory/topology.md`, `appMapHelper.fromTopology`; v1, no record or
+a broken map ⇒ `[main]`); `apiPath(app?)` / `webPath(app?)` resolve an app's packages (main's are the
+layout's). The full `Build` builds every other app's api and web after main's (`Build { app }` one
+app), each web with `targetEnv.frontendEnv(app)` (its own `.env`, `BASE_URL=/<mount>`,
+`BACKEND_BASE_URL=<mount>/api`); each other api starts with `backendEnv(app)` (`appMapHelper.apiEnvOf`)
+on `3000 + 10·index` under the argv marker `--viable-app=<name>` — never `--viable-api`, so main's
+reclaim never takes a sibling. `createLocalServer(getWebDir, { apps })` routes by the longest prefix:
+`/<mount>/api(/…)` proxied with the path kept, `/<mount>(/…)` from that app's `dist` with the SPA
+fallback, `/` main's; one app (or none listed) is served exactly as a one-app tree. The run record
+holds `api` (main's) and, only when split, `apps` (every app with its api); `localStatus().apps` and
+`local_status` give one line per app. `run-apps.spec.ts` pins it.
 
 `run_local` refuses to start a project whose `.env` is still missing a required key, because an app
 launched without a database URL fails at boot with a message about a connection, which sends the

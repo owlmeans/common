@@ -23,6 +23,7 @@ import type {
   ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFileChanges,
   AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView,
   ConnectCreateWithMaterialsBody, ConnectMaterialCatalogue, ConnectMaterialsState, ConnectMaterialText,
+  ConnectAppRestartBody, ConnectAppsView,
 } from '@owlmeans/viable-common'
 import type { UploadInput, UploadInputResult, UploadRunOptions } from '@owlmeans/client-upload'
 import type { UploadSession } from '@owlmeans/upload'
@@ -139,6 +140,12 @@ export interface ConnectorApi {
      * URL-configured host and the browser use; a stdio connector already running keeps its `--llm`.
      */
     setLlm: (projectId: string, llmMode: ConnectLlm | null) => Promise<ConnectProjectSettings>
+    /**
+     * The project's applications: `main` alone for a project without an apps record, every app of a
+     * split one — each with its mount and areas and, for a cloud preview, its interface build and
+     * server. A local project answers the map alone. A platform older than the route answers 404.
+     */
+    apps: (projectId: string) => Promise<ConnectAppsView>
   }
 
   /**
@@ -305,6 +312,14 @@ export interface ConnectorApi {
      * on after the answer, holding the project's agent lock until it is done.
      */
     rebuild: (projectId: string) => Promise<ConnectSlotView>
+    /**
+     * Restart ONE application of the preview — its server, and with `web` its interface build —
+     * while the others and the worker keep serving; answers the apps as they then stand. Refused for
+     * an app the preview does not serve (`slot-app:unknown:<name>`), by a preview runtime that
+     * predates apps (`slot-app:restart-unsupported` — restart the whole preview) and while the agent
+     * holds the project.
+     */
+    restartApp: (projectId: string, app: string, args?: ConnectAppRestartBody) => Promise<ConnectAppsView>
   }
 
   /** The organization's workloads, every project and kind (preview, production, local). */

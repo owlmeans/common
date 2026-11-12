@@ -1,4 +1,5 @@
 import { DISPATCHER } from '@owlmeans/auth'
+import { clientBaseOf } from '@owlmeans/client'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import {
   DEFAULT_METHOD_ORDER, LoginOutcome, LOGIN_METHOD_QUERY, LOGIN_SERVICE, enterOidcAuthorization,
@@ -61,7 +62,9 @@ export const oidcMethodSource: LoginMethodSource = {
         // nothing may be awaited first. The choice travels with it and the surrogate re-runs the
         // method itself, one window up, where the round trip can actually complete.
         if (methodCtx.env.embedded && !methodCtx.env.surrogate) {
-          const dispatcher = methodCtx.context.entrypoint<ClientEntrypoint>(DISPATCHER).path()
+          // A window's address, so it carries the application's base.
+          const dispatcher = clientBaseOf(methodCtx.context)
+            .href(methodCtx.context.entrypoint<ClientEntrypoint>(DISPATCHER).path())
 
           return await login.begin({
             url: `${dispatcher}?${LOGIN_METHOD_QUERY}=${encodeURIComponent(id)}`,

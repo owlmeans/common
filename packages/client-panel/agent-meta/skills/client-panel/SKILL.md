@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-panel
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-panel": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/client-panel": "^0.1.22-rc.0"` in `dependencies`
 
 ## Key Exports
 
@@ -169,7 +169,11 @@ alias, or null), `active` (its section), `showSide`, `isSectionActive` / `isItem
   its ancestors', so matching one is a lookup rather than a guess. It returns undefined for a path
   carrying route parameters (`:id`) — there is no honest URL for a screen whose address is not
   known yet. A protocol the app never bound resolves to null and is skipped rather than taking the
-  menu down.
+  menu down. The href carries the application's base (`/admin/users` under `/admin`; the declared
+  path at the root), while matching uses the base-less path. A protocol of ANOTHER frontend service
+  (a cross-app item) gets no href — it is not under this base; the click (`goItem`, `nav.press`)
+  resolves its absolute address. `makePanelNavPathHelper(ctx)` (`pathOf`, `hrefOf`) is the
+  context-bound half `usePanelNav` uses.
 
 ## Depends On
 

@@ -23,8 +23,11 @@ export interface LocalShellHelper {
   reinstall: () => Promise<string | null>
   buildCommon: () => Promise<string | null>
   validate: (subprojectOverride?: SubProject) => Promise<string | null>
-  /** The buildability check for the UI: the browser bundle really built, or the reason it did not. */
-  validateWithRenderer: () => Promise<string | null>
+  /**
+   * The buildability check for the UI: the browser bundle really built, or the reason it did not.
+   * `app` (absent or `main`: main's web) scopes it to one app of a split project.
+   */
+  validateWithRenderer: (app?: string) => Promise<string | null>
   /**
    * Rebuild the whole target, in dependency order.
    *
@@ -32,11 +35,15 @@ export interface LocalShellHelper {
    * and follows each to its `build/index.js` — a bundle built before them starts with
    * `Cannot find package '<slug>-backend'`, a message about a dependency for a build that never
    * happened. The remaining three are independent, so all of them run and their problems are
-   * reported together rather than one round trip at a time.
+   * reported together rather than one round trip at a time — and in a split project every other
+   * app's api and web after them, in index order, each web with its own base.
+   *
+   * `app` (a name other than `main`) builds the libraries and that ONE app's api and web — what the
+   * publisher's `Build { app }` does; absent or `main` is the whole target, exactly as before apps.
    */
-  build: () => Promise<string | null>
-  /** Build the api only — the type check the frontend renderer build cannot give it. */
-  validateBackend: () => Promise<string | null>
+  build: (app?: string) => Promise<string | null>
+  /** Build the api only — the type check the frontend renderer build cannot give it; per app as {@link build}. */
+  validateBackend: (app?: string) => Promise<string | null>
   /**
    * Reconcile the target's database with its code.
    *

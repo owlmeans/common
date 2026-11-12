@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/redis",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -43,9 +43,9 @@
     "@noble/hashes": "^2.4.0",
     "@owlmeans/context": "^0.1.21",
     "@owlmeans/log": "^0.1.21",
-    "@owlmeans/redis-resource": "^0.1.21",
+    "@owlmeans/redis-resource": "^0.1.22-rc.0",
     "@owlmeans/resource": "^0.1.21",
-    "@owlmeans/server-context": "^0.1.21",
+    "@owlmeans/server-context": "^0.1.22-rc.0",
     "@scure/base": "^2.4.0",
     "ioredis": "^6.0.0"
   },

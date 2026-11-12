@@ -3,6 +3,7 @@ import type { ProjectArea } from '../areas/consts.js'
 import type { BotPlatform } from '@owlmeans/bot'
 import type { BotKit, WorkKind } from '../blueprint/consts.js'
 import type { ViableTenancyDecision } from '../areas/types.js'
+import type { ViableAppsDecision } from '../topology/apps/types.js'
 import type { StoryKind } from '../ba/consts.js'
 import type { ConnectLlm, ConnectTarget } from '../connect/consts.js'
 import type { ProjectOrigin } from '../convert/types.js'
@@ -60,6 +61,14 @@ export type ViableProjectFields = {
    * only when a flag is on.
    */
   tenancy?: ViableTenancyDecision
+  /**
+   * The project's areas and the apps serving them, and who decided it.
+   *
+   * ABSENT means one app, `main`, over the four standard areas — every project created before apps
+   * existed, untouched and never rewritten. It reaches a run through the blueprint reference
+   * (`BlueprintRef.apps`), and the target's topology record and the slot's claim follow it.
+   */
+  apps?: ViableAppsDecision | null
 }
 
 /** The recorded landing-gate decision — see {@link ViableProjectFields.landing}. */
@@ -96,6 +105,13 @@ export type ViableStoryFields = {
    * `false` read the same.
    */
   landing?: boolean
+  /**
+   * The custom area this story's screens hang under, by key; absent (every story of a project with
+   * the standard areas) reads as the key `area` names. `area` keeps holding the area's KIND.
+   */
+  areaKey?: string | null
+  /** Further area keys the story also reaches — its development fans out to each app serving one. */
+  areas?: string[] | null
 }
 
 export interface ViableProjectCard extends Project {

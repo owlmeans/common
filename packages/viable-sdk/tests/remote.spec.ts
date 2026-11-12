@@ -202,6 +202,29 @@ describe('viable-sdk — the remote planning kits', () => {
   })
 })
 
+describe('viable-sdk — the remote applications', () => {
+  test('the apps read and one app\'s restart reach their routes under the tool deadline, carrying only the sides named', async () => {
+    const context = await makeSdkContext({
+      apiUrl: 'http://127.0.0.1:9', token: `${CONNECT_TOKEN_PREFIX}offline_test_token`,
+    })
+    const view = { projectId: 'p1', local: false, recorded: true, apps: [{ name: 'main', mount: '', areas: ['guest'], main: true }] }
+    const calls = captureTransport(context, () => view)
+    const api = makeRemoteConnectorApi(context)
+
+    expect(await api.project.apps('p1')).toEqual(view)
+    expect(await api.sandbox.restartApp('p1', 'admin')).toEqual(view)
+    await api.sandbox.restartApp('p1', 'admin', { api: true, web: true })
+    expect(calls.map(call => [call.alias, call.path, call.timeout])).toEqual([
+      [connect.project.apps, '/connect/project/:id/apps', TOOL_DEADLINE_MS],
+      [connect.sandbox.restartApp, '/connect/project/:id/sandbox/apps/:app/restart', TOOL_DEADLINE_MS],
+      [connect.sandbox.restartApp, '/connect/project/:id/sandbox/apps/:app/restart', TOOL_DEADLINE_MS],
+    ])
+    // A POST with nothing named still sends `{}` — the server's default, the app's server alone.
+    expect(calls[1]!.body).toEqual({})
+    expect(calls[2]!.body).toEqual({ api: true, web: true })
+  })
+})
+
 describe('viable-sdk — the remote git and GitHub calls', () => {
   test('each reaches its project route under the tool deadline, carrying only the fields named', async () => {
     const context = await makeSdkContext({
@@ -373,13 +396,13 @@ describe('viable-sdk — the remote API addresses only routes the platform serve
     // Read and withdrawn — a consent is never granted through the connector.
     expect(Object.keys(api.account.privacy).sort()).toEqual(['status', 'withdraw'])
     expect(Object.keys(api.account.intent)).toEqual(['pickup'])
-    expect(Object.keys(api.project)).toEqual(expect.arrayContaining(['llm', 'setLlm', 'activity', 'stop', 'steer', 'batch']))
+    expect(Object.keys(api.project)).toEqual(expect.arrayContaining(['llm', 'setLlm', 'activity', 'stop', 'steer', 'batch', 'apps']))
     expect(Object.keys(api.project.batch).sort()).toEqual(['cancel', 'get', 'start'])
     expect(Object.keys(api.files).sort()).toEqual(['changes', 'get', 'list', 'meta', 'remove', 'save'])
     // A new project's files: the create, the upload (its state read and each file), a file taken back,
     // the seal, the drafting asked again and the two reads — no open, no abort.
     expect(Object.keys(api.materials).sort()).toEqual(['catalogue', 'create', 'draft', 'read', 'remove', 'seal', 'upload'])
-    expect(Object.keys(api.sandbox).sort()).toEqual(['rebuild', 'restart', 'run', 'stop'])
+    expect(Object.keys(api.sandbox).sort()).toEqual(['rebuild', 'restart', 'restartApp', 'run', 'stop'])
     expect(Object.keys(api.slot)).toEqual(['list'])
     expect(Object.keys(api.convert).sort()).toEqual(['check', 'create', 'proceed', 'purge', 'start', 'status'])
     expect(Object.keys(api.git).sort()).toEqual(['commit', 'discard', 'log', 'revert', 'status'])

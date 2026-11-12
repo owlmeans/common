@@ -12,7 +12,7 @@ Predefined authentication protocols, guards, and constants shared between server
 ## Installation
 
 ```bash
-bun add @owlmeans/auth-common@^0.1.21
+bun add @owlmeans/auth-common@^0.1.22-rc.0
 ```
 
 ## Usage
@@ -122,7 +122,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.21
+npx @owlmeans/agent-skills@^0.1.22-rc.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -19,7 +19,7 @@ Before non-trivial work, open every node whose scope matches the task's files or
 - [[agent]] `packages/agent/**, packages/agent-common/**` — agent runtime over LangGraph's functional API; AgentPlugin seam; storage PORTS not resources; first ExecutionPlugin impl; server-side FlowProvider
 - [[planning]] `packages/{planning,planning-auth,server-planning,client-planning,planning-postgres}/**` — fold hooks; scoped reads; native resources; auth links; Postgres gaps; app fields
 - [[logging]] `packages/{log,web-log,viable-log}/**, **/logger(` — one logging system; global state; console override; config timing; token redaction; Fastify adapter
-- [[viable]] `packages/viable-{common,sdk}/**` — contracts + SDK; header-only edition id; no-profile byte identity; version skew; output taxonomy
+- [[viable]] `packages/viable-{common,sdk}/**` — contracts + SDK; header-only edition id; no-profile byte identity; skew; app map; output taxonomy
 
 ## Cross-cutting
 

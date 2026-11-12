@@ -28,7 +28,7 @@ const SCOPE_TOOLS = [
   'backfill_project_branding', 'list_access_tokens', 'revoke_access_token', 'privacy_choices',
   'withdraw_marketing_consent', 'pickup_intent', 'create_project_with_files', 'list_materials', 'read_material',
   'list_files', 'read_file', 'write_file', 'delete_file',
-  'preview_control', 'git_status', 'git_history', 'git_commit', 'git_discard', 'git_revert', 'connect_github',
+  'preview_control', 'project_apps', 'restart_project_app', 'git_status', 'git_history', 'git_commit', 'git_discard', 'git_revert', 'connect_github',
   'publish_to_github', 'github_sync', 'disconnect_github', 'github_repositories', 'link_github_origin',
   'production_status', 'publish_production', 'production_control', 'custom_domain', 'production_auth',
   'set_production_redirects', 'app_users', 'manage_app_user', 'app_permissions', 'set_app_permission_default',
@@ -123,6 +123,18 @@ const PRIVACY = {
     { key: 'marketing.email', group: 'marketing', mode: 'opt-in', granted: true, status: 'current', decidedAt: '2026-07-01T00:00:00.000Z' },
     { key: 'data.profiling', group: 'data', mode: 'opt-out', granted: false, status: 'new' },
   ],
+}
+
+const APPS = {
+  projectId: 'p1', local: false, recorded: true,
+  apps: [
+    { name: 'main', mount: '', areas: ['guest', 'user'], main: true, url: 'https://shop-p1.preview.owlmeans.app/', build: 'ok', backend: 'running' },
+    {
+      name: 'admin', mount: 'admin', areas: ['admin'], main: false, url: 'https://shop-p1.preview.owlmeans.app/admin',
+      build: 'ok', backend: 'crashed', cause: 'TypeError: x is undefined\n    at boot (/var/sandbox/sources/admin-api/node_modules/rollup.js:1:1)', causeKind: 'start',
+    },
+  ],
+  worker: { phase: 'running' },
 }
 
 const STACKED_WARNING = 'Build failed: cannot resolve ./missing\n    at resolve (/var/sandbox/node_modules/rollup/dist/rollup.js:10:3)'
@@ -378,6 +390,30 @@ const CASES: Case[] = [
       for (const internal of ['slot-7f3a', 'vib-slot-ns', 'rollup.js', '/var/sandbox']) expect(json).not.toContain(internal)
     },
   })),
+
+  // a project's applications
+  {
+    tool: 'project_apps', args: {}, answers: { 'project.apps': APPS },
+    check: (presented, json) => {
+      expect(presented.apps).toEqual([
+        { name: 'main', path: '/', areas: ['guest', 'user'], main: true, url: 'https://shop-p1.preview.owlmeans.app/', interface: 'ok', server: 'running' },
+        {
+          name: 'admin', path: '/admin', areas: ['admin'], main: false, url: 'https://shop-p1.preview.owlmeans.app/admin',
+          interface: 'ok', server: 'crashed', cause: 'TypeError: x is undefined',
+        },
+      ])
+      expect([presented.recorded, presented.local, presented.worker]).toEqual([true, false, 'running'])
+      for (const internal of ['/var/sandbox', 'rollup.js']) expect(json).not.toContain(internal)
+    },
+  },
+  {
+    tool: 'project_apps', args: {}, answers: { 'project.apps': { projectId: 'p1', local: false, recorded: false, apps: [{ name: 'main', mount: '', areas: ['guest', 'user', 'admin', 'operator'], main: true }] } },
+    check: presented => expect([presented.recorded, (presented.apps as unknown[]).length]).toEqual([false, 1]),
+  },
+  {
+    tool: 'restart_project_app', args: { app: 'admin' }, answers: { 'sandbox.restartApp': APPS },
+    check: presented => expect([presented.restarted, (presented.apps as unknown[]).length]).toEqual(['admin', 2]),
+  },
 
   // git and GitHub
   {

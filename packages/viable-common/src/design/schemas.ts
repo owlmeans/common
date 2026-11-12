@@ -41,6 +41,8 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
     code: { type: 'string' },
     narrative: { type: 'string' },
     area: { type: 'string', enum: Object.values(ProjectArea) },
+    areaKey: { type: 'string', nullable: true },
+    areas: { type: 'array', items: { type: 'string' }, nullable: true },
     reserved: {
       type: 'object',
       properties: {
@@ -106,6 +108,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
             required: ['kind', 'tabs', 'shared', 'weights'],
             additionalProperties: false,
           },
+          area: { type: 'string', nullable: true },
         },
         required: [
           'name', 'definition', 'path', 'alias', 'url', 'parent', 'adopted', 'specs', 'components',
@@ -126,6 +129,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           screen: { type: 'string' },
           entities: { type: 'array', items: { type: 'string' } },
           specs,
+          app: { type: 'string', nullable: true },
         },
         required: [
           'name', 'definition', 'path', 'viewModelPath', 'adopted', 'screen', 'entities', 'specs',
@@ -199,6 +203,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
               additionalProperties: false,
             },
           },
+          app: { type: 'string', nullable: true },
         },
         required: ['path', 'entity', 'type', 'model', 'endpoints'],
         additionalProperties: false,
@@ -213,6 +218,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           entity: { type: 'string' },
           type: { type: 'string' },
           api: { type: 'string' },
+          app: { type: 'string', nullable: true },
         },
         required: ['path', 'entity', 'type', 'api'],
         additionalProperties: false,

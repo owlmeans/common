@@ -75,16 +75,21 @@ export const createStoryHelper = (): StoryHelper => {
       .join(', ')
   }
 
-  const renderStories = (items: readonly Workcard[], page: number, total: number): string =>
+  const renderStories = (
+    items: readonly Workcard[], page: number, total: number, apps?: ReadonlyMap<string, readonly string[]>,
+  ): string =>
     items.length < 1
       ? 'No stories.'
       : `${items.length} of ${total} (page ${page}) — ${intrinsicCounts(items)}:\n`
         + items.map(item => {
           const fields = storyFieldsOf(item)
+          const named = apps?.get(item.id ?? item.code ?? '')
 
           return `  ${item.code ?? item.id ?? ''} · ${item.status}`
             + `${fields.primary ? ' · primary' : ''}`
             + `${fields.landing === true ? ` · ${LANDING_MARK}` : ''}`
+            // A new fact is a flag beside the others; the area stays last.
+            + `${named != null && named.length > 0 ? ` · ${named.length > 1 ? 'apps' : 'app'}: ${named.join(', ')}` : ''}`
             + `${item.fields?.area != null ? ` · ${fields.area}` : ''}\n      ${item.title.slice(0, 160)}`
         }).join('\n')
 

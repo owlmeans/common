@@ -21,6 +21,7 @@ import type {
   ConnectGithubPublishBody, ConnectGithubRepoList, ConnectGithubRepoQuery,
 } from '../git/types.js'
 import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } from '../kit/types.js'
+import type { ConnectAppParams, ConnectAppRestartBody, ConnectAppsView } from '../apps/types.js'
 import type {
   ConnectCreateWithMaterialsBody, ConnectMaterialCatalogue, ConnectMaterialQuery, ConnectMaterialsDraftBody,
   ConnectMaterialsState, ConnectMaterialText,
@@ -129,6 +130,7 @@ export interface ConnectReferences {
       describe: ConnectReference<{ params: { id: string } }, ConnectKitDescribe>
       apply: ConnectReference<{ params: { id: string }, body: ConnectKitApplyBody }, ConnectKitApplyResult>
     }
+    apps: ConnectReference<{ params: { id: string } }, ConnectAppsView>
     branding: {
       get: ConnectReference<{ params: { id: string }, query?: ConnectScopeQuery }, ConnectProjectBranding>
       save: ConnectReference<{
@@ -163,6 +165,7 @@ export interface ConnectReferences {
     restart: ConnectReference<{ params: { id: string } }, ConnectSlotView>
     stop: ConnectReference<{ params: { id: string } }, ConnectSlotView>
     rebuild: ConnectReference<{ params: { id: string } }, ConnectSlotView>
+    restartApp: ConnectReference<{ params: ConnectAppParams, body: ConnectAppRestartBody }, ConnectAppsView>
   }
   client: {
     identify: ConnectReference<{}, ConnectClientView>

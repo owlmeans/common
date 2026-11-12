@@ -239,6 +239,11 @@ export interface ProjectSetting {
 export interface StoryStatusExtra {
   /** The project's landing gate story (`fields.landing`). */
   landing?: boolean
+  /**
+   * The applications the story's card names (`fields.areaKey` / `fields.areas` through the project's
+   * app map) — absent for a card that names no area, which reads exactly as before apps.
+   */
+  apps?: readonly string[]
 }
 
 /** What a story tool filters a project's stories by. */

@@ -5,7 +5,7 @@ description: Bind OwlMeans shared entrypoint protocols in a browser application.
 
 # Browser protocol entrypoints
 
-**Install:** `bun add @owlmeans/web-client@^0.1.21`
+**Install:** `bun add @owlmeans/web-client@^0.1.22-rc.0`
 
 Shared protocol declarations are immutable. Bind a complete protocol tree for callable API routes,
 then bind frontend declarations to screens.
@@ -80,3 +80,7 @@ renderApp(context)            // or @owlmeans/web-panel's render(context)
 - Do not replace request/response typing at a call site; update the shared contract instead.
 - Keep framework entrypoints and application entrypoints in one registered array, without mutating a
   shared declaration collection.
+- An application served under a base (its own frontend service's `base`, e.g. `/admin`) keeps every
+  route base-less; the browser-facing redirects carry the base — a cleared token sends the page to
+  `clientBaseOf(ctx).href(<dispatcher url>)`, the login screen's home to `.href('/')` (`client` →
+  *Base path*).

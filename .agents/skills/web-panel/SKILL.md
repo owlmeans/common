@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.22-rc.0"` in `dependencies`
 
 ## Choosing a component
 
@@ -117,7 +117,8 @@ entrypoint binds to exactly the one context it was appended to.
 
 `Link` renders an `<a>` whose `href` is the entrypoint's own answer: it asks
 `entrypoint.url()` and puts the result on the anchor, so a link into another service comes out
-absolute and a link inside this one comes out as a path. Address a screen by **alias** (or hand it
+absolute and a link inside this one comes out as a path — joined onto the application's base
+(`useHref()`, `@owlmeans/client`: `/admin/users` under `/admin`, the declared path at the root). Address a screen by **alias** (or hand it
 the entrypoint you already hold); `src` is the escape hatch for a literal URL.
 
 ```tsx

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-router-react-router
 
 **Layer:** Web (React), build level L2
-**Install:** `"@owlmeans/web-router-react-router": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/web-router-react-router": "^0.1.22-rc.0"` in `dependencies`
 
 The React Router v8 mechanic as an OwlMeans routing plugin. react-router is **opt-in**: OwlMeans
 in-browser routing is the default, and you add this plugin only when you specifically want
@@ -18,7 +18,7 @@ react-router.
 | Export | Description |
 |--------|-------------|
 | `appendReactRouter(ctx)` | Register the react-router plugin on the router host (priority 100 → wins the cascade over the default). |
-| `makeReactRouterPlugin()` | The `RouterPlugin` (alias `react-router`). `compile` = `createBrowserRouter`; provider/outlet/hooks from react-router. |
+| `makeReactRouterPlugin()` | The `RouterPlugin` (alias `react-router`). `compile(routes, ctx)` = `createBrowserRouter(routes, { basename })` with the application's base (`routerBaseHelper.baseOf(ctx)`), no options at all at the root; provider/outlet/hooks from react-router. |
 | Constants | `REACT_ROUTER`, `REACT_ROUTER_PRIORITY`. |
 
 ## Usage

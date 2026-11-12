@@ -17,7 +17,8 @@ import {
   ConnectFileSaveBodySchema, ConnectGitCommitBodySchema, ConnectGitRevertBodySchema, ConnectGithubBranchQuerySchema,
   ConnectGithubLinkBodySchema, ConnectGithubPublishBodySchema, ConnectGithubRepoQuerySchema, ConnectKitApplyBodySchema,
   ConnectProductionDomainBodySchema, ConnectProductionRedirectsBodySchema, ConnectKitApplyResultSchema, ConnectKitDescribeSchema, ConnectProjectBrandingSaveSchema,
-  PlanningKitViewSchema, ConnectActivityQuerySchema, ConnectFeedQuerySchema,
+  PlanningKitViewSchema, ConnectActivityQuerySchema, ConnectFeedQuerySchema, ConnectAppParamsSchema,
+  ConnectAppRestartBodySchema,
 } from '../src/connect/schemas.js'
 import { connectProtocols } from '../src/connect/entrypoints.js'
 import { AGENT_STEER_PROMPT_MAX, AgentStopScope, STORY_BATCH_MAX } from '../src/batch/consts.js'
@@ -59,8 +60,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.client.identify.alias).toBe(connect.client.identify)
     expect(tree.project.createWithMaterials.alias).toBe(connect.project.createWithMaterials)
     expect(tree.project.materials.file.alias).toBe(connect.project.materials.file)
-    expect(protocols(tree)).toHaveLength(122)
-    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(122)
+    expect(protocols(tree)).toHaveLength(124)
+    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(124)
   })
 
   test('declares exactly the routes a connector calls — every alias, reference and path, and no socket', () => {
@@ -72,7 +73,7 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'DELETE /:id/file/:file', 'DELETE /project/:id', 'DELETE /project/:id/files/content',
       'GET /:id', 'GET /:id/catalogue', 'GET /:id/content', 'GET /access-tokens', 'GET /blueprints', 'GET /branding', 'GET /call/:callId', 'GET /client', 'GET /convert/:id', 'GET /convert/:id/check',
       'GET /iam/users', 'GET /llm', 'GET /notifications', 'GET /pipeline/:id/:runId',
-      'GET /privacy', 'GET /project', 'GET /project/:id/activity', 'GET /project/:id/batch',
+      'GET /privacy', 'GET /project', 'GET /project/:id/activity', 'GET /project/:id/apps', 'GET /project/:id/batch',
       'GET /project/:id/branding', 'GET /project/:id/config', 'GET /project/:id/files', 'GET /project/:id/files/changes',
       'GET /project/:id/files/content',
       'GET /project/:id/files/meta', 'GET /project/:id/git', 'GET /project/:id/git/log', 'GET /project/:id/github/branches',
@@ -110,7 +111,7 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /project/:id/production/domain/detach', 'POST /project/:id/production/domain/verify',
       'POST /project/:id/production/publish', 'POST /project/:id/production/restart', 'POST /project/:id/production/stop',
       'POST /project/:id/reinit', 'POST /project/:id/rename',
-      'POST /project/:id/sandbox/rebuild', 'POST /project/:id/sandbox/restart', 'POST /project/:id/sandbox/run',
+      'POST /project/:id/sandbox/apps/:app/restart', 'POST /project/:id/sandbox/rebuild', 'POST /project/:id/sandbox/restart', 'POST /project/:id/sandbox/run',
       'POST /project/:id/sandbox/stop', 'POST /project/:id/steer', 'POST /project/:id/stop',
       'POST /project/attach', 'POST /project/with-materials', 'POST /session',
       'POST /session/:sessionId/close', 'POST /session/:sessionId/ops/:opId', 'POST /session/delegated',
@@ -507,6 +508,39 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(leaves.map(protocol => protocol.gate)).toEqual(leaves.map(() => undefined))
     expect([connectRef.files.save.alias, connectRef.sandbox.rebuild.alias, connectRef.slot.list.alias])
       .toEqual([connect.files.save, connect.sandbox.rebuild, connect.slot.list])
+  })
+
+  test('reads a project\'s applications and restarts one of the preview\'s — owned base, no paid gate', () => {
+    const paid = connectProtocols({
+      guard: DEFAULT_GUARD,
+      gate: { alias: 'test-gate', params: ['owner'] },
+      paid: Object.fromEntries(Object.values(ConnectPaidGate).map(kind => [kind, { alias: `gate-${kind}`, params: [kind] }])),
+    })
+    const { apps } = paid.project
+    const { restartApp } = paid.sandbox
+
+    expect([apps, restartApp].map(protocol => `${protocol.route.route.method!.toUpperCase()} ${protocol.route.route.path}`))
+      .toEqual(['GET /project/:id/apps', 'POST /project/:id/sandbox/apps/:app/restart'])
+    expect([apps, restartApp].map(protocol => aliasOf(protocol.route.route.parent))).toEqual([connect.base, connect.base])
+    expect([apps.gate, restartApp.gate]).toEqual([undefined, undefined])
+    expect([apps.alias, restartApp.alias]).toEqual([connect.project.apps, connect.sandbox.restartApp])
+    expect([connectRef.project.apps.alias, connectRef.sandbox.restartApp.alias])
+      .toEqual([connect.project.apps, connect.sandbox.restartApp])
+
+    const ajv = new Ajv({ strict: false })
+    const params = ajv.compile(ConnectAppParamsSchema)
+    const body = ajv.compile(ConnectAppRestartBodySchema)
+    expect(params({ id: 'p1', app: 'main' })).toBe(true)
+    expect(params({ id: 'p1', app: 'backoffice' })).toBe(true)
+    // An app's name never carries a hyphen, an upper-case letter or a path.
+    for (const app of ['admin-web', 'Admin', 'a', '../x', '']) expect([app, params({ id: 'p1', app })]).toEqual([app, false])
+    expect(params({ id: 'p1' })).toBe(false)
+    // The body is closed: the sides of the app, nothing else.
+    expect(body({})).toBe(true)
+    expect(body({ api: true, web: false })).toBe(true)
+    expect(body({ web: true })).toBe(true)
+    expect(body({ api: true, worker: true })).toBe(false)
+    expect(body({ api: 'yes' })).toBe(false)
   })
 
   test('the file query, the write body and the metadata query are closed shapes', () => {

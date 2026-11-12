@@ -1,5 +1,5 @@
 import { type SlotCommandType, type SlotDatabaseCommand, type SlotFileCommand, type SlotGitCommand, type SlotShellCommand, type SubProject, WorkloadKind } from './consts.js'
-import { TargetLayout } from '../integrity/index.js'
+import type { TargetLayout } from '../integrity/consts.js'
 
 export type SlotCommand = SlotFileCommand | SlotShellCommand | SlotGitCommand | SlotDatabaseCommand
 
@@ -81,6 +81,23 @@ export interface SlotShellResult {
   /** Integrity: whether the tree still holds the generated application. */
   ok?: boolean
   violations?: string[]
+  /** RuntimeInfo: what this runtime can do (`SlotRuntimeCapability` values; unknown ones are ignored). */
+  capabilities?: string[]
+  /** RuntimeInfo: the apps this runtime serves, main first. */
+  apps?: SlotRuntimeApp[]
+}
+
+/** One app as a runtime reports it: the slot's claim plus whether its packages are on the volume. */
+export interface SlotRuntimeApp {
+  name: string
+  mount: string
+  index: number
+  present: boolean
+}
+
+/** How much one command's bounds scale with the target: `apps` — how many apps it has, main included. */
+export interface SlotCommandScale {
+  apps?: number
 }
 
 /**
@@ -211,6 +228,12 @@ export interface SlotShellArgs {
   /** Free-form arguments for {@link SlotShellCommand.Bun}; absent means a plain install. */
   args?: string
   skipBuild?: boolean
+  /**
+   * The app a scoped command acts on, by name (`Build`, `ValidateWithRenderer`, `ValidateBackend`,
+   * `BootCheck`/`BootCheckStatus`, `DbSync`, `Validate`/`Bun`, `RestartApp`). Absent or `main` is
+   * main — what every command meant before apps existed, and what an older publisher still does.
+   */
+  app?: string
 }
 
 /** The minimum a caller must know about a slot to address it. */
@@ -266,4 +289,18 @@ export interface TargetPaths {
    * target has to build these first or it can never start.
    */
   libraries: string[]
+  /**
+   * The apps of a project split into apps, main first — present only when the recorded topology
+   * names two or more. `api` / `web` above stay main's.
+   */
+  apps?: TargetAppPaths[]
+}
+
+/** Where one app's packages live — directory names under {@link TargetPaths.dir}. */
+export interface TargetAppPaths {
+  name: string
+  mount: string
+  index: number
+  web: string
+  api: string
 }

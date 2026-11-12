@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TransitionAction, WorkcardKind } from '@owlmeans/planning'
-import { MATERIAL_PATH_MAX, MATERIALS_LIMITS, AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, STORY_BATCH_MAX, type StoryBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
+import { APP_NAME_PATTERN, MAIN_APP, type ConnectAppsView, MATERIAL_PATH_MAX, MATERIALS_LIMITS, AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, STORY_BATCH_MAX, type StoryBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
 import {
   COMMIT_WAIT_MS, HANDOVER_WAIT_MS, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
 } from '../consts.js'
@@ -8,6 +8,7 @@ import { makeProjectEnvHelper } from '../project/env.js'
 import { makeSetupReportModel } from '../project/report.js'
 import { setupHelper } from '../project/setup.js'
 import { makeLocalRunHelper } from '../run/local.js'
+import { makeRunStateHelper } from '../run/state.js'
 import { makeTaskEnvelopeModel } from '../task/envelope.js'
 import { makeQuestionEnvelopeModel } from '../task/inquiry.js'
 import { renderPlatform } from './platform.js'
@@ -26,6 +27,8 @@ import { materialsToolHelper } from './materials.js'
 import { controlToolHelper } from './control.js'
 import { statusTextHelper } from './status.js'
 import { storyHelper } from './stories.js'
+import { appsToolHelper } from './apps.js'
+import { LOCAL_APP_RESTART_HINT, ONE_APP_PLATFORM, RESTART_WHOLE_PREVIEW } from './apps/consts.local.js'
 import type { ToolDeps, ToolDefinition, ToolHost, ToolResult } from './types.js'
 import type { CatalogueHelper } from './catalogue/types.js'
 import { toolHostHelper } from './host.js'
@@ -168,12 +171,14 @@ const projectResult = (status: ConnectProjectStatus) => ok(
   statusTextHelper.renderProjectStatus(status), { project: status as unknown as Record<string, unknown> }
 )
 /** A story's domain status, with what its card says that the status route does not carry. */
-const storyResult = (status: ConnectStoryStatus, card: ViableStoryCard) => {
+const storyResult = (status: ConnectStoryStatus, card: ViableStoryCard, apps?: readonly string[]) => {
   const landing = storyHelper.isLandingStory(card)
+  // Only a card that names an area carries apps: every other story reads exactly as before them.
+  const named = apps != null && apps.length > 0 ? apps : undefined
 
   return ok(
-    statusTextHelper.renderStoryStatus(status, { landing }),
-    { story: status as unknown as Record<string, unknown>, ...(landing ? { landing } : {}) }
+    statusTextHelper.renderStoryStatus(status, { landing, ...(named != null ? { apps: named } : {}) }),
+    { story: status as unknown as Record<string, unknown>, ...(landing ? { landing } : {}), ...(named != null ? { apps: named } : {}) }
   )
 }
 /** The project settings, led by what a save just did where one did. */
@@ -1506,7 +1511,9 @@ export const catalogue: ToolDefinition[] = [
         sort: STORY_ORDER,
       })
 
-      return ok(storyHelper.renderStories(list.items, list.page ?? page, list.total), list)
+      const apps = await appsToolHelper.storyApps(deps, projectOf(args, deps), list.items)
+
+      return ok(storyHelper.renderStories(list.items, list.page ?? page, list.total, apps), list)
     },
   },
 
@@ -1527,7 +1534,9 @@ export const catalogue: ToolDefinition[] = [
         sort: STORY_ORDER,
       })
 
-      return ok(storyHelper.renderStories(list.items, list.page ?? 0, list.total), list)
+      const apps = await appsToolHelper.storyApps(deps, projectOf(args, deps), list.items)
+
+      return ok(storyHelper.renderStories(list.items, list.page ?? 0, list.total, apps), list)
     },
   },
 
@@ -1697,8 +1706,9 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       const card = await storyHelper.resolveStory(deps, project, args.storyId as string)
+      const apps = await appsToolHelper.storyApps(deps, project, [card])
 
-      return storyResult(await deps.api.story.status(project, card.id!), card)
+      return storyResult(await deps.api.story.status(project, card.id!), card, apps.get(card.id ?? card.code ?? ''))
     },
   },
 
@@ -2568,6 +2578,104 @@ export const catalogue: ToolDefinition[] = [
         default:
           return fail('Say what to do with action: start, restart, stop or rebuild.')
       }
+    },
+  },
+
+  {
+    name: 'project_apps',
+    title: 'The applications of a project',
+    description:
+      'The applications a project consists of. Every project has main, at the root of its address; a'
+      + ' project split into applications adds one per group of areas — an admin app under /admin, a back'
+      + ' office under /backoffice — each with its own interface and server under its own path, all on'
+      + ' one address. For each: its path, the areas it serves and, for a project whose sources live in'
+      + ' its own slot, whether its interface built and its server runs, and why not. restart_project_app'
+      + ' restarts one of them.',
+    input: { projectId: z.string().optional() },
+    availability: toolHostHelper.anyHost,
+    annotations: READ_ONLY,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const local = deps.host.target === ConnectTarget.Local
+      let view: ConnectAppsView
+      try {
+        view = await deps.api.project.apps(project)
+      } catch (e) {
+        if (!await appsToolHelper.routeMissing(deps, project, e)) throw e
+        const legacy = appsToolHelper.legacyView(project, local)
+
+        return ok(`${ONE_APP_PLATFORM}\n${appsToolHelper.renderApps(legacy)}`, { ...legacy, olderPlatform: true })
+      }
+      // A local project: the platform answers its map, and where each app answers is this machine's.
+      const run = view.local && deps.dir != null ? await makeLocalRunHelper(deps.dir).localStatus() : null
+
+      return ok(
+        appsToolHelper.renderApps(view, run),
+        { ...view, ...(run?.apps != null ? { localRun: run.apps } : {}) } as unknown as Record<string, unknown>,
+      )
+    },
+  },
+
+  {
+    name: 'restart_project_app',
+    title: 'Restart one application of a project',
+    description:
+      'Restart ONE application of a project — its server, and with web: true its interface build too —'
+      + ' while the others keep serving: the repair for one application that stopped answering. For a'
+      + ' project whose sources live in its own slot it restarts that application in the preview (never the'
+      + ' published production site) and answers every application as it then stands; for one on this'
+      + ' machine it restarts that application\'s server in the local run. project_apps names them.',
+    input: {
+      projectId: z.string().optional(),
+      app: z.string().regex(APP_NAME_PATTERN).describe('The application by name — main, or one project_apps lists.'),
+      web: z.boolean().optional().describe('Also rebuild its interface (a preview only). Leave it out to restart the server alone.'),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const app = typeof args.app === 'string' ? args.app.trim() : ''
+      if (!APP_NAME_PATTERN.test(app)) return fail('Name the application with app — project_apps lists them.')
+      if (deps.host.target === ConnectTarget.Local) {
+        if (deps.dir == null) return fail('No project directory.')
+        const state = makeRunStateHelper(deps.dir)
+        const record = await state.readRun()
+        if (record == null) return fail('Nothing runs on this machine — run_local builds and starts every application.')
+        const known = app === MAIN_APP ? record.api != null : (record.apps ?? []).some(one => one.name === app && one.api != null)
+        if (!known) {
+          return fail(`The local run holds no running application ${app}. project_apps lists the project's`
+            + ' applications; run_local builds and starts every one of them.')
+        }
+        const refused = await state.restartApi(app)
+        if (refused != null) return fail(refusalHelper.refusalPhrase(refused))
+        const status = await makeLocalRunHelper(deps.dir).localStatus()
+        const address = status.apps?.find(one => one.name === app)
+
+        return ok(
+          `Restarted the ${app} server on this machine${address != null ? ` (${address.url})` : ''}; local_status says`
+          + ` when it serves.${args.web === true ? ` ${LOCAL_APP_RESTART_HINT}` : ''}`,
+          { app, local: true, ...(status.apps != null ? { localRun: status.apps } : {}) },
+        )
+      }
+
+      const project = projectOf(args, deps)
+      let view: ConnectAppsView
+      try {
+        view = await deps.api.sandbox.restartApp(project, app, args.web === true ? { api: true, web: true } : {})
+      } catch (e) {
+        // A bare 404: an older platform has no route, or the preview serves no such app — the apps read tells which.
+        if (!await appsToolHelper.routeMissing(deps, project, e)) throw e
+        const listed = await deps.api.project.apps(project).catch(() => null)
+        if (listed == null) return fail(`${ONE_APP_PLATFORM} ${RESTART_WHOLE_PREVIEW}`)
+
+        return fail(`The preview serves no application ${app}. Nothing was restarted.\n${appsToolHelper.renderApps(listed)}`)
+      }
+      const restarted = view.apps.find(one => one.name === app)
+
+      return ok(
+        `Restarted ${app}${args.web === true ? ', its interface rebuilt' : ''}; the others kept serving.\n`
+        + appsToolHelper.renderApps(view),
+        { ...view, restarted: app, ...(restarted?.cause != null ? { cause: restarted.cause } : {}) } as unknown as Record<string, unknown>,
+      )
     },
   },
 
@@ -3547,6 +3655,9 @@ export const catalogue: ToolDefinition[] = [
           ? `running: api ${running.api ?? '?'} · web ${running.web ?? '?'}`
             + (running.phase != null ? ` · ${running.phase}` : '')
           : 'running: no — run_local starts it',
+        // A split project's run: one line per application, each under its path on the one web port.
+        ...(running.apps ?? []).map(app => `  ${app.name} · ${app.url} · api ${app.api} · `
+          + (app.ready ? 'serving' : `not serving${app.reason != null ? ` — ${app.reason}` : ''}`)),
       ]
 
       return ok(lines.join('\n'), { env, running } as unknown as Record<string, unknown>)
@@ -3578,7 +3689,11 @@ export const catalogue: ToolDefinition[] = [
 
       return ok(
         `Started. The app is at http://localhost:${started.web}, its API at`
-        + ` http://localhost:${started.api}. Call local_status if it does not answer yet.`,
+        + ` http://localhost:${started.api}. Call local_status if it does not answer yet.`
+        // A split project: every application on the same port, each under its own path.
+        + (started.apps != null
+          ? `\nApplications: ${started.apps.map(app => `${app.name} ${app.url}`).join(' · ')}`
+          : ''),
         started as unknown as Record<string, unknown>
       )
     },

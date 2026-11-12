@@ -4,9 +4,9 @@ import { randomUUID } from 'node:crypto'
 import p from 'node:path'
 
 import {
-  CONNECT_MARKER_DIR, CONNECT_RUN_FILE, TARGET_API_MARKER, TARGET_API_PORT, TARGET_WEB_PORT,
+  CONNECT_MARKER_DIR, CONNECT_RUN_FILE, MAIN_APP, TARGET_API_MARKER, TARGET_API_PORT, TARGET_WEB_PORT,
   TARGET_WORKER_MARKER,
-  TARGET_WORKER_PORT
+  TARGET_WORKER_PORT, appMapHelper, type SlotAppClaim,
 } from '@owlmeans/viable-common'
 
 import { makeTargetEnvHelper } from '../executor/env.js'
@@ -56,8 +56,9 @@ export const makeRunStateHelper = (dir: string): RunStateHelper => {
   }
 
   const startApi = async (
-    env: Record<string, string> = {}
+    env: Record<string, string> = {}, app?: SlotAppClaim
   ): Promise<LocalProcessRecord> => {
+    if (app != null && app.name !== MAIN_APP) return await startAppApi(app, env)
     const bootId = randomUUID()
     const cwd = makeLayoutHelper(dir).apiPath()
     // A run killed without a stop leaves this child alive — detaching it is what keeps it
@@ -83,6 +84,37 @@ export const makeRunStateHelper = (dir: string): RunStateHelper => {
     child.unref()
 
     return { pid: child.pid ?? -1, port: TARGET_API_PORT, bootId }
+  }
+
+  /**
+   * Another app's api: its own package, port and environment (`appMapHelper.apiEnvOf`), and its own
+   * argv marker (`--viable-app=<name>`) — never main's `--viable-api`, so reclaiming main's port can
+   * never take a sibling with it, and reclaiming this one takes only what carries its own marker.
+   */
+  const startAppApi = async (app: SlotAppClaim, env: Record<string, string>): Promise<LocalProcessRecord> => {
+    const bootId = randomUUID()
+    const port = appMapHelper.apiPort(app)
+    const marker = appMapHelper.marker(app)!
+    const cwd = makeLayoutHelper(dir).apiPath(app.name)
+    if (!await spawnHelper.waitForPortFree(port, 2_000)) {
+      await spawnHelper.reclaimPort(port, marker)
+    }
+
+    const child = spawn('bun', ['dist/index.js', marker], {
+      cwd,
+      detached: true,
+      shell: true,
+      stdio: 'ignore',
+      env: {
+        ...process.env,
+        ...await makeTargetEnvHelper(dir).backendEnv(app),
+        BACKEND_BOOT_ID: bootId,
+        ...env,
+      },
+    })
+    child.unref()
+
+    return { pid: child.pid ?? -1, port, bootId }
   }
 
   const startWorker = async (): Promise<LocalProcessRecord | null> => {
@@ -113,8 +145,9 @@ export const makeRunStateHelper = (dir: string): RunStateHelper => {
     return { pid: child.pid ?? -1, port: TARGET_WORKER_PORT, bootId }
   }
 
-  const restartApi = async (): Promise<string | null> => {
+  const restartApi = async (app?: string): Promise<string | null> => {
     const record = await readRun()
+    if (app != null && app !== MAIN_APP) return await restartAppApi(record, app)
     if (record == null || record.api == null) return null
 
     const refused = await integrityHelper.integrityRefusal(dir, 'Refused to restart')
@@ -122,7 +155,26 @@ export const makeRunStateHelper = (dir: string): RunStateHelper => {
 
     await runProcessHelper.stopProcess(record.api)
     const api = await startApi()
-    await writeRun({ ...record, api })
+    // A split run keeps main's line of its app list in step with the record's own api.
+    await writeRun({
+      ...record, api,
+      ...(record.apps != null ? { apps: record.apps.map(one => one.name === MAIN_APP ? { ...one, api } : one) } : {}),
+    })
+
+    return null
+  }
+
+  /** Another app's api bounced; `null` (nothing to bounce) when the run does not hold that app. */
+  const restartAppApi = async (record: LocalRunRecord | null, app: string): Promise<string | null> => {
+    const entry = record?.apps?.find(one => one.name === app)
+    if (record == null || entry == null) return null
+
+    const refused = await integrityHelper.integrityRefusal(dir, 'Refused to restart')
+    if (refused != null) return refused
+
+    await runProcessHelper.stopProcess(entry.api)
+    const api = await startAppApi(entry, {})
+    await writeRun({ ...record, apps: record.apps!.map(one => one.name === app ? { ...one, api } : one) })
 
     return null
   }

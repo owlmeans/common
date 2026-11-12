@@ -3,6 +3,7 @@ import type { ProjectTenancy } from '../areas/types.js'
 import type { SubProject } from '../slot/consts.js'
 import type { ViablePersona, ViableSkill } from '../skills/consts.js'
 import type { TopologyDescriptor } from '../topology/types.js'
+import type { AppMap } from '../topology/apps/types.js'
 import { BlueprintPatchKind, LandingGatePreference } from './consts.js'
 
 /**
@@ -236,5 +237,14 @@ export interface BlueprintRef {
    * project nobody decided for serializes exactly as it did before tenancy existed.
    */
   tenancy?: ProjectTenancy
+  /**
+   * The project's app map — the project card's decision (`fields.apps`), resolved after tenancy and
+   * before the overrides into the blueprint's topology.
+   *
+   * A small record like the tenancy flags beside it, never an artifact. Absent is one app, `main`,
+   * over the four standard areas (`appMapHelper.legacy()`): every project created before apps existed
+   * serializes exactly as it did, and paths come from this map rather than from a cached record.
+   */
+  apps?: AppMap
   overrides?: BlueprintPatch
 }

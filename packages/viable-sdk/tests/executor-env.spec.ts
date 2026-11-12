@@ -24,6 +24,18 @@ describe('viable-sdk — local browser environment', () => {
     for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
   })
 
+  test('v2: another app\'s web defaults to its own mount and api base on the one web port', async () => {
+    const root = await sandbox(TargetLayout.V2, '')
+    const env = await makeTargetEnvHelper(root).frontendEnv({ name: 'admin', mount: 'admin', index: 1 })
+
+    expect([env.BASE_URL, env.BACKEND_BASE_URL, env.BACKEND_PORT]).toEqual(['/admin', 'admin/api', String(TARGET_WEB_PORT)])
+    expect(env.DATABASE_URL).toBeUndefined()
+    expect(env.OIDC_SECRET).toBeUndefined()
+    // main's stays exactly what it always was.
+    const main = await makeTargetEnvHelper(root).frontendEnv()
+    expect([main.BASE_URL, main.BACKEND_BASE_URL]).toEqual(['/', 'api'])
+  })
+
   for (const layout of [TargetLayout.V1, TargetLayout.V2]) {
     test(`${layout}: defaults to the HTTP web proxy without exposing backend secrets`, async () => {
       const root = await sandbox(layout, '')

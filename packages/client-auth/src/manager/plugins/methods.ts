@@ -1,4 +1,5 @@
 import { CAUTHEN_AUTHEN_TYPED } from '@owlmeans/auth'
+import { clientBaseOf } from '@owlmeans/client'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { DEFAULT_METHOD_ORDER, LOGIN_SERVICE } from '../../login/consts.js'
 import type { LoginMethod, LoginMethodContext, LoginMethodSource, LoginService } from '../../login/types.js'
@@ -58,7 +59,9 @@ export const pluginMethodSource: LoginMethodSource = {
         start: methodCtx => {
           const login = methodCtx.context.service<LoginService>(LOGIN_SERVICE)
           const entrypoint = methodCtx.context.entrypoint<ClientEntrypoint>(CAUTHEN_AUTHEN_TYPED)
-          const url = entrypoint.path().replace(':type', encodeURIComponent(type))
+          // A window's address (the surrogate's `next`, a redirect): with the application's base.
+          const url = clientBaseOf(methodCtx.context)
+            .href(entrypoint.path().replace(':type', encodeURIComponent(type)))
 
           return login.begin({
             url,

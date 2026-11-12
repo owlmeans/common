@@ -32,11 +32,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/agent": "^0.1.21",
+    "@owlmeans/agent": "^0.1.22-rc.0",
     "@owlmeans/context": "^0.1.21",
     "@owlmeans/error": "^0.1.21",
     "@owlmeans/llm": "^0.1.22-rc.0",
-    "@owlmeans/llm-common": "^0.1.21",
+    "@owlmeans/llm-common": "^0.1.22-rc.0",
     "@owlmeans/log": "^0.1.21",
     "ajv": "^8.20.0",
     "css-tree": "^3.2.1",

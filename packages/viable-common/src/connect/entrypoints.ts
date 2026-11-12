@@ -21,7 +21,9 @@ import {
   ConnectProductionRedirectsBodySchema, ConnectIamGroupParamsSchema, ConnectIamMemberParamsSchema,
   ConnectIamOrganizationParamsSchema, ConnectIamUserParamsSchema, ConnectActivityQuerySchema, ConnectFeedQuerySchema,
   ConnectCreateWithMaterialsBodySchema, ConnectMaterialQuerySchema, ConnectMaterialsDraftBodySchema,
+  ConnectAppParamsSchema, ConnectAppRestartBodySchema,
 } from './schemas.js'
+import type { ConnectAppParams, ConnectAppRestartBody, ConnectAppsView } from './apps/types.js'
 import type {
   ConnectAccessTokenList, ConnectAccessTokenParams, ConnectAccessTokenRevoked, ConnectBrandingBackfill, ConnectIntentPickup,
   ConnectIntentPickupBody, ConnectOrganizationBranding, ConnectOrganizationBrandingSave, ConnectPrivacyChoices,
@@ -85,7 +87,8 @@ import type {
  * agent's stop and steering, and story batches — several stories implemented one after another), a
  * NEW project's files (a create that waits for them, their upload whose session is the project, the
  * drafting asked again, the catalogue and one material's text), story
- * status, generated files (read, written, deleted, metadata listed), the preview workload's controls,
+ * status, generated files (read, written, deleted, metadata listed), the project's applications (read,
+ * and one of the preview's restarted), the preview workload's controls,
  * the organization's workloads, the project's git repository and GitHub connection, its production
  * workload (published, restarted, stopped, its custom domain and standalone sign-in), its generated
  * app's sign-in (end users, permission definitions, grants, organizations and groups), conversion,
@@ -449,6 +452,12 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
         }, typed<ConnectKitApplyResult>()),
       ),
     },
+    // The project's applications: the map, and — for a cloud preview — each app's live state. A new
+    // route rather than a field of the project status, which an older connector might refuse.
+    apps: protocol(
+      route(connect.project.apps, '/project/:id/apps', { parent: base, method: RouteMethod.GET }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectAppsView>()),
+    ),
     // Under `base` like every sibling — the guard and the ownership gate. The text settings are
     // free; the credit switch is the one route here that carries a payment gate (white label), its
     // browser twin's. `?scope=production` addresses the production workload's own rows.
@@ -598,6 +607,14 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     rebuild: protocol(
       route(connect.sandbox.rebuild, '/project/:id/sandbox/rebuild', { parent: base, method: RouteMethod.POST }),
       contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectSlotView>()),
+    ),
+    // One app of the preview restarted while its siblings keep serving; the answer is the apps.
+    restartApp: protocol(
+      route(connect.sandbox.restartApp, '/project/:id/sandbox/apps/:app/restart', { parent: base, method: RouteMethod.POST }),
+      contract.request({
+        params: typed<ConnectAppParams>(ConnectAppParamsSchema),
+        body: typed<ConnectAppRestartBody>(ConnectAppRestartBodySchema),
+      }, typed<ConnectAppsView>()),
     ),
     },
 

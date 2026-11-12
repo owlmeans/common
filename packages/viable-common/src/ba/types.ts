@@ -1,7 +1,7 @@
 import { SpecCategory } from "./consts"
 import type { ConnectingStoryKind, RequirementKind, RequirementPart, RequirementSource, StoryKind } from "./consts.js"
 import type { ProjectArea } from "../areas/consts.js"
-import type { StoryDraft } from "../areas/types.js"
+import type { StoryAreaKey, StoryDraft } from "../areas/types.js"
 import type { StoryActor } from "../design/consts.js"
 import type { SubProject } from "../slot/consts.js"
 
@@ -42,7 +42,7 @@ export interface ConnectingStoryList {
  * already clamped, so it always names a flow story that list contains. A requested entry with no
  * anchor sits at the end of the list and carries none.
  */
-export interface MergedStoryDraft extends StoryDraft {
+export interface MergedStoryDraft extends StoryDraft, StoryAreaKey {
   kind: StoryKind
   after?: number
 }

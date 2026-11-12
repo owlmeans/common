@@ -70,3 +70,36 @@ export interface TargetLayoutManifest {
   /** Markers proving an entry file is still the framework's entry, keyed by file. */
   markers: Readonly<Record<string, readonly string[]>>
 }
+
+/** What the verifier is told about the tree beyond its file map. */
+export interface TargetIntegrityTree {
+  /**
+   * The entry names directly under `sources/`, as listed. The `workspace-package` rule runs only
+   * when given — and only for a project split into apps.
+   */
+  workspaceDirs?: string[]
+}
+
+/**
+ * What a caller must read beyond `TARGET_INTEGRITY_FILES`, decided from what it has read: the extra
+ * apps' package files and whether to list `sources/`. Empty for every project not split into apps.
+ */
+export interface TargetIntegrityPlan {
+  extraFiles: string[]
+  listWorkspace: boolean
+}
+
+/** A tree as `collectTargetFiles` read it: the file map and, for a split project, the listing. */
+export interface TargetFileCollection extends TargetIntegrityTree {
+  files: TargetFileMap
+}
+
+/** Read one sandbox-relative file: its text, or `null` when it cannot be read. */
+export interface TargetFileReader {
+  (path: string): Promise<string | null>
+}
+
+/** List one sandbox-relative directory: the names of its entries. */
+export interface TargetDirLister {
+  (dir: string): Promise<string[]>
+}

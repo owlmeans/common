@@ -1,4 +1,4 @@
-import type { StoryDraft } from '../../areas/types.js'
+import type { StoryAreaKey, StoryDraft } from '../../areas/types.js'
 import type { ConnectingStoryDraft, MergedStoryDraft } from '../types.js'
 
 /** The connecting stories of a flow: how many it may carry, and where each one lands. */
@@ -40,6 +40,11 @@ export interface ConnectingStoryHelper {
    *   "at the end", and one that is not a number at all means the front of the flow. Neither is a
    *   reason to lose a story.
    * - **Ties keep the model's order**, which is the only ranking anything has.
+   *
+   * A draft naming one of the project's own areas (`areaKey`) keeps it on its entry; one naming none
+   * is merged into exactly the entry it always was.
    */
-  mergeConnectingStories: (flow: StoryDraft[], connecting: ConnectingStoryDraft[]) => MergedStoryDraft[]
+  mergeConnectingStories: (
+    flow: Array<StoryDraft & StoryAreaKey>, connecting: Array<ConnectingStoryDraft & StoryAreaKey>,
+  ) => MergedStoryDraft[]
 }

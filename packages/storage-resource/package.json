@@ -41,8 +41,8 @@
     "@owlmeans/file-inspector": "^0.1.22-rc.0",
     "@owlmeans/log": "^0.1.21",
     "@owlmeans/resource": "^0.1.21",
-    "@owlmeans/server-context": "^0.1.21",
-    "@owlmeans/storage-common": "^0.1.21",
+    "@owlmeans/server-context": "^0.1.22-rc.0",
+    "@owlmeans/storage-common": "^0.1.22-rc.0",
     "file-type": "^22.2.0"
   },
   "devDependencies": {

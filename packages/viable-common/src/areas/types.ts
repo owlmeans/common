@@ -14,6 +14,47 @@ export interface StoryDraft {
 }
 
 /**
+ * The project's OWN area a story's actor works in, beside its kind — what an analysis answer carries
+ * only on a project whose app map has a custom area (its schemas then add the field), and only when it
+ * named one of the map's keys; `area` then holds that area's kind. Absent (or null) reads as the key
+ * `area` names. Kept apart from {@link StoryDraft}, whose schemas stay the standard ones.
+ */
+export interface StoryAreaKey {
+  areaKey?: string | null
+}
+
+// Kept as a type: a primitive alias.
+/**
+ * The name of one area INSTANCE of a project — what an app lists, what a story's `areaKey` names.
+ *
+ * The four standard areas are keyed by their kind (`guest`, `user`, `admin`, `operator`), so an
+ * absent key always reads as the kind beside it. A custom area — only ever on an explicit request —
+ * carries its own key ({@link AREA_KEY_PATTERN}) and one of the four kinds.
+ */
+export type AreaKey = string
+
+/**
+ * One area of a project: which kind of audience it is, and where it lives inside its app.
+ *
+ * `kind` is the closed {@link ProjectArea} — access, surface and every analysis rule key off it — and
+ * `key` names the instance. `segment` is the area's path segment inside its app's router; the app's
+ * HOME area is served at the app's root whatever its segment says, so the guest area carries `''`.
+ */
+export interface AreaDescriptor {
+  key: AreaKey
+  kind: ProjectArea
+  /** One lower-case path segment, or `''` (only meaningful for an app's home area). */
+  segment: string
+  /** What a person reads for the area; absent reads as {@link AREA_DEFAULT_LABELS} of its kind. */
+  label?: string
+  /**
+   * The marker permission a signed-in custom area demands (`project--<key>`), declared on the
+   * project's client and granted by the owner. Absent: the kind's own gate alone.
+   */
+  marker?: string
+}
+
+/**
  * One line of the generated application's navigation.
  *
  * A screen reaches the menus through exactly one of these. `section` groups entries into the

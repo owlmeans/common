@@ -319,6 +319,7 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
   app_organizations: { annotations: READ },
   app_groups: { annotations: READ },
   list_slots: { annotations: READ },
+  project_apps: { annotations: READ },
   project_activity: { annotations: READ },
   notifications: { annotations: READ },
   file_changes: { annotations: READ },
@@ -368,6 +369,13 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
       + ' by default.',
   },
   apply_planning_kit: { annotations: REPLACES },
+  restart_project_app: {
+    annotations: ADDS,
+    description: 'Restart ONE application of a project — its server, and with web: true its interface build too —'
+      + ' while the others keep serving: the repair for one application that stopped answering. Its sources and'
+      + ' data are kept, and the published production site is never touched. Calling it again restarts it again.'
+      + ' project_apps names the applications.',
+  },
 
   // ── Settings, configuration and branding ───────────────────────────────────────────────────────
   update_project_settings: { annotations: REPLACES },

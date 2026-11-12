@@ -77,9 +77,32 @@ export interface PanelNavModel {
    * A menu entry navigates through `nav.press`, but it still has to BE a link: an `<a>`
    * without `href` is not focusable, does not answer the keyboard, and cannot be opened in a
    * new tab. Undefined for a path carrying route parameters — there is no honest URL to show
-   * for a screen whose address is not known yet.
+   * for a screen whose address is not known yet — and for a screen of another application
+   * (another frontend service): the click resolves its absolute address through `nav.press`.
+   * The application's base is part of the URL (`/admin/users` for an application served under
+   * `/admin`); at the root it is the screen's path as declared.
    */
   hrefOf: (target: PanelNavItem | PanelNavSection) => string | undefined
+}
+
+/**
+ * Where a navigation entry's screen lives, bound to the application's context
+ * (`makePanelNavPathHelper(ctx)`; `usePanelNav` holds one per context).
+ */
+export interface PanelNavPathHelper {
+  /**
+   * The screen's path in router space — base-less, without a trailing separator — or `null` when
+   * the alias addresses nothing this application bound. What the current screen is matched
+   * against (`location.pathname` is base-less too).
+   */
+  pathOf: (alias: string) => string | null
+  /**
+   * The address a menu entry renders as its `href`: the path with the application's base joined
+   * in. Undefined for a path with route parameters, an unbound alias, and a screen of another
+   * frontend service — that one is not under this application's base, and the menu reaches its
+   * absolute address on click.
+   */
+  hrefOf: (alias: string) => string | undefined
 }
 
 /** How a navigation entry gets its label. */

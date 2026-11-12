@@ -1,3 +1,4 @@
+import type { StoryAreaKey } from '../../areas/types.js'
 import type { RequirementPart } from '../consts.js'
 import type {
   MergedStoryDraft, RequestedStoryDraft, RequirementsDocument, StatedRequirement,
@@ -62,7 +63,10 @@ export interface RequirementsHelper {
    * clamped anchor; a draft with no anchor goes to the end and carries none. A draft that repeats
    * an existing entry's text (case and whitespace collapsed) is dropped, and at most
    * `REQUESTED_STORY_CAP` are kept, in input order. The flow and connective entries are never
-   * moved relative to each other, so every connective `after` stays valid.
+   * moved relative to each other, so every connective `after` stays valid. A draft naming one of the
+   * project's own areas (`areaKey`) keeps it on its entry.
    */
-  mergeRequested: (merged: readonly MergedStoryDraft[], requested: readonly RequestedStoryDraft[]) => MergedStoryDraft[]
+  mergeRequested: (
+    merged: readonly MergedStoryDraft[], requested: readonly (RequestedStoryDraft & StoryAreaKey)[],
+  ) => MergedStoryDraft[]
 }

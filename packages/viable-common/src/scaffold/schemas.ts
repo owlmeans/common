@@ -145,6 +145,8 @@ const ScaffoldAreaPlanSchema: JSONSchemaType<ScaffoldAreaPlan> = {
       enum: Object.values(ProjectArea),
       description: 'guest, user, admin or operator'
     },
+    // Written by code for a project with custom areas — stripped from what the model answers.
+    areaKey: { type: 'string', nullable: true },
     intro: {
       type: 'object',
       properties: {
@@ -746,6 +748,9 @@ export const ScaffoldPlanSchema: JSONSchemaType<ScaffoldPlan> = {
 /** The guest home's keys a model may answer: `linksDecided` is written by code, never asked. */
 const { linksDecided: _linksDecided, ...answeredHomeProperties } = GuestHomePlanSchema.properties!
 
+/** An area entry's keys a model may answer: `areaKey` is written by code, never asked. */
+const { areaKey: _areaKey, ...answeredAreaProperties } = ScaffoldAreaPlanSchema.properties!
+
 /**
  * The plan as the planning MODEL answers it — {@link ScaffoldPlanSchema} with the gate held to the
  * form and without the code-written `linksDecided`. The stored schema keeps the pre-form gate keys
@@ -757,6 +762,10 @@ export const ScaffoldPlanAnswerSchema = {
   ...ScaffoldPlanSchema,
   properties: {
     ...ScaffoldPlanSchema.properties,
+    areas: {
+      ...ScaffoldPlanSchema.properties!.areas,
+      items: { ...ScaffoldAreaPlanSchema, properties: answeredAreaProperties },
+    },
     stories: {
       ...ScaffoldPlanSchema.properties!.stories,
       items: {

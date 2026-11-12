@@ -2,7 +2,7 @@ import fs from 'fs-extra'
 import { randomUUID } from 'node:crypto'
 import p from 'node:path'
 
-import { SubProject, TARGET_BOOTCHECK_MARKER, TARGET_BOOTCHECK_PORT, TARGET_BOOTCHECK_SCHEMA, type SlotShellResult, targetIntegrityHelper } from '@owlmeans/viable-common'
+import { MAIN_APP, SubProject, TARGET_BOOTCHECK_MARKER, TARGET_BOOTCHECK_PORT, TARGET_BOOTCHECK_SCHEMA, type AppDescriptor, type SlotShellResult, targetIntegrityHelper } from '@owlmeans/viable-common'
 
 import { makeProjectEnvHelper } from '../project/env.js'
 import { probeHelper } from '../project/probe.js'
@@ -125,6 +125,22 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
     return null
   }
 
+  /**
+   * The app a scoped command names, when it is one of this tree's apps other than `main`; `null`
+   * for main — absent, `main`, or a name the tree does not serve (exactly what an older executor did).
+   */
+  const appScope = (app?: string): AppDescriptor | null => app == null || app === MAIN_APP
+    ? null
+    : layout.apps().find(candidate => candidate.name === app && candidate.name !== MAIN_APP) ?? null
+
+  const otherApps = (): AppDescriptor[] => layout.apps().filter(app => app.name !== MAIN_APP)
+
+  /** One non-main app's api and web, each built in its own package — the web with its own base. */
+  const buildApp = async (app: AppDescriptor): Promise<Array<string | null>> => [
+    await runTargetScript('build', layout.apiPath(app.name)),
+    await runTargetScript('build', layout.webPath(app.name), await targetEnv.frontendEnv(app)),
+  ]
+
   const buildWorker = async (): Promise<string | null> => {
     const dir = layout.workerPath()
     if (dir == null || !layout.hasWorker()) {
@@ -198,26 +214,38 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
       return result === '' ? `validate: tsc produced no output for ${cwd}` : result
     },
 
-    validateWithRenderer: async (): Promise<string | null> =>
-      await buildLibraries() ?? await runTargetScript('build', layout.webPath(), await targetEnv.frontendEnv()),
+    validateWithRenderer: async (app?: string): Promise<string | null> => {
+      const scoped = appScope(app)
 
-    build: async (): Promise<string | null> => {
+      return await buildLibraries()
+        ?? await runTargetScript('build', layout.webPath(scoped?.name), await targetEnv.frontendEnv(scoped ?? undefined))
+    },
+
+    build: async (app?: string): Promise<string | null> => {
       const libraries = await buildLibraries()
       if (libraries != null) {
         return libraries
       }
 
-      const errors = [
-        await runTargetScript('build', layout.apiPath()),
-        await buildWorker(),
-        await runTargetScript('build', layout.webPath(), await targetEnv.frontendEnv()),
-      ].filter((error): error is string => error != null)
+      const scoped = appScope(app)
+      const results = scoped != null
+        ? await buildApp(scoped)
+        : [
+          await runTargetScript('build', layout.apiPath()),
+          await buildWorker(),
+          await runTargetScript('build', layout.webPath(), await targetEnv.frontendEnv()),
+        ]
+      if (scoped == null) {
+        // Every other app of a split project, in index order; a one-app tree has none.
+        for (const other of otherApps()) results.push(...await buildApp(other))
+      }
+      const errors = results.filter((error): error is string => error != null)
 
       return errors.length > 0 ? errors.join('\n') : null
     },
 
-    validateBackend: async (): Promise<string | null> =>
-      await buildLibraries() ?? await runTargetScript('build', layout.apiPath()),
+    validateBackend: async (app?: string): Promise<string | null> =>
+      await buildLibraries() ?? await runTargetScript('build', layout.apiPath(appScope(app)?.name)),
 
     dbSync: async (): Promise<string | null> => {
       const values = await projectEnv.readEnvFile(ROOT_ENV_FILE)

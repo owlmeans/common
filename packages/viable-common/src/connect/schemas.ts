@@ -46,6 +46,8 @@ import { MATERIAL_PATH_MAX, MATERIALS_LIMITS } from '../materials/consts.js'
 import type {
   ConnectCreateWithMaterialsBody, ConnectMaterialQuery, ConnectMaterialsAnnouncement, ConnectMaterialsDraftBody,
 } from './materials/types.js'
+import { APP_NAME_PATTERN } from '../topology/apps/consts.js'
+import type { ConnectAppParams, ConnectAppRestartBody } from './apps/types.js'
 
 /**
  * A nullable ENUM carries `null` as one of its values.
@@ -896,3 +898,22 @@ export const ConnectMaterialsDraftBodySchema = {
   required: [],
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConnectMaterialsDraftBody>
+
+/** One app of a project by name — `main`, or an app its map names. */
+export const ConnectAppParamsSchema = {
+  type: 'object',
+  properties: { id: idValue, app: { type: 'string', pattern: APP_NAME_PATTERN.source } },
+  required: ['id', 'app'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectAppParams>
+
+/** Which sides of one app a restart takes — a closed shape; nothing named is the app's server. */
+export const ConnectAppRestartBodySchema = {
+  type: 'object',
+  properties: {
+    api: { type: 'boolean', nullable: true },
+    web: { type: 'boolean', nullable: true },
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectAppRestartBody>

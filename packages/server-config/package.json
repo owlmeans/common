@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-config",
-  "version": "0.1.21",
+  "version": "0.1.22-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,8 +31,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/config": "^0.1.21",
-    "@owlmeans/server-route": "^0.1.21"
+    "@owlmeans/config": "^0.1.22-rc.0",
+    "@owlmeans/server-route": "^0.1.22-rc.0"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.1.21",

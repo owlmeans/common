@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client
 
 **Layer:** Client
-**Install:** `"@owlmeans/client": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/client": "^0.1.22-rc.0"` in `dependencies`
 
 The React substrate `@owlmeans/web-client` (browser) and the native equivalent are built on. A
 cross-platform package imports from here; an application normally imports from the platform
@@ -32,6 +32,7 @@ package, which re-exports what it needs — **except the hooks below, which are 
 | `Context` / `ClientContextContainer` / `useContext()` | The React context container and the hook that reads it |
 | `Router` / `RouterProps` / `RouterProvider` / `makeRouterModel()` | Route rendering. `provide` is optional — omitted, the active router plugin's `compile` is used |
 | `useNavigate()` | The `Navigator` — programmatic navigation by entrypoint alias |
+| `clientBaseOf(ctx)` / `useHref()` / `ClientBaseHelper` / `ClientHref` | The application's own base (`cfg.services[cfg.service].base`, `''` at the root): `base()`, `href(path)` (joins it onto a router-space path), `strip(pathname)`. `useHref()` is `href` for a component. See *Base path* |
 | `Navigator` / `NavRequest` | `navigate` `go` `press` `back` `pressBack` `location`; a request adds `replace` and `silent` to an `AbstractRequest` |
 | `useEntrypoint<T>()` | The `EntrypointContextParams` of the screen currently rendering — `{ alias, path, params, context }` |
 | `RoutedComponent<Extra>` | Type of a component bound to a frontend protocol |
@@ -47,6 +48,18 @@ package, which re-exports what it needs — **except the hooks below, which are 
 | `appendDebugService` / `createDebugService` / `appendStateDebug(ctx, alias)` / `DebugService` | The debug menu — `context.debug()` |
 | `ClientError`, `ComponentError`, `ComponentPropError`, `ComponentPropUndefined` | The client error family, registered with `ResilientError` |
 | `DEF_MODAL_ALIAS` (`modal`), `DEF_DEBUG_ALIAS` (`debug`), `DEBUGGER_FLAG` / `DEBUG_CONFIG_KEY` (`debugger`), `DEF_IMPORT_RETRY_ATTEMPTS` (2), `DEF_IMPORT_RETRY_DELAYS_MS` (500, 1500), `CHUNK_RELOAD_KEY` (`owlmeans:chunk-reload`), `CHUNK_RELOAD_WINDOW_MS` (60 s) | Constants |
+
+## Base path
+
+An application can be served under a path of its host (`/admin`), named by its own frontend
+service's `base`. Paths inside the application stay base-less ("router space"): route declarations,
+`entrypoint.path()`, an in-app `entrypoint.url()`, `useLocation().pathname`, `navigate('/x')` — the
+router plugin adds the base on push/replace and strips it on read. Code that hands an address to the
+BROWSER joins it in itself: a rendered `href` (`useHref()(path)`), `window.open`, `window.location`,
+a `next=` parameter (`clientBaseOf(ctx).href(path)`). An absolute URL, `//host`, `#…`, `?…` and a
+relative path pass through unchanged, and at the root every member is the identity. An absolute
+`entrypoint.url(req, { absolute: true })` already carries the base (`makeUrl`). Config strings
+(`/terms`, `/privacy`) are site-absolute and never joined.
 
 ## Subpath Exports
 

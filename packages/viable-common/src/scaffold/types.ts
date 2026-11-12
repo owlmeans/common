@@ -69,6 +69,11 @@ export interface ScaffoldStoryPlan {
 /** One area's shape: how its top menu is divided, and how it introduces itself. */
 export interface ScaffoldAreaPlan {
   area: ProjectArea
+  /**
+   * The custom area this entry plans, by key — written by code for a project with custom areas,
+   * never asked of the planning model. Absent reads as the key `area` names.
+   */
+  areaKey?: string
   /** The introduction widget on the area's home screen. */
   intro: { title: string, text: string }
   /** The top-menu sections of this area, in menu order. */

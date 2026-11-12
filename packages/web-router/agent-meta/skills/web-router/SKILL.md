@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-router
 
 **Layer:** Web (React), build level L2
-**Install:** `"@owlmeans/web-router": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/web-router": "^0.1.22-rc.0"` in `dependencies`
 
 This package **is the default OwlMeans in-browser router** — a minimal, react-router-free
 implementation of standard URL routing over the browser History API. It registers itself as a
@@ -26,12 +26,18 @@ implementation of standard URL routing over the browser History API. It register
 | `BrowserRouterProvider`, `Outlet` | React provider/outlet components. |
 | `RouteChain` | Renders the matched chain from a given depth, skipping `Component`-less matches (used by the provider and `Outlet`). |
 | `useParams` / `useLocation` / `useNavigate` / `useSearchParams` | The plugin's hooks (usually reached via `context.router().…`). |
-| `createBrowserHistory()` | History API wrapper (push/replace/go/popstate). |
+| `createBrowserHistory(basename?)` | History API wrapper (push/replace/go/popstate); strips `basename` from the location it reports, joins it onto a root-relative push/replace. |
 
 ## How it works
 
-- `compile(routes)` flattens + ranks the neutral `RouteObject[]` into matchable branches (using the
-  `@owlmeans/router` matcher). No async, no react-router.
+- `compile(routes, ctx)` flattens + ranks the neutral `RouteObject[]` into matchable branches (using the
+  `@owlmeans/router` matcher) and records `basename` — the application's base
+  (`routerBaseHelper.baseOf(ctx)`). No async, no react-router.
+- **Base path**: the provider's history strips the base from `window.location.pathname` and joins it
+  onto `navigate('/x')` (string or `{ pathname, search, hash }`) and `useSearchParams` writes, so
+  routes, `useLocation()` and matching never see it; an `http…` target is followed as is. At the root
+  every address is byte-identical. `tests/routing-base.spec.ts` serves the harness under `/app` and at
+  `/` (`getBaseHarnessUrl(base)` in `tests/context.ts`).
 - `BrowserRouterProvider` subscribes to history, re-matches on navigation, and renders the match
   chain via `RouteChain`; `<Outlet/>` renders the next-deeper match (depth tracked via context).
   Composes unchanged with the `@owlmeans/client` route renderer (parent components emit `<Outlet/>`).

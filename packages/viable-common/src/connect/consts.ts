@@ -393,6 +393,12 @@ export const CONNECT_CONFIG_SAVE_MAX = 100
 export const CONNECT_FILE_PATH_MAX = 512
 
 /**
+ * The most characters of one app's `cause` a connector is shown (`ConnectAppView.cause`) — the head
+ * of a build or start error; the whole of it is the preview's own report.
+ */
+export const CONNECT_APP_CAUSE_MAX = 2_000
+
+/**
  * The most characters of one material's text a read answers (`connect.project.materials.read`) —
  * the connector's `read_file` cap, so a material and a generated file are cut at the same length.
  */
@@ -722,6 +728,12 @@ export const connect = Object.freeze({
       apply: 'viable:manager-api:connect:project:kit:apply',
     }),
     /**
+     * The project's applications — the app map (`main` alone for a project without an apps record)
+     * and, for a cloud preview, each app's interface build and server. A local project answers the
+     * map alone: its processes are its owner's.
+     */
+    apps: 'viable:manager-api:connect:project:apps',
+    /**
      * The project's own branding — copyright, organization, the two legal links, the Google tag.
      * The platform credit is deliberately NOT here: hiding it is a paid capability with its own
      * gated route, and a connector setting the rest must never be able to touch it.
@@ -789,6 +801,11 @@ export const connect = Object.freeze({
     restart: 'viable:manager-api:connect:sandbox:restart',
     stop: 'viable:manager-api:connect:sandbox:stop',
     rebuild: 'viable:manager-api:connect:sandbox:rebuild',
+    /**
+     * Restart ONE application of the preview — its server, and with `web` its interface build —
+     * while its siblings and the worker keep serving. Answers the apps as they then stand.
+     */
+    restartApp: 'viable:manager-api:connect:sandbox:restart-app',
   }),
   /** The organization's workloads, every project and kind, as the connector's small projection. */
   slot: Object.freeze({

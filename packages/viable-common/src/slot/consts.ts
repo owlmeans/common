@@ -19,7 +19,7 @@
  * commands are executed by the connector on that machine, and nothing about it is provisioned,
  * routed, reconciled or published.
  */
-import { TargetLayout } from '../integrity/index.js'
+import { TargetLayout } from '../integrity/consts.js'
 
 export enum WorkloadKind {
   Ephemeral = 'ephemeral',
@@ -199,7 +199,34 @@ export enum SlotShellCommand {
    * failed build.
    */
   Integrity = 'integrity',
+  /**
+   * Restart one app's api process: `{ app }` → `{ result }` (error text or `null`).
+   *
+   * The app's own supervisor drops its process and starts it again; siblings, the worker and the
+   * web servers are untouched. Only a publisher listing {@link SlotRuntimeCapability.RestartApp}
+   * answers it — an older one says `Unknown command`.
+   */
+  RestartApp = 'restartApp',
+  /**
+   * What this runtime can do: `{ result: null, capabilities, apps }` — the capability list
+   * ({@link SLOT_RUNTIME_CAPABILITIES}) and the apps it serves. Reads only; an older publisher says
+   * `Unknown command`, which reads as "no capabilities".
+   */
+  RuntimeInfo = 'runtimeInfo',
 }
+
+/** What a slot runtime can do beyond the commands every publisher answers. */
+export enum SlotRuntimeCapability {
+  /** It serves the apps of the topology record, each under its mount, and scopes commands by `app`. */
+  Apps = 'apps',
+  /** It answers {@link SlotShellCommand.RestartApp}. */
+  RestartApp = 'restart-app',
+}
+
+/** Every capability a runtime of this version reports through {@link SlotShellCommand.RuntimeInfo}. */
+export const SLOT_RUNTIME_CAPABILITIES: readonly SlotRuntimeCapability[] = Object.freeze([
+  SlotRuntimeCapability.Apps, SlotRuntimeCapability.RestartApp,
+])
 
 /**
  * A ROLE in the target project, as it travels on the wire.
@@ -290,7 +317,17 @@ export const COMMAND_DEADLINES: Record<string, number> = {
   // Eighteen file reads and a list of string comparisons. Anything slower than this means the
   // volume itself is not answering, which is not something a longer wait improves.
   [SlotShellCommand.Integrity]: 15_000,
+  // One api process stopped and started again, waited out until it listens.
+  [SlotShellCommand.RestartApp]: 120_000,
+  // A capability list and the topology record — nothing is spawned.
+  [SlotShellCommand.RuntimeInfo]: 10_000,
 }
+
+/**
+ * What a {@link SlotShellCommand.Build} gains per app beyond `main`, on both bounds: every extra app
+ * is one more web build and one more api build in the same chains.
+ */
+export const APP_BUILD_DEADLINE_STEP = 240_000
 
 export const DEFAULT_COMMAND_DEADLINE = 60_000
 
@@ -365,6 +402,8 @@ export const SHELL_COMMAND_TIMEOUTS: Record<string, number> = {
   [SlotShellCommand.DbSync]: 130_000,
   [SlotShellCommand.Reinstall]: 920_000,      // executor deadline (900s) + margin
   [SlotShellCommand.Integrity]: 25_000,       // executor deadline (15s) + margin
+  [SlotShellCommand.RestartApp]: 160_000,     // executor deadline (120s) + margin
+  [SlotShellCommand.RuntimeInfo]: 15_000,     // one read
 }
 
 /**

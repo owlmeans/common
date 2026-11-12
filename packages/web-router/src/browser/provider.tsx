@@ -14,7 +14,9 @@ import type { OwlLibraryRouter } from './types.js'
  */
 export const BrowserRouterProvider: FC<{ router: LibraryRouter }> = ({ router }) => {
   const lib = router as OwlLibraryRouter
-  const historyRef = useRef(createBrowserHistory())
+  // The history strips the base off every location it reports, so matching below runs on the
+  // base-less pathname the routes are declared in.
+  const historyRef = useRef(createBrowserHistory(lib.basename))
   const history = historyRef.current
 
   const [location, setLocation] = useState<Location>(() => history.location)

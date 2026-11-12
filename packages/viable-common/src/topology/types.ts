@@ -1,5 +1,7 @@
 import type { ProjectArea } from '../areas/consts.js'
+import type { AreaDescriptor } from '../areas/types.js'
 import type { SubProject } from '../slot/consts.js'
+import type { AppDescriptor } from './apps/types.js'
 
 /**
  * How a target's workspace packages are ARRANGED — which of them exist, what role each plays and
@@ -53,6 +55,13 @@ export interface TargetPackageDescriptor {
   areas?: ProjectArea[]
   /** For a package holding the `Worker` role: which queues this process consumes. */
   queues?: string[]
+  /**
+   * The app this package belongs to — present only on an EXTRA app's `<app>-web` / `<app>-api`
+   * (`appMapHelper.packagesOf`). Absent: a shared package, or one of main's.
+   */
+  app?: string
+  /** The extra app's mount (one path segment), beside {@link TargetPackageDescriptor.app}. */
+  mount?: string
 }
 
 export type TargetPackageKind = 'library' | 'bundle'
@@ -67,6 +76,17 @@ export interface TopologyDescriptor {
   /** The directory holding the workspace packages — `sources`, or `packages` for a legacy tree. */
   dir: string
   packages: TargetPackageDescriptor[]
+  /**
+   * The project's areas — carried only beside {@link TopologyDescriptor.apps}. Absent: the four
+   * standard areas.
+   */
+  areas?: AreaDescriptor[]
+  /**
+   * The project's apps (main included), as the resolved blueprint decided them — what a blueprint's
+   * `stack.topology` and the recorded `topology.md` carry for a project split into apps. Absent: one
+   * app, `main` (`appMapHelper.fromTopology`).
+   */
+  apps?: AppDescriptor[]
 }
 
 /**

@@ -2,7 +2,7 @@ import { apiStatusHelper } from '@owlmeans/api'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { makeUploadClient } from '@owlmeans/client-upload'
 import type { UploadProtocols } from '@owlmeans/upload'
-import { connectProtocols, connectRef, type ConnectClientView, type AgentSteerArgs, type AgentStopArgs, type StoryBatchStartArgs, type StoryBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload } from '@owlmeans/viable-common'
+import { connectProtocols, connectRef, type ConnectClientView, type ConnectAppRestartBody, type ConnectAppsView, type AgentSteerArgs, type AgentStopArgs, type StoryBatchStartArgs, type StoryBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import { MATERIALS_FILE_TIMEOUT_MS, NOT_FOUND } from './consts.local.js'
 import type { ConnectorApi, OpenSessionArgs, ProjectEdits } from '../types.js'
@@ -137,6 +137,8 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
       // `null` crosses as `null`: it is the value that unsets the override, not an omission.
       setLlm: async (id: string, llmMode: ConnectLlm | null): Promise<ConnectProjectSettings> => await context
         .entrypoint(connectRef.project.llm.set).call({ params: { id }, body: { llmMode }, timeout }),
+      apps: async (id: string): Promise<ConnectAppsView> => await context
+        .entrypoint(connectRef.project.apps).call({ params: { id }, timeout }),
     },
 
     projectBranding: async (id: string, scope?: ConnectConfigScope): Promise<ConnectProjectBranding> => await context
@@ -263,6 +265,16 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
         .entrypoint(connectRef.sandbox.stop).call({ params: { id }, timeout }),
       rebuild: async (id: string): Promise<ConnectSlotView> => await context
         .entrypoint(connectRef.sandbox.rebuild).call({ params: { id }, timeout }),
+      // Only the sides named cross the wire: the body is a closed shape, and empty means the server.
+      restartApp: async (id: string, app: string, args: ConnectAppRestartBody = {}): Promise<ConnectAppsView> => await context
+        .entrypoint(connectRef.sandbox.restartApp).call({
+          params: { id, app },
+          body: {
+            ...(args.api != null ? { api: args.api } : {}),
+            ...(args.web != null ? { web: args.web } : {}),
+          },
+          timeout,
+        }),
     },
 
     slot: {
