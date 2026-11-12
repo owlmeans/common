@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -40,15 +40,15 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.2.0-alpha.0",
-    "@owlmeans/client-context": "^0.2.0-alpha.0",
-    "@owlmeans/client-entrypoint": "^0.2.0-alpha.0",
-    "@owlmeans/client-resource": "^0.2.0-alpha.0",
-    "@owlmeans/config": "^0.2.0-alpha.0",
+    "@owlmeans/client-context": "^0.2.0-alpha.1",
+    "@owlmeans/client-entrypoint": "^0.2.0-alpha.1",
+    "@owlmeans/client-resource": "^0.2.0-alpha.1",
+    "@owlmeans/config": "^0.2.0-alpha.1",
     "@owlmeans/context": "^0.2.0-alpha.0",
     "@owlmeans/error": "^0.2.0-alpha.0",
-    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/entrypoint": "^0.2.0-alpha.1",
     "@owlmeans/resource": "^0.2.0-alpha.0",
-    "@owlmeans/router": "^0.2.0-alpha.0",
+    "@owlmeans/router": "^0.2.0-alpha.1",
     "@owlmeans/state": "^0.2.0-alpha.0"
   },
   "peerDependencies": {
@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.2.0-alpha.0",
-    "@owlmeans/test-ui": "^0.2.0-alpha.0",
+    "@owlmeans/test-ui": "^0.2.0-alpha.1",
     "@types/react": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "nodemon": "^3.1.14",

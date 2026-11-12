@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/planning-auth",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "description": "Optional OwlMeans authentication identity and group links for the generic planning system.",
   "homepage": "https://owlmeans.com/docs/",
@@ -29,13 +29,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/planning": "^0.2.0-alpha.0"
+    "@owlmeans/planning": "^0.2.0-alpha.1"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@types/bun": "^1.4.4",
     "typescript": "^7.0.2",
-    "@owlmeans/server-planning": "^0.2.0-alpha.0",
+    "@owlmeans/server-planning": "^0.2.0-alpha.1",
     "@owlmeans/context": "^0.2.0-alpha.0"
   },
   "publishConfig": {

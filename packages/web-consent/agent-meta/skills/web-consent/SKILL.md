@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-consent
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-consent": "^0.2.0-alpha.1"` in `dependencies`
+**Install:** `"@owlmeans/web-consent": "^0.2.0-alpha.2"` in `dependencies`
 
 The browser components of the consent set. The model — categories, storage, migration, the store,
 the signal-provider host — is `@owlmeans/consent`, and this package re-exports a **named selection**

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/captcha
 
 **Layer:** Server-side (no Fastify — `auth`, `config`, `context`, `log`)
-**Install:** `"@owlmeans/captcha": "^0.2.0-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/captcha": "^0.2.0-alpha.1"` in `dependencies`
 **Browser half:** `@owlmeans/web-captcha` (the client contract, `captchaClients`, `useCaptcha`)
 **Providers:** connect packages — Google reCAPTCHA is `@owlmeans/captcha-recaptcha`
 (`appendRecaptcha(ctx)`, skill `captcha-recaptcha`)

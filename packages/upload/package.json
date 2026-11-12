@@ -33,10 +33,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/entrypoint": "^0.2.0-alpha.1",
     "@owlmeans/error": "^0.2.0-alpha.0",
     "@owlmeans/file-inspector": "^0.2.0-alpha.0",
-    "@owlmeans/route": "^0.2.0-alpha.0"
+    "@owlmeans/route": "^0.2.0-alpha.1"
   },
   "peerDependencies": {
     "ajv": "*"

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/mongo-resource",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -39,11 +39,11 @@
     "@owlmeans/context": "^0.2.0-alpha.0",
     "@owlmeans/log": "^0.2.0-alpha.0",
     "@owlmeans/resource": "^0.2.0-alpha.0",
-    "@owlmeans/server-context": "^0.2.0-alpha.0"
+    "@owlmeans/server-context": "^0.2.0-alpha.1"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.2.0-alpha.0",
-    "@owlmeans/test-integration": "^0.2.0-alpha.0",
+    "@owlmeans/test-integration": "^0.2.0-alpha.1",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "mongodb": "^7.7.0",

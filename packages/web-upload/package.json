@@ -33,8 +33,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.2.0-alpha.0",
-    "@owlmeans/client-i18n": "^0.2.0-alpha.0",
+    "@owlmeans/client": "^0.2.0-alpha.1",
+    "@owlmeans/client-i18n": "^0.2.0-alpha.1",
     "@owlmeans/client-upload": "^0.2.0-alpha.0",
     "@owlmeans/context": "^0.2.0-alpha.0",
     "@owlmeans/i18n": "^0.2.0-alpha.0",
@@ -51,15 +51,15 @@
     "tailwindcss": "*"
   },
   "devDependencies": {
-    "@owlmeans/client-context": "^0.2.0-alpha.0",
-    "@owlmeans/client-entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/client-context": "^0.2.0-alpha.1",
+    "@owlmeans/client-entrypoint": "^0.2.0-alpha.1",
     "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@owlmeans/file-streams": "^0.2.0-alpha.0",
-    "@owlmeans/server-api": "^0.2.0-alpha.0",
-    "@owlmeans/server-context": "^0.2.0-alpha.0",
+    "@owlmeans/server-api": "^0.2.0-alpha.1",
+    "@owlmeans/server-context": "^0.2.0-alpha.1",
     "@owlmeans/server-upload": "^0.2.0-alpha.0",
     "@owlmeans/static-resource": "^0.2.0-alpha.0",
-    "@owlmeans/test-ui": "^0.2.0-alpha.0",
+    "@owlmeans/test-ui": "^0.2.0-alpha.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.4.4",
     "@types/react": "^19.3.0",

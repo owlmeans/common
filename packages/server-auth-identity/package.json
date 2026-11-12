@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-auth-identity",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -33,14 +33,14 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.2.0-alpha.0",
-    "@owlmeans/auth-common": "^0.2.0-alpha.0",
+    "@owlmeans/auth-common": "^0.2.0-alpha.1",
     "@owlmeans/basic-ids": "^0.2.0-alpha.0",
     "@owlmeans/context": "^0.2.0-alpha.0",
     "@owlmeans/log": "^0.2.0-alpha.0",
-    "@owlmeans/mongo-resource": "^0.2.0-alpha.0",
-    "@owlmeans/oidc": "^0.2.0-alpha.0",
+    "@owlmeans/mongo-resource": "^0.2.0-alpha.1",
+    "@owlmeans/oidc": "^0.2.0-alpha.1",
     "@owlmeans/resource": "^0.2.0-alpha.0",
-    "@owlmeans/server-context": "^0.2.0-alpha.0",
+    "@owlmeans/server-context": "^0.2.0-alpha.1",
     "@scure/base": "^2.4.0"
   },
   "peerDependencies": {

@@ -44,7 +44,7 @@
     "@file-type/xml": "^1.2.0",
     "@owlmeans/error": "^0.2.0-alpha.0",
     "@owlmeans/log": "^0.2.0-alpha.0",
-    "@owlmeans/storage-common": "^0.2.0-alpha.0",
+    "@owlmeans/storage-common": "^0.2.0-alpha.1",
     "file-type": "^22.2.0",
     "strtok3": "^10.7.0"
   },

@@ -7,7 +7,7 @@ metadata:
 
 # Using `@owlmeans/server-auth-otp`
 
-**Install:** `"@owlmeans/server-auth-otp": "^0.2.0-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-otp": "^0.2.0-alpha.1"` in `dependencies`
 
 Email OTP authentication plugin for the OwlMeans auth-manager plugin system. Relies on `@owlmeans/auth-otp` for the OTP service interface, a Redis resource for code storage, and a `MailerService` to send codes.
 

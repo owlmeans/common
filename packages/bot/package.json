@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/bot",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "description": "Runtime-free, browser-safe contract of OwlMeans chat bots — the platform descriptor a platform plugin declares, connections, normalized updates and activity, the Unicode-aware text helper and command parser, the operator/member and hook protocol trees with their AJV schemas, and the bot error family.",
   "homepage": "https://owlmeans.com/docs/",
@@ -34,9 +34,9 @@
   },
   "dependencies": {
     "@owlmeans/context": "^0.2.0-alpha.0",
-    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/entrypoint": "^0.2.0-alpha.1",
     "@owlmeans/error": "^0.2.0-alpha.0",
-    "@owlmeans/route": "^0.2.0-alpha.0"
+    "@owlmeans/route": "^0.2.0-alpha.1"
   },
   "peerDependencies": {
     "ajv": "*"

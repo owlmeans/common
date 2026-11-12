@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/web-auth-email",
-  "version": "0.2.0-alpha.0",
-  "generatedAt": "2026-11-09T19:44:59.510Z",
+  "version": "0.2.0-alpha.1",
+  "generatedAt": "2026-11-12T14:18:05.455Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/test-auth",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,13 +32,13 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.2.0-alpha.0",
-    "@owlmeans/auth-common": "^0.2.0-alpha.0",
-    "@owlmeans/basic-envelope": "^0.2.0-alpha.0",
-    "@owlmeans/basic-keys": "^0.2.0-alpha.0",
+    "@owlmeans/auth-common": "^0.2.0-alpha.1",
+    "@owlmeans/basic-envelope": "^0.2.0-alpha.1",
+    "@owlmeans/basic-keys": "^0.2.0-alpha.1",
     "@owlmeans/context": "^0.2.0-alpha.0",
-    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/entrypoint": "^0.2.0-alpha.1",
     "@owlmeans/resource": "^0.2.0-alpha.0",
-    "@owlmeans/test": "^0.2.0-alpha.0"
+    "@owlmeans/test": "^0.2.0-alpha.1"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.2.0-alpha.0",

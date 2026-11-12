@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-resource",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",
-    "@owlmeans/client-context": "^0.2.0-alpha.0",
+    "@owlmeans/client-context": "^0.2.0-alpha.1",
     "@owlmeans/context": "^0.2.0-alpha.0",
     "@owlmeans/resource": "^0.2.0-alpha.0",
     "@scure/base": "^2.4.0"

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-bot",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "description": "The server runtime of OwlMeans chat bots — connections with sealed credentials, the signed inbound hook and its inbox, the worker's dispatcher and receivers, never-throwing bot actions recorded as activity, the platform plugin interface and registry (each platform a plugin package of its own), an API-faithful mock transport and a configurable test platform.",
   "homepage": "https://owlmeans.com/docs/",
@@ -47,14 +47,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/bot": "^0.2.0-alpha.0",
+    "@owlmeans/bot": "^0.2.0-alpha.1",
     "@owlmeans/context": "^0.2.0-alpha.0",
-    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/entrypoint": "^0.2.0-alpha.1",
     "@owlmeans/error": "^0.2.0-alpha.0",
     "@owlmeans/log": "^0.2.0-alpha.0",
     "@owlmeans/resource": "^0.2.0-alpha.0",
-    "@owlmeans/server-api": "^0.2.0-alpha.0",
-    "@owlmeans/server-entrypoint": "^0.2.0-alpha.0"
+    "@owlmeans/server-api": "^0.2.0-alpha.1",
+    "@owlmeans/server-entrypoint": "^0.2.0-alpha.1"
   },
   "peerDependencies": {
     "ajv": "*"
@@ -62,7 +62,7 @@
   "devDependencies": {
     "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@owlmeans/static-resource": "^0.2.0-alpha.0",
-    "@owlmeans/test": "^0.2.0-alpha.0",
+    "@owlmeans/test": "^0.2.0-alpha.1",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "ajv": "^8.20.0",

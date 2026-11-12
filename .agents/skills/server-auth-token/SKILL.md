@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth-token
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-token": "^0.2.0-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-token": "^0.2.0-alpha.1"` in `dependencies`
 **Contracts:** `@owlmeans/auth-token` — the record, the routes, the format helpers
 
 ## Key Exports

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -76,16 +76,16 @@
     "typescript": "^7.0.2",
     "zod": "^4.6.7",
     "@langchain/langgraph-checkpoint": "^1.2.1",
-    "@owlmeans/test": "^0.2.0-alpha.0"
+    "@owlmeans/test": "^0.2.0-alpha.1"
   },
   "dependencies": {
-    "@owlmeans/agent-common": "^0.2.0-alpha.0",
+    "@owlmeans/agent-common": "^0.2.0-alpha.1",
     "@owlmeans/basic-ids": "^0.2.0-alpha.0",
     "@owlmeans/context": "^0.2.0-alpha.0",
     "@owlmeans/error": "^0.2.0-alpha.0",
-    "@owlmeans/flow": "^0.2.0-alpha.0",
-    "@owlmeans/llm": "^0.2.0-alpha.0",
-    "@owlmeans/llm-common": "^0.2.0-alpha.0",
+    "@owlmeans/flow": "^0.2.0-alpha.1",
+    "@owlmeans/llm": "^0.2.0-alpha.1",
+    "@owlmeans/llm-common": "^0.2.0-alpha.1",
     "@owlmeans/log": "^0.2.0-alpha.0",
     "ajv": "^8.20.0"
   },

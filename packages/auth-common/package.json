@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/auth-common",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -40,18 +40,18 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.2.0-alpha.0",
-    "@owlmeans/auth-common": "^0.2.0-alpha.0",
+    "@owlmeans/auth-common": "^0.2.0-alpha.1",
     "@owlmeans/basic-ids": "^0.2.0-alpha.0",
-    "@owlmeans/basic-keys": "^0.2.0-alpha.0",
-    "@owlmeans/client-entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/basic-keys": "^0.2.0-alpha.1",
+    "@owlmeans/client-entrypoint": "^0.2.0-alpha.1",
     "@owlmeans/context": "^0.2.0-alpha.0",
-    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/entrypoint": "^0.2.0-alpha.1",
     "@owlmeans/resource": "^0.2.0-alpha.0",
-    "@owlmeans/route": "^0.2.0-alpha.0"
+    "@owlmeans/route": "^0.2.0-alpha.1"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.2.0-alpha.0",
-    "@owlmeans/test-auth": "^0.2.0-alpha.0",
+    "@owlmeans/test-auth": "^0.2.0-alpha.1",
     "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

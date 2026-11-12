@@ -12,7 +12,7 @@ services are declared with `sservice()` from the same package.
 ## Installation
 
 ```bash
-bun add @owlmeans/config@^0.2.0-alpha.0
+bun add @owlmeans/config@^0.2.0-alpha.1
 ```
 
 ## Concepts
@@ -244,7 +244,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0-alpha.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.2
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

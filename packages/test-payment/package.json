@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/test-payment",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -34,12 +34,12 @@
   "dependencies": {
     "@owlmeans/context": "^0.2.0-alpha.0",
     "@owlmeans/mailer": "^0.2.0-alpha.0",
-    "@owlmeans/mongo-resource": "^0.2.0-alpha.0",
-    "@owlmeans/payment": "^0.2.0-alpha.0",
+    "@owlmeans/mongo-resource": "^0.2.0-alpha.1",
+    "@owlmeans/payment": "^0.2.0-alpha.1",
     "@owlmeans/resource": "^0.2.0-alpha.0",
-    "@owlmeans/server-api": "^0.2.0-alpha.0",
-    "@owlmeans/server-context": "^0.2.0-alpha.0",
-    "@owlmeans/server-payment": "^0.2.0-alpha.0"
+    "@owlmeans/server-api": "^0.2.0-alpha.1",
+    "@owlmeans/server-context": "^0.2.0-alpha.1",
+    "@owlmeans/server-payment": "^0.2.0-alpha.1"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.2.0-alpha.0",

@@ -15,7 +15,7 @@ The `web-consent` skill covers the components, the `consent` skill the model beh
 ## Installation
 
 ```bash
-bun add @owlmeans/web-consent@^0.2.0-alpha.1
+bun add @owlmeans/web-consent@^0.2.0-alpha.2
 ```
 
 Peer dependencies the app provides: `react`, `tailwindcss`, `tailwind-merge`, `clsx`, `lucide-react`.
@@ -232,7 +232,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0-alpha.1
+npx @owlmeans/agent-skills@^0.2.0-alpha.2
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

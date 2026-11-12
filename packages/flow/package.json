@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/flow",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.2.0-alpha.0",
-    "@owlmeans/config": "^0.2.0-alpha.0",
+    "@owlmeans/config": "^0.2.0-alpha.1",
     "@owlmeans/error": "^0.2.0-alpha.0",
     "@owlmeans/i18n": "^0.2.0-alpha.0",
     "@owlmeans/resource": "^0.2.0-alpha.0",

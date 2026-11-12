@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/captcha",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "license": "MIT",
   "description": "Captcha for OwlMeans servers — the provider host a captcha provider plugs into, the policy of the captcha guest sign-in, and a strict challenge-less check a route runs on a score-based token. No provider built in.",
   "homepage": "https://owlmeans.com/docs/",
@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.2.0-alpha.0",
-    "@owlmeans/config": "^0.2.0-alpha.0",
+    "@owlmeans/config": "^0.2.0-alpha.1",
     "@owlmeans/context": "^0.2.0-alpha.0",
     "@owlmeans/log": "^0.2.0-alpha.0"
   },

@@ -32,11 +32,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/agent": "^0.2.0-alpha.0",
+    "@owlmeans/agent": "^0.2.0-alpha.1",
     "@owlmeans/context": "^0.2.0-alpha.0",
     "@owlmeans/error": "^0.2.0-alpha.0",
-    "@owlmeans/llm": "^0.2.0-alpha.0",
-    "@owlmeans/llm-common": "^0.2.0-alpha.0",
+    "@owlmeans/llm": "^0.2.0-alpha.1",
+    "@owlmeans/llm-common": "^0.2.0-alpha.1",
     "@owlmeans/log": "^0.2.0-alpha.0",
     "ajv": "^8.20.0",
     "css-tree": "^3.2.1",
@@ -55,7 +55,7 @@
     "@langchain/langgraph-checkpoint": "^1.2.1",
     "@langchain/openai": "^1.8.0",
     "@owlmeans/dep-config": "^0.2.0-alpha.0",
-    "@owlmeans/test": "^0.2.0-alpha.0",
+    "@owlmeans/test": "^0.2.0-alpha.1",
     "@types/bun": "^1.4.4",
     "@types/css-tree": "^3.2.0",
     "@types/culori": "^4.0.1",
