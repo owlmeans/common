@@ -1,8 +1,7 @@
-import type Stripe from 'stripe'
 import { ConsentKind, CONSUMER_RIGHTS_COPY_VERSION, PurchaseKind, type ConsumerRightsPolicy, consumerRegionHelper, withdrawalDeadlineHelper } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
-import { STRIPE_PAYGATE_ALIAS } from '../consts.js'
+import type { CheckoutSnapshot, Paygate, PaygateSubscription } from '../paygate/types.js'
 import type { PurchaseDraft, CapturedPurchase, InvoiceEvidence, SessionEvidence } from './types.js'
 import type {
   BillingProfileRecord, PaymentSubscriptionRecord, PurchaseRecord, ConsumerConsentRecord,
@@ -21,65 +20,58 @@ export const makeCaptureHelper = (ctx: ApiContext): CaptureHelper => {
   const access = paymentAccessOf(ctx)
   const records = consumerRecordsOf(ctx)
 
-  const sessionEvidenceOf = (session: Stripe.Checkout.Session): SessionEvidence => {
-    const details = session.customer_details
-    const presentment = (session as unknown as {
-      presentment_details?: { presentment_amount?: number, presentment_currency?: string } | null
-    }).presentment_details
-    const subtotal = session.amount_subtotal ?? 0
-    const tax = session.total_details?.amount_tax ?? 0
+  const sessionEvidenceOf = (session: CheckoutSnapshot): SessionEvidence => {
+    const subtotal = session.amountSubtotalMinor ?? 0
+    const tax = session.amountTaxMinor ?? 0
 
     return paymentUtils.compact({
-      country: details?.address?.country?.toUpperCase() ?? undefined,
-      email: details?.email ?? undefined,
-      name: details?.name ?? undefined,
-      business: (details?.tax_ids?.length ?? 0) > 0 || details?.tax_exempt === 'reverse' ? true : undefined,
+      country: session.buyer.country?.toUpperCase() ?? undefined,
+      email: session.buyer.email ?? undefined,
+      name: session.buyer.name ?? undefined,
+      business: session.buyer.business === true ? true : undefined,
       currency: (session.currency ?? '').toLowerCase(),
       subtotalMinor: subtotal,
       taxMinor: tax,
-      totalMinor: session.amount_total ?? subtotal + tax,
-      presentmentCurrency: presentment?.presentment_currency?.toLowerCase(),
-      presentmentAmountMinor: presentment?.presentment_amount,
-      termsAccepted: session.consent?.terms_of_service === 'accepted' ? true
-        : session.consent?.terms_of_service != null ? false : undefined,
+      totalMinor: session.amountTotalMinor ?? subtotal + tax,
+      presentmentCurrency: session.presentment?.currency?.toLowerCase(),
+      presentmentAmountMinor: session.presentment?.amountMinor,
+      termsAccepted: session.termsAccepted,
     }) as SessionEvidence
   }
 
-  const invoiceEvidenceOf = async (
-    stripe: Stripe | null | undefined, invoiceId: string | undefined,
-  ): Promise<InvoiceEvidence> => {
-    if (stripe == null || invoiceId == null) {
+  const invoiceEvidenceOf = async (paygate: Paygate | null | undefined, invoiceId: string | undefined): Promise<InvoiceEvidence> => {
+    if (paygate?.payments == null || invoiceId == null) {
       return {}
     }
     try {
-      const invoice = await stripe.invoices.retrieve(invoiceId)
-      const typed = invoice as unknown as { payment_intent?: string | { id?: string } | null, tax?: number | null }
+      const invoice = await paygate.payments.invoice(invoiceId)
+      if (invoice == null) {
+        return {}
+      }
 
       return paymentUtils.compact({
         invoiceNumber: invoice.number ?? undefined,
-        invoiceLineId: invoice.lines?.data?.[0]?.id,
-        paymentIntentId: paymentUtils.idOf(typed.payment_intent),
-        country: invoice.customer_address?.country?.toUpperCase() ?? undefined,
-        subtotalMinor: invoice.subtotal ?? undefined,
-        taxMinor: typed.tax ?? undefined,
-        totalMinor: invoice.total ?? undefined,
+        invoiceLineId: invoice.firstLineId,
+        paymentIntentId: invoice.paymentId,
+        country: invoice.country?.toUpperCase() ?? undefined,
+        subtotalMinor: invoice.subtotalMinor ?? undefined,
+        taxMinor: invoice.taxMinor ?? undefined,
+        totalMinor: invoice.totalMinor ?? undefined,
         currency: invoice.currency ?? undefined,
       }) as InvoiceEvidence
     } catch (error) {
-      if (!paymentUtils.isMissingObject(error)) {
-        log.warn('Invoice unreadable for its purchase', { invoiceId, error })
-      }
+      log.warn('Invoice unreadable for its purchase', { invoiceId, error })
       return {}
     }
   }
 
   /**
    * Lock the entity's billing country from a completed checkout, when the policy locks countries: the
-   * buyer's address at Stripe, else the declared country — the pinned one first when the session held
-   * it (`countryPinned`: tax was calculated on it, the card form's country moved nothing).
+   * buyer's address at the paygate, else the declared country — the pinned one first when the session
+   * held it (`countryPinned`: tax was calculated on it, the card form's country moved nothing).
    */
   const lockFromSession = async (
-    policy: ConsumerRightsPolicy, entityId: string, session: Stripe.Checkout.Session,
+    paygate: Paygate, policy: ConsumerRightsPolicy, entityId: string, session: CheckoutSnapshot,
     evidence: SessionEvidence,
   ): Promise<BillingProfileRecord | null> => {
     const metadata = session.metadata ?? {}
@@ -90,7 +82,7 @@ export const makeCaptureHelper = (ctx: ApiContext): CaptureHelper => {
       return null
     }
     const { record } = await records.lockProfile(policy, {
-      entityId, country, source: 'checkout', customerId: paymentUtils.idOf(session.customer), sessionId: session.id,
+      entityId, country, source: 'checkout', paygate: paygate.id, customerId: session.customerId, sessionId: session.id,
       ipCountry: metadata.ipCountry, email: evidence.email, name: evidence.name, business: evidence.business,
       currency: evidence.currency, language: metadata.language,
     })
@@ -121,7 +113,7 @@ export const makeCaptureHelper = (ctx: ApiContext): CaptureHelper => {
   }
 
   const capturePaymentPurchase = async (
-    stripe: Stripe | null, session: Stripe.Checkout.Session, extra: CapturedPaymentExtra = {}, opts: { mail?: boolean } = {},
+    paygate: Paygate, session: CheckoutSnapshot, extra: CapturedPaymentExtra = {}, opts: { mail?: boolean } = {},
   ): Promise<CapturedPurchase | null> => {
     const policy = await access.payment().consumerRightsPolicy()
     if (policy == null) {
@@ -133,8 +125,8 @@ export const makeCaptureHelper = (ctx: ApiContext): CaptureHelper => {
       return null
     }
     const evidence = sessionEvidenceOf(session)
-    const profile = await lockFromSession(policy, entityId, session, evidence)
-    const existing = await access.purchases().byPurchaseId(records.purchaseIdOf(session.id))
+    const profile = await lockFromSession(paygate, policy, entityId, session, evidence)
+    const existing = await access.purchases().byPurchaseId(records.purchaseIdOf(paygate.id, session.id))
     if (existing != null) {
       if (opts.mail !== false) await confirmPurchase(policy, existing)
       return { purchase: existing, created: false }
@@ -144,16 +136,16 @@ export const makeCaptureHelper = (ctx: ApiContext): CaptureHelper => {
     const region = consumerRegionHelper.regionOf(country, policy)
     // Protected when either the buyer's own address or the organization's locked country is in scope.
     const scoped = consumerRegionHelper.inScope(region, country, policy) || (profile != null && consumerRegionHelper.inScope(profile.region, profile.country, policy))
-    const invoice = await invoiceEvidenceOf(stripe, paymentUtils.idOf(session.invoice))
+    const invoice = await invoiceEvidenceOf(paygate, session.invoiceId)
     const purchasedAt = extra.at ?? new Date()
     const draft = paymentUtils.compact({
-      purchaseId: records.purchaseIdOf(session.id),
+      purchaseId: records.purchaseIdOf(paygate.id, session.id),
       entityId,
       kind: PurchaseKind.TopUp,
-      paygate: STRIPE_PAYGATE_ALIAS,
+      paygate: paygate.id,
       sessionId: session.id,
-      paymentIntentId: paymentUtils.idOf(session.payment_intent) ?? invoice.paymentIntentId,
-      invoiceId: paymentUtils.idOf(session.invoice),
+      paymentIntentId: session.paymentId ?? invoice.paymentIntentId,
+      invoiceId: session.invoiceId,
       invoiceNumber: invoice.invoiceNumber,
       invoiceLineId: invoice.invoiceLineId,
       productSku: metadata.productSku,
@@ -201,34 +193,33 @@ export const makeCaptureHelper = (ctx: ApiContext): CaptureHelper => {
   }
 
   const captureSubscriptionPurchase = async (
-    stripe: Stripe | null, subscription: Stripe.Subscription, row: PaymentSubscriptionRecord,
+    paygate: Paygate, subscription: PaygateSubscription, row: PaymentSubscriptionRecord,
   ): Promise<CapturedPurchase | null> => {
     const policy = await access.payment().consumerRightsPolicy()
     if (policy == null) {
       return null
     }
-    const purchaseId = records.purchaseIdOf(subscription.id)
+    const purchaseId = records.purchaseIdOf(paygate.id, subscription.id)
     const existing = await access.purchases().byPurchaseId(purchaseId)
     if (existing != null) {
       return { purchase: existing, created: false }
     }
     const metadata = subscription.metadata ?? {}
-    const item = subscription.items?.data?.[0]
-    const invoiceId = paymentUtils.idOf(subscription.latest_invoice)
-    const invoice = await invoiceEvidenceOf(stripe, invoiceId)
+    const invoiceId = subscription.latestInvoiceId
+    const invoice = await invoiceEvidenceOf(paygate, invoiceId)
     const profile = await access.billingProfiles().byEntity(row.entityId)
     const country = invoice.country ?? profile?.country ?? metadata.country
     const region = consumerRegionHelper.regionOf(country, policy)
     const scoped = consumerRegionHelper.inScope(region, country, policy) || (profile != null && consumerRegionHelper.inScope(profile.region, profile.country, policy))
     const start = await startRequestOf(row.entityId, metadata.startRequestId)
-    const subtotal = invoice.subtotalMinor ?? (item?.price?.unit_amount ?? 0) * (item?.quantity ?? 1)
+    const subtotal = invoice.subtotalMinor ?? (subscription.unitAmountMinor ?? 0) * (subscription.quantity ?? 1)
     const tax = invoice.taxMinor ?? 0
-    const purchasedAt = paymentUtils.dateOf(subscription.created) ?? new Date()
+    const purchasedAt = subscription.createdAt ?? new Date()
     const draft = paymentUtils.compact({
       purchaseId,
       entityId: row.entityId,
       kind: PurchaseKind.Subscription,
-      paygate: STRIPE_PAYGATE_ALIAS,
+      paygate: paygate.id,
       subscriptionId: subscription.id,
       paymentIntentId: invoice.paymentIntentId,
       invoiceId,
@@ -242,11 +233,11 @@ export const makeCaptureHelper = (ctx: ApiContext): CaptureHelper => {
       ipCountry: metadata.ipCountry,
       inScope: scoped,
       language: profile?.language ?? metadata.language ?? consumerRegionHelper.billingLanguageOf(country, policy),
-      currency: (invoice.currency ?? subscription.currency ?? item?.price?.currency ?? 'usd').toLowerCase(),
+      currency: (invoice.currency ?? subscription.currency ?? subscription.priceCurrency ?? 'usd').toLowerCase(),
       amountSubtotalMinor: subtotal,
       amountTaxMinor: tax,
       amountTotalMinor: invoice.totalMinor ?? subtotal + tax,
-      taxBehavior: item?.price?.tax_behavior ?? undefined,
+      taxBehavior: subscription.taxBehavior ?? undefined,
       textVersion: metadata.termsVersion ?? policy.textVersion,
       copyVersion: metadata.copyVersion ?? CONSUMER_RIGHTS_COPY_VERSION,
       startRequestId: start?.id,
@@ -262,7 +253,7 @@ export const makeCaptureHelper = (ctx: ApiContext): CaptureHelper => {
   }
 
   const completeSubscriptionPurchase = async (
-    stripe: Stripe | null, session: Stripe.Checkout.Session, purchase: PurchaseRecord,
+    paygate: Paygate, session: CheckoutSnapshot, purchase: PurchaseRecord,
     opts: { mail?: boolean } = {},
   ): Promise<PurchaseRecord> => {
     const policy = await access.payment().consumerRightsPolicy()
@@ -270,16 +261,16 @@ export const makeCaptureHelper = (ctx: ApiContext): CaptureHelper => {
       return purchase
     }
     const evidence = sessionEvidenceOf(session)
-    const profile = await lockFromSession(policy, purchase.entityId, session, evidence)
+    const profile = await lockFromSession(paygate, policy, purchase.entityId, session, evidence)
     const country = evidence.country ?? purchase.country ?? profile?.country
     const region = consumerRegionHelper.regionOf(country, policy)
     const scoped = consumerRegionHelper.inScope(region, country, policy) || (profile != null && consumerRegionHelper.inScope(profile.region, profile.country, policy))
     const invoice = purchase.invoiceLineId == null || purchase.paymentIntentId == null
-      ? await invoiceEvidenceOf(stripe, purchase.invoiceId ?? paymentUtils.idOf(session.invoice)) : {}
+      ? await invoiceEvidenceOf(paygate, purchase.invoiceId ?? session.invoiceId) : {}
     const purchasedAt = new Date(purchase.purchasedAt)
     const fields = paymentUtils.compact({
       sessionId: session.id,
-      invoiceId: purchase.invoiceId ?? paymentUtils.idOf(session.invoice),
+      invoiceId: purchase.invoiceId ?? session.invoiceId,
       invoiceNumber: purchase.invoiceNumber ?? invoice.invoiceNumber,
       invoiceLineId: purchase.invoiceLineId ?? invoice.invoiceLineId,
       paymentIntentId: purchase.paymentIntentId ?? invoice.paymentIntentId,

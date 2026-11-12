@@ -1,13 +1,9 @@
 
 import { plugin, PLUGIN_RECORD, configHelper } from '@owlmeans/config'
 import { CAPABILITY_LIMIT_SCOPE, CheckoutPricingMode, CONSUMER_RIGHTS_RECORD_ID, CONSUMER_RIGHTS_RECORD_TYPE, ConsumerRightsError, LimitKind, LimitMisdeclared, makeConsumerRightsPolicy, PLAN_RECORD_PREFIX, PLAN_RECORD_TYPE, PaymentError, PlanRankConflict, PlanStatus, PRICING_POLICY_RECORD_ID, PRICING_POLICY_RECORD_TYPE, PRODUCT_RECORD_PREFIX, PRODUCT_RECORD_TYPE, ProductError, type ConsumerRightsPolicy, type LimitDeclaration, type PlanWithdrawalComponent, checkoutPricingHelper, priceEstimateHelper } from '@owlmeans/payment'
-import {
-  CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG, STRIPE_PAYGATE_ALIAS, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG,
-  STRIPE_PRICING_PLUGIN_CONFIG,
-} from './consts.js'
+import { CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG } from './consts.js'
 import type {
-  Config, ConsumerRightsDef, PaymentPlan, PaymentPlanDef, PaymentProduct, PaymentProductDef, PortalBrandingDef,
-  PricingDef, StripeSecretsDef,
+  Config, ConsumerRightsDef, PaymentPlan, PaymentPlanDef, PaymentProduct, PaymentProductDef, PricingDef,
 } from './types.js'
 import { CURRENCY, LIMIT_KINDS, LIMIT_WINDOWS } from './consts.local.js'
 
@@ -16,7 +12,8 @@ export const declarePaymentProduct = (cfg: Config, def: PaymentProductDef): void
   const product: PaymentProduct = {
     type: def.type, sku: def.sku, title: def.name, description: def.description,
     defaultLng: def.defaultLng ?? 'en', services: def.services,
-    gateways: def.gateways ?? [STRIPE_PAYGATE_ALIAS], capabilities: def.capabilities,
+    // Absent: sold through every registered paygate (`planHelper.isSoldThrough`).
+    ...(def.gateways != null ? { gateways: def.gateways } : {}), capabilities: def.capabilities,
     taxCode: def.taxCode, unitLabel: def.unitLabel,
   }
   cfg.records.push({ ...configHelper.toConfigRecord(product), recordType: PRODUCT_RECORD_TYPE, id: `${PRODUCT_RECORD_PREFIX}:${def.sku}` })
@@ -149,75 +146,31 @@ const assertWithdrawalComponents = (def: PaymentPlanDef): void => {
 }
 
 /**
- * Where the Stripe secrets live. A value that looks like a path is read into the configuration at
- * boot. The webhook secret is an optional override of the one the managed endpoint stores.
- */
-export const stripeSecrets = (cfg: Config, paths: StripeSecretsDef): void => {
-  plugin(cfg, {
-    api: paths.api, ...(paths.webhook != null && paths.webhook !== '' ? { webhook: paths.webhook } : {}),
-  }, STRIPE_PLUGIN_CONFIG)
-}
-
-/** Branding and the default return URL of the managed customer portal configuration. */
-export const portalBranding = (cfg: Config, def: PortalBrandingDef): void => {
-  plugin(cfg, {
-    returnUrl: def.returnUrl,
-    ...(def.headline != null ? { headline: def.headline } : {}),
-    ...(def.privacyPolicyUrl != null ? { privacyPolicyUrl: def.privacyPolicyUrl } : {}),
-    ...(def.termsOfServiceUrl != null ? { termsOfServiceUrl: def.termsOfServiceUrl } : {}),
-  }, STRIPE_PORTAL_PLUGIN_CONFIG)
-}
-
-/**
- * Declare the pricing policy: whether checkout collects tax and a VAT/GST id, what `tax_behavior`
- * synced prices are given, Adaptive Pricing, and whether the estimate endpoints are served. A
- * config never carries more than one — a second call replaces the first, so re-declaring (a test, a
- * config module re-run) is safe rather than silently ignored (a config resource resolves an id to
- * its FIRST match).
+ * Declare the pricing policy: whether checkout collects tax and a VAT/GST id, what tax behavior synced
+ * prices are given, local-currency pricing, and whether the estimate endpoints are served. A config
+ * never carries more than one — a second call replaces the first, so re-declaring (a test, a config
+ * module re-run) is safe rather than silently ignored (a config resource resolves an id to its FIRST
+ * match).
  *
- * `def.stripe` (the FX Quotes preview version, the unspecified-price migration switch) is
- * Stripe-only and goes to a backend plugin, never the advertised `PricingPolicy` record.
+ * The record is ADVERTISED to the browser, so it takes `tax` and `currency` only: a provider's own
+ * settings (a settlement currency, payment methods, customer locks) are declared through the
+ * provider's package, and any other field is refused rather than published.
  *
  * @throws PaymentError (`assertPricingPolicy`) when an estimate is declared without the tax or
- * currency capability it requires.
+ * currency capability it requires; `pricing-policy:field:<name>` for a field beyond `tax` and `currency`.
  */
 export const declarePaymentPricing = (cfg: Config, def: PricingDef): void => {
-  const { stripe, ...policy } = def
+  const { tax, currency, ...rest } = def
+  const unknown = Object.keys(rest)[0]
+  if (unknown != null) {
+    throw new PaymentError(`pricing-policy:field:${unknown}`)
+  }
+  const policy = { tax, currency }
   priceEstimateHelper.assertPricingPolicy(policy)
   cfg.records = (cfg.records ?? []).filter(record => record.id !== PRICING_POLICY_RECORD_ID)
   cfg.records.push({
     ...configHelper.toConfigRecord(policy), recordType: PRICING_POLICY_RECORD_TYPE, id: PRICING_POLICY_RECORD_ID,
   })
-  if (stripe != null) {
-    const settlementCurrency = stripe.settlementCurrency?.toLowerCase()
-    if (settlementCurrency != null && !/^[a-z]{3}$/.test(settlementCurrency)) {
-      throw new PaymentError('pricing-policy:settlement-currency')
-    }
-    const normalizeMethods = (methods: string[]): string[] => {
-      const normalized = methods.map(type => type.toLowerCase())
-      if (normalized.length === 0 || normalized.some(type => !/^[a-z][a-z0-9_]*$/.test(type))
-        || new Set(normalized).size !== normalized.length) {
-        throw new PaymentError('pricing-policy:subscription-payment-methods')
-      }
-      return normalized
-    }
-    const subscriptionPaymentMethodTypes = stripe.subscriptionPaymentMethodTypes != null
-      ? normalizeMethods(stripe.subscriptionPaymentMethodTypes) : undefined
-    const subscriptionPaymentMethodTypesByCurrency: Record<string, string[]> = {}
-    for (const [key, methods] of Object.entries(stripe.subscriptionPaymentMethodTypesByCurrency ?? {})) {
-      const currency = key.toLowerCase()
-      if (!/^[a-z]{3}$/.test(currency) || Object.hasOwn(subscriptionPaymentMethodTypesByCurrency, currency)) {
-        throw new PaymentError('pricing-policy:subscription-payment-methods-currency')
-      }
-      subscriptionPaymentMethodTypesByCurrency[currency] = normalizeMethods(methods)
-    }
-    plugin(cfg, {
-      ...stripe,
-      ...(settlementCurrency != null ? { settlementCurrency } : {}),
-      ...(subscriptionPaymentMethodTypes != null ? { subscriptionPaymentMethodTypes } : {}),
-      ...(stripe.subscriptionPaymentMethodTypesByCurrency != null ? { subscriptionPaymentMethodTypesByCurrency } : {}),
-    }, STRIPE_PRICING_PLUGIN_CONFIG)
-  }
 }
 
 /**

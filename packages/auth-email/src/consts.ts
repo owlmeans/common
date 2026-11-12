@@ -31,9 +31,6 @@ export const EMAIL_CAPTCHA_ACTION_PASSWORD = 'email_password'
  */
 export const EMAIL_IDENTITY_TYPE = 'email-otp'
 
-/** The captcha provider an options view may name. */
-export const EMAIL_CAPTCHA_PROVIDER = 'recaptcha-v3'
-
 // --- Policy ------------------------------------------------------------------------------------
 
 /** Digits in a PIN — the same as `OTP_CODE_LENGTH` (`@owlmeans/auth-otp`). */

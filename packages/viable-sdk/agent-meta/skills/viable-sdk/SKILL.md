@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.2.0-alpha.0"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -42,7 +42,7 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 | `PLATFORM_CATALOGUE` (`pipelines`, `features`, `capabilities`) · `renderPlatform(catalogue, host)` · `GENERATED_SUMMARY` | What `describe_platform` renders, and the one-sentence product summary `describe_capabilities` ends with |
 | `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` (`client?`, `profile?` beside `extensions?`) · `ToolDeps` (`detach?`, `release?`, `inflight?` beside `attach`) · `ToolAnnotations` · `toolHostHelper` (`anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks`/`readsDisk`/`uploadsMaterials`) | The host description and the availability predicates |
 | `materialsToolHelper` (`inputsOf`/`precheck`/`send`/`renderOutcomes`/`renderCatalogue`/`renderText`/`reasonPhrase`) · `MaterialOutcome` · `MaterialsUploadOptions` | A new project's files: the disk read, the precheck against `MATERIALS_UPLOAD_POLICY`, the send-and-seal, the words |
-| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper` (the publisher's file commands, `writeBinaryFile`/`readBinaryFile` included), `createLocalShellHelper`, `makeLocalGitHelper(dir).dispatchGitCommand`, `integrityHelper` (`verifyTarget`/`forgetIntegrity`), `makeLayoutHelper(dir)` (`targetPaths`/`apps`/`apiPath(app?)`/`webPath(app?)`/`workerPath`), `makeTargetEnvHelper(dir)` (`backendEnv(app?)`/`frontendEnv(app?)`), `healthHelper` (`classifyTargetHealth`/`readTargetHealth`), `runBootCheck`, `confineToProject`, `spawnHelper` | The publisher's workload, on somebody's laptop |
+| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper` (the publisher's file commands, `writeBinaryFile`/`readBinaryFile` included), `createLocalShellHelper`, `makeLocalGitHelper(dir).dispatchGitCommand`, `integrityHelper` (`verifyTarget`/`collectTargetFiles`/`readTargetFiles`/`forgetIntegrity`), `makeLayoutHelper(dir)` (`targetPaths`/`apps`/`apiPath(app?)`/`webPath(app?)`/`workerPath`), `makeTargetEnvHelper(dir)` (`backendEnv(app?)`/`frontendEnv(app?)`), `healthHelper` (`classifyTargetHealth`/`readTargetHealth`), `runBootCheck`, `confineToProject`, `spawnHelper` | The publisher's workload, on somebody's laptop |
 | `./run`: `makeLocalRunHelper(dir)` (`runLocal`, `stopLocal`, `localStatus`), `createLocalServer(getWebDir, { apiPort?, apps? })`, `makeRunStateHelper(dir)` (`startApi(env?, app?)`/`startWorker`/`restartApi(app?)`, `readRun`/`writeRun`/`clearRun`), `runProcessHelper.stopProcess` | Building and running the generated app locally — every app of a split project on the one web port |
 | `makeMarkerHelper(dir)` (`readMarker`/`writeMarker`/`discoverProject`/`isViableTree`) · `makeProjectEnvHelper(dir)` (`readEnv`/`writeEnv`/`envStatus`) · `dotenvHelper.replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
 | `SdkError`, `SdkAuthError`, `SdkMisconfigured`, `SdkUnsupported` | Registered `ResilientError` classes |
@@ -965,7 +965,10 @@ and cannot tell whether a pod or a laptop produced one, so an ordinary failure c
 same shape ("error text or null"), and only an unknown command — a protocol fault rather than a
 project fault — escapes as an exception. Everything is resolved per call rather than closed over,
 because a re-initialization replaces the tree under a running connector. The integrity verdict is
-forgotten after every command that changes the tree.
+forgotten after every command that changes the tree, and reads the tree in the manifest's two passes
+exactly as the publisher does (`targetIntegrityHelper.collectTargetFiles` + the `sources/` listing),
+so a target split into apps runs here as it builds in a slot and a one-app tree answers the one-pass
+report byte for byte (`tests/executor-integrity.spec.ts`).
 
 Rules for the local executor:
 
@@ -1092,8 +1095,8 @@ app), each web with `targetEnv.frontendEnv(app)` (its own `.env`, `BASE_URL=/<mo
 on `3000 + 10·index` under the argv marker `--viable-app=<name>` — never `--viable-api`, so main's
 reclaim never takes a sibling. `createLocalServer(getWebDir, { apps })` routes by the longest prefix:
 `/<mount>/api(/…)` proxied with the path kept, `/<mount>(/…)` from that app's `dist` with the SPA
-fallback, `/` main's; one app (or none listed) takes exactly the old path. The run record keeps `api`
-(main's) and gains `apps` (every app with its api) only when split; `localStatus().apps` and
+fallback, `/` main's; one app (or none listed) is served exactly as a one-app tree. The run record
+holds `api` (main's) and, only when split, `apps` (every app with its api); `localStatus().apps` and
 `local_status` give one line per app. `run-apps.spec.ts` pins it.
 
 `run_local` refuses to start a project whose `.env` is still missing a required key, because an app

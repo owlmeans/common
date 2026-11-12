@@ -14,7 +14,7 @@ imports everything from here. Server code never uses this package; its equivalen
 ## Installation
 
 ```bash
-bun add @owlmeans/client@^0.1.22-rc.0
+bun add @owlmeans/client@^0.2.0-alpha.0
 ```
 
 `react` and `@remix-run/router` are peer dependencies.
@@ -273,7 +273,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.22-rc.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

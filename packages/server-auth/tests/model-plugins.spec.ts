@@ -84,7 +84,7 @@ describe('@owlmeans/server-auth — makeAuthModel with an exclusive plugin list'
     const env = await setup()
 
     await expect(env.exclusive.init({ type: AuthenticationType.BasicEd25519, userId: 'u' })).rejects.toBeInstanceOf(AuthUnknown)
-    await expect(makeAuthModel(env.context as never, { plugins: {} }).init({ type: AuthenticationType.ReCaptcha, userId: 'u' }))
+    await expect(makeAuthModel(env.context as never, { plugins: {} }).init({ type: AuthenticationType.Captcha, userId: 'u' }))
       .rejects.toBeInstanceOf(AuthUnknown)
     await expect(env.exclusive.init({ type: 'constructor', userId: 'u' })).rejects.toBeInstanceOf(AuthUnknown)
 

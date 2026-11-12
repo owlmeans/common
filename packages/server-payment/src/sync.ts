@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto'
-import type Stripe from 'stripe'
-import { CheckoutPricingMode, ProductType, TaxBehavior, type PlanPriceView } from '@owlmeans/payment'
+import { CheckoutPricingMode, TaxBehavior, type PlanPriceView } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
 import type { PaymentPlan, PaymentProduct, SyncedPrice, SyncedPriceOption } from './types.js'
-import type { StripeFxRateCache } from './plugins/fx/types.js'
+import type { FxQuoteCache } from './plugins/types.local.js'
+import type { Paygate } from './paygate/types.js'
+import { paygatesOf } from './paygate/registry.js'
 import { log } from './log.js'
 import type { ResolvedPlan } from './types.local.js'
 import { fxOf } from './plugins/fx.js'
@@ -67,144 +68,21 @@ const fingerprintOf = (
     })).sort((a, b) => a.sku.localeCompare(b.sku)),
   })).digest('hex')
 
-/** A price's `currency_options` besides its default currency (read only once expanded). */
-const priceOptionsOf = (price: Stripe.Price): Record<string, { unit_amount?: number | null, tax_behavior?: string | null }> =>
-  Object.fromEntries(Object.entries(price.currency_options ?? {}).filter(([code]) => code !== price.currency))
-
-/** Whether a price carries exactly these options (and, with a declared behavior, with that behavior). */
-const optionsMatch = (price: Stripe.Price, options: SyncedPriceOption[], behavior: TaxBehavior | null): boolean => {
-  const current = priceOptionsOf(price)
-  if (Object.keys(current).length !== options.length) {
-    return false
-  }
-
-  return options.every(option => current[option.currency]?.unit_amount === option.unitAmount
-    && (behavior == null || current[option.currency]?.tax_behavior == null
-      || current[option.currency]?.tax_behavior === 'unspecified' || current[option.currency]?.tax_behavior === behavior))
-}
-
-/** Whether `price` already carries the OPPOSITE of `behavior` — never `unspecified`, which is not a conflict. */
-const opposesBehavior = (price: Stripe.Price, behavior: TaxBehavior | null): boolean =>
-  behavior != null && price.tax_behavior !== 'unspecified' && price.tax_behavior !== behavior
-
 export const makeProductSyncHelper = (ctx: ApiContext): ProductSyncHelper => {
   const access = paymentAccessOf(ctx)
 
-  const ensureStripeProduct = async (stripe: Stripe, product: PaymentProduct): Promise<Stripe.Product> => {
-    const params: Stripe.ProductCreateParams = {
-      name: product.title, description: product.description || undefined, tax_code: product.taxCode,
-      active: true,
-      metadata: { sku: product.sku, ...(product.services && { services: product.services.join(',') }) },
+  const syncProducts = async (paygate: Paygate): Promise<void> => {
+    const catalogue = paygate.catalogue
+    if (catalogue == null) {
+      return
     }
-    if (product.type === ProductType.Consumable && product.unitLabel != null) params.unit_label = product.unitLabel
-    try {
-      await stripe.products.retrieve(product.sku)
-      return await stripe.products.update(product.sku, params)
-    } catch {
-      return await stripe.products.create({ id: product.sku, ...params })
-    }
-  }
-
-  const activePrices = async (stripe: Stripe, product: PaymentProduct): Promise<Stripe.Price[]> =>
-    (await stripe.prices.list({ product: product.sku, active: true, limit: 100, expand: ['data.currency_options'] })).data
-
-  const deactivateAmountPrice = async (stripe: Stripe, product: PaymentProduct, plan: PaymentPlan): Promise<void> => {
-    const lookup = planHelper.planLookupKey(product, plan)
-    for (const price of (await activePrices(stripe, product)).filter(item => item.lookup_key === lookup)) {
-      await stripe.prices.update(price.id, { active: false })
-    }
-  }
-
-  /**
-   * The behavior the Stripe account's own Tax Settings resolve to for `currency`, or `null` when no
-   * default is configured yet (nothing established to disrupt). `inferred_by_currency` follows
-   * Stripe's own rule: exclusive for USD/CAD, inclusive otherwise.
-   */
-  const accountDefaultBehavior = async (stripe: Stripe, currency: string): Promise<TaxBehavior | null> => {
-    const { defaults } = await stripe.tax.settings.retrieve()
-    if (defaults.tax_behavior === 'inferred_by_currency') {
-      return ['usd', 'cad'].includes(currency.toLowerCase()) ? TaxBehavior.Exclusive : TaxBehavior.Inclusive
-    }
-    if (defaults.tax_behavior === 'exclusive') return TaxBehavior.Exclusive
-    if (defaults.tax_behavior === 'inclusive') return TaxBehavior.Inclusive
-    return null
-  }
-
-  /**
-   * Give `price` the declared `behavior` while it is still `unspecified` (the only state Stripe lets
-   * an existing price's `tax_behavior` be set from). Skipped, with a `log.error`, when the
-   * account's own default resolves to the opposite behavior — applying ours would then change what an
-   * existing renewal actually charges — unless `migrateUnspecifiedPrices` opts into that migration.
-   */
-  const applyUnspecifiedBehavior = async (
-    stripe: Stripe, price: Stripe.Price, lookupKey: string, behavior: TaxBehavior, migrateUnspecifiedPrices: boolean,
-  ): Promise<void> => {
-    if (!migrateUnspecifiedPrices) {
-      const resolved = await accountDefaultBehavior(stripe, price.currency)
-      if (resolved != null && resolved !== behavior) {
-        log.error(
-          'Price left unspecified: the Stripe account\'s default tax behavior differs from the declared one — '
-          + 'applying it would change existing renewal amounts; set `stripe.migrateUnspecifiedPrices` to override',
-          { lookupKey, currency: price.currency, accountBehavior: resolved, declaredBehavior: behavior },
-        )
-        return
-      }
-    }
-    await stripe.prices.update(price.id, { tax_behavior: behavior })
-  }
-
-  const ensureStripePrice = async (
-    stripe: Stripe, product: PaymentProduct, resolved: ResolvedPlan,
-    behavior: TaxBehavior | null, migrateUnspecifiedPrices: boolean,
-  ): Promise<Stripe.Price | null> => {
-    const { plan, unitAmount, currency, options } = resolved
-    if (plan.pricingMode === CheckoutPricingMode.Amount) {
-      await deactivateAmountPrice(stripe, product, plan)
-      return null
-    }
-    const lookupKey = planHelper.planLookupKey(product, plan)
-    const recurring = plan.recurring != null
-      ? { interval: plan.recurring.interval } as Stripe.PriceCreateParams.Recurring : undefined
-    const existing = await activePrices(stripe, product)
-    const candidate = existing.find(price => price.lookup_key === lookupKey && price.unit_amount === unitAmount
-      && price.currency === currency
-      && ((price.recurring?.interval ?? null) === (recurring?.interval ?? null))
-      && optionsMatch(price, options, behavior))
-    if (candidate != null && !opposesBehavior(candidate, behavior)) {
-      if (behavior != null && candidate.tax_behavior === 'unspecified') {
-        await applyUnspecifiedBehavior(stripe, candidate, lookupKey, behavior, migrateUnspecifiedPrices)
-      }
-      return candidate
-    }
-    // A changed option replaces the Price like any other change — options are never edited in place,
-    // so a subscriber keeps exactly the Price (and currency amounts) they accepted.
-    for (const price of existing.filter(item => item.lookup_key === lookupKey)) {
-      await stripe.prices.update(price.id, { active: false })
-    }
-
-    return await stripe.prices.create({
-      product: product.sku, currency, unit_amount: unitAmount, lookup_key: lookupKey,
-      transfer_lookup_key: true, nickname: plan.sku,
-      ...(recurring != null ? { recurring } : { billing_scheme: 'per_unit' }),
-      ...(behavior != null ? { tax_behavior: behavior } : {}),
-      ...(options.length > 0 ? {
-        currency_options: Object.fromEntries(options.map(option => [option.currency, {
-          unit_amount: option.unitAmount, ...(behavior != null ? { tax_behavior: behavior } : {}),
-        }])),
-      } : {}),
-      metadata: { sku: plan.sku, ...(product.services && { services: product.services.join(',') }) },
-    })
-  }
-
-  const syncStripeProducts = async (stripe: Stripe): Promise<void> => {
     const fpRes = access.fingerprints()
     const behavior = (await access.payment().pricingPolicy()).tax.behavior ?? null
-    const migrateUnspecifiedPrices = (await access.stripePricingConfig())?.migrateUnspecifiedPrices ?? false
-    const fxRates: StripeFxRateCache = new Map()
+    const fxRates: FxQuoteCache = new Map()
     const rights = await access.payment().consumerRightsPolicy()
     const regionCurrencies = new Set(Object.values(rights?.currencies ?? {})
       .filter((code): code is string => typeof code === 'string').map(code => code.toLowerCase()))
-    for (const { product, plans } of await catalogueOf(ctx).stripePlansOf()) {
+    for (const { product, plans } of await catalogueOf(ctx).plansSoldThrough(paygate.id)) {
       const resolvedPlans: ResolvedPlan[] = []
       for (const plan of plans) {
         const sourceUnitAmount = Math.round(plan.price * 100)
@@ -213,7 +91,7 @@ export const makeProductSyncHelper = (ctx: ApiContext): ProductSyncHelper => {
           resolvedPlans.push({ plan, unitAmount: sourceUnitAmount, currency: sourceCurrency, sourceUnitAmount, sourceCurrency, options: [] })
           continue
         }
-        const settled = await fxOf(ctx).settlementAmount(stripe, sourceUnitAmount, sourceCurrency, fxRates)
+        const settled = await fxOf(ctx).settlementAmount(paygate, sourceUnitAmount, sourceCurrency, fxRates)
         const { unitAmount, options } = optionsOf(plan, settled.currency, sourceUnitAmount, sourceCurrency, regionCurrencies)
         resolvedPlans.push({
           plan, unitAmount: unitAmount ?? settled.amountMinor, currency: settled.currency, sourceUnitAmount, sourceCurrency,
@@ -224,27 +102,30 @@ export const makeProductSyncHelper = (ctx: ApiContext): ProductSyncHelper => {
       const stored = await fpRes.bySku(product.sku)
       // A row from before prices were persisted syncs once more, so `planPrices` can read it.
       if (stored != null && stored.hash === hash && stored.prices != null) continue
-      const stripeProduct = await ensureStripeProduct(stripe, product)
+      const synced = await catalogue.syncProduct(product, resolvedPlans.map(resolved => ({
+        plan: resolved.plan, lookupKey: planHelper.planLookupKey(product, resolved.plan), unitAmountMinor: resolved.unitAmount,
+        currency: resolved.currency, options: resolved.options,
+      })), { behavior })
       const prices: SyncedPrice[] = []
       const syncedAt = new Date()
       for (const resolved of resolvedPlans) {
-        const price = await ensureStripePrice(stripe, product, resolved, behavior, migrateUnspecifiedPrices)
+        const price = synced.prices.find(entry => entry.planSku === resolved.plan.sku)
         if (price != null) {
           prices.push({
-            planSku: resolved.plan.sku, priceId: price.id, lookupKey: planHelper.planLookupKey(product, resolved.plan),
+            planSku: resolved.plan.sku, priceId: price.priceId, lookupKey: planHelper.planLookupKey(product, resolved.plan),
             currency: resolved.currency, unitAmount: resolved.unitAmount, options: resolved.options,
-            ...(behavior != null ? { taxBehavior: behavior } : price.tax_behavior != null ? { taxBehavior: price.tax_behavior } : {}),
+            ...(behavior != null ? { taxBehavior: behavior } : price.taxBehavior != null ? { taxBehavior: price.taxBehavior } : {}),
             ...(resolved.plan.recurring != null ? { interval: resolved.plan.recurring.interval } : {}),
             sourceUnitAmount: resolved.sourceUnitAmount, sourceCurrency: resolved.sourceCurrency, syncedAt,
           })
         }
       }
       if (stored != null) {
-        await fpRes.update({ ...stored, hash, productId: stripeProduct.id, prices, updatedAt: new Date() })
+        await fpRes.update({ ...stored, hash, productId: synced.productId, prices, updatedAt: new Date() })
       } else {
-        await fpRes.create({ sku: product.sku, hash, productId: stripeProduct.id, prices, updatedAt: new Date() })
+        await fpRes.create({ sku: product.sku, hash, productId: synced.productId, prices, updatedAt: new Date() })
       }
-      log.info('Product synced to Stripe', { sku: product.sku, plans: plans.length }, { event: 'payment.product.synced' })
+      log.info('Product synced to the paygate', { sku: product.sku, plans: plans.length, paygate: paygate.id }, { event: 'payment.product.synced' })
     }
   }
 
@@ -269,11 +150,12 @@ export const makeProductSyncHelper = (ctx: ApiContext): ProductSyncHelper => {
   }
 
   const syncPaymentProducts = async (): Promise<void> => {
-    const factory = access.gatewayOf()?.stripe
-    await syncStripeProducts(factory != null ? await factory(ctx) : await access.stripeClient())
+    for (const paygate of paygatesOf(ctx).all()) {
+      await syncProducts(paygate)
+    }
   }
 
-  return { syncStripeProducts, syncedPlanPrices, syncPaymentProducts }
+  return { syncProducts, syncedPlanPrices, syncPaymentProducts }
 }
 
 /** The catalogue sync of a context — one per context. */

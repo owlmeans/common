@@ -1,13 +1,14 @@
-import { BotPlatform } from '@owlmeans/bot'
-import { Hash, MessagesSquare, Phone, Send, type LucideIcon } from 'lucide-react'
+import type { BotPlatformGlyph } from '@owlmeans/bot'
+import { Hash, MessageCircle, MessagesSquare, Phone, Send, type LucideIcon } from 'lucide-react'
 
 /**
- * A neutral glyph per platform — no brand marks and no brand colours: the panels inherit the
- * application's look, and the platform's NAME is always written beside the glyph.
+ * The icon of each neutral glyph a platform descriptor names — no brand marks and no brand colours:
+ * the panels inherit the application's look, and the platform's NAME is always written beside it.
  */
-export const PLATFORM_ICONS: Record<BotPlatform, LucideIcon> = {
-  [BotPlatform.Telegram]: Send,
-  [BotPlatform.WhatsApp]: Phone,
-  [BotPlatform.Discord]: MessagesSquare,
-  [BotPlatform.Slack]: Hash,
-}
+export const GLYPH_ICONS: Readonly<Record<BotPlatformGlyph, LucideIcon>> = Object.freeze({
+  send: Send,
+  phone: Phone,
+  messages: MessagesSquare,
+  hash: Hash,
+  chat: MessageCircle,
+})

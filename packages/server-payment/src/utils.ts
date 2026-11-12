@@ -1,6 +1,5 @@
-import type Stripe from 'stripe'
 import { MONGO_DUPLICATE_KEY, mongoRefHelper } from '@owlmeans/mongo-resource'
-import { WebhookSetupError, type PaymentService } from '@owlmeans/payment'
+import type { PaymentService } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { CONSUMER_RIGHTS_SERVICE } from './consts.js'
 import { paymentAccessOf } from './access.js'
@@ -11,22 +10,8 @@ import type {
 import type { CollectionHolder, PaymentUtils } from './utils/types.js'
 
 export const createPaymentUtils = (): PaymentUtils => {
-  const apiVersionOf = (stripe: Stripe): string => {
-    const version = (stripe as unknown as { getApiField?: (key: string) => unknown }).getApiField?.('version')
-    if (typeof version !== 'string' || version === '') {
-      throw new WebhookSetupError('api-version')
-    }
-
-    return version
-  }
-
   const isDuplicateKey = (error: unknown): boolean =>
     (error as { code?: unknown } | null)?.code === MONGO_DUPLICATE_KEY
-
-  const isMissingObject = (error: unknown): boolean => {
-    const typed = error as { code?: unknown; statusCode?: unknown; raw?: { code?: unknown } } | null
-    return typed?.code === 'resource_missing' || typed?.raw?.code === 'resource_missing' || typed?.statusCode === 404
-  }
 
   const idOf = (value: string | { id?: string } | null | undefined): string | undefined =>
     value == null ? undefined : typeof value === 'string' ? value : value.id
@@ -62,7 +47,7 @@ export const createPaymentUtils = (): PaymentUtils => {
     (error instanceof Error ? error.message : String(error)).slice(0, 1000)
 
   return {
-    apiVersionOf, isDuplicateKey, isMissingObject, idOf, dateOf, compact, conditionalSet, conditionalDelete,
+    isDuplicateKey, idOf, dateOf, compact, conditionalSet, conditionalDelete,
     idCriteria, errorText,
   }
 }
@@ -97,6 +82,3 @@ export const consumerConsents = (ctx: ApiContext): ConsumerConsentResource => pa
 export const consumerRightsOf = (
   ctx: ApiContext, alias: string = CONSUMER_RIGHTS_SERVICE,
 ): ConsumerRightsService | null => paymentAccessOf(ctx).consumerRightsOf(alias)
-
-/** @deprecated compat:factory-refactor — use `paymentAccessOf(ctx).stripeClient()` */
-export const stripeClient = async (ctx: ApiContext): Promise<Stripe> => await paymentAccessOf(ctx).stripeClient()

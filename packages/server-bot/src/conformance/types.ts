@@ -1,5 +1,6 @@
 import type { BasicContext } from '@owlmeans/context'
 import type { Resource } from '@owlmeans/resource'
+import type { BotPlatformPlugin } from '../platforms/types.js'
 import type {
   BotActivityRecord, BotConnectionRecord, BotResourceAliases, BotService, BotUpdateRecord,
 } from '../types.js'
@@ -18,11 +19,16 @@ export interface BotConformanceResources {
  */
 export type BotConformanceCapability = 'unique'
 
-/** What a case runs against: a bot service over the store's three resources. */
+/** What a case runs against: a bot service over the store's three resources, with one platform plugin. */
 export interface BotConformanceSubject {
   service: BotService
   resources: BotConformanceResources
   capabilities: readonly BotConformanceCapability[]
+  /**
+   * The plugin the service is given — its connections are mock ones, verified without a public
+   * origin (so they poll), and its mock signs the deliveries a case posts.
+   */
+  platform: BotPlatformPlugin
 }
 
 export interface BotConformanceCase {
@@ -37,6 +43,12 @@ export interface BotConformanceOptions {
   /** The resources' aliases, default `bot-connection` … */
   resources?: BotResourceAliases
   capabilities?: BotConformanceCapability[]
+  /**
+   * The platform plugin the cases connect on; default `makeTestBotPlatform()` (`./mock`). It must
+   * accept a mock connection without credentials, poll without a public origin and answer `verify`
+   * with a `mock_`-prefixed username.
+   */
+  platform?: BotPlatformPlugin
 }
 
 export interface BotConformanceSubjectMaker {

@@ -1,9 +1,13 @@
 import type { Page } from '@owlmeans/test-ui'
 import { browserHelper } from '@owlmeans/test-ui'
 import {
-  BotActionKind, BotConnectionStatus, BotPlatform, BotReceiveMode, BotTransport, type BotActivity, type BotConnection,
+  BotActionKind, BotConnectionStatus, BotReceiveMode, BotTransport, type BotActivity, type BotConnection,
+  type BotPlatformDescriptor,
 } from '@owlmeans/bot'
 import { HARNESS_URL } from './context.js'
+import { DESCRIPTORS } from './descriptors.js'
+
+export { DESCRIPTORS }
 
 /** Generous: a cold harness compiles the whole app on its first request. */
 export const TIMEOUT = 60_000
@@ -30,14 +34,14 @@ export const refusal = (type: string, message: string, status: number): Answer =
   ({ status, error: `${type}|||${message}|||at server` })
 
 export const connectionOf = (over: Partial<BotConnection> = {}): BotConnection => ({
-  id: 'c1', scope: 'org', platform: BotPlatform.Telegram, label: 'Moderator', transport: BotTransport.Live,
+  id: 'c1', scope: 'org', platform: 'relay', label: 'Moderator', transport: BotTransport.Live,
   status: BotConnectionStatus.Pending, enabled: true, receive: BotReceiveMode.Webhook, credentialsSet: ['token'],
   createdAt: '2026-10-01T10:00:00.000Z', updatedAt: '2026-10-01T10:00:00.000Z',
   ...over,
 })
 
 export const activityOf = (over: Partial<BotActivity> = {}): BotActivity => ({
-  id: 'a1', scope: 'org', connection: 'c1', platform: BotPlatform.Telegram, update: 'u1',
+  id: 'a1', scope: 'org', connection: 'c1', platform: 'relay', update: 'u1',
   action: BotActionKind.Delete, target: { chat: '-100', message: '42', user: '7' }, text: 'free money here',
   ref: 'g1', ok: true, transport: BotTransport.Mock, at: '2026-10-01T10:00:00.000Z',
   ...over,
@@ -52,9 +56,11 @@ export interface Opened {
 /**
  * Open the harness with `query` (its switches) and the bot API answered by `server`. The answers
  * sit on this origin (the harness declares the API service on it), so there is no CORS to satisfy
- * and no live server to reach.
+ * and no live server to reach. `platform.list` answers `descriptors` unless `server` answers it.
  */
-export const open = async (query: Record<string, string>, server: Server): Promise<Opened> => {
+export const open = async (
+  query: Record<string, string>, server: Server, descriptors: BotPlatformDescriptor[] = DESCRIPTORS
+): Promise<Opened> => {
   const browser = await browserHelper.launchBrowser({ headless: true })
   const context = await browser.newContext()
   const page = await context.newPage()
@@ -73,6 +79,7 @@ export const open = async (query: Record<string, string>, server: Server): Promi
     }
     calls.push(call)
     const answer = server(call, calls)
+      ?? (call.method === 'GET' && call.path === 'platforms' ? { json: descriptors } : undefined)
     if (answer == null) return await route.fulfill({ status: 500, body: `no answer for ${call.method} ${call.path}` })
 
     return 'error' in answer

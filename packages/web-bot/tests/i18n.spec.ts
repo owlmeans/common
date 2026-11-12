@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BOT_PLATFORMS, BotActionKind, BotConnectionStatus, BotReceiveMode } from '@owlmeans/bot'
+import { BotActionKind, BotConnectionStatus, BotReceiveMode } from '@owlmeans/bot'
 import en from '../src/i18n/en.json' with { type: 'json' }
 import pl from '../src/i18n/pl.json' with { type: 'json' }
 import ru from '../src/i18n/ru.json' with { type: 'json' }
@@ -29,23 +29,25 @@ const placeholders = (text: string): string[] => [...text.matchAll(/\{\{(\w+)\}\
 describe('@owlmeans/web-bot — translations', () => {
   const englishKeys = leafKeys(en).sort()
 
-  test('English names every enum value and every credential of every platform descriptor', () => {
+  test('English names every enum value, every error key and the platform-neutral form copy', () => {
     const expected = [
       ...Object.values(BotConnectionStatus).map(value => `status.${value}`),
       ...Object.values(BotReceiveMode).map(value => `receive.${value}`),
       ...Object.values(BotActionKind).map(value => `action.${value}`),
-      ...Object.values(BOT_PLATFORMS).flatMap(descriptor => [
-        `connections.hint.${descriptor.platform}`,
-        ...descriptor.credentials.flatMap(field => [
-          `credentials.${descriptor.platform}.${field.key}.label`, `credentials.${descriptor.platform}.${field.key}.hint`,
-        ]),
-      ]),
+      'connections.hint.after-save', 'form.no-platforms', 'form.docs', 'connections.setup-title',
       ...[
         'connection-not-found', 'credentials-rejected', 'signature-rejected', 'transport-mismatch', 'unsupported-action',
         'connection-disabled', 'secret-missing', 'credentials-unreadable', 'platform-refused', 'bot', 'generic',
       ].map(key => `errors.${key}`),
     ]
     for (const key of expected) expect([key, englishKeys.includes(key)]).toEqual([key, true])
+  })
+
+  test('ships no platform copy: labels, hints and links are the registered descriptors\' own', () => {
+    for (const key of englishKeys) {
+      expect([key, /^credentials\./.test(key) || (/^connections\.hint\./.test(key) && key !== 'connections.hint.after-save')])
+        .toEqual([key, false])
+    }
   })
 
   test('ships no keyword-group, simulator or transport-choice copy', () => {

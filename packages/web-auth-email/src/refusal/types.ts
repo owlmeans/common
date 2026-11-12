@@ -51,7 +51,7 @@ export interface EmailRefusalHelper {
    * The refusal an error stands for.
    *
    * A development server sends the typed error (`AuthenFailed('email:password')`, `OtpThrottled`,
-   * `EmailPasswordWeak`, `AuthenFailed('recaptcha:score')`…); a production one only the HTTP status
+   * `EmailPasswordWeak`, `AuthenFailed('captcha:score')`…); a production one only the HTTP status
    * and an incident id. Both are read — the type first, then the status in the light of `context` —
    * and anything unrecognised is `failed`, never a guess.
    */

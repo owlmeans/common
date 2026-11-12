@@ -6,7 +6,7 @@ description: Category-D component-level acceptance tests for OwlMeans Common UI 
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
 
-**Install:** `"@owlmeans/test-ui": "^0.1.22-rc.0"` in `devDependencies`
+**Install:** `"@owlmeans/test-ui": "^0.2.0-alpha.0"` in `devDependencies`
 
 `@owlmeans/test-ui` depends on `playwright`, so the browser library arrives with it; add
 `playwright` to `devDependencies` as well when a spec imports a launcher itself. The Vite harness
@@ -20,7 +20,7 @@ The runner is **`bun test`** — same as categories A/B/C — kept consistent so
 
 A client-side package that ships no component belongs to category A, however browser-flavoured its
 name — `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`,
-`client-resource`, `client-route`, `client-socket`, `web-db`, `web-gtm` and
+`client-resource`, `client-route`, `client-socket`, `web-db` and
 `web-router-react-router` are all services, models and adapters. `@owlmeans/web-router` is the one
 that is not: it drives the real History API, so its routing behaviour is only observable in a
 browser and its specs mount a full harness here.

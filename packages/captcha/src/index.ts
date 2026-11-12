@@ -1,5 +1,6 @@
 export type * from './types.js'
 export * from './consts.js'
-export * from './verifier.js'
+export * from './resolver.js'
+export * from './service.js'
 export * from './policy.js'
 export * from './check.js'

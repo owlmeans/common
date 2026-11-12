@@ -29,7 +29,7 @@ const GROUPS: KeywordGroup[] = [
   { id: 'group-spam', keywords: ['casino'], instruction: 'Delete advertising and warn the sender.' },
 ]
 
-/** A message simulated on a mock Telegram connection; the handler runs the agent over it. */
+/** A message simulated on a mock connection of the test platform; the handler runs the agent over it. */
 const moderate = async (text: string, script: ScriptedTurn[]) => {
   const bot = makeTestBot()
   const scripted = scriptedModel(script)

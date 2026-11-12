@@ -1,40 +1,65 @@
-import { AppType, createService, makeBasicContext } from '@owlmeans/context'
+import { PLUGIN_RECORD } from '@owlmeans/config'
+import type { PluginConfig } from '@owlmeans/config'
+import { AppType, makeBasicContext } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { CAPTCHA_VERIFIER } from '../src/consts.js'
-import type { CaptchaFetch, CaptchaRequest, CaptchaResponse, CaptchaVerifierService } from '../src/types.js'
-import { appendCaptchaVerifierService } from '../src/verifier.js'
+import { ensureCaptchaService } from '../src/service.js'
+import type { CaptchaProvider, CaptchaVerdict, CaptchaVerifyOptions } from '../src/types.js'
 
-export interface TestCtx {
-  context: BasicContext<BasicConfig>
-  /** Every request the stand-in verifier was asked. */
-  asked: CaptchaRequest[]
+/** One question a stand-in provider was asked. */
+export interface Asked extends CaptchaVerifyOptions {
+  token: string
+}
+
+export interface TestProviderOptions {
+  id?: string
+  /** What every `verify` answers. */
+  verdict?: CaptchaVerdict
+  /** Thrown by every `verify` instead of answering. */
+  failure?: Error
+  siteKey?: string
+}
+
+export interface TestProvider extends CaptchaProvider {
+  /** Every question `verify` was asked, in order. */
+  asked: Asked[]
+}
+
+/** A provider that answers what it is told — no network, nothing provider-specific. */
+export const makeTestProvider = ({ id = 'test', verdict, failure, siteKey = 'site-key' }: TestProviderOptions = {}): TestProvider => {
+  const asked: Asked[] = []
+
+  return {
+    id,
+    asked,
+    verify: async (token, options) => {
+      asked.push({ token, ...options })
+      if (failure != null) {
+        throw failure
+      }
+      return verdict ?? { success: false }
+    },
+    clientSettings: () => ({ provider: id, siteKey }),
+  }
 }
 
 export interface TestCtxOptions {
-  /** A stand-in verifier under `CAPTCHA_VERIFIER` answering this — no network. */
-  answer?: CaptchaResponse
-  /** The default verifier appended under `CAPTCHA_VERIFIER`, its `fetch` replaced by this. */
-  fetch?: CaptchaFetch
+  /** Providers registered in the context's captcha host before it initializes. */
+  providers?: CaptchaProvider[]
+  /** Plugin records of the config (e.g. a `MOD_CAPTCHA` host record). */
+  plugins?: PluginConfig[]
 }
 
-/**
- * A backend context; given `answer`, it registers a stand-in verifier under `CAPTCHA_VERIFIER` that
- * records each request and answers `answer`; given `fetch`, it appends the default verifier over it.
- */
-export const makeTestCtx = async ({ answer, fetch }: TestCtxOptions = {}): Promise<TestCtx> => {
+/** A backend context with the given providers in its captcha host and the given plugin records. */
+export const makeTestCtx = async ({ providers = [], plugins = [] }: TestCtxOptions = {}): Promise<BasicContext<BasicConfig>> => {
   const context = makeBasicContext<BasicConfig>({
     ready: false, service: 'captcha-tests', type: AppType.Backend, services: {},
-  })
-  const asked: CaptchaRequest[] = []
-  if (fetch != null) {
-    appendCaptchaVerifierService(context, CAPTCHA_VERIFIER, { fetch })
-  } else if (answer != null) {
-    context.registerService(createService<CaptchaVerifierService>(CAPTCHA_VERIFIER, {
-      verify: async request => { asked.push(request); return answer },
-    }))
+    [PLUGIN_RECORD]: plugins.map(record => ({ ...record })),
+  } as BasicConfig)
+  for (const provider of providers) {
+    ensureCaptchaService(context).register(provider)
   }
   context.configure()
   await context.init()
 
-  return { context, asked }
+  return context
 }

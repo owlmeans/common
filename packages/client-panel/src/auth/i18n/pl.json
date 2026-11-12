@@ -5,8 +5,8 @@
     "privateKey": { "label": "Klucz prywatny" },
     "submit": "Uwierzytelnij"
   },
-  "re-captcha": {
-    "guideline": "Musimy upewnić się, że nie jesteś robotem. Kliknij w białe pole poniżej, aby udowodnić, że jesteś człowiekiem."
+  "captcha": {
+    "guideline": "Musimy upewnić się, że nie jesteś robotem. Wykonaj poniższą weryfikację, aby udowodnić, że jesteś człowiekiem."
   },
   "wallet-provider": {
     "pin": {

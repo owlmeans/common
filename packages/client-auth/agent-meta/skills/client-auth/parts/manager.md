@@ -30,8 +30,8 @@ metadata:
 | `plugins`, `authPluginHelper` | The same registry as `./manager` |
 | `pluginMethodSource` | The `LoginMethodSource` that turns registered plugins into offerable methods |
 | `createWalletFacade`, `PinSchema`, `PinForm`, `TunnelAuthenticationRenderer`, `TunnelAuthenticationRendererProps` | Wallet-tunnel helpers a consumer plugin builds on |
-| `ed25519BasicUIPlugin`, `reCaptchaPlugin`, `tunnelConsumerUIPlugin` | The shipped plugin objects |
+| `ed25519BasicUIPlugin`, `captchaPlugin`, `tunnelConsumerUIPlugin` | The shipped plugin objects |
 
-Shipped plugins register themselves by side effect: `basic-ed25519`, `re-captcha` and
+Shipped plugins register themselves by side effect: `basic-ed25519`, `captcha` and
 `wallet-consumer` when `@owlmeans/client-auth/manager` is imported, OIDC and Google from
 `@owlmeans/web-oidc-rp/auth/plugins`, the PK supervisor from `@owlmeans/web-auth`.

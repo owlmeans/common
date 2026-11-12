@@ -3,6 +3,7 @@ import type { EmailRefusal } from '../refusal/types.js'
 import type { EmailPanelPurpose, EmailPasswordAction } from '../password/types.js'
 import type { EmailPasswordStatusView } from '@owlmeans/auth-email'
 import type { EmailPasswordAliases, Translate } from '../types.js'
+import type { CaptchaClient } from '@owlmeans/web-captcha'
 
 /** A password field with a show/hide toggle; every other prop goes to the `<input>`. */
 export interface PasswordInputProps extends Omit<ComponentProps<'input'>, 'type'> {
@@ -39,6 +40,10 @@ export interface RefusalAlertProps {
 
 export interface CaptchaNoticeProps {
   t: Translate
+  /** The client of the advertised captcha provider; its notice is shown, none without one. */
+  client: CaptchaClient | null
+  /** The reader's language — the client's own strings are read in it (English otherwise). */
+  locale?: string
   className?: string
 }
 

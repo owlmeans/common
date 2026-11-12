@@ -83,11 +83,16 @@ export interface EmailAuthServerOptions {
    * password — a wrong password, or an address with no account, always gets this default's answer.
    */
   devicePin?: boolean
-  /** The score-based captcha in front of send-PIN and password sign-in; `null`/absent = off. */
+  /**
+   * The score-based captcha in front of send-PIN and password sign-in; `null`/absent = off. The
+   * provider it names (or the only one) must be registered in the context's captcha host
+   * (`@owlmeans/captcha`) — a provider package's `append*` — or the service fails at boot. Read on
+   * first use, so a config record handed over here may still be resolved in place.
+   */
   captcha?: CaptchaSettings | null
   /** The developer routes; absent = off. */
   tech?: EmailTechOptions
-  /** The client address of a request; absent = no IP throttles and no `remoteip` for the captcha. */
+  /** The client address of a request; absent = no IP throttles and no `remoteIp` for the captcha. */
   ipOf?: EmailIpResolver
   /** The `IdentityLinkingService`; default `cfg.otp.identityAlias ?? AUTH_IDENTITY_LINKING`. */
   identityAlias?: string

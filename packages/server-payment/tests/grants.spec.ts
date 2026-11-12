@@ -7,8 +7,8 @@ import {
 import { UnsupportedArgumentError } from '@owlmeans/resource'
 import { EntitlementGrantKind, EntitlementGrantStatus } from '../src/consts.js'
 import type { EntitlementGrantSpec, PaymentGrantRecord } from '../src/types.js'
-import { CAP_PREVIEW, CAP_WHITELABEL, future, makeFakeContext, past, PRO } from './fake-stripe.js'
-import type { FakeContext } from './fake-stripe.js'
+import { CAP_PREVIEW, CAP_WHITELABEL, future, makeFakeContext, past, PRO } from '@owlmeans/test-payment'
+import type { FakeContext } from '@owlmeans/test-payment'
 import { paymentAccessOf } from '../src/access.js'
 import { catalogueOf } from '../src/catalogue.js'
 

@@ -39,7 +39,7 @@ const plVat: PriceEstimate = {
 }
 
 describe('estimateOf', () => {
-  test('echoes the reference amount exactly, as Stripe returned it (1021 -> 235 -> 1256)', () => {
+  test('echoes the reference amount exactly, as the paygate returned it (1021 -> 235 -> 1256)', () => {
     const result = priceEstimateHelper.estimateOf(1_021, plVat)
     expect(result).toEqual({ subtotalMinor: 1_021, taxMinor: 235, totalMinor: 1_256 })
   })

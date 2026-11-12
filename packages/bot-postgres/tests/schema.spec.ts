@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { AppType, makeBasicContext, type BasicConfig } from '@owlmeans/context'
 import { addLogPlugin, memoryPlugin } from '@owlmeans/log'
 import { pgDeclarationHelper, pgDiffHelper, pgSchemaHelper } from '@owlmeans/postgres-resource'
-import type { TableSpec } from '@owlmeans/postgres-resource'
+import type { LiveTable, TableSpec } from '@owlmeans/postgres-resource'
 import {
   BotActivityRecordSchema, BotConnectionRecordSchema, BotUpdateRecordSchema, RES_BOT_ACTIVITY, RES_BOT_CONNECTION,
   RES_BOT_UPDATE,
@@ -99,9 +99,37 @@ describe('@owlmeans/bot-postgres — table shapes', () => {
     expect(typeOf(connection, 'sealed')).toEqual({ sqlType: 'text', jsonb: false, array: false, notNull: false })
     expect(typeOf(update, 'attempts').sqlType).toBe('integer')
     expect(typeOf(connection, 'enabled').sqlType).toBe('boolean')
+    // The platform is an id pattern, never an enum: the registered plugins decide, so no CHECK pins a list.
     expect(connection.checks.map(check => check.name).sort()).toEqual([
-      'bot_connection_platform_enum', 'bot_connection_receive_enum', 'bot_connection_status_enum', 'bot_connection_transport_enum',
+      'bot_connection_receive_enum', 'bot_connection_status_enum', 'bot_connection_transport_enum',
     ])
+    expect(typeOf(connection, 'platform')).toEqual({ sqlType: 'text', jsonb: false, array: false, notNull: true })
+    for (const alias of [RES_BOT_UPDATE, RES_BOT_ACTIVITY]) {
+      expect(specOf(alias).checks.map(check => check.name)).not.toContain(`${alias.replace('-', '_')}_platform_enum`)
+    }
+  })
+
+  test('a full sync drops the platform CHECK a table generated before carries; an additive one keeps it', () => {
+    reset()
+    makeAll()
+    const connection = specOf(RES_BOT_CONNECTION)
+    // The table as an earlier release generated it: every declared column and CHECK, plus the platform enum CHECK.
+    const live: LiveTable = {
+      exists: true,
+      columns: connection.columns.map((column, ordinal) => ({
+        name: column.column, type: column.sqlType, notNull: column.notNull, defaultExpr: null, identity: '', generated: '', ordinal,
+      })),
+      indexes: [],
+      constraints: [
+        ...connection.checks.map(check => ({ name: check.name ?? '', type: 'c', definition: `CHECK (${check.expression})` })),
+        { name: 'bot_connection_platform_enum', type: 'c', definition: 'CHECK ((platform = ANY (ARRAY[\'test\'::text, \'other\'::text])))' },
+      ],
+    }
+    const dropped = (additive: boolean): string[] => pgDiffHelper.planSync(connection, live, additive).statements
+      .filter(statement => statement.kind === 'drop-constraint').map(statement => statement.target)
+
+    expect(dropped(false)).toContain('bot_connection_platform_enum')
+    expect(dropped(true)).not.toContain('bot_connection_platform_enum')
   })
 
   test('the activity\'s ref is a nullable text column — the handler\'s opaque reference', () => {

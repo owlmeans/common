@@ -1,9 +1,4 @@
 {
-  "captcha": {
-    "notice": "Ta strona jest chroniona przez reCAPTCHA i obowiązują w niej {{privacy}} oraz {{terms}} Google.",
-    "privacy": "Polityka prywatności",
-    "terms": "Warunki korzystania z usług"
-  },
   "error": {
     "captcha": "Nie udało się potwierdzić, że nie jesteś robotem. Spróbuj ponownie.",
     "captcha-unavailable": "Nie udało się wczytać zabezpieczenia. Sprawdź połączenie i spróbuj ponownie.",

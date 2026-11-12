@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/storage-common
 
 **Layer:** Infra
-**Install:** `"@owlmeans/storage-common": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/storage-common": "^0.2.0-alpha.0"` in `dependencies`
 
 ## Key Exports
 

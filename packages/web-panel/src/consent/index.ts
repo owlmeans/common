@@ -15,10 +15,11 @@ export {
   CONSENT_KEY, CONSENT_ESSENTIAL, CONSENT_ANALYTICS, CONSENT_MARKETING,
   CONSENT_EVENT,
   consentBootstrapScript,
+  consentTrackingHelper, consentSignalHelper,
   CONSENT_REQUIRED_COUNTRIES,
 } from '@owlmeans/web-consent'
 export type {
-  ConsentCategory, ConsentMenuWidgetProps, ConsentOptions, ConsentRecord, ConsentSignal,
+  ConsentCategory, ConsentMenuWidgetProps, ConsentOptions, ConsentRecord,
   ConsentState, CookieConsentProps, CookiePolicyProps, ConsentDisplayMode, ConsentGeoOptions,
-  ConsentGeoPlugin, ConsentGeoLocation,
+  ConsentGeoPlugin, ConsentGeoLocation, ConsentSignalProvider,
 } from '@owlmeans/web-consent'

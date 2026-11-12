@@ -59,7 +59,7 @@ const ServiceList: FC<ServiceListProps> = ({ services, label, category, t }) =>
  * lawful basis is, how to exercise rights — is deferred to their own privacy policy and terms.
  *
  * `services` names WHO receives data under each category. It is the one input the widget cannot
- * derive, so it comes from whatever added the tag (`googleTagServices(id)` for a Google tag), and
+ * derive, so it comes from whatever added the tag (its own package's disclosure helper), and
  * a service is never dropped for want of a matching category: one whose category is not in force
  * is listed in a trailing group, because a service the page runs and does not disclose is worse
  * than one disclosed in the wrong place.

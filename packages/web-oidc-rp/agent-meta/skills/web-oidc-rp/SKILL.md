@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.2.0-alpha.0"` in `dependencies`
 
 ## Key Exports
 
@@ -38,6 +38,11 @@ A sign-in method's `begin` must forward `LoginMethodContext.navigate` into the `
 it hands `login.begin(...)` (as `oidcMethodSource` does, mirroring `useLogin`'s
 `nav.go(target ?? DISPATCHER)`): without it a method button pressed inside a frame adopts the token
 and leaves the framed application where it was, with no continuation.
+
+Served under a base (`/admin`), every address the RP hands the browser carries it
+(`clientBaseOf(ctx).href`, `@owlmeans/client`): the dispatcher path a sign-in method opens, and the
+legacy flow's authority, which is resolved `{ absolute: true }` because the OIDC client resolves a
+bare path against the page. At the root both are the declared paths.
 
 ## Wiring
 

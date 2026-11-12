@@ -104,7 +104,7 @@ describe('limit views', () => {
 
 const planView: EntitlementPlanView = {
   sku: 'pro-monthly', productSku: 'pro', title: 'Pro', rank: 10, free: false,
-  status: SubscriptionStatus.Active, paygate: 'stripe', subscriptionId: 'sub_1',
+  status: SubscriptionStatus.Active, paygate: 'card-gate', subscriptionId: 'sub_1',
   subscribedAt: before, periodEnd: after,
 }
 

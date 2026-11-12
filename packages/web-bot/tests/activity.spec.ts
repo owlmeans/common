@@ -14,8 +14,8 @@ const CONNECTIONS = [
 const ITEMS = [
   activityOf({
     id: 'a3', action: BotActionKind.Delete, ok: false, at: '2026-10-01T10:06:00.000Z', ref: 'g-unknown',
-    error: 'Telegram refused: Bad Request: can\'t parse entities.',
-    code: 'bot:telegram:400:Bad Request: can\'t parse entities',
+    error: 'Relay refused: Bad Request: can\'t parse entities.',
+    code: 'bot:platform:relay:400:Bad Request: can\'t parse entities',
   }),
   // A row recorded before `code` existed: the marker is its `error`.
   activityOf({ id: 'a2', action: BotActionKind.Reply, ok: false, error: 'bot:unsupported-action:delete', at: '2026-10-01T10:05:00.000Z', ref: undefined }),
@@ -44,7 +44,7 @@ describe('activity panel', () => {
       expect(await refused.textContent())
         .toBe(en.errors['platform-refused'].replace('{{detail}}', '400:Bad Request: can\'t parse entities'))
       expect(await page.locator('[data-bot-activity-item="a1"] [data-bot-mock]').count()).toBe(1)
-      // No `refLabel`: no row names its ref, and the panel reads nothing but connections and activity.
+      // No `refLabel`: no row names its ref, and the panel reads nothing but connections, activity and platforms.
       expect(await page.locator('[data-bot-activity-ref]').count()).toBe(0)
 
       const first = await untilCall(calls, call => call.method === 'GET' && call.path === 'activity')
@@ -52,7 +52,7 @@ describe('activity panel', () => {
       await page.locator('[data-bot-input="limit"]').click()
       await page.locator('[role="option"][data-bot-option="100"]').click()
       await untilCall(calls, call => call.method === 'GET' && call.path === 'activity' && call.query.limit === '100')
-      expect([...new Set(calls.map(call => call.path))].sort()).toEqual(['activity', 'connections'])
+      expect([...new Set(calls.map(call => call.path))].sort()).toEqual(['activity', 'connections', 'platforms'])
     } finally {
       await close()
     }

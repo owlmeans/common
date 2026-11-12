@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/mui-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/mui-panel": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/mui-panel": "^0.2.0-alpha.0"` in `dependencies`
 
 ## This is the legacy UI layer
 
@@ -64,8 +64,12 @@ declarations and the form model all survive it.
 - `./auth/entrypoints` — the auth-manager declarations plus the API-config ones.
 
 Importing `./auth` registers the authentication renderers by side effect:
-`AuthenticationType.BasicEd25519`, `ReCaptcha` and `WalletConsumer` get their MUI renderers pushed
-into the shared plugin registry of `@owlmeans/client-auth/manager`. That registry is a module
+`AuthenticationType.BasicEd25519`, `Captcha` and `WalletConsumer` get their MUI renderers pushed
+into the shared plugin registry of `@owlmeans/client-auth/manager`. The captcha renderer is
+provider-neutral: it renders the `widget` of the page's only registered captcha client
+(`captchaClients` of `@owlmeans/web-captcha`) with the site key of the client config record the
+client names (`siteKeyRecord`), and renders nothing without one — register a client with a widget
+(e.g. `appendRecaptchaClient({ widget: RecaptchaCheckbox })` from `@owlmeans/web-captcha-recaptcha`). That registry is a module
 singleton, so **importing both this package's plugins and another family's replaces the renderers
 rather than combining them** — one UI family per bundle.
 

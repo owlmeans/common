@@ -1,9 +1,8 @@
-import type Stripe from 'stripe'
 import { createLazyService } from '@owlmeans/context'
 import { MAILER_SERVICE } from '@owlmeans/mailer'
-import { cancellationEffectiveAt, CancellationKind, CancellationStatus, CancellationUnavailable, CancellationUnavailableReason, ConsentKind, CONSUMER_RIGHTS_COPY_VERSION, ConsumerRightsError, DeclarationChannel, DeclarationKind, ENTITLING_STATUSES, PaygateError, PerformanceConsentRequired, PurchaseKind, SubscriptionStartRequired, TERMINAL_STATUSES, UnknownPlan, WithdrawalStatus, WithdrawalUnavailable, WithdrawalUnavailableReason, type CancellationReceipt, type ConsumerRightsPolicy, type DeclarationReceipt, type PerformanceConsentView, type PurchaseView, type SubscriptionStartView, type WithdrawalCandidate, type WithdrawalReceipt, consumerCopyHelper, consumerRegionHelper, consumerRightsPolicyHelper } from '@owlmeans/payment'
+import { cancellationEffectiveAt, CancellationKind, CancellationStatus, CancellationUnavailable, CancellationUnavailableReason, ConsentKind, CONSUMER_RIGHTS_COPY_VERSION, ConsumerRightsError, DeclarationChannel, DeclarationKind, ENTITLING_STATUSES, INTERNAL_PAYGATE, PaygateError, PerformanceConsentRequired, PurchaseKind, SubscriptionStartRequired, TERMINAL_STATUSES, UnknownPlan, WithdrawalStatus, WithdrawalUnavailable, WithdrawalUnavailableReason, type CancellationReceipt, type ConsumerRightsPolicy, type DeclarationReceipt, type PerformanceConsentView, type PurchaseView, type SubscriptionStartView, type WithdrawalCandidate, type WithdrawalReceipt, consumerCopyHelper, consumerRegionHelper, consumerRightsPolicyHelper } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
-import { CONSUMER_RIGHTS_SERVICE, STRIPE_PAYGATE_ALIAS } from '../consts.js'
+import { CONSUMER_RIGHTS_SERVICE } from '../consts.js'
 import { CONSUMER_RIGHTS_RESOURCE_MAKERS } from '../resource.js'
 import { makeConsumerReconcileHelper } from './reconcile.js'
 import type {
@@ -26,6 +25,8 @@ import { consumerMailOf } from './mail.js'
 import { consumerObserversOf } from './observers.js'
 import { cancellationOf } from './cancellation.js'
 import { withdrawalOf } from './withdrawal.js'
+import { paygatesOf } from '../paygate/registry.js'
+import type { Paygate } from '../paygate/types.js'
 
 const latestDeadline = (items: Array<{ deadline?: Date | null }>): Date | undefined => {
   const times = items.map(item => item.deadline != null ? new Date(item.deadline).getTime() : Number.NaN)
@@ -33,6 +34,14 @@ const latestDeadline = (items: Array<{ deadline?: Date | null }>): Date | undefi
 
   return times.length > 0 ? new Date(Math.max(...times)) : undefined
 }
+
+/**
+ * Whether a withdrawal of the purchase can be executed at its paygate: a registered paygate with
+ * `payments`, and with `subscriptions` for a subscription purchase — otherwise it is left to an
+ * operator (`review`).
+ */
+const executable = (paygate: Paygate | null, purchase: PurchaseRecord): boolean =>
+  paygate?.payments != null && (purchase.kind !== PurchaseKind.Subscription || paygate.subscriptions != null)
 
 /** Only what a person typed, echoed as the receipt's content — never enriched with a match. */
 const contentOf = (fields: Record<string, string | undefined | null>): Record<string, string> =>
@@ -81,13 +90,18 @@ export const makeConsumerRightsService = (
   let manageGateway: boolean | undefined
   const isManaged = (): boolean => (manageOwn ?? manageGateway) !== false
   let meter: UsageMeter | null = opts.usage ?? null
-  let stripeFactory = opts.stripe
   let renderer: ConsumerMailRenderer | null = null
-  const stripeOf = async (ctx: ApiContext): Promise<Stripe> =>
-    stripeFactory != null ? await stripeFactory(ctx) : await paymentAccessOf(ctx).stripeClient()
   const internals: ConsumerRightsInternals = {
-    get managed() { return isManaged() }, meter: () => meter, stripe: stripeOf,
+    get managed() { return isManaged() }, meter: () => meter,
   }
+
+  /** The registered paygate of a record, or `null`. */
+  const paygateOf = (ctx: ApiContext, id: string | undefined): Paygate | null =>
+    id != null ? paygatesOf(ctx).find(id) : null
+
+  /** A paygate subscription row by its id, whichever paygate it is of. */
+  const subscriptionRow = async (ctx: ApiContext, externalId: string): Promise<PaymentSubscriptionRecord | null> =>
+    await paymentAccessOf(ctx).subscriptions().load({ externalId, paygate: { $ne: INTERNAL_PAYGATE } })
 
   const requirePolicy = async (ctx: ApiContext): Promise<ConsumerRightsPolicy> => {
     const policy = await paymentAccessOf(ctx).payment().consumerRightsPolicy()
@@ -126,7 +140,7 @@ export const makeConsumerRightsService = (
     }
     // Case-insensitive (`$ilike`, its `%`/`_`/`\` wildcards escaped): a paygate keeps the e-mail as typed.
     const pattern = wanted.replace(/[\\%_]/g, match => `\\${match}`)
-    const { items } = await paymentAccessOf(ctx).paygateCustomers().list({ paygate: STRIPE_PAYGATE_ALIAS, email: { $ilike: pattern } }, { size: 20 })
+    const { items } = await paymentAccessOf(ctx).paygateCustomers().list({ paygate: { $ne: INTERNAL_PAYGATE }, email: { $ilike: pattern } }, { size: 20 })
     const entities = [...new Set(items.filter(item => item.deletedAt == null && item.entityId != null).map(item => item.entityId as string))]
 
     return entities.length === 1 ? entities[0] : null
@@ -522,7 +536,7 @@ export const makeConsumerRightsService = (
         status = WithdrawalStatus.Received
       } else if (purchase.deadline == null || at.getTime() >= new Date(purchase.deadline).getTime()) {
         status = WithdrawalStatus.Expired
-      } else if (meter != null && policy.mechanisms.automaticRefunds) {
+      } else if (meter != null && policy.mechanisms.automaticRefunds && executable(paygateOf(ctx, purchase.paygate), purchase)) {
         try {
           computation = await withdrawalOf(ctx).computeWithdrawal(meter, purchase, at)
         } catch (error) {
@@ -583,7 +597,7 @@ export const makeConsumerRightsService = (
       let final: WithdrawalStatus = status
       let execution: WithdrawalExecution | null = null
       if (status === WithdrawalStatus.Processing && purchase != null && computation != null) {
-        execution = await withdrawalOf(ctx).executeWithdrawal(await stripeOf(ctx), declaration, purchase, computation)
+        execution = await withdrawalOf(ctx).executeWithdrawal(paygateOf(ctx, purchase.paygate) as Paygate, declaration, purchase, computation)
         final = execution.needsReview ? WithdrawalStatus.Review : execution.ok ? WithdrawalStatus.Refunded : WithdrawalStatus.Failed
       }
       if (purchase != null && (final === WithdrawalStatus.Refunded || final === WithdrawalStatus.Review)
@@ -620,22 +634,22 @@ export const makeConsumerRightsService = (
       let row: PaymentSubscriptionRecord | null = null
       if (subject != null) {
         if (body.subscriptionId != null) {
-          row = await access.subscriptions().byExternalId(body.subscriptionId, STRIPE_PAYGATE_ALIAS)
+          row = await subscriptionRow(ctx, body.subscriptionId)
         } else if (body.contractRef != null) {
           purchase = await purchaseByContract(ctx, body.contractRef)
           if (purchase != null && purchase.entityId === subject.entityId && purchase.subscriptionId != null) {
-            row = await access.subscriptions().byExternalId(purchase.subscriptionId, STRIPE_PAYGATE_ALIAS)
+            row = await access.subscriptions().byExternalId(purchase.subscriptionId, purchase.paygate)
           }
         }
         row = row != null && row.entityId === subject.entityId
-          ? row : await consumerRecordsOf(ctx).entitlingStripeSubscription(subject.entityId)
+          ? row : await consumerRecordsOf(ctx).entitlingPaygateSubscription(subject.entityId)
       } else {
         purchase = await matchPublicPurchase(ctx, body.contractRef, body.email)
         if (purchase?.subscriptionId != null) {
-          row = await access.subscriptions().byExternalId(purchase.subscriptionId, STRIPE_PAYGATE_ALIAS)
+          row = await access.subscriptions().byExternalId(purchase.subscriptionId, purchase.paygate)
         } else if (purchase == null) {
           const entityId = await entityByEmail(ctx, body.email)
-          row = entityId != null ? await consumerRecordsOf(ctx).entitlingStripeSubscription(entityId) : null
+          row = entityId != null ? await consumerRecordsOf(ctx).entitlingPaygateSubscription(entityId) : null
         }
       }
       const live = row != null && !TERMINAL_STATUSES.includes(row.status) && ENTITLING_STATUSES.includes(row.status)
@@ -652,7 +666,7 @@ export const makeConsumerRightsService = (
       if (body.kind === CancellationKind.Extraordinary) {
         // For cause: recorded and left to an operator — the paygate is not touched.
         status = CancellationStatus.Review
-      } else if (row != null && live && row.periodEnd != null) {
+      } else if (row != null && live && row.periodEnd != null && paygateOf(ctx, row.paygate)?.subscriptions != null) {
         effectiveAt = cancellationEffectiveAt(new Date(row.periodEnd), plan?.recurring?.interval ?? 'month',
           requested != null && !Number.isNaN(requested.getTime()) ? requested : null)
         status = row.cancelAtPeriodEnd === true && effectiveAt.getTime() === new Date(row.periodEnd).getTime()
@@ -676,7 +690,7 @@ export const makeConsumerRightsService = (
       }) as ConsumerDeclarationRecord)
       let final = status
       if (status === CancellationStatus.Scheduled && row != null) {
-        final = await cancellationOf(ctx).scheduleCancellation(await stripeOf(ctx), declaration, row)
+        final = await cancellationOf(ctx).scheduleCancellation(paygateOf(ctx, row.paygate) as Paygate, declaration, row)
           ? CancellationStatus.Scheduled : CancellationStatus.Received
       }
       if (purchase != null && effectiveAt != null) {
@@ -719,7 +733,6 @@ export const makeConsumerRightsService = (
       else manageGateway = plumbing.manage
     }
     if (plumbing.usage != null) meter = plumbing.usage
-    if (plumbing.stripe != null) stripeFactory = plumbing.stripe
   })
 
   return service
@@ -728,7 +741,7 @@ export const makeConsumerRightsService = (
 /**
  * Register the consumer-rights resources and service (each only when absent), or configure the
  * service already registered — `from` says who asks. The order of the application's call and the
- * gateway's is free: `usage` and `stripe` are installed whenever they come, and the application's
+ * gateway's is free: `usage` is installed whenever it comes, and the application's
  * explicit `manage` wins over the gateway's. The resources keep the first registration's aliases.
  */
 export const registerConsumerRights = <C extends Config, T extends Context<C>>(
@@ -743,12 +756,12 @@ export const registerConsumerRights = <C extends Config, T extends Context<C>>(
   // A lazy service: reachable before the context initializes.
   let service = ctx.hasService(alias) ? ctx.service<ConsumerRightsService>(alias) : null
   if (service == null) {
-    service = makeConsumerRightsService(alias, { ...opts, manage: undefined, usage: undefined, stripe: undefined })
+    service = makeConsumerRightsService(alias, { ...opts, manage: undefined, usage: undefined })
     ctx.registerService(service)
   }
   const plumb = plumbers.get(service)
   if (plumb != null) {
-    plumb(paymentUtils.compact({ manage: opts.manage, usage: opts.usage, stripe: opts.stripe }), from)
+    plumb(paymentUtils.compact({ manage: opts.manage, usage: opts.usage }), from)
   } else if (opts.usage != null) {
     // A service made elsewhere: only its public seam.
     service.useMeter(opts.usage)
@@ -759,7 +772,7 @@ export const registerConsumerRights = <C extends Config, T extends Context<C>>(
 
 /**
  * Register the consumer-rights resources and service, each only when absent — the gateway
- * registration does too. Called before or after the gateway, it installs `usage` and `stripe` on
+ * registration does too. Called before or after the gateway, it installs `usage` on
  * the service and its explicit `manage` wins over the gateway's; `useMeter` and `useMailRenderer`
  * work on the service at any time.
  */

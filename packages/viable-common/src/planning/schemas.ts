@@ -3,8 +3,7 @@ import { CODE_MAX, IntrinsicPolicy, IntrinsicStatus, SpecificationFormat, Workca
 import { AREA_KEY_MAX, AREA_KEY_PATTERN, ORIGIN_TENANCY_LIST_MAX, ORIGIN_TENANCY_WORD_MAX, ProjectArea, TENANCY_QUOTE_MAX } from '../areas/consts.js'
 import { TARGET_AREA_MAX } from '../topology/apps/consts.js'
 import { ViableAppsDecisionSchema } from '../topology/schemas.js'
-import { BotPlatform } from '@owlmeans/bot'
-import { BotKit, CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
+import { BOT_PLATFORM_ID_FORMAT, BOT_PLATFORMS_MAX, BotKit, CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
 import { REQUIREMENTS_VERSION, StoryKind } from '../ba/consts.js'
 import { RequirementsDocumentSchema } from '../ba/schemas.js'
 import { ConnectLlm, ConnectTarget } from '../connect/consts.js'
@@ -35,9 +34,9 @@ export const ViableProjectFieldsSchema = {
     workKind: { type: 'string', enum: [...Object.values(WorkKind), null], nullable: true },
     botPlatforms: {
       type: 'array',
-      items: { type: 'string', enum: Object.values(BotPlatform) },
+      items: { type: 'string', pattern: BOT_PLATFORM_ID_FORMAT },
       minItems: 1,
-      maxItems: Object.values(BotPlatform).length,
+      maxItems: BOT_PLATFORMS_MAX,
       uniqueItems: true,
       nullable: true,
     },

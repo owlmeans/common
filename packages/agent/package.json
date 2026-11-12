@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent",
-  "version": "0.1.22-rc.0",
+  "version": "0.2.0-alpha.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -69,24 +69,24 @@
   "devDependencies": {
     "@langchain/core": "^1.3.1",
     "@langchain/langgraph": "^1.5.3",
-    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2",
     "zod": "^4.6.7",
     "@langchain/langgraph-checkpoint": "^1.2.1",
-    "@owlmeans/test": "^0.1.22-rc.0"
+    "@owlmeans/test": "^0.2.0-alpha.0"
   },
   "dependencies": {
-    "@owlmeans/agent-common": "^0.1.22-rc.0",
-    "@owlmeans/basic-ids": "^0.1.21",
-    "@owlmeans/context": "^0.1.21",
-    "@owlmeans/error": "^0.1.21",
-    "@owlmeans/flow": "^0.1.22-rc.0",
-    "@owlmeans/llm": "^0.1.22-rc.0",
-    "@owlmeans/llm-common": "^0.1.22-rc.0",
-    "@owlmeans/log": "^0.1.21",
+    "@owlmeans/agent-common": "^0.2.0-alpha.0",
+    "@owlmeans/basic-ids": "^0.2.0-alpha.0",
+    "@owlmeans/context": "^0.2.0-alpha.0",
+    "@owlmeans/error": "^0.2.0-alpha.0",
+    "@owlmeans/flow": "^0.2.0-alpha.0",
+    "@owlmeans/llm": "^0.2.0-alpha.0",
+    "@owlmeans/llm-common": "^0.2.0-alpha.0",
+    "@owlmeans/log": "^0.2.0-alpha.0",
     "ajv": "^8.20.0"
   },
   "publishConfig": {

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { AuthenFailed } from '@owlmeans/auth'
 import { EMAIL_CAPTCHA_ACTION_PASSWORD, EMAIL_CAPTCHA_ACTION_PIN, EMAIL_WAIVER_HEADER, EmailPasswordPurpose } from '@owlmeans/auth-email'
 import { OtpThrottled } from '@owlmeans/server-auth-otp'
-import { DEVICE_A, DEVICE_B, TECH_SIGNER, failure, makeEmailAuthFixture, statusOf } from './context.js'
+import { DEVICE_A, DEVICE_B, TECH_SIGNER, TEST_CAPTCHA_PROVIDER, failure, makeEmailAuthFixture, statusOf } from './context.js'
 import type { EmailAuthFixture } from './context.js'
 
 const waiverOf = async (env: EmailAuthFixture): Promise<string> =>
@@ -12,7 +12,7 @@ describe('@owlmeans/server-auth-email — captcha', () => {
   test('send-PIN and password sign-in need a token for their own action; a refusal is a 403 AuthenFailed', async () => {
     const env = await makeEmailAuthFixture({ captcha: true, ipOf: () => '203.0.113.7' })
 
-    expect((await env.service.options(env.guest())).captcha).toEqual({ provider: 'recaptcha-v3', siteKey: 'site-key' })
+    expect((await env.service.options(env.guest())).captcha).toEqual({ provider: TEST_CAPTCHA_PROVIDER, siteKey: 'site-key' })
     for (const captcha of [undefined, 'refused', `ok:${EMAIL_CAPTCHA_ACTION_PASSWORD}`]) {
       const error = await failure(env.service.sendPin({ email: 'cap@example.org', captcha }, env.guest()))
       expect(error).toBeInstanceOf(AuthenFailed)
@@ -21,7 +21,7 @@ describe('@owlmeans/server-auth-email — captcha', () => {
     expect(env.mailer.captured).toHaveLength(0)
 
     await env.service.sendPin({ email: 'cap@example.org', captcha: `ok:${EMAIL_CAPTCHA_ACTION_PIN}` }, env.guest())
-    expect(env.asked.at(-1)).toEqual({ secret: 'secret', response: `ok:${EMAIL_CAPTCHA_ACTION_PIN}`, remoteip: '203.0.113.7' })
+    expect(env.asked.at(-1)).toEqual({ token: `ok:${EMAIL_CAPTCHA_ACTION_PIN}`, action: EMAIL_CAPTCHA_ACTION_PIN, remoteIp: '203.0.113.7' })
 
     const password = await failure(env.service.signIn({
       email: 'cap@example.org', device: DEVICE_A, password: 'some password', captcha: `ok:${EMAIL_CAPTCHA_ACTION_PIN}`,
@@ -31,6 +31,15 @@ describe('@owlmeans/server-auth-email — captcha', () => {
       email: 'cap@example.org', device: DEVICE_A, password: 'some password', captcha: `ok:${EMAIL_CAPTCHA_ACTION_PASSWORD}`,
     }, env.guest())
     expect(answer.challenge).toBeDefined()
+  })
+
+  test('fails closed: captcha settings without a registered provider stop the boot; no settings, no captcha', async () => {
+    await expect(makeEmailAuthFixture({ captcha: true, captchaProvider: false })).rejects.toThrow(`captcha:provider:${TEST_CAPTCHA_PROVIDER}`)
+
+    const off = await makeEmailAuthFixture({ captchaProvider: false })
+    expect((await off.service.options(off.guest())).captcha).toBeNull()
+    await off.service.sendPin({ email: 'off@example.org' }, off.guest())
+    expect(off.mailer.captured).toHaveLength(1)
   })
 
   test('a PIN sign-in asks no captcha', async () => {

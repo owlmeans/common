@@ -1,6 +1,6 @@
 import { CheckoutLimitExceeded, type AmountPolicyView } from '@owlmeans/payment'
-import { STRIPE_SESSION_TTL_MAX_SECONDS, STRIPE_SESSION_TTL_MIN_SECONDS } from '../consts.js'
 import type { CheckoutPlugin } from '../types.js'
+import type { PaygateFeatures } from '../paygate/types.js'
 import type { CheckoutPolicyHelper } from './checkout-policy/types.js'
 
 export const createCheckoutPolicyHelper = (): CheckoutPolicyHelper => {
@@ -15,7 +15,10 @@ export const createCheckoutPolicyHelper = (): CheckoutPolicyHelper => {
     })
   }
 
-  const sessionTtlOf = (plugins: readonly CheckoutPlugin[]): number | undefined => {
+  const sessionTtlOf = (plugins: readonly CheckoutPlugin[], bounds?: PaygateFeatures['sessionTtl']): number | undefined => {
+    if (bounds == null) {
+      return undefined
+    }
     const declared = plugins
       .map(plugin => plugin.sessionTtlSeconds)
       .filter((ttl): ttl is number => typeof ttl === 'number' && Number.isFinite(ttl))
@@ -23,9 +26,7 @@ export const createCheckoutPolicyHelper = (): CheckoutPolicyHelper => {
       return undefined
     }
 
-    return Math.min(
-      STRIPE_SESSION_TTL_MAX_SECONDS, Math.max(STRIPE_SESSION_TTL_MIN_SECONDS, Math.floor(Math.min(...declared))),
-    )
+    return Math.min(bounds.maxSeconds, Math.max(bounds.minSeconds, Math.floor(Math.min(...declared))))
   }
 
   return { assertAmountAllowed, sessionTtlOf }

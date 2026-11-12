@@ -24,6 +24,15 @@ export const REFUSAL_INVALID_ACTIONS: Readonly<Record<string, string>> = Object.
   'no-emoji': 'No emoji was given.',
 })
 
+/** The marker of a platform's API error (`bot:platform:<id>:<detail>`, `BotErrorPlatform`). */
+export const REFUSAL_PLATFORM_MARKER = 'platform'
+
+/**
+ * `bot:invalid-action:no-space:<action>` — a plugin's refusal of an action its platform takes only
+ * inside a server (`BotChatRef.space`), on a chat that is in none.
+ */
+export const REFUSAL_NO_SPACE = 'no-space'
+
 /** The leading segments of a platform error's detail that are codes, not words (`400`, `chat.delete`). */
 export const REFUSAL_CODE_SEGMENT = /^(?:\d+|[a-z]+(?:\.[A-Za-z_]+)+)$/
 

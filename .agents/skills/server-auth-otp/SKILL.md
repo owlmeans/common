@@ -7,7 +7,7 @@ metadata:
 
 # Using `@owlmeans/server-auth-otp`
 
-**Install:** `"@owlmeans/server-auth-otp": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-otp": "^0.2.0-alpha.0"` in `dependencies`
 
 Email OTP authentication plugin for the OwlMeans auth-manager plugin system. Relies on `@owlmeans/auth-otp` for the OTP service interface, a Redis resource for code storage, and a `MailerService` to send codes.
 
@@ -47,16 +47,16 @@ the contracts package, never to the implementation.
 ```ts
 import { makeOtpService, appendOtpPlugin, OTP_RESOURCE } from '@owlmeans/server-auth-otp'
 import { makeRedisResource } from '@owlmeans/redis-resource'
-import { makeDefaultConsoleMailerService, MAILER_SERVICE } from '@owlmeans/mailer'
-import { makeMailgunMailerService } from '@owlmeans/server-mailer-mailgun'
+import { appendMailerTransport, createConsoleMailerTransport } from '@owlmeans/mailer'
+import { appendSmtpMailer } from '@owlmeans/mailer-smtp'
 
 // 1. Register the Redis code-cache resource.
 context.registerResource(makeRedisResource(OTP_RESOURCE))
 
-// 2. Register a MailerService under MAILER_SERVICE (console for dev/tests, Mailgun for prod).
-context.registerService(makeDefaultConsoleMailerService())
+// 2. Give the mailer host under MAILER_SERVICE a transport (console for dev/tests, a real one for prod).
+appendMailerTransport(context, createConsoleMailerTransport())
 // or:
-context.registerService(makeMailgunMailerService(MAILER_SERVICE))
+appendSmtpMailer(context, { authenticated: true, verifyOnInit: true })
 
 // 3. Register the OTP service (reads from Redis + Mailer).
 context.registerService(makeOtpService())
@@ -169,8 +169,8 @@ names another address. Expose it only behind a developer-only, signed and allow-
 ## Related
 
 - `@owlmeans/auth-otp` — the `OtpService` interface and the shared constants
-- `@owlmeans/mailer` — `MailerService`, the console transport
-- `@owlmeans/server-mailer-mailgun` — the production Mailgun transport
+- `@owlmeans/mailer` — the mailer host (`MAILER_SERVICE`), the console transport
+- `@owlmeans/mailer-smtp` — the SMTP transport; provider HTTP transports live in OwlMeans connect
 - `server-auth` skill — the auth-manager plugin system this plugin registers into
 - `server-auth-identity` skill — how the linked profile and its organization entity are stored
 - `auth-protocol` skill — error hierarchy and identity read rules

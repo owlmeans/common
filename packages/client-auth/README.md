@@ -12,7 +12,7 @@ legacy). The server-side counterpart is `@owlmeans/server-auth`.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-auth@^0.1.22-rc.0
+bun add @owlmeans/client-auth@^0.2.0-alpha.0
 ```
 
 ## Concepts
@@ -210,7 +210,7 @@ A UI package then assigns `plugins[MY_APP_PASSKEY].Renderer`, and the renderer c
 
 ### `@owlmeans/client-auth/manager`
 
-Importing it registers `basic-ed25519`, `re-captcha` and `wallet-consumer`, plus
+Importing it registers `basic-ed25519`, `captcha` and `wallet-consumer`, plus
 `pluginMethodSource`, by side effect.
 
 | Symbol | Kind | Purpose |
@@ -243,7 +243,7 @@ The plugin-authoring surface, with no registration side effect.
 | `plugins`, `authPluginHelper`, `AuthPluginHelper` | registry | Same registry as `./manager` |
 | `pluginMethodSource` | const | The `LoginMethodSource` that offers registered plugins |
 | `createWalletFacade`, `PinSchema`, `PinForm`, `TunnelAuthenticationRenderer`, `TunnelAuthenticationRendererProps` | function, const, type | Wallet-tunnel helpers |
-| `ed25519BasicUIPlugin`, `reCaptchaPlugin`, `tunnelConsumerUIPlugin` | const | Shipped plugin objects |
+| `ed25519BasicUIPlugin`, `captchaPlugin`, `tunnelConsumerUIPlugin` | const | Shipped plugin objects |
 
 ### `@owlmeans/client-auth/login`
 
@@ -322,7 +322,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.22-rc.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

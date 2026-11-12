@@ -173,6 +173,6 @@ with its own store reads the view through the pure selectors rather than polling
 ## Related
 
 - [[payment]] — the contracts in detail: grammars, window algebra, schemas
-- [[server-payment]] — the Stripe lifecycle, the subscription store, the ledger and gates
+- [[server-payment]] — the paygate host, the subscription store, the ledger and gates
 - [[web-payment]] — the hooks and pieces
 - [[error]] — marshalling and the error registry

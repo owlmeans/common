@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react'
 import type { EmailLoginState } from '../state/types.js'
 import type { EmailRefusal } from '../refusal/types.js'
 import type { EmailPasswordStatusView } from '@owlmeans/auth-email'
+import type { CaptchaClient } from '@owlmeans/web-captcha'
 import type { EmailPanelPurpose, EmailPasswordAction } from '../password/types.js'
 
 export interface UseEmailLoginOptions {
@@ -27,8 +28,14 @@ export interface EmailLoginOtherOptions {
  */
 export interface EmailLoginModel {
   state: EmailLoginState
-  /** The deployment asked for a captcha — show Google's notice. */
+  /** The deployment asked for a captcha — show its client's notice (`captchaClient`). */
   captcha: boolean
+  /**
+   * The registered client of the captcha provider the deployment advertised (`captchaClients`),
+   * or `null` — without one a captcha the server asks for cannot be solved, and send-PIN and
+   * password sign-in are refused as `captcha-unavailable`.
+   */
+  captchaClient: CaptchaClient | null
   /** Password sign-in is offered — show "Already set a password? Use it". */
   passwordOffered: boolean
   pinLength: number

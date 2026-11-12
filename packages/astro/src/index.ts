@@ -3,10 +3,9 @@ import type { HeadScripts, HeadScriptsOptions } from './types.js'
 
 export * from './helper.js'
 
-export type { GoogleTagOptions, GtmOptions } from '@owlmeans/web-gtm'
 export type { ConsentOptions, ConsentCategory } from '@owlmeans/consent'
 
-export type { AstroHelper, HeadScripts, HeadScriptsOptions } from './types.js'
+export type { AstroHelper, HeadScripts, HeadScriptsOptions, HeadTag } from './types.js'
 
 /** @deprecated compat:factory-refactor — use `astroHelper.owlHeadScripts(…)` */
 export const owlHeadScripts = (opts?: HeadScriptsOptions): HeadScripts => astroHelper.owlHeadScripts(opts)

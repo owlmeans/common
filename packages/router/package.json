@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/router",
-  "version": "0.1.22-rc.0",
+  "version": "0.2.0-alpha.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,13 +32,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.21"
+    "@owlmeans/context": "^0.2.0-alpha.0"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",

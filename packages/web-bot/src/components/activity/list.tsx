@@ -1,4 +1,4 @@
-import type { FC } from 'react'
+import { useMemo, type FC } from 'react'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import { BotTransport } from '@owlmeans/bot'
 import { Badge } from '../../@/components/ui/badge.js'
@@ -9,9 +9,11 @@ import { PlatformIcon } from '../shared/platform-icon.js'
 import type { ActivityListProps } from './types.js'
 
 /** What the bot did, one row per action: when, what, to whom, about which message, and whether it worked. */
-export const ActivityList: FC<ActivityListProps> = ({ items, refLabel, connections }) => {
+export const ActivityList: FC<ActivityListProps> = ({ items, refLabel, connections, descriptors }) => {
   const t = useI18nLib(BOT_I18N)
   const [lng] = useLanguage()
+  const platforms = useMemo(() => descriptors.map(descriptor => descriptor.platform), [descriptors])
+  const glyphs = useMemo(() => new Map(descriptors.map(descriptor => [descriptor.platform, descriptor.glyph])), [descriptors])
 
   return <ul className="divide-y rounded-xl border">
     {items.map(activity => {
@@ -36,7 +38,7 @@ export const ActivityList: FC<ActivityListProps> = ({ items, refLabel, connectio
             {botViewHelper.formatMoment(activity.at, lng) ?? activity.at}
           </time>
           <Badge variant="outline" className="rounded-full">
-            <PlatformIcon platform={activity.platform} />
+            <PlatformIcon platform={activity.platform} glyph={glyphs.get(activity.platform)} />
             {t(`action.${activity.action}`)}
           </Badge>
           <Badge variant={activity.ok ? 'secondary' : 'destructive'} className="rounded-full" data-bot-result>
@@ -57,7 +59,7 @@ export const ActivityList: FC<ActivityListProps> = ({ items, refLabel, connectio
         </p>}
         {target.length > 0 && <p className="text-muted-foreground font-mono text-xs break-all">{target.join(' · ')}</p>}
         {/* Translated from the machine `code`; a row recorded before it carried one has the marker in `error`. */}
-        {!activity.ok && <BotErrorNote error={activity.code ?? activity.error ?? ''} />}
+        {!activity.ok && <BotErrorNote error={activity.code ?? activity.error ?? ''} platforms={platforms} />}
       </li>
     })}
   </ul>

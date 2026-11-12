@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/upload
 
 **Layer:** Core
-**Install:** `"@owlmeans/upload": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/upload": "^0.2.0-alpha.0"` in `dependencies`
 
 The contract half of the upload family: what a session accepts, what a received file became, the
 rules a path and a list of files are held to, and the protocol tree. Browser-safe (no Node imports;

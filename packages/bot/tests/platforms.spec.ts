@@ -1,60 +1,54 @@
 import { describe, expect, test } from 'bun:test'
-import { BOT_PLATFORMS, BotActionKind, BotPlatform, BotReceiveMode, botPlatformHelper } from '../src/index.js'
+import {
+  BOT_PLATFORM_ID_PATTERN, BotActionKind, BotReceiveMode, botPlatformHelper, type BotPlatformDescriptor,
+} from '../src/index.js'
 
-const ACTIONS = new Set<string>(Object.values(BotActionKind))
-const keysOf = (platform: BotPlatform, pick: (field: { required: boolean, generated?: boolean }) => boolean) =>
-  BOT_PLATFORMS[platform].credentials.filter(pick).map(field => field.key)
-
-describe('BOT_PLATFORMS', () => {
-  test('describes every platform once, its actions all BotActionKinds and never note', () => {
-    expect(Object.keys(BOT_PLATFORMS).sort()).toEqual(Object.values(BotPlatform).sort())
-    for (const platform of Object.values(BotPlatform)) {
-      const descriptor = BOT_PLATFORMS[platform]
-      expect(descriptor.platform).toBe(platform)
-      expect(descriptor.actions.every(action => ACTIONS.has(action))).toBe(true)
-      expect(descriptor.actions).not.toContain(BotActionKind.Note)
-      expect(descriptor.credentials.flatMap(field => field.enables ?? []).every(action => ACTIONS.has(action))).toBe(true)
-      expect(descriptor.receive.length).toBeGreaterThan(0)
-      expect(descriptor.docs.startsWith('https://')).toBe(true)
-    }
-  })
-
-  test('names the credentials each platform requires', () => {
-    expect(keysOf(BotPlatform.Telegram, field => field.required)).toEqual(['token'])
-    expect(keysOf(BotPlatform.WhatsApp, field => field.required)).toEqual(['accessToken', 'phoneNumberId', 'appSecret', 'verifyToken'])
-    expect(keysOf(BotPlatform.WhatsApp, field => field.generated === true)).toEqual(['verifyToken'])
-    expect(keysOf(BotPlatform.Discord, field => field.required)).toEqual(['token', 'applicationId'])
-    expect(keysOf(BotPlatform.Slack, field => field.required)).toEqual(['botToken', 'signingSecret'])
-    expect(keysOf(BotPlatform.Slack, field => !field.required)).toEqual(['userToken'])
-  })
-
-  test('receives as the contract says and is frozen', () => {
-    expect(BOT_PLATFORMS[BotPlatform.Telegram].receive).toEqual([BotReceiveMode.Webhook, BotReceiveMode.Poll])
-    expect(BOT_PLATFORMS[BotPlatform.WhatsApp].receive).toEqual([BotReceiveMode.Webhook])
-    expect(BOT_PLATFORMS[BotPlatform.Discord].receive).toEqual([BotReceiveMode.Gateway])
-    expect(BOT_PLATFORMS[BotPlatform.Slack].receive).toEqual([BotReceiveMode.Webhook])
-    expect(Object.isFrozen(BOT_PLATFORMS) && Object.isFrozen(BOT_PLATFORMS[BotPlatform.Slack].credentials)).toBe(true)
-  })
+/** A descriptor as a platform plugin declares it — the contract holds no platform of its own. */
+const descriptor: BotPlatformDescriptor = Object.freeze({
+  platform: 'acme-chat',
+  title: 'Acme Chat',
+  glyph: 'chat',
+  credentials: [
+    { key: 'botToken', secret: true, required: true, label: { en: 'Bot token' } },
+    { key: 'adminToken', secret: true, required: false, enables: [BotActionKind.Delete], label: { en: 'Admin token' } },
+  ],
+  receive: [BotReceiveMode.Webhook],
+  actions: [BotActionKind.Reply, BotActionKind.Send, BotActionKind.React],
+  setup: 'manual',
+  docs: 'https://example.com/docs',
+  hint: { en: 'Paste the address into the console.' },
 })
 
 describe('botPlatformHelper', () => {
-  test('WhatsApp cannot delete, mute or ban; Telegram and Discord moderate fully; note is always supported', () => {
-    for (const kind of [BotActionKind.Delete, BotActionKind.Mute, BotActionKind.Ban]) {
-      expect(botPlatformHelper.supports(BotPlatform.WhatsApp, kind)).toBe(false)
-      expect(botPlatformHelper.supports(BotPlatform.Telegram, kind)).toBe(true)
-      expect(botPlatformHelper.supports(BotPlatform.Discord, kind)).toBe(true)
-    }
-    for (const platform of Object.values(BotPlatform)) {
-      expect(botPlatformHelper.supports(platform, BotActionKind.Note)).toBe(true)
-      expect(botPlatformHelper.supports(platform, BotActionKind.Reply)).toBe(true)
-    }
+  test('answers the descriptor actions plus note, which every connection supports', () => {
+    expect(botPlatformHelper.actionsOf(descriptor).sort())
+      .toEqual([BotActionKind.Note, BotActionKind.React, BotActionKind.Reply, BotActionKind.Send].sort())
+    expect(botPlatformHelper.supports(descriptor, BotActionKind.Note)).toBe(true)
+    expect(botPlatformHelper.supports(descriptor, BotActionKind.Mute)).toBe(false)
+    expect(botPlatformHelper.supports(descriptor, BotActionKind.Ban)).toBe(false)
   })
 
-  test('Slack deletes only with the admin userToken set', () => {
-    expect(botPlatformHelper.supports(BotPlatform.Slack, BotActionKind.Delete, ['botToken', 'signingSecret'])).toBe(false)
-    expect(botPlatformHelper.supports(BotPlatform.Slack, BotActionKind.Delete, ['botToken', 'signingSecret', 'userToken'])).toBe(true)
-    expect(botPlatformHelper.actionsOf(BotPlatform.Slack, ['userToken']).sort())
-      .toEqual([BotActionKind.Reply, BotActionKind.Send, BotActionKind.React, BotActionKind.Delete, BotActionKind.Note].sort())
-    expect(botPlatformHelper.supports(BotPlatform.Slack, BotActionKind.Mute, ['userToken'])).toBe(false)
+  test('an optional credential adds what it enables only when set', () => {
+    expect(botPlatformHelper.supports(descriptor, BotActionKind.Delete, ['botToken'])).toBe(false)
+    expect(botPlatformHelper.supports(descriptor, BotActionKind.Delete, ['botToken', 'adminToken'])).toBe(true)
+    expect(botPlatformHelper.supports(descriptor, BotActionKind.Mute, ['adminToken'])).toBe(false)
+  })
+
+  test('a platform with no descriptor (no plugin registered) supports note alone', () => {
+    expect(botPlatformHelper.actionsOf(null)).toEqual([BotActionKind.Note])
+    expect(botPlatformHelper.supports(undefined, BotActionKind.Reply)).toBe(false)
+  })
+})
+
+describe('platform ids', () => {
+  test('are lower-case path segments, a letter first', () => {
+    const pattern = new RegExp(BOT_PLATFORM_ID_PATTERN)
+
+    for (const id of ['acme', 'acme-chat', 'chat2']) {
+      expect([id, pattern.test(id)]).toEqual([id, true])
+    }
+    for (const id of ['', 'Acme', '2chat', 'acme_chat', 'acme/chat', 'a'.repeat(33)]) {
+      expect([id, pattern.test(id)]).toEqual([id, false])
+    }
   })
 })

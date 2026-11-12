@@ -12,11 +12,11 @@ import type { BotErrorNoteProps } from './types.js'
  * the server added — or, for a platform's refusal, one sentence with the platform's words in it. A
  * connection's `lastError` that carries no marker is the platform's own words and is shown as they are.
  */
-export const BotErrorNote: FC<BotErrorNoteProps> = ({ error, variant = 'inline', className }) => {
+export const BotErrorNote: FC<BotErrorNoteProps> = ({ error, variant = 'inline', platforms, className }) => {
   const t = useI18nLib(BOT_I18N, 'errors')
   if (error == null || error === '') return null
 
-  const found = botErrorHelper.keyOf(error)
+  const found = botErrorHelper.keyOf(error, platforms)
   const detail = botErrorHelper.detailOf(error)
   // A sentence that carries the detail ("The platform refused: …") needs one; without it the family's own stands.
   const inline = botErrorHelper.inlinesDetail(found) && detail != null

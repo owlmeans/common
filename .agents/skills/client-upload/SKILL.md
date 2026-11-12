@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-upload
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-upload": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/client-upload": "^0.2.0-alpha.0"` in `dependencies`
 
 Client half of the upload family (contract `/upload`, server `/server-upload`). The main entry is
 browser-safe; `@owlmeans/client-upload/node` reads the local disk (Node, Bun).

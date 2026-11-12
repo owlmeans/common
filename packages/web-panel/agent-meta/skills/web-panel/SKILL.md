@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.2.0-alpha.1"` in `dependencies`
 
 ## Choosing a component
 
@@ -82,7 +82,12 @@ repeated here, and the rows of `ThemeToggle`, `SocketReloadDialog`, `LoginScreen
 
 ## Subpath Exports
 
-- `./auth` — auth panel components for web
+- `./auth` — auth panel components for web; importing it assigns the renderers of
+  `basic-ed25519`, `captcha` and `wallet-consumer`. The captcha renderer is provider-neutral: it
+  renders the `widget` of the page's only registered captcha client (`captchaClients` of
+  `@owlmeans/web-captcha`) with the site key of the client config record the client names
+  (`siteKeyRecord`), and nothing without one — register a client with a widget, e.g.
+  `appendRecaptchaClient({ widget: RecaptchaCheckbox })` from `@owlmeans/web-captcha-recaptcha`
 - `./auth/entrypoints` — auth panel entrypoint declarations
 - `./consent` — the cookie consent dialog and policy, bound to this app's i18n, plus a menu-row
   widget and a presence service so a host's own collapsed menu can take over the floating button's
@@ -118,7 +123,8 @@ entrypoint binds to exactly the one context it was appended to.
 
 `Link` renders an `<a>` whose `href` is the entrypoint's own answer: it asks
 `entrypoint.url()` and puts the result on the anchor, so a link into another service comes out
-absolute and a link inside this one comes out as a path. Address a screen by **alias** (or hand it
+absolute and a link inside this one comes out as a path — joined onto the application's base
+(`useHref()`, `@owlmeans/client`: `/admin/users` under `/admin`, the declared path at the root). Address a screen by **alias** (or hand it
 the entrypoint you already hold); `src` is the escape hatch for a literal URL.
 
 ```tsx

@@ -1,4 +1,4 @@
-import { BOT_PLATFORMS, BotConnectionNotFound, BotTransport, type BotConnection } from '@owlmeans/bot'
+import { BotConnectionNotFound, BotTransport, type BotConnection } from '@owlmeans/bot'
 import { botCryptoHelper } from '../helpers/crypto.js'
 import type { BotSealer } from '../helpers/crypto/types.js'
 import { BotSecretMissing } from '../errors.js'
@@ -27,7 +27,7 @@ export const makeBotSessions = (parts: BotServiceParts): BotSessions => {
   }
 
   const generatedOf = (record: BotConnectionRecord): string[] =>
-    (BOT_PLATFORMS[record.platform]?.credentials ?? []).filter(field => field.generated === true).map(field => field.key)
+    (registry.descriptor(record.platform)?.credentials ?? []).filter(field => field.generated === true).map(field => field.key)
 
   const view = (record: BotConnectionRecord, lastEventAt?: string): BotConnection => {
     const identity = record.identity != null

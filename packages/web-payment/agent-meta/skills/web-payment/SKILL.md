@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/web-payment
 
-**Install:** `bun add @owlmeans/web-payment@^0.1.22-rc.0`
+**Install:** `bun add @owlmeans/web-payment@^0.2.0-alpha.0`
 
 Public MIT web package paired with `@owlmeans/server-payment`. It incorporates checkout, balance,
 entitlement and shallow-auth helpers over the underlying `@owlmeans/client-payment` service, plus
@@ -93,7 +93,8 @@ overflow-y-auto`, like the consent dialogs): the tier `details`, the estimate an
 outgrow a short screen, and the confirm button must stay reachable — never render it outside.
 
 It shows net credit value, processing adjustment and pre-tax subtotal from `checkoutPricingHelper.chargeAmountMinor`.
-With no `estimate`, the plain note that Stripe calculates applicable tax; with one, `PriceEstimateSummary`
+With no `estimate`, the plain note that any applicable tax is calculated at checkout (`tax-note`);
+the confirm button says "Continue to checkout" (`continue`); with one, `PriceEstimateSummary`
 renders instead (see below) against the SAME `chargeMinor`, so the country picker and its numbers
 track whatever the buyer has typed. The policy maximum bounds net credit, not the adjusted or
 tax-inclusive debit.
@@ -170,7 +171,7 @@ const team = usePriceEstimate(entry, { enabled, country, onCountryChange: setCou
   - When the estimate carries `local` (Adaptive Pricing found the country's currency), the tax and
     total show ONLY in that currency, each marked `≈` — never both currencies at once, which would
     read as two different prices for the same line. A short note explains the amount is converted
-    at Stripe's current rate and confirmed at checkout; the rate already carries the conversion fee
+    at the current exchange rate and confirmed at checkout (`converted-note`); the rate already carries the conversion fee
     the pricing policy declares (`currency.adaptiveFeeRate`), the component only divides by `exchangeRate`. With no `local`, the amounts show in
     `currency` (the integration currency) with no `≈` and no note.
 - **`PriceEstimateSummary`** is `CountrySelect` bound to the control's own `country`/
@@ -327,6 +328,6 @@ and drives chromium through the Vite harness, which picks a surface by `?case=` 
 `cancellation`, `limit` (`&blocked=true`), `country-locked`, `consent-gate`), with `?lng=` the
 contract language and `?ui=` the interface language, and for the dialog an `?estimate=<name>`
 canned `PriceEstimateControl` fixture (`tests/harness/estimate-fixtures.ts`,
-`tests/harness/consumer-fixtures.ts` — no server, no Stripe). The harness pre-bundles every runtime
+`tests/harness/consumer-fixtures.ts` — no server, no paygate). The harness pre-bundles every runtime
 dependency in `optimizeDeps.include` (`@radix-ui/react-checkbox` included); one discovered
 mid-navigation loads a second React and the page throws "Invalid hook call".

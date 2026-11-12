@@ -12,7 +12,7 @@ Web whitelabel — service factory, local protocol bindings, and React component
 ## Installation
 
 ```bash
-bun add @owlmeans/web-wl@^0.1.22-rc.0
+bun add @owlmeans/web-wl@^0.2.0-alpha.0
 ```
 
 ## Usage
@@ -61,7 +61,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.22-rc.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

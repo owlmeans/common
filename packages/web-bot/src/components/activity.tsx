@@ -11,6 +11,7 @@ import {
 import { BOT_ACTIVITY_LIMITS, BOT_ACTIVITY_REFRESH_MS, BOT_I18N } from '../consts.js'
 import { useBotActivity } from '../hooks/use-bot-activity.js'
 import { useBotConnections } from '../hooks/use-bot-connections.js'
+import { useBotPlatforms } from '../hooks/use-bot-platforms.js'
 import type { BotActivityPanelProps } from '../types.js'
 import { cn } from '../utils.js'
 import { ActivityList } from './activity/list.js'
@@ -29,6 +30,7 @@ export const BotActivityPanel: FC<BotActivityPanelProps> = ({ surface, connectio
     connection, limit, refreshMs: BOT_ACTIVITY_REFRESH_MS,
   })
   const { items: connections } = useBotConnections(surface)
+  const { items: descriptors } = useBotPlatforms(surface)
 
   const labels = useMemo(() => connection == null || connection === ''
     ? new Map(connections.map(entry => [entry.id, entry.label]))
@@ -67,7 +69,7 @@ export const BotActivityPanel: FC<BotActivityPanelProps> = ({ surface, connectio
         </div>
         : items.length === 0
           ? <p className="text-muted-foreground py-8 text-center text-sm" data-bot-empty>{t('activity.empty')}</p>
-          : <ActivityList items={items} refLabel={refLabel} connections={labels} />}
+          : <ActivityList items={items} refLabel={refLabel} connections={labels} descriptors={descriptors} />}
     </CardContent>
   </Card>
 }

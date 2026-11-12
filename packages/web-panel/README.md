@@ -11,7 +11,7 @@ but never started.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-panel@^0.1.22-rc.0
+bun add @owlmeans/web-panel@^0.2.0-alpha.1
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
@@ -419,7 +419,7 @@ relying party.
 | `AppConfig`, `AppContext` | type | With `flow()` |
 | `render` | function | Same as the root `render` |
 | `plugins` | registry | `@owlmeans/client-auth/manager`'s registry with the shadcn renderers assigned |
-| `Ed22519BasicAuthUIPlugin`, `ReCaptchaAuthUIPlugin`, `TunnelConsumerUIPlugin` | component | Those renderers |
+| `Ed22519BasicAuthUIPlugin`, `CaptchaAuthUIPlugin`, `TunnelConsumerUIPlugin` | component | Those renderers; the captcha one renders the registered captcha client's `widget` (`@owlmeans/web-captcha`), nothing without one |
 | `AuthenticationHOC`, `AuthenticationType`, `DISPATCHER`, `CAUTHEN`, `EntrypointOutcome`, `RouteMethod`, `FLOW_ALIAS`, type `Navigator` / `AbstractRequest` / `Request` / `ServiceRoute` / `FlowService`, and the `@owlmeans/client-panel/auth` exports | re-export | Authentication-manager vocabulary |
 
 `@owlmeans/web-panel/auth/entrypoints` exports `entrypoints`: `@owlmeans/client-auth/manager`'s
@@ -455,7 +455,7 @@ consumer's CSS puts dark tokens under `.dark` AND under
 | `useConsentMenuPresence()`, `useConsentWidgetPresent()` | hook | Declare that a menu shows the row; read whether one does (hides the floating button) |
 | `CONSENT_WIDGET_SERVICE`, `CONSENT_WIDGET_STATE` | const | Service alias and state alias |
 | `ConsentWidgetPresenceRecord`, `ConsentWidgetService`, `ConsentWidgetServiceAppend` | type | Service types |
-| `useConsent`, `useConsentCategory`, `consentStore`, `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `consentBootstrapScript`, `DEFAULT_CONSENT_CATEGORIES`, `CONSENT_KEY`, `CONSENT_ESSENTIAL`, `CONSENT_ANALYTICS`, `CONSENT_MARKETING` and the consent types | re-export | `@owlmeans/web-consent` |
+| `useConsent`, `useConsentCategory`, `consentStore`, `consentTrackingHelper`, `consentSignalHelper`, `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `consentBootstrapScript` (deprecated), `DEFAULT_CONSENT_CATEGORIES`, `CONSENT_KEY`, `CONSENT_ESSENTIAL`, `CONSENT_ANALYTICS`, `CONSENT_MARKETING`, `CONSENT_EVENT`, `CONSENT_REQUIRED_COUNTRIES` and the consent types (`ConsentSignalProvider` among them) | re-export | `@owlmeans/web-consent` |
 
 ### `@owlmeans/web-panel/picker`
 
@@ -580,7 +580,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.22-rc.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.1
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

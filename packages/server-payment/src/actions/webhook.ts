@@ -1,17 +1,21 @@
 import { PaygateError, UnknownPaygate } from '@owlmeans/payment'
 import { handlers } from '@owlmeans/server-api'
-import { STRIPE_PAYGATE_ALIAS } from '../consts.js'
 import type { Context } from '../types.js'
 import { paymentAccessOf } from '../access.js'
 import { paymentGate } from '../protocol.js'
+import { paygatesOf } from '../paygate/registry.js'
 import { webhookOf } from '../plugins/webhook-manager.js'
 
 const bind = handlers<Context>()
 
-/** A Stripe delivery — only a managed gateway receives one; its secret is the `owner`'s stored one. */
+/**
+ * A paygate delivery: the paygate named in the path must be registered (`UnknownPaygate`), and only a
+ * managed gateway receives one; the paygate verifies it against the `owner`'s secrets.
+ */
 export const webhook = bind.params(paymentGate.webhook, async ({ paygate }, context, request) => {
-  if (paygate !== STRIPE_PAYGATE_ALIAS) throw new UnknownPaygate(paygate)
+  const target = paygatesOf(context).find(paygate)
+  if (target == null) throw new UnknownPaygate(paygate)
   const service = paymentAccessOf(context).gateway()
   if (!service.managed) throw new PaygateError('unmanaged')
-  await webhookOf(context).handleStripeWebhook(await service.stripe(context), request)
+  await webhookOf(context).handleDelivery(target, request)
 })

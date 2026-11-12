@@ -8,7 +8,7 @@ menu entry or a floating button. Every dialog open is reported once as an analyt
 ## Installation
 
 ```bash
-bun add @owlmeans/web-inquiry@^0.1.21 @owlmeans/common-inquiry@^0.1.21
+bun add @owlmeans/web-inquiry@^0.2.0-alpha.1 @owlmeans/common-inquiry@^0.2.0-alpha.1
 ```
 
 ## Usage
@@ -48,12 +48,13 @@ logger('inquiry').info('Inquiry dialog opened',
   { analytics: 'inquiry_dialog_open', console: false })
 ```
 
-The event reaches a tag manager when the host registers the consent-gated plugin of
-`@owlmeans/web-log` — without analytics consent it is dropped:
+The event reaches an analytics system when the host registers a consent-gated plugin — a sink over
+`@owlmeans/web-log`'s `consentedAnalyticsPlugin`, such as the tag-manager sink of connect's
+`@owlmeans/web-gtm` — and without analytics consent it is dropped:
 
 ```ts
 import { addLogPlugin } from '@owlmeans/log'
-import { gtmAnalyticsPlugin } from '@owlmeans/web-log'
+import { gtmAnalyticsPlugin } from '@owlmeans/web-gtm'
 import { INQUIRY_OPEN_EVENT } from '@owlmeans/web-inquiry'
 
 addLogPlugin(gtmAnalyticsPlugin({ allow: [INQUIRY_OPEN_EVENT] }))
@@ -66,7 +67,8 @@ In the tag manager, a Custom Event trigger on `inquiry_dialog_open` forwards it 
 ## Related
 
 - [`@owlmeans/common-inquiry`](../common-inquiry): the runtime contract, config, limits and schemas
-- [`@owlmeans/web-log`](../web-log): the consent-gated analytics plugins
+- [`@owlmeans/web-log`](../web-log): the consent gate analytics plugins are built on
+- [`@owlmeans/web-gtm`](https://github.com/owlmeans/connect/tree/main/packages/web-gtm) (OwlMeans connect): the tag-manager sink
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -76,7 +78,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.22-rc.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.1
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

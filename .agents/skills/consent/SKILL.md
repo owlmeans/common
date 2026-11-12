@@ -1,6 +1,6 @@
 ---
 name: consent
-description: How to use @owlmeans/consent and @owlmeans/web-consent — the cookie-consent model, its categories and global-variable seam, the storage contract and its migration, the geo gate that asks only in consent-requiring countries (locator plugins, Cloudflare mode, automatic decisions), Consent Mode v2 signalling, and the ordering rule that makes a tag manager honour any of it. Auto-invoked when touching consent categories, the bar or dialog, the geo gate, the cookie policy page, or a tag-manager snippet.
+description: How to use @owlmeans/consent and @owlmeans/web-consent — the provider-agnostic cookie-consent model, its categories (the tracking flag, the global-variable seam), the storage contract and its migration, the signal-provider host a tag vendor's package registers into, the geo gate that asks only in consent-requiring countries (locator plugins, Cloudflare mode, automatic decisions), the inline head scripts and loader gate, and the ordering rule that makes a tag honour any of it. Auto-invoked when touching consent categories, the bar or dialog, a signal provider, the geo gate, the cookie policy page, or a tag snippet.
 user-invocable: false
 metadata:
   scope: general
@@ -8,14 +8,14 @@ metadata:
 
 # Cookie consent
 
-Three packages, split so the one an island loads stays small and the one that knows about Google is
-optional:
+The packages are split so the one an island loads stays small and names no tag vendor; a vendor's
+signals live in the vendor's own package:
 
 | Package | Layer | Holds |
 |---|---|---|
-| `@owlmeans/consent` | Core, **zero runtime dependencies** | categories, storage, the observable store, the geo gate (`consentGeoHelper`, the country lists), the Consent Mode surface, the built-in copy |
+| `@owlmeans/consent` | Core, **zero runtime dependencies**, provider-agnostic | categories, storage, the observable store, the signal-provider host (`consentSignalHelper`), the tracking gate and inline head scripts (`consentTrackingHelper`), the geo gate (`consentGeoHelper`, the country lists), the built-in copy |
 | `@owlmeans/web-consent` | Web (React) | the bar, the preferences window, the locating spinner, the re-open button, `CookiePolicy`, `useConsent` |
-| `@owlmeans/web-gtm` | Web | the Google tag head snippet (container or gtag.js), its CSP hosts and its cookie-policy disclosure |
+| `@owlmeans/web-gtm` (OwlMeans connect) | Web | Google Consent Mode as a signal provider (`appendGoogleConsentMode`), the Google tag head snippet (container or gtag.js) with its Consent Mode bootstrap, the head tag an Astro layout stamps, the tag-manager analytics sink, its CSP hosts and its cookie-policy disclosure — provider-specific, so it lives in connect and common never depends on it (`/web-gtm`) |
 | `@owlmeans/web-panel/consent` | subpath | the same components, bound to OwlMeans i18n and language, plus a menu-row widget and a ref-counted presence service so a host's own collapsed menu can take over the floating button's job |
 
 `CONSENT_LOCALES` may include an application-specific locale beyond `SUPPORTED_LNGS` when the core
@@ -70,16 +70,19 @@ interface ConsentCategory {
   required?: boolean       // always granted; rendered locked and labelled Required
   labelKey: string
   descriptionKey: string
-  globalVar?: string       // window[globalVar] = granted, written BEFORE the dataLayer push
-  signals?: ConsentSignal[]// Consent Mode v2 signals this category drives
-  event?: string           // dataLayer event pushed when it flips to granted
+  globalVar?: string       // window[globalVar] = granted, written BEFORE any signal provider runs
+  tracking?: boolean       // granting it releases a consent-gated loader (true on analytics, marketing)
 }
 ```
 
-The default set is `essential` (required), `analytics`, `marketing` — what owlmeans.com already
-asked, plus the essential row the original widget left implicit (what lets a flow require an
-acknowledgement before it sets a session cookie, and tells a visitor what is stored regardless: the
-consent record itself and the interface language the visitor picked).
+The default set is `essential` (required), `analytics`, `marketing` (both `tracking: true`) — what
+owlmeans.com already asked, plus the essential row the original widget left implicit (what lets a
+flow require an acknowledgement before it sets a session cookie, and tells a visitor what is stored
+regardless: the consent record itself and the interface language the visitor picked).
+
+A category carries no vendor data. How categories map onto a vendor's signals (Consent Mode's
+`analytics_storage`, a pixel's switch) is the vendor provider's own map, with overrides in that
+provider's options — keyed by category key, so a custom category is mapped there, not here.
 
 **The interface language is strictly necessary storage, and no category governs it.** The visitor
 asked for it by choosing it, and the site cannot speak to them without it, so it is written to
@@ -90,17 +93,14 @@ offering a choice that changes nothing. Records saved while a `functional` key e
 unread extra key. A preference the visitor did NOT set by an action of their own is a different
 matter: it would need a category of its own and a consent, exactly as before.
 
-`globalVar` is the seam for anything that cannot subscribe: a GTM custom-HTML tag reading a flag, a
-hand-placed pixel, a script that runs once. Globals are written **before** the signal update, so a
-tag firing on that update reads them in the same turn. A category's `event` is pushed **after** the
-update, and only while the category is granted.
+`globalVar` is the seam for anything that cannot subscribe: a tag manager's custom-HTML tag reading
+a flag, a hand-placed pixel, a script that runs once. Globals are written **before** any signal
+provider applies a decision, so a tag firing on a provider's update reads them in the same turn.
 
-`CONSENT_SIGNAL_DEFAULTS` is the pre-decision value of every Consent Mode v2 signal: `denied` for
-all of them except `security_storage`, which is `granted` on Google's own documented
-recommendation because it covers strictly-necessary uses such as fraud prevention. `consentModeHelper.consentDefaults`
-declares only the signals some configured category actually names, so a site that drops the
-marketing category does not announce ad signals it never uses. A signal claimed by two categories is granted only when **every**
-one of them is.
+`tracking` is what the loader gate reads (`consentTrackingHelper.trackingGranted`,
+`consentGateScript`): an optional category marked `tracking: true` and granted releases a gated
+loader. A required category never counts, whatever it says. A custom category that should release a
+gated tag needs the flag.
 
 > **A required category is disclosure, not a question.** Strictly-necessary storage does not need
 > consent under ePrivacy, and a dialog that presents it as a choice is itself a dark pattern. Never
@@ -185,69 +185,100 @@ interface ConsentGeoPlugin extends ConsentPlugin {
   (`CONSENT_STATE_ATTRIBUTE`) — what a test waits on and a stylesheet may key on; it is absent until
   the store first runs.
 - **Pass the same `geo` everywhere `init` runs.** Options accumulate, and a later `init` that brings
-  `geo` takes the store from its own first ask back to locating — but `loadGtm` given no `geo` before
-  the dialog mounts is the case that needs it. A window open for a reason of its own (`login`) is
+  `geo` takes the store from its own first ask back to locating — but a tag loader that starts the
+  store given no `geo` before the dialog mounts is the case that needs it. A window open for a reason of its own (`login`) is
   never decided over; a `save` during a lookup wins over its result.
+
+## Signal providers (`consentSignalHelper`)
+
+This package names no tag vendor. What a vendor's tags read — Consent Mode commands on a queue, a
+pixel's own switch — is a `ConsentSignalProvider`, shipped by the vendor's package and registered
+explicitly (`login-methods`' rule: never a side effect of an import):
+
+```typescript
+interface ConsentSignalProvider {
+  id: string                                         // register replaces by id
+  defaults: (opts: ConsentOptions) => void           // the pre-decision state, before anything is read
+  apply: (record: ConsentRecord, opts: ConsentOptions) => void   // every decision
+  bootstrapScript?: (opts?: ConsentOptions) => string            // its inline <head> script
+}
+```
+
+- **The host** — `consentSignalHelper`: `register`, `unregister`, `get`, `list` (registration order),
+  `clear` (tests), and the two moments the store drives: `defaults(opts)` (every provider's, from
+  `consentStore.init` before storage is read) and `apply(record, opts)`. Module-global, like the
+  plugin registry: consent is one thing per document.
+- **`apply` order is load-bearing**: the category globals first, then every provider's `apply`, then
+  `CONSENT_EVENT`. A tag firing on a provider's update reads the globals in the same turn; a gate
+  that hears the event loads its tag only after every provider has spoken.
+- **No provider** — the store still stores, asks, decides, writes the globals and dispatches the
+  event; it simply signals nothing. A provider that throws never stops the others or the event.
+- **`silent: true`** — no globals, no provider, no event (tests, an app that runs no tags).
+- **Idempotence is the provider's.** `init` calls `defaults` on every init; a provider that must
+  declare once per document (Consent Mode: a second `default` after a tag loaded can WIDEN what was
+  narrowed) keeps a window flag, shared with its own head bootstrap.
+- **Register once, where the store runs** — a web app's context, a site's consent island, a
+  generated target's `owlmeans.ts` — with the same options its head bootstrap was built with.
+  Google Consent Mode is connect's `@owlmeans/web-gtm`: `appendGoogleConsentMode(opts?)`.
 
 ## The ordering rule
 
-**`consent/default` must be pushed by an inline script ABOVE the tag-manager snippet.** Consent
-Mode decides what a tag may do from the state present when the container loads, and a React bundle
-cannot get there first: by the time an island mounts, the container has been running for hundreds of
+**A tag's defaults, and a stored decision, must come from an inline script ABOVE the tag's loader.**
+A tag decides what it may do from the state present when it loads, and a React bundle cannot get
+there first: by the time an island mounts, a container has been running for hundreds of
 milliseconds and has already decided.
 
-`consentModeHelper.consentBootstrapScript()` is that script — it declares the defaults AND reads the stored record, so
-a returning visitor's tags are not denied for the first paint of every page. `@owlmeans/web-gtm`'s
-`googleTagHelper.googleTagHeadScript()` emits it followed by ads redaction and the loader for any Google id
-(`GTM-` container, `G-`/`GT-`/`AW-`/`DC-` gtag.js), and yields the bootstrap alone for an invalid
-id; `googleTagHelper.gtmHeadScript()` is the older container-only form.
+`consentTrackingHelper.consentBootstrapScript(opts)` is the provider-free head script: the linker's
+adopt-and-strip fragment (with `opts.linker`), then the stored record — an automatic one past its age
+skipped — written onto the category globals. It declares no vendor's signals. A page with a tag
+stamps that tag package's head instead, which carries the vendor's defaults, the same linker
+fragment, the globals and the stored decision's update ahead of the loader — connect's
+`googleTagHelper.googleTagHeadScript()` / `headTag()` / `consentHeadTag()` (`/web-gtm`). A provider
+package builds its head over the same storage contract with two inline building blocks:
+`consentTrackingHelper.storageReadScript(opts)` (declares `raw`, localStorage then cookie, `w`/`d` in
+scope) and `staleAutoScript(onStale)` (the automatic-decision age rule on a parsed `r`).
 
-Every consumer stamps it from HTML:
+Every consumer stamps its head from HTML:
 
-- `manager-web` — a Vite `transformIndexHtml` plugin, so the snippet cannot drift from the package.
-- owlmeans.com — `astroHelper.owlHeadScripts()` from `@owlmeans/astro`, `set:html` in `Base.astro`.
-- a generated target — its `rollup.config.js` emits `googleTagHelper.googleTagHeadScript({ id })` into the
-  `<head>` it writes when the project owner set a Google tag, and `consentModeHelper.consentBootstrapScript()`
-  otherwise, in preview and production alike.
+- `manager-web` — a Vite `transformIndexHtml` plugin (`tagManagerHelper` in viable's common), so the
+  snippet cannot drift from the package; with no tag id it stamps the linker fragment alone.
+- owlmeans.com — `astroHelper.owlHeadScripts({ consent, tag: googleTagHelper.headTag({ ...consent, id }) })`
+  from `@owlmeans/astro` with `@owlmeans/web-gtm`'s head tag, `set:html` in `Base.astro`; a tag-less
+  `owlHeadScripts` is the neutral bootstrap.
+- a generated target — its `rollup.config.js` emits `googleTagHelper.googleTagHeadScript({ id })` when
+  the project owner set a Google tag, and `googleTagHelper.consentHeadTag().head` otherwise, in
+  preview and production alike.
 
-Consent Mode speaks on `window.dataLayer` only — the bootstrap, `consentModeHelper.gtagConsent` and
-`consentModeHelper.applyConsent` all push there — so a tag loaded onto another queue never hears a consent command.
+## Gated loading (`consentTrackingHelper.trackingGranted`, `consentGateScript`, `CONSENT_EVENT`)
 
-`consentModeHelper.pushConsentDefaults` is idempotent through `window.cookieConsentSetup`: a page may carry the call
-twice, and a second `default` after a tag has loaded can WIDEN what was already narrowed.
+Signals tell a LOADED tag what it may do; they say nothing about whether the tag should be requested
+at all. A loader withheld until consent (`@owlmeans/web-gtm`'s `'basic'` mode, its default) is built
+from three provider-free primitives that live here, so any loader — including one in a target
+project — reuses the same gate:
 
-`consentModeHelper.gtagConsent` pushes `arguments`, not an array literal — that is the shape `gtag.js` itself emits,
-and a page carrying both snippets should not have two shapes in one queue.
+- **`consentTrackingHelper.trackingGranted(record, categories?)`** — whether a stored/applied record
+  grants tracking at all: some category that is NOT `required` and is marked `tracking: true` is
+  `true` in the record. A required category never counts — it is disclosure, not a question.
+- **`CONSENT_EVENT`** (`'owlmeans:consent'`) — dispatched on `window` by `consentSignalHelper.apply`
+  after the globals and every provider, `detail: { record }`. It is the only way a loader that
+  already ran — and decided, on first paint, not to load yet — can hear a LATER grant. Guarded so it
+  never throws where `CustomEvent`/`dispatchEvent` are not shimmed (tests, SSR).
+- **`consentTrackingHelper.consentGateScript(loaderExpr, opts?)`** — the inline counterpart for
+  withholding a loader: the SAME localStorage-then-cookie lookup the bootstrap uses, then either
+  `loaderExpr` at once (a returning visitor already satisfies `trackingGranted` — an automatic
+  decision past `CONSENT_AUTO_MAX_AGE` does not) or a one-shot `CONSENT_EVENT` listener that runs it
+  on the first grant and removes itself. `loaderExpr` is a complete, already-self-invoking statement,
+  embedded verbatim. Its per-category JSON keeps the field name `hasSignal` (true for a tracking or a
+  required category — `!c.required` vetoes the latter first) so the emitted text is byte-identical to
+  what pages served under a hash-based CSP already carry. It does not escape `</` or `<!--` for HTML
+  — escaping the composed result is the caller's job (`googleTagHelper` does it over its whole
+  output).
 
-## Gated loading (`consentModeHelper.trackingGranted`, `consentModeHelper.consentGateScript`, `CONSENT_EVENT`)
-
-Consent Mode signals (above) tell a LOADED tag what it may do; they say nothing about whether the
-tag should be requested at all. `@owlmeans/web-gtm`'s gated `'basic'` loading mode (its default —
-see `/web-gtm`) is built from three small primitives that live here, not there, so any loader —
-including one in a target project — can reuse the same gate without depending on `web-gtm`:
-
-- **`consentModeHelper.trackingGranted(record, categories?)`** — whether a stored/applied `ConsentRecord` grants
-  tracking at all: some category that is both NOT `required` and drives at least one Consent Mode
-  signal is `true` in the record. A required category (however many signals it drives, like
-  `essential`'s `security_storage`) never counts — it is disclosure, not a question, and everyone
-  gets it regardless.
-- **`CONSENT_EVENT`** (`'owlmeans:consent'`) — the DOM event `consentModeHelper.applyConsent` dispatches on `window`
-  after it finishes writing globals and pushing the Consent Mode update, with `detail: { record }`.
-  It is the only way a loader that already ran — and decided, on first paint, not to load yet — can
-  hear a LATER grant: Consent Mode itself speaks only on `dataLayer`, which nothing not yet loaded
-  is listening to. Guarded so it never throws where `CustomEvent`/`dispatchEvent` are not shimmed
-  (tests, SSR).
-- **`consentModeHelper.consentGateScript(loaderExpr, opts?)`** — the inline-safe counterpart to
-  `consentModeHelper.consentBootstrapScript` for withholding a loader rather than declaring defaults for one: it
-  inlines the SAME localStorage-then-cookie lookup the bootstrap uses, and either runs `loaderExpr`
-  immediately (a returning visitor already satisfies `consentModeHelper.trackingGranted` — an automatic
-  decision past `CONSENT_AUTO_MAX_AGE` does not) or attaches a one-shot
-  `CONSENT_EVENT` listener that runs it on the first grant and removes itself. `loaderExpr` is a
-  complete, already-self-invoking statement (the same shape `gtmContainerScript`/`gtagScript`
-  produce) — `consentModeHelper.consentGateScript` embeds it verbatim rather than calling it, so the caller controls
-  exactly what "the loader" means. Like `consentModeHelper.consentBootstrapScript`, it does not itself escape `</` or
-  `<!--` for HTML — escaping the composed result inline is the caller's job (`googleTagHelper.googleTagHeadScript`
-  already does it over its whole output, gated loader included).
+`consentModeHelper` survives as a deprecated object (`compat:consent-signals`) of provider-free
+delegates — `trackingGranted`, `consentBootstrapScript`, `consentGateScript` to the tracking helper,
+`pushConsentDefaults`, `applyConsent` to the signal host — because a generated target's 0.1
+`rollup.config.js` imports it. Its `consentBootstrapScript` declares no Consent Mode now. New code
+never uses it.
 
 ## The store
 
@@ -255,22 +286,22 @@ including one in a target project — can reuse the same gate without depending 
 not of a component tree, and it has to be reachable from places that are not React — the sign-in
 precondition runs inside a click handler.
 
-`consentStore.init(opts)` is what starts it: push the defaults, read and migrate the stored record,
-apply it, and — when there is none — ask, or with `geo` locate first (see "Where consent is asked").
+`consentStore.init(opts)` is what starts it: every provider's defaults, read and migrate the stored
+record, apply it, and — when there is none — ask, or with `geo` locate first (see "Where consent is
+asked").
 It stays synchronous; `consentStore.settled()` is what waits for a lookup. `useConsent()` calls it
-on mount, and `googleTagHelper.loadGtm` calls it before the container — a host that mounts neither
+on mount, and a tag package's script loader calls it before its tag — a host that mounts neither
 calls it itself, once, with the same options everything else was given. The linker is registered
 once per document, so a second `init` never installs a second click listener.
 
 `useConsent()` subscribes through `useSyncExternalStore`; `consentStore.open(reason)` and
 `consentStore.granted(key)` are the imperative readers.
 
-`silent: true` in `ConsentOptions` suppresses the **runtime** pushes — `consentModeHelper.pushConsentDefaults` and
-`consentModeHelper.applyConsent` both return before touching the queue or the category globals — while leaving storage
-and the dialog intact. It is for tests and for an application that runs no tags. It does **not**
-reach the stamped snippet: `consentModeHelper.consentBootstrapScript` ignores the flag, and the string it returns
-still pushes `consent/default` and, for a stored record, `consent/update`. A surface that must emit
-nothing at all does not stamp the bootstrap.
+`silent: true` in `ConsentOptions` suppresses the **runtime** effects — `consentSignalHelper.defaults`
+and `apply` return before any provider, global or event — while leaving storage and the dialog
+intact. It is for tests and for an application that runs no tags. It does **not** reach a stamped
+snippet: a head bootstrap ignores the flag. A surface that must emit nothing at all stamps no
+bootstrap.
 
 
 ## The plugin seam and cross-domain consent (`consentLinkHelper.consentLinker`)
@@ -390,15 +421,15 @@ interface ConsentLinkerLanguage {
 
 ## Order: adopt-and-strip runs before either storage read
 
-**The inline head script adopts and strips BEFORE it reads storage — placed right after `consent
-default`, inside the same idempotency flag `consentModeHelper.consentBootstrapScript` already guards with.**
-`consentModeHelper.consentBootstrapScript(opts)` embeds `consentLinkHelper.consentLinkerScript(opts)` (hand-rolled JS, the same
-discipline `consentModeHelper.consentGateScript` already follows, mirroring `consentLinkHelper.consentLinker().adopt` exactly) right
-there when `opts.linker` is set — an empty string, and no change to the emitted script, otherwise.
-Because the linker fragment WRITES an adopted record into the same `localStorage`/cookie pair
-`consentStorageHelper.writeConsent` uses, the bootstrap's own storage read (right after it) and `consentModeHelper.consentGateScript`'s
-separate storage read (concatenated after the whole bootstrap IIFE) both pick the adopted decision
-up for free — neither needed its own adoption logic.
+**The inline head script adopts and strips BEFORE it reads storage.**
+`consentTrackingHelper.consentBootstrapScript(opts)` embeds `consentLinkHelper.consentLinkerScript(opts)`
+(hand-rolled JS mirroring `consentLinkHelper.consentLinker().adopt` exactly) first when `opts.linker`
+is set — an empty string, and no change to the emitted script, otherwise. A provider's head bootstrap
+embeds the same fragment right after declaring its defaults, inside its own idempotency flag
+(connect's Consent Mode bootstrap does). Because the fragment WRITES an adopted record into the same
+`localStorage`/cookie pair `consentStorageHelper.writeConsent` uses, the bootstrap's own storage read
+(right after it) and `consentGateScript`'s separate read (concatenated after the whole bootstrap
+IIFE) both pick the adopted decision up for free — neither needed its own adoption logic.
 
 `consentStore.init` repeats the same adopt-then-strip dance in real TS for a page that carries no
 head script at all (`consentLinkHelper.stripConsentLinkParam`, called unconditionally whenever `opts.linker` is set,
@@ -415,17 +446,18 @@ regulator actually reads:
 
 ```typescript
 interface ConsentService {
-  name: string          // "Google Analytics"
-  provider: string      // "Google LLC"
+  name: string          // "Example Analytics"
+  provider: string      // "Example Corp"
   category: string      // the ConsentCategory.key it runs under
   purpose?: string
-  cookies?: string[]    // ['_ga', '_ga_<ID>']
+  cookies?: string[]    // ['_ex', '_ex_<ID>']
   privacyHref?: string  // the provider's own policy
 }
 ```
 
-It is plain data, not translation keys: whatever adds a tag knows what it is and says so.
-`googleTagHelper.googleTagServices(id)` from `@owlmeans/web-gtm` is the disclosure for a Google tag. Services
+It is plain data, not translation keys: whatever adds a tag knows what it is and says so — a tag's
+package ships its disclosure (`googleTagHelper.googleTagServices(id)` from connect's `@owlmeans/web-gtm`
+for a Google tag). Services
 change nothing about what is asked or stored — they are disclosure only, passed to the policy page.
 
 ## The policy page
@@ -434,8 +466,8 @@ change nothing about what is asked or stored — they are disclosure only, passe
 its `Required` marking and its description, the storage key, the dual storage and the retention —
 all read from the same configuration the dialog renders. Given the same `geo`, it adds the regional
 rule (`[data-cookie-policy-regional]`): asked only where the law requires it, on by default
-elsewhere, Global Privacy Control honoured. It does not enumerate Consent Mode
-signals: the category description is the whole disclosure of what a category drives. That is why
+elsewhere, Global Privacy Control honoured. It does not enumerate any vendor's signals: the
+category description is the whole disclosure of what a category drives. That is why
 the page is generated rather than written: a hand-written policy drifts the first time a category
 changes, and nobody notices because nobody reads it until it matters.
 
@@ -456,11 +488,12 @@ package and stays.
 **The linker's standalone `adopt` fragment is the one exception, and it is not really an
 exception.** owlmeans.com stamps `astroHelper.owlHeadScripts(...).adopt` first in `<head>` on every page,
 legal ones included — see `/astro`. Adopting a cross-domain cookie-consent CHOICE sets no tracking
-cookie of its own and pushes nothing to `dataLayer`; it only mirrors a decision the visitor already
+cookie of its own and signals nothing to any tag; it only mirrors a decision the visitor already
 made elsewhere into this document's own consent-state storage, which the site's own cookie policy
 already classifies as necessary. `tags.head` (the tag container itself) stays suppressed
 on a legal page exactly as before.
 
 ## Related
 
-`login-methods` (the consent gate in front of signing in) · `login-plugins` · `web-panel`
+`login-methods` (the consent gate in front of signing in) · `login-plugins` · `web-panel` ·
+`web-gtm` (OwlMeans connect — Google Consent Mode and the Google tag)

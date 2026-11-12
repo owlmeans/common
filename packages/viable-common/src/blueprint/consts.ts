@@ -45,7 +45,7 @@ export enum BlueprintCase {
    */
   WorkManagementTenanted = 'work-management-tenanted',
   /**
-   * A chat bot: the product's core is a bot INSIDE a named messaging platform (`BotPlatform`) that
+   * A chat bot: the product's core is a bot INSIDE a named messaging platform (a platform id) that
    * reacts to messages by stated rules. The plumbing is stock (`@owlmeans/bot`, `server-bot`,
    * `web-bot`: connections, the hook, the activity log); generation writes the product's OWN
    * keyword-group records and screens, where the stock panels live, and the handler that matches a
@@ -126,10 +126,27 @@ export enum BotKitAction {
 }
 
 /**
- * The messaging platforms a bot product lives on (`fields.botPlatforms`), re-exported: the card
- * contract names them, and a consumer of the contract reaches them here rather than through hoisting.
+ * @deprecated The messaging platforms a bot product lived on, verbatim as the 0.1 contract named them
+ * — kept only so code written against that enum still compiles. A platform is a string id now
+ * (`fields.botPlatforms`), owned by its plugin package; the platforms a deployment supports reach a
+ * consumer through the blueprint catalogue (`SupportedBlueprintCase.botPlatforms`), never through
+ * this enum. New code compares string ids.
  */
-export { BotPlatform } from '@owlmeans/bot'
+export enum BotPlatform {
+  Telegram = 'telegram',
+  WhatsApp = 'whatsapp',
+  Discord = 'discord',
+  Slack = 'slack',
+}
+
+/**
+ * What a bot platform id on a project card may look like (`fields.botPlatforms[]`) — a lower-case
+ * path segment, a letter first: the same rule the bot contract applies to its platform ids.
+ */
+export const BOT_PLATFORM_ID_FORMAT = '^[a-z][a-z0-9-]{0,31}$'
+
+/** The most platforms one project card names (`fields.botPlatforms`). */
+export const BOT_PLATFORMS_MAX = 8
 
 /** The longest case quote a project card keeps (`fields.caseQuote`) — one sentence, generously. */
 export const CASE_QUOTE_MAX = 1024

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-upload",
-  "version": "0.1.22-rc.0",
+  "version": "0.2.0-alpha.0",
   "description": "Upload client for browsers and Bun: open, upload (precheck against the session policy, concurrency, retries, abort, per-file and overall progress), state, remove, seal and abort over the upload protocol tree; inputs from picked or dropped files and folders, and from local paths (./node).",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
@@ -40,20 +40,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api": "^0.1.22-rc.0",
-    "@owlmeans/context": "^0.1.21",
-    "@owlmeans/entrypoint": "^0.1.22-rc.0",
-    "@owlmeans/upload": "^0.1.22-rc.0"
+    "@owlmeans/api": "^0.2.0-alpha.0",
+    "@owlmeans/context": "^0.2.0-alpha.0",
+    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/upload": "^0.2.0-alpha.0"
   },
   "devDependencies": {
-    "@owlmeans/client-context": "^0.1.22-rc.0",
-    "@owlmeans/client-entrypoint": "^0.1.22-rc.0",
-    "@owlmeans/dep-config": "^0.1.21",
-    "@owlmeans/file-streams": "^0.1.22-rc.0",
-    "@owlmeans/server-api": "^0.1.22-rc.0",
-    "@owlmeans/server-context": "^0.1.22-rc.0",
-    "@owlmeans/server-upload": "^0.1.22-rc.0",
-    "@owlmeans/static-resource": "^0.1.21",
+    "@owlmeans/client-context": "^0.2.0-alpha.0",
+    "@owlmeans/client-entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
+    "@owlmeans/file-streams": "^0.2.0-alpha.0",
+    "@owlmeans/server-api": "^0.2.0-alpha.0",
+    "@owlmeans/server-context": "^0.2.0-alpha.0",
+    "@owlmeans/server-upload": "^0.2.0-alpha.0",
+    "@owlmeans/static-resource": "^0.2.0-alpha.0",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",

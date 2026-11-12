@@ -3,18 +3,19 @@
 The React components of OwlMeans cookie consent: the preferences dialog with its persistent re-open
 button, a menu row for hosts that reopen it from their own navigation, the generated cookie-policy
 page, and the `useConsent` hooks. It re-exports a named selection of `@owlmeans/consent` (the store,
-storage, Consent Mode and linker helpers, constants and types), so a web app usually needs one
+the storage, tracking, signal-host and linker helpers, constants and types), so a web app usually needs one
 import. Any React surface uses it — a panel app, a generated app, an Astro island — because it
 depends on no shadcn primitive, no `@` alias and no OwlMeans context. An app built on
 `@owlmeans/web-panel` mounts `PanelCookieConsent` / `PanelCookiePolicy` from
 `@owlmeans/web-panel/consent` instead, which binds these components to OwlMeans i18n; code that only
-needs the model (no React) imports `@owlmeans/consent`; the Google tag snippet is `@owlmeans/web-gtm`.
+needs the model (no React) imports `@owlmeans/consent`; a tag vendor's consent signals and snippet
+come from its own package (for Google, connect's `@owlmeans/web-gtm`).
 The `web-consent` skill covers the components, the `consent` skill the model behind them.
 
 ## Installation
 
 ```bash
-bun add @owlmeans/web-consent@^0.1.22-rc.0
+bun add @owlmeans/web-consent@^0.2.0-alpha.1
 ```
 
 Peer dependencies the app provides: `react`, `tailwindcss`, `tailwind-merge`, `clsx`, `lucide-react`.
@@ -172,15 +173,15 @@ import { ConsentToggle } from '@owlmeans/web-consent'
 | Group | Symbols |
 |---|---|
 | Store | `consentStore` |
-| Helpers | `consentStorageHelper`, `consentModeHelper`, `consentI18nHelper`, `consentPluginHelper`, `consentLinkHelper`, `consentGeoHelper` |
+| Helpers | `consentStorageHelper`, `consentTrackingHelper`, `consentSignalHelper`, `consentI18nHelper`, `consentPluginHelper`, `consentLinkHelper`, `consentGeoHelper` |
 | Geo gate | `CONSENT_REQUIRED_COUNTRIES`, `CONSENT_COUNTRIES_GDPR`, `CONSENT_COUNTRIES_ALIGNED`, `CONSENT_COUNTRIES_OPT_IN`, `CONSENT_GEO_UNKNOWN`, `CONSENT_TRACE_PATH`, `CONSENT_GEO_TIMEOUT`, `CONSENT_AUTO_MAX_AGE`, `CONSENT_IDLE_STATE`, `CONSENT_STATE_ATTRIBUTE` and the types `ConsentGeoOptions`, `ConsentGeoPlugin`, `ConsentGeoLocation`, `ConsentCloudflareOptions`, `ConsentLocating`, `ConsentGeoHelper`, `ConsentGeoVerdict`, `ConsentAutoState` |
 | Defaults | `DEFAULT_CONSENT_CATEGORIES`, `DEFAULT_CONSENT_MESSAGES` |
 | Constants | `CONSENT_KEY`, `CONSENT_COOKIE_DAYS`, `CONSENT_SCHEMA_VERSION`, `CONSENT_LOCALES`, `CONSENT_ESSENTIAL`, `CONSENT_ANALYTICS`, `CONSENT_MARKETING`, `CONSENT_LANGUAGE_KEY`, `CONSENT_EVENT`, `CONSENT_LINK_PARAM`, `CONSENT_LINK_MAX_AGE`, `CONSENT_LINK_SKEW` |
 | Deprecated wrappers | `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `consentBootstrapScript`, `defaultConsentTranslate`, `decorateConsentUrl`, `encodeConsentLink`, `consentLinkerScript` — use the helper members instead |
-| Types | `ConsentCategory`, `ConsentOptions`, `ConsentReason`, `ConsentRecord`, `ConsentService`, `ConsentSignal`, `ConsentState`, `ConsentStore`, `ConsentLocale`, `ConsentLinkerOptions`, `ConsentLinkerLanguage`, `ConsentPlugin`, `ConsentLinkPayload`, and the five helper interfaces |
+| Types | `ConsentCategory`, `ConsentOptions`, `ConsentReason`, `ConsentRecord`, `ConsentService`, `ConsentState`, `ConsentStore`, `ConsentLocale`, `ConsentLinkerOptions`, `ConsentLinkerLanguage`, `ConsentPlugin`, `ConsentLinkPayload`, `ConsentSignalProvider`, and the helper interfaces |
 
-`makeConsentStore`, `CONSENT_SETUP_FLAG`, `CONSENT_SIGNAL_DEFAULTS` and `ConsentListener` are not
-re-exported; import them from `@owlmeans/consent`.
+`makeConsentStore`, `ConsentListener` and the deprecated `consentModeHelper` are not re-exported;
+import them from `@owlmeans/consent`.
 
 ## Test and styling hooks
 
@@ -203,7 +204,7 @@ re-exported; import them from `@owlmeans/consent`.
 - Pointing `@source` at `build` instead of `src`: under a linked workspace it scans zero files and
   the dialog renders half-styled with no error. Verify with `grep -c 'max-w-lg' dist/assets/*.css`.
 - A bare `useConsent()` in a component that only reads opens the dialog for a first-time visitor and
-  may fix the Consent Mode defaults from the default categories. Read with `useConsentCategory` or
+  may fix a signal provider's defaults from the default categories. Read with `useConsentCategory` or
   `consentStore.granted`.
 - `useConsent` reads `opts` only on its mounting pass; changing them later has no effect.
 - Passing `translate` disables the packaged bundle entirely — a resolver must fall back to
@@ -212,13 +213,13 @@ re-exported; import them from `@owlmeans/consent`.
   snippet and the policy page make them disagree about what was asked.
 - Do not add decorative classes (gradients, shadows, blur) to the dialog; the package tests reject
   them, and the look comes from the host's theme tokens.
-- `silent` suppresses runtime `dataLayer` and global writes only; the stamped bootstrap snippet still
-  pushes Consent Mode commands.
+- `silent` suppresses the runtime effects only (globals, signal providers, `CONSENT_EVENT`); a stamped
+  head bootstrap still runs.
 
 ## Related packages
 
-- [`@owlmeans/consent`](../consent) — the model: categories, storage, store, Consent Mode, linker
-- [`@owlmeans/web-gtm`](../web-gtm) — the Google tag head snippet and `googleTagServices` for the policy page
+- [`@owlmeans/consent`](../consent) — the model: categories, storage, store, signal host, linker
+- [`@owlmeans/web-gtm`](https://github.com/owlmeans/connect/tree/main/packages/web-gtm) (OwlMeans connect) — Google Consent Mode for the store, the Google tag head snippet and `googleTagServices` for the policy page
 - [`@owlmeans/web-panel`](../web-panel) — `./consent` subpath binding these components to OwlMeans i18n
 - [`@owlmeans/web-log`](../web-log) — consent-gated analytics plugins for `@owlmeans/log`
 - [`@owlmeans/astro`](../astro) — stamping the consent scripts from a static site's layout
@@ -231,7 +232,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.22-rc.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.1
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

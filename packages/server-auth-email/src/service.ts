@@ -1,8 +1,7 @@
 import { ALL_SCOPES, AuthenFailed, AuthForbidden, AuthRole, AuthUnknown } from '@owlmeans/auth'
 import type { AuthCredentials, AuthPayload } from '@owlmeans/auth'
 import {
-  EMAIL_AUTH_SERVICE, EMAIL_CAPTCHA_ACTION_PASSWORD, EMAIL_CAPTCHA_ACTION_PIN, EMAIL_CAPTCHA_PROVIDER,
-  EMAIL_DEVICE_PIN_PURPOSE, EMAIL_PASSWORD_AUTH_TYPE, EMAIL_PIN_AUTH_TYPE, EMAIL_PIN_LENGTH, EMAIL_WAIVER_HEADER,
+  EMAIL_AUTH_SERVICE, EMAIL_CAPTCHA_ACTION_PASSWORD, EMAIL_CAPTCHA_ACTION_PIN, EMAIL_DEVICE_PIN_PURPOSE, EMAIL_PASSWORD_AUTH_TYPE, EMAIL_PIN_AUTH_TYPE, EMAIL_PIN_LENGTH, EMAIL_WAIVER_HEADER,
   EmailOfferExpired, EmailPasswordDisabled, EmailPasswordPurpose, EmailSignInReason,
 } from '@owlmeans/auth-email'
 import type { EmailPasswordStatusView } from '@owlmeans/auth-email'
@@ -56,12 +55,14 @@ export const makeEmailAuthService = (
 
   const ctx = (): EmailAuthContext => service.assertCtx<EmailAuthConfig, EmailAuthContext>(alias)
 
+  /** The strict captcha check — built at boot, where it verifies its provider is registered. */
+  const captcha = memoHelper.once(() => makeCaptchaCheck(ctx(), opts.captcha ?? null))
+
   /** The collaborators of the context this service lives in — built once, on first use. */
   const parts = memoHelper.once(() => {
     const context = ctx()
 
     return {
-      captcha: makeCaptchaCheck(context, opts.captcha ?? null),
       throttle: makeEmailAuthThrottle(context, opts),
       devices: makeEmailDeviceStore(context, opts.devices),
       passwords: makeEmailPasswordStore(context),
@@ -138,7 +139,7 @@ export const makeEmailAuthService = (
 
   const assertCaptcha = async (token: string | undefined, action: string, req: AbstractRequest): Promise<void> => {
     try {
-      await parts().captcha.assert({ token, action, remoteip: ipOf(req) ?? undefined })
+      await captcha().assert({ token, action, remoteIp: ipOf(req) ?? undefined })
     } catch (error) {
       throw refusal(error, EmailVerificationRefused)
     }
@@ -247,11 +248,11 @@ export const makeEmailAuthService = (
 
   const service: EmailAuthService = createService<EmailAuthService>(alias, {
     options: async req => {
-      const siteKey = parts().captcha.siteKey()
+      const client = captcha().clientSettings()
 
       return {
         password: policy.enabled(),
-        captcha: siteKey != null && !await waived(req) ? { provider: EMAIL_CAPTCHA_PROVIDER, siteKey } : null,
+        captcha: client != null && !await waived(req) ? client : null,
         pinLength: EMAIL_PIN_LENGTH,
       }
     },
@@ -447,6 +448,10 @@ export const makeEmailAuthService = (
 
       return waiver
     },
+  }, email => async () => {
+    // Captcha settings without their provider are a boot error, never a sign-in without captcha.
+    captcha().assertReady()
+    email.initialized = true
   })
 
   return service

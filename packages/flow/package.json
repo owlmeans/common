@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/flow",
-  "version": "0.1.22-rc.0",
+  "version": "0.2.0-alpha.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,15 +31,15 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.21",
-    "@owlmeans/config": "^0.1.22-rc.0",
-    "@owlmeans/error": "^0.1.21",
-    "@owlmeans/i18n": "^0.1.21",
-    "@owlmeans/resource": "^0.1.21",
+    "@owlmeans/auth": "^0.2.0-alpha.0",
+    "@owlmeans/config": "^0.2.0-alpha.0",
+    "@owlmeans/error": "^0.2.0-alpha.0",
+    "@owlmeans/i18n": "^0.2.0-alpha.0",
+    "@owlmeans/resource": "^0.2.0-alpha.0",
     "@scure/base": "^2.4.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

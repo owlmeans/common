@@ -1,11 +1,9 @@
-import type Stripe from 'stripe'
 import { PaygateError } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
-import { STRIPE_FX_QUOTES_API_VERSION } from '../consts.js'
-import type { FxQuoteResponse } from './types.local.js'
-import type { SettlementAmount, StripeFxRate, StripeFxRateCache, FxHelper } from './fx/types.js'
-import { paymentAccessOf } from '../access.js'
+import type { FxQuote, Paygate } from '../paygate/types.js'
+import type { FxQuoteCache } from './types.local.js'
+import type { SettlementAmount, FxHelper } from './fx/types.js'
 
 /** Convert whole source minor units at the reference rate, rounding up so value is never lost. */
 const convertMinor = (amountMinor: number, rate: number): number => {
@@ -17,84 +15,50 @@ const convertMinor = (amountMinor: number, rate: number): number => {
   return converted
 }
 
-export const makeFxHelper = (ctx: ApiContext): FxHelper => {
-  const access = paymentAccessOf(ctx)
+export const makeFxHelper = (_ctx: ApiContext): FxHelper => {
+  /** One quote per (from, to) within a run that shares `cache`; a paygate without `fx`, or without a rate, refuses. */
+  const quoteOf = async (paygate: Paygate, from: string, to: string, cache?: FxQuoteCache): Promise<FxQuote> => {
+    const key = `${from}:${to}`
+    let pending = cache?.get(key)
+    if (pending == null) {
+      pending = paygate.fx != null ? paygate.fx.quote(from, to) : Promise.resolve(null)
+      cache?.set(key, pending)
+    }
+    const quote = await pending
+    if (quote == null) throw new PaygateError(`fx-rate:${from}:${to}`)
 
-  const stripeFxRate = async (
-    stripe: Stripe, fromCurrency: string, toCurrency: string, apiVersion: string,
-  ): Promise<StripeFxRate | null> => {
-    const from = fromCurrency.toLowerCase()
-    const to = toCurrency.toLowerCase()
-    if (from === to) return { fromCurrency: from, toCurrency: to, exchangeRate: 1, baseRate: 1, referenceRate: 1 }
-    const response = await stripe.rawRequest(
-      'POST', '/v1/fx_quotes',
-      { to_currency: to, 'from_currencies[]': from, lock_duration: 'none' },
-      { apiVersion },
-    ) as Stripe.Response<FxQuoteResponse>
-    const rate = response.rates?.[from]
-    if (rate?.exchange_rate == null) return null
+    return quote
+  }
+
+  const converted = async (
+    paygate: Paygate, sourceAmountMinor: number, source: string, currency: string, cache?: FxQuoteCache,
+  ): Promise<SettlementAmount> => {
+    if (currency === source) {
+      return { amountMinor: sourceAmountMinor, currency, sourceAmountMinor, sourceCurrency: source, referenceRate: 1 }
+    }
+    const quote = await quoteOf(paygate, source, currency, cache)
+
     return {
-      fromCurrency: from,
-      toCurrency: to,
-      exchangeRate: rate.exchange_rate,
-      baseRate: rate.rate_details?.base_rate ?? rate.exchange_rate / (1 - (rate.rate_details?.fx_fee_rate ?? 0)),
-      referenceRate: rate.rate_details?.reference_rate ?? rate.rate_details?.base_rate ?? rate.exchange_rate,
-      ...(rate.rate_details?.fx_fee_rate != null ? { fxFeeRate: rate.rate_details.fx_fee_rate } : {}),
+      amountMinor: convertMinor(sourceAmountMinor, quote.referenceRate), currency,
+      sourceAmountMinor, sourceCurrency: source, referenceRate: quote.referenceRate,
     }
   }
 
   const chargeAmount = async (
-    stripe: Stripe, sourceAmountMinor: number, sourceCurrency: string, chargeCurrency: string,
-    cache?: StripeFxRateCache,
-  ): Promise<SettlementAmount> => {
-    const source = sourceCurrency.toLowerCase()
-    const currency = chargeCurrency.toLowerCase()
-    if (currency === source) {
-      return { amountMinor: sourceAmountMinor, currency, sourceAmountMinor, sourceCurrency: source, referenceRate: 1 }
-    }
-    const apiVersion = (await access.stripePricingConfig())?.fxApiVersion ?? STRIPE_FX_QUOTES_API_VERSION
-    const key = `${source}:${currency}:${apiVersion}`
-    let pending = cache?.get(key)
-    if (pending == null) {
-      pending = stripeFxRate(stripe, source, currency, apiVersion)
-      cache?.set(key, pending)
-    }
-    const quote = await pending
-    if (quote == null) throw new PaygateError(`fx-rate:${source}:${currency}`)
-
-    return {
-      amountMinor: convertMinor(sourceAmountMinor, quote.referenceRate), currency,
-      sourceAmountMinor, sourceCurrency: source, referenceRate: quote.referenceRate,
-    }
-  }
+    paygate: Paygate, sourceAmountMinor: number, sourceCurrency: string, chargeCurrency: string, cache?: FxQuoteCache,
+  ): Promise<SettlementAmount> =>
+    await converted(paygate, sourceAmountMinor, sourceCurrency.toLowerCase(), chargeCurrency.toLowerCase(), cache)
 
   const settlementAmount = async (
-    stripe: Stripe, sourceAmountMinor: number, sourceCurrency: string, cache?: StripeFxRateCache,
+    paygate: Paygate, sourceAmountMinor: number, sourceCurrency: string, cache?: FxQuoteCache,
   ): Promise<SettlementAmount> => {
     const source = sourceCurrency.toLowerCase()
-    const pricing = await access.stripePricingConfig()
-    const currency = pricing?.settlementCurrency?.toLowerCase() ?? source
-    if (currency === source) {
-      return {
-        amountMinor: sourceAmountMinor, currency, sourceAmountMinor, sourceCurrency: source, referenceRate: 1,
-      }
-    }
-    const apiVersion = pricing?.fxApiVersion ?? STRIPE_FX_QUOTES_API_VERSION
-    const key = `${source}:${currency}:${apiVersion}`
-    let pending = cache?.get(key)
-    if (pending == null) {
-      pending = stripeFxRate(stripe, source, currency, apiVersion)
-      cache?.set(key, pending)
-    }
-    const quote = await pending
-    if (quote == null) throw new PaygateError(`fx-rate:${source}:${currency}`)
-    return {
-      amountMinor: convertMinor(sourceAmountMinor, quote.referenceRate), currency,
-      sourceAmountMinor, sourceCurrency: source, referenceRate: quote.referenceRate,
-    }
+    const currency = (await paygate.settlementCurrency())?.toLowerCase() ?? source
+
+    return await converted(paygate, sourceAmountMinor, source, currency, cache)
   }
 
-  return { stripeFxRate, chargeAmount, settlementAmount }
+  return { chargeAmount, settlementAmount }
 }
 
 /** The FX conversion of a context — one per context. */

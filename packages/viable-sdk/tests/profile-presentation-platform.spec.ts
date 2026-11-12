@@ -100,7 +100,7 @@ const SETTINGS: ConnectProjectBranding = {
 const CONFIG = {
   scope: WorkloadKind.Ephemeral,
   // A backend `value` never comes from the platform; it is here to prove none would be echoed.
-  backend: [{ name: 'STRIPE_SECRET_KEY', set: true, value: 'sk_live_LEAK' }, { name: 'SMTP_PASSWORD', set: false }],
+  backend: [{ name: 'PAYMENT_API_KEY', set: true, value: 'key_live_LEAK' }, { name: 'SMTP_PASSWORD', set: false }],
   frontend: [{ name: 'PUBLIC_MAP_KEY', set: true, value: 'pk_map_123' }, { name: 'PUBLIC_SITE', set: false, value: '' }],
 } as unknown as ConnectProjectConfig
 
@@ -289,17 +289,17 @@ const CASES: Case[] = [
   {
     tool: 'project_configuration', args: {}, answers: { 'config.get': CONFIG },
     check: (presented, json) => {
-      expect(json).not.toContain('sk_live_LEAK')
+      expect(json).not.toContain('key_live_LEAK')
       expect((presented.configuration as { backend: unknown[] }).backend)
-        .toEqual([{ name: 'STRIPE_SECRET_KEY', set: true }, { name: 'SMTP_PASSWORD', set: false }])
+        .toEqual([{ name: 'PAYMENT_API_KEY', set: true }, { name: 'SMTP_PASSWORD', set: false }])
       // A frontend value is public — it is built into the pages — and stays.
       expect(json).toContain('pk_map_123')
     },
   },
   {
-    tool: 'update_project_configuration', args: { backend: { STRIPE_SECRET_KEY: 'sk_live_NEW' } },
+    tool: 'update_project_configuration', args: { backend: { PAYMENT_API_KEY: 'key_live_NEW' } },
     answers: { 'config.save': CONFIG },
-    check: (_presented, json) => expect(json).not.toContain('sk_live_'),
+    check: (_presented, json) => expect(json).not.toContain('key_live_'),
   },
   { tool: 'recollect_configuration', args: {}, answers: { 'config.recollect': { ...CONFIG, scope: WorkloadKind.Production } } },
   {

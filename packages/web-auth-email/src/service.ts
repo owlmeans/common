@@ -59,7 +59,7 @@ export const makeEmailLoginClient = (
         emailStorageHelper.dropOffer()
       }
 
-      // The supervisor and Google plugins land the same way: a full load of the landing, which
+      // The supervisor and OAuth plugins land the same way: a full load of the landing, which
       // inside a surrogate window is the dispatcher that hands the session back to the opener.
       const landings = loginLandingOf(context)
       const landing = await landings.landAfterLogin()

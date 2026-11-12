@@ -4,9 +4,8 @@ import { GUARD_ED25519, signBasicEd25519Request } from '@owlmeans/auth-common'
 import type { TrustedRecord } from '@owlmeans/auth-common'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { KeyPairModel } from '@owlmeans/basic-keys'
-import { CAPTCHA_VERIFIER } from '@owlmeans/captcha'
-import type { CaptchaRequest, CaptchaResponse, CaptchaVerifierService } from '@owlmeans/captcha'
-import { createService } from '@owlmeans/context'
+import { ensureCaptchaService } from '@owlmeans/captcha'
+import type { CaptchaVerdict, CaptchaVerifyOptions } from '@owlmeans/captcha'
 import type { AbstractRequest, GuardService } from '@owlmeans/entrypoint'
 import { MAILER_SERVICE, makeConsoleMailerService } from '@owlmeans/mailer'
 import type { ConsoleMailerService } from '@owlmeans/mailer'
@@ -55,8 +54,10 @@ export const DEVICE_C = 'CCCCCCCCCCCCCCCCCCCCCC'
 export interface FixtureOptions {
   /** Passwords on (default) or off. */
   password?: boolean
-  /** The strict captcha, over the stand-in verifier below. */
+  /** The strict captcha, over the stand-in provider below. */
   captcha?: boolean
+  /** Register the stand-in captcha provider; default `true`. */
+  captchaProvider?: boolean
   /** The developer routes; default on. */
   tech?: boolean | (() => boolean)
   /** The memory throttle service, on a controllable clock. */
@@ -71,8 +72,8 @@ export interface EmailAuthFixture {
   context: EmailAuthContext
   service: EmailAuthService
   mailer: ConsoleMailerService
-  /** What the stand-in captcha verifier was asked. */
-  asked: CaptchaRequest[]
+  /** What the stand-in captcha provider was asked. */
+  asked: CaptchaQuestion[]
   /** The throttle clock, in ms; move it to open a window. */
   clock: { now: number }
   /** The auth service's key pair (it signs challenges, tokens and waivers). */
@@ -119,10 +120,18 @@ export const memoryStorage: FixtureStorage = {
   },
 }
 
-/** The stand-in verifier answers token `ok:<action>` as a good v3 answer for that action, anything else as refused. */
-const verifierAnswer = (token: string): CaptchaResponse => token.startsWith('ok:')
-  ? { success: true, challenge_ts: '2026-11-01T10:00:00Z', hostname: 'app.example.org', score: 0.9, action: token.slice(3) }
-  : { success: false, challenge_ts: '', hostname: '', 'error-codes': ['invalid-input-response'] }
+/** One question the stand-in captcha provider was asked. */
+export interface CaptchaQuestion extends CaptchaVerifyOptions {
+  token: string
+}
+
+/** The stand-in provider's id — a provider registered in the captcha host like any other. */
+export const TEST_CAPTCHA_PROVIDER = 'test-captcha'
+
+/** The stand-in provider answers token `ok:<action>` as a good score-based verdict for that action, anything else as refused. */
+const verdictOf = (token: string): CaptchaVerdict => token.startsWith('ok:')
+  ? { success: true, at: '2026-11-01T10:00:00Z', hostname: 'app.example.org', score: 0.9, action: token.slice(3) }
+  : { success: false, errors: ['invalid-input-response'] }
 
 const recordOf = (key: KeyPairModel, name: string): TrustedRecord => ({
   id: key.exportAddress(), name, credential: key.exportPublic(), secret: key.export(), scopes: ['*'],
@@ -131,7 +140,7 @@ const recordOf = (key: KeyPairModel, name: string): TrustedRecord => ({
 /**
  * A real server context — `makeServerContext` with the trusted records in `cfg.trusted`, its own
  * `GUARD_ED25519`, the identity store's services, the OTP service over the memory challenge store,
- * the console mailer and a stand-in captcha verifier (no network) — over `storage`. Each fixture
+ * the console mailer and a stand-in captcha provider (no network) — over `storage`. Each fixture
  * has its own stores.
  */
 export const makeEmailAuthFixture = async (
@@ -161,15 +170,18 @@ export const makeEmailAuthFixture = async (
     context.registerService(makeMemoryThrottleService(OTP_THROTTLE_SERVICE, () => clock.now))
   }
 
-  const asked: CaptchaRequest[] = []
-  context.registerService(createService<CaptchaVerifierService>(CAPTCHA_VERIFIER, {
-    verify: async request => { asked.push(request); return verifierAnswer(request.response) },
-  }))
+  const asked: CaptchaQuestion[] = []
+  if (opts.captchaProvider !== false) {
+    ensureCaptchaService(context).register({
+      id: TEST_CAPTCHA_PROVIDER,
+      verify: async (token, options) => { asked.push({ token, ...options }); return verdictOf(token) },
+      clientSettings: () => ({ provider: TEST_CAPTCHA_PROVIDER, siteKey: 'site-key' }),
+    })
+  }
 
   appendEmailAuth(context, {
     password: opts.password ?? true,
-    captcha: opts.captcha === true
-      ? { siteKey: 'site-key', secret: 'secret', hostnames: 'example.org', minScore: 0.5 } : null,
+    captcha: opts.captcha === true ? { provider: TEST_CAPTCHA_PROVIDER, hostnames: 'example.org', minScore: 0.5 } : null,
     tech: { enabled: opts.tech ?? true, signers: [TECH_SIGNER] },
     ...(opts.throttle === true ? { throttleAlias: OTP_THROTTLE_SERVICE } : {}),
     ...(opts.ipOf != null ? { ipOf: opts.ipOf } : {}),

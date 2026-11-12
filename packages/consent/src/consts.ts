@@ -28,17 +28,14 @@ export const CONSENT_COOKIE_DAYS = 365
  */
 export const CONSENT_SCHEMA_VERSION = 2
 
-/** Idempotence flag for the Consent Mode defaults. Fixed: a page may carry two bundles. */
-export const CONSENT_SETUP_FLAG = 'cookieConsentSetup'
-
 /**
- * The DOM event `applyConsent` dispatches on `window` after it finishes writing globals and
- * pushing the Consent Mode update.
+ * The DOM event `consentSignalHelper.apply` dispatches on `window` after it has written the
+ * category globals and every registered signal provider has applied the decision.
  *
  * A loader that already ran (a gate script that decided, on first paint, not to load yet) has no
- * other way to hear a LATER grant — Consent Mode itself speaks only on `window.dataLayer`, which a
- * tag that has not loaded is not listening to. `event.detail.record` carries the record that was
- * just applied.
+ * other way to hear a LATER grant — a provider's signals reach only a tag that is already loaded.
+ * `event.detail.record` carries the record that was just applied. Dispatched whether or not any
+ * provider is registered.
  */
 export const CONSENT_EVENT = 'owlmeans:consent'
 
@@ -82,37 +79,20 @@ export const DEFAULT_CONSENT_CATEGORIES: ConsentCategory[] = [
     key: CONSENT_ESSENTIAL, required: true,
     labelKey: 'essential', descriptionKey: 'essentialDesc',
     globalVar: 'owlConsentEssential',
-    signals: ['security_storage', 'functionality_storage'],
   },
   {
     key: CONSENT_ANALYTICS,
     labelKey: 'analytics', descriptionKey: 'analyticsDesc',
     globalVar: 'owlConsentAnalytics',
-    signals: ['analytics_storage'],
+    tracking: true,
   },
   {
     key: CONSENT_MARKETING,
     labelKey: 'marketing', descriptionKey: 'marketingDesc',
     globalVar: 'owlConsentMarketing',
-    signals: ['ad_storage', 'ad_user_data', 'ad_personalization'],
+    tracking: true,
   },
 ]
-
-/**
- * Every signal Consent Mode v2 knows, and what it defaults to before anyone has chosen.
- *
- * `security_storage` is granted by Google's own documented recommendation — it covers things like
- * fraud prevention, which are strictly necessary. Everything else starts denied.
- */
-export const CONSENT_SIGNAL_DEFAULTS: Record<string, 'granted' | 'denied'> = {
-  ad_storage: 'denied',
-  ad_user_data: 'denied',
-  ad_personalization: 'denied',
-  analytics_storage: 'denied',
-  functionality_storage: 'denied',
-  personalization_storage: 'denied',
-  security_storage: 'granted',
-}
 
 /** The URL parameter a decorated link carries the decision in, absent an override. */
 export const CONSENT_LINK_PARAM = 'owlcc'

@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/web-captcha",
-  "version": "0.1.21",
+  "version": "0.2.0-alpha.0",
   "license": "MIT",
-  "description": "Browser half of OwlMeans captcha — the invisible score-based reCAPTCHA v3 loader and a React hook; no OwlMeans dependencies.",
+  "description": "Browser half of OwlMeans captcha — the client contract a captcha provider plugs into, the page's client registry, the notice helper and a React hook; no provider built in and no OwlMeans dependencies.",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
     "type": "git",
@@ -48,7 +48,7 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@types/bun": "^1.4.4",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",

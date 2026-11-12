@@ -6,7 +6,7 @@ import type { KeyPairModel } from '@owlmeans/basic-keys'
 import { AUTH_SESSION_TTL } from '@owlmeans/server-auth-session'
 import { AUTH_SRV_KEY, AUTHEN_TIMEFRAME, DEFAULT_ALIAS } from '../src/consts.js'
 import { makeAuthModel } from '../src/manager/model.js'
-import { authEvents, authSettingsOf, reCaptchaTokenOf } from '../src/index.js'
+import { authEvents, authSettingsOf, captchaTokenOf } from '../src/index.js'
 import type { AuthService, AuthServiceSettings } from '../src/types.js'
 import { makeTestContext, OPERATOR_KEY, signInThrough, TEST_LOGIN, throughGuard } from './context.js'
 
@@ -123,21 +123,21 @@ describe('@owlmeans/server-auth — a deployment of its own keys (`cfg.auth`)', 
     } as AuthCredentials)).rejects.toThrow('challenge')
   })
 
-  test('the reCAPTCHA guard verifies guest tokens with the configured auth key', async () => {
+  test('the captcha guard verifies guest tokens with the configured auth key', async () => {
     const platform = await setup()
     const operator = await setup({ auth: OPERATOR })
     const guest = async (key: KeyPairModel, stamp: string): Promise<string> =>
-      await makeEnvelopeModel<AuthCredentials>(AuthenticationType.ReCaptcha).send({
-        type: AuthenticationType.ReCaptcha, role: AuthRole.Guest, userId: GUEST_ID, scopes: [AUTH_SCOPE],
+      await makeEnvelopeModel<AuthCredentials>(AuthenticationType.Captcha).send({
+        type: AuthenticationType.Captcha, role: AuthRole.Guest, userId: GUEST_ID, scopes: [AUTH_SCOPE],
         challenge: `challenge-${crypto.randomUUID()}`, credential: stamp,
       } as AuthCredentials, AUTHEN_TIMEFRAME).sign(key, EnvelopeKind.Token)
 
     const operatorGuest = await guest(operator.operatorKP, operator.operatorRecord.id)
-    expect(await reCaptchaTokenOf(operator.context as never).verify(operatorGuest)).not.toBeNull()
-    expect(await reCaptchaTokenOf(platform.context as never).verify(operatorGuest)).toBeNull()
+    expect(await captchaTokenOf(operator.context as never).verify(operatorGuest)).not.toBeNull()
+    expect(await captchaTokenOf(platform.context as never).verify(operatorGuest)).toBeNull()
 
     const platformGuest = await guest(platform.authServiceKP, platform.authServiceRecord.id)
-    expect(await reCaptchaTokenOf(platform.context as never).verify(platformGuest)).not.toBeNull()
-    expect(await reCaptchaTokenOf(operator.context as never).verify(platformGuest)).toBeNull()
+    expect(await captchaTokenOf(platform.context as never).verify(platformGuest)).not.toBeNull()
+    expect(await captchaTokenOf(operator.context as never).verify(platformGuest)).toBeNull()
   })
 })

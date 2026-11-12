@@ -9,8 +9,8 @@ export interface ConsumerEventDraft extends Omit<ConsumerEventRecord, 'at' | 'id
 
 /** The consumer-rights records of a context: purchases, billing profiles and the audit trail. */
 export interface ConsumerRecords {
-  /** The purchase id of a paygate checkout session or subscription: `stripe:<id>`. */
-  purchaseIdOf: (externalId: string) => string
+  /** The purchase id of a paygate checkout session or subscription: `<paygate>:<id>`. */
+  purchaseIdOf: (paygate: string, externalId: string) => string
   /** A locked profile as the wire sees it. */
   profileViewOf: (record: BillingProfileRecord, policy: ConsumerRightsPolicy | null) => BillingProfileView
   /** No profile yet: nothing locked, the default legal language, an unknown buyer (protected by default). */
@@ -22,8 +22,8 @@ export interface ConsumerRecords {
   recordEvent: (event: ConsumerEventDraft) => Promise<void>
   /** Whether a step already succeeded (or a mail was deliberately skipped) for a record. */
   hasEvent: (recordId: string, action: ConsumerEventRecord['action'], step?: string, ok?: boolean) => Promise<boolean>
-  /** The entity's highest-ranked entitling Stripe subscription, or `null`. */
-  entitlingStripeSubscription: (entityId: string) => Promise<PaymentSubscriptionRecord | null>
+  /** The entity's highest-ranked entitling paygate subscription (any paygate but the internal one), or `null`. */
+  entitlingPaygateSubscription: (entityId: string) => Promise<PaymentSubscriptionRecord | null>
   /** Whether the entity ever paid through the paygate (a fulfilled checkout or a propagated subscription). */
   hasPaid: (entityId: string) => Promise<boolean>
   /**

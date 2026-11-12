@@ -8,8 +8,8 @@ import { bind, bindAll } from '@owlmeans/server-entrypoint'
 import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
 import { paymentGate, paymentGateEntrypoints, paymentGateHandlers, webhookOf } from '../src/index.js'
 import type { PaygateParams, ResyncResult, ResyncSubscriptionsResult } from '../src/index.js'
-import { makeFakeContext } from './fake-stripe.js'
-import type { FakeContext } from './fake-stripe.js'
+import { makeFakeContext } from '@owlmeans/test-payment'
+import type { FakeContext } from '@owlmeans/test-payment'
 
 const HOOKS = 'app-hooks'
 const HOOKS_HOST = 'hooks.example.com'
@@ -99,8 +99,8 @@ describe('@owlmeans/server-payment — the payment gate handlers', () => {
 
     expect(unmanaged.ctx.hasEntrypoint(paymentGate.webhook.alias)).toBe(false)
     expect((await run(webhook!, { paygate: 'paypal' })).error).toBeInstanceOf(UnknownPaygate)
-    // Reached this process's gateway: unmanaged here, so a Stripe delivery and a resync are refused.
-    expect((await run(webhook!, { paygate: 'stripe' })).error).toBeInstanceOf(PaygateError)
+    // Reached this process's gateway: unmanaged here, so a registered paygate's delivery and a resync are refused.
+    expect((await run(webhook!, { paygate: 'fake' })).error).toBeInstanceOf(PaygateError)
     expect((await run(resync!)).error).toBeInstanceOf(PaygateError)
 
     const managed = await hookProcess(true)
@@ -110,10 +110,10 @@ describe('@owlmeans/server-payment — the payment gate handlers', () => {
     expect(await run(resyncSubscriptions!)).toEqual(expect.objectContaining({ value: { scanned: 0, updated: 0 } }))
   })
 
-  test('the application\'s webhook path is the one Stripe is pointed at — a re-declaration keeps the library\'s path', async () => {
+  test('the application\'s webhook path is the one a paygate is pointed at — a re-declaration keeps the library\'s path', async () => {
     const hooks = await hookProcess(false)
 
-    expect(webhookOf(hooks.ctx).webhookUrlOf()).toBe(`https://${HOOKS_HOST}/payment-gate/webhook/stripe`)
+    expect(webhookOf(hooks.ctx).webhookUrlOf('fake')).toBe(`https://${HOOKS_HOST}/payment-gate/webhook/fake`)
     expect([own.base.route.route.path, own.webhook.route.route.path])
       .toEqual([paymentGate.base.route.route.path, paymentGate.webhook.route.route.path])
   })

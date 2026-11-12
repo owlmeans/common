@@ -1,95 +1,91 @@
 ---
 name: astro
-description: "How to use @owlmeans/astro — the Astro-side wiring for the OwlMeans browser packages: the head/noscript strings a layout stamps before hydration, the legal-page test that suppresses tracking, and the locale conversion that keeps a default-locale page out of English. Auto-invoked when writing an Astro layout, stamping a tag-manager or consent snippet into a static site, or importing astroHelper (owlHeadScripts, isLegalPath, owlLocale)."
+description: "How to use @owlmeans/astro — consent + head tag wiring for Astro sites: the head/noscript/adopt strings a layout stamps before hydration (owlHeadScripts with a HeadTag rendered by a tag package), the legal-page test that suppresses tracking, and the locale conversion that keeps a default-locale page out of English. Auto-invoked when writing an Astro layout, stamping a consent snippet or a tag into a static site, or importing astroHelper (owlHeadScripts, isLegalPath, owlLocale)."
 user-invocable: false
 ---
 
 # @owlmeans/astro
 
 **Layer:** Web (Astro)
-**Install:** `"@owlmeans/astro": "^0.1.21"` in `dependencies`
+**Install:** `"@owlmeans/astro": "^0.2.0-alpha.1"` in `dependencies`
 
 ## Why it exists
 
 Astro's model is HTML first and islands second — the opposite of every other consumer of the
-OwlMeans browser packages. The parts that must run **before** hydration (the consent defaults, the
-tag container) therefore cannot come from a component at all: by the time an island mounts, the
-container has been running for hundreds of milliseconds and has already decided what each tag may
-do. This package turns those parts into plain strings a layout stamps with `set:html`, plus the two
-small conversions between Astro's vocabulary and this framework's.
+OwlMeans browser packages. The parts that must run **before** hydration (a stored consent decision,
+a tag loader with its vendor's consent defaults) therefore cannot come from a component at all: by the time an island mounts, a tag has been
+running for hundreds of milliseconds and has already decided what it may do. This package turns
+those parts into plain strings a layout stamps with `set:html`, plus the two small conversions
+between Astro's vocabulary and this framework's.
 
-**Nothing here imports Astro.** That is deliberate — an Astro import would make the package
-unusable outside one, and everything it needs is a value the caller already holds.
+**Nothing here imports Astro, and nothing here knows a tag vendor.** An Astro import would make the
+package unusable outside one; a vendor would make common depend on a provider. A tag arrives already
+rendered, as a `HeadTag`, from its own package — the provider packages live in OwlMeans connect.
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
 | `astroHelper.owlHeadScripts(opts?)` | `{ head, noscript, adopt }` — everything a page puts in its head, in the one order that works |
-| `HeadScripts` | That result shape: `head` is inline `<script>` content, `noscript` is `<body>` content, `adopt` is the standalone cross-domain-consent fragment — see below |
+| `HeadScriptsOptions` | `{ tag?: HeadTag, consent?: ConsentOptions }` |
+| `HeadTag` | `{ head, noscript }` — a tag rendered by its package from the SAME consent options |
+| `HeadScripts` | The result: `head` is inline `<script>` content, `noscript` is `<body>` content, `adopt` is the standalone cross-domain-consent fragment |
 | `astroHelper.isLegalPath(pathname, segment?)` | Whether this page must carry no tracking at all |
 | `astroHelper.owlLocale(currentLocale, fallback?)` | `Astro.currentLocale` as this framework's locale |
-| `GoogleTagOptions` / `GtmOptions` (re-exports) | The tag options from `@owlmeans/web-gtm` — `gtm` takes any Google id (`GTM-`, `G-`, `GT-`, `AW-`, `DC-`) |
 | `ConsentOptions` / `ConsentCategory` (re-exports) | The consent options from `@owlmeans/consent` |
 
 ## Stamping the head
 
-`astroHelper.owlHeadScripts` composes the consent bootstrap, the ads-redaction flags and the Google tag loader
-(`googleTagHelper.googleTagHeadScript`) in the one order that makes Consent Mode mean anything — defaults first,
-loader last:
-
 ```astro
 ---
 import { astroHelper } from '@owlmeans/astro'
+import { tagHelper } from '<tag package>'   // renders a HeadTag; throws on an id it cannot load
 
 const isLegalPage = astroHelper.isLegalPath(Astro.url.pathname)
-const tags = astroHelper.owlHeadScripts(isLegalPage ? {} : { gtm: { id: SITE.gtmId } })
+const consent = { linker: SITE.consentLinker }
+const tags = astroHelper.owlHeadScripts({ consent, tag: tagHelper.headTag({ ...consent, id: SITE.tagId }) })
 ---
 <html lang={locale}>
   <head>
-    <script is:inline set:html={tags.head} />
+    {tags.adopt !== '' && <script is:inline set:html={tags.adopt} />}
+    {!isLegalPage && <script is:inline set:html={tags.head} />}
   </head>
   <body>
-    {tags.noscript && <noscript set:html={tags.noscript} />}
+    {!isLegalPage && tags.noscript !== '' && <noscript set:html={tags.noscript} />}
     <slot />
   </body>
 </html>
 ```
 
-Two rules the shape enforces:
+The contract:
 
-- **Stamp `head` above everything else in `<head>`.** It is generated rather than hand-written
-  precisely because the ORDER is the whole point; moving it below another script re-opens the
-  window this package exists to close.
-- **Pass no `gtm` and it is still the consent defaults.** A site with no tag manager at all still
-  wants them on the queue: a stored decision has to reach whatever the page loads later, and a page
-  that declared nothing is a page where a later tag sees no state. `noscript` comes back empty in
-  that case too, so the `<noscript>` element renders only when there is a container both configured
-  AND emitting one — which, by default, a container in `@owlmeans/web-gtm`'s gated `'basic'` mode
-  never does (see below), so most sites now see an always-empty `noscript`.
-
-**A `gtm.id` that is not a loadable Google tag id throws** (`@owlmeans/astro: gtm.id is not a loadable Google tag id`),
-so a mistyped id fails the build instead of shipping every page with no tag. `noscript` is filled only for a
-`GTM-` container in `'advanced'` mode — gtag.js ids have no `ns.html` frame. Stamp it from the returned object
-(`<noscript set:html={tags.noscript} />`); a hand-written frame loads the container for visitors who never consented.
-
-`astroHelper.owlHeadScripts` never forces `GoogleTagOptions.mode`, so a configured `gtm` inherits
-`@owlmeans/web-gtm`'s `GOOGLE_TAG_DEFAULT_MODE` (`'basic'`) automatically: the container is still
-composed into `head` — the ORDER guarantee above holds regardless of mode — but its own loader
-does not run until a visitor's stored or later decision grants a signal-bearing category, and
-`googleTagHelper.gtmNoscriptFrame` returns `''` rather than an iframe nothing has been granted for. Pass
-`gtm: { ..., mode: 'advanced' }` for the old, unconditional load and its non-empty `noscript`.
-
-**Coverage in `'basic'` mode.** The tag loads only on a visit that consents, so a tag manager's coverage report
-("Tagged") marks a page only after a consenting visitor opens it; a page nobody consenting has opened shows "Not
-tagged". A client-side redirect that runs before `tags.head` leaves the URL it redirected AWAY from untagged
-(the report only learns of it as the next page's referrer) — never auto-redirect from a URL that already names its
-locale, and keep the query string on every hop. Pin `mode` explicitly on a site whose cookie policy forbids tags
-before opt-in, rather than relying on the platform default.
-
-`consent` options are merged into the container snippet, so a site with its own category set or
-storage key passes them here as well as to the dialog — otherwise the inline snippet and the
-component disagree about what is being asked.
+- **Without a tag, `head` is consent's neutral bootstrap** —
+  `consentTrackingHelper.consentBootstrapScript(consent)`: the linker fragment and a stored decision
+  written onto the category globals, declaring no vendor's signals — and `noscript` is `''`. A page
+  that wants a vendor's signal defaults in place for a tag it adds later passes that vendor's
+  signal-only head as `tag` (connect's `googleTagHelper.consentHeadTag(consent)`).
+- **With a tag, `head` and `noscript` are the tag's, returned untouched.** The tag's `head` REPLACES
+  the plain bootstrap, so its package must emit its consent bootstrap (its defaults, the linker
+  fragment, the stored decision) first and its loader after it, as one inline script — which is why
+  the tag is built from the SAME `consent` options passed here. The site also registers the same
+  vendor's signal provider where its consent island runs, so later decisions reach the tag.
+  `noscript` is whatever script-less form the tag has, or `''` (a consent-gated tag has none: a
+  browser without JavaScript cannot have granted anything).
+- **Stamp `head` above everything else in `<head>`** except `adopt`. It is generated rather than
+  hand-written precisely because the ORDER is the whole point; moving it below another script
+  re-opens the window this package exists to close.
+- **The tag package validates its id.** It throws on an id it cannot load, so a mistyped id fails the
+  build where the layout renders it, instead of shipping every page with no tag.
+- Render `noscript` from the returned object; a hand-written fallback loads the tag for visitors who
+  never consented.
+- **Coverage of a consent-gated tag.** A tag that loads only on a consenting visit marks a page as
+  covered in its vendor's report only after a consenting visitor opens it. A client-side redirect
+  that runs before `tags.head` leaves the URL it redirected AWAY from uncovered — never auto-redirect
+  from a URL that already names its locale, and keep the query string on every hop. Pin the tag's
+  gating mode explicitly on a site whose cookie policy forbids tags before opt-in, rather than relying
+  on its package default.
+- The tag-less `head` is the bootstrap exactly as `@owlmeans/consent` emits it; keep configured
+  category keys and storage keys free of `</script` (a tag package escapes its own output).
 
 ## Cross-domain consent: `adopt`, stamped first
 
@@ -97,10 +93,8 @@ component disagree about what is being asked.
 sharing a decision between first-party domains through a decorated link:
 
 ```astro
-const tags = astroHelper.owlHeadScripts({
-  gtm: { id: SITE.gtmId },
-  consent: { linker: { domains: SITE.consentDomains, language: {} } },
-})
+const consent = { linker: { domains: SITE.consentDomains, language: {} } }
+const tags = astroHelper.owlHeadScripts({ consent, tag: tagHelper.headTag({ ...consent, id: SITE.tagId }) })
 ```
 
 `language: {}` makes every link to a listed domain also carry the page's `<html lang>`. A site that
@@ -116,24 +110,18 @@ plain data, because an island prop is serialized: a locator plugin of the site's
 wrapper island that registers it before rendering `CookieConsent`. Legal pages, which mount no
 island, never locate anyone.
 
-`tags.adopt` is the STANDALONE adopt-and-strip fragment (`consentLinkHelper.consentLinkerScript`) — present whenever
-`consent.linker` is set, empty string otherwise, regardless of whether `gtm` is also configured.
+`tags.adopt` is the STANDALONE adopt-and-strip fragment (`consentLinkHelper.consentLinkerScript`) —
+built from `consent` whenever `consent.linker` is set, empty string otherwise, with or without a tag.
 Stamp it **first**, above `tags.head` and above everything else in `<head>` (the locale-redirect
-script included — its own `?lc=1` handling must not race the linker for the URL):
+script included — its own `?lc=1` handling must not race the linker for the URL).
 
-```astro
-<head>
-  {tags.adopt !== '' && <script is:inline set:html={tags.adopt} />}
-  <script is:inline set:html={tags.head} />
-</head>
-```
-
-**Stamp it on every page, legal ones included.** `tags.head` already carries the SAME fragment
-(embedded by `consentModeHelper.consentBootstrapScript` right after `consent/default`) for a page that also runs a
-tag, so the two runs on such a page are harmless — the second finds the parameter already gone and
-does nothing. `adopt` on its own is what a legal page needs, since it stamps no `head` at all (see
-below): adopting a cross-domain cookie-consent CHOICE sets no tracking cookie and pushes nothing to
-`dataLayer`, so it is not the tracking this rule exists to keep off a legal page.
+**Stamp it on every page, legal ones included.** A `head` built with the same consent options —
+the plain bootstrap or a tag's — already carries the SAME fragment (first in the neutral bootstrap,
+right after the defaults in a tag's), so the two runs on such a
+page are harmless: the second finds the parameter already gone and does nothing. `adopt` on its own
+is what a legal page needs, since it stamps no `head` at all (see below): adopting a cross-domain
+cookie-consent CHOICE sets no tracking cookie and signals nothing to any tag, so it is not the
+tracking this rule exists to keep off a legal page.
 
 ## Legal pages carry no tracking
 
@@ -148,9 +136,8 @@ astroHelper.isLegalPath('/about/legal')      // false — the segment must be at
 astroHelper.isLegalPath('/policies/privacy', 'policies')   // true — the segment is configurable
 ```
 
-Feed the result back into `astroHelper.owlHeadScripts`: drop the `gtm` option on a legal page and the page
-still declares its consent defaults while loading no container. `tags.adopt` is unaffected by this
-— see above — and is stamped there too.
+On a legal page skip stamping `head` and `noscript` (or call `owlHeadScripts` without a `tag` and
+stamp the bare bootstrap). `tags.adopt` is unaffected — see above — and is stamped there too.
 
 ## Locale
 
@@ -166,15 +153,13 @@ An empty string is treated the same as `undefined`; a real locale passes through
 
 ## Depends On
 
-- `@owlmeans/consent` — `consentModeHelper.consentBootstrapScript`, the category model and the storage contract
-- `@owlmeans/web-gtm` — `googleTagHelper.googleTagHeadScript`, `.isGoogleTagId`, `.googleTagKind`, `.gtmNoscriptFrame`
+- `@owlmeans/consent` — `consentTrackingHelper.consentBootstrapScript`, `consentLinkHelper.consentLinkerScript`,
+  the category model and the storage contract
 
-Both are ordinary dependencies, so an Astro site installs this one package and gets the whole head
-story. Rendering the dialog itself is separate — that is `@owlmeans/web-consent`, mounted as an
-island, or the site's own component over the same store.
+Rendering the dialog itself is separate — that is `@owlmeans/web-consent`, mounted as an island, or
+the site's own component over the same store. A tag is the site's own dependency on its tag package.
 
 ## Related
 
 - `consent` — the categories, the storage record and its migration, and why the ordering rule exists
-- `web-gtm` — what the container snippet actually emits and how an id is made inert
 - `web-consent` — the dialog, the re-open button and the cookie-policy page

@@ -1,12 +1,15 @@
-import type { BotActivity, BotConnection, BotConnectionInput, BotPlatform, BotProtocols } from '@owlmeans/bot'
+import type {
+  BotActivity, BotConnection, BotConnectionInput, BotPlatformDescriptor, BotPlatformId, BotSurfaceProtocols,
+} from '@owlmeans/bot'
 
 /**
  * The managing protocol tree a screen works with — `appProtocols.api.bot.operator` or `.member`.
  *
  * It must be client-bound in the application's context (`bindAll` over the api tree does it): the
- * hooks address every leaf as `context.entrypoint(surface.<leaf>)`.
+ * hooks address every leaf as `context.entrypoint(surface.<leaf>)`. The platforms the panels offer
+ * come from its `platform.list` leaf — a tree restated without it renders, with no platform to offer.
  */
-export type BotSurface = BotProtocols
+export type BotSurface = BotSurfaceProtocols
 
 /**
  * What one operation ended in. An operation never throws: a refusal is `{ ok: false, error }`,
@@ -32,6 +35,17 @@ export interface UseBotConnections {
   remove: (id: string) => Promise<BotOutcome<string>>
 }
 
+export interface UseBotPlatforms {
+  /** The server's registered platforms, in its order — empty until read, and for a tree without `platform.list`. */
+  items: BotPlatformDescriptor[]
+  loading: boolean
+  /** The last failed read. */
+  error: Error | null
+  reload: () => Promise<void>
+  /** A platform's descriptor by id, or `null` when the server has no plugin for it. */
+  descriptorOf: (platform: BotPlatformId) => BotPlatformDescriptor | null
+}
+
 export interface BotActivityOptions {
   connection?: string
   /** 1 … `BOT_ACTIVITY_LIMIT_MAX`; the server's default when absent. */
@@ -50,8 +64,11 @@ export interface UseBotActivity {
 
 export interface BotConnectionsPanelProps {
   surface: BotSurface
-  /** The platforms a new connection may be made on; all four when absent. */
-  platforms?: BotPlatform[]
+  /**
+   * The platform ids a new connection may be made on (the product's platforms), in the server's
+   * order; every registered platform when absent (or when none of these is registered).
+   */
+  platforms?: BotPlatformId[]
   className?: string
 }
 
@@ -73,8 +90,9 @@ export interface BotActivityPanelProps {
 
 /**
  * Which copy explains an error — the `BotError` marker of `@owlmeans/bot`'s refusals and of
- * `@owlmeans/server-bot`'s own, `platform-refused` for every platform API error (Telegram, WhatsApp,
- * Discord and its gateway, Slack), or `bot` / `generic` when there is none.
+ * `@owlmeans/server-bot`'s own, `platform-refused` for every platform's API error
+ * (`BotErrorPlatform`, `bot:platform:<id>:…`, and a stored legacy `bot:<registered id>…` marker), or
+ * `bot` / `generic` when there is none.
  */
 export type BotErrorKey =
   | 'connection-not-found' | 'credentials-rejected' | 'signature-rejected' | 'transport-mismatch'

@@ -1,6 +1,28 @@
 import type {
-  BotActionKind, BotChatKind, BotConnectionStatus, BotPlatform, BotReceiveMode, BotTransport, BotUpdateKind,
+  BotActionKind, BotChatKind, BotConnectionStatus, BotReceiveMode, BotTransport, BotUpdateKind,
 } from './consts.js'
+
+/**
+ * A messaging platform's id — the plugin's own (`BotPlatformDescriptor.platform`), never a closed
+ * list of this contract: a deployment supports exactly the platforms it registers. It is a path
+ * segment of the hook URL and a stored column, so it matches `BOT_PLATFORM_ID_PATTERN` and never
+ * changes once connections exist.
+ */
+export type BotPlatformId = string
+
+/**
+ * One text in every language a panel may render, keyed by language code (`en`, `pl`, `uk` …). A
+ * reader's language that is missing falls back to `BOT_TEXT_FALLBACK_LANGUAGE`.
+ */
+export interface BotTexts {
+  [language: string]: string
+}
+
+/**
+ * The neutral glyph a panel draws beside a platform's name — never a brand mark: `send` a paper
+ * plane, `phone` a handset, `messages` speech bubbles, `hash` a channel sign, `chat` one bubble.
+ */
+export type BotPlatformGlyph = 'send' | 'phone' | 'messages' | 'hash' | 'chat'
 
 /** One credential a platform needs — what the panel draws an input for. */
 export interface BotCredentialField {
@@ -10,18 +32,62 @@ export interface BotCredentialField {
   /** The connection cannot be verified without it. */
   required: boolean
   /**
-   * The server creates it on save and nobody types it (WhatsApp's verify token); the connection's
-   * `setup` steps carry it for pasting into the platform console.
+   * The server creates it on save and nobody types it (a verify token the platform's console asks
+   * for); the connection's `setup` steps carry it for pasting into the platform console.
    */
   generated?: boolean
-  /** Optional credential only: the platform calls it adds when set (Slack's admin `userToken`: `delete`). */
+  /** Optional credential only: the platform calls it adds when set (an admin token adding `delete`). */
   enables?: BotActionKind[]
+  /** The input's label, per language. */
+  label: BotTexts
+  /** One line under the input — where in the platform the value is found — per language. */
+  hint?: BotTexts
 }
 
-/** What a platform needs and can do. One per platform, in `BOT_PLATFORMS`. */
+/** One placeholder of a {@link BotPlatformLink} template. */
+export interface BotLinkParam {
+  /** The credential whose typed value fills `{key}` in the template (URL-encoded). */
+  key: string
+  /** What the value must match before the link is drawn (`^\d{5,32}$` — an id, never free text). */
+  pattern: string
+  /**
+   * A saved connection never shows a credential back: with `identity`, the verified bot account's
+   * id fills the placeholder when no typed value is in hand.
+   */
+  identity?: boolean
+}
+
+/**
+ * A link a person follows in the platform itself, drawn before the connection is saved as soon as
+ * its placeholders have values — an invite that adds the bot to a server with the rights its actions
+ * need. `kind` names what it is for; `invite` is the one kind today.
+ */
+export interface BotPlatformLink {
+  kind: 'invite'
+  /** The address, with `{key}` placeholders. */
+  template: string
+  params: BotLinkParam[]
+  /** The link's text, per language. */
+  label: BotTexts
+  /** What is drawn while a placeholder has no valid value, per language. */
+  pending?: BotTexts
+}
+
+/**
+ * What a platform needs and can do — the one record every layer reads: the panel draws the
+ * credential inputs, the glyph, the labels and the hints from it, the server verifies and acts by it,
+ * generation picks actions from it. The platform's plugin owns it; the server lists the registered
+ * plugins' descriptors on every managing tree (`platform.list`).
+ *
+ * `actions` lists the platform CALLS a connection can make with its required credentials; an
+ * optional credential's `enables` adds more. `note` is never listed — it makes no platform call
+ * (`botPlatformHelper.actionsOf` answers the full set).
+ */
 export interface BotPlatformDescriptor {
-  platform: BotPlatform
+  platform: BotPlatformId
+  /** The platform's name, as written beside its glyph (a proper name — not translated). */
   title: string
+  glyph: BotPlatformGlyph
   credentials: BotCredentialField[]
   /** The receive modes the platform offers, preferred first. */
   receive: BotReceiveMode[]
@@ -31,6 +97,10 @@ export interface BotPlatformDescriptor {
   setup: 'auto' | 'manual'
   /** Where a person learns to create the bot and its credentials. */
   docs: string
+  /** What a person does in the platform itself so the bot can act (rights, intents, console steps), per language. */
+  hint: BotTexts
+  /** A link drawn in the connect form before saving (an invite), filled from the typed credentials. */
+  link?: BotPlatformLink
 }
 
 /** A connection as any client sees it — never a credential. */
@@ -38,7 +108,7 @@ export interface BotConnection {
   id: string
   /** The organization (or application) key the connection belongs to — the server's, never the wire's. */
   scope: string
-  platform: BotPlatform
+  platform: BotPlatformId
   label: string
   transport: BotTransport
   status: BotConnectionStatus
@@ -65,14 +135,14 @@ export interface BotConnection {
  */
 export interface BotConnectionInput {
   id?: string
-  platform: BotPlatform
+  platform: BotPlatformId
   label: string
   transport?: BotTransport
   enabled?: boolean
   credentials?: Record<string, string>
 }
 
-/** A chat; `space` is the Discord guild or the Slack team. */
+/** A chat; `space` is the server or workspace it belongs to, on a platform that has one. */
 export interface BotChatRef {
   id: string
   kind: BotChatKind
@@ -89,8 +159,8 @@ export interface BotSenderRef {
 }
 
 /**
- * Enough to act on one message. `space` (the Discord guild / Slack team) is carried so a reference
- * alone suffices where the platform addresses a member through it (a Discord timeout needs the guild).
+ * Enough to act on one message. `space` (the server or workspace) is carried so a reference alone
+ * suffices where the platform addresses a member through it (a time-out that names the server).
  */
 export interface BotMessageRef {
   chat: string
@@ -123,7 +193,7 @@ export interface BotUpdate {
   id: string
   connection: string
   scope: string
-  platform: BotPlatform
+  platform: BotPlatformId
   kind: BotUpdateKind
   chat: BotChatRef
   sender?: BotSenderRef
@@ -147,7 +217,7 @@ export interface BotActivity {
   id: string
   scope: string
   connection: string
-  platform: BotPlatform
+  platform: BotPlatformId
   /** The update it answered. */
   update?: string
   action: BotActionKind

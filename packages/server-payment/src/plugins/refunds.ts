@@ -1,58 +1,35 @@
-import type Stripe from 'stripe'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { memoHelper } from '@owlmeans/context'
-import { STRIPE_PAYGATE_ALIAS } from '../consts.js'
 import type { PaymentSubscriptionRecord } from '../types.js'
+import type { Paygate, PaygateCharge } from '../paygate/types.js'
 import type { PaymentReference, PaymentTarget, PaymentTargetHelper } from './refunds/types.js'
 import { paymentAccessOf } from '../access.js'
-import { paymentUtils } from '../utils.js'
 
 export const makePaymentTargetHelper = (ctx: ApiContext): PaymentTargetHelper => {
   const access = paymentAccessOf(ctx)
 
-  const retrieveCharge = async (stripe: Stripe, chargeId: string): Promise<Stripe.Charge | null> => {
-    try {
-      return await stripe.charges.retrieve(chargeId)
-    } catch (error) {
-      if (paymentUtils.isMissingObject(error)) {
-        return null
-      }
-      throw error
-    }
-  }
+  const retrieveCharge = async (paygate: Paygate, chargeId: string): Promise<PaygateCharge | null> =>
+    paygate.payments != null ? await paygate.payments.charge(chargeId) : null
 
-  const subscriptionOfInvoice = async (
-    stripe: Stripe, invoiceId: string,
-  ): Promise<PaymentSubscriptionRecord | null> => {
-    const latest = await access.subscriptions().load({ paygate: STRIPE_PAYGATE_ALIAS, latestInvoiceId: invoiceId })
+  const subscriptionOfInvoice = async (paygate: Paygate, invoiceId: string): Promise<PaymentSubscriptionRecord | null> => {
+    const latest = await access.subscriptions().load({ paygate: paygate.id, latestInvoiceId: invoiceId })
     if (latest != null) {
       return latest
     }
-    let invoice: Stripe.Invoice
-    try {
-      invoice = await stripe.invoices.retrieve(invoiceId)
-    } catch (error) {
-      if (paymentUtils.isMissingObject(error)) {
-        return null
-      }
-      throw error
-    }
-    // `invoice.subscription` is top-level on the API version the client is pinned to.
-    const subscriptionId = paymentUtils.idOf((invoice as unknown as { subscription?: string | { id?: string } | null }).subscription)
+    const invoice = paygate.payments != null ? await paygate.payments.invoice(invoiceId) : null
+    const subscriptionId = invoice?.subscriptionId
 
-    return subscriptionId != null
-      ? await access.subscriptions().byExternalId(subscriptionId, STRIPE_PAYGATE_ALIAS)
-      : null
+    return subscriptionId != null ? await access.subscriptions().byExternalId(subscriptionId, paygate.id) : null
   }
 
-  const resolvePaymentTarget = async (stripe: Stripe, ref: PaymentReference): Promise<PaymentTarget | null> => {
+  const resolvePaymentTarget = async (paygate: Paygate, ref: PaymentReference): Promise<PaymentTarget | null> => {
     const ledger = access.fulfillments()
     let charge = ref.charge ?? null
     let paymentIntentId = ref.paymentIntentId
     const chargeId = ref.chargeId ?? charge?.id
 
     if (paymentIntentId != null) {
-      const record = await ledger.load({ paygate: STRIPE_PAYGATE_ALIAS, paymentIntentId })
+      const record = await ledger.load({ paygate: paygate.id, paymentIntentId })
       if (record != null) {
         return { kind: 'fulfillment', record, charge, paymentIntentId }
       }
@@ -60,26 +37,25 @@ export const makePaymentTargetHelper = (ctx: ApiContext): PaymentTargetHelper =>
 
     let invoiceId = ref.invoiceId
     if (chargeId != null) {
-      const record = await ledger.load({ paygate: STRIPE_PAYGATE_ALIAS, chargeId })
+      const record = await ledger.load({ paygate: paygate.id, chargeId })
       if (record != null) {
         return { kind: 'fulfillment', record, charge, paymentIntentId: paymentIntentId ?? record.paymentIntentId }
       }
-      charge = charge ?? await retrieveCharge(stripe, chargeId)
-      const chargeIntent = paymentUtils.idOf(charge?.payment_intent)
+      charge = charge ?? await retrieveCharge(paygate, chargeId)
+      const chargeIntent = charge?.paymentId
       if (chargeIntent != null && chargeIntent !== paymentIntentId) {
         paymentIntentId = chargeIntent
-        const byIntent = await ledger.load({ paygate: STRIPE_PAYGATE_ALIAS, paymentIntentId: chargeIntent })
+        const byIntent = await ledger.load({ paygate: paygate.id, paymentIntentId: chargeIntent })
         if (byIntent != null) {
           const record = byIntent.chargeId == null ? await ledger.update({ ...byIntent, chargeId }) : byIntent
           return { kind: 'fulfillment', record, charge, paymentIntentId: chargeIntent }
         }
       }
-      // `charge.invoice` is top-level on the API version the client is pinned to.
-      invoiceId = invoiceId ?? paymentUtils.idOf((charge as unknown as { invoice?: string | { id?: string } | null } | null)?.invoice)
+      invoiceId = invoiceId ?? charge?.invoiceId
     }
 
     if (invoiceId != null) {
-      const record = await subscriptionOfInvoice(stripe, invoiceId)
+      const record = await subscriptionOfInvoice(paygate, invoiceId)
       if (record != null) {
         return { kind: 'subscription', record, charge, paymentIntentId, invoiceId }
       }

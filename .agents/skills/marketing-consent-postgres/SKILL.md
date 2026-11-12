@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/marketing-consent-postgres
 
 **Layer:** Infra extension
-**Install:** `"@owlmeans/marketing-consent-postgres": "^0.1.22-rc.0"` in `dependencies` (peers `pg`, `ajv`)
+**Install:** `"@owlmeans/marketing-consent-postgres": "^0.2.0-alpha.0"` in `dependencies` (peers `pg`, `ajv`)
 
 The Postgres counterpart to `@owlmeans/server-marketing-consent`'s two resources. This package is
 for a **generated target project**, which runs Postgres — the platform's own equivalent for

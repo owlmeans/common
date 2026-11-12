@@ -9,7 +9,7 @@ routes with `@owlmeans/server-auth-email`, a browser signs in with `@owlmeans/we
 ## Installation
 
 ```bash
-bun add @owlmeans/auth-email@^0.1.22-rc.0
+bun add @owlmeans/auth-email@^0.2.0-alpha.0
 ```
 
 `ajv` and `ajv-formats` are peer dependencies (the schemas use `format: 'email'`).
@@ -92,7 +92,6 @@ Neither `guards` nor `passwordParent` throws a `SyntaxError` at declaration time
 | `EMAIL_CONFIRM_ENVELOPE` / `EMAIL_WAIVER_ENVELOPE` | `'email-confirm'` / `'email-waiver'` |
 | `EMAIL_WAIVER_HEADER` | `'x-owlmeans-email-waiver'` |
 | `EMAIL_CAPTCHA_ACTION_PIN` / `EMAIL_CAPTCHA_ACTION_PASSWORD` | `'email_pin'` / `'email_password'` |
-| `EMAIL_CAPTCHA_PROVIDER` | `'recaptcha-v3'` |
 | `EMAIL_IDENTITY_TYPE` | `'email-otp'` — the identity-linking details type (equals `OTP_AUTH_TYPE`), never a token type |
 | `EMAIL_PIN_LENGTH` / `EMAIL_PIN_PATTERN` | `6` / `'^[0-9]{6}$'` |
 | `EMAIL_DEVICE_TTL_DAYS` / `EMAIL_DEVICE_LIMIT` / `EMAIL_DEVICE_ID_PATTERN` | `30` / `10` / `'^[A-Za-z0-9_-]{22,64}$'` |
@@ -146,7 +145,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.22-rc.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

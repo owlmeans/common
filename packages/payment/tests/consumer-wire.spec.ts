@@ -18,7 +18,7 @@ const wire = <T>(value: T): unknown => JSON.parse(JSON.stringify(value))
 
 const links = { billingTerms: 'https://example.com/terms', withdrawalInformation: 'https://example.com/withdrawal' }
 const purchase: PurchaseView = {
-  purchaseId: 'stripe:cs_test_1', contractRef: 'CR-260923-ABC123', kind: PurchaseKind.TopUp,
+  purchaseId: 'card-gate:cs_test_1', contractRef: 'CR-260923-ABC123', kind: PurchaseKind.TopUp,
   purchasedAt: new Date('2026-09-23T10:00:00.000Z'), deadline: new Date('2026-10-09T00:00:00.000Z'),
   productSku: 'credits-product', amountTotalMinor: 3075, currency: 'eur', withdrawable: true,
 }
@@ -67,7 +67,7 @@ describe('consumer-rights wire shapes', () => {
   })
 
   test('a consent body must acknowledge', () => {
-    const body = { purchaseIds: ['stripe:cs_test_1'], textVersion: '2026-09-23', language: 'de', acknowledged: true }
+    const body = { purchaseIds: ['card-gate:cs_test_1'], textVersion: '2026-09-23', language: 'de', acknowledged: true }
     expect(ajv.validate(PerformanceConsentBodySchema, body)).toBe(true)
     expect(ajv.validate(PerformanceConsentBodySchema, { ...body, acknowledged: false })).toBe(false)
     expect(ajv.validate(PerformanceConsentBodySchema, { ...body, uiLanguage: 'en' })).toBe(true)

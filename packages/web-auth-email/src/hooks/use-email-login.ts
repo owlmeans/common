@@ -7,7 +7,7 @@ import {
   EmailSignInReason,
 } from '@owlmeans/auth-email'
 import type { EmailAuthOptionsView, EmailSignInView } from '@owlmeans/auth-email'
-import { captchaLoader } from '@owlmeans/web-captcha'
+import { CaptchaLoadError, captchaClients } from '@owlmeans/web-captcha'
 import { useCaptcha, type UseCaptchaResult } from '@owlmeans/web-captcha/react'
 import { logger } from '@owlmeans/log'
 import { emailLoginStateHelper as helper } from '../state.js'
@@ -24,7 +24,9 @@ const log = logger('auth-email')
  * The e-mail sign-in form: an address, then a mailed PIN — or, where the deployment offers
  * passwords, the address and a password, which on a device the account does not know turns into a
  * mailed PIN as well. A captcha token is fetched right before each send-PIN and password sign-in
- * when the deployment asks for one; the PIN step needs none.
+ * when the deployment asks for one — from the registered client (`captchaClients`) of the provider
+ * the server advertises; without that client the call is refused, never sent without a token. The
+ * PIN step needs none.
  *
  * Every transition is `emailLoginStateHelper.reduce`; this hook only performs the calls and
  * dispatches what they answered. A successful answer is finished by the client service
@@ -42,8 +44,10 @@ export const useEmailLogin = (opts: UseEmailLoginOptions = {}): EmailLoginModel 
   current.current = state
 
   const siteKey = state.options?.captcha?.siteKey ?? null
-  const pinCaptcha = useCaptcha({ siteKey, action: EMAIL_CAPTCHA_ACTION_PIN })
-  const passwordCaptcha = useCaptcha({ siteKey, action: EMAIL_CAPTCHA_ACTION_PASSWORD })
+  const provider = state.options?.captcha?.provider ?? null
+  const captchaClient = useMemo(() => provider != null ? captchaClients.get(provider) : null, [provider])
+  const pinCaptcha = useCaptcha({ client: captchaClient, siteKey, action: EMAIL_CAPTCHA_ACTION_PIN })
+  const passwordCaptcha = useCaptcha({ client: captchaClient, siteKey, action: EMAIL_CAPTCHA_ACTION_PASSWORD })
 
   const loadOptions = useCallback(async (fresh?: boolean): Promise<EmailAuthOptionsView | null> => {
     try {
@@ -75,12 +79,16 @@ export const useEmailLogin = (opts: UseEmailLoginOptions = {}): EmailLoginModel 
     if (options.captcha == null || options.captcha.siteKey === '') {
       return undefined
     }
-    const token = options.captcha.siteKey === siteKey
-      ? await captcha.execute()
-      : await captchaLoader.token(options.captcha.siteKey, action)
+    if (options.captcha.siteKey === siteKey && options.captcha.provider === provider) {
+      return await captcha.execute() ?? undefined
+    }
+    const fresh = captchaClients.get(options.captcha.provider)
+    if (fresh == null) {
+      throw new CaptchaLoadError('unavailable', 'No captcha client for the advertised provider')
+    }
 
-    return token ?? undefined
-  }, [siteKey])
+    return await fresh.execute(options.captcha.siteKey, action)
+  }, [siteKey, provider])
 
   /** The options this call runs under: the loaded ones, else a fresh read. */
   const optionsNow = useCallback(async (): Promise<EmailAuthOptionsView> => {
@@ -216,6 +224,7 @@ export const useEmailLogin = (opts: UseEmailLoginOptions = {}): EmailLoginModel 
   return {
     state,
     captcha: state.options?.captcha != null,
+    captchaClient,
     passwordOffered: helper.passwordOffered(state),
     pinLength: helper.pinLength(state),
     setEmail: useCallback((value: string) => dispatch({ type: 'email', value }), []),

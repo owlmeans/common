@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-upload
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-upload": "^0.1.22-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/web-upload": "^0.2.0-alpha.0"` in `dependencies`
 
 The browser half of the upload family: contract `/upload`, server `/server-upload`, client
 `/client-upload`. A queue holds what the person picked or dropped, checks it against the policy at

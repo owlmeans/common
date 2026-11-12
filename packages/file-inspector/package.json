@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/file-inspector",
-  "version": "0.1.22-rc.0",
+  "version": "0.2.0-alpha.0",
   "description": "File verification from bytes: what a file really is (images, media, pdf, office, csv, text, code, fonts, 3D models, diagrams, executables) against what its name and media type claim, from a head sample or a few bounded range reads; active-PDF detection, executable refusal and safe file names.",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
@@ -42,14 +42,14 @@
   "dependencies": {
     "@file-type/cfbf": "^0.2.2",
     "@file-type/xml": "^1.2.0",
-    "@owlmeans/error": "^0.1.21",
-    "@owlmeans/log": "^0.1.21",
-    "@owlmeans/storage-common": "^0.1.22-rc.0",
+    "@owlmeans/error": "^0.2.0-alpha.0",
+    "@owlmeans/log": "^0.2.0-alpha.0",
+    "@owlmeans/storage-common": "^0.2.0-alpha.0",
     "file-type": "^22.2.0",
     "strtok3": "^10.7.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "@types/yazl": "^3.3.1",

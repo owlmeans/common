@@ -14,7 +14,7 @@ shared auth protocols and organization-entity resolution (`makeEntityScope(req)`
 ## Installation
 
 ```bash
-bun add @owlmeans/auth@^0.1.21
+bun add @owlmeans/auth@^0.2.0-alpha.0
 ```
 
 `ajv` is a **peer** dependency — install it alongside, or `authHelper.verifyAuth` /
@@ -226,7 +226,7 @@ All symbols are exported from the package root (`@owlmeans/auth`); there are no 
 | Symbol | Kind | Purpose |
 |--------|------|---------|
 | `AuthRole` | string enum | `User`, `Guest`, `Service`, `System`, `Admin`, `Superuser`, `Blocked` |
-| `AuthenticationType` | string enum | How identity is proven: `BasicEd25519`, `OneTimeToken`, `ReCaptcha`, `WalletDid`, `RelyHandshake`, `WalletConsumer`, `WalletProvider`, `Google` (`'google-oauth'`), `Supervisor` (`'pk-supervisor'`) |
+| `AuthenticationType` | string enum | How identity is proven: `BasicEd25519`, `OneTimeToken`, `Captcha` (`'captcha'`), `WalletDid`, `RelyHandshake`, `WalletConsumer`, `WalletProvider`, `Google` (`'google-oauth'`), `Supervisor` (`'pk-supervisor'`) |
 | `AuthroizationType` (sic) | string enum | How a request carries authorization: `AuthToken`, `Ed25519BasicToken`, `Ed25519BasicSignature` |
 | `AuthenticationStage` | string enum | Flow stage: `Error`, `Init`, `Allowence`, `Authenticate`, `Authentication`, `Authenticated` |
 
@@ -242,8 +242,7 @@ All symbols are exported from the package root (`@owlmeans/auth`); there are no 
 | `AUTHEN`, `AUTHEN_INIT`, `AUTHEN_AUTHEN`, `AUTHEN_RELY` | const | Backend authentication entrypoint aliases |
 | `CAUTHEN`, `CAUTHEN_AUTHEN`, `CAUTHEN_AUTHEN_DEFAULT`, `CAUTHEN_AUTHEN_TYPED`, `CAUTHEN_FLOW_ENTER` | const | Front-end authentication entrypoint aliases |
 | `DISPATCHER`, `DISPATCHER_AUTHEN`, `DISPATCHER_SURROGATE` | const | Dispatcher and surrogate login-window entrypoint aliases |
-| `MOD_RECAPTCHA`, `CMOD_RECAPTCHA` | const | reCAPTCHA plugin-record ids (server secret + policy, browser site key) |
-| `RECAPTCHA_GUARD` | const | `'guard:re-captcha'` — the guard alias of a route a reCAPTCHA-proven guest calls once |
+| `CAPTCHA_GUARD` | const | `'guard:captcha'` — the guard alias of a route a captcha-proven guest calls once |
 
 ### Errors
 
@@ -332,7 +331,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.22-rc.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

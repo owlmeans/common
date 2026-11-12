@@ -61,7 +61,7 @@ method?: {
 ```
 
 **Absent `method` means the plugin is never OFFERED** — still reachable by type, which is what a
-step-inside-another-flow (`re-captcha`) needs.
+step-inside-another-flow (`captcha`) needs.
 
 **`restricted` is the operator-login gate.** A restricted method appears only where the
 configuration named it in `methods` or enabled it in `overrides`. Registering the plugin is
@@ -80,13 +80,13 @@ therefore drops a plugin on three counts, and a new plugin has to answer all thr
 
 | Gate | Field | The button it prevents |
 |---|---|---|
-| Not a sign-in method | no `method` / `hidden` | `re-captcha` offered as a way in |
+| Not a sign-in method | no `method` / `hidden` | `captcha` offered as a way in |
 | Cannot render | `requiresRenderer` + no `Renderer` | opens a screen that throws `Renderer is not defined` |
 | Not wired here | `method.available` returns false | starts a flow whose first act is a failed service lookup |
 
 **`requiresRenderer` is declared, never inferred.** A plugin that renders its own form and one that
 throws on mount are the same object until the screen mounts. `@owlmeans/client-auth` ships no UI
-family, so `basic-ed25519`, `wallet-consumer` and `re-captcha` declare it and get their `Renderer`
+family, so `basic-ed25519`, `wallet-consumer` and `captcha` declare it and get their `Renderer`
 assigned by a panel package's side-effect subpath — `@owlmeans/web-panel/auth` or
 `@owlmeans/mui-panel/auth`. An app that never imports one of those must not be offered them: a
 panel package's own index does NOT pull that subpath in, so "the app uses web-panel" is not the same

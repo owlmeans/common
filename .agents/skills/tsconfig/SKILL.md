@@ -108,7 +108,7 @@ Extend `tsconfig.react.json` in any package that contains JSX or types React com
 most of the `client-*`, `web-*` and `mui-*` families plus `router`, `socket`, `did`, `i18n` and
 `server-socket`, which expose React-facing types. A package under those prefixes with no JSX
 (`client-config`, `client-entrypoint`, `client-flow`, `client-iam`, `client-resource`,
-`client-route`, `web-db`, `web-gtm`) stays on the base config. `astro` is the other shape: base
+`client-route`, `web-db`) stays on the base config. `astro` is the other shape: base
 config plus an inline `"lib": ["ESNext", "DOM"]`, because it is browser-facing without React.
 
 The shadcn web packages add a `paths` entry of their own on top of the React config —

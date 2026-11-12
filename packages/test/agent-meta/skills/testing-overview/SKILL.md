@@ -31,19 +31,18 @@ New auth mocks belong in `@owlmeans/test-auth`, never in a package's own `tests/
 
 ## Package → category map
 
-147 packages, one category each.
+146 packages, one category each.
 
-- **A** (81): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `auth-email`, `auth-token`, `basic-ids`, `bot`, `bot-agent`, `captcha`, `cli-auth`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-planning`, `client-resource`, `client-route`, `client-socket`, `client-upload`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `file-inspector`, `flow`, `i18n`, `iam`, `image-resource`, `job`, `llm-common`, `log`, `mailer`, `marketing-consent`, `oauth`, `payment`, `planning`, `planning-auth`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-auth-session`, `server-auth-token`, `server-bot`, `server-config`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-oauth`, `server-planning`, `server-route`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `upload`, `viable-common`, `viable-log`, `viable-sdk`, `web-auth-email`, `web-auth-token`, `web-captcha`, `web-db`, `web-gtm`, `web-inquiry`, `web-log`, `web-router-react-router`
+- **A** (80): `agent`, `agent-common`, `agent-skills`, `api`, `api-config`, `api-config-client`, `api-config-server`, `astro`, `auth-email`, `auth-token`, `basic-ids`, `bot`, `bot-agent`, `captcha`, `cli-auth`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`, `client-planning`, `client-resource`, `client-route`, `client-socket`, `client-upload`, `common-inquiry`, `config`, `consent`, `context`, `create-app`, `dep-config`, `entrypoint`, `error`, `file-inspector`, `flow`, `i18n`, `iam`, `image-resource`, `job`, `llm-common`, `log`, `mailer`, `marketing-consent`, `oauth`, `payment`, `planning`, `planning-auth`, `queue`, `resource`, `route`, `router`, `server-auth-identity`, `server-auth-session`, `server-auth-token`, `server-bot`, `server-config`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-oauth`, `server-planning`, `server-route`, `server-socket`, `server-wl`, `socket`, `state`, `static-resource`, `storage-common`, `upload`, `viable-common`, `viable-log`, `viable-sdk`, `web-auth-email`, `web-auth-token`, `web-captcha`, `web-db`, `web-inquiry`, `web-log`, `web-router-react-router`
 - **B** (23): `auth`, `auth-common`, `auth-otp`, `basic-envelope`, `basic-keys`, `client-auth`, `client-did`, `client-iam`, `client-payment`, `did`, `mui-oidc-rp`, `oidc`, `server-auth`, `server-auth-email`, `server-auth-otp`, `server-marketing-consent`, `server-oidc-provider`, `server-oidc-rp`, `server-upload`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `wled`
-- **C** (22): `bot-postgres`, `file-streams`, `kluster`, `llm` (live inference providers), `llm-reader` (live models, the public web), `llm-reader-playwright` (a browser), `mailer-smtp`, `marketing-consent-mongo`, `marketing-consent-postgres`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-mailer-mailgun`, `server-payment`, `storage-resource`
+- **C** (21): `bot-postgres`, `file-streams`, `kluster`, `llm` (live inference providers), `llm-reader` (live models, the public web), `llm-reader-playwright` (a browser), `mailer-smtp`, `marketing-consent-mongo`, `marketing-consent-postgres`, `mongo`, `mongo-resource`, `planning-postgres`, `postgres`, `postgres-resource`, `redis`, `redis-queue`, `redis-resource`, `server-api`, `server-app`, `server-payment`, `storage-resource`
 - **D** (16): `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-bot`, `web-client`, `web-consent`, `web-flow`, `web-marketing-consent`, `web-oauth`, `web-panel`, `web-payment`, `web-router`, `web-upload`, `web-wl`
-- **None** (5): `_tpl`, and the four harness packages themselves — `test`, `test-auth`, `test-integration`, `test-ui`
+- **None** (6): `_tpl`, and the five harness packages themselves — `test`, `test-auth`, `test-integration`, `test-payment`, `test-ui`
 
 A **contract** package and its **backend** split across categories. `queue`, `resource`,
 `storage-common` and `image-resource` are A — types, AJV schemas, error classes and declarations,
 with nothing to connect to — while `redis-queue`, `mongo`, `postgres` and `storage-resource` (which
-carries the S3 client) are C. Same for mail: `mailer` is A, `mailer-smtp` and
-`server-mailer-mailgun` are C. The test is what the package's own code does at runtime, not what
+carries the S3 client) are C. Same for mail: `mailer` is A, `mailer-smtp` is C. The test is what the package's own code does at runtime, not what
 its manifest lists: a package that only declares types, schemas and errors has no gate to write,
 while one whose code issues real commands against the service is C even when it names no driver.
 `redis-resource` imports `ioredis` for types alone and drives the client the db service hands it;
@@ -60,11 +59,13 @@ schemas and a stand-in server on a local port. `server-upload` is B (a mock guar
 `server-auth-otp` and `server-auth-email` are B — they sign and verify through a fixture trusted key
 — and carry env-gated Redis/Mongo specs (`redisGate`, `mongoGate`) for their stores, exactly as a C
 package would. `agent` is A the same way: its one live spec (`media-live.spec.ts`) opens a
-`makeGates` gate on the provider secrets and self-skips without them. `captcha` is A: Google is reached only through the `CAPTCHA_VERIFIER` seam or an
-injected `fetch`. `web-captcha` and `web-auth-email` are A: their specs drive the loader over a
-stand-in `document`/`window` and the pure halves (`emailLoginStateHelper`, `emailRefusalHelper`,
-the storage helper, the offer step, the panel helper, i18n parity); the rendered card is an
-application's e2e concern.
+`makeGates` gate on the provider secrets and self-skips without them. `captcha` is A: it names no captcha service, so its specs register a stand-in
+`CaptchaProvider` in the captcha host — the plugin seam, not a mock. `web-captcha` and
+`web-auth-email` are A: their specs drive stand-in `CaptchaClient`s and the pure halves
+(`captchaNoticeHelper`, `emailLoginStateHelper`, `emailRefusalHelper`, the storage helper, the
+offer step, the panel helper, i18n parity); the rendered card is an application's e2e concern. A
+provider's own service (siteverify, a script loader) is tested in its connect package, over an
+injected `fetch` or a stand-in `document`/`window`.
 
 `server-bot` is A although its platforms are external services: they are reached only through the
 plugin seam, and its own API-faithful mock transport (a shipped feature, not a test mock) or a
@@ -74,7 +75,7 @@ spec's `fetch` answering a platform's documented envelopes stands in for them; i
 `web-router` is D, not A: it drives the History API, so its routing behaviour is only observable in
 a browser and its specs mount a real harness in chromium. A client-side package stays in A when it
 ships no component at all — `client-config`, `client-context`, `client-entrypoint`, `client-flow`,
-`client-job`, `client-resource`, `client-route`, `client-socket`, `web-db`, `web-gtm`, `web-inquiry`
+`client-job`, `client-resource`, `client-route`, `client-socket`, `web-db`, `web-inquiry`
 and `web-router-react-router` are services, models and adapters, so `bun test` alone covers them.
 
 A new package takes the category its own behaviour implies: an external service it cannot fake ⇒ C,

@@ -14,7 +14,7 @@ const AT = new Date('2026-09-16T12:00:00Z')
 
 const planView: EntitlementPlanView = {
   sku: 'pro-monthly', productSku: 'pro', title: 'Pro', rank: 10, free: false,
-  status: SubscriptionStatus.Active, paygate: 'stripe', subscribedAt: new Date('2026-01-01T00:00:00Z'),
+  status: SubscriptionStatus.Active, paygate: 'card-gate', subscribedAt: new Date('2026-01-01T00:00:00Z'),
 }
 
 const view: EntitlementView = entitlementViewHelper.entitlementViewOf({

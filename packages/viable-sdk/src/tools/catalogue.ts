@@ -938,8 +938,11 @@ export const catalogue: ToolDefinition[] = [
     name: 'reinitialize_project',
     title: 'Rebuild the application from the template',
     description:
-      'Wipe the generated sources and lay the template down again. The user stories are KEPT and'
-      + ' reset to planned; your own configuration and git history survive.',
+      'Wipe the generated sources and lay the template down again, then draw the application anew.'
+      + ' A rebuild counts as a NEW project generation: it uses one of the plan\'s free project'
+      + ' generations, or spends credits when none is left, and is refused when neither is available.'
+      + ' The user stories are KEPT and reset to planned; your own configuration and git history survive.'
+      + ' Calling it again rebuilds and spends again.',
     input: { projectId: z.string().optional() },
     availability: toolHostHelper.anyHost,
     annotations: DESTRUCTIVE,
@@ -1158,7 +1161,7 @@ export const catalogue: ToolDefinition[] = [
     input: {
       projectId: z.string().optional(),
       backend: z.record(z.string(), z.string()).optional()
-        .describe('NAME → value for the backend, e.g. {"STRIPE_SECRET_KEY":"sk_live_…"}. Never shown back.'),
+        .describe('NAME → value for the backend, e.g. {"PAYMENT_API_KEY":"key_live_…"}. Never shown back.'),
       frontend: z.record(z.string(), z.string()).optional()
         .describe('NAME → value for the frontend — PUBLIC, built into the pages.'),
       scope: SCOPE_INPUT,

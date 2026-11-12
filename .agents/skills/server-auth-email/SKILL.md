@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth-email
 
 **Layer:** Server (L10)
-**Install:** `"@owlmeans/server-auth-email": "^0.1.22-rc.0"` in `dependencies` (`mongodb` peer)
+**Install:** `"@owlmeans/server-auth-email": "^0.2.0-alpha.0"` in `dependencies` (`mongodb` peer)
 **Contracts:** `@owlmeans/auth-email` (tree, schemas, constants) · **Browser:** `@owlmeans/web-auth-email`
 
 ## Wiring
@@ -24,10 +24,11 @@ context.registerService(myMailer)                                   // the alias
 context.cfg.otp = { mailerAlias, challengeStoreAlias: 'app-email-challenges', identityAlias }   // NO throttleRules
 context.registerService(makeOtpService())
 appendEmailAuthResources(context, AUTH_IDENTITY_DB_ALIAS)
+appendRecaptcha(context, { secret, siteKey })                       // a captcha provider (connect), only when captcha is on
 appendEmailAuth(context, {
   password: true,
   devicePin: true,                                                 // false = a password alone signs a new device in
-  captcha: { siteKey, secret, hostnames, minScore },               // null / '' siteKey = off
+  captcha: { provider: RECAPTCHA_PROVIDER, hostnames, minScore },  // null = off
   tech: { enabled: () => cfg.debug?.supervisor === true, signers: ['shared-key'] },
   ipOf: req => clientIpOf(req),
   throttleAlias: 'app-email-throttle',
@@ -58,9 +59,9 @@ context.registerEntrypoints(serveEmailAuthEntrypoints(emailAuthProtocols))
 | Option | Default | Meaning |
 |---|---|---|
 | `password` | off | `true` or `{ minLength?, maxLength? }` (8…128, NFKC, not the address) |
-| `captcha` | off | `CaptchaSettings` — built into `makeCaptchaCheck` on the first request, after mounted paths resolve |
+| `captcha` | off | `CaptchaSettings` (`provider?`, `hostnames`, `minScore` — no keys) — built into `makeCaptchaCheck` at the service's init, after mounted paths resolve; the provider it names (or the only one) must be registered in the captcha host, or init fails |
 | `tech` | off | `{ enabled: boolean \| () => boolean, signers }` — `signers` are `TRUSTED` record NAMES; `enabled` re-read per request |
-| `ipOf` | none | client address; without it no IP throttles and no `remoteip` |
+| `ipOf` | none | client address; without it no IP throttles and no `remoteIp` for the captcha |
 | `identityAlias` | `cfg.otp.identityAlias ?? AUTH_IDENTITY_LINKING` | the `IdentityLinkingService` |
 | `otpAlias` | `OTP_SERVICE` | |
 | `throttleAlias` | none | an `AuthThrottleService`; absent = no throttles at all |
@@ -76,7 +77,7 @@ context.registerEntrypoints(serveEmailAuthEntrypoints(emailAuthProtocols))
   (`@owlmeans/server-auth/manager`) with this request's `email-pin` / `email-password` plugins as an
   EXCLUSIVE list, built per request (device id and resolved account in the closure). They are never
   `registerPlugin`-ed, so the manager's ungated `/authentication/*` cannot reach them, and a
-  challenge of a global type (`email-otp`, `pk-supervisor`, `re-captcha`) is refused here.
+  challenge of a global type (`email-otp`, `pk-supervisor`, `captcha`) is refused here.
 - **Token types.** A token is stamped `email-pin` or `email-password` (type, role, scopes, `userId`,
   `profileId`, `entitySlug` all overwritten from the linked identity) — never `email-otp` or
   `one-time-token`, so an integrated IAM's finalizer and gate keep refusing it. The identity
@@ -107,6 +108,11 @@ context.registerEntrypoints(serveEmailAuthEntrypoints(emailAuthProtocols))
   pin }` stores the choice and answers `{ status }`. Only one of `challenge` and `pin` → 400.
 - **Order per request:** IP and global throttles → captcha → per-address throttle → account and
   device lookup → scrypt. A failed captcha never spends a person's per-address budget.
+- **Captcha.** `options` advertises the provider's own `clientSettings()` (`{ provider, siteKey }`,
+  the browser picks its client by `provider`) or `null` when off. A refused token is `captcha:<reason>`
+  → `EmailVerificationRefused` (403); a missing provider or incomplete settings
+  `AuthUnavailable('captcha:config')` (503) — and, at boot, settings whose provider is not registered
+  stop the service's init. There is no built-in provider.
 - **Devices.** Key `sha256("{accountId}:{device id}")` (the browser's id is never stored); remembered
   only inside a successful sign-in; reads filter `expiresAt > now`; upsert then trim to the newest
   `limit`. A password set, change or removal forgets every other device but the request's `device`;
@@ -147,7 +153,8 @@ the `auth-email` errors (404 / 409 / 422 / 503) as the contracts package lists t
 
 ## Tests
 
-`bun test ./tests`: unit specs over memory stores and a stand-in `CAPTCHA_VERIFIER`; `mongo.spec.ts`
+`bun test ./tests`: unit specs over memory stores and a stand-in captcha provider registered in the
+captcha host (`ensureCaptchaService(ctx).register(…)`); `mongo.spec.ts`
 and `redis.spec.ts` are env-gated (`mongoGate` / `redisGate`, `/testing-integration`) — devices, TTL
 filter, rotation, password records, Redis tickets and OTP rewrite. Signed tech calls are made with
 `signBasicEd25519Request` (`auth-common`).

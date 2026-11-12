@@ -56,7 +56,7 @@ export const botAgentTools = (options: BotAgentToolsOptions): AgentToolSet => {
       try {
         const args: BotAgentToolArgs = input != null && typeof input === 'object' ? input : {}
         const result = await perform(args)
-        // The action's own sentence ("WhatsApp cannot delete messages."), never its machine `code`.
+        // The action's own sentence ("Acme cannot delete messages."), never its machine `code`.
         return result?.ok === true
           ? BOT_AGENT_DONE
           : { error: result?.error ?? BOT_AGENT_NO_REASON }

@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { BotPlatform as BotPlatformOfBot } from '@owlmeans/bot'
 import { BlueprintCase, BotKit, BotKitAction, BotPlatform, landingGatePreferenceOf, LandingGatePreference } from '../src/blueprint/index.js'
 import type { Blueprint } from '../src/blueprint/index.js'
 import { ViablePersona, ViableSkill } from '../src/skills/consts.js'
@@ -34,10 +33,10 @@ describe('viable-common - the landing-gate preference', () => {
 })
 
 describe('viable-common - the bot case vocabulary', () => {
-  test('names both bot cases, the three kits and the kit actions, and re-exports the platforms of @owlmeans/bot', () => {
+  test('names both bot cases, the three kits and the kit actions, and keeps the deprecated platform enum verbatim', () => {
     expect([BlueprintCase.Bot, BlueprintCase.AiBot]).toEqual(['bot', 'ai-bot'] as BlueprintCase[])
     expect(Object.values(BotKit)).toEqual(['moderation', 'support', 'intake'] as BotKit[])
     expect(Object.values(BotKitAction)).toEqual(['delete', 'warn', 'mute', 'ban', 'reply', 'record', 'agent'] as BotKitAction[])
-    expect(BotPlatform).toBe(BotPlatformOfBot)
+    expect(Object.values(BotPlatform)).toEqual(['telegram', 'whatsapp', 'discord', 'slack'] as BotPlatform[])
   })
 })

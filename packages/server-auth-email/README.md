@@ -4,7 +4,7 @@ The server half of OwlMeans e-mail sign-in, serving the routes of `@owlmeans/aut
 `makeEmailAuthProtocols`. A person signs in (or registers) with a PIN mailed to their address, may
 add a password, and uses it on devices they signed in on during the last 30 days. A password
 sign-in on any other device gets a PIN as well — unless the deployment (`devicePin: false`) or the
-account itself, from its password panel, turned that new-device PIN off. An optional reCAPTCHA v3 check (`@owlmeans/captcha`) guards send-PIN and password sign-in,
+account itself, from its password panel, turned that new-device PIN off. An optional score-based captcha check (`@owlmeans/captcha`, over a registered captcha provider) guards send-PIN and password sign-in,
 and throttles count requests per address, client IP, account and in total. Developer routes rewrite a
 pending PIN and sign a waiver that skips the captcha and the throttles, so end-to-end tests can sign
 in. The browser half is `@owlmeans/web-auth-email`.
@@ -12,7 +12,7 @@ in. The browser half is `@owlmeans/web-auth-email`.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-email@^0.1.22-rc.0
+bun add @owlmeans/server-auth-email@^0.2.0-alpha.0
 ```
 
 ## Wiring
@@ -37,9 +37,10 @@ context.registerService(makeRedisThrottleService(OTP_THROTTLE_SERVICE, 'auth-ema
 context.registerService(makeOtpService())                       // cfg.otp = { mailerAlias, challengeStoreAlias }
 appendAuthIdentityResources(context, AUTH_IDENTITY_DB_ALIAS, { service: MY_APP })
 appendEmailAuthResources(context, AUTH_IDENTITY_DB_ALIAS)
+appendMyCaptchaProvider(context)                                 // a captcha provider package's append helper
 appendEmailAuth(context, {
   password: true,
-  captcha: { siteKey, secret, hostnames: 'example.org', minScore: 0.5 },   // null = off
+  captcha: { provider: 'my-provider', hostnames: 'example.org', minScore: 0.5 },   // null = off
   tech: { enabled: () => cfg.debug?.supervisor === true, signers: ['supervisor'] },
   ipOf: req => clientIpOf(req),
   throttleAlias: OTP_THROTTLE_SERVICE,
@@ -60,9 +61,9 @@ under a valid waiver too.
 | Option | Default | Meaning |
 |---|---|---|
 | `password` | off | `true` or `{ minLength?, maxLength? }` (default 8…128 characters, NFKC) turns password sign-in and the password routes on |
-| `captcha` | off | `CaptchaSettings` `{ siteKey, secret, hostnames, minScore }`; an empty `siteKey` = off; enabled but incomplete fails closed (503) |
+| `captcha` | off | `CaptchaSettings` `{ provider?, hostnames, minScore }` (keys are the provider's); `null` = off; the provider must be registered in the captcha host or the service fails at boot; on but incomplete fails closed (503) |
 | `tech` | off | `{ enabled: boolean \| () => boolean, signers: string[] }` — the developer routes; `signers` are `TRUSTED` record NAMES |
-| `ipOf` | none | `(req) => string \| null` — the client address; without it no IP throttles and no `remoteip` for the captcha |
+| `ipOf` | none | `(req) => string \| null` — the client address; without it no IP throttles and no `remoteIp` for the captcha |
 | `identityAlias` | `cfg.otp.identityAlias ?? AUTH_IDENTITY_LINKING` | the `IdentityLinkingService` |
 | `otpAlias` | `OTP_SERVICE` | the `OtpService` |
 | `throttleAlias` | none | an `AuthThrottleService`; without it there are no throttles at all |
@@ -76,7 +77,7 @@ under a valid waiver too.
 
 | Route | Service member | Answer |
 |---|---|---|
-| `GET options` | `options` | `{ password, captcha: { provider, siteKey } \| null, pinLength }`; `captcha` is `null` under a valid waiver |
+| `GET options` | `options` | `{ password, captcha: { provider, siteKey } \| null, pinLength }` — `captcha` is the provider's `clientSettings()`, `null` when off or under a valid waiver |
 | `POST pin` | `sendPin` | `{ challenge }` — the same answer for a known and an unknown address |
 | `POST sign-in` | `signIn` | PIN mode → `{ token, offer? }`; password mode → `{ token }` on a remembered device or while the new-device PIN is off, otherwise `{ challenge, reason: 'device' }` |
 | `GET password` | `status` | `{ enabled, set, declined, updatedAt?, devicePin? }` (`enabled: false` while passwords are off; `devicePin`, the new-device PIN in effect, while they are on) |
@@ -117,7 +118,7 @@ the 10 most recently seen devices. A hash is `scrypt$32768$8$1$<salt>$<key>` (`n
   `@owlmeans/server-auth/manager`, with this request's plugins as an EXCLUSIVE list. The plugins
   are never registered globally. The auth manager's own `/authentication/*` routes cannot reach
   `email-pin` / `email-password`, and a challenge of a global type (`email-otp`, `pk-supervisor`,
-  `re-captcha`) is refused here.
+  `captcha`) is refused here.
 - **Token types.** Tokens are stamped `email-pin` or `email-password`, never `email-otp` or
   `one-time-token`, so the integrated IAM's finalizer keeps refusing them. The identity credential
   is still type `email-otp`, so OTP and e-mail sign-in land on one account per address.
@@ -157,7 +158,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.22-rc.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

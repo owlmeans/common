@@ -71,8 +71,8 @@ import { CookieConsent } from '@owlmeans/web-consent'
 - **The interface language is not a category.** The default set renders the required row and the
   analytics and marketing toggles only; the language is strictly necessary storage that no toggle
   governs (the `consent` skill). The built-in bundle (8 languages) describes it in the required row.
-- `silent` skips every `dataLayer` and global write. It is for tests and for an app that runs no
-  tags at all.
+- `silent` skips every runtime effect of a decision — the category globals, every registered signal
+  provider, `CONSENT_EVENT`. It is for tests and for an app that runs no tags at all.
 - The window's switches are **seeded from storage every time it opens** — it is mounted only while
   open — never from the last render: a visitor reopening preferences must see the answer they gave.
   An automatic decision past its age seeds nothing.

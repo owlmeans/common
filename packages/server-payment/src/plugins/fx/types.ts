@@ -1,16 +1,5 @@
-import type Stripe from 'stripe'
-
-export interface StripeFxRate {
-  fromCurrency: string
-  toCurrency: string
-  /** Stripe's fee-inclusive conversion rate (`base_rate × (1 − fx_fee_rate)`). */
-  exchangeRate: number
-  /** The rate before any fee (Stripe's `base_rate`; derived from `exchangeRate` and `fxFeeRate` when absent). */
-  baseRate: number
-  /** Market/reference rate used to translate catalogue value into settlement value. */
-  referenceRate: number
-  fxFeeRate?: number
-}
+import type { Paygate } from '../../paygate/types.js'
+import type { FxQuoteCache } from '../types.local.js'
 
 export interface SettlementAmount {
   amountMinor: number
@@ -20,21 +9,19 @@ export interface SettlementAmount {
   referenceRate: number
 }
 
-export type StripeFxRateCache = Map<string, Promise<StripeFxRate | null>>
-
-/** Currency conversion through Stripe's FX Quotes, under a context's pricing settings. */
+/** Currency conversion through a paygate's FX quotes, under its settlement currency. */
 export interface FxHelper {
-  /** One unlocked Stripe FX quote. `toCurrency` units per one `fromCurrency` unit. */
-  stripeFxRate: (stripe: Stripe, fromCurrency: string, toCurrency: string, apiVersion: string) => Promise<StripeFxRate | null>
   /**
-   * A catalogue amount in the currency the buyer is charged in: unchanged — no FX call — when the
-   * currencies are equal; otherwise converted at Stripe's FX reference rate, rounded up.
+   * A catalogue amount in the currency the buyer is charged in: unchanged — no quote — when the
+   * currencies are equal; otherwise converted at the paygate's reference rate, rounded up.
+   *
+   * @throws PaygateError('fx-rate:<from>:<to>') when the paygate quotes no rate (or has no `fx`)
    */
   chargeAmount: (
-    stripe: Stripe, sourceAmountMinor: number, sourceCurrency: string, chargeCurrency: string, cache?: StripeFxRateCache,
+    paygate: Paygate, sourceAmountMinor: number, sourceCurrency: string, chargeCurrency: string, cache?: FxQuoteCache,
   ) => Promise<SettlementAmount>
-  /** Translate a catalogue amount into the configured Stripe settlement currency. */
+  /** Translate a catalogue amount into the paygate's settlement currency (unchanged when it declares none). */
   settlementAmount: (
-    stripe: Stripe, sourceAmountMinor: number, sourceCurrency: string, cache?: StripeFxRateCache,
+    paygate: Paygate, sourceAmountMinor: number, sourceCurrency: string, cache?: FxQuoteCache,
   ) => Promise<SettlementAmount>
 }

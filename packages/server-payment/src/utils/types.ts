@@ -1,18 +1,9 @@
-import type Stripe from 'stripe'
-
 /** A resource whose Mongo collection is reached directly — a conditional write's target. */
 export interface CollectionHolder { collection: unknown }
 
 /** The package's pure primitives: paygate payload readers, store guards and audit text. */
 export interface PaymentUtils {
-  /**
-   * The API version a client was built with — read back from the client, never written as a literal,
-   * so a webhook endpoint always receives the payload shapes the client itself parses.
-   */
-  apiVersionOf: (stripe: Stripe) => string
   isDuplicateKey: (error: unknown) => boolean
-  /** A paygate answer meaning the object does not exist (deleted, or never did). */
-  isMissingObject: (error: unknown) => boolean
   /** A paygate object reference, expanded or not, as its id. */
   idOf: (value: string | { id?: string } | null | undefined) => string | undefined
   /** Epoch seconds → `Date`. */

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/auth-email",
-  "version": "0.1.22-rc.0",
+  "version": "0.2.0-alpha.0",
   "license": "MIT",
   "description": "Contracts of OwlMeans e-mail sign-in — PIN, optional password, remembered devices, captcha: the protocol factory, schemas, views, constants and errors.",
   "homepage": "https://owlmeans.com/docs/",
@@ -33,19 +33,19 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.21",
-    "@owlmeans/auth-common": "^0.1.22-rc.0",
-    "@owlmeans/context": "^0.1.21",
-    "@owlmeans/entrypoint": "^0.1.22-rc.0",
-    "@owlmeans/error": "^0.1.21",
-    "@owlmeans/route": "^0.1.22-rc.0"
+    "@owlmeans/auth": "^0.2.0-alpha.0",
+    "@owlmeans/auth-common": "^0.2.0-alpha.0",
+    "@owlmeans/context": "^0.2.0-alpha.0",
+    "@owlmeans/entrypoint": "^0.2.0-alpha.0",
+    "@owlmeans/error": "^0.2.0-alpha.0",
+    "@owlmeans/route": "^0.2.0-alpha.0"
   },
   "peerDependencies": {
     "ajv": "*",
     "ajv-formats": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.21",
+    "@owlmeans/dep-config": "^0.2.0-alpha.0",
     "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",

@@ -8,7 +8,7 @@ server integration (`@owlmeans/server-payment`) implements against these contrac
 ## Installation
 
 ```bash
-bun add @owlmeans/payment@^0.1.22-rc.0
+bun add @owlmeans/payment@^0.2.0-alpha.0
 ```
 
 ## Concepts
@@ -34,7 +34,7 @@ import type { ProductPlan } from '@owlmeans/payment'
 
 const proMonthly: ProductPlan = {
   productSku: 'pro', sku: 'pro-monthly', status: PlanStatus.Active, duration: PlanDuration.Monthly,
-  price: 20, title: 'Pro', rank: 10, gateways: ['stripe'],
+  price: 20, title: 'Pro', rank: 10, gateways: ['card-gate'],
   capabilities: [
     { scope: 'feature', permissions: { whitelabel: true } },
     { scope: 'feature', permissions: { beta: true }, promo: { until: new Date('2027-01-01'), grandfather: true } },
@@ -117,7 +117,7 @@ if (error instanceof LimitExhausted) { error.limitKey; error.used; error.limit; 
 
 ## Related Packages
 
-- `@owlmeans/server-payment` — Stripe gateway, subscription store, usage ledger and the two gates
+- `@owlmeans/server-payment` — the paygate host (payment provider packages plug in), subscription store, usage ledger and the two gates
 - `@owlmeans/client-payment` — browser-side catalogue service
 - `@owlmeans/web-payment` — React hooks and pieces over the entitlement view
 
@@ -129,7 +129,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.22-rc.0
+npx @owlmeans/agent-skills@^0.2.0-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them
