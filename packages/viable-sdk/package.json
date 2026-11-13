@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/viable-sdk",
-  "version": "0.2.0-alpha.1",
+  "version": "0.2.0-alpha.2",
   "license": "MIT",
   "description": "Drive the OwlMeans Viable platform from outside it — the connector session, the local slot executor, the tool catalogue and the model-task protocol an external coding agent answers.",
   "homepage": "https://owlmeans.com/docs/",
@@ -81,7 +81,7 @@
     "@owlmeans/planning": "^0.2.0-alpha.1",
     "@owlmeans/route": "^0.2.0-alpha.1",
     "@owlmeans/socket": "^0.2.0-alpha.0",
-    "@owlmeans/viable-common": "^0.2.0-alpha.1",
+    "@owlmeans/viable-common": "^0.2.0-alpha.2",
     "ajv": "^8.20.0",
     "fs-extra": "^11.4.1",
     "globby": "^16.2.4",

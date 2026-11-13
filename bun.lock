@@ -2704,7 +2704,7 @@
     },
     "packages/viable-common": {
       "name": "@owlmeans/viable-common",
-      "version": "0.2.0-alpha.1",
+      "version": "0.2.0-alpha.2",
       "dependencies": {
         "@owlmeans/agent-common": "^0.2.0-alpha.0",
         "@owlmeans/auth": "^0.2.0-alpha.0",
@@ -2744,7 +2744,7 @@
     },
     "packages/viable-sdk": {
       "name": "@owlmeans/viable-sdk",
-      "version": "0.2.0-alpha.1",
+      "version": "0.2.0-alpha.2",
       "dependencies": {
         "@owlmeans/api": "^0.2.0-alpha.0",
         "@owlmeans/auth": "^0.2.0-alpha.0",
