@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TransitionAction, WorkcardKind } from '@owlmeans/planning'
-import { APP_NAME_PATTERN, MAIN_APP, type ConnectAppsView, MATERIAL_PATH_MAX, MATERIALS_LIMITS, AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, STORY_BATCH_MAX, type StoryBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
+import { APP_NAME_PATTERN, AREA_KEY_MAX, AREA_KEY_PATTERN, MAIN_APP, type ConnectAppsView, MATERIAL_PATH_MAX, MATERIALS_LIMITS, AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, STORY_BATCH_MAX, type StoryBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
 import {
   COMMIT_WAIT_MS, HANDOVER_WAIT_MS, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
 } from '../consts.js'
@@ -1548,8 +1548,14 @@ export const catalogue: ToolDefinition[] = [
     title: 'Add a user story',
     description:
       'Add a story in your own words. The platform rewrites it in the form its pipeline needs and'
-      + ' decides which area of the application it belongs to.',
-    input: { story: z.string().min(1), projectId: z.string().optional() },
+      + ' decides which area of the application it belongs to — or, with area, puts it in that area:'
+      + ' one of the area keys project_apps lists (guest, user, admin, operator, or an area of the'
+      + ' project\'s own such as partners).',
+    input: {
+      story: z.string().min(1),
+      area: z.string().min(1).max(AREA_KEY_MAX).regex(AREA_KEY_PATTERN).optional(),
+      projectId: z.string().optional(),
+    },
     availability: toolHostHelper.anyHost,
     annotations: WRITE,
     run: async (args, deps) => {
@@ -1558,9 +1564,9 @@ export const catalogue: ToolDefinition[] = [
       // project therefore needs its connector back after an MCP restart even though this tool does
       // not itself start a long-running operation.
       await ensureSession(deps, project)
-      // The narrative goes as written and with no area: rewriting it and deciding the area is the
-      // platform's, done on the way in for a person's story — a connector that guessed an area
-      // would be a second answer the platform then has to overrule.
+      // The narrative goes as written: rewriting it is the platform's, done on the way in for a
+      // person's story. The area too, unless the person named one by its key — then it is theirs, and
+      // the platform checks it against the project's areas; a connector never guesses one.
       const receipt = await deps.api.planning.execute({
         action: TransitionAction.Create,
         card: {
@@ -1568,7 +1574,7 @@ export const catalogue: ToolDefinition[] = [
           type: VIABLE_STORY_TYPE,
           parent: project,
           title: args.story as string,
-          fields: { primary: false },
+          fields: { primary: false, ...(typeof args.area === 'string' ? { area: args.area } : {}) },
         },
         cause: 'connector:create-story',
       }, { wait: true, timeout: COMMIT_WAIT_MS })
@@ -2592,8 +2598,10 @@ export const catalogue: ToolDefinition[] = [
       + ' project split into applications adds one per group of areas — an admin app under /admin, a back'
       + ' office under /backoffice — each with its own interface and server under its own path, all on'
       + ' one address. For each: its path, the areas it serves and, for a project whose sources live in'
-      + ' its own slot, whether its interface built and its server runs, and why not. restart_project_app'
-      + ' restarts one of them.',
+      + ' its own slot, whether its interface built and its server runs, and why not. Then every area by'
+      + ' its key — the value a story\'s area takes (create_story) — with its kind, app, path, segment and,'
+      + ' for an area of the project\'s own that only the people the owner grants may enter, its marker'
+      + ' permission. restart_project_app restarts one of the applications.',
     input: { projectId: z.string().optional() },
     availability: toolHostHelper.anyHost,
     annotations: READ_ONLY,

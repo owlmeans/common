@@ -1,4 +1,3 @@
-import type { StoryAreaKey, StoryDraft } from "../areas/types.js"
 import type { ConnectingStoryDraft } from "./types.js"
 import { StoryKind } from "./consts.js"
 import type { ConnectingStoryHelper } from './connecting/types.js'
@@ -15,7 +14,7 @@ export const createConnectingStoryHelper = (): ConnectingStoryHelper => {
     }
 
     const seen = new Set(flow.map(({ story }) => canonical(story)))
-    const placed: Array<{ draft: ConnectingStoryDraft & StoryAreaKey, at: number }> = []
+    const placed: Array<{ draft: ConnectingStoryDraft, at: number }> = []
 
     for (const draft of connecting) {
       const text = canonical(draft.story)
@@ -43,20 +42,15 @@ export const createConnectingStoryHelper = (): ConnectingStoryHelper => {
       .slice(0, connectingStoryCap(flow.length))
 
     // Bucket N holds what comes immediately after flow story N (1-based, as the prompt numbers them).
-    const buckets: Array<Array<ConnectingStoryDraft & StoryAreaKey>> = flow.map(() => [])
+    const buckets: Array<Array<ConnectingStoryDraft>> = flow.map(() => [])
     for (const { draft, at } of surviving) {
       buckets[at - 1]!.push(draft)
     }
 
-    // A project's own area travels with the story that names it; a draft naming none is merged exactly
-    // as it always was.
-    const keyOf = (draft: StoryDraft & StoryAreaKey): StoryAreaKey =>
-      typeof draft.areaKey === 'string' && draft.areaKey !== '' ? { areaKey: draft.areaKey } : {}
-
     return flow.flatMap((draft, index) => [
-      { story: draft.story, area: draft.area, ...keyOf(draft), kind: StoryKind.Flow },
+      { story: draft.story, area: draft.area, kind: StoryKind.Flow },
       ...buckets[index]!.map(connecting => (
-        { story: connecting.story.trim(), area: connecting.area, ...keyOf(connecting), kind: StoryKind.Connective, after: index + 1 }
+        { story: connecting.story.trim(), area: connecting.area, kind: StoryKind.Connective, after: index + 1 }
       )),
     ])
   }

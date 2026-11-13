@@ -1,7 +1,8 @@
 import { apiStatusHelper } from '@owlmeans/api'
 import type { Workcard } from '@owlmeans/planning'
 import {
-  MAIN_APP, TARGET_WEB_PORT, appMapHelper, storyFieldsOf, type AppMap, type ConnectAppView,
+  MAIN_APP, ProjectArea, TARGET_WEB_PORT, appMapHelper, connectAppsHelper, storyFieldsOf, type AppMap, type ConnectAppView,
+  type ConnectAreaView,
 } from '@owlmeans/viable-common'
 import type { LocalAppStatus } from '../run/types.js'
 import { CAUSE_LINE_MAX, LOCAL_MAP_NOTE } from './apps/consts.local.js'
@@ -36,6 +37,14 @@ export const createAppsToolHelper = (): AppsToolHelper => {
     return `  ${parts.join(' · ')}${cause}`
   }
 
+  /** One area as a parent reads it: its key (what a story's `area` takes), kind, place and marker. */
+  const areaLine = (area: ConnectAreaView): string => [
+    `${area.key} (${area.kind})`,
+    `${area.app} · ${area.path}${area.segment !== '' ? ` · segment ${area.segment}` : ''}`,
+    ...(area.label != null ? [area.label] : []),
+    ...(area.marker != null ? [`only people granted ${area.marker}`] : []),
+  ].join(' · ')
+
   /** An app needs a person's attention: its build or its server failed, or it says why it is not serving. */
   const failing = (app: ConnectAppView): boolean =>
     app.build === 'failed' || app.backend === 'crashed' || app.backend === 'failed' || (app.cause ?? '') !== ''
@@ -48,6 +57,9 @@ export const createAppsToolHelper = (): AppsToolHelper => {
         ? 'One application, main, at the root of the project\'s address:'
         : 'One application, main, at the root of the project\'s address (the project records no apps):'
     const lines = [head, ...view.apps.map(app => appLine(app, localApps.get(app.name)))]
+    if (view.areas != null && view.areas.length > 0) {
+      lines.push('Areas — a story\'s area is one of these keys:', ...view.areas.map(area => `  ${areaLine(area)}`))
+    }
     if (view.worker != null) lines.push(`worker: ${view.worker.phase ?? 'reported'}`)
     if (view.local) {
       lines.push(`${LOCAL_MAP_NOTE} http://localhost:${TARGET_WEB_PORT}.`)
@@ -69,6 +81,7 @@ export const createAppsToolHelper = (): AppsToolHelper => {
       local,
       recorded: false,
       apps: map.apps.map(app => ({ name: app.name, mount: app.mount, areas: [...app.areas], main: app.name === MAIN_APP })),
+      areas: connectAppsHelper.areasOf(map),
     }
   }
 
@@ -84,13 +97,18 @@ export const createAppsToolHelper = (): AppsToolHelper => {
     }
   }
 
-  /** The area keys a story card names beyond its kind; empty for a card that names none. */
+  const STANDARD_KEYS = new Set<string>(Object.values(ProjectArea))
+
+  /**
+   * The area keys a story card names that call for its apps: its own `area` when it is a custom key,
+   * and its further `areas`; empty for a card in a standard area reaching nothing further.
+   */
   const namedAreas = (card: Workcard): string[] => {
     const fields = storyFieldsOf(card)
     const extra = (fields.areas ?? []).filter(key => typeof key === 'string' && key !== '')
-    if ((fields.areaKey == null || fields.areaKey === '') && extra.length < 1) return []
+    if (STANDARD_KEYS.has(fields.area) && extra.length < 1) return []
 
-    return [fields.areaKey ?? fields.area, ...extra].filter((key): key is string => typeof key === 'string' && key !== '')
+    return [fields.area, ...extra].filter((key): key is string => typeof key === 'string' && key !== '')
   }
 
   const storyApps: AppsToolHelper['storyApps'] = async (deps, projectId, cards) => {

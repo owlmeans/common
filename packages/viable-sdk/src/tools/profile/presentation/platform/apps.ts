@@ -29,12 +29,22 @@ export const createAppsPresentHelper = (): AppsPresentHelper => {
       })
     })
     const worker = read.recordOrNull(structured.worker)
+    const areas = read.records(structured.areas).map(entry => read.compact({
+      key: read.text(entry.key),
+      kind: read.text(entry.kind),
+      segment: read.text(entry.segment),
+      app: read.text(entry.app, MAIN_APP),
+      path: read.text(entry.path, '/'),
+      label: read.maybeText(entry.label),
+      marker: read.maybeText(entry.marker),
+    }))
 
     return read.compact({
       projectId: read.project(structured, args),
       local: read.flag(structured.local),
       recorded: read.flag(structured.recorded),
       apps: presented,
+      areas: areas.length > 0 ? areas : undefined,
       worker: worker != null ? read.text(worker.phase, 'reported') : undefined,
       restarted: read.maybeText(structured.restarted) ?? (read.maybeText(structured.app) != null ? read.text(structured.app) : undefined),
     })

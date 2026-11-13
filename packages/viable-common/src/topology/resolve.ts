@@ -1,5 +1,5 @@
 import { TargetLayout } from '../integrity/consts.js'
-import type { ProjectArea } from '../areas/consts.js'
+import type { AreaKey } from '../areas/types.js'
 import type { SubProject } from '../slot/consts.js'
 import { LAYOUT_TOPOLOGIES, DEFAULT_TOPOLOGY } from './consts.js'
 import type {
@@ -84,7 +84,7 @@ export const createTopologyHelper = (): TopologyHelper => {
   ): TargetPackageDescriptor[] => topology.byRole[role] ?? []
 
   const packageForArea = (
-    topology: ResolvedTopology, role: SubProject, area: ProjectArea
+    topology: ResolvedTopology, role: SubProject, area: AreaKey
   ): TargetPackageDescriptor | null => {
     const candidates = packagesForRole(topology, role)
     return candidates.find(pkg => pkg.areas?.includes(area) === true)

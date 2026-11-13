@@ -1,7 +1,6 @@
 import type { Card, Project, Specification } from '@owlmeans/planning'
-import type { ProjectArea } from '../areas/consts.js'
 import type { BotKit, WorkKind } from '../blueprint/consts.js'
-import type { ViableTenancyDecision } from '../areas/types.js'
+import type { AreaKey, ViableTenancyDecision } from '../areas/types.js'
 import type { ViableAppsDecision } from '../topology/apps/types.js'
 import type { StoryKind } from '../ba/consts.js'
 import type { ConnectLlm, ConnectTarget } from '../connect/consts.js'
@@ -88,8 +87,12 @@ export interface ViableLandingDecision {
  * sits between two flow steps), the status its primary flow status.
  */
 export type ViableStoryFields = {
-  /** The audience acting in the story; its screens hang under this area. */
-  area: ProjectArea
+  /**
+   * The area the story's actor works in, by KEY — one of the four standard keys (the kind's word) or a
+   * custom area of the project's app map; its screens hang under this area. Its kind is the map's
+   * (`appMapHelper.kindOf`).
+   */
+  area: AreaKey
   /** The story whose screen is the project's front door. Exactly one per project. */
   primary: boolean
   /** Who acts; absent is a person. */
@@ -107,13 +110,8 @@ export type ViableStoryFields = {
    * `false` read the same.
    */
   landing?: boolean
-  /**
-   * The custom area this story's screens hang under, by key; absent (every story of a project with
-   * the standard areas) reads as the key `area` names. `area` keeps holding the area's KIND.
-   */
-  areaKey?: string | null
   /** Further area keys the story also reaches — its development fans out to each app serving one. */
-  areas?: string[] | null
+  areas?: AreaKey[] | null
 }
 
 export interface ViableProjectCard extends Project {

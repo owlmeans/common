@@ -94,7 +94,7 @@ export interface StoryMeta extends Record<string, unknown> {
   code: string
   status: string
   primary: boolean
-  /** The audience this story serves; its screens live under that area's entrypoint. */
+  /** The area this story serves, by KEY; its screens live under that area's entrypoint. */
   area: string
   /**
    * The top-menu section the scaffold reserved for this story, inside its area.
@@ -208,7 +208,7 @@ export interface RegistryAllocation extends Record<string, unknown> {
   url?: string
   /** Parent entrypoint alias — for a screen that is its AREA, for an endpoint its group */
   parent?: string
-  /** The area a screen belongs to — one of the four {@link ProjectArea} values. */
+  /** The area a screen belongs to, by KEY — a standard key (the kind's word) or a custom area of the map. */
   area?: string
   /**
    * The app whose package holds the allocation, by name — written ONLY when it is not `main`, so

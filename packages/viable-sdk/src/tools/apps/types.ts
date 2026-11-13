@@ -10,13 +10,14 @@ import type { ToolDeps } from '../types.js'
 export interface AppsToolHelper {
   /**
    * The apps view as a parent reads it: one line per app (its path, areas, interface build, server
-   * and the cause of a failure), the worker, and — for a local project — where each app answers on
+   * and the cause of a failure), one line per area (its key — what a story's `area` takes — kind, app,
+   * path, segment and marker), the worker, and — for a local project — where each app answers on
    * this machine when `local` (the run's status) is given. Ends with the next valid action.
    */
   renderApps: (view: ConnectAppsView, local?: LocalRunStatus | null) => string
   /**
    * The view a platform older than `connect.project.apps` stands for: one app, `main`, at the root,
-   * over the four standard areas — nothing live claimed.
+   * over the four standard areas (listed as areas too) — nothing live claimed.
    */
   legacyView: (projectId: string, local: boolean) => ConnectAppsView
   /**
@@ -26,9 +27,10 @@ export interface AppsToolHelper {
    */
   routeMissing: (deps: Pick<ToolDeps, 'api'>, projectId: string, error: unknown) => Promise<boolean>
   /**
-   * The app names each story card names (`fields.areaKey` and `fields.areas`, mapped through the
-   * project's app map — read once, and only when some card names an area). A card that names none is
-   * absent from the answer, so a project without apps reads exactly as before.
+   * The app names each story card names (a custom `fields.area` key and `fields.areas`, mapped through
+   * the project's app map — read once, and only when some card names such an area). A card in a
+   * standard area reaching nothing further is absent from the answer, so a project without apps reads
+   * exactly as before.
    */
   storyApps: (deps: Pick<ToolDeps, 'api'>, projectId: string, cards: readonly Workcard[]) => Promise<Map<string, string[]>>
 }

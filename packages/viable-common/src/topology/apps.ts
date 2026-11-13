@@ -287,6 +287,16 @@ export const createAppMapHelper = (): AppMapHelper => {
 
   const kindOf: AppMapHelper['kindOf'] = (map, key) => areaOf(map, key).kind
 
+  const hasArea: AppMapHelper['hasArea'] = (map, key) => typeof key === 'string' && key !== ''
+    && (STANDARD_SEGMENTS.has(key) || (Array.isArray(map?.areas) ? map.areas : []).some(area => area?.key === key))
+
+  const keysOf: AppMapHelper['keysOf'] = map => [
+    ...STANDARD_AREAS.map(area => area.key),
+    ...(Array.isArray(map?.areas) ? map.areas : [])
+      .map(area => area?.key)
+      .filter((key): key is string => typeof key === 'string' && !STANDARD_SEGMENTS.has(key)),
+  ]
+
   const isHome = (map: AppMap, key: AreaKey): boolean => homeAppOf(map, key).areas[0] === key
 
   const areaRouteOf: AppMapHelper['areaRouteOf'] = (map, key) =>
@@ -303,13 +313,6 @@ export const createAppMapHelper = (): AppMapHelper => {
   const markedAreasOf: AppMapHelper['markedAreasOf'] = map => (Array.isArray(map?.areas) ? map.areas : [])
     .filter(area => typeof area?.marker === 'string' && area.marker !== '' && area.kind !== ProjectArea.Guest)
     .map(copyArea)
-
-  const customKeyOf: AppMapHelper['customKeyOf'] = (map, kind, key) => {
-    if (typeof key !== 'string' || key === '' || STANDARD_SEGMENTS.has(key)) return null
-    const area = (Array.isArray(map?.areas) ? map.areas : []).find(candidate => candidate?.key === key)
-
-    return area != null && area.kind === kind ? key : null
-  }
 
   const apiPort: AppMapHelper['apiPort'] = target => TARGET_APP_API_PORT_BASE + TARGET_APP_API_PORT_STEP * target.index
 
@@ -415,8 +418,8 @@ export const createAppMapHelper = (): AppMapHelper => {
     byIndex(map.apps).map(({ name, mount, index }) => ({ name, mount, index }))
 
   return {
-    legacy, of, narrow, isLegacy, isStandardAreas, defaultFor, validate, app, homeAppOf, areaOf, kindOf, areaRouteOf,
-    areaUrlOf, homeKeyOf, markerOf, markedAreasOf, customKeyOf, endpointsOf, apiPort, webPort, apiBase, appBase, webBuildBase, apiEnvOf, webEnvOf,
+    legacy, of, narrow, isLegacy, isStandardAreas, defaultFor, validate, app, homeAppOf, areaOf, kindOf, hasArea, keysOf,
+    areaRouteOf, areaUrlOf, homeKeyOf, markerOf, markedAreasOf, endpointsOf, apiPort, webPort, apiBase, appBase, webBuildBase, apiEnvOf, webEnvOf,
     healthPath, marker, routes, servicePorts, packagesOf, touchedBy, nextIndex, fromTopology, claimsOf,
   }
 }

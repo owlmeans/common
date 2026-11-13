@@ -1,6 +1,6 @@
 import type { JSONSchemaType } from 'ajv'
 import { CODE_MAX, IntrinsicPolicy, IntrinsicStatus, SpecificationFormat, WorkcardKind, AnyTypeSchema, ProjectTypeSchema, RelationshipType, SpecificationSlot, StatusFlowSchema, WorkcardTypeSchema } from '@owlmeans/planning'
-import { AREA_KEY_MAX, AREA_KEY_PATTERN, ORIGIN_TENANCY_LIST_MAX, ORIGIN_TENANCY_WORD_MAX, ProjectArea, TENANCY_QUOTE_MAX } from '../areas/consts.js'
+import { AREA_KEY_MAX, AREA_KEY_PATTERN, ORIGIN_TENANCY_LIST_MAX, ORIGIN_TENANCY_WORD_MAX, TENANCY_QUOTE_MAX } from '../areas/consts.js'
 import { TARGET_AREA_MAX } from '../topology/apps/consts.js'
 import { ViableAppsDecisionSchema } from '../topology/schemas.js'
 import { BOT_PLATFORM_ID_FORMAT, BOT_PLATFORMS_MAX, BotKit, CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
@@ -115,19 +115,19 @@ export const ViableProjectFieldsSchema = {
  *
  * `area` is required, and a create that carries none is still valid by the time it is checked:
  * validation runs after the planning middlewares, and the viable plugin's re-format hook fills the
- * area of a narrative a person wrote.
+ * area of a narrative a person wrote. It is the area's KEY — a kebab-case slug, so every card written
+ * with one of the four standard kinds (`'user'`) validates unchanged; whether the project's map knows
+ * the key is the writer's check, never the schema's.
  */
 export const ViableStoryFieldsSchema = {
   type: 'object',
   properties: {
-    area: { type: 'string', enum: Object.values(ProjectArea) },
+    area: { type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source },
     primary: { type: 'boolean' },
     actor: { type: 'string', enum: [...Object.values(StoryActor), null], nullable: true },
     warning: { type: 'string', maxLength: 1024, nullable: true },
     kind: { type: 'string', enum: [...Object.values(StoryKind), null], nullable: true },
     landing: { type: 'boolean', nullable: true },
-    // `area` keeps holding the KIND; a custom area is named by key beside it (absent ⇒ key = kind).
-    areaKey: { type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source, nullable: true },
     areas: {
       type: 'array',
       items: { type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source },

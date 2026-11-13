@@ -237,10 +237,13 @@ describe('viable-common - the viable field schemas', () => {
     expect(story({ area: ProjectArea.User, primary: false, kind: StoryKind.Requested })).toBe(true)
   })
 
-  test('a story refuses an undeclared field, a missing area, and a value outside a closed set', () => {
+  test('a story refuses an undeclared field, a missing area, an ill-shaped area key and a value outside a closed set', () => {
     expect(story({ area: ProjectArea.User, primary: false, story: 'narrative' })).toBe(false)
     expect(story({ primary: false })).toBe(false)
-    expect(story({ area: 'partner', primary: false })).toBe(false)
+    // The area is a key: a custom slug is shaped right (the project's map decides whether it is known).
+    expect(story({ area: 'partner', primary: false })).toBe(true)
+    expect(story({ area: 'Partner Portal', primary: false })).toBe(false)
+    expect(story({ area: 'partner--portal', primary: false })).toBe(false)
     expect(story({ area: ProjectArea.User, primary: false, kind: 'queue' })).toBe(false)
   })
 
@@ -456,20 +459,22 @@ describe('viable-common - the follows anchor', () => {
     ])
   })
 
-  test('a project\'s own area travels with the story naming it; a story naming none carries no key', () => {
+  test('a story\'s area is its key — a project\'s own area travels on `area` exactly like a standard one', () => {
     const merged = connectingStoryHelper.mergeConnectingStories([
-      { story: 'One', area: ProjectArea.Operator, areaKey: 'field-ops' },
-      { story: 'Two', area: ProjectArea.User, areaKey: null },
+      { story: 'One', area: 'field-ops' },
+      { story: 'Two', area: ProjectArea.User },
     ], [
-      { story: 'Crew queue', area: ProjectArea.Operator, areaKey: 'field-ops', kind: ConnectingStoryKind.Queue, after: 1 },
+      { story: 'Crew queue', area: 'field-ops', kind: ConnectingStoryKind.Queue, after: 1 },
     ])
 
     expect(merged).toEqual([
-      { story: 'One', area: ProjectArea.Operator, areaKey: 'field-ops', kind: StoryKind.Flow },
-      { story: 'Crew queue', area: ProjectArea.Operator, areaKey: 'field-ops', kind: StoryKind.Connective, after: 1 },
+      { story: 'One', area: 'field-ops', kind: StoryKind.Flow },
+      { story: 'Crew queue', area: 'field-ops', kind: StoryKind.Connective, after: 1 },
       { story: 'Two', area: ProjectArea.User, kind: StoryKind.Flow },
     ])
-    expect(Object.keys(merged[2]!)).toEqual(['story', 'area', 'kind'])
+    expect(merged.map(entry => Object.keys(entry))).toEqual([
+      ['story', 'area', 'kind'], ['story', 'area', 'kind', 'after'], ['story', 'area', 'kind'],
+    ])
   })
 })
 

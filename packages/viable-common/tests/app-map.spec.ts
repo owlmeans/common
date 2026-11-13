@@ -243,12 +243,31 @@ describe('viable-common - the app map in the topology', () => {
     expect(appMapHelper.markedAreasOf(map)).toEqual([
       { key: 'field-ops', kind: ProjectArea.Operator, segment: 'field', marker: 'project--field-ops' },
     ])
-    // A story's own area: kept only for a custom key the map lists, of the story's kind.
-    expect(appMapHelper.customKeyOf(map, ProjectArea.Operator, 'field-ops')).toBe('field-ops')
-    expect(appMapHelper.customKeyOf(map, ProjectArea.User, 'field-ops')).toBeNull()
-    expect(appMapHelper.customKeyOf(map, ProjectArea.User, 'nowhere')).toBeNull()
-    expect(appMapHelper.customKeyOf(map, ProjectArea.User, 'user')).toBeNull()
-    expect(appMapHelper.customKeyOf(map, ProjectArea.User, null)).toBeNull()
+  })
+
+  test('a story references an area by key: the kind is the map\'s, a custom key is known only when listed', () => {
+    const map = split()
+    map.areas.push({ key: 'field-ops', kind: ProjectArea.Operator, segment: 'field', marker: 'project--field-ops' })
+    map.apps.find(app => app.name === 'backoffice')!.areas.push('field-ops')
+    // The kind is derived from the map — never the key read as a kind.
+    expect(appMapHelper.kindOf(map, 'field-ops')).toBe(ProjectArea.Operator)
+    expect(ALL.map(key => appMapHelper.kindOf(map, key))).toEqual(ALL)
+    expect(ALL.map(key => appMapHelper.kindOf(appMapHelper.legacy(), key))).toEqual(ALL)
+    // Known keys: the four standard ones always, a custom one only where the map lists it.
+    expect(ALL.every(key => appMapHelper.hasArea(map, key))).toBe(true)
+    expect(ALL.every(key => appMapHelper.hasArea(appMapHelper.legacy(), key))).toBe(true)
+    expect(appMapHelper.hasArea(map, 'field-ops')).toBe(true)
+    expect(appMapHelper.hasArea(appMapHelper.legacy(), 'field-ops')).toBe(false)
+    expect(appMapHelper.hasArea(map, 'nowhere')).toBe(false)
+    expect(appMapHelper.hasArea(map, '')).toBe(false)
+    expect(appMapHelper.hasArea(map, null)).toBe(false)
+    // The keys a story may name: the standard four, then the map's own.
+    expect(appMapHelper.keysOf(appMapHelper.legacy())).toEqual(ALL)
+    expect(appMapHelper.keysOf(split())).toEqual(ALL)
+    expect(appMapHelper.keysOf(map)).toEqual([...ALL, 'field-ops'])
+    // A custom key addresses its own app and segment.
+    expect(appMapHelper.areaUrlOf(map, 'field-ops')).toBe('/backoffice/field')
+    expect(appMapHelper.homeAppOf(map, 'field-ops').name).toBe('backoffice')
   })
 })
 
@@ -337,6 +356,28 @@ describe('viable-common - app map validation', () => {
       map.areas.push({ key: 'showroom', kind: ProjectArea.Guest, segment: 'showroom' })
       map.apps[0].areas.push('showroom')
     })).toEqual([])
+  })
+
+  test('a new area of main never takes a path main already answers at — the standing screens, the sign-in hand-off', () => {
+    const inMain = (segment: string) => (map: AppMap): void => {
+      map.areas.push({ key: 'crew', kind: ProjectArea.User, segment })
+      map.apps[0].areas.push('crew')
+    }
+    // The guest area's standing screens, the dispatcher, the surrogate login window, the framework's
+    // authentication screens and the consent screens — main's own routes at the host's root.
+    for (const segment of ['terms', 'privacy', 'cookies', 'dispatcher', 'surrogate', 'authentication', 'consent', 'privacy-choices']) {
+      expect(RESERVED_MOUNTS).toContain(segment)
+      refuses(inMain(segment), `reserved segment "${segment}"`)
+    }
+    // The same paths answer inside every app — each app signs in on its own.
+    refuses(map => {
+      map.areas.push({ key: 'crew', kind: ProjectArea.Admin, segment: 'surrogate', marker: 'project--crew' })
+      map.apps[1].areas.push('crew')
+    }, 'reserved segment "surrogate"')
+    // A segment of its own is free, and a standard area keeps its standard segment.
+    expect(broken(inMain('crew'))).toEqual([])
+    expect(appMapHelper.validate(appMapHelper.legacy())).toEqual([])
+    expect(appMapHelper.validate(split())).toEqual([])
   })
 
   test('a main area\'s own path never sits under another app\'s mount', () => {

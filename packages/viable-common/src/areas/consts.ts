@@ -12,8 +12,8 @@ import type { AreaDescriptor, ProjectTenancy } from './types.js'
  *
  * Areas themselves are per-project data ({@link AreaDescriptor}): the four standard ones are keyed
  * by their kind ({@link STANDARD_AREAS}), and a custom area — only on an explicit request — is an
- * instance of one of these kinds under a key of its own. An `area` field everywhere keeps holding
- * the KIND; an optional `areaKey` beside it names a custom instance (absent ⇒ key = kind).
+ * instance of one of these kinds under a key of its own. Every `area` REFERENCE holds the area's key
+ * (`AreaKey`); the kind is read from the project's app map (`appMapHelper.kindOf`), never from the key.
  */
 export enum ProjectArea {
   /** Unauthenticated. The public face of the application. */

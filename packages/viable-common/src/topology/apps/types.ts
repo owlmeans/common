@@ -144,7 +144,23 @@ export interface AppMapHelper {
    * unknown custom key reads as a signed-in user area at its own segment.
    */
   areaOf: (map: AppMap, key: AreaKey) => AreaDescriptor
+  /**
+   * The KIND of the area a key references — THE way every reader applying a kind rule (access, gates,
+   * surface, analysis, scaffold defaults, the landing gate, navigation) gets one: never the key read as a
+   * kind. A standard key is its own kind; a custom key is the kind the map gives it ({@link areaOf}).
+   */
   kindOf: (map: AppMap, key: AreaKey) => ProjectArea
+  /**
+   * Whether `key` names an area of the project: a standard key always (an unlisted one reads as its
+   * standard descriptor), a custom key only when the map lists it. What a writer checks a story's
+   * `area` against before it is stored.
+   */
+  hasArea: (map: AppMap, key?: string | null) => boolean
+  /**
+   * The keys a story may reference on this map: the four standard keys in menu order, then the map's own
+   * custom keys in map order — exactly the four standard keys for a map without a custom area.
+   */
+  keysOf: (map: AppMap) => AreaKey[]
   /** The area's route INSIDE its app's router: `/` for the app's home area, else `/<segment>`. */
   areaRouteOf: (map: AppMap, key: AreaKey) => string
   /**
@@ -161,12 +177,6 @@ export interface AppMapHelper {
    * so the owner can grant them. `[]` for the legacy map and the default split.
    */
   markedAreasOf: (map: AppMap) => AreaDescriptor[]
-  /**
-   * A story's custom area key as a card may record it (`fields.areaKey`): `key` when the map lists it as
-   * one of its OWN areas (never a standard key) of the kind `kind`, else `null` — what an analysis answer
-   * naming an area of another kind, or no area of the map, settles to.
-   */
-  customKeyOf: (map: AppMap, kind: ProjectArea, key?: string | null) => string | null
   endpointsOf: (app: SlotAppClaim) => AppEndpoints
   /** `3000 + 10·index`. */
   apiPort: (app: SlotAppClaim) => number

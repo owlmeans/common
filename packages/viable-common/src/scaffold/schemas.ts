@@ -1,7 +1,7 @@
 import type { JSONSchemaType } from 'ajv'
 import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
-import { ProjectArea } from '../areas/consts.js'
+import { AREA_KEY_MAX, AREA_KEY_PATTERN, ProjectArea } from '../areas/consts.js'
 import { ENGLISH_NAME_NOTE } from '../dev/consts.js'
 import {
   BENTO_FRAGMENT_KINDS, LANDING_ANCHORS, LANDING_GATE_FIELD_KINDS, LANDING_SLOTS, WidgetKind,
@@ -140,13 +140,15 @@ const ScaffoldAreaPlanSchema: JSONSchemaType<ScaffoldAreaPlan> = {
   title: 'ScaffoldAreaPlan',
   description: 'One area of the application: its menu sections and how it introduces itself',
   properties: {
+    // The area's KEY: a stored plan of the four standard areas reads unchanged, a custom area's entry
+    // (written by code) validates beside them. The planning model is offered the four kinds only.
     area: {
       type: 'string',
-      enum: Object.values(ProjectArea),
+      minLength: 1,
+      maxLength: AREA_KEY_MAX,
+      pattern: AREA_KEY_PATTERN.source,
       description: 'guest, user, admin or operator'
     },
-    // Written by code for a project with custom areas — stripped from what the model answers.
-    areaKey: { type: 'string', nullable: true },
     intro: {
       type: 'object',
       properties: {
@@ -748,8 +750,14 @@ export const ScaffoldPlanSchema: JSONSchemaType<ScaffoldPlan> = {
 /** The guest home's keys a model may answer: `linksDecided` is written by code, never asked. */
 const { linksDecided: _linksDecided, ...answeredHomeProperties } = GuestHomePlanSchema.properties!
 
-/** An area entry's keys a model may answer: `areaKey` is written by code, never asked. */
-const { areaKey: _areaKey, ...answeredAreaProperties } = ScaffoldAreaPlanSchema.properties!
+/**
+ * An area entry as the planning model answers it: one of the four standard areas. A custom area's entry
+ * is written by code, so the model is never offered a key outside the closed four.
+ */
+const answeredAreaProperties = {
+  ...ScaffoldAreaPlanSchema.properties!,
+  area: { type: 'string', enum: Object.values(ProjectArea), description: 'guest, user, admin or operator' },
+}
 
 /**
  * The plan as the planning MODEL answers it — {@link ScaffoldPlanSchema} with the gate held to the

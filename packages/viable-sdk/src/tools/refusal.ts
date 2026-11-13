@@ -369,6 +369,13 @@ export const createRefusalHelper = (): RefusalHelper => {
         + ' codes it has; a story of another project is named together with that projectId.',
     },
     {
+      // Before the generic refusal below: a story named an area the project's map does not know.
+      marker: 'viable-project:story:missconfigured:unknown-area:',
+      phrase: key => `This project has no area${key !== '' ? ` "${key}"` : ''}. project_apps lists the area keys a`
+        + ' story may name (guest, user, admin, operator and the project\'s own areas); leave area out to let the'
+        + ' platform decide it.',
+    },
+    {
       marker: 'viable-project:story:missconfigured:',
       phrase: reason => `The story is not in a state that change applies to${aside(reason)}. A completed`
         + ' story has generated code behind it and is neither reworded nor deleted; story_status says'

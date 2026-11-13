@@ -1,4 +1,5 @@
 import type { ProjectArea } from '../../areas/consts.js'
+import type { AreaKey } from '../../areas/types.js'
 import type { StoryKind } from '../../ba/consts.js'
 import type { OriginFlowDisposition, PlatformFlow, PurposeEvidenceSource, TaxonomyKind } from '../consts.js'
 import type { OriginProof } from '../types.js'
@@ -105,7 +106,8 @@ export interface OriginStoryPlan {
 export interface ConversionStoryRef {
   code: string
   story: string
-  area: ProjectArea
+  /** The story's area, by key — on a converted project one of the four standard keys. */
+  area: AreaKey
   kind: ConversionStoryKind
   ordinal: number
 }

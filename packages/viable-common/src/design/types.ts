@@ -1,4 +1,4 @@
-import type { ProjectArea } from '../areas/consts.js'
+import type { AreaKey } from '../areas/types.js'
 import type { BotKitAction } from '../blueprint/consts.js'
 import type { StatedRequirement } from '../ba/types.js'
 import type { RecordInteractionPlan } from '../interaction/types.js'
@@ -46,9 +46,9 @@ export interface StoryDesignScreen {
   composition?: StoryScreenComposition
   /**
    * The area this screen hangs under, by KEY — set only when it is not the story's own area (a
-   * story reaching further areas). Absent: the story's area (`areaKey ?? area`).
+   * story reaching further areas). Absent: the story's `area`.
    */
-  area?: string
+  area?: AreaKey
 }
 
 /** One tab of a tabbed screen: an id for the URL, a label a person reads, the components it holds. */
@@ -185,11 +185,10 @@ export interface StoryDesign {
   version: number
   code: string
   narrative: string
-  area: ProjectArea
-  /** The story's custom area, by key (the card's `areaKey`); absent reads as the key `area` names. */
-  areaKey?: string
+  /** The story's area, by KEY (the card's `area`) — a custom area of the project's map included. */
+  area: AreaKey
   /** Further area keys the story reaches (the card's `areas`); absent or empty — its area alone. */
-  areas?: string[]
+  areas?: AreaKey[]
   /**
    * What the scaffold reserved when it drew the application.
    *

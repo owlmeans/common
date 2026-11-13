@@ -1,5 +1,4 @@
-import type { ProjectArea } from '../areas/consts.js'
-import type { AreaDescriptor } from '../areas/types.js'
+import type { AreaDescriptor, AreaKey } from '../areas/types.js'
 import type { SubProject } from '../slot/consts.js'
 import type { AppDescriptor } from './apps/types.js'
 
@@ -47,12 +46,12 @@ export interface TargetPackageDescriptor {
   /** Sibling package NAMES this one compiles against. The build order is this graph, sorted. */
   dependsOn: string[]
   /**
-   * For a package holding the `Web` role: which audiences it serves.
+   * For a package holding the `Web` role: which areas it serves, by key.
    *
    * Absent means all four. A topology that splits the areas across two browser applications is
    * the reason this exists; nothing generates one yet.
    */
-  areas?: ProjectArea[]
+  areas?: AreaKey[]
   /** For a package holding the `Worker` role: which queues this process consumes. */
   queues?: string[]
   /**

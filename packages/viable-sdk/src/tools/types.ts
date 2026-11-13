@@ -240,8 +240,9 @@ export interface StoryStatusExtra {
   /** The project's landing gate story (`fields.landing`). */
   landing?: boolean
   /**
-   * The applications the story's card names (`fields.areaKey` / `fields.areas` through the project's
-   * app map) — absent for a card that names no area, which reads exactly as before apps.
+   * The applications the story's card names (a custom `fields.area` key / `fields.areas` through the
+   * project's app map) — absent for a card in a standard area reaching nothing further, which reads
+   * exactly as before apps.
    */
   apps?: readonly string[]
 }

@@ -455,6 +455,20 @@ describe('the story tools speak planning', () => {
     expect(result.text).toContain(card.code!)
   })
 
+  test('create_story with an area sends that area key; an ill-shaped key never leaves the connector', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const { deps } = connectorFor(suite, project.id!)
+
+    await toolNamed('create_story').run({ story: 'let clerks refund a sale', area: 'operator' }, deps)
+    expect((suite.received.at(-1)!.card as WorkcardDraft).fields).toEqual({ primary: false, area: 'operator' })
+
+    const area = toolNamed('create_story').input.area as unknown as { safeParse: (value: unknown) => { success: boolean } }
+    expect(area.safeParse('partners').success).toBe(true)
+    expect(area.safeParse('Partner Portal').success).toBe(false)
+    expect(area.safeParse('a--b').success).toBe(false)
+  })
+
   test('update_story carries only the narrative, guarded by the head it read', async () => {
     const suite = await makePlanningSuite()
     const project = await suite.project()
@@ -1526,6 +1540,14 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
     // they cannot reach.
     expect(logged[0]).toContain('viable-agent-common:reserved-name:Shopify')
     expect(logged[0]).not.toContain('    at ')
+  })
+
+  test('a story naming an area the project lacks is told where the area keys are listed', () => {
+    const phrase = refusalHelper.refusalPhrase(new Error('viable-project:story:missconfigured:unknown-area:moon'))
+    expect(phrase).toContain('This project has no area "moon"')
+    expect(phrase).toContain('project_apps lists the area keys')
+    expect(refusalHelper.refusalPhrase(new Error('viable-project:story:missconfigured:wrong-status')))
+      .toContain('The story is not in a state that change applies to')
   })
 
   test('a failure that is not a refusal is passed through exactly as it is', () => {

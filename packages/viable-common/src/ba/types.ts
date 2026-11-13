@@ -1,7 +1,6 @@
 import { SpecCategory } from "./consts"
 import type { ConnectingStoryKind, RequirementKind, RequirementPart, RequirementSource, StoryKind } from "./consts.js"
-import type { ProjectArea } from "../areas/consts.js"
-import type { StoryAreaKey, StoryDraft } from "../areas/types.js"
+import type { AreaKey, StoryDraft } from "../areas/types.js"
 import type { StoryActor } from "../design/consts.js"
 import type { SubProject } from "../slot/consts.js"
 
@@ -42,7 +41,7 @@ export interface ConnectingStoryList {
  * already clamped, so it always names a flow story that list contains. A requested entry with no
  * anchor sits at the end of the list and carries none.
  */
-export interface MergedStoryDraft extends StoryDraft, StoryAreaKey {
+export interface MergedStoryDraft extends StoryDraft {
   kind: StoryKind
   after?: number
 }
@@ -111,8 +110,8 @@ export interface UserStory {
    * different story's widget.
    */
   code?: string
-  /** The audience acting in this story. Its screens hang under this area's entrypoint. */
-  area: ProjectArea
+  /** The area acting in this story, by key. Its screens hang under this area's entrypoint. */
+  area: AreaKey
   /**
    * WHO acts — a person, or one of the application's own machines.
    *

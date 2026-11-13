@@ -287,7 +287,7 @@ platform's in-process host. The scope a call answers for is the CREDENTIAL's; a 
 |---|---|
 | `list_stories` | `cards.list({ ...storyHelper.storyQuery(project, { status, area }), page, size, sort: STORY_ORDER })` → `storyHelper.renderStories` |
 | `search_stories` | the same with `{ q }` |
-| `create_story` | `execute({ action: create, card: { kind: card, type: VIABLE_STORY_TYPE, parent, title, fields: { primary: false } } }, { wait: true, timeout: COMMIT_WAIT_MS })` |
+| `create_story` | `execute({ action: create, card: { kind: card, type: VIABLE_STORY_TYPE, parent, title, fields: { primary: false, area? } } }, { wait: true, timeout: COMMIT_WAIT_MS })` — `area` only when the person named one, by KEY (`AREA_KEY_PATTERN`, ≤ `AREA_KEY_MAX`; a custom area's slug from `project_apps` included); the platform checks it against the project's map and keeps it over the formatted area |
 | `update_story` | `storyHelper.resolveStory` → `execute({ card, action: update, changes: { title }, expectSeq: head ?? seq }, { wait: true, … })` |
 | `delete_story` | `storyHelper.resolveStory` → `execute({ card, action: delete }, { wait: true, … })` → the project-lock poll |
 | `develop_story` | `storyHelper.transit(deps, project, storyId, start, 'connector:develop-story')` |
@@ -427,7 +427,10 @@ mount (`/admin`, `/backoffice`, …) — each with its interface and server. Bot
 
 - **`project_apps { projectId? }`** → `api.project.apps` → `appsToolHelper.renderApps` (`tools/apps.ts`):
   one line per app (`name · /mount · areas … · interface … · server …`, the capped cause beneath),
-  the worker, and `next:` naming the failing app's restart. A local project: the platform's map, and
+  then `Areas — a story's area is one of these keys:` and one line per area (`<key> (<kind>) · <app> ·
+  <path> · segment … · <label> · only people granted <marker>`; the view's `areas`, the legacy view's
+  four standard ones), the worker, and `next:` naming the failing app's restart. Its structured output
+  (`APPS_OUTPUT`) carries `areas` too. A local project: the platform's map, and
   where each app answers in the local run (`localStatus().apps`).
 - **`restart_project_app { projectId?, app, web? }`** — cloud: `api.sandbox.restartApp` (`web: true` →
   `{ api: true, web: true }`, else `{}`); local: the run record must hold the app, then
@@ -440,8 +443,8 @@ mount (`/admin`, `/backoffice`, …) — each with its interface and server. Bot
   `project.apps` (404 again ⇒ restart the whole preview; else "serves no application" + the list).
 - **Stories**: `renderStories(items, page, total, apps?)` adds ` · app: <name>` (` · apps: a, b`)
   after the landing flag, the area still last, and `renderStoryStatus` an `app:` line — only for a
-  card naming `fields.areaKey` / `fields.areas` (`appsToolHelper.storyApps` reads the project card
-  once, only then). Every other line, and `project_status` / `session_status`, stays byte-identical
+  card whose `fields.area` is a custom key or that names `fields.areas` (`appsToolHelper.storyApps`
+  reads the project card once, only then). Every other line, and `project_status` / `session_status`, stays byte-identical
   (`apps-tools.spec.ts`).
 
 ## A cloud target's git and its GitHub connection are the web Git dialog's own calls

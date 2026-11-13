@@ -145,11 +145,22 @@ const APP = z.object({
   serving: z.boolean().optional().describe('On this machine: its server answers.'),
 })
 
+const AREA = z.object({
+  key: z.string().describe('The area\'s key — the value a story\'s area takes (create_story).'),
+  kind: z.string().describe('Its kind: guest, user, admin or operator — access and look follow it.'),
+  segment: z.string().describe('Its path segment inside its application; empty for an application\'s home area.'),
+  app: z.string().describe('The application serving it.'),
+  path: z.string().describe('Where it answers on the project\'s address.'),
+  label: z.string().optional(),
+  marker: z.string().optional().describe('The permission it demands — only the people the owner grants it may enter.'),
+})
+
 export const APPS_OUTPUT = {
   projectId: PROJECT_ID,
   local: z.boolean().describe('The sources live on the user\'s machine; the platform knows the map alone.'),
   recorded: z.boolean().describe('The project records its applications; false: main alone, as every project without a record.'),
   apps: z.array(APP),
+  areas: z.array(AREA).optional().describe('Every area of the project, the four standard ones first.'),
   worker: z.string().optional().describe('The background worker\'s state, when one is reported.'),
   restarted: z.string().optional().describe('The application a restart restarted.'),
 }

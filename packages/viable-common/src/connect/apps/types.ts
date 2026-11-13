@@ -1,3 +1,5 @@
+import type { AppMap } from '../../topology/apps/types.js'
+
 /**
  * One application of a project as a connector reads it: where it answers on the project's host, the
  * areas it serves and — for a cloud preview — what its interface build and its server are doing.
@@ -31,6 +33,29 @@ export interface ConnectAppView {
 }
 
 /**
+ * One AREA of a project as a connector reads it — what a story's `area` names, and where it lives.
+ *
+ * Plain strings for the version skew: a newer platform may answer a kind an older connector has never
+ * heard of.
+ */
+export interface ConnectAreaView {
+  /** The area's key — the value a story's `area` takes (`create_story`, the planning routes). */
+  key: string
+  /** Its kind — `guest`, `user`, `admin` or `operator` today; access and surface follow it. */
+  kind: string
+  /** Its path segment inside its app; `''` for an app's home area at the app's root. */
+  segment: string
+  /** The app serving it, by name. */
+  app: string
+  /** Its public path on the project's host — `/`, `/frontoffice`, `/admin`, `/partners`. */
+  path: string
+  /** What a person reads for it, when the area carries a label of its own. */
+  label?: string
+  /** The permission a signed-in custom area demands (`project--<key>`); absent — its kind's gate alone. */
+  marker?: string
+}
+
+/**
  * A project's applications — the answer of `connect.project.apps` and of a per-app restart.
  *
  * `recorded` false is the project every project without an apps record is: one app, `main`, over the
@@ -43,6 +68,11 @@ export interface ConnectAppsView {
   recorded: boolean
   /** Every app, `main` first, then by index. */
   apps: ConnectAppView[]
+  /**
+   * Every area of the project, the four standard ones first, then the map's own in map order — absent
+   * from a platform answering before areas were listed.
+   */
+  areas?: ConnectAreaView[]
   /** The one worker of a split project, when the preview reports it. */
   worker?: { phase?: string }
 }
@@ -60,4 +90,13 @@ export interface ConnectAppParams {
 export interface ConnectAppRestartBody {
   api?: boolean
   web?: boolean
+}
+
+/** The parts of the apps view that are a pure function of the project's app map. */
+export interface ConnectAppsHelper {
+  /**
+   * Every area a story may reference on the map (`appMapHelper.keysOf`) as the view lists it: key,
+   * kind, segment, serving app, public path, and the label and marker it carries.
+   */
+  areasOf: (map: AppMap) => ConnectAreaView[]
 }

@@ -250,9 +250,7 @@ export const createRequirementsHelper = (): RequirementsHelper => {
         ? Math.min(Math.max(Math.trunc(anchor), 1), flowCount)
         : undefined
       const entry: MergedStoryDraft = {
-        story: draft.story.trim(), area: draft.area,
-        ...(typeof draft.areaKey === 'string' && draft.areaKey !== '' ? { areaKey: draft.areaKey } : {}),
-        kind: StoryKind.Requested, ...(after != null ? { after } : {}),
+        story: draft.story.trim(), area: draft.area, kind: StoryKind.Requested, ...(after != null ? { after } : {}),
       }
 
       // The group of flow story N ends where flow story N + 1 starts — or at the end of the list.

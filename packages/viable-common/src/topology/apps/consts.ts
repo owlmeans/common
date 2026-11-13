@@ -21,12 +21,15 @@ export const TARGET_APP_MOUNT_PATTERN = /^[a-z][a-z0-9-]{0,30}$/
 export const TARGET_APP_MOUNT_OR_ROOT_PATTERN = /^(?:[a-z][a-z0-9-]{0,30})?$/
 
 /**
- * Mounts no app may take: the paths main's api, the sign-in hand-off, the legal pages, the reload
- * channel, the static assets and the platform's own routes already answer at — and main's user area.
+ * Mounts no app may take, and segments no area may take: the paths main's api, the sign-in hand-off
+ * (the dispatcher, the surrogate login window, the framework's authentication screens), the legal
+ * pages, the reload channel, the static assets and the platform's own routes already answer at — and
+ * main's user area. Every app's own router answers at the sign-in paths too (each app signs in on its
+ * own), so an area of any app is held to the list, a standard area at its standard segment excepted.
  */
 export const RESERVED_MOUNTS: readonly string[] = Object.freeze([
   'api', 'dispatcher', 'consent', 'terms', 'privacy', 'cookies', '__reload', 'robots.txt', 'assets',
-  'healtz', 'oidc', 'iam', 'frontoffice', 'marketing-consent', 'privacy-choices',
+  'healtz', 'oidc', 'iam', 'frontoffice', 'marketing-consent', 'privacy-choices', 'surrogate', 'authentication',
 ])
 
 /** The highest index an app may claim — index 10 would put its api on the boot check's port. */

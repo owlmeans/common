@@ -41,17 +41,20 @@ describe('viable-common - the card fields an app map adds', () => {
     expect(project({ apps: { areas: [], apps: [], by: 'default', at } })).toBe(false)
   })
 
-  test('a story written before apps validates as it did; areaKey and areas accept a key list or null', () => {
-    expect(story({ area: ProjectArea.User, primary: false })).toBe(true)
-    expect(story({ area: ProjectArea.User, primary: false, areaKey: 'partner-portal', areas: ['admin', 'operator'] })).toBe(true)
-    expect(story({ area: ProjectArea.User, primary: false, areaKey: null, areas: null })).toBe(true)
+  test('a story written before apps validates unchanged — every standard kind is a valid area key', () => {
+    for (const area of Object.values(ProjectArea)) expect(story({ area, primary: false })).toBe(true)
+    expect(story({ area: ProjectArea.User, primary: false, areas: ['admin', 'operator'] })).toBe(true)
+    expect(story({ area: ProjectArea.User, primary: false, areas: null })).toBe(true)
     expect(story({ area: ProjectArea.User, primary: false, areas: [] })).toBe(true)
   })
 
-  test('the area stays the closed kind; ill-formed keys, duplicates and strays are refused', () => {
-    expect(story({ area: 'partner', primary: false, areaKey: 'partner' })).toBe(false)
-    expect(story({ area: ProjectArea.User, primary: false, areaKey: 'Partner Portal' })).toBe(false)
-    expect(story({ area: ProjectArea.User, primary: false, areaKey: 'a--b' })).toBe(false)
+  test('the area is a key: a custom slug passes, ill-formed keys, a separate areaKey, duplicates and strays are refused', () => {
+    expect(story({ area: 'partner-portal', primary: false })).toBe(true)
+    expect(story({ area: 'partner-portal', primary: false, areas: ['admin'] })).toBe(true)
+    expect(story({ area: 'Partner Portal', primary: false })).toBe(false)
+    expect(story({ area: 'a--b', primary: false })).toBe(false)
+    expect(story({ area: '', primary: false })).toBe(false)
+    expect(story({ area: ProjectArea.User, primary: false, areaKey: 'partner-portal' })).toBe(false)
     expect(story({ area: ProjectArea.User, primary: false, areas: ['admin', 'admin'] })).toBe(false)
     expect(story({ area: ProjectArea.User, primary: false, app: 'admin' })).toBe(false)
   })
@@ -61,7 +64,8 @@ describe('viable-common - the card fields an app map adds', () => {
     const storyFields = registry.validator(VIABLE_STORY_TYPE)
     const projectFields = registry.validator(VIABLE_PROJECT_TYPE)
     expect(storyFields({ area: ProjectArea.User, primary: true })).toBe(true)
-    expect(storyFields({ area: ProjectArea.User, primary: true, areaKey: null, areas: ['admin'] })).toBe(true)
+    expect(storyFields({ area: 'partner-portal', primary: true, areas: ['admin'] })).toBe(true)
+    expect(storyFields({ area: ProjectArea.User, primary: true, areaKey: null })).toBe(false)
     expect(storyFields({ area: ProjectArea.User, primary: true, stray: 1 })).toBe(false)
     expect(projectFields({ language: 'en' })).toBe(true)
     expect(projectFields({ apps: { ...appMapHelper.defaultFor(['user', 'admin']), by: 'default', at } })).toBe(true)
@@ -94,7 +98,7 @@ describe('viable-common - the design keys an app map adds', () => {
 
   test('the story\'s area key, its further areas, a screen\'s area and the app of a group, store and component', () => {
     const multi = design()
-    multi.areaKey = 'partner-portal'
+    multi.area = 'partner-portal'
     multi.areas = ['admin']
     multi.screens[0].area = 'admin'
     multi.components[0].app = 'admin'
@@ -105,7 +109,6 @@ describe('viable-common - the design keys an app map adds', () => {
 
   test('every new key accepts null; a stray inside an item is still refused', () => {
     const nulled = JSON.parse(JSON.stringify(design())) as Record<string, any>
-    nulled.areaKey = null
     nulled.areas = null
     nulled.screens[0].area = null
     nulled.components[0].app = null
@@ -115,6 +118,8 @@ describe('viable-common - the design keys an app map adds', () => {
     const stray = JSON.parse(JSON.stringify(design())) as Record<string, any>
     stray.stores[0].mount = 'admin'
     expect(validate(stray)).toBe(false)
+    expect(validate({ ...design(), areaKey: 'partner-portal' })).toBe(false)
+    expect(validate({ ...design(), area: 'Partner Portal' })).toBe(false)
   })
 })
 
@@ -138,18 +143,20 @@ describe('viable-common - the scaffold key an app map adds', () => {
     motifs: 'A rye loaf on a board.',
   })
 
-  test('a stored plan written before apps validates; an area entry may carry its key, or null', () => {
+  test('a stored plan written before apps validates; an area entry names its area by key', () => {
     expect(stored(plan())).toBe(true)
     const keyed = plan()
-    keyed.areas[0].areaKey = 'partner-portal'
+    keyed.areas.push({ area: 'partner-portal', intro: { title: 'Partners', text: 'Your work.' }, sections: [] })
     expect(stored(keyed)).toBe(true)
-    expect(stored({ ...plan(), areas: [{ ...plan().areas[0], areaKey: null }] })).toBe(true)
+    expect(stored({ ...plan(), areas: [{ ...plan().areas[0], area: 'Partner Portal' }] })).toBe(false)
+    expect(stored({ ...plan(), areas: [{ ...plan().areas[0], areaKey: 'partner-portal' }] })).toBe(false)
     expect(stored({ ...plan(), areas: [{ ...plan().areas[0], app: 'admin' }] })).toBe(false)
   })
 
-  test('the model never sees areaKey — the answer schema is what it was', () => {
-    const areaItems = (ScaffoldPlanAnswerSchema as unknown as { properties: { areas: { items: { properties: object, required: string[] } } } })
+  test('the model is offered the four kinds — the answer schema is what it was', () => {
+    const areaItems = (ScaffoldPlanAnswerSchema as unknown as { properties: { areas: { items: { properties: Record<string, object>, required: string[] } } } })
       .properties.areas.items
+    expect(areaItems.properties.area).toEqual({ type: 'string', enum: Object.values(ProjectArea), description: 'guest, user, admin or operator' })
     expect(Object.keys(areaItems.properties)).toEqual(['area', 'intro', 'sections'])
     expect(areaItems.required).toEqual(['area', 'intro', 'sections'])
     expect(Object.keys((ScaffoldPlanAnswerSchema as unknown as { properties: object }).properties))

@@ -102,11 +102,32 @@ describe('viable-sdk — a project\'s applications, as tools', () => {
     expect(deps.calls).toEqual([['project.apps', ['p1']]])
   })
 
+  test('project_apps lists every area by key with its kind, app, path, segment and marker', async () => {
+    const view: ConnectAppsView = {
+      ...SPLIT,
+      areas: [
+        { key: 'guest', kind: 'guest', segment: '', app: 'main', path: '/' },
+        { key: 'user', kind: 'user', segment: 'frontoffice', app: 'main', path: '/frontoffice' },
+        { key: 'admin', kind: 'admin', segment: 'admin', app: 'admin', path: '/admin' },
+        { key: 'operator', kind: 'operator', segment: 'backoffice', app: 'backoffice', path: '/backoffice' },
+        { key: 'partners', kind: 'user', segment: 'partners', app: 'main', path: '/partners', label: 'Partners', marker: 'project--partners' },
+      ],
+    }
+    const result = await run('project_apps', {}, depsOf(CLOUD, { project: { apps: async () => view } }))
+
+    expect(result.text).toContain('Areas — a story\'s area is one of these keys:\n  guest (guest) · main · /\n')
+    expect(result.text).toContain('  user (user) · main · /frontoffice · segment frontoffice\n')
+    expect(result.text).toContain('  partners (user) · main · /partners · segment partners · Partners · only people granted project--partners\n')
+    expect(result.structured).toEqual(view)
+  })
+
   test('a platform older than the route reports one application, main — only once the project itself answers', async () => {
     const status = async () => ({ project: { id: 'p1' } })
     const older = await run('project_apps', {}, depsOf(CLOUD, { project: { apps: async () => { throw notFound() }, status } }))
     expect(older.text).toStartWith('This platform reports one application (main)')
     expect(older.structured).toMatchObject({ projectId: 'p1', recorded: false, olderPlatform: true, apps: [{ name: 'main', mount: '', main: true }] })
+    expect((older.structured as ConnectAppsView).areas?.map(area => `${area.key}:${area.kind}:${area.path}`))
+      .toEqual(['guest:guest:/', 'user:user:/frontoffice', 'admin:admin:/admin', 'operator:operator:/backoffice'])
 
     // A 404 of a project this credential cannot reach is that refusal, never "an older platform".
     const missing = notFound('viable-project:not-found:p1')
@@ -227,7 +248,7 @@ describe('viable-sdk — a story names its app only when its card names an area'
   })
 
   test('a card naming an area gets the flag beside the others, the area still last', async () => {
-    const items = [card('S-1', {}), card('S-2', { area: 'admin', areaKey: 'admin' }), card('S-3', { areaKey: 'user', areas: ['operator'] })]
+    const items = [card('S-1', {}), card('S-2', { area: 'admin', areas: ['admin'] }), card('S-3', { area: 'user', areas: ['operator'] })]
     const deps = depsOf(CLOUD, { planning: { cards: { list: async () => ({ items, total: 3, page: 0 }), load: async () => PROJECT } } })
     const result = await run('list_stories', {}, deps)
 
@@ -242,7 +263,7 @@ describe('viable-sdk — a story names its app only when its card names an area'
       projectId: 'p1', story: { id: 'id-S-2', code: 'S-2', title: 'S-2 narrative', status: 'planned', intrinsic: 'planned' },
       run: null, waitingFor: null,
     }
-    const named = card('S-2', { area: 'admin', areaKey: 'admin' })
+    const named = card('S-2', { area: 'admin', areas: ['admin'] })
     const plain = card('S-1', {})
     const api = (found: Workcard) => ({
       planning: { cards: { load: async (id: string) => id === 'p1' ? PROJECT : found, list: async () => ({ items: [], total: 0 }) } },
@@ -256,6 +277,18 @@ describe('viable-sdk — a story names its app only when its card names an area'
     const without = await run('story_status', { storyId: 'id-S-1' }, depsOf(CLOUD, api(plain)))
     expect(without.text).not.toContain('app')
     expect(Object.keys(without.structured!)).toEqual(['story'])
+  })
+
+  test('a card whose area is a custom key names the app serving that area', async () => {
+    const withPartners = JSON.parse(JSON.stringify(PROJECT)) as typeof PROJECT
+    withPartners.fields.apps.areas.push({ key: 'partners', kind: 'user', segment: 'partners' })
+    withPartners.fields.apps.apps[2]!.areas.push('partners')
+    const items = [card('S-1', {}), card('S-4', { area: 'partners' })]
+    const deps = depsOf(CLOUD, { planning: { cards: { list: async () => ({ items, total: 2, page: 0 }), load: async () => withPartners } } })
+    const result = await run('list_stories', {}, deps)
+
+    expect(result.text).toContain('  S-1 · planned · user\n')
+    expect(result.text).toContain('  S-4 · planned · app: backoffice · partners\n')
   })
 })
 
