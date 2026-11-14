@@ -460,6 +460,16 @@ mount (`/admin`, `/backoffice`, …) — each with its interface and server. Bot
   four standard ones), the worker, and `next:` naming the failing app's restart. Its structured output
   (`APPS_OUTPUT`) carries `areas` too. A local project: the platform's map, and
   where each app answers in the local run (`localStatus().apps`).
+- **The local executor runs every app-scoped shell command per app**, as the publisher does: `Build`,
+  `ValidateBackend`, `ValidateWithRenderer` and `BootCheck` / `BootCheckStatus` take `args.app`.
+  `createLocalShellHelper(...).bootCheck({ skipBuild?, wait?, app? })` boots that app's api package
+  (`layout.apiPath(app)`) with its env (`targetEnv.backendEnv(app)`: the app map's port, base and mount,
+  the boot-check port and schema over it) and polls its own health path (`appMapHelper.healthPath`);
+  each app has its own job and verdict (`bootCheckStatus({ app })`, job key `<dir>#<app>`, main's
+  `<dir>`), and the checks share the boot-check port, so callers run them one after another. Absent or
+  `main`: main's check, unchanged. Without a `DATABASE_URL` in the root `.env` the check answers
+  `Boot check skipped: .env declares no DATABASE_URL` (phase `schema`) instead of booting. Spec:
+  `tests/executor-boot-apps.spec.ts` (fixture `tests/split-tree-fixture.ts`).
 - **`restart_project_app { projectId?, app, web? }`** — cloud: `api.sandbox.restartApp` (`web: true` →
   `{ api: true, web: true }`, else `{}`); local: the run record must hold the app, then
   `makeRunStateHelper(dir).restartApi(app)` — the platform is never asked.

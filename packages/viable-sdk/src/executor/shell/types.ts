@@ -71,7 +71,12 @@ export interface LocalShellHelper {
    * A second start joins the running check rather than spawning another instance onto the port.
    * The verdict is read with {@link LocalShellHelper.bootCheckStatus}; `wait` is the legacy blocking path for a
    * caller that predates the job.
+   *
+   * `app` checks that app's api of a project split into apps — its own package, env and health path,
+   * with its own job and verdict; absent (or `main`) checks main's, exactly as before. The checks share
+   * the boot-check port, so callers run them one after another, as the publisher does.
    */
-  bootCheck: (options?: { skipBuild?: boolean, wait?: boolean }) => Promise<BootCheckReport | null>
-  bootCheckStatus: () => Promise<BootCheckStatus>
+  bootCheck: (options?: { skipBuild?: boolean, wait?: boolean, app?: string }) => Promise<BootCheckReport | null>
+  /** The verdict of `app`'s check (main's when absent). */
+  bootCheckStatus: (options?: { app?: string }) => Promise<BootCheckStatus>
 }

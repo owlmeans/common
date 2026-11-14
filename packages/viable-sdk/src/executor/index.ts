@@ -195,6 +195,7 @@ export const makeLocalSlotExecutor = (
             case SlotShellCommand.BootCheck: {
               const report = await shellHelper.bootCheck({
                 skipBuild: args?.skipBuild === true, wait: args?.wait === true,
+                ...(typeof args?.app === 'string' ? { app: args.app } : {}),
               })
 
               // The shell contract is "error text or null", so a healthy boot reports null exactly
@@ -205,7 +206,7 @@ export const makeLocalSlotExecutor = (
             }
 
             case SlotShellCommand.BootCheckStatus: {
-              const status = await shellHelper.bootCheckStatus()
+              const status = await shellHelper.bootCheckStatus(typeof args?.app === 'string' ? { app: args.app } : {})
 
               return {
                 running: status.running,

@@ -1,13 +1,11 @@
 import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
 import {
-  IntegrityRule, SlotCommandType, SlotShellCommand, TARGET_INTEGRITY_FILES, TOPOLOGY_FILE, TargetLayout, TargetPackage,
-  targetIntegrityHelper, targetLayoutHelper, type SlotShellResult, type TargetFileMap,
+  IntegrityRule, SlotCommandType, SlotShellCommand, TARGET_INTEGRITY_FILES, TOPOLOGY_FILE,
+  targetIntegrityHelper, type SlotShellResult, type TargetFileMap,
 } from '@owlmeans/viable-common'
 import { integrityHelper, makeLocalSlotExecutor } from '../src/executor/index.js'
 import { SPLIT_TOPOLOGY_FILE } from './apps-fixture.js'
+import { makeSplitTreeFixture } from './split-tree-fixture.js'
 
 /**
  * The local executor's integrity gate reads a tree the way the publisher does — two passes, the
@@ -16,61 +14,7 @@ import { SPLIT_TOPOLOGY_FILE } from './apps-fixture.js'
  * one-pass read it had before. The trees are test data, not this repository.
  */
 const SLUG = 'sdk-integrity-spec'
-const EXTRA_APPS = ['admin', 'backoffice']
-const manifest = targetLayoutHelper.targetManifest(TargetLayout.V2)
-
-const manifestOf = (dir: string, rules: string): string => JSON.stringify({
-  name: targetLayoutHelper.targetPackageName(SLUG, dir), type: 'module',
-  scripts: { build: manifest.buildScripts[rules] },
-  dependencies: Object.fromEntries(targetLayoutHelper.targetRequiredDeps(SLUG, rules, TargetLayout.V2).map(dep => [dep, '1.0.0'])),
-})
-
-/** One package's manifest files and markers — main's `rules` package re-rooted at `dir`. */
-const packageFiles = (dir: string, rules: string): TargetFileMap => {
-  const prefix = `${manifest.dir}/${rules}/`
-  const files: TargetFileMap = {}
-  for (const file of manifest.files.filter(file => file.startsWith(prefix))) {
-    const rel = file.slice(prefix.length)
-    const target = `${manifest.dir}/${dir}/${rel}`
-    files[target] = rel === 'package.json' ? manifestOf(dir, rules)
-      : file.endsWith('.json') ? '{}' : (manifest.markers[file] ?? ['export {}']).join('\n')
-  }
-
-  return files
-}
-
-const oneAppTree = (): TargetFileMap => {
-  const files: TargetFileMap = {
-    'package.json': JSON.stringify({ name: SLUG, type: 'module', workspaces: [manifest.workspaceGlob] }),
-    'bunfig.toml': '[install]\nlinker = "hoisted"\n',
-  }
-  for (const pkg of manifest.packages) Object.assign(files, packageFiles(pkg, pkg))
-
-  return files
-}
-
-const splitTree = (): TargetFileMap => {
-  const files = oneAppTree()
-  files[TOPOLOGY_FILE] = SPLIT_TOPOLOGY_FILE
-  for (const app of EXTRA_APPS) {
-    Object.assign(files, packageFiles(`${app}-web`, TargetPackage.Web), packageFiles(`${app}-api`, TargetPackage.Api))
-  }
-
-  return files
-}
-
-const roots: string[] = []
-const materialize = async (files: TargetFileMap): Promise<string> => {
-  const root = await mkdtemp(path.join(tmpdir(), 'viable-sdk-integrity-'))
-  roots.push(root)
-  for (const [file, content] of Object.entries(files)) {
-    if (content == null) continue
-    await mkdir(path.dirname(path.join(root, file)), { recursive: true })
-    await writeFile(path.join(root, file), content)
-  }
-
-  return root
-}
+const { manifestOf, oneAppTree, splitTree, materialize, cleanup } = makeSplitTreeFixture(SLUG, 'viable-sdk-integrity-')
 
 /** What the executor read before it moved: the fixed list alone, in one pass. */
 const onePass = (files: TargetFileMap): TargetFileMap =>
@@ -79,7 +23,7 @@ const onePass = (files: TargetFileMap): TargetFileMap =>
 const lines = (violations: Array<{ rule: string, path: string }>): string[] => violations.map(v => `${v.rule} ${v.path}`)
 
 beforeEach(() => { integrityHelper.forgetIntegrity() })
-afterAll(async () => { await Promise.all(roots.map(async root => await rm(root, { recursive: true, force: true }))) })
+afterAll(async () => { await cleanup() })
 
 describe('viable-sdk — the local integrity gate, a tree split into apps', () => {
   test('a three-app tree verifies clean — the one-pass read refused it', async () => {
