@@ -1,5 +1,5 @@
 import type { UploadInput } from '@owlmeans/client-upload'
-import type { ConnectMaterialCatalogue, ConnectMaterialText } from '@owlmeans/viable-common'
+import type { ConnectMaterialCatalogue, ConnectMaterialText, MaterialGeneratedDoc, ReferencesLedger } from '@owlmeans/viable-common'
 import type { ToolDeps } from '../types.js'
 
 /**
@@ -67,7 +67,16 @@ export interface MaterialsToolHelper {
   send: (deps: ToolDeps, projectId: string, inputs: UploadInput[]) => Promise<MaterialsSent>
   /** The outcomes as lines: a count per status, then one line per file with its reason. */
   renderOutcomes: (outcomes: MaterialOutcome[]) => string
-  /** A project's files as `list_materials` answers them, ending in the next useful call. */
+  /**
+   * The references and the generated documents as lines — a count line, then one line per link (status,
+   * URL, folder, files, documents, reason), research request (status, query, report, sources, gap) and
+   * package (status, verdict, look-alike, reason), at most `REFERENCES_SHOWN` of each; none when both are empty.
+   */
+  renderReferences: (ledger?: ReferencesLedger, generated?: MaterialGeneratedDoc[]) => string[]
+  /**
+   * A project's files as `list_materials` answers them — the references and generated documents after
+   * the files — ending in the next useful call.
+   */
   renderCatalogue: (projectId: string, catalogue: ConnectMaterialCatalogue) => string
   /** One material's text as `read_material` answers it: the text, and a note on where it came from and any cut. */
   renderText: (text: ConnectMaterialText) => string

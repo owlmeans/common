@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE } from '../../consts.js'
+import { REFERENCES_CONFIRMED, REFERENCES_READ } from '../../consts.local.js'
 import type { ToolAnnotations } from '../../types.js'
 import type { ToolSplit } from '../types.js'
 import type { ListingTextRule, ListingToolPresentation } from './types.js'
@@ -329,7 +330,8 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
   create_project: {
     annotations: ADDS,
     description: 'Describe the application in a sentence or two. The platform writes a specification, names it'
-      + ' and drafts a vision — model work that spends credits (the plan\'s project allowance first). Returns'
+      + ' and drafts a vision — model work that spends credits (the plan\'s project allowance first). '
+      + REFERENCES_READ + ' Returns'
       + ' the project status; read the draft and call confirm_project. Each call drafts another project, so'
       + ' calling it again spends again.',
   },
@@ -340,7 +342,8 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
     annotations: ENSURES,
     description: 'Confirm the drafted project, optionally editing what the analysis produced. This is what starts'
       + ' the build: the template lands, dependencies install, the whole application is drawn — model work that'
-      + ' spends credits, or the plan\'s project allowance where it covers it. Returns the project status while'
+      + ' spends credits, or the plan\'s project allowance where it covers it. ' + REFERENCES_CONFIRMED
+      + ' Returns the project status while'
       + ' the build continues on the platform. Only a drafted project is confirmed, so calling it again starts'
       + ' no second build.',
   },

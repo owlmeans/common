@@ -1,6 +1,8 @@
 import type { LocalBundle } from '../fetch/bundle/types.js'
+import type { PageFetcher, ReaderFetchPlugin } from '../fetch/fetcher/types.js'
 import type { AddressGuard } from '../fetch/guard/types.js'
 import type { ProxyLease } from '../fetch/proxy/types.js'
+import type { FetchFunction } from '../fetch/transport/types.js'
 
 /**
  * A browser that renders pages — the seam `@owlmeans/llm-reader-playwright` fills. A rendered
@@ -30,6 +32,43 @@ export interface RenderRequest {
    * every other one still goes through `guard`. The reader sets it for a URL a bundle plugin serves.
    */
   bundle?: LocalBundle
+  /**
+   * The reader's injected (pinned) fetch: a sub-request that passes `guard` is fulfilled through it
+   * instead of being let through to the browser's own network stack, which would resolve the host
+   * again. Not combined with a `lease`.
+   */
+  fetch?: FetchFunction
+  /**
+   * Make `html` stand alone without scripts: rules a script put into the CSSOM only (CSS-in-JS,
+   * adopted stylesheets) are written into `<style>` elements before the DOM is serialized.
+   */
+  snapshot?: boolean
+}
+
+/** What one render through the reader asks for. */
+export interface RenderReadOptions {
+  /** The proxy key. */
+  key?: string
+  signal?: AbortSignal
+  /** Default `true`. */
+  styles?: boolean
+  /** Default `true`. */
+  screenshot?: boolean
+  snapshot?: boolean
+}
+
+/** Renders one URL the way the reader does: a bundle from disk, else through the lease and the guard. */
+export interface RenderStep {
+  (url: string, options?: RenderReadOptions): Promise<RenderedPage>
+}
+
+export interface RenderStepOptions {
+  renderer: PageRenderer
+  fetcher: PageFetcher
+  /** The reader's plugins — the proxy plugin leases, bundle plugins serve. */
+  plugins?: ReaderFetchPlugin[]
+  /** The injected fetch, handed to the renderer for live sub-requests. */
+  fetch?: FetchFunction
 }
 
 /** Computed styles aggregated over the visible elements of one role, weighted by on-screen area. */

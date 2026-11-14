@@ -1,6 +1,6 @@
 import { ConnectHarness, ModelTaskMode, ModelTaskResultKind, type ModelTask } from '@owlmeans/viable-common'
 import Ajv from 'ajv'
-import { HOW_TO_RUN, ROLE_LABEL, SHAPE } from './consts.local.js'
+import { HOW_TO_RUN, ROLE_LABEL, SEARCH_HANDOFF, SEARCH_RULE, SHAPE } from './consts.local.js'
 import type { EnvelopeOptions, ParsedTaskResult } from './types.js'
 import type { TaskEnvelopeModel } from './envelope/types.js'
 
@@ -62,6 +62,11 @@ const toolCallList = (parsed: unknown): unknown[] | null => {
 
 /** One model task handed to a parent agent, and the answer it sends back checked against it. */
 export const makeTaskEnvelopeModel = (task: ModelTask): TaskEnvelopeModel => {
+  /** A web search task: the one mode whose worker uses a tool, answered like a `json` one. */
+  const search = task.mode === ModelTaskMode.Search
+  /** The modes answered with ONE JSON object checked against the task's `outputSchema`. */
+  const single = task.mode === ModelTaskMode.Json || search
+
   const renderTaskEnvelope = (opts: EnvelopeOptions): string => {
     const model = task.tier != null ? opts.tiers?.[task.tier] : undefined
     const lines: string[] = [
@@ -71,9 +76,11 @@ export const makeTaskEnvelopeModel = (task: ModelTask): TaskEnvelopeModel => {
       ...(task.attempt > 0
         ? [`This is attempt ${task.attempt + 1}. The previous answer was refused${task.feedback != null ? `: ${task.feedback}` : '.'}`]
         : []),
+      ...(search ? ['', SEARCH_RULE] : []),
       '',
       'HOW TO RUN THIS (do not answer it yourself, in this conversation):',
       HOW_TO_RUN[opts.harness] ?? HOW_TO_RUN[ConnectHarness.Other],
+      ...(search ? [SEARCH_HANDOFF] : []),
       '',
       'WHAT TO SEND BACK — call exactly:',
       `  submit_task_result { "taskId": "${task.id}", "result": <the subagent's final answer> }`,
@@ -103,7 +110,7 @@ export const makeTaskEnvelopeModel = (task: ModelTask): TaskEnvelopeModel => {
     if (task.mode === ModelTaskMode.Tools && task.tools != null) {
       lines.push('--- TOOLS THE SUBAGENT MAY CALL ---', JSON.stringify(task.tools, null, 2), '')
     }
-    if (task.mode === ModelTaskMode.Json && task.outputSchema != null) {
+    if (single && task.outputSchema != null) {
       lines.push('--- OUTPUT SCHEMA ---', JSON.stringify(task.outputSchema, null, 2), '')
     }
 
@@ -128,7 +135,7 @@ export const makeTaskEnvelopeModel = (task: ModelTask): TaskEnvelopeModel => {
       try {
         parsed = JSON.parse(unfence(raw))
       } catch {
-        if (task.mode === ModelTaskMode.Json) {
+        if (single) {
           return {
             problem: 'The answer was not valid JSON. Send ONE JSON object matching the schema, with no prose and no code fence.',
           }
@@ -141,7 +148,7 @@ export const makeTaskEnvelopeModel = (task: ModelTask): TaskEnvelopeModel => {
       }
     }
 
-    if (task.mode === ModelTaskMode.Json) {
+    if (single) {
       if (typeof parsed !== 'object' || parsed == null || Array.isArray(parsed)) {
         return { problem: 'The answer must be a single JSON object, not an array or a scalar.' }
       }

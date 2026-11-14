@@ -82,6 +82,16 @@ export enum ConnectExecutor {
    * a decision only a person can make, and a run that cannot ask assumes instead.
    */
   Human = 'human',
+  /**
+   * The parent agent runs a WEB SEARCH with its own search tool when a model task asks for one
+   * ({@link ModelTaskMode.Search}) and answers what it found.
+   *
+   * Advertised beside `Model` by a connector whose task envelope carries the search rule. It is what
+   * the platform goes by: a session that does not advertise it is never handed a search task, and its
+   * delegated runs do no online research — so a connector released before search tasks existed keeps
+   * the behaviour it had.
+   */
+  WebSearch = 'web-search',
 }
 
 /** What one operation asks a connector to do. */
@@ -131,7 +141,7 @@ export enum ModelTaskResultKind {
 /**
  * The power classes a parent agent offers, and the platform asks for.
  *
- * Three, because a parent has at most a few models and the platform has nineteen roles. The
+ * Three, because a parent has at most a few models and the platform has twenty roles. The
  * mapping is data ({@link MODEL_TIER_ROLES}) rather than a per-role negotiation: a parent says
  * which of its models is strong, standard and cheap, and the platform stamps each role's tier onto
  * the task it hands out. A parent offering fewer tiers gets its best available one — never a
@@ -170,6 +180,7 @@ export const MODEL_TIER_ROLES: Record<string, ModelTier> = {
   'picker': ModelTier.Cheap,
   'security-expert': ModelTier.Strong,
   'junior-security-expert': ModelTier.Standard,
+  'researcher': ModelTier.Standard,
 }
 
 /** What the model task asks the parent's subagent to produce. */
@@ -180,6 +191,14 @@ export enum ModelTaskMode {
   Json = 'json',
   /** A JSON array of tool calls chosen from `tools`. */
   Tools = 'tools',
+  /**
+   * A web search the subagent runs with ITS OWN search tool — the one mode in which it is asked to use
+   * a tool. The query and its limits are the conversation; the answer is ONE JSON object matching
+   * `outputSchema` (`{ text, sources, queries? }`, or `{ unavailable: true }` from a subagent without a
+   * web search), submitted as a `json` result. Handed only to a session advertising
+   * {@link ConnectExecutor.WebSearch}.
+   */
+  Search = 'search',
 }
 
 /** Who a message in a model task's conversation came from. */
@@ -404,6 +423,11 @@ export enum ConnectMaterialTextSource {
   Transcript = 'transcript',
   /** The file's own bytes, decoded as UTF-8 — a textual file (markdown, code, CSV, SVG, a diagram). */
   Text = 'text',
+  /**
+   * A document the platform generated from the project's references and lists in its materials index
+   * (`ConnectMaterialCatalogue.generated`: a research report, a reference summary, a package skill).
+   */
+  Generated = 'generated',
 }
 
 /**
@@ -646,6 +670,19 @@ export const connect = Object.freeze({
      * drafting starts once the upload below is sealed. A route of its own — the create body is closed.
      */
     createWithMaterials: 'viable:manager-api:connect:project:create-with-materials',
+    /**
+     * Create a project from a sentence whose references the platform reads: `create`'s own body and
+     * answer, but the platform scans the prompt for links (pages, public S3 objects, public Google
+     * Drive folders) and online research requests and fetches, researches and screens them before the
+     * drafting. A route of its own — the released `create` stays exactly as it was.
+     */
+    createWithReferences: 'viable:manager-api:connect:project:create-with-references',
+    /**
+     * Confirm a drafted project and initialize it with its references refreshed: `confirm`'s own body
+     * and answer, but the links and research requests the confirmed specification adds are fetched and
+     * researched before the files are placed. A route of its own — the released `confirm` is unchanged.
+     */
+    confirmWithReferences: 'viable:manager-api:connect:project:confirm-with-references',
     /**
      * A NEW project's files ("materials"): the upload tree whose session IS the project (`state`, the
      * streamed `file`, `remove`, `seal` — no `open`: the creation opens the session, and no `abort`:

@@ -62,7 +62,32 @@ export const SHAPE: Record<ModelTaskMode, string> = {
     + '{"name": "...", "args": {...}} — nothing else around it. If no tool call is needed and the\n'
     + 'work is done, answer in plain text instead: that is how the caller learns the turn is over.\n'
     + 'Send whichever it is as `result`.',
+  [ModelTaskMode.Search]:
+    'The answer must be ONE JSON object matching the OUTPUT SCHEMA below —\n'
+    + '{"text": "<the answer, Markdown>", "sources": [{"url": "https://…", "title": "…", "snippet": "…"}],\n'
+    + '"queries": ["<what was searched>"]}, or {"unavailable": true} from a worker with no web search —\n'
+    + 'no prose, no code fence. Send it as `result`.',
 }
+
+/**
+ * The rule a SEARCH task carries for its worker: the one task kind in which the worker uses a tool —
+ * and must. Rendered right under the header, so a parent that stops reading early still knows this
+ * worker needs its web search, and handed to the worker with its instructions (`SEARCH_HANDOFF`).
+ * Every other mode keeps the worker tool-less.
+ */
+export const SEARCH_RULE =
+  'WEB SEARCH TASK — the worker MUST search the web with ITS OWN web search tool. This is the one task\n'
+  + 'kind in which a tool is allowed: the web search tool, and the web fetch tool to open a result whose\n'
+  + 'snippet is not enough — nothing else, no files. Search for the query in the CONVERSATION within the\n'
+  + 'limits it states (searches, sources, domains, location), then write the answer from the pages found.\n'
+  + 'Name only pages the search actually returned, by their http(s) URL — never a page from memory. A\n'
+  + 'worker with no web search tool answers {"unavailable": true} and nothing else.'
+
+/** What a parent is told to pass on with a SEARCH task, after the harness's own HOW TO RUN. */
+export const SEARCH_HANDOFF =
+  'This task needs a worker WITH a web search tool: give it the WEB SEARCH TASK rule above together\n'
+  + 'with the SYSTEM PROMPT — it is what allows the worker its web search. Do not search or answer here.'
+
 
 export const ROLE_LABEL: Record<ModelTaskRole, string> = {
   [ModelTaskRole.System]: 'system',
@@ -81,3 +106,6 @@ export const CONFIRM_WORDS: Record<string, string> = {
   n: CONFIRM_NO,
   false: CONFIRM_NO,
 }
+
+/** Why the reference parent (`makeModelTaskDriver`) refuses a search task: a chat model has no web search. */
+export const DRIVER_NO_SEARCH = 'the reference parent is a chat model without a web search tool'

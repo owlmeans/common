@@ -8,12 +8,14 @@ import type { ReaderModels } from '../src/index.js'
 /**
  * Live gates. An empty variable means the dependent specs self-skip with a printed reason.
  * `LLM_READER_LIVE_WEB=1` lets specs reach the public web; `LLM_READER_PROXIES` is a
- * comma-separated list of real proxies to prove against.
+ * comma-separated list of real proxies to prove against; `LLM_READER_LIVE_S3=1` reads the public
+ * S3-compatible fixture bucket.
  */
 export const gates = makeGates({
   anthropic: ['ANTHROPIC_SECRET'],
   openai: ['OPENAI_SECRET'],
   web: ['LLM_READER_LIVE_WEB'],
+  s3: ['LLM_READER_LIVE_S3'],
   proxies: ['LLM_READER_PROXIES'],
 })
 

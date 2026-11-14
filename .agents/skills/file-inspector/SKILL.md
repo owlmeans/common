@@ -78,6 +78,8 @@ A source of your own implements `ProbeSource`: `info()` → `{ name?, mime?, siz
 signatures cannot see: encoding, csv/tsv, json, html, svg without a prolog, shebang scripts, source
 code by extension and the text-carried formats. A generic `xml` signature yields to the sniffer's
 html, svg or draw.io reading; file-type's `solid ` check yields to the sniffer, which wants facets.
+The XML detector's strict parser throws on ordinary HTML (void elements such as `<br>`, `<img>`):
+that error (`…\nLine: n\nColumn: n`) means "no signature", never a failure — the sniffer decides.
 
 | Kind | Recognized by |
 |---|---|

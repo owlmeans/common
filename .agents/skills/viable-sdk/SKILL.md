@@ -119,7 +119,9 @@ tool is written against it, so a tool cannot accidentally work in only one of th
 without the capability is refused at the boundary rather than by a check somewhere inside.
 
 `ConnectorApi` has exactly one member per connector route plus the planning facade — the session
-(`openSession`, `closeSession`, `pullOps`, `submitOp`), projects (with the agent controls
+(`openSession`, `closeSession`, `pullOps`, `submitOp`), projects (`project.create` and its references
+twin `project.createWithReferences(prompt, target?, sessionId?)`, `project.confirm` and
+`project.confirmWithReferences(id, edits)` — same arguments, their own routes; with the agent controls
 `project.stop(id, AgentStopArgs)` → `ConnectAgentLock`, `project.steer(id, { prompt })` → `AgentSteerResult`
 and the story batch `project.batch.start(id, { stories? })` / `.get(id)` (`null` when none ran) /
 `.cancel(id)` → `StoryBatchView` — only the fields named cross the wire), branding (`projectBranding(id, scope?)`,
@@ -385,6 +387,33 @@ or a host builds on the same four): `READ_ONLY` (reads, statuses, descriptions),
 `link_github_origin` are `IDEMPOTENT_WRITE`); `openWorldHint` is `false` everywhere except
 `convert_project`, which may clone a repository from the internet. A new tool picks one; a read is
 never destructive (`catalogue.spec.ts` pins the destructive set).
+
+## References: the platform reads the prompt's links, research requests and packages
+
+`create_project` and `confirm_project` go through `referencesToolOf(deps.api)` (`tools/references.ts`,
+one `ReferencesTool` per `ConnectorApi`, `memoHelper.oncePer`): `create` asks
+`project.createWithReferences` (`connect.project.createWithReferences`, the platform scans the prompt —
+pages, public S3 objects, public Google Drive folders, "search online" requests, npm packages — and reads
+them before the drafting), `confirm` asks `project.confirmWithReferences` (the init refreshes the
+references the confirmed specification adds). The arguments are the released members' — a delegated
+create still names its unattached `sessionId`, and target `local` + llm `local` still sends the prompt
+(the platform fetches the links with no model; research records a gap).
+
+- **A newer SDK against an older platform keeps working.** A bare `ApiStatusError` 404 with NO incident id
+  (Fastify's own answer for a route it does not have) makes the member ask the released route with the
+  same arguments and remember it for that API (`supported()` → `false`): the 404 is paid once. A refusal
+  the platform DECIDED is thrown as it came — its own class in development, an incident-id 404 in
+  production — never retried on the released route. An implementation of the interface without the two
+  members (written before them) is answered by the released routes from the start.
+- **The descriptions say it** (`REFERENCES_READ`, `REFERENCES_CONFIRMED` in `tools/consts.local.ts`, used
+  by the catalogue AND the listings' own descriptions): links fetched and read, a "search online" request
+  researched, named npm packages checked and a suspicious or look-alike one refused, `list_materials`
+  showing what was fetched, researched and generated. `create_project_with_files` reads them too.
+- **What came of them** is `list_materials`' and `read_material`'s ([materials](parts/materials.md)): the
+  ledger and the generated documents after the files, a generated document read by its path.
+- Spec: `tests/references-tools.spec.ts` (routes and bodies, the tools on a platform with the routes, the
+  404 fallback asked once, a decided refusal not retried, an implementation without the members, the
+  delegated local create, the descriptions, the catalogue rendering, the generated read).
 
 ## A new project's files: sent from this machine, read on every host
 
@@ -826,11 +855,31 @@ conversation, then the requested result shape: the outer handoff instruction and
 preserve the mode: a `text` task returns the requested source or text and never a JSON tool-call
 array; that array belongs only to `tools` mode.
 
+**A `search` task is the one whose worker uses a tool — and must.** `ModelTaskMode.Search` (handed only
+to a session advertising `ConnectExecutor.WebSearch`) is rendered with `mode: search`, the
+`SEARCH_RULE` block right under the header (before HOW TO RUN, so an early stop still sees it),
+`SEARCH_HANDOFF` after the harness's HOW TO RUN, `SHAPE[Search]` and the OUTPUT SCHEMA. Every other mode
+keeps the worker tool-less and never mentions a search. `SEARCH_RULE`, verbatim:
+
+```
+WEB SEARCH TASK — the worker MUST search the web with ITS OWN web search tool. This is the one task
+kind in which a tool is allowed: the web search tool, and the web fetch tool to open a result whose
+snippet is not enough — nothing else, no files. Search for the query in the CONVERSATION within the
+limits it states (searches, sources, domains, location), then write the answer from the pages found.
+Name only pages the search actually returned, by their http(s) URL — never a page from memory. A
+worker with no web search tool answers {"unavailable": true} and nothing else.
+```
+
+The answer is parsed exactly like a `json` one (one object, unfenced, checked against the task's own
+`outputSchema`) and submitted as a `json` result — the result route's kinds are unchanged. The
+reference driver (`makeModelTaskDriver`) has no web search: it answers a search task
+`{ unavailable: true, reason }` without asking its model.
+
 **`makeTaskEnvelopeModel(task).parseTaskResult` refuses a malformed answer locally**, and returns a `problem` rather than
 throwing. The refusal is worth more than the parse: an answer that reaches the platform malformed
 costs a whole retry — another task, another subagent, another wait — while one caught here is a
 sentence the parent can act on immediately, with the subagent's context still open. It unfences,
-rejects an array or a scalar in `Json` mode, and rejects a tool name the task never offered.
+rejects an array or a scalar in `Json` and `Search` mode, and rejects a tool name the task never offered.
 
 A task is handed out ONCE, and the platform then waits on it for up to 45 minutes. So the loop has
 to survive a parent that lost the envelope — a compacted conversation, a subagent that died before
@@ -1062,7 +1111,10 @@ reader looking for a database that was never configured.
 
 In the `@owlmeans/viable-sdk` package directory, `bun x tsc -p tests/tsconfig.json --noEmit` checks the SDK sources and all test typings.
 
-`bun test ./tests` — offline: the envelope and its parser, the tool catalogue and its extension seam,
+`bun test ./tests` — offline: the envelope and its parser (`search-envelope.spec.ts`: the search rule
+under the header for every harness and in no other mode, a search answer and the refusal parsed as
+`json`, prose / a non-http source / too many sources refused, the reference driver's refusal), the
+tool catalogue and its extension seam,
 the `registerCatalogue` out-of-credits, consent and planning-refusal phrasing and `notify` wiring
 (`mcp-catalogue.spec.ts`; the consent marker, the bare 428/402 statuses and a consent inside a
 commit failure in `catalogue.spec.ts`; the conversion confirmation — schemas and descriptions, the

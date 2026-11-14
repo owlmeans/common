@@ -332,3 +332,19 @@ export const MATERIAL_OUTCOME_LABELS: Readonly<Record<MaterialOutcomeStatus, str
 
 /** The longest description a `list_materials` line quotes. */
 export const MATERIAL_DESCRIPTION_CUT = 200
+
+/**
+ * What `create_project` says the platform does with the prompt's references — the one sentence its
+ * description (and the listings') carries.
+ */
+export const REFERENCES_READ = 'Links in the description — web pages, public S3 objects, public Google Drive'
+  + ' folders — are fetched and read, a "search online …" request is researched, and the npm packages it names'
+  + ' are checked (a suspicious or look-alike package is refused); list_materials shows what was fetched,'
+  + ' researched and generated.'
+
+/** What `confirm_project` says about references the confirmed specification adds. */
+export const REFERENCES_CONFIRMED = 'Links and "search online" requests the edited specification adds are fetched'
+  + ' and researched before the build.'
+
+/** The most references lines of each kind (links, research requests, packages) `list_materials` prints. */
+export const REFERENCES_SHOWN = 20

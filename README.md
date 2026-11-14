@@ -255,6 +255,7 @@ application packages above, or add one when they need that specific feature.
 |  | [`mailer`](packages/mailer) | The mailer host (`MAILER_SERVICE`), the `MailerTransport` contract and a console transport for development and tests |
 |  | [`marketing-consent`](packages/marketing-consent) | Marketing-consent contracts: the opt-in/opt-out catalogue, revision-aware status, terms acceptance and the consent protocol tree |
 |  | [`oidc`](packages/oidc) | The OIDC names both sides share: the gate, the guard, requested scopes, provider descriptors and the dispatcher entrypoints |
+|  | [`package-inspector`](packages/package-inspector) | Whether a named package is the genuine one or a lookalike, a security placeholder or a risky young package, from registry facts behind a port, with its documentation links; registry adapters live in OwlMeans connect |
 |  | [`payment`](packages/payment) | Provider-agnostic payment contracts: protocols, checkout policies, catalogue records, entitlement gates and consumer rights |
 |  | [`planning-auth`](packages/planning-auth) | Optional authentication identity and external group links for planning |
 |  | [`planning`](packages/planning) | Runtime-free planning contracts: workcards, projects, specifications, status flows, the transition fold, scoped schemas and the protocol tree |

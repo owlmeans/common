@@ -33,9 +33,17 @@ parent's). `list_materials { projectId? }` and `read_material { projectId?, path
 - Spends credits like `create_project` (the drafting); the description says so and that a second call
   creates another project. Structured: `{ project, files, pending, sealed }`.
 - `list_materials` renders every row (purpose, status, reason phrased by `MATERIAL_REASON_PHRASES`, where
-  placed, the description cut at 200), the state (`MATERIALS_STATE_PHRASES`) and the next `read_material`;
-  a project without files says so. `read_material` answers the text untouched (a listing's raw set), a note
-  for a transcript or a cut, and for media "carries no text".
+  placed, the description cut at 200) — a file fetched for a link is a row under `links/<nn>-<slug>/` —, the
+  state (`MATERIALS_STATE_PHRASES`), then `materialsToolHelper.renderReferences(catalogue.references,
+  catalogue.generated)`: a count line and one line per link (status, URL, folder, files, documents, reason),
+  research request (status, query, report, sources, gap) and package (status, verdict, look-alike, reason),
+  at most `REFERENCES_SHOWN` (20) of each, then the generated documents (path, kind, title). The `next:`
+  line names the first usable file and the first generated document. A project with neither rows, state nor
+  references says it was created without files; references alone (nothing usable yet) say "nothing here to
+  read yet". `read_material` answers the text untouched (a listing's raw set), a note for a transcript, a
+  generated document (`source: generated`, read by the path `list_materials` prints) or a cut, and for media
+  "carries no text".
 - The in-process `/mcp` bridge answers every member but `upload`, which refuses naming the stdio connector.
-  Listings present all three (`platformPresentation`: `PROJECT_WITH_FILES_OUTPUT`, `MATERIALS_OUTPUT`,
+  Listings present all three (`platformPresentation`: `PROJECT_WITH_FILES_OUTPUT`, `MATERIALS_OUTPUT` —
+  with the optional compact `references { links, research, packages }` and `generated` —,
   `MATERIAL_TEXT_OUTPUT`); the hosted ones never offer the upload, the local plugin does.

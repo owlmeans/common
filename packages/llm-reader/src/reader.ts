@@ -8,16 +8,18 @@ import { ReaderConfigError } from './errors.js'
 import type { ReaderModels } from './execution/types.js'
 import { createPageFetcher } from './fetch/fetcher.js'
 import type { FetchedResource, PageFetcher } from './fetch/fetcher/types.js'
-import type { ProxyPlugin } from './fetch/proxy/types.js'
-import type { LocalBundlePlugin } from './fetch/bundle/types.js'
+import { createCollector } from './collect.js'
+import type { Collector } from './collect/types.js'
+import { makeCrawler } from './crawl.js'
+import type { Crawler } from './crawl/types.js'
 import { makePageModel } from './models/page.js'
+import { createRenderStep } from './render/step.js'
+import type { RenderStep } from './render/types.js'
+import { createS3Source } from './sources/s3.js'
 import type { PageModel } from './models/page/types.js'
 import type { LlmReader, LlmReaderOptions, ReadOptions, ReaderTarget } from './reader/types.js'
 
 const isPage = (target: ReaderTarget): target is PageModel => typeof target === 'object' && 'dom' in target
-
-const isBundle = (plugin: unknown): plugin is LocalBundlePlugin =>
-  typeof (plugin as LocalBundlePlugin).serves === 'function' && typeof (plugin as LocalBundlePlugin).read === 'function'
 
 const isModels = (models: ReaderModels | LlmModel): models is ReaderModels =>
   typeof (models as ReaderModels).helper === 'function'
@@ -33,8 +35,19 @@ const singleModel = (model: LlmModel): ReaderModels => ({ model: () => model, he
  */
 export const createLlmReader = (options: LlmReaderOptions = {}): LlmReader => {
   const fetcher: PageFetcher = options.fetcher ?? createPageFetcher(options)
-  const proxy = options.plugins?.find((plugin): plugin is ProxyPlugin => typeof (plugin as ProxyPlugin).lease === 'function')
-  const bundles = options.plugins?.filter(isBundle) ?? []
+  const renderStep: RenderStep | undefined = options.renderer != null
+    ? createRenderStep({
+      renderer: options.renderer, fetcher,
+      ...(options.plugins != null ? { plugins: options.plugins } : {}), ...(options.fetch != null ? { fetch: options.fetch } : {}),
+    })
+    : undefined
+  // Fetching and rendering do not depend on the models, so neither does collecting.
+  const collector: Collector = createCollector({
+    fetcher,
+    ...(renderStep != null ? { render: renderStep } : {}),
+    sources: [...options.sources ?? [], ...(options.s3 === false ? [] : [createS3Source(options.s3 ?? {})])],
+    ...(options.limits != null ? { limits: options.limits } : {}),
+  })
 
   const build = (models: ReaderModels | LlmModel | undefined): LlmReader => {
     const resolved = models == null ? undefined : isModels(models) ? models : singleModel(models)
@@ -62,23 +75,10 @@ export const createLlmReader = (options: LlmReaderOptions = {}): LlmReader => {
       fetcher.fetch({ url, purpose: 'page', ...(read.key != null ? { key: read.key } : {}), ...(read.signal != null ? { signal: read.signal } : {}) })
 
     const render = async (url: string, read: ReadOptions): Promise<PageModel> => {
-      const renderer = options.renderer!
-      // A bundle page is answered from disk: no proxy, and its synthetic origin is never resolved.
-      const bundle = bundles.find(plugin => plugin.serves(url))
-      const lease = bundle == null ? await proxy?.lease({ url, ...(read.key != null ? { key: read.key } : {}) }) : undefined
-      if (bundle == null) await fetcher.guard.check(url, lease == null)
-      try {
-        const rendered = await renderer.render({
-          url, guard: fetcher.guard, screenshot: true, styles: true,
-          ...(lease != null ? { lease } : {}), ...(bundle != null ? { bundle } : {}),
-          ...(read.signal != null ? { signal: read.signal } : {}),
-        })
-        lease?.report({ ok: true, status: rendered.status })
-        return makePageModel({ url, html: rendered.html, rendered })
-      } catch (e) {
-        lease?.report({ ok: false, reason: (e as Error).message })
-        throw e
-      }
+      const rendered = await renderStep!(url, {
+        ...(read.key != null ? { key: read.key } : {}), ...(read.signal != null ? { signal: read.signal } : {}),
+      })
+      return makePageModel({ url, html: rendered.html, rendered })
     }
 
     const fromFetched = (fetched: FetchedResource): PageModel =>
@@ -94,7 +94,8 @@ export const createLlmReader = (options: LlmReaderOptions = {}): LlmReader => {
       return parsed
     }
 
-    return {
+    let crawler: Crawler | undefined
+    const reader: LlmReader = {
       fetcher,
       fetch,
       page,
@@ -119,12 +120,15 @@ export const createLlmReader = (options: LlmReaderOptions = {}): LlmReader => {
         const parsed = await page(target, { ...read, render: read.render ?? (options.renderer != null && typeof target === 'string') })
         return designerOf(parsed).analyze(read.key != null ? { key: read.key } : {})
       },
+      collect: (url, collect) => collector.collect(url, collect),
+      crawl: (url, crawl) => (crawler ??= makeCrawler(reader, { models: analystOptions != null })).crawl(url, crawl),
       using: models => build(models),
       close: async () => {
         await fetcher.close()
         await options.renderer?.close?.()
       },
     }
+    return reader
   }
 
   return build(options.models)

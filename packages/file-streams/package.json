@@ -30,6 +30,13 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./fetch": {
+      "import": "./build/fetch.js",
+      "require": "./build/fetch.js",
+      "default": "./build/fetch.js",
+      "module": "./build/fetch.js",
+      "types": "./build/fetch.d.ts"
     }
   },
   "dependencies": {

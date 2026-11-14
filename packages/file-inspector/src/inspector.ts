@@ -14,6 +14,7 @@ import { makeClaimReader } from './inspector/claims.js'
 import { createFormatReader } from './inspector/formats.js'
 import { createPdfScanner } from './inspector/pdf.js'
 import { createSignatureDetector } from './inspector/signatures.js'
+import { MARKUP_ERROR } from './inspector/consts.local.js'
 import { createTextSniffer } from './inspector/text.js'
 import type { Comparison, ProbeFacts, TextFinding } from './inspector/types.local.js'
 import type {
@@ -78,6 +79,14 @@ export const createFileInspector = (options: FileInspectorOptions = {}): FileIns
 
   const isBudgetError = (error: unknown): boolean =>
     (error instanceof ProbeBudgetError) || (error as Error | undefined)?.name === 'BufferSizeError'
+
+  /**
+   * The XML detector parses what LOOKS like markup with a strict XML parser, which throws on ordinary
+   * HTML (`<br>`, `<img>` and every other void element before a close tag). That is not a fact about
+   * the file: the signature pass simply has no answer, and the text sniffer decides what it is.
+   */
+  const isMarkupError = (error: unknown): boolean =>
+    error instanceof Error && MARKUP_ERROR.test(error.message)
 
   const canonical = (ext: string): string => EXTENSION_GROUPS.find(group => group.includes(ext))?.[0] ?? ext
 
@@ -237,6 +246,10 @@ export const createFileInspector = (options: FileInspectorOptions = {}): FileIns
       if (isBudgetError(error)) {
         return { budgetHit: true }
       }
+      if (isMarkupError(error)) {
+        log.debug('Markup the XML detector could not parse; left to the text sniffer', { error: (error as Error).message.split('\n')[0] })
+        return { budgetHit: false }
+      }
       throw error
     }
   }
@@ -304,10 +317,13 @@ export const createFileInspector = (options: FileInspectorOptions = {}): FileIns
         try {
           result = await parserOf(signal).fromTokenizer(rangeUtils.tokenizer(cached, { mimeType: claims.mime }))
         } catch (error) {
-          if (!isBudgetError(error)) {
+          if (isMarkupError(error)) {
+            log.debug('Markup the XML detector could not parse; left to the text sniffer', { error: (error as Error).message.split('\n')[0] })
+          } else if (!isBudgetError(error)) {
             throw error
+          } else {
+            budgetHit = true
           }
-          budgetHit = true
         }
         const head = await cached.read(0, Math.min(sampleBytes, reader.size, budget), signal)
         const complete = reader.size <= head.length

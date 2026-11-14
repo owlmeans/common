@@ -105,6 +105,10 @@ export const connectRef: ConnectReferences = {
     createWithMaterials: entrypointRef<{
       body: ConnectCreateWithMaterialsBody
     }, ConnectProjectStatus>(connect.project.createWithMaterials),
+    createWithReferences: entrypointRef<{ body: ConnectCreateBody }, ConnectProjectStatus>(connect.project.createWithReferences),
+    confirmWithReferences: entrypointRef<{
+      params: { id: string }, body: ConnectConfirmBody
+    }, ConnectProjectStatus>(connect.project.confirmWithReferences),
     materials: {
       state: entrypointRef<{ params: { id: string } }, UploadSession>(connect.project.materials.state),
       file: entrypointRef<{

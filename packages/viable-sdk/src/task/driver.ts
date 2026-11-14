@@ -1,5 +1,5 @@
 import { ModelTaskMode, ModelTaskResultKind } from '@owlmeans/viable-common'
-import { ROLE_TO_LC } from './consts.local.js'
+import { DRIVER_NO_SEARCH, ROLE_TO_LC } from './consts.local.js'
 import type { LangchainLikeModel, ModelDriverOptions, TaskDriver } from './types.js'
 
 const textOf = (content: unknown): string => typeof content === 'string'
@@ -65,6 +65,12 @@ export const makeModelTaskDriver = (opts: ModelDriverOptions): TaskDriver => {
 
   return {
     answer: async task => {
+      // A chat model has no web search: the reference parent answers a search task with the refusal
+      // the task defines, never with sources a model recalled.
+      if (task.mode === ModelTaskMode.Search) {
+        return { taskId: task.id, kind: ModelTaskResultKind.Json, json: { unavailable: true, reason: DRIVER_NO_SEARCH } }
+      }
+
       const instruction = task.mode === ModelTaskMode.Json
         ? 'Answer with exactly one JSON object matching this schema, and nothing else — no prose, '
           + `no code fence:\n${JSON.stringify(task.outputSchema ?? {})}`

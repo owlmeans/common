@@ -159,6 +159,38 @@ const MATERIAL_ENTRY = z.object({
   from: z.string().optional(),
 })
 
+const REFERENCE_LINK = z.object({
+  url: z.string(),
+  status: z.string().describe('fetched, researched, skipped, refused or failed.'),
+  reason: z.string().optional(),
+  folder: z.string().optional().describe('Where its files are listed (links/…).'),
+  files: z.number().optional(),
+  docs: z.array(z.string()).optional().describe('The documents written from it — what read_material takes.'),
+})
+
+const REFERENCE_RESEARCH = z.object({
+  query: z.string(),
+  status: z.string(),
+  reason: z.string().optional(),
+  doc: z.string().optional().describe('Its report — what read_material takes.'),
+  sources: z.number().optional(),
+  gap: z.string().optional().describe('What the research could not establish.'),
+})
+
+const REFERENCE_PACKAGE = z.object({
+  name: z.string(),
+  status: z.string(),
+  verdict: z.string().optional(),
+  lookalikeOf: z.string().optional(),
+  reason: z.string().optional(),
+})
+
+const GENERATED_DOC = z.object({
+  path: z.string().describe('What read_material takes.'),
+  title: z.string(),
+  kind: z.string().describe('research, reference-summary, reference-design or skill.'),
+})
+
 export const MATERIALS_OUTPUT = {
   projectId: PROJECT_ID,
   state: z.string().nullable().describe('Where the files stand; null for a project created without files.'),
@@ -166,12 +198,18 @@ export const MATERIALS_OUTPUT = {
   rejected: z.number(),
   lastError: z.string().optional(),
   entries: z.array(MATERIAL_ENTRY),
+  references: z.object({
+    links: z.array(REFERENCE_LINK),
+    research: z.array(REFERENCE_RESEARCH),
+    packages: z.array(REFERENCE_PACKAGE),
+  }).optional().describe('What the prompt and the confirmed specification pointed at, and what became of each.'),
+  generated: z.array(GENERATED_DOC).optional().describe('The documents the platform generated from the references.'),
 }
 
 export const MATERIAL_TEXT_OUTPUT = {
   projectId: PROJECT_ID,
   path: z.string(),
-  source: z.string().nullable().describe('transcript, text, or null for a file without text.'),
+  source: z.string().nullable().describe('transcript, text, generated, or null for a file without text.'),
   length: z.number().describe('The whole text\'s length in characters.'),
   truncated: z.boolean().describe('The text carries only the first part.'),
 }

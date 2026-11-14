@@ -1546,6 +1546,22 @@
         "ajv": "*",
       },
     },
+    "packages/package-inspector": {
+      "name": "@owlmeans/package-inspector",
+      "version": "0.2.0-alpha.0",
+      "dependencies": {
+        "@owlmeans/context": "^0.2.0-alpha.0",
+        "@owlmeans/error": "^0.2.0-alpha.0",
+        "@owlmeans/log": "^0.2.0-alpha.0",
+      },
+      "devDependencies": {
+        "@owlmeans/dep-config": "^0.2.0-alpha.0",
+        "@types/bun": "^1.4.4",
+        "@types/node": "^26.6.5",
+        "nodemon": "^3.1.14",
+        "typescript": "^7.0.2",
+      },
+    },
     "packages/payment": {
       "name": "@owlmeans/payment",
       "version": "0.2.0-alpha.0",
@@ -3428,6 +3444,41 @@
         "tailwindcss": "*",
       },
     },
+    "packages/web-research": {
+      "name": "@owlmeans/web-research",
+      "version": "0.2.0-alpha.0",
+      "dependencies": {
+        "@owlmeans/agent": "^0.2.0-alpha.0",
+        "@owlmeans/agent-common": "^0.2.0-alpha.0",
+        "@owlmeans/error": "^0.2.0-alpha.0",
+        "@owlmeans/llm": "^0.2.0-alpha.0",
+        "@owlmeans/llm-common": "^0.2.0-alpha.0",
+        "@owlmeans/llm-reader": "^0.2.0-alpha.0",
+        "@owlmeans/log": "^0.2.0-alpha.0",
+        "@owlmeans/package-inspector": "^0.2.0-alpha.0",
+        "ajv": "^8.20.0",
+      },
+      "devDependencies": {
+        "@langchain/anthropic": "^1.6.0",
+        "@langchain/core": "^1.3.1",
+        "@langchain/langgraph": "^1.5.3",
+        "@langchain/langgraph-checkpoint": "^1.2.1",
+        "@langchain/openai": "^1.8.0",
+        "@owlmeans/dep-config": "^0.2.0-alpha.0",
+        "@owlmeans/test": "^0.2.0-alpha.0",
+        "@types/bun": "^1.4.4",
+        "@types/node": "^26.6.5",
+        "nodemon": "^3.1.14",
+        "typescript": "^7.0.2",
+      },
+      "peerDependencies": {
+        "@langchain/anthropic": "^1.6.0",
+        "@langchain/core": "^1.3.1",
+        "@langchain/langgraph": "^1.5.3",
+        "@langchain/langgraph-checkpoint": "^1.2.1",
+        "@langchain/openai": "^1.8.0",
+      },
+    },
     "packages/web-router": {
       "name": "@owlmeans/web-router",
       "version": "0.2.0-alpha.0",
@@ -3953,6 +4004,8 @@
 
     "@owlmeans/oidc": ["@owlmeans/oidc@workspace:packages/oidc"],
 
+    "@owlmeans/package-inspector": ["@owlmeans/package-inspector@workspace:packages/package-inspector"],
+
     "@owlmeans/payment": ["@owlmeans/payment@workspace:packages/payment"],
 
     "@owlmeans/planning": ["@owlmeans/planning@workspace:packages/planning"],
@@ -4088,6 +4141,8 @@
     "@owlmeans/web-panel": ["@owlmeans/web-panel@workspace:packages/web-panel"],
 
     "@owlmeans/web-payment": ["@owlmeans/web-payment@workspace:packages/web-payment"],
+
+    "@owlmeans/web-research": ["@owlmeans/web-research@workspace:packages/web-research"],
 
     "@owlmeans/web-router": ["@owlmeans/web-router@workspace:packages/web-router"],
 

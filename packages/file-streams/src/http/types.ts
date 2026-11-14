@@ -34,6 +34,13 @@ export interface HttpClientOptions {
 // A closed pair of HTTP verbs — a union.
 export type HttpMethod = 'GET' | 'HEAD'
 
+/**
+ * What a 3xx answer does: `follow` (default) goes on to its `Location` under the policy; `manual`
+ * returns the 3xx response itself, `Location` included, for a caller that checks every hop itself.
+ */
+// A closed pair of modes — a union.
+export type HttpRedirectMode = 'follow' | 'manual'
+
 export interface HttpRequestOptions extends SignalOptions {
   method?: HttpMethod
   headers?: Record<string, string>
@@ -44,6 +51,17 @@ export interface HttpRequestOptions extends SignalOptions {
   raw?: boolean
   /** Send `If-Range` with this strong validator. */
   ifRange?: string
+  /**
+   * Default `follow`. `manual` returns a 3xx answer (with its `Location`) instead of following it.
+   * A resolver's own flow (a Drive virus-scan page, its hops) still runs inside the client under the
+   * policy, because it carries its cookie across those hops.
+   */
+  redirect?: HttpRedirectMode
+  /**
+   * Return every status instead of throwing `HttpError('status:<code>')` — a 404 page is an answer.
+   * A forward proxy's 407 still throws `ProxyError('auth-failed')`: that is the proxy, not the target.
+   */
+  anyStatus?: boolean
 }
 
 export interface HttpResponse {
@@ -55,6 +73,8 @@ export interface HttpResponse {
   body: Readable
   info: FileInfo
   redirects: number
+  /** The body was transport-decoded (`Content-Encoding` undone); its `Content-Length` no longer applies. */
+  decoded?: boolean
 }
 
 export interface HttpSourceOptions {
@@ -67,7 +87,7 @@ export interface HttpSourceOptions {
 
 /** Downloads under the network policy, through proxies, redirects and resolvers. */
 export interface HttpClient {
-  /** One GET or HEAD; a non-2xx answer is `HttpError('status:<code>')`. */
+  /** One GET or HEAD; a non-2xx answer is `HttpError('status:<code>')` unless `anyStatus` (or a 3xx under `redirect: 'manual'`). */
   request: (url: string | URL, options?: HttpRequestOptions) => Promise<HttpResponse>
   /** A re-openable source; Range-capable when the server answers 206 with Content-Range. */
   source: (url: string | URL, options?: HttpSourceOptions) => FileSource

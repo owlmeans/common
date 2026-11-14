@@ -38,4 +38,6 @@ export enum ModelRole {
   SecurityExpert = 'security-expert',
   /** The content gate's cheaper screen over text the platform drafted from a person's material. */
   JuniorSecurityExpert = 'junior-security-expert',
+  /** Runs the provider-hosted web search of online research — a model with a search tool. */
+  Researcher = 'researcher',
 }

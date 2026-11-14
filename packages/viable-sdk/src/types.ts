@@ -64,7 +64,20 @@ export interface ConnectorApi {
      * platform runs before the project card exists. Absent, the platform performs them.
      */
     create: (prompt: string, target?: ConnectTarget, sessionId?: string) => Promise<ConnectProjectStatus>
+    /**
+     * `create`, with the prompt's references read by the platform (`connect.project.createWithReferences`):
+     * its links — pages, public S3 objects, public Google Drive folders — fetched, its "search online"
+     * requests researched and the npm packages it names screened before the drafting. A platform older
+     * than the route answers 404 (the tools then fall back to `create`).
+     */
+    createWithReferences: (prompt: string, target?: ConnectTarget, sessionId?: string) => Promise<ConnectProjectStatus>
     confirm: (projectId: string, edits: ProjectEdits) => Promise<ConnectProjectStatus>
+    /**
+     * `confirm`, with the references the confirmed specification adds fetched and researched before the
+     * files are placed (`connect.project.confirmWithReferences`). A platform older than the route answers
+     * 404 (the tools then fall back to `confirm`).
+     */
+    confirmWithReferences: (projectId: string, edits: ProjectEdits) => Promise<ConnectProjectStatus>
     list: () => Promise<Array<{ id: string, name: string, alias: string }>>
     status: (projectId: string) => Promise<ConnectProjectStatus>
     attach: (args: { projectId?: string, slug?: string }) => Promise<ConnectProjectStatus>

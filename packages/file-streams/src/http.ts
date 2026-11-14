@@ -195,7 +195,9 @@ export const createHttpClient = (options: HttpClientOptions = {}): HttpClient =>
       const status = response.statusCode ?? 0
       const location = header(response.headers, 'location')
 
-      if (REDIRECT_STATUSES.includes(status) && location != null) {
+      // A resolver's flow carries its cookie across hops, so it follows them itself even under `manual`.
+      const returned = REDIRECT_STATUSES.includes(status) && location != null && requestOptions.redirect === 'manual' && resolver == null
+      if (REDIRECT_STATUSES.includes(status) && location != null && !returned) {
         response.resume()
         response.destroy()
         if (++redirects > maxRedirects) {
@@ -214,7 +216,8 @@ export const createHttpClient = (options: HttpClientOptions = {}): HttpClient =>
         current = next
         continue
       }
-      if (status < 200 || status >= 300) {
+      const success = status >= 200 && status < 300
+      if (!success && !returned && (requestOptions.anyStatus !== true || (status === 407 && connection.mode === 'forward'))) {
         response.resume()
         response.destroy()
         if (status === 407 && connection.mode === 'forward') {
@@ -227,7 +230,7 @@ export const createHttpClient = (options: HttpClientOptions = {}): HttpClient =>
         ? { body: response, decoded: false }
         : bodyOf(current, response)
 
-      if (resolver != null && method === 'GET') {
+      if (resolver != null && method === 'GET' && success) {
         let peeked: PeekedStream | undefined
         const readBody = async (maxBytes: number = DEFAULT_RESOLVER_PAGE_BYTES): Promise<string> => {
           peeked ??= await streamUtils.peek(body, maxBytes)
@@ -258,7 +261,7 @@ export const createHttpClient = (options: HttpClientOptions = {}): HttpClient =>
 
       log.debug('Response', { url: redactUtils.url(current), status, redirects })
 
-      return { url: current, status, headers: response.headers, body, info: infoOf(current, response, decoded), redirects }
+      return { url: current, status, headers: response.headers, body, info: infoOf(current, response, decoded), redirects, decoded }
     }
   }
 

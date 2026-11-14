@@ -1,4 +1,4 @@
-import { ReaderContentError, ReaderFetchError, ReaderProxyError, ReaderRefusedError } from '../errors.js'
+import { ReaderConfigError, ReaderContentError, ReaderFetchError, ReaderProxyError, ReaderRefusedError } from '../errors.js'
 import { textUtils } from '../utils/text.js'
 import { BRIDGE_ERROR_HEADER, BRIDGE_REFUSED_HEADER } from './bridge/consts.js'
 import { createAddressGuard } from './guard.js'
@@ -18,7 +18,7 @@ const REDIRECTS = new Set([301, 302, 303, 307, 308])
  */
 export const createPageFetcher = (options: PageFetcherOptions = {}): PageFetcher => {
   const guard = options.guard ?? createAddressGuard(options)
-  const transport = options.transport ?? createFetchTransport()
+  const transport = options.transport ?? createFetchTransport(options.fetch != null ? { fetch: options.fetch } : {})
   const plugins = options.plugins ?? []
   plugins.forEach(plugin => plugin.attach?.({ guard }))
 
@@ -50,6 +50,24 @@ export const createPageFetcher = (options: PageFetcherOptions = {}): PageFetcher
       offset += chunk.byteLength
     }
     return bytes
+  }
+
+  /** A streamed body under a byte cap: a declared length over it is refused at once, a longer stream errors. */
+  const capped = (response: Response, cap: number): ReadableStream<Uint8Array> => {
+    const declared = Number(response.headers.get('content-length') ?? NaN)
+    if (Number.isFinite(declared) && declared > cap) {
+      void response.body?.cancel().catch(() => undefined)
+      throw new ReaderContentError(`too-large:${declared}`)
+    }
+    if (response.body == null) return new ReadableStream<Uint8Array>({ start: controller => controller.close() })
+    let size = 0
+    return response.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+      transform: (chunk, controller) => {
+        size += chunk.byteLength
+        if (size > cap) controller.error(new ReaderContentError(`too-large:>${cap}`))
+        else controller.enqueue(chunk)
+      },
+    }))
   }
 
   /** What a proxy did with the request — a failure of the proxy is not the target's answer. */
@@ -86,7 +104,7 @@ export const createPageFetcher = (options: PageFetcherOptions = {}): PageFetcher
         response = await transport.send({ url, headers, signal, ...(endpoint != null ? { endpoint } : {}) })
       } catch (e) {
         if (request.signal?.aborted === true) throw e
-        if (e instanceof ReaderProxyError || e instanceof ReaderRefusedError) throw e
+        if (e instanceof ReaderProxyError || e instanceof ReaderRefusedError || e instanceof ReaderConfigError) throw e
         const reason = (e as { name?: string }).name === 'TimeoutError' ? 'timeout' : 'network'
         const error = request.lease != null ? new ReaderProxyError(reason) : new ReaderFetchError(reason)
         error.cause = e
@@ -111,6 +129,19 @@ export const createPageFetcher = (options: PageFetcherOptions = {}): PageFetcher
       throw Object.assign(new ReaderFetchError(`status-${response.status}`), { url, status: response.status })
     }
     const contentType = (response.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase()
+    const answer = {
+      url: request.url,
+      finalUrl: url,
+      status: response.status,
+      headers: Object.fromEntries(response.headers.entries()),
+      contentType,
+      fetchedAt: new Date().toISOString(),
+      redirects,
+      ...(request.lease != null ? { via: request.lease.id } : {}),
+    }
+    if (request.stream === true) {
+      return { ...answer, body: capped(response, request.maxBytes ?? options.maxBytes ?? DEFAULT_MAX_BYTES[purpose]) }
+    }
     const textual = contentType === '' || TEXT_TYPES.some(type => type.test(contentType))
     if (purpose === 'page' && !textual) {
       await response.body?.cancel().catch(() => undefined)
@@ -123,17 +154,7 @@ export const createPageFetcher = (options: PageFetcherOptions = {}): PageFetcher
     const bytes = await readBody(response, request.maxBytes ?? options.maxBytes ?? DEFAULT_MAX_BYTES[purpose], signal)
     const decoded = textual && purpose !== 'image' ? textUtils.decode(bytes, response.headers.get('content-type')) : undefined
 
-    return {
-      url: request.url,
-      finalUrl: url,
-      status: response.status,
-      headers: Object.fromEntries(response.headers.entries()),
-      contentType,
-      ...(decoded != null ? { text: decoded.text, charset: decoded.charset } : { bytes }),
-      fetchedAt: new Date().toISOString(),
-      redirects,
-      ...(request.lease != null ? { via: request.lease.id } : {}),
-    }
+    return { ...answer, ...(decoded != null ? { text: decoded.text, charset: decoded.charset } : { bytes }) }
   }
 
   /** The plugins, outermost first, around the terminal step. */

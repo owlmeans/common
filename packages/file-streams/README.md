@@ -11,6 +11,8 @@ Online files as Node streams, for OwlMeans servers and agents (Node and Bun):
   them; whole S3 prefixes listed and deleted.
 - **Archives** — zip, tar, tar.gz and gz: detect, list, extract, pack — with traversal, link, bomb and
   overlap guards.
+- **Pinned fetch** — `@owlmeans/file-streams/fetch` (no AWS SDK in its graph): a WHATWG `fetch` over
+  the same client, for code written against `fetch` (`@owlmeans/llm-reader`, a renderer).
 - **Verification** — what a file really is (images, audio, video, pdf, office documents including
   legacy doc/xls/ppt, csv, text, source code), compared with what its name and media type claim,
   from its head or a few range reads — never a full download.
@@ -50,6 +52,14 @@ const files = backed.scope({ organization: 'acme', project: 'slot-12', purpose: 
 await files.put('brand/logo.png', createBufferSource(png, { name: 'logo.png' }))
 await files.restore()   // after a restart: download what the tmp folder lost
 await files.drop()      // the folder and every object under the scope's prefix
+```
+
+```typescript
+import { createPinnedFetch } from '@owlmeans/file-streams/fetch'
+
+// Every connection pinned to the address the policy checked; Drive links resolved; bodies streamed
+const fetch = createPinnedFetch({ proxies: { proxies: ['socks5h://u:p@egress:1080'] } })
+const hop = await fetch(url, { redirect: 'manual' })     // a 3xx comes back with its Location; any status is a Response
 ```
 
 Proxies, the Viable workload destination and source, workspaces, archive limits, the context service

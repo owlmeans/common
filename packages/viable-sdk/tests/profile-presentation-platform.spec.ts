@@ -245,6 +245,30 @@ const CASES: Case[] = [
     },
   },
   {
+    // A project created from its references: the ledger and the generated documents presented compactly.
+    tool: 'list_materials', args: {}, answers: {
+      'materials.catalogue': {
+        ...CATALOGUE,
+        references: {
+          version: 1,
+          links: [{ id: 'l1', url: 'https://example.com/pricing.md', normalized: 'x', intents: ['content'], own: true,
+            origin: 'prompt', status: 'fetched', folder: 'links/01-pricing', files: 1, docs: ['docs/materials/references/a/summary.md'] }],
+          research: [{ id: 'r1', query: 'lead scoring', origin: 'prompt', status: 'researched', doc: 'docs/materials/research/a.md', sources: 3 }],
+          packages: [{ name: 'loadsh', origin: 'prompt', verdict: 'suspicious', lookalikeOf: 'lodash', status: 'refused' }],
+        },
+        generated: [{ path: 'docs/materials/research/a.md', title: 'Lead scoring', kind: 'research' }],
+      },
+    },
+    check: presented => {
+      expect(presented.references).toEqual({
+        links: [{ url: 'https://example.com/pricing.md', status: 'fetched', folder: 'links/01-pricing', files: 1, docs: ['docs/materials/references/a/summary.md'] }],
+        research: [{ query: 'lead scoring', status: 'researched', doc: 'docs/materials/research/a.md', sources: 3 }],
+        packages: [{ name: 'loadsh', status: 'refused', verdict: 'suspicious', lookalikeOf: 'lodash' }],
+      })
+      expect(presented.generated).toEqual([{ path: 'docs/materials/research/a.md', title: 'Lead scoring', kind: 'research' }])
+    },
+  },
+  {
     tool: 'list_materials', args: {}, answers: { 'materials.catalogue': { state: null, files: 0, bytes: 0, rejected: 0, entries: [] } },
     check: presented => expect([presented.state, presented.entries]).toEqual([null, []]),
   },

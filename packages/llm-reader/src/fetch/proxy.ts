@@ -107,6 +107,8 @@ export const createProxyPlugin = (options: ProxyPluginOptions = {}): ProxyPlugin
         if (rotateOn.has(response.status)) {
           chosen.report({ ok: false, status: response.status, reason: `status-${response.status}` })
           failed = chosen.id
+          // A streamed body left behind would hold its connection open.
+          void lastResponse?.body?.cancel().catch(() => undefined)
           lastResponse = response
           lastError = Object.assign(new ReaderProxyError(`status-${response.status}`), { proxy: chosen.id, status: response.status })
           if (request.lease != null) break
@@ -120,6 +122,7 @@ export const createProxyPlugin = (options: ProxyPluginOptions = {}): ProxyPlugin
         chosen.report({ ok: false, reason: e.message })
         failed = chosen.id
         lastError = e
+        void lastResponse?.body?.cancel().catch(() => undefined)
         lastResponse = undefined
         if (request.lease != null) break
       }

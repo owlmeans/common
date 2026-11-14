@@ -232,7 +232,8 @@ describe('viable-sdk — the handover over a call that went pending', () => {
 
     const context = await contextOf(ConnectLlm.Local)
     const calls = captureTransport(context, async call => {
-      if (call.alias === connect.project.create) {
+      // create_project asks the create that reads the prompt's references.
+      if (call.alias === connect.project.createWithReferences) {
         // The platform's synchronous check files its model task and answers early.
         tasks.push(checkTask('t1'), 'op1')
         return accepted({ pending: callIdOf(call) })

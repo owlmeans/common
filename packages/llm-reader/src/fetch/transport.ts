@@ -1,7 +1,7 @@
-import { ReaderProxyError } from '../errors.js'
+import { ReaderConfigError, ReaderProxyError, ReaderRefusedError } from '../errors.js'
 import { netUtils } from '../utils/net.js'
 import type { HttpProxyEndpoint } from './proxy/types.js'
-import type { FetchTransport, TransportRequest, Undici } from './transport/types.js'
+import type { FetchTransport, FetchTransportOptions, TransportRequest, Undici } from './transport/types.js'
 
 /**
  * `NO_PROXY` as the process started with it: Bun reads it once at startup and then sends a
@@ -10,7 +10,7 @@ import type { FetchTransport, TransportRequest, Undici } from './transport/types
  */
 const STARTUP_NO_PROXY = typeof process !== 'undefined' ? process.env.NO_PROXY ?? process.env.no_proxy : undefined
 
-export const createFetchTransport = (): FetchTransport => {
+export const createFetchTransport = (options: FetchTransportOptions = {}): FetchTransport => {
   let undici: Promise<Undici> | undefined
   const agents = new Map<string, InstanceType<Undici['ProxyAgent']>>()
 
@@ -66,7 +66,21 @@ export const createFetchTransport = (): FetchTransport => {
     return response as unknown as Response
   }
 
+  /** Through the injected fetch: its pinning is the connect-time check the guard cannot be on its own. */
+  const sendInjected = async (injected: NonNullable<FetchTransportOptions['fetch']>, { url, headers, signal, endpoint }: TransportRequest): Promise<Response> => {
+    if (endpoint != null) throw new ReaderConfigError('injected-fetch-proxy')
+    try {
+      return await injected(url, { method: 'GET', headers, signal, redirect: 'manual' })
+    } catch (e) {
+      if ((e as { refused?: unknown } | null)?.refused !== true) throw e
+      const refused = new ReaderRefusedError(`pinned:${(e as Error).message}`)
+      refused.cause = e
+      throw refused
+    }
+  }
+
   const send = async (request: TransportRequest): Promise<Response> => {
+    if (options.fetch != null) return sendInjected(options.fetch, request)
     failClosed(request)
     return netUtils.isBun() ? sendBun(request) : sendNode(request)
   }

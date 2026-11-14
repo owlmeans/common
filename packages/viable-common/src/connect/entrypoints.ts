@@ -286,6 +286,13 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
         body: typed<ConnectCreateWithMaterialsBody>(ConnectCreateWithMaterialsBodySchema),
       }, typed<ConnectProjectStatus>())
     ),
+    // The create whose prompt the platform scans for references (links, online research requests) and
+    // reads before the drafting: `create`'s own body and answer, a route of its own so the released one
+    // keeps its exact behaviour. No payment gate on the route: the create gate is checked inside.
+    createWithReferences: protocol(
+      route(connect.project.createWithReferences, '/project/with-references', { parent: base, method: RouteMethod.POST }),
+      contract.request({ body: typed<ConnectCreateBody>(ConnectCreateBodySchema) }, typed<ConnectProjectStatus>())
+    ),
     // The project's files: the upload (only where a connector reads a disk), the drafting asked again,
     // and the catalogue and one material's text — read on every host. The ownership gate alone.
     materials: {
@@ -325,6 +332,14 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     ),
     confirm: protocol(
       route(connect.project.confirm, '/project/:id/confirm', {
+        parent: base, method: RouteMethod.POST
+      }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectConfirmBody>(ConnectConfirmBodySchema) }, typed<ConnectProjectStatus>())
+    ),
+    // `confirm` with the references refreshed from the confirmed specification before the files are
+    // placed: the same body and answer, a route of its own.
+    confirmWithReferences: protocol(
+      route(connect.project.confirmWithReferences, '/project/:id/confirm-with-references', {
         parent: base, method: RouteMethod.POST
       }),
       contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectConfirmBody>(ConnectConfirmBodySchema) }, typed<ConnectProjectStatus>())

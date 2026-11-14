@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All 140 framework packages are included. Provider plugins (chat platforms, reCAPTCHA, Stripe, Mailgun, the Google tag) live in the `connect` monorepo and are not listed; nothing here depends on them. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-payment`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All 142 framework packages are included. Provider plugins (chat platforms, reCAPTCHA, Stripe, Mailgun, the Google tag) live in the `connect` monorepo and are not listed; nothing here depends on them. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-payment`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -14,7 +14,7 @@ This is the canonical, machine-friendly map of every published `@owlmeans/*` pac
 
 1. [Configuration & tooling](#1-configuration--tooling) — shared TypeScript configs, scaffolder and skills installer
 2. [Core foundations](#2-core-foundations) — environment-agnostic primitives
-3. [Cross-cutting domain](#3-cross-cutting-domain) — llm, agent, queue, job, consent, marketing consent, inquiry, mailer, flow, iam, payment, oidc, wled, planning, bot, upload
+3. [Cross-cutting domain](#3-cross-cutting-domain) — llm, agent, queue, job, consent, marketing consent, inquiry, mailer, flow, iam, payment, oidc, wled, planning, bot, upload, package verification
 4. [Auth shared](#4-auth-shared) — `auth-common`
 5. [API & API config](#5-api--api-config) — HTTP client and runtime config plumbing
 6. [Storage & infrastructure](#6-storage--infrastructure) — Mongo, Postgres, Redis, S3, file verification and streams, Kubernetes, queue and mail drivers
@@ -75,6 +75,7 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`common-inquiry`](packages/common-inquiry) → *(no `@owlmeans/*` deps)*
 - [`viable-log`](packages/viable-log) → `log`
 - [`mailer`](packages/mailer) → `context`, `error`, `log`
+- [`package-inspector`](packages/package-inspector) → `context`, `error`, `log`
 - [`flow`](packages/flow) → `auth`, `config`, `error`, `i18n`, `resource`
 - [`iam`](packages/iam) → `auth`, `context`, `entrypoint`, `error`, `oidc`, `route`
 - [`auth-otp`](packages/auth-otp) → `context`, `error`
@@ -94,6 +95,8 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 > **Note.** `llm-common` declares the `ModelProvider.Delegated` contracts (`DelegatedTask`, `DelegatedResult`, `DelegateTransport`) but holds no runtime for them: the `BaseChatModel` that performs such a call outside the process is `@owlmeans/llm-delegate` in the `internal` monorepo. `viable-common` is the runtime-free contract package (slot commands, the connector protocol, the owner console's IAM contract over `iam`, target integrity, the conversion vocabulary) that the OwlMeans Viable platform, its SDK and its MCP host all read.
 >
 > **Note.** `log` is the one logging system (levels, scopes, redaction, console override, plugins) — it depends on `context` only, so every layer above may import it; `web-log` is the consent gate its browser analytics plugins build on and `viable-log` a generated app's link to the OwlMeans Viable platform (two plugins and the stdout/preview contract). `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it, and `job` holds the browser-safe application job projections both of them speak. `mailer` is the mail host and transport contract — `mailer-smtp` drives it; provider transports (Mailgun) live in the `connect` monorepo. `consent` holds the provider-agnostic consent policy and the signal-provider host that `web-consent` and `astro` render and connect's `web-gtm` plugs Google Consent Mode into. `marketing-consent` is the marketing opt-in contract that `server-marketing-consent` serves, `marketing-consent-mongo` / `-postgres` store and `web-marketing-consent` renders. `bot` is the runtime-free, browser-safe chat-bot contract (platform descriptors, connections, the text helper a handler matches messages with, the managing and hook protocol trees, the bot errors) that the bot case's server, store, panels and agent tools build on; the platforms themselves are connect's plugins. `common-inquiry` is the runtime-free contract of the customer inquiry widget — its config, window runtime, multipart submission and limits — shared by `web-inquiry`, the widget bundle and a CRM API. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
+>
+> **Note.** `package-inspector` decides whether a named package is the genuine one or a lookalike, a security placeholder, a copied identity or a risky young package, from the facts of a registry behind its `PackageRegistry` port, and keeps one inspector per registry id in a lazy context host. It names no registry: the npm adapter is connect's `package-registry-npm`.
 >
 > **Note.** `upload` is the browser-safe contract of the upload family — the policy and its limits counted on the expanded set, sessions and uploaded files with a closed rejection vocabulary, prechecks and the mountable protocol tree. `server-upload` serves it, `client-upload` calls it and `web-upload` renders it. Its one infrastructure edge, `file-inspector` (the `./kinds` subpath only), is deliberate — see [Cross-layer notes](#cross-layer-notes).
 
@@ -173,6 +176,7 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`bot-agent`](packages/bot-agent) → `agent`, `bot`, `server-bot`
 - [`llm-reader`](packages/llm-reader) → `agent`, `context`, `error`, `llm`, `llm-common`, `log`
 - [`llm-reader-playwright`](packages/llm-reader-playwright) → `error`, `llm-reader`, `log`
+- [`web-research`](packages/web-research) → `agent`, `agent-common`, `error`, `llm`, `llm-common`, `llm-reader`, `log`, `package-inspector`
 - [`server-app`](packages/server-app) → `api`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `static-resource`
 - [`server-payment`](packages/server-payment) → `auth`, `config`, `context`, `entrypoint`, `iam`, `log`, `mailer`, `mongo-resource`, `payment`, `resource`, `route`, `server-api`, `server-app`, `server-context`, `server-entrypoint`
 - [`server-marketing-consent`](packages/server-marketing-consent) → `auth`, `auth-common`, `context`, `entrypoint`, `error`, `log`, `marketing-consent`, `resource`, `server-api`, `server-auth-token`, `server-context`, `server-entrypoint`
@@ -269,6 +273,7 @@ A handful of dependencies cross the obvious layer boundaries. They are intention
 - **`astro` → `consent`.** The Astro integration composes the browser consent defaults with a neutral head tag a provider builds (connect's `web-gtm`) for static sites; it is a web-layer package that ships no React.
 - **`bot-agent` → `agent`, `server-bot`.** The bridge from a chat bot to an agent: the update as context, the bot's actions as tools. It sits in the server layer, without the `server-` prefix, because its tools call `server-bot`'s `BotActions` (a type-only edge); `agent` is a peer.
 - **`llm-reader` → `agent`, `llm`.** Web reading for an LLM: a fetcher with HTTP/SOCKS proxies (it runs a local proxy bridge, so it is Node/Bun only), a page model, and analyses on `llm` models — DOM mode through an `agent` tool loop. It sits in the server layer, without the `server-` prefix. `llm-reader-playwright` is its optional browser renderer, a separate package so `playwright` stays an opt-in peer.
+- **`web-research` → `llm-reader`, `agent`, `package-inspector`.** Online-research pipelines (implementation research, an existing product's summary, a design reference, package notes and skills) composed from the reader's clone and crawl, `agent` pipelines and the package verdict engine; models and search are `llm` ports. It sits in the server layer beside `llm-reader`, without the `server-` prefix.
 - **`file-streams` → `file-inspector`, `storage-resource` → `file-inspector`.** Byte-level detection lives in its own package so that `storage-resource` — which `file-streams` itself depends on — can verify an upload without depending on `file-streams`. Both edges stay inside the storage layer and point one way: `file-inspector` depends on neither.
 - **Uploads: `upload` ← `server-upload`, `client-upload`, `web-upload`; `upload` → `file-inspector`.** The same contract-and-halves split as OAuth. The contract (cross-cutting domain) imports only `@owlmeans/file-inspector/kinds` — the `FileKind` enum with no detectors — so it stays browser-safe while naming the kinds the server detects; this upward edge into the storage layer is deliberate. `server-upload` → `file-streams`, `file-inspector`, `storage-common` is the server-side intake (workspace spool, archive guards, verification). `client-upload` calls the bound protocols through `ctx.entrypoint(…)` (the client context's `api` carries the streamed body and its progress) and imports only `@owlmeans/api/status` to classify a failed file for retry; its `./node` subpath reads local paths. `web-upload` → `client-upload` and ships private shadcn primitives instead of depending on `web-panel`, like `web-auth-email`.
 - **`marketing-consent-mongo`, `marketing-consent-postgres` → `server-marketing-consent`; `planning-postgres` → `server-planning`; `bot-postgres` → `server-bot`.** A store package registers the resources whose aliases and record types its server package declares, so it builds above it although it sits in the storage layer.
@@ -281,13 +286,13 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 
 - **L0** (no `@owlmeans/*` deps): `basic-ids`, `client-wl`, `common-inquiry`, `consent`, `context`, `dep-config`, `i18n`, `llm-common`, `web-captcha`
 - **L1**: `astro`, `error`, `log`, `route`, `router`, `web-consent`
-- **L2**: `auth`, `auth-otp`, `llm`, `mailer`, `resource`, `server-route`, `viable-log`, `web-inquiry`, `web-log`, `web-router`, `web-router-react-router`
+- **L2**: `auth`, `auth-otp`, `llm`, `mailer`, `package-inspector`, `resource`, `server-route`, `viable-log`, `web-inquiry`, `web-log`, `web-router`, `web-router-react-router`
 - **L3**: `agent-skills`, `basic-keys`, `config`, `entrypoint`, `socket`, `state`, `static-resource`, `storage-common`
 - **L4**: `api-config`, `auth-token`, `basic-envelope`, `bot`, `captcha`, `client-config`, `create-app`, `did`, `file-inspector`, `flow`, `marketing-consent`, `planning`, `server-config`, `server-entrypoint`, `wled`
 - **L5**: `agent-common`, `oauth`, `payment`, `planning-auth`, `server-context`, `upload`, `{api | auth-common | client-context | client-entrypoint | client-route}`
 - **L6**: `agent`, `api-config-client`, `auth-email`, `cli-auth`, `client-planning`, `client-resource`, `client-upload`, `job`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`
 - **L7**: `api-config-server`, `client`, `file-streams`, `iam`, `image-resource`, `llm-reader`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-auth-session`, `server-bot`, `server-oidc-provider`, `server-wl`, `web-db`
-- **L8**: `bot-agent`, `bot-postgres`, `client-did`, `client-flow`, `client-i18n`, `client-socket`, `llm-reader-playwright`, `redis-queue`, `server-auth-token`, `server-upload`, `viable-common`, `web-wl`, `{server-auth | server-socket}`
+- **L8**: `bot-agent`, `bot-postgres`, `client-did`, `client-flow`, `client-i18n`, `client-socket`, `llm-reader-playwright`, `redis-queue`, `server-auth-token`, `server-upload`, `viable-common`, `web-research`, `web-wl`, `{server-auth | server-socket}`
 - **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-marketing-consent`, `server-oauth`, `server-oidc-rp`, `server-planning`, `viable-sdk`, `web-auth-token`, `web-bot`, `web-flow`, `web-upload`
 - **L10**: `client-auth`, `marketing-consent-mongo`, `marketing-consent-postgres`, `planning-postgres`, `server-auth-email`, `server-iam`, `server-payment`
 - **L11**: `client-job`, `client-panel`, `client-payment`, `web-auth-email`, `web-client`, `web-marketing-consent`, `web-oauth`
@@ -337,7 +342,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  server-auth-email  server-auth-session  server-auth-token  server-oauth     ║
  ║  server-planning  server-marketing-consent  server-upload                    ║
  ║  captcha (server-side, no prefix)                                            ║
- ║  llm-reader       llm-reader-playwright                                      ║
+ ║  llm-reader       llm-reader-playwright  web-research                        ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  STORAGE & INFRASTRUCTURE                                        L3–L10      ║
  ║                                                                              ║
@@ -364,7 +369,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  queue            consent         mailer           auth-otp   common-inquiry ║
  ║  llm-common       llm             agent-common     agent           bot       ║
  ║  job              marketing-consent  planning      planning-auth   upload    ║
- ║  viable-common    viable-log                                                 ║
+ ║  viable-common    viable-log      package-inspector                          ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  CORE FOUNDATIONS  (environment-agnostic primitives)              L0–L4      ║
  ║                                                                              ║
@@ -393,9 +398,9 @@ Dependencies flow downward: every package can only import from the layers below 
    L9  ████████████ server-app  server-auth-otp  server-job  server-marketing-consent
                server-oauth  server-oidc-rp  server-planning  viable-sdk  web-auth-token
                web-bot  web-flow  web-upload
-   L8  ████████████ bot-agent  bot-postgres  client-did  client-flow  client-i18n
+   L8  █████████████ bot-agent  bot-postgres  client-did  client-flow  client-i18n
                client-socket  llm-reader-playwright  redis-queue  server-auth-token
-               server-upload  viable-common  web-wl
+               server-upload  viable-common  web-research  web-wl
         ██ {server-auth ↔ server-socket}
    L7  ███████████████ api-config-server  client  file-streams  iam  image-resource
                llm-reader  mongo  postgres  redis  server-auth-identity
@@ -411,8 +416,9 @@ Dependencies flow downward: every package can only import from the layers below 
                planning  server-config  server-entrypoint  wled
    L3  █████████ agent-skills  basic-keys  config  entrypoint
                socket  state  static-resource  storage-common
-   L2  ███████████ auth  auth-otp  llm  mailer  resource  server-route
-               viable-log  web-inquiry  web-log  web-router  web-router-react-router
+   L2  ████████████ auth  auth-otp  llm  mailer  package-inspector  resource
+               server-route  viable-log  web-inquiry  web-log  web-router
+               web-router-react-router
    L1  ██████ astro  error  log  route  router  web-consent
    L0  █████████ basic-ids  client-wl  common-inquiry  consent  context  dep-config
                i18n  llm-common  web-captcha

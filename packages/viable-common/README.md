@@ -22,7 +22,7 @@ bun add @owlmeans/viable-common@^0.2.0-alpha.0
 
 | Subpath | Contents |
 |---|---|
-| `.` | The shapes a generated project is described by: the planning module (Viable card types and flows), user stories and entities, the design and scaffold plans, UX/UI specs, the `docs/` metadata paths, the four user areas and the tenancy decision, model roles and personas, blueprint types, moderation categories, slot metadata, the agent-output presentation taxonomy, the materials contract (files attached to a new project). Re-exports every subpath except `./intent` |
+| `.` | The shapes a generated project is described by: the planning module (Viable card types and flows), user stories and entities, the design and scaffold plans, UX/UI specs, the `docs/` metadata paths, the four user areas and the tenancy decision, model roles and personas, blueprint types, moderation categories, slot metadata, the agent-output presentation taxonomy, the materials contract (files and references — links, online research, package skills — attached to a new project). Re-exports every subpath except `./intent` |
 | `@owlmeans/viable-common/slot` | The slot command vocabulary — file (binary write and read included), shell, git and database commands, the binary transport ceiling, the sub-project roles and layouts, the target's ports and process markers |
 | `@owlmeans/viable-common/connect` | The connector protocol: sessions, operations, model tasks, questions, domain statuses, capabilities, the error family, and `connectProtocols()` — the one declaration both the platform and the SDK bind |
 | `@owlmeans/viable-common/convert` | Converting an application that already exists: the stages and their transitions, the origin and stack taxonomy, the census classifiers, and the `docs/conversion/` layout |
@@ -51,6 +51,10 @@ bun add @owlmeans/viable-common@^0.2.0-alpha.0
 - **Material** — a file attached to a new project's prompt: a `ProjectMaterialRecord` on the
   platform, a `MaterialIndexEntry` (the record without platform ids) in the target's
   `docs/materials/index.md`, rendered and read by `materialIndexHelper`.
+- **Reference** — what a person points at instead of uploading: a link (fetched under the reserved
+  `links/<nn>-<slug>/` prefix, provenance at `details.link`), an online research request or an npm
+  package, tracked in `docs/materials/references.json` (`referencesLedgerHelper`) within
+  `MATERIALS_LINK_LIMITS`; `referenceScanHelper` finds links and research cues in a prompt.
 
 ## Usage
 
@@ -118,6 +122,19 @@ const entries = materialIndexHelper.parse(await files.readFile(MATERIALS_INDEX, 
 const forDesign = materialIndexHelper.relevant(entries, {
   purposes: [MaterialPurpose.LayoutSketch, MaterialPurpose.HtmlPrototype], mentions: [prompt],
 })
+```
+
+### Scan a prompt for references and count the budget
+
+```typescript
+import { MATERIALS_REFERENCES, referenceScanHelper, referencesLedgerHelper } from '@owlmeans/viable-common'
+
+// Before any model runs: the links (normalized, in order) and whether online research is asked for.
+const { links, research } = referenceScanHelper.scan(prompt)
+
+// A later run reads the ledger back — total: no file reads as an empty ledger — and what is left.
+const ledger = referencesLedgerHelper.parse(await files.readFile(MATERIALS_REFERENCES, true))
+const left = referencesLedgerHelper.remaining(ledger)   // { links, files, bytes, research, skills }
 ```
 
 ### Classify agent output

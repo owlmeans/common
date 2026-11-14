@@ -67,6 +67,20 @@ export class ReaderConfigError extends LlmReaderError {
   }
 }
 
+/**
+ * A collect limit was reached — files, bytes of a file, of a page's assets or of the whole collect.
+ * It errors the stream of the file that ran into it; `collect` reports that file as skipped and never
+ * throws it.
+ */
+export class ReaderLimitError extends LlmReaderError {
+  public static override typeName = `Limit${LlmReaderError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`limit:${message}`)
+    this.type = ReaderLimitError.typeName
+  }
+}
+
 /** A model-backed analysis produced nothing usable. */
 export class ReaderAnalysisError extends LlmReaderError {
   public static override typeName = `Analysis${LlmReaderError.typeName}`
@@ -83,4 +97,5 @@ ResilientError.registerErrorClass(ReaderProxyError)
 ResilientError.registerErrorClass(ReaderRefusedError)
 ResilientError.registerErrorClass(ReaderContentError)
 ResilientError.registerErrorClass(ReaderConfigError)
+ResilientError.registerErrorClass(ReaderLimitError)
 ResilientError.registerErrorClass(ReaderAnalysisError)

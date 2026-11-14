@@ -96,6 +96,8 @@ export interface ConnectReferences {
   project: {
     create: ConnectReference<{ body: ConnectCreateBody }, ConnectProjectStatus>
     createWithMaterials: ConnectReference<{ body: ConnectCreateWithMaterialsBody }, ConnectProjectStatus>
+    createWithReferences: ConnectReference<{ body: ConnectCreateBody }, ConnectProjectStatus>
+    confirmWithReferences: ConnectReference<{ params: { id: string }, body: ConnectConfirmBody }, ConnectProjectStatus>
     materials: {
       state: ConnectReference<{ params: { id: string } }, UploadSession>
       file: ConnectReference<{ params: { id: string }, query: UploadFileQuery, body: BinaryBody }, UploadFileResult>

@@ -93,14 +93,14 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 | Client (platform-agnostic) | `client-*` (`client-iam` and `client-auth` pull in the web layer) |
 | Web | `web-*` (incl. `web-log`), `astro`; LEGACY `mui-panel`, `mui-oidc-rp` (maintain only) |
 | Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource`, `file-inspector`, `file-streams` |
-| AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `bot-agent`, `llm-reader`, `llm-reader-playwright`, `viable-common`, `viable-log`, `viable-sdk` |
+| AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `bot-agent`, `llm-reader`, `llm-reader-playwright`, `web-research`, `viable-common`, `viable-log`, `viable-sdk` |
 | Mail | `mailer` (transport host), `mailer-smtp` |
-| Domain | `oidc`, `iam`, `payment`, `consent`, `marketing-consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `job`, `planning`, `planning-auth`, `bot`, `upload` |
+| Domain | `oidc`, `iam`, `payment`, `consent`, `marketing-consent`, `common-inquiry`, `auth-otp`, `flow`, `wled`, `queue`, `job`, `planning`, `planning-auth`, `bot`, `upload`, `package-inspector` |
 | Not framework | `_tpl`, `test`, `test-auth`, `test-integration`, `test-payment`, `test-ui` |
 
 ## Key Facts
 
-- 146 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
+- 148 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
 - **Provider split:** packages here are provider-agnostic — contracts, plugin hosts, generic UI, test
   helpers. A package that integrates one external provider (a chat platform, reCAPTCHA, Stripe, Mailgun,
   the Google tag) is a plugin in the `connect` monorepo; common never depends on connect, and no provider

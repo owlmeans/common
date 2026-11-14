@@ -1,5 +1,5 @@
 import type { Browser, LaunchOptions } from 'playwright'
-import type { FetchRequest, LocalBundle, PageRenderer, RenderedBlock, StyleSample } from '@owlmeans/llm-reader'
+import type { FetchFunction, FetchRequest, LocalBundle, PageRenderer, RenderedBlock, StyleSample } from '@owlmeans/llm-reader'
 
 export interface PlaywrightRendererOptions {
   /** Your own browser, or how to get one; otherwise Chromium is launched headless on first use. */
@@ -18,6 +18,15 @@ export interface PlaywrightRendererOptions {
    * request's own `bundle` — set by the reader for a bundle URL — is routed the same way.
    */
   bundles?: LocalBundle[]
+  /**
+   * The reader's pinned fetch (`@owlmeans/file-streams/fetch`): every live GET/HEAD the page makes that
+   * passes the guard is fetched through it (redirects come back to the browser, each hop guarded again)
+   * and fulfilled, instead of Chromium resolving the host again — the DNS-rebinding window between the
+   * guard and the connect. Other methods are refused. A render request's own `fetch` wins.
+   */
+  fetch?: FetchFunction
+  /** Bytes of one sub-request answer fulfilled through `fetch`; a larger one is aborted. Default 16 MiB. */
+  maxFulfilBytes?: number
 }
 
 /** A {@link PageRenderer} on Playwright; `close` shuts down a browser it launched itself. */

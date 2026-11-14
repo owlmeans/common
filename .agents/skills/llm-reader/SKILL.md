@@ -1,6 +1,6 @@
 ---
 name: llm-reader
-description: How to use @owlmeans/llm-reader — fetch web pages directly or through HTTP/SOCKS proxies (a list or a key→proxy callback), parse them (metadata with its evidence, main content as Markdown, links, pictures with the context they are used in, a ref-addressed DOM), and have a model read them in text mode or as a DOM-exploring @owlmeans/agent agent — describe (the default Markdown description), classify, extract, pick links, classify and caption images — and write the page's design system as a DESIGN.md — of a live site or of a local html/css bundle (an uploaded prototype). Auto-invoked when importing createLlmReader, appendLlmReaderService, createProxyPlugin, createLocalBundlePlugin, createPageFetcher, makePageModel or makeReaderModels.
+description: How to use @owlmeans/llm-reader — fetch web pages directly, through HTTP/SOCKS proxies, or through an injected pinned fetch (file-streams); parse them (metadata with evidence, Markdown content, links, pictures in context, a ref-addressed DOM); have a model describe, classify, extract, pick links, caption images and write a DESIGN.md — of a live site or a local html/css bundle; clone a link into local files (a page bundle with its CSS, fonts and pictures and bundle.json, a streamed file, a public S3 prefix, a ReaderSource plugin's folder) and crawl a site in a bounded, robots-honouring way. Auto-invoked when importing createLlmReader, appendLlmReaderService, createProxyPlugin, createLocalBundlePlugin, createPageFetcher, createCollector, createDirectoryCollectSink, createS3Source, makeCrawler, makePageModel or makeReaderModels, or implementing a ReaderSource.
 user-invocable: false
 ---
 
@@ -27,25 +27,33 @@ await reader.extract(url, { schema, instruction: 'Who wrote it and when?' })   /
 await reader.classify(url, { mode: ReaderMode.Text })                             // one cheaper call over the text
 await reader.images(url, { vision: true })     // every picture, its role and usage in context
 await reader.design(url)                       // { markdown: DESIGN.md, tokens, facts, warnings }
+await reader.collect(url, { sink: createDirectoryCollectSink(dir), prefix: 'links/01-site' })  // page bundle, file or S3 prefix
+await reader.crawl(url, { intent: 'pricing', maxPages: 8 })      // bounded same-origin walk
 ```
 
 ## Key exports
 
 | Export | Description |
 |---|---|
-| `createLlmReader(options)` · `appendLlmReaderService(ctx, options, alias?)` · `makeLlmReaderService` | The reader: `fetch`, `page`, `describe`, `classify`, `extract`, `links`, `images`, `design`, `using(models)`, `close`. A target is a URL, a `FetchedResource` or a `PageModel`; read options are `key` (the proxy key), `render`, `signal`. |
+| `createLlmReader(options)` · `appendLlmReaderService(ctx, options, alias?)` · `makeLlmReaderService` | The reader: `fetch`, `page`, `describe`, `classify`, `extract`, `links`, `images`, `design`, `collect`, `crawl`, `using(models)`, `close`. A target is a URL, a `FetchedResource` or a `PageModel`; read options are `key` (the proxy key), `render`, `signal`. Options add `fetch` (an injected pinned fetch), `sources`, `s3`, `limits`. |
 | `makeReaderModels(exec, { executions, roles?, spectator? })` | Reader models bound to an execution: one helper per `ReaderTask` (role `reader` unless `roles` maps it) — every task then reads in DOM mode by default. A bare `LlmModel` passed as `models` reads in text mode only. |
-| `createPageFetcher(options)` · `ReaderFetchPlugin` | The fetcher: a middleware chain, guarded manual redirects, byte caps, charset decoding. |
+| `createPageFetcher(options)` · `ReaderFetchPlugin` | The fetcher: a middleware chain, guarded manual redirects, byte caps, charset decoding, `stream: true` bodies; `fetch` replaces the transport. |
+| `FetchFunction` · `createFetchTransport({ fetch? })` | The injected-fetch seam — see the `fetching` part. |
+| `createCollector({ fetcher, render?, sources?, limits? })` · `CollectSink` · `createDirectoryCollectSink(root)` | `collect(url, options)` / `bundle({ url, html, entry? }, options)` → `CollectResult` — see the `collect` part. |
+| `ReaderSource` · `createS3Source(options?)` · `createS3UrlHelper(options?)` | The link-expanding seam (a Drive folder plugin implements it) and the built-in public-S3 source. |
+| `makeCrawler(reader, { models })` · `CrawlOptions` · `CrawlResult` | The bounded crawl behind `reader.crawl`. |
+| `createRenderStep(options)` · `RenderStep` | Rendering as the reader does it (bundle from disk, else lease + guard, the injected fetch handed on). |
 | `createProxyPlugin(options)` · `ProxyPlugin.lease(request)` | The integrated proxy plugin — see the `fetching` part. |
 | `createAddressGuard(options)` | Refuses non-public targets; the reader, the bridge and the renderer all check through it. |
-| `createLocalBundlePlugin({ root, origin? })` · `LocalBundle` | A local directory served under a synthetic origin (`https://bundle.local`), confined to its root — see the `fetching` part. |
+| `createLocalBundlePlugin({ root, origin? })` · `LocalBundle` · `BundleManifest` | A local directory served under a synthetic origin (`https://bundle.local`), confined to its root; a collected bundle's `bundle.json` URLs too — see the `fetching` part. |
 | `createSocksBridge(options)` · `createFetchTransport()` | The local HTTP-proxy bridge in front of SOCKS proxies, and the runtime transport (Bun fetch / Node undici). |
 | `makePageModel(source)` | A parsed page: `meta`, `content`, `outline`, `links`, `images`, `signals`, `stylesheets`, `styles`, `dom`, all lazy and computed once. |
 | `makePageAnalyst(page, options)` · `makeDesignAnalyst(page, options)` | The model-backed reading of one page, and its design write-up. |
 | `renderDesignMd(draft, facts)` | The deterministic DESIGN.md renderer. |
 | `PageRenderer` · `RenderedPage` · `StyleSample` | The renderer seam `@owlmeans/llm-reader-playwright` fills. |
-| `PageType`, `ImageRole`, `ImageKind`, `PageRegion`, `LinkKind`, `ReaderMode`, `ReaderTask`, `ProxyStrategy`, `DESIGN_SECTIONS` | The vocabularies. |
-| `LlmReaderError` › `ReaderFetchError` › `ReaderProxyError`, `ReaderRefusedError`, `ReaderContentError`, `ReaderConfigError`, `ReaderAnalysisError` | `ResilientError` family; a `ReaderProxyError` carries the masked proxy id, never its credentials. |
+| `PageType`, `ImageRole`, `ImageKind`, `PageRegion`, `LinkKind`, `ReaderMode`, `ReaderTask`, `ProxyStrategy`, `CollectKind`, `CollectRole`, `CollectStatus`, `DESIGN_SECTIONS` | The vocabularies. |
+| `DEFAULT_COLLECT_LIMITS`, `BUNDLE_MANIFEST`, `BUNDLE_EXTERNAL_DIR`, `S3_SOURCE`, `ROBOTS_AGENT`, `DEFAULT_CRAWL_*` | Defaults and names. |
+| `LlmReaderError` › `ReaderFetchError` › `ReaderProxyError`, `ReaderRefusedError`, `ReaderContentError`, `ReaderConfigError`, `ReaderLimitError`, `ReaderAnalysisError` | `ResilientError` family; a `ReaderProxyError` carries the masked proxy id, never its credentials. |
 
 ## Rules
 
@@ -54,7 +62,12 @@ await reader.design(url)                       // { markdown: DESIGN.md, tokens,
   the bridge for SOCKS targets it resolves, and on every request a rendered page makes. An intranet
   reader opts in with `allowPrivateNetwork: true`, a test site with `allowHosts: ['127.0.0.1']`.
   Through a proxy the proxy resolves names, so only literal addresses and local names are checked
-  there; a direct Bun request can still be DNS-rebound.
+  there; a direct Bun request can still be DNS-rebound — inject a pinned fetch
+  (`@owlmeans/file-streams/fetch`) and every request, the renderer's sub-requests included, is
+  connected to the address its policy checked.
+- **Collected content never runs.** A bundle keeps no script, handler, `javascript:` URL, `<base>`
+  or meta refresh; every item over a limit is skipped and reported, never thrown, and a stream past
+  a cap leaves nothing in the sink.
 - **One page, one egress.** The proxy key defaults to the target host; a page's stylesheets and
   pictures are fetched under the page's key, and a rendered page goes through the lease the fetch
   would have used.
@@ -77,8 +90,9 @@ await reader.design(url)                       // { markdown: DESIGN.md, tokens,
 
 | Part | Load it when |
 |---|---|
-| [fetching](parts/fetching.md) | fetching through proxies (list, callback, strategies, failover), the SOCKS bridge, the address guard, Bun vs Node, a local bundle (an uploaded html/css prototype), or a proxy that is bypassed or failing |
+| [fetching](parts/fetching.md) | fetching through proxies (list, callback, strategies, failover) or an injected pinned fetch, streamed bodies, the SOCKS bridge, the address guard, Bun vs Node, a local bundle (an uploaded html/css prototype or a collected one), or a proxy that is bypassed or failing |
 | [analysis](parts/analysis.md) | describing, classifying or extracting from a page, text vs DOM mode, links by intent, pictures with their context, vision captions |
+| [collect](parts/collect.md) | cloning a link into files (page bundles, `bundle.json`, files, limits, sinks), writing a `ReaderSource` plugin, public S3 links, reading a collected bundle offline, or crawling a site |
 | [design](parts/design.md) | the design facts, the DESIGN.md format the reader emits, or a design write-up that looks wrong |
 | [testing](parts/testing.md) | running or adding tests of this package |
 
@@ -90,4 +104,5 @@ await reader.design(url)                       // { markdown: DESIGN.md, tokens,
 ## Related
 
 - [[llm]] — models, executions, web search · [[agent]] — the tool loop DOM mode runs on
-- [[llm-reader-playwright]] — rendering, computed styles, screenshots
+- [[llm-reader-playwright]] — rendering, computed styles, screenshots, offline bundles, pinned sub-requests
+- [[file-streams]] — the pinned `fetch` (`@owlmeans/file-streams/fetch`) a consumer injects

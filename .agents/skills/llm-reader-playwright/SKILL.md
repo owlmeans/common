@@ -1,6 +1,6 @@
 ---
 name: llm-reader-playwright
-description: How to use @owlmeans/llm-reader-playwright — a Playwright PageRenderer for @owlmeans/llm-reader that runs a page's scripts, samples computed styles by role, reads custom properties and block geometry, takes a screenshot, routes the browser through the reader's proxy lease (SOCKS through the bridge) and guards every request it makes, serves local bundles (uploaded html/css prototypes) under their synthetic origin; and a fetch plugin that renders inside the reader's chain. Auto-invoked when importing createPlaywrightRenderer or makePlaywrightFetchPlugin.
+description: How to use @owlmeans/llm-reader-playwright — a Playwright PageRenderer for @owlmeans/llm-reader that runs a page's scripts, samples computed styles by role, reads custom properties and block geometry, takes a screenshot, snapshots an app shell's DOM with its CSSOM-only rules inlined, routes the browser through the reader's proxy lease (SOCKS through the bridge), guards every request it makes and, given the reader's pinned fetch, fulfils every guarded sub-request through it instead of letting Chromium resolve the host again; serves local bundles (uploaded prototypes, and collected bundles with their bundle.json externals) from disk; and a fetch plugin that renders inside the reader's chain. Auto-invoked when importing createPlaywrightRenderer or makePlaywrightFetchPlugin.
 user-invocable: false
 ---
 
@@ -22,15 +22,18 @@ await reader.page('https://spa.example.com')       // an app shell is re-read re
 const bundle = createLocalBundlePlugin({ root: '/uploads/prototype' })
 const local = createLlmReader({ renderer, plugins: [bundle], models })
 await local.design(bundle.urlOf('home.html'))      // the prototype rendered from disk: styles + screenshot
+
+const pinned = createLlmReader({ renderer, fetch: createPinnedFetch(), models })   // @owlmeans/file-streams/fetch
+await pinned.collect('https://spa.example.com', { sink })   // an app shell saved as its rendered snapshot
 ```
 
 ## Key exports
 
 | Export | Description |
 |---|---|
-| `createPlaywrightRenderer({ browser?, launch?, viewport, timeout, waitUntil, settle, userAgent, bundles? })` | A `PageRenderer`: `render({ url, lease?, guard?, styles?, screenshot?, signal?, timeout?, bundle? })` → `RenderedPage` (HTML after scripts, final URL, status, `styles`, `variables`, `blocks`, JPEG `screenshot`, `blocked`); `close()` shuts down a browser it launched. |
+| `createPlaywrightRenderer({ browser?, launch?, viewport, timeout, waitUntil, settle, userAgent, bundles?, fetch?, maxFulfilBytes? })` | A `PageRenderer`: `render({ url, lease?, guard?, styles?, screenshot?, signal?, timeout?, bundle?, fetch?, snapshot? })` → `RenderedPage` (HTML after scripts, final URL, status, `styles`, `variables`, `blocks`, JPEG `screenshot`, `blocked`); `close()` shuts down a browser it launched. |
 | `makePlaywrightFetchPlugin(renderer, { when? })` | A reader fetch plugin that renders page requests (all, or those `when` picks). Place it after the proxy plugin so it renders through the chosen lease. |
-| `PlaywrightRendererOptions`, `ProbeResult`, `DEFAULT_VIEWPORT`, `DEFAULT_RENDER_TIMEOUT_MS`, `DEFAULT_SETTLE_MS` | Options and defaults (1280×800, 30 s navigation, 3 s to go network-idle). |
+| `PlaywrightRendererOptions`, `ProbeResult`, `DEFAULT_VIEWPORT`, `DEFAULT_RENDER_TIMEOUT_MS`, `DEFAULT_SETTLE_MS`, `DEFAULT_MAX_FULFIL_BYTES` | Options and defaults (1280×800, 30 s navigation, 3 s to go network-idle, 16 MiB per fulfilled answer). |
 
 ## Rules
 
@@ -42,10 +45,22 @@ await local.design(bundle.urlOf('home.html'))      // the prototype rendered fro
 - **Guard**: every request of the page goes through the reader's address guard (a direct render
   resolves names, a proxied one checks literal addresses); refused ones are aborted and listed in
   `RenderedPage.blocked`.
-- **Local bundles**: a request under the origin of a bundle in `bundles` (or the render request's
-  `bundle`, which the reader sets for a bundle URL) is fulfilled from the bundle (`page.route`) —
-  never resolved, never proxied; a missing file is a 404, a refused path is aborted and listed in
-  `blocked`. Everything else the page loads still goes through the guard, so a prototype that pulls
+- **Pinned sub-requests**: with an injected `fetch` (the render request's, set by a reader that has
+  one, or the options'), a request that passed the guard is fetched through it with
+  `redirect: 'manual'` and fulfilled with its status, headers (minus encoding/length) and body read
+  whole under `maxFulfilBytes` — a redirect goes back to Chromium, whose next request is guarded
+  again. Only GET/HEAD; another method, or a refusal of the fetch (`refused === true`), is aborted
+  and listed in `blocked`; a network failure is aborted unlisted. Without a fetch, a guarded request
+  is `route.continue()`d as before — Chromium resolves the host again. A lease and a fetch do not
+  mix: through a proxy the lease carries the requests.
+- **Snapshots**: `snapshot: true` (what `collect` asks for) writes rules a script put only into the
+  CSSOM — `insertRule` on a `<style>`, adopted stylesheets — into `<style>` elements before the DOM
+  is serialized, so the HTML keeps its look without its scripts.
+- **Local bundles**: a request a bundle in `bundles` (or the render request's `bundle`, which the
+  reader sets for a bundle URL) `serves` — its synthetic origin, and for a collected bundle the
+  manifest's original URLs and the page origin's paths present on disk — is fulfilled from the
+  bundle (`page.route`): never resolved, never proxied; a missing file is a 404, a refused path is
+  aborted and listed in `blocked`. A collected bundle therefore renders offline. Everything else the page loads still goes through the guard, so a prototype that pulls
   a picture from a private address is refused as any page would be. Chromium's own local-network
   rules may still stop an `https` bundle page from reaching a loopback host the guard allowed.
 - **Probe**: computed styles of visible elements, by role (body, heading-1…6, link, button, input,
@@ -59,8 +74,10 @@ await local.design(bundle.urlOf('home.html'))      // the prototype rendered fro
 ## External docs
 
 - https://playwright.dev/docs/api/class-browser#browser-new-context-option-proxy — per-context `proxy: { server, username, password, bypass }`; HTTP proxy authentication only (2026-11)
+- https://playwright.dev/docs/api/class-route#route-fulfill — `route.fulfill({ status, headers, body })` takes a whole body (no stream); a fulfilled 3xx with `Location` is followed by Chromium as a new routed request (2026-11)
 - https://playwright.dev/docs/api/class-browsercontext#browser-context-route — one `route('**/*')` handler per context answers every request: `route.fulfill({ status, contentType, body })` for a bundle file (no DNS, no proxy), `continue()` / `abort('blockedbyclient')` after the guard. Observed with Playwright 1.64's Chromium: an `https` page's `http://<IP>` sub-requests are not upgraded and do reach the route; a loopback one the guard allows can still be stopped by Chromium's local-network rules (2026-11)
 
 ## Related
 
-- [[llm-reader]] — the reader, its proxies and its design analysis
+- [[llm-reader]] — the reader, its proxies, its design analysis and `collect`
+- [[file-streams]] — the pinned `fetch` the reader hands the renderer

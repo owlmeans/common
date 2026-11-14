@@ -13,6 +13,12 @@ export class FileStreamsError extends ResilientError {
 export class NetworkPolicyError extends FileStreamsError {
   public static override typeName: string = `${FileStreamsError.typeName}NetworkPolicy`
 
+  /**
+   * Marks a refusal, not a network failure — what a consumer of the pinned fetch (`./fetch`) reads
+   * to tell "the target may not be reached" apart from "the target could not be reached".
+   */
+  public readonly refused: boolean = true
+
   constructor(message: string = 'error') {
     super(`policy:${message}`)
     this.type = NetworkPolicyError.typeName

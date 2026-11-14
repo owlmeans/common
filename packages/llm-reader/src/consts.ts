@@ -115,3 +115,37 @@ export const DESIGN_SECTIONS = Object.freeze([
 
 /** The model role a reader task runs on when the caller maps none. */
 export const DEFAULT_READER_ROLE = 'reader'
+
+/** What one link became when it was collected. */
+export enum CollectKind {
+  /** An HTML page with its stylesheets, fonts and pictures, rewritten to local paths, and `bundle.json`. */
+  Bundle = 'bundle',
+  /** One file, streamed as it was served. */
+  File = 'file',
+  /** The files a {@link ReaderSource} expanded the link to — an S3 prefix, a Drive folder. */
+  Source = 'source',
+}
+
+/** What a collected file is for. */
+export enum CollectRole {
+  Page = 'page',
+  Stylesheet = 'stylesheet',
+  Font = 'font',
+  Image = 'image',
+  /** Anything else a stylesheet points at. */
+  Asset = 'asset',
+  /** A direct link's file, or one a source expanded to. */
+  File = 'file',
+  /** `bundle.json`. */
+  Manifest = 'manifest',
+}
+
+/** What happened to one collected item. */
+export enum CollectStatus {
+  Written = 'written',
+  /** Over a limit, or not something the bundle keeps. */
+  Skipped = 'skipped',
+  /** The address guard (or the pinned fetch) refused it. */
+  Refused = 'refused',
+  Failed = 'failed',
+}

@@ -6,6 +6,13 @@ export enum DelegatedMode {
   Json = 'json',
   /** A list of calls chosen from `tools`. */
   Tools = 'tools',
+  /**
+   * A web search the performer runs with ITS OWN search tool — the one kind of task where it is asked
+   * to use a tool. The query and its limits are the conversation; the answer is ONE JSON object per
+   * `outputSchema`: a {@link DelegatedSearchAnswer}, or a {@link DelegatedSearchRefusal} from a
+   * performer that has no web search. Answered with a `Json` result.
+   */
+  Search = 'search',
 }
 
 /** Who a message came from. Deliberately the four roles every chat API agrees on. */

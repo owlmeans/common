@@ -65,3 +65,20 @@ describe('@owlmeans/file-inspector — fonts, 3D models, diagrams', () => {
     expect((await fileInspector.probe(sourceOf(STL_BINARY, { name: 'part.stl', ranges: false }))).detected?.kind).toBe(FileKind.Model3d)
   })
 })
+
+describe('HTML the strict XML detector cannot parse', () => {
+  const html = [
+    '<html><body><p>a<br></p></body></html>',
+    '<div><img src=x></div>',
+    '<!doctype html><html><head><meta charset="utf-8"><link rel=icon href=x></head><body><input type=text></body></html>',
+  ]
+
+  for (const text of html) {
+    test(`is read as html, never thrown: ${text.slice(0, 32)}`, async () => {
+      const bytes = new TextEncoder().encode(text)
+      const verdict = await fileInspector.inspect(bytes, { name: 'page.html' }, { complete: true, size: bytes.length })
+      expect(verdict.status).toBe('match')
+      expect(verdict.detected?.kind).toBe(FileKind.Html)
+    })
+  }
+})

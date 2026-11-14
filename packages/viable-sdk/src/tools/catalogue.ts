@@ -23,6 +23,7 @@ import { productionToolHelper } from './production.js'
 import { iamToolHelper } from './iam.js'
 import { feedToolHelper } from './feed.js'
 import { materialsToolHelper } from './materials.js'
+import { referencesToolOf } from './references.js'
 import { controlToolHelper } from './control.js'
 import { statusTextHelper } from './status.js'
 import { storyHelper } from './stories.js'
@@ -31,7 +32,7 @@ import type { CatalogueHelper } from './catalogue/types.js'
 import { toolHostHelper } from './host.js'
 import { makeHandoverHelper } from './handover.js'
 import { makeToolProfileModel } from './profile.js'
-import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, INFERENCE_LEVELS, INFERENCE_MODES, MATERIALS_ANSWER_MS, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, SOURCES_KIND, STOP_SCOPES, WRITE } from './consts.local.js'
+import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, INFERENCE_LEVELS, INFERENCE_MODES, MATERIALS_ANSWER_MS, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, REFERENCES_CONFIRMED, REFERENCES_READ, SOURCES_KIND, STOP_SCOPES, WRITE } from './consts.local.js'
 
 export { ToolHostKind }
 
@@ -650,7 +651,8 @@ export const catalogue: ToolDefinition[] = [
     title: 'Start a project from a description',
     description:
       'Describe the application in a sentence or two. The platform writes a specification, names it'
-      + ' and drafts a vision. Returns the project status; read the draft and call confirm_project.',
+      + ' and drafts a vision. ' + REFERENCES_READ
+      + ' Returns the project status; read the draft and call confirm_project.',
     input: { prompt: z.string().min(1) },
     availability: toolHostHelper.anyHost,
     annotations: WRITE,
@@ -659,7 +661,9 @@ export const catalogue: ToolDefinition[] = [
       // they go to a session that names no project yet — and the drafting after them to the
       // project's own, attached as soon as the platform answers with it.
       const sessionId = toolHostHelper.performsModelTasks(deps.host) ? await unattachedSessionId(deps) : undefined
-      const status = await deps.api.project.create(
+      // The platform reads the prompt's references (links, research requests, npm packages); an older
+      // platform without that route drafts from the released create, the prompt as plain text.
+      const status = await referencesToolOf(deps.api).create(
         args.prompt as string,
         deps.host.target === ConnectTarget.Local ? ConnectTarget.Local : ConnectTarget.Cloud,
         sessionId,
@@ -679,7 +683,8 @@ export const catalogue: ToolDefinition[] = [
       + ' specification or brief, a logo, icons, fonts, stylesheets, sketches, an HTML prototype, media.'
       + ' Each file is checked first (at most 50 files, 12 MiB each, 50 MiB in all; programs refused) and'
       + ' a refusal is reported per file before anything is sent. The platform then reads the files and'
-      + ' writes the specification, name and vision from the description and their text — model work that'
+      + ' writes the specification, name and vision from the description and their text (links and "search'
+      + ' online" requests in the description are read too, as create_project reads them) — model work that'
       + ' spends credits (the plan\'s project allowance first). Returns the project status and what became'
       + ' of each file; read the draft with project_status and call confirm_project. Each call creates'
       + ' another project, so calling it again spends again.',
@@ -752,10 +757,13 @@ export const catalogue: ToolDefinition[] = [
     name: 'list_materials',
     title: 'The files a project was created with',
     description:
-      'Every file the project was given at its creation — accepted, refused and removed alike — with its'
-      + ' purpose (specification, logo, icon, font, prototype, media…), status, description and where it'
-      + ' was placed, and where the files stand while the platform reads them. read_material reads one'
-      + ' file\'s text.',
+      'Every file the project was given at its creation — uploaded, or fetched for a link in its prompt'
+      + ' (under links/); accepted, refused and removed alike — with its purpose (specification, logo, icon,'
+      + ' font, prototype, media…), status, description and where it was placed, and where the files stand'
+      + ' while the platform reads them; then the references the prompt and the confirmed specification'
+      + ' pointed at (links, "search online" requests, npm packages) with what became of each, and the'
+      + ' documents the platform generated from them (research reports, reference summaries, package'
+      + ' skills). read_material reads one file\'s or document\'s text.',
     input: { projectId: z.string().optional() },
     availability: toolHostHelper.anyHost,
     annotations: READ_ONLY,
@@ -772,8 +780,9 @@ export const catalogue: ToolDefinition[] = [
     title: 'Read one of a project\'s files',
     description:
       'The text of one file the project was created with: the platform\'s markdown transcript of a'
-      + ' document (a PDF, a Word file, a page, hand notes) or a text file\'s own content. An image, a font'
-      + ' or media has no text — list_materials describes it.',
+      + ' document (a PDF, a Word file, a page, hand notes) or a text file\'s own content — or of a document'
+      + ' the platform generated from the project\'s references (a research report, a reference summary, a'
+      + ' package skill). An image, a font or media has no text — list_materials describes it.',
     input: {
       projectId: z.string().optional(),
       path: z.string().min(1).max(MATERIAL_PATH_MAX).describe('The file\'s path as list_materials prints it.'),
@@ -799,7 +808,8 @@ export const catalogue: ToolDefinition[] = [
     description:
       'Confirm the drafted project, optionally editing what the analysis produced. This is what'
       + ' starts the build: the template lands, dependencies install, the whole application is'
-      + ' drawn. Returns the project status while the server-side run continues.',
+      + ' drawn. ' + REFERENCES_CONFIRMED
+      + ' Returns the project status while the server-side run continues.',
     input: {
       projectId: z.string().optional(),
       name: z.string().optional(),
@@ -817,7 +827,9 @@ export const catalogue: ToolDefinition[] = [
       // whose connector has not filed a session yet is not queued for later — a local target
       // answers it with `ConnectSessionGone` and the step fails.
       await ensureSession(deps, project)
-      const status = await deps.api.project.confirm(project, {
+      // With the references refreshed from the confirmed specification; an older platform without
+      // that route confirms through the released one.
+      const status = await referencesToolOf(deps.api).confirm(project, {
         ...(typeof args.name === 'string' ? { name: args.name } : {}),
         ...(typeof args.description === 'string' ? { description: args.description } : {}),
         ...(typeof args.specification === 'string' ? { specification: args.specification } : {}),
