@@ -12,3 +12,6 @@ export const SCREENSHOT_QUALITY = 70
 
 /** Elements the style probe samples, at most. */
 export const PROBE_ELEMENTS = 4000
+
+/** Bytes of one sub-request answer fulfilled through an injected fetch. */
+export const DEFAULT_MAX_FULFIL_BYTES = 16 * 1024 * 1024

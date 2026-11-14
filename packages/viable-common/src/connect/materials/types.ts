@@ -1,4 +1,4 @@
-import type { MaterialIndexEntry } from '../../materials/types.js'
+import type { MaterialGeneratedDoc, MaterialIndexEntry, ReferencesLedger } from '../../materials/types.js'
 import type { ConnectMaterialTextSource } from '../consts.js'
 import type { ConnectCreateBody } from '../project/types.js'
 
@@ -53,14 +53,28 @@ export interface ConnectMaterialsState {
  * `connect.project.materials.catalogue`: every file of a project — accepted, rejected and removed
  * alike — as the target's catalogue entry (purpose, description, status and reason, uses), by path,
  * and where the files stand. A project created without files answers no entries and `state: null`.
+ * Files fetched for a link are entries too, under `links/<nn>-<slug>/…` (`details.link` names the URL).
  */
 export interface ConnectMaterialCatalogue extends ConnectMaterialsState {
   entries: MaterialIndexEntry[]
+  /**
+   * `docs/materials/references.json` — every link, online research request and named npm package the
+   * project's prompt and confirmed specification pointed at, with where each stands (fetched, researched,
+   * skipped or refused, and why); absent when the project has no ledger (yet).
+   */
+  references?: ReferencesLedger
+  /**
+   * The documents the platform generated from those references and lists in its materials index — the
+   * research reports, reference summaries and package skills — each readable through
+   * `connect.project.materials.read` by its path; absent when none.
+   */
+  generated?: MaterialGeneratedDoc[]
 }
 
 /**
  * `connect.project.materials.read`: one material's text — its markdown transcript when the analysis
- * wrote one, else a textual file's own text — cut at `CONNECT_MATERIAL_TEXT_MAX` characters.
+ * wrote one, else a textual file's own text, or a generated document's (`source: generated`, addressed
+ * by the path `ConnectMaterialCatalogue.generated` lists) — cut at `CONNECT_MATERIAL_TEXT_MAX` characters.
  * `source: null` (and an empty `text`) is a material without text: an image, a font, a video the
  * analysis wrote no transcript of; its catalogue entry describes it.
  */

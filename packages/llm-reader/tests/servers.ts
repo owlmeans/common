@@ -49,7 +49,7 @@ export const solidPng = (size: number, [r, g, b]: [number, number, number]): Buf
 }
 
 /** Served for every image path. */
-const PNG = solidPng(64, [20, 80, 230])
+export const PNG = solidPng(64, [20, 80, 230])
 
 export interface Site {
   url: string
@@ -306,4 +306,205 @@ export const deadPort = async (): Promise<number> => {
   const port = await listen(server)
   await new Promise<void>(resolve => server.close(() => resolve()))
   return port
+}
+
+export interface Origin {
+  url: string
+  /** Paths requested, in order. */
+  hits: string[]
+  stop: () => void
+}
+
+/** Bytes standing in for a font: a woff2 signature and filler. */
+export const FONT = Buffer.concat([Buffer.from('wOF2'), Buffer.alloc(2048, 7)])
+
+/**
+ * A "fonts/CDN" origin, cross-origin to the collect site: a Google-Fonts-like stylesheet whose
+ * `@import` and `@font-face` point back at this origin.
+ */
+export const startCdn = (hostname: string = '127.0.0.1'): Origin => {
+  const hits: string[] = []
+  const server = Bun.serve({
+    port: 0,
+    hostname,
+    fetch: request => {
+      const url = new URL(request.url)
+      hits.push(url.pathname + url.search)
+      const css = (text: string) => new Response(text, { headers: { 'content-type': 'text/css; charset=utf-8' } })
+      switch (url.pathname) {
+        case '/css2': return css("@import url(\"/base.css\");\n@font-face { font-family: 'Inter'; src: url(/fonts/inter.woff2) format('woff2'); }\nbody { font-family: Inter, sans-serif; }")
+        case '/base.css': return css('.card { background-image: url(/img/pattern.png); }')
+        case '/fonts/inter.woff2': return new Response(FONT, { headers: { 'content-type': 'font/woff2' } })
+        case '/img/pattern.png': return new Response(PNG, { headers: { 'content-type': 'image/png' } })
+        default: return new Response('not found', { status: 404 })
+      }
+    },
+  })
+  return { url: `http://${hostname}:${server.port}`, hits, stop: () => server.stop(true) }
+}
+
+/** The page the collect site serves at `/`, pointing at the CDN for its web font. */
+const collectPage = (cdn: string): string => `<!doctype html>
+<html><head><meta charset="windows-1252"><title>Collected page</title>
+<link rel="stylesheet" href="/css/site.css">
+<link rel="stylesheet" href="${cdn}/css2?family=Inter:wght@400;700">
+<link rel="icon" href="/favicon.png">
+<link rel="modulepreload" href="/app.js">
+<script src="/app.js"></script><script>window.bad = 1</script>
+<meta http-equiv="refresh" content="30;url=/elsewhere">
+<style>.hero { background: url(img/hero.png) }</style>
+</head><body onload="go()">
+<h1 onclick="x()">Collected page</h1>
+<p>Café résumé</p>
+<a href="javascript:alert(1)">bad link</a> <a href="/about">About</a>
+<img src="img/logo.png" srcset="img/logo.png 1x, img/logo@2x.png 2x" alt="logo">
+<picture><source srcset="img/hero.webp" type="image/webp"><img src="img/hero.png" alt="hero"></picture>
+<div style="background-image: url('img/pattern.png')">pattern</div>
+<img src="http://169.254.169.254/latest/meta-data/logo.png" alt="metadata">
+<img src="img/missing.png" alt="missing">
+<video poster="/img/poster.png"></video>
+</body></html>`
+
+/** A page script rendering into an empty mount point and styling it through the CSSOM only. */
+const SHELL_SCRIPT = `
+const sheet = document.createElement('style'); document.head.appendChild(sheet);
+sheet.sheet.insertRule('.shell-title { color: rgb(200, 30, 30); font-size: 40px; }');
+document.getElementById('root').innerHTML = '<h1 class="shell-title">Rendered by script</h1><p>' + 'Words of a rendered app. '.repeat(40) + '</p><img src="/img/logo.png" alt="logo">';
+`
+
+/** Crawl pages: path → [title, links]. */
+const CRAWL_PAGES: Readonly<Record<string, [string, string[]]>> = Object.freeze({
+  '/docs/': ['Docs home', ['/docs/pricing', '/docs/guide?utm_source=x', '/docs/guide#top', '/docs/blog', '/secret/x', '/secret/open', '/private/p', '/docs/file.pdf', 'https://example.com/out', 'mailto:a@b.c']],
+  '/docs/pricing': ['Pricing plans', ['/docs/pricing/enterprise', '/docs/']],
+  '/docs/pricing/enterprise': ['Enterprise pricing', ['/docs/pricing/enterprise/deep']],
+  '/docs/pricing/enterprise/deep': ['Too deep', []],
+  '/docs/guide': ['Guide', ['/docs/guide/install']],
+  '/docs/guide/install': ['Install', []],
+  '/docs/blog': ['Blog', ['/docs/blog/1', '/docs/blog/2']],
+  '/docs/blog/1': ['Post 1', []],
+  '/docs/blog/2': ['Post 2', []],
+  '/secret/x': ['Secret', []],
+  '/secret/open': ['Open secret', []],
+  '/private/p': ['Private for others', []],
+})
+
+const crawlPage = (title: string, links: string[]): string =>
+  `<!doctype html><html><head><title>${title}</title></head><body><nav>${links.map(href => `<a href="${href}">${href}</a>`).join(' ')}</nav><main><h1>${title}</h1><p>${'Text of the page. '.repeat(30)}</p></main></body></html>`
+
+/**
+ * The collect site on 127.0.0.1: a page with stylesheets (an `@import` cycle, a font, pictures in
+ * CSS), a cross-origin web font stylesheet on `cdn`, every kind of picture reference, scripts and
+ * handlers to strip; files with `Content-Disposition`; an app shell; crawl pages and a robots.txt.
+ */
+export const startCollectSite = (cdn: string): Origin => {
+  const hits: string[] = []
+  const big = Buffer.alloc(3 * 1024 * 1024, 1)
+  const server = Bun.serve({
+    port: 0,
+    hostname: '127.0.0.1',
+    fetch: request => {
+      const url = new URL(request.url)
+      hits.push(url.pathname + url.search)
+      const css = (text: string) => new Response(text, { headers: { 'content-type': 'text/css' } })
+      const html = (text: string, status = 200) => new Response(text, { status, headers: { 'content-type': 'text/html; charset=utf-8' } })
+      const page = CRAWL_PAGES[url.pathname]
+      if (page != null) return html(crawlPage(...page))
+      switch (url.pathname) {
+        case '/': return new Response(Buffer.from(collectPage(cdn), 'latin1'), { headers: { 'content-type': 'text/html; charset=windows-1252' } })
+        case '/css/site.css': return css('@import "print.css";\nbody { background: url(../img/bg.png) }\n@font-face { font-family: Local; src: url("../fonts/local.woff2") format("woff2") }')
+        case '/css/print.css': return css('@import url(site.css);\nh1 { color: rgb(10, 20, 30) }')
+        case '/fonts/local.woff2': return new Response(FONT, { headers: { 'content-type': 'font/woff2' } })
+        case '/app.js':
+        case '/shell.js': return new Response(url.pathname === '/shell.js' ? SHELL_SCRIPT : 'window.app = 1', { headers: { 'content-type': 'text/javascript' } })
+        case '/shell': return html('<!doctype html><html><head><title>Shell</title></head><body><div id="root"></div><script src="/shell.js"></script></body></html>')
+        case '/files/report': return new Response('%PDF-1.4 report %%EOF', { headers: { 'content-type': 'application/pdf', 'content-disposition': 'attachment; filename="Quarterly Report.pdf"' } })
+        case '/files/data': return new Response('résumé', { headers: { 'content-type': 'text/plain; charset=utf-8', 'content-disposition': "attachment; filename=\"fallback.txt\"; filename*=UTF-8''r%C3%A9sum%C3%A9.txt" } })
+        case '/files/sneaky': return new Response('x', { headers: { 'content-type': 'text/plain', 'content-disposition': 'attachment; filename="../../etc/passwd"' } })
+        case '/files/big.bin': return new Response(big, { headers: { 'content-type': 'application/octet-stream' } })
+        case '/files/streamed.bin': return new Response(new ReadableStream({
+          start: controller => {
+            for (let i = 0; i < 48; i++) controller.enqueue(new Uint8Array(64 * 1024).fill(i))
+            controller.close()
+          },
+        }), { headers: { 'content-type': 'application/octet-stream' } })
+        case '/to-report': return new Response(null, { status: 302, headers: { location: '/files/report' } })
+        case '/moved': return new Response(null, { status: 302, headers: { location: '/docs/' } })
+        case '/many': return html(`<!doctype html><html><body>${Array.from({ length: 10 }, (_, i) => `<img src="/img/m${i}.png">`).join('')}</body></html>`)
+        case '/robots.txt': return new Response('User-agent: *\nDisallow: /docs/\n\nUser-agent: OwlMeansReader\nUser-agent: OtherBot\nDisallow: /secret/\nAllow: /secret/open\n', { headers: { 'content-type': 'text/plain' } })
+        default:
+          if (/\.(png|webp)$/.test(url.pathname) && !url.pathname.includes('missing')) {
+            return new Response(PNG, { headers: { 'content-type': url.pathname.endsWith('.webp') ? 'image/webp' : 'image/png' } })
+          }
+          return new Response('not found', { status: 404 })
+      }
+    },
+  })
+  return { url: `http://127.0.0.1:${server.port}`, hits, stop: () => server.stop(true) }
+}
+
+export interface S3Server extends Origin {
+  /** Objects by bucket and key. */
+  buckets: Map<string, Map<string, Uint8Array>>
+}
+
+const xmlEscape = (text: string): string => text.replace(/[<>&'"]/g, char => `&#${char.charCodeAt(0)};`)
+
+/**
+ * An S3-compatible stand-in, path-style: ListObjectsV2 (two keys a page, continuation tokens), object
+ * GET, NoSuchKey / AccessDenied error documents. Bucket `locked` refuses anonymous listing. With
+ * `markers: false` it sends no `x-amz-*` header — as an S3 behind a CDN that strips them.
+ */
+export const startS3 = (options: { markers?: boolean } = {}): S3Server => {
+  const hits: string[] = []
+  const markers = options.markers ?? true
+  const buckets = new Map<string, Map<string, Uint8Array>>([
+    ['public', new Map(Object.entries({
+      'docs/': '',
+      'docs/readme.md': '# Readme',
+      'docs/guide/intro.md': '# Intro',
+      'docs/guide/setup.md': '# Setup',
+      'docs/logo.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
+      'docs/a&b <odd>.txt': 'odd name',
+      'other/x.txt': 'x',
+    }).map(([key, text]) => [key, new TextEncoder().encode(text)]))],
+    ['locked', new Map([['secret/plan.md', new TextEncoder().encode('# Plan')]])],
+  ])
+  const headers = (type: string): Record<string, string> => ({
+    'content-type': type, ...(markers ? { 'x-amz-request-id': 'REQ123', server: 'AmazonS3' } : { server: 'cloudflare' }),
+  })
+  const error = (status: number, code: string, resource: string) => new Response(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<Error><Code>${code}</Code><Message>${code}</Message><Resource>${xmlEscape(resource)}</Resource><RequestId>REQ123</RequestId></Error>`,
+    { status, headers: headers('application/xml') },
+  )
+  const server = Bun.serve({
+    port: 0,
+    hostname: '127.0.0.1',
+    fetch: request => {
+      const url = new URL(request.url)
+      hits.push(url.pathname + url.search)
+      const [bucketName = '', ...rest] = url.pathname.split('/').slice(1).map(decodeURIComponent)
+      const bucket = buckets.get(bucketName)
+      if (bucket == null) return error(404, 'NoSuchBucket', url.pathname)
+      if (rest.length === 0 || (rest.length === 1 && rest[0] === '')) {
+        if (bucketName === 'locked') return error(403, 'AccessDenied', url.pathname)
+        const prefix = url.searchParams.get('prefix') ?? ''
+        const maxKeys = Math.min(Number(url.searchParams.get('max-keys') ?? 1000), 2)
+        const start = Number(url.searchParams.get('continuation-token') ?? 0)
+        const keys = [...bucket.keys()].filter(key => key.startsWith(prefix)).sort()
+        const page = keys.slice(start, start + maxKeys)
+        const truncated = start + maxKeys < keys.length
+        const contents = page.map(key => `<Contents><Key>${xmlEscape(key)}</Key><LastModified>2026-11-01T00:00:00.000Z</LastModified><ETag>"e"</ETag><Size>${bucket.get(key)!.length}</Size><StorageClass>STANDARD</StorageClass></Contents>`).join('')
+        return new Response(
+          `<?xml version="1.0" encoding="UTF-8"?>\n<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>${bucketName}</Name><Prefix>${xmlEscape(prefix)}</Prefix><KeyCount>${page.length}</KeyCount><MaxKeys>${maxKeys}</MaxKeys><IsTruncated>${truncated}</IsTruncated>${contents}${truncated ? `<NextContinuationToken>${start + maxKeys}</NextContinuationToken>` : ''}</ListBucketResult>`,
+          { headers: headers('application/xml') },
+        )
+      }
+      const key = rest.join('/')
+      const object = key.endsWith('/') ? undefined : bucket.get(key)
+      if (object == null) return error(404, 'NoSuchKey', url.pathname)
+      const type = key.endsWith('.md') ? 'text/markdown' : key.endsWith('.svg') ? 'image/svg+xml' : 'text/plain'
+      return new Response(object, { headers: headers(type) })
+    },
+  })
+  return { url: `http://127.0.0.1:${server.port}`, hits, buckets, stop: () => server.stop(true) }
 }

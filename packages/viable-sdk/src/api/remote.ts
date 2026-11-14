@@ -78,8 +78,17 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
           body: { prompt, ...(target != null ? { target } : {}), ...(sessionId != null ? { sessionId } : {}) },
           timeout,
         }),
+      createWithReferences: async (prompt: string, target?: ConnectTarget, sessionId?: string) =>
+        await context.entrypoint(connectRef.project.createWithReferences).call({
+          body: { prompt, ...(target != null ? { target } : {}), ...(sessionId != null ? { sessionId } : {}) },
+          timeout,
+        }),
       confirm: async (id: string, edits: ProjectEdits) =>
         await context.entrypoint(connectRef.project.confirm).call({
+          params: { id }, body: edits, timeout,
+        }),
+      confirmWithReferences: async (id: string, edits: ProjectEdits) =>
+        await context.entrypoint(connectRef.project.confirmWithReferences).call({
           params: { id }, body: edits, timeout,
         }),
       list: async () => await context.entrypoint(connectRef.project.list).call({ timeout }),

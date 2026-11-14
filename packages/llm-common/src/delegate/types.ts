@@ -89,3 +89,30 @@ export interface DelegatedResult {
 export interface DelegateTransport {
   dispatch: (task: DelegatedTask, signal?: AbortSignal) => Promise<DelegatedResult>
 }
+
+/** One page a delegated web search returned. */
+export interface DelegatedSearchSource {
+  /** An absolute `http(s)` URL the performer's search actually returned. */
+  url: string
+  title?: string
+  /** A short excerpt of the page, as the search showed it. */
+  snippet?: string
+}
+
+/** What a performer answers a {@link DelegatedMode.Search} task with when it searched. */
+export interface DelegatedSearchAnswer {
+  /** The answer to the query, Markdown, written from the pages found. */
+  text: string
+  sources: DelegatedSearchSource[]
+  /** What the performer searched for. */
+  queries?: string[]
+}
+
+/**
+ * What a performer answers a {@link DelegatedMode.Search} task with when it has no web search of its
+ * own. Never a search from memory: the caller records the search as unavailable.
+ */
+export interface DelegatedSearchRefusal {
+  unavailable: true
+  reason?: string
+}

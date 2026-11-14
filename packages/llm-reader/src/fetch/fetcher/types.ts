@@ -1,6 +1,6 @@
 import type { AddressGuard, AddressGuardOptions } from '../guard/types.js'
 import type { ProxyLease } from '../proxy/types.js'
-import type { FetchTransport } from '../transport/types.js'
+import type { FetchFunction, FetchTransport } from '../transport/types.js'
 import type { RenderedPage } from '../../render/types.js'
 
 /** What is being fetched decides the `accept` header and which content types are let through. */
@@ -21,6 +21,12 @@ export interface FetchRequest {
   lease?: ProxyLease
   /** Ask a renderer plugin to run the page's scripts (and sample styles). */
   render?: boolean
+  /**
+   * Hand the body back unread as `body` — no `text`/`bytes`, no content-type refusal — for a file
+   * streamed to its destination. `maxBytes` still caps it: past the cap the stream errors with
+   * `ReaderContentError('too-large:…')`. The caller must read or cancel it.
+   */
+  stream?: boolean
 }
 
 export interface FetchedResource {
@@ -37,6 +43,8 @@ export interface FetchedResource {
   text?: string
   /** Raw bytes for images and other binary content. */
   bytes?: Uint8Array
+  /** The unread body of a `stream: true` request, capped by its `maxBytes`. */
+  body?: ReadableStream<Uint8Array>
   fetchedAt: string
   /** Every URL hopped through, the final one excluded. */
   redirects: string[]
@@ -73,6 +81,12 @@ export interface PageFetcherOptions extends AddressGuardOptions {
   acceptStatus?: (status: number) => boolean
   /** Replace the runtime transport (tests, a custom egress). */
   transport?: FetchTransport
+  /**
+   * Send every request through this `fetch` (the pinned one of `@owlmeans/file-streams/fetch`)
+   * instead of the runtime transport; ignored when `transport` is given. The address guard still
+   * pre-checks every hop; the pinning comes from the fetch.
+   */
+  fetch?: FetchFunction
   /** Replace the address guard built from {@link allowPrivateNetwork} / {@link allowHosts}. */
   guard?: AddressGuard
 }

@@ -59,6 +59,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.project.batch.start.alias).toBe(connect.project.batch.start)
     expect(tree.client.identify.alias).toBe(connect.client.identify)
     expect(tree.project.createWithMaterials.alias).toBe(connect.project.createWithMaterials)
+    expect(tree.project.createWithReferences.alias).toBe(connect.project.createWithReferences)
+    expect(tree.project.confirmWithReferences.alias).toBe(connect.project.confirmWithReferences)
     expect(tree.project.materials.file.alias).toBe(connect.project.materials.file)
     expect(protocols(tree)).toHaveLength(124)
     expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(124)
@@ -90,7 +92,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /pipeline/:id/:runId/resume', 'POST /privacy/withdraw', 'POST /project', 'POST /project/:id/batch',
       'POST /project/:id/batch/cancel', 'POST /project/:id/branding',
       'POST /project/:id/branding/copy-defaults', 'POST /project/:id/branding/credit',
-      'POST /project/:id/config', 'POST /project/:id/config/recollect', 'POST /project/:id/confirm', 'POST /project/:id/files/content',
+      'POST /project/:id/config', 'POST /project/:id/config/recollect', 'POST /project/:id/confirm', 'POST /project/:id/confirm-with-references',
+      'POST /project/:id/files/content',
       'POST /project/:id/git/commit', 'POST /project/:id/git/discard', 'POST /project/:id/git/revert',
       'POST /project/:id/github/authorize', 'POST /project/:id/github/disconnect', 'POST /project/:id/github/link',
       'POST /project/:id/github/publish', 'POST /project/:id/github/pull', 'POST /project/:id/github/push',
@@ -113,7 +116,7 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /project/:id/reinit', 'POST /project/:id/rename',
       'POST /project/:id/sandbox/apps/:app/restart', 'POST /project/:id/sandbox/rebuild', 'POST /project/:id/sandbox/restart', 'POST /project/:id/sandbox/run',
       'POST /project/:id/sandbox/stop', 'POST /project/:id/steer', 'POST /project/:id/stop',
-      'POST /project/attach', 'POST /project/with-materials', 'POST /session',
+      'POST /project/attach', 'POST /project/with-materials', 'POST /project/with-references', 'POST /session',
       'POST /session/:sessionId/close', 'POST /session/:sessionId/ops/:opId', 'POST /session/delegated',
       'PUT /:id/file',
     ])

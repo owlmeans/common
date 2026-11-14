@@ -1,5 +1,10 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { createLlmReader, createPageFetcher, createProxyPlugin, PageType } from '../src/index.js'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import {
+  BUNDLE_MANIFEST, CollectKind, createDirectoryCollectSink, createLlmReader, createPageFetcher, createProxyPlugin, PageType,
+} from '../src/index.js'
 import { gates, liveModels, liveSkip, reason, titled } from './context.js'
 import { startHttpProxy, startSocksServer } from './servers.js'
 
@@ -49,4 +54,20 @@ describe('@owlmeans/llm-reader — the public web', () => {
     expect(description.markdown).toMatch(/tide pool/i)
     expect(description.markdown).toContain('## Summary')
   }, 300_000)
+
+  test.skipIf(webSkip != null)(titled('a real public page is collected as a bundle with its stylesheets and pictures', webSkip), async () => {
+    const root = await mkdtemp(join(tmpdir(), 'llm-reader-web-collect-'))
+    try {
+      const result = await createLlmReader().collect('https://en.wikipedia.org/wiki/Tide_pool', {
+        sink: createDirectoryCollectSink(root), limits: { maxAssets: 20 },
+      })
+      expect(result).toMatchObject({ kind: CollectKind.Bundle, entry: 'wiki/Tide_pool.html', manifest: BUNDLE_MANIFEST })
+      const html = await readFile(join(root, 'wiki/Tide_pool.html'), 'utf8')
+      expect(html).not.toContain('<script')
+      expect(html).toMatch(/tide pool/i)
+      expect(result.items.filter(item => item.status === 'written' && item.role !== 'page' && item.role !== 'manifest').length).toBeGreaterThan(0)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 120_000)
 })

@@ -1,8 +1,15 @@
-import type { Browser, BrowserContext } from 'playwright'
-import type { RenderedPage } from '@owlmeans/llm-reader'
-import { DEFAULT_RENDER_TIMEOUT_MS, DEFAULT_SETTLE_MS, DEFAULT_VIEWPORT, PROBE_ELEMENTS, SCREENSHOT_QUALITY } from './consts.js'
+import type { Browser, BrowserContext, Route } from 'playwright'
+import type { FetchFunction, RenderedPage } from '@owlmeans/llm-reader'
+import { logger } from '@owlmeans/log'
+import {
+  DEFAULT_MAX_FULFIL_BYTES, DEFAULT_RENDER_TIMEOUT_MS, DEFAULT_SETTLE_MS, DEFAULT_VIEWPORT, PROBE_ELEMENTS, SCREENSHOT_QUALITY,
+} from './consts.js'
+import { FULFIL_DROPPED_HEADERS, FULFIL_REQUEST_HEADERS } from './renderer/consts.local.js'
 import { probePage } from './renderer/probe.js'
+import { inlineCssom } from './renderer/snapshot.js'
 import type { PlaywrightRenderer, PlaywrightRendererOptions } from './renderer/types.js'
+
+const log = logger('llm-reader-playwright')
 
 /**
  * Render pages in Chromium (or the browser you pass). Each page gets its own browser context:
@@ -10,10 +17,53 @@ import type { PlaywrightRenderer, PlaywrightRendererOptions } from './renderer/t
  * challenges with a 407 so Chromium sends the route credentials), every request it makes is put
  * through the reader's address guard, downloads are off and service workers blocked. A page of a
  * local bundle (`bundles`, or the request's own `bundle`) is served from disk under its synthetic
- * origin, while everything it loads from elsewhere still passes the guard.
+ * origin, while everything it loads from elsewhere still passes the guard. Given the reader's pinned
+ * `fetch`, every guarded live request is fetched through it and fulfilled, never re-resolved by Chromium.
  */
 export const createPlaywrightRenderer = (options: PlaywrightRendererOptions = {}): PlaywrightRenderer => {
   let launched: Promise<Browser> | undefined
+  const maxFulfilBytes = options.maxFulfilBytes ?? DEFAULT_MAX_FULFIL_BYTES
+
+  /** A body read whole under the cap — `route.fulfill` takes a buffer, not a stream. */
+  const bodyOf = async (response: Response): Promise<Buffer> => {
+    const declared = Number(response.headers.get('content-length') ?? NaN)
+    if (Number.isFinite(declared) && declared > maxFulfilBytes) throw new Error(`too-large:${declared}`)
+    if (response.body == null) return Buffer.alloc(0)
+    const chunks: Uint8Array[] = []
+    let size = 0
+    const reader = response.body.getReader()
+    for (;;) {
+      const next = await reader.read()
+      if (next.done) break
+      size += next.value.byteLength
+      if (size > maxFulfilBytes) {
+        await reader.cancel().catch(() => undefined)
+        throw new Error(`too-large:>${maxFulfilBytes}`)
+      }
+      chunks.push(next.value)
+    }
+    return Buffer.concat(chunks)
+  }
+
+  /**
+   * A guarded sub-request carried by the injected fetch and fulfilled from its answer; redirects go
+   * back to the browser, whose next request passes the guard again.
+   */
+  const fulfilThrough = async (fetch: FetchFunction, route: Route, signal?: AbortSignal): Promise<void> => {
+    const request = route.request()
+    const method = request.method().toUpperCase()
+    if (method !== 'GET' && method !== 'HEAD') throw Object.assign(new Error(`method:${method}`), { refused: true })
+    const sent = request.headers()
+    const headers = Object.fromEntries(FULFIL_REQUEST_HEADERS.flatMap(name => sent[name] != null ? [[name, sent[name]!]] : []))
+    const response = await fetch(request.url(), { method, headers, redirect: 'manual', ...(signal != null ? { signal } : {}) })
+    const answer: Record<string, string> = {}
+    response.headers.forEach((value, name) => {
+      if (!FULFIL_DROPPED_HEADERS.includes(name) && name !== 'set-cookie') answer[name] = value
+    })
+    const cookies = response.headers.getSetCookie?.() ?? []
+    if (cookies.length > 0) answer['set-cookie'] = cookies.join('\n')
+    await route.fulfill({ status: response.status, headers: answer, body: method === 'HEAD' ? Buffer.alloc(0) : await bodyOf(response) })
+  }
 
   const browserOf = async (): Promise<Browser> => {
     if (options.browser != null) {
@@ -37,8 +87,10 @@ export const createPlaywrightRenderer = (options: PlaywrightRendererOptions = {}
     })
     const blocked: string[] = []
     const bundles = [...(options.bundles ?? []), ...(request.bundle != null ? [request.bundle] : [])]
+    // Through a lease the proxy carries the request; an injected fetch would bypass it.
+    const fetch = endpoint == null ? request.fetch ?? options.fetch : undefined
     try {
-      if (request.guard != null || bundles.length > 0) {
+      if (request.guard != null || bundles.length > 0 || fetch != null) {
         const guard = request.guard
         await context.route('**/*', async route => {
           const url = route.request().url()
@@ -54,10 +106,19 @@ export const createPlaywrightRenderer = (options: PlaywrightRendererOptions = {}
               return
             }
             await guard?.check(url, endpoint == null)
-            await route.continue()
           } catch {
             blocked.push(url)
             await route.abort('blockedbyclient')
+            return
+          }
+          if (fetch == null) return route.continue()
+          try {
+            await fulfilThrough(fetch, route, request.signal)
+          } catch (e) {
+            const refused = (e as { refused?: unknown } | null)?.refused === true
+            if (refused) blocked.push(url)
+            log.debug('Sub-request not fulfilled', { host: new URL(url).host, refused, error: e })
+            await route.abort(refused ? 'blockedbyclient' : 'failed').catch(() => undefined)
           }
         })
       }
@@ -68,6 +129,7 @@ export const createPlaywrightRenderer = (options: PlaywrightRendererOptions = {}
       })
       await page.waitForLoadState('networkidle', { timeout: options.settle ?? DEFAULT_SETTLE_MS }).catch(() => undefined)
       const probe = request.styles === true ? await page.evaluate(probePage, PROBE_ELEMENTS) : undefined
+      if (request.snapshot === true) await page.evaluate(inlineCssom)
       const screenshot = request.screenshot === true
         ? new Uint8Array(await page.screenshot({ type: 'jpeg', quality: SCREENSHOT_QUALITY }))
         : undefined

@@ -1,9 +1,9 @@
 ---
 name: web-search
-description: Provider-hosted web search through LlmService.webSearch — the Anthropic, OpenAI Responses, OpenRouter and Chat-search dialects, the options each honours, why no transport or proxy ever sees it, the forced search and the enforced domain bound.
+description: Web search through LlmService.webSearch — the Anthropic, OpenAI Responses, OpenRouter and Chat-search dialects, the delegated performer's own search, the options each honours, the attempt deadline, why no transport or proxy ever sees it, the forced search and the enforced domain bound.
 metadata:
   purposes: agent, server-api
-  mentions: webSearch, makeWebSearch, WebSearch, WebSearchResult, WebSearchOptions, WebSearchDialect, WebSearchConfig, LlmSearchError, LlmSearchUnsupportedError, LlmSearchDialect, ModelConfig.webSearch, web_search_20250305, openrouter:web_search, gpt-5-search-api
+  mentions: webSearch, makeWebSearch, WebSearch, WebSearchResult, WebSearchOptions, WebSearchDialect, WebSearchConfig, LlmSearchError, LlmSearchUnsupportedError, LlmSearchDialect, ModelConfig.webSearch, webSearch.timeout, web_search_20250305, openrouter:web_search, gpt-5-search-api, delegatedSearchHelper
 ---
 
 # @owlmeans/llm — Web search
@@ -29,8 +29,11 @@ answer.errors      // in-body search failures and `out-of-domain` drops — the 
 `makeWebSearch({ alias, config, secret, plugin, fetch? })` is the same object built by hand.
 Options: `maxUses`, `maxResults`, `contextSize` (`low|medium|high`), `allowedDomains` XOR
 `blockedDomains`, `location` (`country` ISO alpha-2, `region`, `city`, `timezone` IANA),
-`instructions` (the answer's system prompt), `maxTokens`, `timeout`, `retries`, `signal`,
-`action` and `spectator` (logged like a model call, call type `web-search`).
+`instructions` (the answer's system prompt), `maxTokens`, `timeout` (one attempt's deadline: the
+call's, else the config's `webSearch.timeout`, else `WEB_SEARCH_TIMEOUT_MS` — 5 min), `retries`,
+`signal`, `action` and `spectator` (logged like a model call, call type `web-search`, as the model
+the dialect answered with). `ModelConfig.webSearch` (`WebSearchConfig`) is `dialect`, `tool`, `engine`
+and `timeout` — the last for a dialect slower by nature than a provider request (a delegated performer).
 
 ## Never through a transport
 
@@ -48,13 +51,16 @@ must send searches through its own egress passes `fetch` to `makeWebSearch`.
 the search object validates options, retries, joins the parts (shifting citation offsets), dedupes
 sources and records. Declare it per plugin, never in a family spread — `compatiblePlugin` spreads
 `openAiFamily`, and an inherited dialect would send a gateway key to api.openai.com. A plugin
-without one (a delegated model) answers `LlmSearchUnsupportedError`.
+without one answers `LlmSearchUnsupportedError`. A dialect need not send a request at all: the
+delegated plugin's (`@owlmeans/llm-delegate`, skill `llm-delegate`) hands the search to a performer
+outside the process as a task.
 
 | Plugin | Dialect | Request | Notes |
 |---|---|---|---|
 | `anthropic` | `anthropic` | Messages API, server tool `web_search_20250305` (`ModelConfig.webSearch.tool` picks a newer version, which is sent with `allowed_callers: ['direct']`), `anthropic-version: 2023-06-01`, `x-api-key` | The chat build's thinking switch, effort table and adaptive output floor; no sampling knob. The tool is model-driven: pinned (`tool_choice: {type:'tool', name:'web_search'}`) on a model that accepts a pin, a "search first" directive where a pin is a 400 (`rejectsForcedTool`). `pause_turn` is resumed with the assistant content unchanged, up to 5 times; text before the first result is dropped as narration. |
 | `openai` | `responses` | Responses API, `tools: [{ type: 'web_search' }]`, `tool_choice: 'required'`, `include: ['web_search_call.action.sources']`, `store: false`, `max_tool_calls` from `maxUses` | Whatever API the model's chat client uses. `webSearch.dialect: 'chat'` asks a Chat-Completions search model (`gpt-5-search-api`) instead. |
 | `compatible` | by `baseUrl` host | `openrouter.ai` (and subdomains) → Chat Completions + `tools: [{ type: 'openrouter:web_search', parameters }]`, `max_tokens` always sent (OpenRouter holds credit against it); `api.openai.com` / `api.perplexity.ai` → Chat Completions + `web_search_options` | Any other host is unsupported unless `webSearch.dialect` (`openrouter` / `chat` / `responses`) names one: an endpoint that does not know a search field rejects it or, worse, answers unsearched. No sampling knobs, no `provider.require_parameters`; `reasoning` forwarded to OpenRouter only. `webSearch.engine` picks OpenRouter's engine. |
+| `delegated` (`@owlmeans/llm-delegate`) | `delegated` | No request and no key: ONE `DelegatedMode.Search` task through the delegate transport the config names; the performer runs its own search and answers `{ text, sources, queries? }` or `{ unavailable: true }` | Every option is stated as text in the task (searches, sources — `maxResults` default 10 —, domains, location, answer length; `instructions` as what the answer is for). A refused answer is re-asked with the reason (3 rounds), then a fatal `LlmSearchError` 422; the refusal is `LlmSearchUnsupportedError`; the answering model is the config's `delegated:<tier>`. Its config sets `webSearch.timeout` to the delegated call's 45 min. |
 
 What each dialect honours — anything a dialect cannot honour throws, never silently drops:
 

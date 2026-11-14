@@ -1,6 +1,6 @@
 ---
 name: file-streams
-description: "How to use @owlmeans/file-streams — online files as Node streams: URL downloads under a connect-time SSRF policy, HTTP and SOCKS proxy plugins (a list or a callback by key and URL), the Google Drive resolver, S3 buckets addressed exactly like storage-resource (with prefix listing and removal), folders, buffers and Viable ephemeral workloads (writes and reads); scoped temporary workspaces nested by organization/project/purpose and mirrored to a bucket for restore after a restart; zip/tar/tar.gz/gz with traversal and bomb guards; file-type verification (office, pdf, csv, media, images, source code) from a head or a few range reads. Auto-invoked when downloading a file, moving bytes between HTTP, S3, disk and a workload, keeping uploaded files in a service tmp folder backed by S3, extracting or packing an archive, checking that a file is what it claims, or configuring outbound proxies."
+description: "How to use @owlmeans/file-streams — online files as Node streams: URL downloads under a connect-time SSRF policy (follow or return redirects, any status on request), a pinned WHATWG fetch on the aws-free ./fetch subpath, HTTP and SOCKS proxy plugins (a list or a callback by key and URL), the Google Drive resolver, S3 buckets addressed exactly like storage-resource (with prefix listing and removal), folders, buffers and Viable ephemeral workloads (writes and reads); scoped temporary workspaces nested by organization/project/purpose and mirrored to a bucket for restore after a restart; zip/tar/tar.gz/gz with traversal and bomb guards; file-type verification from a head or a few range reads. Auto-invoked when downloading a file, giving fetch-based code (llm-reader, a renderer) pinned egress, moving bytes between HTTP, S3, disk and a workload, keeping uploaded files in a service tmp folder backed by S3, extracting or packing an archive, checking that a file is what it claims, or configuring outbound proxies."
 user-invocable: false
 ---
 
@@ -18,7 +18,8 @@ iterable or a `Uint8Array` is accepted where a source is built.
 | Export | What it is |
 |---|---|
 | `FileSource` / `FileSink` / `TreeSink` | Where bytes come from (`info`, `open`, `ranges`), where one file goes, where many go |
-| `httpClient` / `createHttpClient(opts)` | Requests under the network policy, through proxies, redirects and resolvers; `.source(url)` is a re-openable, Range-capable source |
+| `httpClient` / `createHttpClient(opts)` | Requests under the network policy, through proxies, redirects and resolvers; `.source(url)` is a re-openable, Range-capable source; `redirect: 'manual'` returns a 3xx, `anyStatus` every status |
+| `createPinnedFetch(opts)` (`@owlmeans/file-streams/fetch`) | A WHATWG `fetch` over the client — pinned connects, Drive resolver, streamed bodies, GET/HEAD; the subpath loads no AWS SDK |
 | `createFileSource`, `createBufferSource`, `createStreamSource` | A file on disk, bytes in memory (a screenshot), a stream opened elsewhere (one-shot) |
 | `createFileSink`, `createDirectorySink`, `createBufferSink` | Atomic file write, a confined directory tree, an in-memory collector |
 | `createS3Bucket(entry or model, opts)` | A `cfg.storageBuckets` entry as `source`, `sink`, `tree`, `head`, `remove`, `list`, `removePrefix`, `instanceOf` |
@@ -34,7 +35,7 @@ iterable or a `Uint8Array` is accepted where a source is built.
 | `createNetworkPolicy(opts)` | What may be reached; every connection goes through it |
 | `appendFileStreamsService(ctx, alias?, opts?)` | The objects configured from `cfg.fileStreams` and `cfg.storageBuckets` |
 | `FileKind`, `ArchiveFormat`, `WORKLOAD_MAX_FILE_BYTES`, `S3_DELETE_BATCH_SIZE`, `WORKSPACE_SCOPE_MARKER` | Enums, ceilings, the reserved marker name |
-| `NetworkPolicyError`, `HttpError` (`.status`), `ProxyError`, `LimitError`, `SourceError`, `PathError`, `ArchiveError`, `ResolverError`, `WorkloadError` | Failures, by message code (`file-streams:<area>:<reason>`) |
+| `NetworkPolicyError` (`.refused === true`), `HttpError` (`.status`), `ProxyError`, `LimitError`, `SourceError`, `PathError`, `ArchiveError`, `ResolverError`, `WorkloadError` | Failures, by message code (`file-streams:<area>:<reason>`) |
 | `FileMimicryError`, `FileKindError` (storage `FileTypeError`, from file-inspector), `S3TransferError` (storage `StorageApiError`) | Type refusals and S3 failures a storage-resource catch site already handles |
 
 ## Usage
@@ -71,6 +72,13 @@ it into the sink. Verification is on by default: a kind mismatch is refused, dan
 executable under another claim, a script under a passive one, a PDF with active content in the head
 sample) is always refused, `verify.refuse` refuses kinds outright, an inconclusive verdict passes
 unless `refuseInconclusive`; `verify: false` turns it off.
+
+## The pinned fetch
+
+`createPinnedFetch(opts)` from `@owlmeans/file-streams/fetch` (no AWS SDK, storage-resource or S3
+module in its graph) is `fetch` over the client — any status a `Response`, `redirect: 'manual'` the
+3xx itself, GET/HEAD only, bodies streamed, policy refusals `NetworkPolicyError` (`refused === true`).
+Rules: the [network](parts/network.md) part.
 
 ## The Viable workload
 
@@ -153,7 +161,7 @@ options argument. A server context reads EVERY string leaf starting with `/` as 
 
 ## Tests
 
-Category C. Offline specs run against local stand-ins (`tests/harness/`: an origin with Range,
+Category C. Offline specs (`fetch.spec.ts` for the pinned fetch and its import graph) run against local stand-ins (`tests/harness/`: an origin with Range,
 redirects and stalls, a CONNECT/forward proxy, a SOCKS5 server, a fake Drive, a workload
 `/command/` receiver answering `writeBinaryFile` and `readBinaryFile` with the real limits) and
 code-built fixtures; `workspace.spec.ts` runs offline over a temporary root; `s3.spec.ts` and
@@ -178,5 +186,5 @@ prefix, deleted after); `live.spec.ts` needs `FILE_STREAMS_LIVE=1` (and `FILE_ST
 
 | Part | Load it when |
 |---|---|
-| [network](parts/network.md) | changing what may be reached, routing through proxies, or downloading Google Drive and Docs links |
+| [network](parts/network.md) | changing what may be reached, routing through proxies, returning redirects, handing a pinned `fetch` to fetch-based code, or downloading Google Drive and Docs links |
 | [workspaces](parts/workspaces.md) | keeping files in a service tmp folder by scope, mirroring them to a bucket, restoring after a restart, listing or deleting a bucket prefix, or reading files back from a workload |

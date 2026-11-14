@@ -25,6 +25,11 @@ export interface WebSearchConfig {
   tool?: string
   /** OpenRouter search engine (`auto`, `native`, `exa`, …). */
   engine?: string
+  /**
+   * Deadline of one attempt in ms when the call names none — for a dialect whose answer takes longer
+   * than {@link WEB_SEARCH_TIMEOUT_MS} by nature (a delegated performer's own search). Absent → the default.
+   */
+  timeout?: number
 }
 
 export interface WebSearchOptions {
@@ -43,7 +48,7 @@ export interface WebSearchOptions {
   /** Output budget of the answer. */
   maxTokens?: number
   signal?: AbortSignal
-  /** Deadline of one attempt in ms ({@link WEB_SEARCH_TIMEOUT_MS} by default). */
+  /** Deadline of one attempt in ms (`ModelConfig.webSearch.timeout`, else {@link WEB_SEARCH_TIMEOUT_MS}). */
   timeout?: number
   /** Attempts, the first included ({@link WEB_SEARCH_RETRIES} by default). */
   retries?: number

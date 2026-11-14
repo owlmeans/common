@@ -110,7 +110,7 @@ export interface ModelTask {
   tools?: ModelTaskTool[]
   /** `Tools` mode: force one tool, or leave the choice open. */
   toolChoice?: ModelTaskToolChoice
-  /** `Json` mode: the schema the single returned object must satisfy. */
+  /** `Json` and `Search` modes: the schema the single returned object must satisfy. */
   outputSchema?: Record<string, unknown>
   /** A soft cap, stated so a parent can size its own call. */
   maxOutputChars?: number

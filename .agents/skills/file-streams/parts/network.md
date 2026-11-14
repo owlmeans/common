@@ -1,9 +1,9 @@
 ---
 name: network
-description: What the HTTP client may reach — the connect-time network policy, redirects and sensitive headers, the HTTP and SOCKS proxy plugins and their pinning, why the client is node:http over its own socket under Bun, and the Google Drive and Docs resolver.
+description: What the HTTP client may reach — the connect-time network policy, redirects (followed or returned) and sensitive headers, the pinned WHATWG fetch on the ./fetch subpath, the HTTP and SOCKS proxy plugins and their pinning, why the client is node:http over its own socket under Bun, and the Google Drive and Docs resolver.
 metadata:
   purposes: config, ops
-  mentions: createNetworkPolicy, allowCidrs, allowPrivate, createProxyRouter, createHttpProxyPlugin, createSocksProxyPlugin, trustProxyDns, createGoogleDriveResolver, googleDriveResolver, ResolverError, NetworkPolicyError
+  mentions: createPinnedFetch, PinnedFetch, PinnedFetchOptions, HttpRedirectMode, anyStatus, createNetworkPolicy, allowCidrs, allowPrivate, createProxyRouter, createHttpProxyPlugin, createSocksProxyPlugin, trustProxyDns, createGoogleDriveResolver, googleDriveResolver, ResolverError, NetworkPolicyError
 ---
 
 # @owlmeans/file-streams — Network policy, proxies and Google Drive
@@ -17,6 +17,12 @@ metadata:
   checked, a proxy tunnel carries that address (TLS keeps the host name for SNI and certificates).
   Every redirect hop is checked again; https → http is refused; `Authorization`, `Cookie`,
   `Proxy-Authorization` and `sensitiveHeaders` never cross origins.
+- `redirect: 'manual'` returns a 3xx with its `Location` (and body) instead of following it — for a
+  caller that checks every hop itself; a resolver's own flow (Drive's virus-scan page and its hops)
+  still follows inside the client under the policy, because it carries its cookie across them.
+  `anyStatus: true` returns every status instead of `HttpError('status:<code>')`; a forward proxy's
+  407 still throws `ProxyError('auth-failed')`. `HttpResponse.decoded` says the body was
+  transport-decoded and its `Content-Length` no longer applies.
 - A local stand-in or an in-cluster origin needs `network: { allowCidrs: [...] }` (or
   `allowPrivate`). S3 traffic through the SDK is not policed — its endpoint is operator config.
 - Built-in plugins: `http`/`https` endpoints (CONNECT for https targets, absolute-form forward for
@@ -28,6 +34,27 @@ metadata:
   under Bun, so the client is `node:http(s)` over a socket it connects itself — Bun 1.4.2 honours
   the `createConnection` option, an Agent's `createConnection`, the `lookup` option and TLS over an
   existing socket.
+
+## The pinned fetch
+
+`createPinnedFetch` (on `@owlmeans/file-streams/fetch`) is `fetch` over this client: it asks with
+`redirect: 'manual'` (unless the caller follows) and `anyStatus`, so the caller sees what a browser's
+fetch would, while every connection — every redirect hop the caller takes, every resolver step —
+goes to an address the policy resolved and checked a moment before. That closes the DNS-rebinding
+window a guard-then-`fetch` pair leaves open: llm-reader injects it as its transport and hands it to
+the Playwright renderer, which fulfils a page's sub-requests through it. Its module graph carries no
+AWS SDK, so a consumer that only reads the web does not load one (`tests/fetch.spec.ts` walks the
+built graph).
+
+- `createPinnedFetch({ network, proxies, resolvers, timeouts, userAgent, headers, client? })` — the
+  client's options, or a ready `client`. Any status is a `Response` with `url` and `redirected` set;
+  `redirect: 'manual'` returns the 3xx, `'error'` rejects `HttpError('redirect')`; an abort ends a
+  request waiting for its head and a body in flight.
+- Only GET and HEAD (another method, or a body, rejects `HttpError('method:…' | 'body')`);
+  `Accept-Encoding` is always identity, hop-by-hop and `host` headers are dropped; a transport-decoded
+  body loses its `Content-Encoding`/`Content-Length`.
+- A policy refusal rejects with `NetworkPolicyError`, whose `refused === true` tells a consumer
+  (llm-reader maps it to `ReaderRefusedError('pinned:…')`) a refusal from a network failure.
 
 ## Google Drive
 

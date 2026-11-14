@@ -28,17 +28,24 @@ createLlmReader({ plugins: [createProxyPlugin({ proxies }), makePlaywrightFetchP
 // A local prototype (an uploaded home.html with its css and pictures), rendered from disk:
 const bundle = createLocalBundlePlugin({ root: '/uploads/prototype' })
 await createLlmReader({ renderer, plugins: [bundle], models }).design(bundle.urlOf('home.html'))
+
+// A bundle `collect` wrote renders offline: its bundle.json answers the original external URLs from disk.
+// With a pinned fetch, live sub-requests are fetched through it instead of Chromium re-resolving the host:
+import { createPinnedFetch } from '@owlmeans/file-streams/fetch'
+createLlmReader({ renderer, fetch: createPinnedFetch(), models })
 ```
 
 The browser goes through the reader's proxy lease (SOCKS proxies through the reader's bridge), and
 every request a page makes passes the reader's address guard; refused ones are listed in
-`RenderedPage.blocked`.
+`RenderedPage.blocked`. Given the reader's injected `fetch`, every guarded GET/HEAD is fulfilled
+through it (`route.fulfill`), other methods are refused. `collect` asks for a `snapshot`: rules a
+script put only into the CSSOM are written into `<style>` elements before the DOM is serialized.
 
 ## API
 
 | Export | Purpose |
 |---|---|
-| `createPlaywrightRenderer(options)` | `render({ url, lease?, guard?, styles?, screenshot?, bundle? })` → `RenderedPage`; `close()`. Options: `browser`, `launch`, `viewport`, `timeout`, `waitUntil`, `settle`, `userAgent`, `bundles` (local bundles routed from disk under their synthetic origins; every other request still guarded). |
+| `createPlaywrightRenderer(options)` | `render({ url, lease?, guard?, styles?, screenshot?, bundle?, fetch?, snapshot? })` → `RenderedPage`; `close()`. Options: `browser`, `launch`, `viewport`, `timeout`, `waitUntil`, `settle`, `userAgent`, `bundles` (local bundles routed from disk under their synthetic origins and manifest URLs; every other request still guarded), `fetch` (fulfil guarded sub-requests through it), `maxFulfilBytes`. |
 | `makePlaywrightFetchPlugin(renderer, { when? })` | A reader fetch plugin that renders page requests. |
 
 ## Tests
@@ -48,6 +55,8 @@ bun test ./tests
 ```
 
 Gated on an installed Chromium; the design spec also on `ANTHROPIC_SECRET` or `OPENAI_SECRET`.
+`collect.spec.ts` renders a collected bundle with its servers stopped, snapshots an app shell, and
+fulfils through file-streams' pinned fetch (reached by a test-only relative import).
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance

@@ -3,6 +3,8 @@
 Read the web with an LLM: fetch pages directly or through HTTP and SOCKS proxies, parse them, and
 have a model describe, classify and extract from them — as text or by exploring their DOM — list
 their pictures with the context they are used in, and write their design system as a DESIGN.md.
+Clone what a link points at into local files (a page with its CSS, fonts and pictures, a file, an
+S3 prefix, a provider's folder), and crawl a site in a bounded way.
 
 ## Overview
 
@@ -18,6 +20,13 @@ their pictures with the context they are used in, and write their design system 
   with DOM tools), or in text mode (one call over the page text) on request or with a bare model
 - **Design** — stylesheets parsed and weighted by the DOM (computed styles too, with
   `@owlmeans/llm-reader-playwright`), turned into a DESIGN.md (Google Labs format)
+- **Collect** — one link into files on a sink: a page as a bundle (stylesheets with `@import`
+  chains, CSS fonts and pictures, `img`/`srcset`/icons, references rewritten, scripts removed,
+  `bundle.json`), a file streamed under caps, or the files a source expands it to — public S3 built
+  in, others (a Drive folder) as `ReaderSource` plugins
+- **Crawl** — a bounded breadth-first walk: same origin, robots.txt, pacing, links ranked by intent
+- **Pinned traffic** — hand the reader a pinned `fetch` (`@owlmeans/file-streams/fetch`) and every
+  request it makes goes through it
 
 ## Installation
 
@@ -74,6 +83,31 @@ separators, absolute paths and symbolic links that leave the root are refused. A
 prototype's external font or picture — still goes through the fetcher, its proxies and the address
 guard. With `@owlmeans/llm-reader-playwright` a bundle page renders from disk too.
 
+### Collect a link, crawl a site
+
+```typescript
+import { createDirectoryCollectSink, createLlmReader, createLocalBundlePlugin } from '@owlmeans/llm-reader'
+import { createPinnedFetch } from '@owlmeans/file-streams/fetch'
+
+const reader = createLlmReader({ fetch: createPinnedFetch(), sources: [driveSource], renderer })
+const sink = createDirectoryCollectSink('/tmp/links')                     // or your own CollectSink
+const site = await reader.collect('https://example.com/', { sink, prefix: '01-site', limits: { maxFiles: 50 } })
+site.kind                                                                 // 'bundle' — index.html, css/, external/<host>/…, bundle.json
+await reader.collect('s3://public-bucket/brand/', { sink, prefix: '02-brand' })   // every object under the prefix
+await reader.collect('https://example.com/report.pdf', { sink })          // one file, its Content-Disposition name
+
+const offline = createLlmReader({ plugins: [createLocalBundlePlugin({ root: '/tmp/links/01-site' })] })
+await offline.page('https://example.com/')                                // answered from disk through bundle.json
+
+const { pages } = await reader.crawl('https://docs.example.com/', { intent: 'pricing and limits', maxPages: 8, depth: 2 })
+```
+
+Every request of `collect` — the page, its stylesheets and pictures, files, S3 listings, a source's
+own requests — goes through the reader's fetcher: its plugins, the address guard on every hop, and
+the injected `fetch` when there is one (the guard is the pre-check; the pinning against DNS
+rebinding comes from the fetch). Items over a limit are skipped and listed with a reason; `collect`
+throws only for an abort or a bad configuration.
+
 Pictures are sent only to a model that sees: `design` attaches the screenshot when the design
 model's `ModelConfig.vision` is set, and `images({ vision: true })` refuses a model without it.
 
@@ -81,12 +115,16 @@ model's `ModelConfig.vision` is set, and `images({ vision: true })` refuses a mo
 
 | Export | Purpose |
 |---|---|
-| `createLlmReader(options)` | `fetch`, `page`, `describe`, `classify`, `extract`, `links`, `images`, `design`, `using`, `close`. |
+| `createLlmReader(options)` | `fetch`, `page`, `describe`, `classify`, `extract`, `links`, `images`, `design`, `collect`, `crawl`, `using`, `close`; options `fetch` (an injected, pinned fetch), `sources`, `s3`, `limits`. |
 | `appendLlmReaderService(ctx, options, alias?)` | Registers the reader as `context.reader()`. |
 | `makeReaderModels(exec, { executions, roles?, spectator? })` | Models per reader task, refined from an execution. |
 | `createPageFetcher(options)` | The fetcher on its own. |
 | `createProxyPlugin(options)` | The proxy plugin; `lease(request)` hands a proxy to other clients. |
-| `createLocalBundlePlugin({ root, origin? })` | A local directory served under a synthetic origin (default `https://bundle.local`), confined to its root; `urlOf(path)`, `read(url)`, `serves(url)`. |
+| `createLocalBundlePlugin({ root, origin? })` | A local directory served under a synthetic origin (default `https://bundle.local`), confined to its root; `urlOf(path)`, `read(url)`, `serves(url)`; with a `bundle.json` it answers the collected page's original URLs too. |
+| `createCollector({ fetcher, render?, sources?, limits? })` | `collect(url, options)` and `bundle({ url, html, entry? }, options)` on their own. |
+| `createDirectoryCollectSink(root)` | A `CollectSink` writing into a directory (atomic per file, confined). |
+| `createS3Source(options?)` · `createS3UrlHelper(options?)` | The built-in public-S3 source (anonymous ListObjectsV2 + GET) and its URL reading. |
+| `makeCrawler(reader, { models })` | The crawler `reader.crawl` uses. |
 | `createAddressGuard(options)` | The private-address guard. |
 | `makePageModel({ url, html })` | Parse HTML you already have. |
 | `renderDesignMd(draft, facts)` | Render a DESIGN.md from a token draft. |
@@ -97,10 +135,11 @@ model's `ModelConfig.vision` is set, and `images({ vision: true })` refuses a mo
 bun run build && bun test ./tests
 ```
 
-Offline specs run against real local servers (a fixture site, an HTTP proxy, a SOCKS server) and a
-local bundle fixture (`tests/fixtures/bundle`).
-Live specs are gated: `ANTHROPIC_SECRET` or `OPENAI_SECRET` (analysis), `LLM_READER_LIVE_WEB=1`
-(the public web), `LLM_READER_PROXIES` (real proxies) in the repo root `.env`.
+Offline specs run against real local servers (a fixture site, a collect site with a cross-origin
+font CDN, an S3 stand-in, an HTTP proxy, a SOCKS server) and a local bundle fixture
+(`tests/fixtures/bundle`). Live specs are gated: `ANTHROPIC_SECRET` or `OPENAI_SECRET` (analysis),
+`LLM_READER_LIVE_WEB=1` (the public web), `LLM_READER_LIVE_S3=1` (the public S3 fixture bucket),
+`LLM_READER_PROXIES` (real proxies) in the repo root `.env`.
 
 ## Depends On
 

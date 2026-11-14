@@ -49,3 +49,6 @@ export const DIAGRAM_IMAGE_NAMES: ReadonlyArray<readonly [RegExp, DiagramFormat]
   [/\.(drawio|dio)\.(svg|png)$/i, 'drawio'],
   [/\.excalidraw\.(svg|png)$/i, 'excalidraw'],
 ] as const)
+
+/** How the XML detector's strict parser reports markup it cannot parse (`Unexpected close tag\nLine: 0\nColumn: 24…`). */
+export const MARKUP_ERROR = /\nLine: \d+\nColumn: \d+/

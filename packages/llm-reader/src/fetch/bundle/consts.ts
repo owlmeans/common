@@ -40,3 +40,9 @@ export const BUNDLE_CONTENT_TYPES: Readonly<Record<string, string>> = Object.fre
 })
 
 export const BUNDLE_FALLBACK_TYPE = 'application/octet-stream'
+
+/** The manifest a collected bundle carries at its root: original URL → local path. */
+export const BUNDLE_MANIFEST = 'bundle.json'
+
+/** The manifest format written; a reader accepts this one. */
+export const BUNDLE_MANIFEST_VERSION = 1

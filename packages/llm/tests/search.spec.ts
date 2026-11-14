@@ -255,7 +255,7 @@ describe('@owlmeans/llm — web search failures', () => {
   test('a provider without a dialect, an unknown host, an unhonourable filter: unsupported, nothing sent', async () => {
     const calls = stubFetch({ body: chatSearchAnswer })
     const llm = service()
-    // A delegated model's plugin (in another package) has no `search` member.
+    // A plugin without a `search` member hosts no search.
     const { search: _search, ...noDialect } = openAiPlugin
     const delegated = makeWebSearch({
       alias: 'delegated', config: { alias: 'delegated', provider: ModelProvider.Delegated, model: 'agent' },
@@ -297,6 +297,36 @@ describe('@owlmeans/llm — web search failures', () => {
 
     expect(error.status).toBe(401)
     expect(error.detail).not.toContain('sk-ant-official')
+  })
+})
+
+describe('@owlmeans/llm — the attempt deadline', () => {
+  /** A dialect that answers after `answerMs`, or fails with the deadline's reason once it fires. */
+  const slowPlugin = (answerMs: number) => ({
+    ...openAiPlugin,
+    type: 'slow-search',
+    search: async ({ signal }: { signal: AbortSignal }) => await new Promise<never>((resolve, reject) => {
+      const timer = setTimeout(() => resolve({
+        dialect: 'slow', model: 'slow', parts: [{ text: 'answered', citations: [] }], sources: [], queries: [],
+      } as never), answerMs)
+      signal.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason) }, { once: true })
+    }),
+  })
+  const searchOf = (answerMs: number, timeout?: number) => makeWebSearch({
+    alias: 'slow',
+    config: { alias: 'slow', provider: 'slow-search' as ModelProvider, model: 'slow', ...(timeout != null ? { webSearch: { timeout } } : {}) },
+    secret: 'slow', plugin: slowPlugin(answerMs) as never,
+  })
+
+  test('a config\'s `webSearch.timeout` bounds an attempt when the call names none', async () => {
+    const startedAt = Date.now()
+    await expect(searchOf(5_000, 30).search('q', { retries: 1 })).rejects.toBeDefined()
+    expect(Date.now() - startedAt).toBeLessThan(2_000)
+  })
+
+  test('the call\'s own timeout wins over the config\'s, and no config value keeps the default', async () => {
+    expect((await searchOf(60, 20).search('q', { retries: 1, timeout: 2_000 })).text).toBe('answered')
+    expect((await searchOf(60).search('q', { retries: 1 })).text).toBe('answered')
   })
 })
 

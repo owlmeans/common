@@ -5,7 +5,7 @@ import { uploadPolicyHelper } from '@owlmeans/upload'
 import { MATERIALS_UPLOAD_POLICY, ConnectMaterialTextSource, MATERIAL_USABLE_STATUSES } from '@owlmeans/viable-common'
 import {
   MATERIAL_DESCRIPTION_CUT, MATERIAL_OUTCOME_LABELS, MATERIAL_OUTCOME_ORDER, MATERIAL_REASON_PHRASES, MATERIALS_STATE_PHRASES,
-  MATERIALS_UPLOAD_CONCURRENCY,
+  MATERIALS_UPLOAD_CONCURRENCY, REFERENCES_SHOWN,
 } from './consts.local.js'
 import { refusalHelper } from './refusal.js'
 import type { MaterialOutcome, MaterialsToolHelper } from './materials/types.js'
@@ -113,8 +113,44 @@ export const createMaterialsToolHelper = (): MaterialsToolHelper => {
     return [`files: ${counts.join(', ')}`, ...lines].join('\n')
   }
 
+  /** Up to `REFERENCES_SHOWN` lines, and how many more there are. */
+  const capped = (lines: string[]): string[] => lines.length > REFERENCES_SHOWN
+    ? [...lines.slice(0, REFERENCES_SHOWN), `  … and ${lines.length - REFERENCES_SHOWN} more`]
+    : lines
+
+  const renderReferences: MaterialsToolHelper['renderReferences'] = (ledger, generated = []) => {
+    const lines: string[] = []
+    const links = ledger?.links ?? []
+    const research = ledger?.research ?? []
+    const packages = ledger?.packages ?? []
+    if (links.length + research.length + packages.length > 0) {
+      lines.push(`references: ${links.length} link(s), ${research.length} research request(s), ${packages.length} package(s)`)
+      lines.push(...capped(links.map(link => `  link ${link.status} · ${link.url}`
+        + (link.folder != null ? ` · ${link.folder}` : '')
+        + (link.files != null && link.files > 0 ? ` · ${link.files} file(s)` : '')
+        + (link.docs != null && link.docs.length > 0 ? ` · ${link.docs.join(', ')}` : '')
+        + (link.reason != null && link.reason !== '' ? ` — ${link.reason}` : ''))))
+      lines.push(...capped(research.map(one => `  research ${one.status} · "${one.query}"`
+        + (one.doc != null ? ` → ${one.doc}` : '')
+        + (one.sources != null ? ` (${one.sources} source(s))` : '')
+        + (one.gap != null && one.gap !== '' ? ` — not established: ${one.gap}` : '')
+        + (one.reason != null && one.reason !== '' ? ` — ${one.reason}` : ''))))
+      lines.push(...capped(packages.map(one => `  package ${one.name} · ${one.status}`
+        + (one.verdict != null ? ` · ${one.verdict}` : '')
+        + (one.lookalikeOf != null ? ` (looks like ${one.lookalikeOf})` : '')
+        + (one.reason != null && one.reason !== '' ? ` — ${one.reason}` : ''))))
+    }
+    if (generated.length > 0) {
+      lines.push(`generated documents: ${generated.length}`)
+      lines.push(...capped(generated.map(doc => `  ${doc.path} · ${doc.kind} · ${doc.title}`)))
+    }
+
+    return lines
+  }
+
   const renderCatalogue: MaterialsToolHelper['renderCatalogue'] = (projectId, catalogue) => {
-    if (catalogue.entries.length === 0 && catalogue.state == null) {
+    const references = renderReferences(catalogue.references, catalogue.generated)
+    if (catalogue.entries.length === 0 && catalogue.state == null && references.length === 0) {
       return `Project ${projectId} was created without files.`
     }
     const usable = catalogue.entries.filter(entry => MATERIAL_USABLE_STATUSES.includes(entry.status))
@@ -138,10 +174,17 @@ export const createMaterialsToolHelper = (): MaterialsToolHelper => {
     if (catalogue.lastError != null && catalogue.lastError !== '') {
       lines.push(`error: ${refusalHelper.refusalPhrase(catalogue.lastError)}`)
     }
+    lines.push(...references)
     const first = usable[0]
+    const document = catalogue.generated?.[0]
     lines.push(first != null
       ? `next: read_material ${JSON.stringify({ projectId, path: first.path })} reads a file's text`
-      : 'next: nothing here to read — every file was refused or removed')
+        + (document != null ? `, read_material ${JSON.stringify({ projectId, path: document.path })} a generated document` : '')
+      : document != null
+        ? `next: read_material ${JSON.stringify({ projectId, path: document.path })} reads a generated document`
+        : catalogue.entries.length > 0
+          ? 'next: nothing here to read — every file was refused or removed'
+          : 'next: nothing here to read yet — project_status shows the drafting')
 
     return lines.join('\n')
   }
@@ -153,13 +196,14 @@ export const createMaterialsToolHelper = (): MaterialsToolHelper => {
     }
     const notes = [
       ...(text.source === ConnectMaterialTextSource.Transcript ? ['the platform\'s markdown transcript of the document'] : []),
+      ...(text.source === ConnectMaterialTextSource.Generated ? ['a document the platform generated from the project\'s references'] : []),
       ...(text.truncated === true ? [`the first ${text.text.length} of ${text.length} characters`] : []),
     ]
 
     return notes.length > 0 ? `${text.text}\n\n[${text.path}: ${notes.join('; ')}]` : text.text
   }
 
-  return { inputsOf, precheck, send, renderOutcomes, renderCatalogue, renderText, reasonPhrase }
+  return { inputsOf, precheck, send, renderOutcomes, renderReferences, renderCatalogue, renderText, reasonPhrase }
 }
 
 export const materialsToolHelper = createMaterialsToolHelper()

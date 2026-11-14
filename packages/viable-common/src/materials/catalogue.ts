@@ -1,15 +1,16 @@
 import {
   MATERIAL_TEXT_EXTENSIONS, MATERIAL_TEXT_KINDS, MATERIAL_TEXT_MIMES, MATERIAL_USABLE_STATUSES, MATERIALS_INDEX_VERSION,
-  MaterialStatus,
+  MaterialGeneratedKind, MaterialStatus,
 } from './consts.js'
 import type {
-  MaterialDetails, MaterialIndexDocument, MaterialIndexEntry, MaterialRelevanceQuery, MaterialUse,
+  MaterialDetails, MaterialGeneratedDoc, MaterialIndexDocument, MaterialIndexEntry, MaterialRelevanceQuery, MaterialUse,
   ProjectMaterialRecord,
 } from './types.js'
 import type { MaterialIndexHelper } from './catalogue/types.js'
 import {
-  ENTRY_KEY_ORDER, FRONTMATTER_FENCE, INDEX_EMPTY, INDEX_INTRO, INDEX_TITLE, MENTION_AFTER, MENTION_BEFORE, SIZE_UNITS,
-  TABLE_HEAD, TABLE_RULE, USE_KEY_ORDER,
+  ENTRY_KEY_ORDER, FRONTMATTER_FENCE, GENERATED_HEAD, GENERATED_INTRO, GENERATED_KEY_ORDER, GENERATED_RULE,
+  GENERATED_TITLE, INDEX_EMPTY, INDEX_INTRO, INDEX_TITLE, MENTION_AFTER, MENTION_BEFORE, SIZE_UNITS, TABLE_HEAD, TABLE_RULE,
+  USE_KEY_ORDER,
 } from './catalogue/consts.local.js'
 
 /** Code-point order: `localeCompare` would make the output depend on the machine that rendered it. */
@@ -92,14 +93,35 @@ export const createMaterialIndexHelper = (): MaterialIndexHelper => {
     return `| ${cells.map(cell).join(' | ')} |`
   }
 
-  const render = (entries: Array<ProjectMaterialRecord | MaterialIndexEntry>): string => {
+  const generatedOf = (doc: MaterialGeneratedDoc): MaterialGeneratedDoc => Object.fromEntries(
+    GENERATED_KEY_ORDER.map(key => [key, doc[key]])
+  ) as unknown as MaterialGeneratedDoc
+
+  /** One document per path, sorted by path. */
+  const sortedGenerated = (docs: MaterialGeneratedDoc[]): MaterialGeneratedDoc[] => {
+    const byPath = new Map<string, MaterialGeneratedDoc>()
+    for (const doc of docs) if (!byPath.has(doc.path)) byPath.set(doc.path, generatedOf(doc))
+
+    return [...byPath.values()].sort((a, b) => compare(a.path, b.path))
+  }
+
+  const generatedRowOf = (doc: MaterialGeneratedDoc): string =>
+    `| ${[code(doc.path), doc.kind, doc.title].map(cell).join(' | ')} |`
+
+  const render = (entries: Array<ProjectMaterialRecord | MaterialIndexEntry>, generated: MaterialGeneratedDoc[] = []): string => {
     const sorted = sortedEntries(entries)
-    const document: MaterialIndexDocument = { version: MATERIALS_INDEX_VERSION, entries: sorted }
+    const docs = sortedGenerated(generated)
+    const document: MaterialIndexDocument = {
+      version: MATERIALS_INDEX_VERSION, entries: sorted, ...(docs.length > 0 ? { generated: docs } : {}),
+    }
     const table = sorted.length === 0 ? [INDEX_EMPTY] : [TABLE_HEAD, TABLE_RULE, ...sorted.map(rowOf)]
+    const section = docs.length === 0
+      ? []
+      : [GENERATED_TITLE, '', GENERATED_INTRO, '', GENERATED_HEAD, GENERATED_RULE, ...docs.map(generatedRowOf), '']
 
     return [
       FRONTMATTER_FENCE, JSON.stringify(document, null, 2), FRONTMATTER_FENCE, '',
-      INDEX_TITLE, '', INDEX_INTRO, '', ...table, '',
+      INDEX_TITLE, '', INDEX_INTRO, '', ...table, '', ...section,
     ].join('\n')
   }
 
@@ -110,20 +132,41 @@ export const createMaterialIndexHelper = (): MaterialIndexHelper => {
     && typeof value.size === 'number' && Number.isFinite(value.size)
     && Object.values(MaterialStatus).includes(value.status as MaterialStatus)
 
-  const parse = (markdown: string): MaterialIndexEntry[] => {
+  /** The frontmatter object of a document, or `null` when it has none that parses. */
+  const frontmatterOf = (markdown: string): Record<string, unknown> | null => {
     const lines = markdown.replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n')
-    if (lines[0]?.trim() !== FRONTMATTER_FENCE) return []
+    if (lines[0]?.trim() !== FRONTMATTER_FENCE) return null
     const close = lines.findIndex((line, index) => index > 0 && line.trim() === FRONTMATTER_FENCE)
-    if (close < 0) return []
+    if (close < 0) return null
     let document: unknown
     try {
       document = JSON.parse(lines.slice(1, close).join('\n'))
     } catch {
-      return []
+      return null
     }
-    if (!isRecord(document) || !Array.isArray(document.entries)) return []
+
+    return isRecord(document) ? document : null
+  }
+
+  const parse = (markdown: string): MaterialIndexEntry[] => {
+    const document = frontmatterOf(markdown)
+    if (document == null || !Array.isArray(document.entries)) return []
 
     return document.entries.filter(validEntry).map(entryOf)
+  }
+
+  const parseGenerated = (markdown: string): MaterialGeneratedDoc[] => {
+    const document = frontmatterOf(markdown)
+    if (document == null || !Array.isArray(document.generated)) return []
+
+    return sortedGenerated(document.generated.filter(isRecord)
+      .filter(doc => typeof doc.path === 'string' && doc.path !== ''
+        && Object.values(MaterialGeneratedKind).includes(doc.kind as MaterialGeneratedKind))
+      .map(doc => ({
+        path: doc.path as string,
+        title: typeof doc.title === 'string' && doc.title !== '' ? doc.title : doc.path as string,
+        kind: doc.kind as MaterialGeneratedKind,
+      })))
   }
 
   /** Whether `name` occurs in `text` as a whole name — `logo.svg` in "use logo.svg.", not in "biglogo.svg". */
@@ -150,7 +193,7 @@ export const createMaterialIndexHelper = (): MaterialIndexHelper => {
       || (dot > 0 && MATERIAL_TEXT_EXTENSIONS.includes(name.slice(dot + 1)))
   }
 
-  return { entryOf, render, parse, relevant, textual }
+  return { entryOf, render, parse, parseGenerated, relevant, textual }
 }
 
 export const materialIndexHelper = createMaterialIndexHelper()

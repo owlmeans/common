@@ -22,6 +22,37 @@ export const createMaterialsPresentHelper = (): MaterialsPresentHelper => {
     }
   }
 
+  const references = (value: unknown): Record<string, unknown> | undefined => {
+    if (value == null || typeof value !== 'object') return undefined
+    const ledger = read.record(value)
+
+    return {
+      links: read.records(ledger.links).map(link => read.compact({
+        url: read.text(link.url),
+        status: read.text(link.status, 'unknown'),
+        reason: read.maybeText(link.reason),
+        folder: read.maybeText(link.folder),
+        files: read.maybeCount(link.files),
+        docs: Array.isArray(link.docs) ? link.docs.filter((doc): doc is string => typeof doc === 'string') : undefined,
+      })),
+      research: read.records(ledger.research).map(one => read.compact({
+        query: read.text(one.query),
+        status: read.text(one.status, 'unknown'),
+        reason: read.maybeText(one.reason),
+        doc: read.maybeText(one.doc),
+        sources: read.maybeCount(one.sources),
+        gap: read.maybeText(one.gap),
+      })),
+      packages: read.records(ledger.packages).map(one => read.compact({
+        name: read.text(one.name),
+        status: read.text(one.status, 'unknown'),
+        verdict: read.maybeText(one.verdict),
+        lookalikeOf: read.maybeText(one.lookalikeOf),
+        reason: read.maybeText(one.reason),
+      })),
+    }
+  }
+
   const catalogue = read.total((structured, args) => read.compact({
     projectId: read.project(structured, args),
     state: read.textOrNull(structured.state),
@@ -40,6 +71,12 @@ export const createMaterialsPresentHelper = (): MaterialsPresentHelper => {
       placedAt: read.maybeText(entry.placedAt),
       from: read.maybeText(entry.from),
     })),
+    references: references(structured.references),
+    generated: Array.isArray(structured.generated)
+      ? read.records(structured.generated).map(doc => ({
+        path: read.text(doc.path), title: read.text(doc.title), kind: read.text(doc.kind, 'unknown'),
+      }))
+      : undefined,
   }))
 
   const text = read.total((structured, args) => ({

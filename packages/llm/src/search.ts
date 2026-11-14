@@ -129,7 +129,7 @@ export const makeWebSearch = (binding: WebSearchBinding): WebSearch => {
       if (attempt > 0) {
         await sleep(searchUtils.backoff(attempt, retryAfter), options.signal)
       }
-      const deadline = AbortSignal.timeout(options.timeout ?? WEB_SEARCH_TIMEOUT_MS)
+      const deadline = AbortSignal.timeout(options.timeout ?? config.webSearch?.timeout ?? WEB_SEARCH_TIMEOUT_MS)
       const signal = options.signal != null ? AbortSignal.any([options.signal, deadline]) : deadline
       const output = await plugin.search!({ alias, config, secret, input, options, fetch, signal, attempt })
       const normalized = normalize(output, options)

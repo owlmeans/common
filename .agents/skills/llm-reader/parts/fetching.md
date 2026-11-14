@@ -1,9 +1,9 @@
 ---
 name: fetching
-description: Fetching pages through the reader's fetcher — the integrated proxy plugin (list, key→proxy callback, strategies, cooldown, failover), the local SOCKS bridge, the Bun and Node transports, NO_PROXY fail-closed, the address guard, and local bundles served under a synthetic origin.
+description: Fetching pages through the reader's fetcher — streamed bodies, an injected pinned fetch (file-streams) as the transport, the integrated proxy plugin (list, key→proxy callback, strategies, cooldown, failover), the local SOCKS bridge, the Bun and Node transports, NO_PROXY fail-closed, the address guard, and local bundles served under a synthetic origin (and from a collected bundle's manifest).
 metadata:
   purposes: server-api, config
-  mentions: createPageFetcher, createProxyPlugin, createLocalBundlePlugin, LocalBundle, LocalBundlePlugin, DEFAULT_BUNDLE_ORIGIN, ProxyResolver, ProxyLease, ProxyStrategy, createSocksBridge, createFetchTransport, createAddressGuard, BRIDGE_ERROR_HEADER, BRIDGE_REFUSED_HEADER, NO_PROXY, ReaderProxyError, ReaderRefusedError
+  mentions: FetchFunction, FetchInit, FetchTransportOptions, createPageFetcher, createProxyPlugin, createLocalBundlePlugin, LocalBundle, LocalBundlePlugin, DEFAULT_BUNDLE_ORIGIN, ProxyResolver, ProxyLease, ProxyStrategy, createSocksBridge, createFetchTransport, createAddressGuard, BRIDGE_ERROR_HEADER, BRIDGE_REFUSED_HEADER, NO_PROXY, ReaderProxyError, ReaderRefusedError
 ---
 
 # @owlmeans/llm-reader — Fetching and proxies
@@ -18,6 +18,29 @@ decodes it by the declared charset, a `<meta charset>`/BOM sniff, or UTF-8 — l
 (windows-1251, shift_jis, gbk) decode on both runtimes. A page purpose refuses binary content
 (`ReaderContentError`); any status comes back unless `acceptStatus` says otherwise — a 404 page is
 still a page. The default user agent names the package honestly.
+
+`FetchRequest.stream: true` hands the body back unread as `FetchedResource.body` (a web
+`ReadableStream`) — no `text`/`bytes`, no content-type refusal; a declared length over `maxBytes`
+is refused at once, a longer stream errors with `ReaderContentError('too-large:…')`. The caller
+reads or cancels it; the proxy plugin cancels a streamed answer it retries past.
+
+## An injected fetch — pinning
+
+`createPageFetcher({ fetch })` (also `LlmReaderOptions.fetch`) sends every request through a
+WHATWG-`fetch`-compatible `FetchFunction` instead of the runtime transport —
+`createPinnedFetch()` from `@owlmeans/file-streams/fetch`. llm-reader never depends on file-streams;
+the consumer hands it in.
+
+- The guard stays the pre-check on every hop; the **pinning comes from the fetch** — it connects to
+  the address its own policy checked, so a name cannot be rebound between the guard's lookup and the
+  connect (the one hole a direct Bun request has).
+- It is called with `{ method: 'GET', headers, signal, redirect: 'manual' }` and must answer a 3xx
+  itself (the fetcher follows and guards each hop) and any status as a `Response`.
+- A rejection whose error has `refused === true` (file-streams' `NetworkPolicyError`) becomes
+  `ReaderRefusedError('pinned:<message>')`; any other rejection a network failure.
+- Proxies belong on the fetch: a request carrying a proxy lease is refused with
+  `ReaderConfigError('injected-fetch-proxy')`. The reader hands the same fetch to the renderer
+  (`RenderRequest.fetch`), so a rendered page's sub-requests are pinned too.
 
 ## The proxy plugin
 
@@ -77,6 +100,12 @@ still guarded.
   `application/octet-stream`), text decoded by `<meta charset>`/BOM sniff or UTF-8, the same byte
   caps and the same refusals (a picture as a page, a page as a picture); a missing file is a 404
   page, a directory answers with its `index.html`.
+- **A collected bundle.** A root holding `bundle.json` (written by `collect`) is read once when the
+  plugin is built (`LocalBundle.manifest`): the manifest's absolute URLs, and any path under the
+  collected page's own origin that exists in the root, are answered from disk too (`serves` is true
+  for them), so the original page, its stylesheets and its external fonts read offline. A path in
+  the manifest that could leave the root is never served.
+- **Streams.** A `stream: true` request is answered with `body` (a missing file: an empty 404).
 - **Rendered pages.** For a bundle URL `reader.page(url, { render: true })` and `design` skip the
   lease and the guard check of the page itself and hand the renderer `RenderRequest.bundle`;
   `@owlmeans/llm-reader-playwright` routes the origin to the bundle (`page.route`) while every

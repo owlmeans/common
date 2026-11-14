@@ -29,4 +29,16 @@ export const TABLE_RULE = '| --- | --- | --- | --- | --- | --- | --- |'
 export const MENTION_BEFORE = '(^|[^A-Za-z0-9_.-])'
 export const MENTION_AFTER = '(?![A-Za-z0-9_-]|\\.[A-Za-z0-9])'
 
+/** Every generated-document key, in the order the frontmatter writes them. */
+export const GENERATED_KEY_ORDER = ['path', 'title', 'kind'] as const
+
+export const GENERATED_TITLE = '## Generated documents'
+
+export const GENERATED_INTRO = 'Documents the platform wrote from the links, the online research and the requested '
+  + 'packages. The `generated` list above is their machine copy.'
+
+export const GENERATED_HEAD = '| Document | Kind | Title |'
+
+export const GENERATED_RULE = '| --- | --- | --- |'
+
 export const SIZE_UNITS = ['B', 'KiB', 'MiB', 'GiB'] as const

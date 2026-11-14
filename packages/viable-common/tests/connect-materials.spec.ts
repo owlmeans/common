@@ -35,6 +35,23 @@ describe('@owlmeans/viable-common — a new project\'s files through the connect
     expect(connectRef.project.createWithMaterials.alias).toBe(connect.project.createWithMaterials)
   })
 
+  test('a create and a confirm whose references the platform reads: routes of their own, the released bodies, no paid gate', () => {
+    const create = tree.project.createWithReferences.route.route
+    const confirm = tree.project.confirmWithReferences.route.route
+
+    expect([create.method, create.path, aliasOf(create.parent)]).toEqual([RouteMethod.POST, '/project/with-references', connect.base])
+    expect([confirm.method, confirm.path, aliasOf(confirm.parent)])
+      .toEqual([RouteMethod.POST, '/project/:id/confirm-with-references', connect.base])
+    expect([tree.project.createWithReferences.gate, tree.project.confirmWithReferences.gate]).toEqual([undefined, undefined])
+    // The released routes keep their paths, and the new ones carry exactly the released bodies.
+    expect([tree.project.create.route.route.path, tree.project.confirm.route.route.path]).toEqual(['/project', '/project/:id/confirm'])
+    const bodyOf = (protocol: unknown) => (protocol as { contract: { requestSchemas?: { body?: unknown } } }).contract.requestSchemas?.body
+    expect(bodyOf(tree.project.createWithReferences)).toEqual(bodyOf(tree.project.create))
+    expect(bodyOf(tree.project.confirmWithReferences)).toEqual(bodyOf(tree.project.confirm))
+    expect([connectRef.project.createWithReferences.alias, connectRef.project.confirmWithReferences.alias])
+      .toEqual([connect.project.createWithReferences, connect.project.confirmWithReferences])
+  })
+
   test('the upload tree under the owned base — the session is the project, no open or abort, the file a stream at the transport ceiling', () => {
     expect([materials.base.route.route.path, aliasOf(materials.base.route.route.parent)]).toEqual(['/project/materials', connect.base])
     expect(['open' in materials, 'abort' in materials]).toEqual([false, false])
@@ -128,7 +145,7 @@ describe('@owlmeans/viable-common — a new project\'s files through the connect
     expect(ConnectMaterialUnknown.httpStatus).toBe(404)
     expect(back).toBeInstanceOf(ConnectMaterialUnknown)
     expect(CONNECT_MATERIAL_TEXT_MAX).toBe(100_000)
-    expect(Object.values(ConnectMaterialTextSource).sort()).toEqual(['text', 'transcript'])
+    expect(Object.values(ConnectMaterialTextSource).sort()).toEqual(['generated', 'text', 'transcript'])
   })
 
   test('a file\'s own text is read by kind, type or extension — a document\'s is its transcript', () => {
