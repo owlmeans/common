@@ -23,7 +23,7 @@ never a full download.
 ## Installation
 
 ```bash
-bun add @owlmeans/file-inspector@^0.2.0
+bun add @owlmeans/file-inspector@^0.2.1-alpha.0
 ```
 
 No peer dependencies. `file-type`, `@file-type/cfbf`, `@file-type/xml` and `strtok3` come with the

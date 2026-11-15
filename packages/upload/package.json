@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/upload",
-  "version": "0.2.0",
+  "version": "0.2.1-alpha.0",
   "description": "Browser-safe upload contract: upload policies and limits counted on the expanded set, sessions and uploaded files with a closed rejection vocabulary, AJV schemas, errors, path normalization and prechecks, and a mountable protocol tree (open, streamed file, state, remove, seal, abort).",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
@@ -42,7 +42,7 @@
     "ajv": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.0",
+    "@owlmeans/dep-config": "^0.2.1-alpha.0",
     "@types/bun": "^1.4.4",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",

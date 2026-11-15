@@ -47,7 +47,7 @@
     "@owlmeans/route": "^0.2.1-alpha.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.0",
+    "@owlmeans/dep-config": "^0.2.1-alpha.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/llm",
-  "version": "0.2.0-alpha.1",
-  "generatedAt": "2026-11-12T14:18:05.445Z",
+  "version": "0.2.1-alpha.0",
+  "generatedAt": "2026-11-15T18:54:03.773Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -205,7 +205,7 @@
         {
           "name": "web-search",
           "file": "skills/llm/parts/web-search.md",
-          "description": "Provider-hosted web search through LlmService.webSearch — the Anthropic, OpenAI Responses, OpenRouter and Chat-search dialects, the options each honours, why no transport or proxy ever sees it, the forced search and the enforced domain bound.",
+          "description": "Web search through LlmService.webSearch — the Anthropic, OpenAI Responses, OpenRouter and Chat-search dialects, the delegated performer's own search, the options each honours, the attempt deadline, why no transport or proxy ever sees it, the forced search and the enforced domain bound.",
           "purposes": [
             "agent",
             "server-api"
@@ -219,12 +219,17 @@
             "WebSearchDialect",
             "WebSearchConfig",
             "LlmSearchError",
+            "LlmSearchTimeoutError",
             "LlmSearchUnsupportedError",
             "LlmSearchDialect",
+            "LlmSearchParams",
             "ModelConfig.webSearch",
+            "webSearch.timeout",
+            "WEB_SEARCH_TIMEOUT_CODE",
             "web_search_20250305",
             "openrouter:web_search",
-            "gpt-5-search-api"
+            "gpt-5-search-api",
+            "delegatedSearchHelper"
           ]
         }
       ]

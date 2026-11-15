@@ -32,7 +32,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/consent": "^0.2.0"
+    "@owlmeans/consent": "^0.2.1-alpha.0"
   },
   "peerDependencies": {
     "clsx": "*",

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-upload",
-  "version": "0.2.0",
+  "version": "0.2.1-alpha.0",
   "description": "Upload client for browsers and Bun: open, upload (precheck against the session policy, concurrency, retries, abort, per-file and overall progress), state, remove, seal and abort over the upload protocol tree; inputs from picked or dropped files and folders, and from local paths (./node).",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",

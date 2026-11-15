@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/llm-reader",
-  "version": "0.2.0",
+  "version": "0.2.1-alpha.0",
   "description": "Read the web for an LLM: fetch, parse, describe and extract from pages, write their DESIGN.md, clone links into files and crawl sites.",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",

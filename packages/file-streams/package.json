@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/file-streams",
-  "version": "0.2.0",
+  "version": "0.2.1-alpha.0",
   "description": "Server-side file streaming: URL downloads with connect-time SSRF pinning, HTTP/SOCKS proxy plugins and a Google Drive resolver; S3, filesystem, buffer and Viable-workload destinations; zip/tar/gzip with traversal and bomb guards; file-type verification without full downloads.",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",

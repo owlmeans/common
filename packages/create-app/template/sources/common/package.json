@@ -27,7 +27,7 @@
     "ajv": "^8.20.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.0",
+    "@owlmeans/dep-config": "^0.2.1-alpha.0",
     "@types/node": "^26.6.5",
     "typescript": "^7.0.2"
   }

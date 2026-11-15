@@ -86,8 +86,8 @@
     "fs-extra": "^11.4.1",
     "globby": "^16.2.4",
     "zod": "^4.6.7",
-    "@owlmeans/client-upload": "^0.2.0",
-    "@owlmeans/upload": "^0.2.0"
+    "@owlmeans/client-upload": "^0.2.1-alpha.0",
+    "@owlmeans/upload": "^0.2.1-alpha.0"
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2"

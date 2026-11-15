@@ -25,7 +25,7 @@ server-side.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-upload@^0.2.0 @owlmeans/upload@^0.2.0 @owlmeans/file-streams@^0.2.0
+bun add @owlmeans/server-upload@^0.2.1-alpha.0 @owlmeans/upload@^0.2.1-alpha.0 @owlmeans/file-streams@^0.2.1-alpha.0
 ```
 
 `@owlmeans/upload` declares the tree (shared with the client), `@owlmeans/file-streams` gives the

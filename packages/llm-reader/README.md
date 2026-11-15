@@ -32,7 +32,7 @@ way. Server-side only (Node or Bun).
 ## Installation
 
 ```bash
-bun add @owlmeans/llm-reader@^0.2.0
+bun add @owlmeans/llm-reader@^0.2.1-alpha.0
 bun add @langchain/core @langchain/langgraph @langchain/langgraph-checkpoint @langchain/openai @langchain/anthropic
 ```
 

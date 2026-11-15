@@ -21,7 +21,7 @@ content, file and folder pickers, and a compact list with progress and localized
 ## Installation
 
 ```bash
-bun add @owlmeans/web-upload@^0.2.0 @owlmeans/upload@^0.2.0 @owlmeans/client-upload@^0.2.0
+bun add @owlmeans/web-upload@^0.2.1-alpha.0 @owlmeans/upload@^0.2.1-alpha.0 @owlmeans/client-upload@^0.2.1-alpha.0
 bun add react react-dom lucide-react class-variance-authority clsx tailwind-merge tailwindcss
 ```
 

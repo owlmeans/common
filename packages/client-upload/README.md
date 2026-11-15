@@ -21,7 +21,7 @@ browser-safe; `@owlmeans/client-upload/node` turns files and folders on the loca
 ## Installation
 
 ```bash
-bun add @owlmeans/client-upload@^0.2.0 @owlmeans/upload@^0.2.0 @owlmeans/client-entrypoint@^0.2.0
+bun add @owlmeans/client-upload@^0.2.1-alpha.0 @owlmeans/upload@^0.2.1-alpha.0 @owlmeans/client-entrypoint@^0.2.1-alpha.0
 ```
 
 `@owlmeans/upload` declares the tree; `@owlmeans/client-entrypoint` binds it in the client context

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/viable-sdk",
-  "version": "0.2.0-alpha.2",
-  "generatedAt": "2026-11-13T14:48:14.281Z",
+  "version": "0.2.1-alpha.0",
+  "generatedAt": "2026-11-15T18:54:03.754Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

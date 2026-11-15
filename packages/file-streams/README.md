@@ -28,7 +28,7 @@ before the first byte lands.
 ## Installation
 
 ```bash
-bun add @owlmeans/file-streams@^0.2.0
+bun add @owlmeans/file-streams@^0.2.1-alpha.0
 ```
 
 No peer dependencies. `@aws-sdk/client-s3`, `socks`, `tar-stream`, `yauzl` and `yazl` are regular

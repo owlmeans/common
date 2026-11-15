@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/error
 
 **Layer:** Core
-**Install:** `"@owlmeans/error": "^0.2.0"` in `dependencies`
+**Install:** `"@owlmeans/error": "^0.2.1-alpha.0"` in `dependencies`
 
 ## Key Exports
 

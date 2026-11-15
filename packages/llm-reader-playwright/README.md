@@ -9,7 +9,7 @@ browser. Local bundles (an uploaded prototype, a collected page) render from dis
 ## Installation
 
 ```bash
-bun add @owlmeans/llm-reader-playwright@^0.2.0 playwright
+bun add @owlmeans/llm-reader-playwright@^0.2.1-alpha.0 playwright
 bunx playwright install chromium
 ```
 

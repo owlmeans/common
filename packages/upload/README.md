@@ -25,7 +25,7 @@ the server is `@owlmeans/server-upload`, the client `@owlmeans/client-upload`, t
 ## Installation
 
 ```bash
-bun add @owlmeans/upload@^0.2.0 ajv
+bun add @owlmeans/upload@^0.2.1-alpha.0 ajv
 ```
 
 `ajv` is a peer dependency (the schemas are typed with its `JSONSchemaType`). Add
