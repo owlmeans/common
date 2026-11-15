@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/package-inspector",
+  "version": "0.2.0",
+  "generatedAt": "2026-11-15T13:38:38.690Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "package-inspector",
+      "category": "package-specific",
+      "file": "skills/package-inspector/SKILL.md",
+      "canonicalPath": ".agents/skills/package-inspector/SKILL.md"
+    }
+  ]
+}

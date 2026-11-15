@@ -3,7 +3,7 @@ name: testing
 description: The package's specs — real local fixture sites, a real llm-reader, recorded registry facts for the inspector, a fixture search port, the scripted model double behind real llm models, the directory store; what each spec covers; the gated live spec.
 metadata:
   purposes: test
-  mentions: WEB_RESEARCH_LIVE, ANTHROPIC_SECRET, OPENAI_SECRET, scriptedResearch, fixtureSearch, packageInspector, startArticles, startProductSite, startDocsSite, startDesignSite, startCdn, live.spec.ts
+  mentions: WEB_RESEARCH_LIVE, entry.spec.ts, screen.spec.ts, ANTHROPIC_SECRET, OPENAI_SECRET, scriptedResearch, fixtureSearch, packageInspector, startArticles, startProductSite, startDocsSite, startDesignSite, startCdn, live.spec.ts
 ---
 
 # @owlmeans/web-research — Tests
@@ -23,6 +23,8 @@ behind a gate). Build first; specs import the built sibling packages.
   `packageInspector(docsUrl)` is a real `createPackageInspector` over recorded registry facts
   (`tinydate` genuine with the docs site as homepage, `tinydaet` its lookalike).
 - Specs: `screen` (every signal kind, `kind: html`, strong signals, the judge's verbatim-quote rule),
+  `entry` (a manifest's entry points, the readme's root imports, the validator's root-import and
+  package-as-parameter rules),
   `implementation` (end to end, resume after a failed synthesis repeating nothing, a crash with no
   run store caught by the durable records, no search), `project` (robots, a dropped page, a judge
   that drops, a judge that clears), `design` (URL → reference with marks apart, a caller's bundle in
@@ -33,3 +35,5 @@ behind a gate). Build first; specs import the built sibling packages.
   `OPENAI_SECRET` — `gpt-5.4-mini` — from the repo-root `.env`): `research:implementation` ("lead
   scoring best practices for B2B CRM", 2 searches, 3 pages, the shipped judge) and `research:project`
   on https://twenty.com (5 pages), printing the outputs; it self-skips without the gate.
+- A new step or pipeline gets an end-to-end spec over a real local site plus a resume spec that
+  asserts `turns()` did not grow; a new gap code gets the case that records it.

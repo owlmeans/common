@@ -53,8 +53,12 @@ bun run test
 
 ### Trade-offs
 
-- **Pre-1.0.** Packages are published as `rc` releases with independent, deliberately uneven
-  versions. APIs still move between releases.
+- **Pre-1.0.** Stable releases publish under npm's `latest` dist-tag, prereleases under `next`. A
+  line move such as `0.2.0` puts every package on one version; between line moves only the packages
+  that changed are released, so versions are deliberately uneven. APIs can still change between minor
+  releases. Provider plugins (chat platforms, reCAPTCHA, Stripe, Mailgun, the Google tag, Google
+  Drive, the npm registry) are not in this repo: they are `@owlmeans/*` packages published from
+  [OwlMeans connect](https://github.com/owlmeans/connect).
 - **Its own vocabulary.** Contexts, alias registries, protocols, guards and gates are in-house
   abstractions. They take time to learn and do not transfer from other frameworks.
 - **Agent-first documentation.** The most complete and current guidance is in the skills, which
@@ -89,7 +93,7 @@ bun run test
 | **State store** | The browser's in-memory resource with live subscriptions, registered with `appendStateResource`. React reads it through `useStoreList` and `useStoreModel`. | [`state`](packages/state), [`client`](packages/client) |
 | **Flow** | A serializable step/transition state machine whose whole state is one string, so a multi-step process survives redirects and reloads. | [`flow`](packages/flow), [`client-flow`](packages/client-flow) |
 | **Resilient error** | A registered error class that marshals across a service boundary and is restored as the same class on the other side, with i18n-aware messages. | [`error`](packages/error) |
-| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.2.0-alpha.1` installs it. | [`agent-skills`](packages/agent-skills) |
+| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.2.0` installs it. | [`agent-skills`](packages/agent-skills) |
 
 ## How an application is shaped
 
@@ -290,6 +294,7 @@ application packages above, or add one when they need that specific feature.
 | Server | [`bot-agent`](packages/bot-agent) | Lets an `@owlmeans/agent` agent act on a chat-bot message: the message and the instructions its handler passes as context, the bot's supported actions as never-throwing tools |
 |  | [`llm-reader`](packages/llm-reader) | Reads the web for an LLM: fetches pages directly or through HTTP/SOCKS proxies (a list or a key→proxy callback), describes, classifies and extracts from them in text or DOM mode, lists their pictures with context, and writes their design as a DESIGN.md — a local HTML bundle too, under a virtual origin |
 |  | [`llm-reader-playwright`](packages/llm-reader-playwright) | The optional browser renderer for `llm-reader`: script-rendered pages, computed styles and screenshots, through the reader's proxy and address guard |
+|  | [`web-research`](packages/web-research) | Resumable online-research pipelines over `llm-reader`, provider web search and `package-inspector`: implementation research, an existing product's summary, a design reference, usage notes and skills for verified packages; sources screened for hidden instructions and removed afterwards |
 |  | [`captcha`](packages/captcha) | Provider-neutral server captcha: the provider host, the guest sign-in policy (`MOD_CAPTCHA`) and a strict challenge-less check; providers live in OwlMeans connect |
 |  | [`server-auth-email`](packages/server-auth-email) | The server half of e-mail sign-in: PIN and password through private auth plugins, remembered devices, captcha, throttles and developer routes |
 |  | [`server-auth-otp`](packages/server-auth-otp) | The email-OTP auth plugin and OtpService for passwordless sign-in |
@@ -354,13 +359,22 @@ application packages above, or add one when they need that specific feature.
 The current web family is shadcn UI and Tailwind CSS v4 (`web-panel`). `mui-panel` and
 `mui-oidc-rp` are supported only for existing MUI applications.
 
+### Provider plugins
+
+Packages that integrate one external provider are not in this repo. They are published from
+[OwlMeans connect](https://github.com/owlmeans/connect) and plug into a provider-agnostic contract
+package here, explicitly (an `append*` call or the host's options, never a side-effect import): the
+bot platforms into `server-bot`, reCAPTCHA into `captcha` and `web-captcha`, Stripe into
+`server-payment`, Mailgun into `mailer`, the Google tag into `consent`, Google Drive into
+`llm-reader` and the npm registry into `package-inspector`. Common never depends on connect.
+
 ## Agent guidance
 
 Published packages include generated, version-matched guidance in `agent-meta/`. Install it after
 installing OwlMeans packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0-alpha.1
+npx @owlmeans/agent-skills@^0.2.0
 ```
 
 The installer copies applicable skills to `.agents/skills/`; `AGENTS.md` documents the generated
@@ -370,5 +384,6 @@ Claude Code links. In this monorepo, edit only canonical files under `.agents/sk
 ## Contributing
 
 Read [AGENTS.md](AGENTS.md), the relevant package skill, and [tree.md](tree.md) before changing a
-package. Package versions are independent; do not synchronize them. Publish only with explicit
-operator approval.
+package. Package versions are independent; never synchronize them by hand — versions change only
+through the release tooling (the `versions` and `publishing` skills).
+Publish only with explicit operator approval.

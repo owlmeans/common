@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/file-streams",
-  "version": "0.2.0-alpha.0",
-  "generatedAt": "2026-11-11T15:44:02.969Z",
+  "version": "0.2.0",
+  "generatedAt": "2026-11-15T13:38:38.704Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -13,20 +13,71 @@
       "canonicalPath": ".agents/skills/file-streams/SKILL.md",
       "parts": [
         {
+          "name": "archives",
+          "file": "skills/file-streams/parts/archives.md",
+          "description": "Reading and writing zip, tar, tar.gz and gz with archiveHelper — format detection from bytes, listing, safe extraction into a tree (traversal, link, duplicate, bomb and overlap guards, per-entry verification, skip or fail), nested archives, packing and gzip/gunzip sources, and the archive limits.",
+          "purposes": [
+            "data"
+          ],
+          "mentions": [
+            "archiveHelper",
+            "createArchiveHelper",
+            "ArchiveFormat",
+            "ArchiveExtractOptions",
+            "ArchiveLimits",
+            "DEFAULT_ARCHIVE_LIMITS",
+            "ExtractResult",
+            "PackEntry",
+            "onEntryError",
+            "maxDepth",
+            "ArchiveError"
+          ]
+        },
+        {
+          "name": "extending",
+          "file": "skills/file-streams/parts/extending.md",
+          "description": "Writing your own FileSource, FileSink, TreeSink, proxy plugin or URL resolver and the contract each must keep; the invariants of the package (pinned connects, the aws-free ./fetch graph, counted limits, drained tar entries, confined paths, redacted logs); and the package's specs, stand-ins and gates.",
+          "purposes": [
+            "data",
+            "test"
+          ],
+          "mentions": [
+            "FileSource",
+            "FileSink",
+            "TreeSink",
+            "RangeReader",
+            "SinkInput",
+            "SinkResult",
+            "ProxyPlugin",
+            "ProxyConnection",
+            "TunnelTarget",
+            "UrlResolver",
+            "ResolverStep",
+            "FILE_STREAMS_LIVE",
+            "S3_TEST_BUCKET"
+          ]
+        },
+        {
           "name": "network",
           "file": "skills/file-streams/parts/network.md",
-          "description": "What the HTTP client may reach — the connect-time network policy, redirects and sensitive headers, the HTTP and SOCKS proxy plugins and their pinning, why the client is node:http over its own socket under Bun, and the Google Drive and Docs resolver.",
+          "description": "What the HTTP client may reach — the connect-time network policy, redirects (followed or returned) and sensitive headers, the pinned WHATWG fetch on the ./fetch subpath, the proxy router and the HTTP and SOCKS proxy plugins and their pinning, why the client is node:http over its own socket under Bun, and the Google Drive and Docs resolver.",
           "purposes": [
             "config",
             "ops"
           ],
           "mentions": [
+            "createPinnedFetch",
+            "PinnedFetch",
+            "PinnedFetchOptions",
+            "HttpRedirectMode",
+            "anyStatus",
             "createNetworkPolicy",
             "allowCidrs",
             "allowPrivate",
             "createProxyRouter",
             "createHttpProxyPlugin",
             "createSocksProxyPlugin",
+            "parseProxyEndpoint",
             "trustProxyDns",
             "createGoogleDriveResolver",
             "googleDriveResolver",
@@ -35,9 +86,29 @@
           ]
         },
         {
+          "name": "workload",
+          "file": "skills/file-streams/parts/workload.md",
+          "description": "Writing files into a Viable ephemeral workload (makeWorkloadSink over writeBinaryFile) and reading them back (makeWorkloadSource over readBinaryFile) — the 12 MiB per-file ceiling, atomic writes, retries, random access over one read, and archives fanned out into a workload.",
+          "purposes": [
+            "agent",
+            "data"
+          ],
+          "mentions": [
+            "makeWorkloadSink",
+            "makeWorkloadSource",
+            "WorkloadWriter",
+            "WorkloadReader",
+            "WorkloadSource",
+            "writeBinaryFile",
+            "readBinaryFile",
+            "WORKLOAD_MAX_FILE_BYTES",
+            "WorkloadError"
+          ]
+        },
+        {
           "name": "workspaces",
           "file": "skills/file-streams/parts/workspaces.md",
-          "description": "Scoped temporary workspaces nested by organization/project/purpose, workspaces mirrored to a bucket (put, restore, evict, drop), bucket prefix listing and removal, reading files back from a Viable workload, and the service's workspace config.",
+          "description": "Scoped temporary workspaces nested by organization/project/purpose, workspaces mirrored to a bucket (put, restore, evict, drop), bucket prefix listing and removal, and the service's workspace config.",
           "purposes": [
             "data",
             "config",
@@ -46,16 +117,14 @@
           "mentions": [
             "createWorkspace",
             "createBackedWorkspace",
-            "makeWorkloadSource",
-            "WorkloadReader",
-            "readBinaryFile",
             "removePrefix",
             "fileScopeHelper",
             "FileScope",
             "WorkspaceScope",
             "BackedScope",
             "BackedWorkspace",
-            "WORKSPACE_SCOPE_MARKER"
+            "WORKSPACE_SCOPE_MARKER",
+            "S3ListedObject"
           ]
         }
       ]

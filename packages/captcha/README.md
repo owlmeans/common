@@ -9,7 +9,7 @@ connect) registers one explicitly. The browser half is `@owlmeans/web-captcha`.
 ## Installation
 
 ```bash
-bun add @owlmeans/captcha@^0.2.0-alpha.0
+bun add @owlmeans/captcha@^0.2.0
 ```
 
 ## Concepts
@@ -91,6 +91,14 @@ All refusals are `AuthenFailed` (401), in this order:
 no site key, an empty hostname list or a `minScore` outside 0…1) and whatever the provider throws
 when it cannot be asked (`captcha`).
 
+## Related packages
+
+- [`@owlmeans/web-captcha`](../web-captcha) — the browser half: the client contract and the page's client registry
+- [`@owlmeans/server-auth`](../server-auth) — the `captcha` guest sign-in, judged by the `MOD_CAPTCHA` policy
+- [`@owlmeans/server-auth-email`](../server-auth-email) — e-mail sign-in, which runs a strict check before send-PIN and password sign-in
+- [`@owlmeans/config`](../config) — `plugin(cfg, record, MOD_CAPTCHA)` declares the host record
+- [`@owlmeans/captcha-recaptcha`](https://github.com/owlmeans/connect/tree/main/packages/captcha-recaptcha) (OwlMeans connect) — a provider, registered with `appendRecaptcha(ctx)`
+
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
 
@@ -99,7 +107,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0-alpha.0
+npx @owlmeans/agent-skills@^0.2.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

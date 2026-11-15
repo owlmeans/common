@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 3,
+  "package": "@owlmeans/web-research",
+  "version": "0.2.0",
+  "generatedAt": "2026-11-15T13:38:38.729Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-research",
+      "category": "package-specific",
+      "file": "skills/web-research/SKILL.md",
+      "canonicalPath": ".agents/skills/web-research/SKILL.md",
+      "parts": [
+        {
+          "name": "pipelines",
+          "file": "skills/web-research/parts/pipelines.md",
+          "description": "The five research pipelines — inputs, steps, what each step records, outputs and gaps; resume and crash behaviour; the composed packages run inside research:skill; the design reference format.",
+          "purposes": [
+            "agent",
+            "job",
+            "data"
+          ],
+          "mentions": [
+            "makeResearchPipelines",
+            "ResearchPipelines",
+            "ResearchWiring",
+            "research:implementation",
+            "research:project",
+            "research:design",
+            "research:packages",
+            "research:skill",
+            "ImplementationInput",
+            "ImplementationOutput",
+            "ProjectInput",
+            "ProjectOutput",
+            "DesignInput",
+            "DesignOutput",
+            "PackagesInput",
+            "PackagesOutput",
+            "SkillInput",
+            "SkillOutput",
+            "ResearchGapCode",
+            "RESEARCH_LIMITS",
+            "asStep",
+            "makeDesignAnalyzer"
+          ]
+        },
+        {
+          "name": "screening",
+          "file": "skills/web-research/parts/screening.md",
+          "description": "The deterministic hidden-instruction signal pass, what kind html changes, strong vs weak signals, the judge port and the shipped judge, and what a dropped, flagged or cleared source looks like.",
+          "purposes": [
+            "agent",
+            "data"
+          ],
+          "mentions": [
+            "injectionSignalsHelper",
+            "createInjectionSignalsHelper",
+            "InjectionSignalKind",
+            "InjectionSignal",
+            "InjectionSignalOptions",
+            "STRONG_SIGNAL_KINDS",
+            "HTML_INERT_BLOCKS",
+            "ResearchScreen",
+            "makeResearchJudge",
+            "ScreenVerdict",
+            "ScreenTextKind",
+            "JUDGE_INSTRUCTION",
+            "source-screened",
+            "source-flagged"
+          ]
+        },
+        {
+          "name": "testing",
+          "file": "skills/web-research/parts/testing.md",
+          "description": "The package's specs — real local fixture sites, a real llm-reader, recorded registry facts for the inspector, a fixture search port, the scripted model double behind real llm models, the directory store; what each spec covers; the gated live spec.",
+          "purposes": [
+            "test"
+          ],
+          "mentions": [
+            "WEB_RESEARCH_LIVE",
+            "entry.spec.ts",
+            "screen.spec.ts",
+            "ANTHROPIC_SECRET",
+            "OPENAI_SECRET",
+            "scriptedResearch",
+            "fixtureSearch",
+            "packageInspector",
+            "startArticles",
+            "startProductSite",
+            "startDocsSite",
+            "startDesignSite",
+            "startCdn",
+            "live.spec.ts"
+          ]
+        }
+      ]
+    }
+  ]
+}

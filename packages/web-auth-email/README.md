@@ -22,7 +22,7 @@ and the password panel for a settings screen — in eight languages. The contrac
 ## Installation
 
 ```bash
-bun add @owlmeans/web-auth-email@^0.2.0-alpha.0
+bun add @owlmeans/web-auth-email@^0.2.0
 ```
 
 The package ships its own private shadcn primitives (`alert`, `button`, `card`, `input`, `label`)
@@ -94,6 +94,37 @@ import { i18nHelper, LIB_NAMESPACE } from '@owlmeans/i18n'
 i18nHelper.addI18nApp('en', 'auth-email', { login: { title: 'Sign in to Acme' } }, { ns: LIB_NAMESPACE })
 ```
 
+## API
+
+| Export | Description |
+|---|---|
+| `appendEmailLogin(ctx, { protocols, screen?, method?, offer? })` | The whole wiring: the client service, the `email` plugin, the offer step (unless `offer: false`); returns the context |
+| `registerEmailLoginScreen(ctx, Component)` | Replace the card the e-mail route renders; call it after `appendEmailLogin` |
+| `emailAuthEntrypoints(protocols)` | The `offer` screen bound with `bindScreen`; the API routes are the app's own `bindAll` |
+| `makeEmailLoginClient(protocols, { alias?, screen? }?)`, `appendEmailLoginClient(ctx, protocols, opts?)` | The `EmailLoginClientService` (`EMAIL_LOGIN_SERVICE` of `@owlmeans/auth-email`), and its registration unless one is already registered |
+| `makeEmailLoginPlugin(method?)` | The `email` authentication plugin for the client-auth registry |
+| `emailOfferStep(client, entrypointAlias, storage?)` | The post-sign-in "set a password" login step |
+| `useEmailLogin({ locale?, email? }?)` | The card's headless model |
+| `usePassword(aliases?, { locale? }?)` | The password panel's I/O half: status, confirmation PIN, set, change, remove, the new-device PIN switch |
+| `useEmailAuthTranslate()` | This package's translator (`lib : auth-email`) in the `translate` prop's shape |
+| `EmailLoginScreen`, `LocalizedEmailLoginScreen`, `EmailLoginRoute` | The card (pure; bound to the app's i18n), and what the e-mail route renders |
+| `PasswordOfferScreen` | The post-sign-in offer screen |
+| `PasswordPanel`, `ConnectedPasswordPanel` | The presentational password panel, and the panel wired to `usePassword` |
+| `PasswordInput`, `PinInput`, `SubmitButton`, `RefusalAlert`, `CaptchaNotice`, `EmailLoginCredit` | The card's building blocks, for a replacement card |
+| `createEmailLoginStateHelper()`, `emailLoginStateHelper` | The card's pure state: `initial`, `reduce`, the validators and the block checks |
+| `createEmailRefusalHelper()`, `emailRefusalHelper` | An error or HTTP status as an `EmailRefusal`, and its message in the reader's language |
+| `createEmailStorageHelper(options?)`, `emailStorageHelper` | The device id and the offer ticket in browser storage |
+| `createPasswordPanelHelper()`, `passwordPanelHelper` | The panel's pure state, its actions and their block checks |
+| `cn` | The class-name merger the components use |
+| `EMAIL_AUTH_I18N`, `AUTH_I18N` | `'auth-email'`, `'auth'` — the i18n resources |
+| `EMAIL_DEVICE_STORAGE`, `EMAIL_OFFER_STORAGE`, `EMAIL_DEVICE_ID_BYTES` | The storage keys and the device id size (16) |
+| `EMAIL_OFFER_LOGIN_STEP`, `EMAIL_OFFER_STEP_PRIORITY` | The offer step's alias and priority (`-10`, below marketing consent) |
+| `EMAIL_LOGIN_METHOD_META`, `OWLMEANS_URL` | The chooser button's defaults; the credit link |
+| `EmailLoginAppendOptions`, `EmailLoginScreenSetup`, `EmailLoginScreenProps`, `EmailLoginScreenComponent`, `EmailLoginClientService`, `EmailLoginClientContext`, `MakeEmailLoginClientOptions`, `EmailPasswordAliases`, `Translate` | Wiring types |
+| `UseEmailLoginOptions`, `EmailLoginOtherOptions`, `EmailLoginModel`, `UsePasswordOptions`, `UsePassword` | Hook types |
+| `EmailLoginState`, `EmailLoginStep`, `EmailLoginBusy`, `EmailLoginNotice`, `EmailLoginAction`, `EmailLoginStateHelper`, `EmailRefusal`, `EmailRefusalKind`, `EmailRefusalContext`, `EmailRefusalHelper`, `EmailStorageArea`, `EmailStorageHelperOptions`, `StoredEmailOffer`, `EmailStorageHelper`, `PasswordPanelState`, `PasswordPanelForm`, `PasswordPolicy`, `EmailPasswordAction`, `EmailPanelPurpose`, `PasswordPanelHelper` | Helper types |
+| `PasswordInputProps`, `PinInputProps`, `SubmitButtonProps`, `RefusalAlertProps`, `CaptchaNoticeProps`, `EmailLoginCreditProps`, `PasswordPanelProps`, `ConnectedPasswordPanelProps` | Component props |
+
 ## Behaviour worth knowing
 
 - The device id is 16 random bytes in `localStorage` (`owlmeans:auth-email:device`); the offer ticket
@@ -109,6 +140,15 @@ i18nHelper.addI18nApp('en', 'auth-email', { login: { title: 'Sign in to Acme' } 
   password outside the policy, 409 an expired offer, 404 passwords off, 503 an outage.
 - No control is ever natively `disabled`: a blocked action carries `aria-disabled` and says why.
 
+## Related packages
+
+- [`@owlmeans/auth-email`](../auth-email) — the contracts: `makeEmailAuthProtocols`, the views, constants and errors
+- [`@owlmeans/server-auth-email`](../server-auth-email) — the server half that answers these routes
+- [`@owlmeans/client-auth`](../client-auth) — the plugin registry, the login steps and the post-login landing
+- [`@owlmeans/web-captcha`](../web-captcha) — `captchaClients`, where the provider's browser client is registered
+- [`@owlmeans/web-captcha-recaptcha`](https://github.com/owlmeans/connect/tree/main/packages/web-captcha-recaptcha) (OwlMeans connect) — a captcha client to register with `appendRecaptchaClient()`
+- [`@owlmeans/web-marketing-consent`](../web-marketing-consent) — the login step that runs before the password offer
+
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
 
@@ -117,7 +157,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0-alpha.0
+npx @owlmeans/agent-skills@^0.2.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

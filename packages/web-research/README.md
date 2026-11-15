@@ -12,8 +12,11 @@ and storage are ports the consumer wires.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-research@^0.2.0-alpha.0
+bun add @owlmeans/web-research@^0.2.0
+bun add @langchain/core @langchain/langgraph @langchain/langgraph-checkpoint @langchain/openai @langchain/anthropic
 ```
+
+The LangChain packages are peers (the pipelines run on `@owlmeans/agent`).
 
 ## Concepts
 
@@ -66,26 +69,95 @@ await pipelines.packages.invoke({ input: { packages: [{ name: 'dayjs' }, { name:
 await pipelines.skill.invoke({ input: { name: 'dayjs', skillName: 'pkg-dayjs', outputs: { doc: 'skills/pkg-dayjs/SKILL.md' } } }, args)
 ```
 
+`registry` is an `@owlmeans/package-inspector` `PackageRegistry` — for npm, `createNpmRegistry()` from
+`@owlmeans/package-registry-npm`.
+
 ```ts
 // The pure pieces
 import { injectionSignalsHelper, skillValidator, ScreenTextKind } from '@owlmeans/web-research'
 
 injectionSignalsHelper.signals(html, { kind: ScreenTextKind.Html })   // [{ kind: 'override', excerpt }]
-skillValidator.validate(text, 'pkg-dayjs')                              // { ok, errors: [...] }
+skillValidator.validate(text, 'pkg-dayjs')                              // { ok, errors: [...], chars }
 ```
+
+To resume, build the pipelines again over the same `runs` and `store` and call
+`pipelines.<name>.resume(runId, { deps: {} })`, or `invoke` the same `runId`.
+
+## Configuration
+
+`makeResearchPipelines(wiring)` — `ResearchWiring`:
+
+| Field | Purpose |
+|---|---|
+| `models` (required) | `makeResearchModels(exec, { executions, roles?, efforts?, outputs?, spectator? })` or `createResearchModels({ model, helper? })`. |
+| `store` (required) | A `ResearchStore`; `createDirectoryResearchStore({ sourcesRoot, outputsRoot })` on two local directories. |
+| `reader` (required) | An `LlmReader`; its guard, proxies and injected `fetch` govern every request. |
+| `search` | A `ResearchSearch` (`llm.webSearch(alias)`); without it implementation research writes no report. |
+| `inspector` | A `PackageInspector`; required by `research:packages` and by `research:skill` without notes. |
+| `screen` | A `ResearchScreen` judge (`makeResearchJudge(models)`); without it the signal rule decides. |
+| `renderer` | A `PageRenderer` (`@owlmeans/llm-reader-playwright`) a design bundle is rendered with; borrowed, never closed. |
+| `spectator` | Handed to every web search. |
+| `strongSignals` | The signal kinds that drop a source without a judge; `STRONG_SIGNAL_KINDS` by default. |
+| `limits` | Any subset of `RESEARCH_LIMITS` (below). |
+| `runs`, `checkpointer`, `fatal`, `maxStateChars`, `trace`, `onProgress` | The `@owlmeans/agent` runner's options; without `runs` a run is not resumable. |
+
+`ResearchDeps` (per run): `key` — the reader's proxy key.
+
+`RESEARCH_LIMITS`: `maxQueries` 3, `maxResults` 5, `collectSpare` 2, `maxProjectPages` 8,
+`maxProjectDepth` 2, `maxPackages` 5, `maxDocsPages` 6, `docsDepth` 1, `sourceChars` 40 000,
+`promptTokens` 30 000, `minSourceTokens` 200, `contextChars` 6 000, `instructionChars` 2 000,
+`readmeChars` 30 000, `notesChars` 60 000, `skillChars` 12 000, `judgeChars` 24 000,
+`collectTimeoutMs` 60 000, `implementationCollect` (`IMPLEMENTATION_COLLECT_LIMITS`: the page only),
+`designCollect` (`DESIGN_COLLECT_LIMITS`: the page with its styles, fonts and pictures), `crawlDelayMs`
+(unset: the reader's), `maxGaps` 40. Input values (`maxQueries`, `maxResults`, `maxPages`, `depth`) are
+clamped to them.
+
+## Security and limits
+
+- **Sources are data, never instructions.** Every cloned source runs the signal pass before any
+  model reads it; a dropped source's files are removed at once, and synthesis prompts say pages are
+  data.
+- **The judge needs proof** — `makeResearchJudge` counts an injection only with a sentence the source
+  really holds.
+- **Every request goes through the reader** — its address guard, robots-honouring crawl and limits;
+  the pipelines open no connection of their own.
+- **Budgets are code** — sources capped at `sourceChars`, fitted into `promptTokens`; context,
+  instruction, readme, notes and judge inputs capped.
+- **Stores are confined** — absolute paths, `..`, backslashes and NUL are refused
+  (`ResearchStoreError`); files are written beside their target and renamed into place.
+- **Generated skills carry only `name` and `description`** — never `allowed-tools`.
+- **Logs** carry ids, counts and a URL's origin and path — never page text, prompts or answers.
 
 ## API
 
-`makeResearchPipelines`; `createResearchModels`, `makeResearchModels`; `createDirectoryResearchStore`;
-`injectionSignalsHelper`, `createInjectionSignalsHelper`; `makeResearchJudge`; `skillValidator`,
-`createSkillValidator`; `makeDesignAnalyzer`; specs `implementationSpec`, `projectSpec`, `designSpec`,
-`packagesSpec`, `skillSpec`; enums `ResearchRole`, `ResearchPipeline`, `ImplementationStep`,
-`ProjectStep`, `DesignStep`, `PackagesStep`, `SkillStep`, `ResearchGapCode`, `ScreenVerdict`,
-`SourceStatus`, `ScreenTextKind`, `InjectionSignalKind`; constants `RESEARCH_LIMITS`,
-`IMPLEMENTATION_COLLECT_LIMITS`, `DESIGN_COLLECT_LIMITS`, `PROJECT_CRAWL_INTENT`, `DOCS_CRAWL_INTENT`,
-`SKILL_NAME_PATTERN`, `SKILL_DESCRIPTION_CHARS`, `SKILL_SECTIONS`, `STRONG_SIGNAL_KINDS`, the signal
-patterns, the instructions and personas; errors `WebResearchError`, `ResearchConfigError`,
-`ResearchStoreError`, `ResearchModelError`, `ResearchSkillError`; every input, output, state and port type.
+| Export | Purpose |
+|---|---|
+| `makeResearchPipelines(wiring)` | `{ implementation, project, design, packages, skill }`, each a `PipelineModel<State, ResearchDeps>`. |
+| `makeResearchModels(exec, options)` · `createResearchModels({ model, helper? })` | The `ResearchModels` port: `text`, `json` (ajv-validated), `reader()`. |
+| `createDirectoryResearchStore({ sourcesRoot, outputsRoot })` | A `ResearchStore` on two local directories. |
+| `injectionSignalsHelper` · `createInjectionSignalsHelper()` | The signal pass: `signals(text, { kind?, hidden? })`, `readable(text, kind?)`, `strong(signals, kinds?)`. |
+| `makeResearchJudge(models, { maxChars? })` | The shipped `ResearchScreen`: one Judge-role call per flagged source. |
+| `skillValidator` · `createSkillValidator({ maxChars?, sections? })` | `validate(text, skillName, expect?)`, `normalize(text, skillName)`, `parts(text)`. |
+| `makeDesignAnalyzer({ models?, renderer?, maxStylesheets? })` | The design stage alone: `analyze({ root, entry? })` → `DesignAnalysis`, offline. |
+| `implementationSpec`, `projectSpec`, `designSpec`, `packagesSpec`, `skillSpec` | The pipeline specs (version 1). |
+| `ResearchRole`, `ResearchPipeline`, `ImplementationStep`, `ProjectStep`, `DesignStep`, `PackagesStep`, `SkillStep`, `ResearchGapCode`, `ScreenVerdict`, `SourceStatus`, `ScreenTextKind`, `InjectionSignalKind` | Enums. |
+| `RESEARCH_LIMITS`, `IMPLEMENTATION_COLLECT_LIMITS`, `DESIGN_COLLECT_LIMITS`, `RESEARCH_RUNS_DIR`, `PROJECT_CRAWL_INTENT`, `DOCS_CRAWL_INTENT`, `SKILL_NAME_PATTERN`, `SKILL_DESCRIPTION_CHARS`, `SKILL_SECTIONS`, `DEFAULT_DESIGN_ENTRY` | Limits and fixed values. |
+| `STRONG_SIGNAL_KINDS`, `INVISIBLE_CHARS`, `TAG_CHARS`, `TAG_CHAR`, `BIDI_CHARS`, `INVISIBLE_NOISE`, `HIDDEN_COMMENTS`, `HIDDEN_ELEMENT`, `HIDDEN_PROSE_WORDS`, `ADDRESSED_TO_AI`, `OVERRIDES`, `HTML_INERT_BLOCKS`, `SIGNAL_EXCERPT_CHARS`, `SIGNALS_SHOWN` | The signal pass's patterns and thresholds. |
+| `RESEARCH_PERSONAS`, `RESEARCH_OUTPUT_TOKENS`, `JUDGE_INSTRUCTION`, `InjectionAnswerSchema`, `PLAN_INSTRUCTION`, `SYNTHESIZE_INSTRUCTION`, `SUMMARIZE_INSTRUCTION`, `NOTES_INSTRUCTION`, `SKILL_INSTRUCTION`, `REPAIR_INSTRUCTION` | Role personas and output budgets, and the constant instruction of each model step. |
+| `WebResearchError`, `ResearchConfigError`, `ResearchStoreError`, `ResearchModelError`, `ResearchSkillError` | The `ResilientError` family (`web-research:<kind>:…`; `ResearchSkillError.errors` lists the validator's faults). |
+
+Types: `ResearchWiring`, `ResearchPipelines`, `ResearchSearch`, `ResearchDeps`, `ResearchLimits`,
+`ResearchGap`, `ResearchSourceRef`, `ResearchModels`, `ResearchModelsOptions`, `MakeResearchModelsOptions`,
+`ResearchInput`, `ResearchCallOptions`, `ResearchStore`, `ResearchSources`, `ResearchOutputs`,
+`DirectoryResearchStoreOptions`, `InjectionSignal`, `InjectionSignalOptions`, `InjectionSignalsHelper`,
+`ResearchScreen`, `ScreenContext`, `ScreenJudgement`, `InjectionAnswer`, `ResearchJudgeOptions`,
+`SkillSection`, `SkillParts`, `SkillValidation`, `SkillExpectation`, `SkillValidatorOptions`,
+`SkillValidator`, `DesignAnalyzer`, `DesignAnalyzerOptions`, `DesignAnalysis`, `DesignTarget`,
+`DesignOutlineBlock`, `DesignHeading`, `DesignMarks`, and each pipeline's input, output, state and
+record types (`ImplementationInput`/`Output`/`State`, `ProjectInput`/…, `DesignInput`/…,
+`PackagesInput`/…, `PackageRequest`, `PackageVerdictSummary`, `PackageNotesRef`, `SkillInput`/…).
+
+The package has one entry point; there are no subpath exports.
 
 ## Common pitfalls
 
@@ -96,9 +168,31 @@ patterns, the instructions and personas; errors `WebResearchError`, `ResearchCon
 - Without `inspector`, packages research writes nothing; only genuine packages get notes or skills.
 - Pass the same `runs` and `store` to resume; new models are fine.
 - A caller's `bundleRoot` is read in place and never removed.
+- A skill that fails validation again after one repair round fails the run (`ResearchSkillError`)
+  and writes nothing.
 
 ## Related packages
 
-`@owlmeans/llm-reader` (collect, crawl, design analyst), `@owlmeans/llm` (web search, executions),
-`@owlmeans/agent` (pipelines), `@owlmeans/package-inspector` (verdicts); npm facts come from connect's
-`@owlmeans/package-registry-npm`.
+- [`@owlmeans/llm-reader`](../llm-reader) — collect, crawl and the design analyst every pipeline reads through
+- [`@owlmeans/llm-reader-playwright`](../llm-reader-playwright) — the renderer a design bundle can be rendered with
+- [`@owlmeans/package-inspector`](../package-inspector) — package verdicts and the `PackageRegistry` port
+- [`@owlmeans/package-registry-npm`](https://github.com/owlmeans/connect/tree/main/packages/package-registry-npm) (OwlMeans connect) — the npm registry adapter the inspector reads
+- [`@owlmeans/llm`](../llm) — web search, executions, token budgets · [`@owlmeans/agent`](../agent) — pipelines, resume, `asStep`
+
+The `web-research` skill covers the same package for agents.
+
+<!-- owlmeans:agent-guidance:start -->
+## Agent guidance
+
+This package ships embedded agent skills under `agent-meta/`. After installing your
+`@owlmeans/*` packages, run the OwlMeans agent-skills installer to place them into
+your project's skill store (`.agents/skills/`):
+
+```sh
+npx @owlmeans/agent-skills@^0.2.0
+```
+
+The embedded files are version-matched to this package release. Do not edit them
+directly — they are regenerated on each publish. To contribute guidance edits,
+open a PR against the source monorepo.
+<!-- owlmeans:agent-guidance:end -->

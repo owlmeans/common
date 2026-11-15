@@ -7,12 +7,13 @@ user-invocable: false
 # @owlmeans/llm-reader-playwright
 
 **Layer:** Server (drives a browser)
-**Install:** `"@owlmeans/llm-reader-playwright": "^0.2.0-alpha.0"` in `dependencies`, plus the
+**Install:** `"@owlmeans/llm-reader-playwright": "^0.2.0"` in `dependencies`, plus the
 `playwright` **peer** — the consumer's installed browsers are used (`bunx playwright install chromium`)
 
 ```ts
 import { createLlmReader, createLocalBundlePlugin, createProxyPlugin } from '@owlmeans/llm-reader'
 import { createPlaywrightRenderer } from '@owlmeans/llm-reader-playwright'
+import { createPinnedFetch } from '@owlmeans/file-streams/fetch'
 
 const renderer = createPlaywrightRenderer()
 const reader = createLlmReader({ renderer, plugins: [createProxyPlugin({ proxies })], models })
@@ -23,36 +24,39 @@ const bundle = createLocalBundlePlugin({ root: '/uploads/prototype' })
 const local = createLlmReader({ renderer, plugins: [bundle], models })
 await local.design(bundle.urlOf('home.html'))      // the prototype rendered from disk: styles + screenshot
 
-const pinned = createLlmReader({ renderer, fetch: createPinnedFetch(), models })   // @owlmeans/file-streams/fetch
+const pinned = createLlmReader({ renderer, fetch: createPinnedFetch(), models })
 await pinned.collect('https://spa.example.com', { sink })   // an app shell saved as its rendered snapshot
+await reader.close()                               // closes the browser the renderer launched
 ```
 
 ## Key exports
 
 | Export | Description |
 |---|---|
-| `createPlaywrightRenderer({ browser?, launch?, viewport, timeout, waitUntil, settle, userAgent, bundles?, fetch?, maxFulfilBytes? })` | A `PageRenderer`: `render({ url, lease?, guard?, styles?, screenshot?, signal?, timeout?, bundle?, fetch?, snapshot? })` → `RenderedPage` (HTML after scripts, final URL, status, `styles`, `variables`, `blocks`, JPEG `screenshot`, `blocked`); `close()` shuts down a browser it launched. |
-| `makePlaywrightFetchPlugin(renderer, { when? })` | A reader fetch plugin that renders page requests (all, or those `when` picks). Place it after the proxy plugin so it renders through the chosen lease. |
-| `PlaywrightRendererOptions`, `ProbeResult`, `DEFAULT_VIEWPORT`, `DEFAULT_RENDER_TIMEOUT_MS`, `DEFAULT_SETTLE_MS`, `DEFAULT_MAX_FULFIL_BYTES` | Options and defaults (1280×800, 30 s navigation, 3 s to go network-idle, 16 MiB per fulfilled answer). |
+| `createPlaywrightRenderer({ browser?, launch?, viewport?, timeout?, waitUntil?, settle?, userAgent?, bundles?, fetch?, maxFulfilBytes? })` → `PlaywrightRenderer` | A `PageRenderer`: `render({ url, lease?, guard?, styles?, screenshot?, signal?, timeout?, bundle?, fetch?, snapshot? })` → `RenderedPage` (HTML after scripts, final URL, status, `styles`, `variables`, `blocks`, `viewport`, JPEG `screenshot`, `blocked`); `close()` shuts down a browser it launched (one passed in `browser` is left open). |
+| `makePlaywrightFetchPlugin(renderer, { when? })` | A reader fetch plugin that renders page requests (all `purpose: 'page'` requests, or those `when` picks) and answers them as `text/html` with `rendered` set. Place it after the proxy plugin so it renders through the chosen lease. |
+| `PlaywrightRendererOptions`, `PlaywrightFetchPluginOptions`, `ProbeResult` | Option and probe types. |
+| `DEFAULT_VIEWPORT`, `DEFAULT_RENDER_TIMEOUT_MS`, `DEFAULT_SETTLE_MS`, `DEFAULT_MAX_FULFIL_BYTES`, `SCREENSHOT_QUALITY`, `PROBE_ELEMENTS` | 1280×800, 30 s navigation, 3 s to go network-idle, 16 MiB per fulfilled answer, JPEG quality 70, 4000 sampled elements. |
 
 ## Rules
 
-- **One browser context per page**, closed after: viewport set, downloads off, service workers blocked.
+- **One browser context per page**, closed after: viewport set, downloads off, service workers
+  blocked. Chromium is launched headless on first use unless `browser` gives one.
 - **Proxy**: the context's proxy is the lease's `endpoint()` — the upstream HTTP(S) proxy, or the
   reader's SOCKS bridge, which answers a 407 challenge so Chromium sends the route credentials
   (Chromium has no SOCKS authentication of its own). Chromium sends loopback targets direct unless
   launched with `--proxy-bypass-list=<-loopback>`.
 - **Guard**: every request of the page goes through the reader's address guard (a direct render
   resolves names, a proxied one checks literal addresses); refused ones are aborted and listed in
-  `RenderedPage.blocked`.
+  `RenderedPage.blocked`. `data:` and `blob:` URLs pass.
 - **Pinned sub-requests**: with an injected `fetch` (the render request's, set by a reader that has
   one, or the options'), a request that passed the guard is fetched through it with
   `redirect: 'manual'` and fulfilled with its status, headers (minus encoding/length) and body read
   whole under `maxFulfilBytes` — a redirect goes back to Chromium, whose next request is guarded
   again. Only GET/HEAD; another method, or a refusal of the fetch (`refused === true`), is aborted
   and listed in `blocked`; a network failure is aborted unlisted. Without a fetch, a guarded request
-  is `route.continue()`d as before — Chromium resolves the host again. A lease and a fetch do not
-  mix: through a proxy the lease carries the requests.
+  is `route.continue()`d — Chromium resolves the host again. A lease and a fetch do not mix: through
+  a proxy the lease carries the requests.
 - **Snapshots**: `snapshot: true` (what `collect` asks for) writes rules a script put only into the
   CSSOM — `insertRule` on a `<style>`, adopted stylesheets — into `<style>` elements before the DOM
   is serialized, so the HTML keeps its look without its scripts.
@@ -60,12 +64,37 @@ await pinned.collect('https://spa.example.com', { sink })   // an app shell save
   reader sets for a bundle URL) `serves` — its synthetic origin, and for a collected bundle the
   manifest's original URLs and the page origin's paths present on disk — is fulfilled from the
   bundle (`page.route`): never resolved, never proxied; a missing file is a 404, a refused path is
-  aborted and listed in `blocked`. A collected bundle therefore renders offline. Everything else the page loads still goes through the guard, so a prototype that pulls
-  a picture from a private address is refused as any page would be. Chromium's own local-network
-  rules may still stop an `https` bundle page from reaching a loopback host the guard allowed.
+  aborted and listed in `blocked`. A collected bundle therefore renders offline. Everything else the
+  page loads still goes through the guard, so a prototype that pulls a picture from a private
+  address is refused as any page would be. Chromium's own local-network rules may still stop an
+  `https` bundle page from reaching a loopback host the guard allowed.
 - **Probe**: computed styles of visible elements, by role (body, heading-1…6, link, button, input,
   card, nav, header, footer, text), each property's dominant value weighted by on-screen area;
-  `:root` custom properties from readable stylesheets; blocks at least 80 px tall.
+  `:root` custom properties from readable stylesheets; blocks at least 80 px tall and 30 % of the
+  viewport wide.
+
+## Pitfalls
+
+- `makePlaywrightFetchPlugin` hands the renderer no per-request `bundle` or `fetch`: give the
+  renderer `bundles` and `fetch` in its own options when the plugin renders such pages.
+- Install Chromium where the reader runs (`bunx playwright install chromium`); `playwright` is a
+  peer, not bundled.
+- `close()` on the reader closes the renderer too — the browser it launched (the next render
+  launches another); a browser passed in `browser` is never closed here.
+
+## Maintaining
+
+- The renderer fills `@owlmeans/llm-reader`'s `PageRenderer` seam; every `RenderRequest` field it
+  ignores is a hole: a new field there needs handling here and a spec.
+- `probePage` and `inlineCssom` run INSIDE the page (serialized by Playwright): they may use nothing
+  from module scope.
+- Specs (`bun test ./tests`, each self-skips without an installed Chromium): `render.spec` (an app
+  shell rendered with styles, variables and a screenshot; an HTTP proxy and SOCKS5 with credentials;
+  a private sub-request refused and reported; the fetch plugin; a linted DESIGN.md from computed
+  styles, gated on `ANTHROPIC_SECRET` or `OPENAI_SECRET`), `bundle.spec` (a prototype from disk, a
+  bundle URL through the reader with no proxy or DNS, a bundle page's external request still
+  guarded), `collect.spec` (a collected bundle rendering offline, an app shell collected as its
+  snapshot, guarded sub-requests fulfilled through file-streams' real pinned fetch).
 
 ## Depends On
 
@@ -79,5 +108,6 @@ await pinned.collect('https://spa.example.com', { sink })   // an app shell save
 
 ## Related
 
-- [[llm-reader]] — the reader, its proxies, its design analysis and `collect`
-- [[file-streams]] — the pinned `fetch` the reader hands the renderer
+- [[llm-reader]] (`@owlmeans/llm-reader`) — the reader, its proxies, its design analysis and `collect`
+- [[file-streams]] (`@owlmeans/file-streams`) — the pinned `fetch` the reader hands the renderer
+- [[web-research]] (`@owlmeans/web-research`) — its design pipeline borrows a renderer to read a bundle offline

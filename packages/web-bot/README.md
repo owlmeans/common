@@ -20,7 +20,7 @@ contracts they are written against live in `@owlmeans/bot`.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-bot@^0.2.0-alpha.0
+bun add @owlmeans/web-bot@^0.2.0
 ```
 
 The package ships its own private shadcn primitives and imports them with relative specifiers.
@@ -79,6 +79,30 @@ i18nHelper.addI18nApp('en', 'bot', { connections: { title: 'Your bots' } }, { ns
 A platform's own texts (credential labels and hints, its setup hint, its link) are not here: they
 travel in its descriptor, per language, and fall back to English.
 
+## API
+
+| Export | Description |
+|---|---|
+| `BotConnectionsPanel` | `{ surface, platforms?, className? }` — connect, verify, switch off and remove bot accounts |
+| `BotActivityPanel` | `{ surface, connection?, refLabel?, className? }` — what the bot did, newest first, refreshed while visible |
+| `useBotConnections(surface)` | `{ items, loading, error, reload, save, verify, remove }`; operations answer a `BotOutcome`, never throw |
+| `useBotActivity(surface, { connection?, limit?, refreshMs? }?)` | `{ items, loading, error, reload }`, newest first |
+| `useBotPlatforms(surface)` | `{ items, loading, error, reload, descriptorOf }` — the server's registered descriptors from `platform.list` |
+| `createBotErrorHelper()`, `botErrorHelper` | `keyOf(error, platforms?)`, `detailOf(error)`, `inlinesDetail(key)` — the copy key and detail of a bot failure |
+| `createBotViewHelper()`, `botViewHelper` | `platformsOf`, `typedCredentialsOf`, `textOf`, `linkOf`, `formatMoment`, `excerpt`, `setupLineOf` — descriptor and row helpers for a host that draws its own view |
+| `cn` | The class-name merger the components use |
+| `BOT_I18N` | `'bot'` — the i18n resource (`lib : bot.*`) |
+| `BOT_ACTIVITY_REFRESH_MS`, `BOT_ACTIVITY_LIMITS`, `BOT_EXCERPT_MAX` | `5_000`, the offered page sizes `[20, 50, 100, 200]`, `160` |
+| `BotSurface`, `BotOutcome`, `UseBotConnections`, `UseBotPlatforms`, `UseBotActivity`, `BotActivityOptions`, `BotConnectionsPanelProps`, `BotActivityPanelProps`, `BotRefLabel`, `BotErrorKey`, `BotErrorHelper`, `BotViewHelper`, `BotSetupLine` | Types |
+
+## Related packages
+
+- [`@owlmeans/bot`](../bot) — the contract: the managing protocol trees, platform descriptors, connections and errors
+- [`@owlmeans/server-bot`](../server-bot) — the server runtime; `serveBotEntrypoints` serves the surface, `platform.list` included
+- [`@owlmeans/bot-agent`](../bot-agent) — lets an agent act on a bot message; its actions show in the activity panel
+- [`@owlmeans/client-entrypoint`](../client-entrypoint) — `bindAll`, which binds the surface in the client context
+- The platform plugins `@owlmeans/bot-telegram`, `bot-whatsapp`, `bot-discord` and `bot-slack` live in [OwlMeans connect](https://github.com/owlmeans/connect); their descriptors are what the panels draw
+
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
 
@@ -87,7 +111,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0-alpha.0
+npx @owlmeans/agent-skills@^0.2.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

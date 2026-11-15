@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-research
 
 **Layer:** Server (Node / Bun — it clones through `@owlmeans/llm-reader`)
-**Install:** `"@owlmeans/web-research": "^0.2.0-alpha.0"` in `dependencies`, plus the `@langchain/core`,
+**Install:** `"@owlmeans/web-research": "^0.2.0"` in `dependencies`, plus the `@langchain/core`,
 `@langchain/langgraph`, `@langchain/langgraph-checkpoint`, `@langchain/openai` and `@langchain/anthropic` **peers**
 
 Online research as five `@owlmeans/agent` pipelines. Nothing in it names an application: the
@@ -42,14 +42,15 @@ await pipelines.implementation.resume(runId, { deps: {} })   // a failed or cras
 | `ResearchWiring` | `models`, `store`, `reader` (required); `search?`, `inspector?`, `screen?` (judge), `renderer?`, `spectator?` (handed to every search), `strongSignals?`, `limits?`; runner: `runs?`, `checkpointer?`, `fatal?`, `maxStateChars?`, `trace?`, `onProgress?`. |
 | `ResearchDeps` | Per run: `key?` — the reader's proxy key. |
 | `ResearchModels` · `createResearchModels({ model, helper? })` · `makeResearchModels(exec, { executions, roles?, efforts?, outputs?, spectator? })` | Role calls: `text(role, { instruction, content }, { action })`, `json(role, input, schema, { action })` (ajv-validated, `ResearchModelError` on mismatch), `reader()` (llm-reader `ReaderModels` = the Analyst's). `make…` mirrors llm-reader's `makeReaderModels`: one helper per role, `research:<role>` dedication, the persona as `prompt.role`. |
-| `ResearchRole` | `Analyst`, `Writer`, `Summarizer`, `Judge` — default model aliases `analyst`, `writer`, `summarizer`, `judge` (`roles` maps them). |
+| `ResearchRole` · `RESEARCH_PERSONAS` · `RESEARCH_OUTPUT_TOKENS` | `Analyst`, `Writer`, `Summarizer`, `Judge` — default model aliases `analyst`, `writer`, `summarizer`, `judge` (`roles` maps them); each role's persona (`prompt.role`) and initial output budget (8192 for Analyst and Writer). |
 | `ResearchSearch` | `Pick<WebSearch, 'search'>` from `@owlmeans/llm` — `llm.webSearch(alias)` is one. |
-| `ResearchStore` · `createDirectoryResearchStore({ sourcesRoot, outputsRoot })` | `sources`: `sink()`, `put`, `read`, `list`, `remove`, `localRoot()`, `drop()`; `outputs`: `writeDoc`, `readDoc`. Paths relative POSIX, confined (`ResearchStoreError`). |
+| `ResearchStore` · `createDirectoryResearchStore({ sourcesRoot, outputsRoot })` · `RESEARCH_RUNS_DIR` | `sources`: `sink()`, `put`, `read`, `list`, `remove`, `localRoot()`, `drop()`; `outputs`: `writeDoc`, `readDoc`. Paths relative POSIX, confined (`ResearchStoreError`); every run's files live under `runs/`. |
 | `injectionSignalsHelper` · `createInjectionSignalsHelper()` | `signals(text, { kind?, hidden? })`, `readable(text, kind?)`, `strong(signals, kinds?)`; constants `INVISIBLE_CHARS`, `TAG_CHARS`, `BIDI_CHARS`, `HIDDEN_COMMENTS`, `HIDDEN_ELEMENT`, `ADDRESSED_TO_AI`, `OVERRIDES`, `HTML_INERT_BLOCKS`, `STRONG_SIGNAL_KINDS`, … |
-| `ResearchScreen` · `makeResearchJudge(models, { maxChars? })` | The judge port `judge(text, signals, { url, title?, purpose })` → `{ injected, reason?, quote? }` and the shipped one (Judge role, verbatim-quote check). |
+| `ResearchScreen` · `makeResearchJudge(models, { maxChars? })` · `JUDGE_INSTRUCTION` · `InjectionAnswerSchema` | The judge port `judge(text, signals, { url, title?, purpose })` → `{ injected, reason?, quote? }` and the shipped one (Judge role, verbatim-quote check). |
 | `skillValidator` · `createSkillValidator({ maxChars?, sections? })` | `validate(text, skillName, expect?)` (every fault at once; `expect: SkillExpectation { package, rootImport? }` adds the root import in `## Imports` and no package-as-parameter example), `normalize(text, skillName)`, `parts(text)`; `SKILL_SECTIONS`. |
-| `makeDesignAnalyzer({ models?, renderer?, maxStylesheets? })` | The design analysis stage alone: `analyze({ root, entry? })` → `DesignAnalysis` (DESIGN.md, tokens, outline, marks, fonts) — offline. |
+| `makeDesignAnalyzer({ models?, renderer?, maxStylesheets? })` · `DEFAULT_DESIGN_ENTRY` | The design analysis stage alone: `analyze({ root, entry? })` → `DesignAnalysis` (DESIGN.md, tokens, outline, marks, fonts) — offline; the entry defaults to the manifest's, else `index.html`. |
 | `ResearchPipeline`, `ImplementationStep`, `ProjectStep`, `DesignStep`, `PackagesStep`, `SkillStep` · `implementationSpec`, `projectSpec`, `designSpec`, `packagesSpec`, `skillSpec` | Aliases (`research:*`), step ids, specs (all `version: 1`). |
+| `PLAN_INSTRUCTION`, `SYNTHESIZE_INSTRUCTION`, `SUMMARIZE_INSTRUCTION`, `NOTES_INSTRUCTION`, `SKILL_INSTRUCTION`, `REPAIR_INSTRUCTION` | The constant lead message of each model step. |
 | `ResearchGapCode`, `ScreenVerdict`, `SourceStatus`, `ScreenTextKind`, `InjectionSignalKind` | Vocabularies. |
 | `RESEARCH_LIMITS`, `IMPLEMENTATION_COLLECT_LIMITS`, `DESIGN_COLLECT_LIMITS`, `PROJECT_CRAWL_INTENT`, `DOCS_CRAWL_INTENT`, `SKILL_NAME_PATTERN`, `SKILL_DESCRIPTION_CHARS` | Limits and fixed strings; every limit is overridable through `wiring.limits`. |
 | `WebResearchError` › `ResearchConfigError`, `ResearchStoreError`, `ResearchModelError`, `ResearchSkillError` (`errors[]`) | `ResilientError` family. |
@@ -95,6 +96,15 @@ await pipelines.implementation.resume(runId, { deps: {} })   // a failed or cras
   instruction, readme, notes and judge inputs capped.
 - Log lines carry ids, counts and a URL's origin and path only — never page text, prompts or answers.
 
+## Pitfalls
+
+- Read `result.state.output` — the run's own files are gone after `cleanup`.
+- Pass the same `runs` and `store` to resume; without `runs` a run is not resumable (each step still
+  skips on its durable record when re-invoked).
+- `research:design` without `url` or `bundleRoot` fails (`ResearchConfigError('design:no-url-or-bundle')`);
+  a caller's `bundleRoot` is read in place, never removed.
+- The reader decides egress: give it a pinned `fetch` and its proxies; the pipelines add none.
+
 ## Depends On
 
 - `@owlmeans/agent` (`makePipeline`, `asStep`) · `@owlmeans/agent-common` · `@owlmeans/llm` (models, `WebSearch` types, `./tokens`) · `@owlmeans/llm-common`
@@ -102,8 +112,10 @@ await pipelines.implementation.resume(runId, { deps: {} })   // a failed or cras
 
 ## Related
 
-- [[llm-reader]] — the reader every clone and crawl goes through · [[llm]] — `webSearch`, executions, token budgets
-- [[agent]] — pipelines, resume, `asStep` · [[package-inspector]] — verdicts and the `PackageRegistry` port
+- [[llm-reader]] (`@owlmeans/llm-reader`) — the reader every clone and crawl goes through · [[llm]] — `webSearch`, executions, token budgets
+- [[agent]] — pipelines, resume, `asStep` · [[package-inspector]] (`@owlmeans/package-inspector`) — verdicts and the `PackageRegistry` port
+- [[package-registry-npm]] (`@owlmeans/package-registry-npm`, OwlMeans connect) — the npm registry the inspector reads
+- [[llm-reader-playwright]] (`@owlmeans/llm-reader-playwright`) — the renderer `wiring.renderer` can be
 
 ## Parts
 

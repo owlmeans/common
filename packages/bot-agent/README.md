@@ -14,7 +14,7 @@ call as activity.
 ## Installation
 
 ```bash
-bun add @owlmeans/bot-agent@^0.2.0-alpha.0
+bun add @owlmeans/bot-agent@^0.2.0
 ```
 
 `@owlmeans/agent` and `@langchain/core` are peers.
@@ -46,7 +46,7 @@ export const moderate = botHandler('moderate', async (update, bot, ctx) => {
 |---|---|
 | `botAgentPlugin({ update, bot, allow?, ref?, instruction? })` | The `AgentPlugin`: the update and the instructions (`string \| string[]`) as context, the actions as tools; alias `BOT_AGENT_PLUGIN` |
 | `botAgentTools({ update, bot, allow?, ref? })` | The same tools without the plugin, as an `AgentToolSet` |
-| `botAgentHelper` | `instructionOf(instruction?)`, `contextOf(update, instruction?, descriptor?)`, `promptOf(update, descriptor?)` — the platform named by `descriptor.title` (`bot.descriptor()`), else its id |
+| `botAgentHelper`, `createBotAgentHelper()` | `instructionOf(instruction?)`, `contextOf(update, instruction?, descriptor?)`, `promptOf(update, descriptor?)` — the platform named by `descriptor.title` (`bot.descriptor()`), else its id |
 | `BotAgentTool`, `BOT_AGENT_TOOL_ACTIONS`, `BOT_AGENT_ACTIONS`, `BOT_AGENT_DONE`, `BOT_AGENT_ORDER` | Tool names, the action each performs, the default `allow`, the success answer, the plugin order |
 | `BotAgentOptions`, `BotAgentToolsOptions`, `BotAgentHelper` | Types |
 
@@ -54,6 +54,13 @@ export const moderate = botHandler('moderate', async (update, bot, ctx) => {
 
 `bun test ./tests` — no provider: real `@owlmeans/server-bot` actions on mock connections over
 static resources, and a scripted model double driving the agent loop.
+
+## Related packages
+
+- [`@owlmeans/agent`](../agent) — the agent model and its plugin and tool contracts (a peer)
+- [`@owlmeans/server-bot`](../server-bot) — the bot runtime: `botHandler` and the `BotActions` the tools call
+- [`@owlmeans/bot`](../bot) — the contract: updates, `BotActionKind`, platform descriptors, `botTextHelper`
+- [`@owlmeans/web-bot`](../web-bot) — the activity panel that shows what the tools did
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -63,7 +70,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0-alpha.0
+npx @owlmeans/agent-skills@^0.2.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

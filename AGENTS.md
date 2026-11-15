@@ -106,7 +106,7 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
   the Google tag) is a plugin in the `connect` monorepo; common never depends on connect, and no provider
   name, wire value, text or SDK enters a common package.
 - ESM only, output in `build/`; TypeScript `^7.0.2` (`/tsconfig`, `/bun`).
-- Versions are per package and deliberately uneven — never resynchronise (`/versions`, `/publishing`).
+- Versions are per package and deliberately uneven — never resynchronise, except an operator-requested shared stable promotion (`/versions`, `/publishing`).
 - React is a peer dependency; crypto via `@noble/*` + `@scure/*`; validation via AJV + ajv-formats.
 - Current web UI is shadcn + Tailwind v4 (`web-panel`); MUI packages are legacy.
 

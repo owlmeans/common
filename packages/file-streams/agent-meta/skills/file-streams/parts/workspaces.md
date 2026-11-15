@@ -1,13 +1,13 @@
 ---
 name: workspaces
-description: Scoped temporary workspaces nested by organization/project/purpose, workspaces mirrored to a bucket (put, restore, evict, drop), bucket prefix listing and removal, reading files back from a Viable workload, and the service's workspace config.
+description: Scoped temporary workspaces nested by organization/project/purpose, workspaces mirrored to a bucket (put, restore, evict, drop), bucket prefix listing and removal, and the service's workspace config.
 metadata:
   purposes: data, config, ops
-  mentions: createWorkspace, createBackedWorkspace, makeWorkloadSource, WorkloadReader, readBinaryFile, removePrefix, fileScopeHelper, FileScope, WorkspaceScope, BackedScope, BackedWorkspace, WORKSPACE_SCOPE_MARKER
+  mentions: createWorkspace, createBackedWorkspace, removePrefix, fileScopeHelper, FileScope, WorkspaceScope, BackedScope, BackedWorkspace, WORKSPACE_SCOPE_MARKER, S3ListedObject
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
-# @owlmeans/file-streams — Workspaces, backed workspaces, prefixes and workload reads
+# @owlmeans/file-streams — Workspaces, backed workspaces and bucket prefixes
 
 ## Scopes
 
@@ -55,13 +55,13 @@ await workspace.prune({ olderThanMs: 24 * 3600_000 })
   a project segment.
 - **Prune** drops whole scopes whose newest file, scope folder and marker are all older than
   `olderThanMs` (never single files, so a scope is never half there), answers how many and logs it at
-  info. Writes to different scopes are independent; a drop that empties a shared parent while a
-  sibling scope is being created is retried once.
+  info. Writes to different scopes are independent; a scope's first write retries once when a
+  concurrent drop removes the shared parent it was creating.
 
 ## Backed workspace
 
 ```typescript
-import { createBackedWorkspace, createS3Bucket, createWorkspace } from '@owlmeans/file-streams'
+import { createBackedWorkspace, createS3Bucket, createWorkspace, FileKind } from '@owlmeans/file-streams'
 
 const backed = createBackedWorkspace({ workspace: createWorkspace(), bucket: createS3Bucket(cfg.storageBuckets.projects), prefix: 'materials' })
 const files = backed.scope(scope)
@@ -78,8 +78,9 @@ await files.drop()                                  // local folder + every obje
 - **`put(path, source, options)`** copies the source into the local entry through the transfer helper
   (`verify`, `limits`, `hash`, `onProgress` pass through; `onConflict` defaults to `overwrite`, like the
   bucket), then uploads the LOCAL file, with the Content-Type and disposition of the copy's verdict
-  (`options.sink` sets cache control or metadata for every object). A failed upload removes the local
-  copy and rethrows, so everything local is backed. A refused verification writes nothing anywhere.
+  (`createBackedWorkspace({ sink })` sets cache control or metadata for every object; `transfer`
+  replaces the transfer helper). A failed upload removes the local copy and rethrows, so everything
+  local is backed. A refused verification writes nothing anywhere.
 - **`restore()`** lists the scope's prefix and downloads every object that is missing locally or has
   another size — byte-identical, unverified (it was verified on the way in); the rest are `kept`.
   Local files the bucket does not name are left alone; folder placeholder keys (ending `/`) are skipped.
@@ -99,20 +100,6 @@ await files.drop()                                  // local folder + every obje
   stores that predate flexible checksums both accept; every other operation keeps the client's
   `WHEN_REQUIRED` checksums. A key the store refuses throws `S3TransferError('delete-objects:<code>')`;
   removal is not atomic, and running it again is safe.
-
-## Workload reads
-
-```typescript
-const materials = makeWorkloadSource(fileHelper, { root: 'docs/materials' })   // WorkloadReader: readBinaryFile(filePath) → base64
-await transferHelper.copy(materials.entry('logo.png'), files.entry('logo.png'), { verify: { allow: [FileKind.Image] } })
-```
-
-The publisher's `readBinaryFile { filePath } → { base64 }` command, reached through viable-agent's
-`FileHelper` (pass the helper itself). Each `open` is one read of the whole file; `info()` reads
-nothing and knows the size once a read has happened; `ranges()` serves the bytes of one read, so
-probes and zip extraction work. Files above 12 MiB (`WORKLOAD_MAX_FILE_BYTES`) or a lower
-`maxFileBytes` are refused before decoding (`WorkloadError('too-large')`); a failed read is retried
-once (`retries`), then `WorkloadError('read-failed')`.
 
 ## Service
 

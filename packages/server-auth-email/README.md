@@ -12,7 +12,7 @@ in. The browser half is `@owlmeans/web-auth-email`.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-email@^0.2.0-alpha.0
+bun add @owlmeans/server-auth-email@^0.2.0
 ```
 
 ## Wiring
@@ -112,6 +112,33 @@ identity store's db config:
 the 10 most recently seen devices. A hash is `scrypt$32768$8$1$<salt>$<key>` (`node:crypto` scrypt,
 16-byte salt, 32-byte key, base64url parts).
 
+## API
+
+| Export | Description |
+|---|---|
+| `appendEmailAuth(ctx, options?)` | Register the service and the gate of the developer routes (`EMAIL_AUTH_SERVICE`, `EMAIL_AUTH_TECH_GATE` of `@owlmeans/auth-email`); returns the context |
+| `makeEmailAuthService(options?, alias?)` | The `EmailAuthService` alone: one member per route (see Routes) |
+| `serveEmailAuthEntrypoints(protocols, { serviceAlias? }?)` | The server bindings of a `makeEmailAuthProtocols` tree: the three parent routes and every server route, never the `offer` screen |
+| `makeEmailTechGate(tech?, alias?)` | The gate of the developer routes |
+| `appendEmailAuthResources(ctx, dbAlias?)`, `makeEmailPasswordResource(dbAlias?)`, `makeEmailDeviceResource(dbAlias?)` | The two Mongo resources (see Storage) |
+| `makeEmailPasswordStore(ctx)`, `makeEmailDeviceStore(ctx, devices?)` | The password records and the remembered devices over those resources |
+| `makeMemoryOfferTickets(now?)`, `makeRedisOfferTickets(ctx, resourceAlias)` | The one-use "set a password" offer tickets, in process or in a Redis resource |
+| `makeEmailAuthThrottle(ctx, { throttleAlias?, throttle? })` | The throttle rules over an `AuthThrottleService`: `consume(rule, subject)` |
+| `makeEmailEnvelopes(ctx)`, `emailEnvelopesOf(ctx)` | Confirmation challenges and developer waivers signed with `AUTH_SRV_KEY`; `emailEnvelopesOf` builds them once per context |
+| `createPasswordHasher()`, `passwordHasher` | scrypt `hash(password)` and constant-time `verify(password, stored)` |
+| `createEmailPasswordPolicy(password)`, `createEmailTechPolicy(tech?)` | The password policy (`enabled`, `normalize`, `assert`) and the developer-route policy (`enabled`, `assert`) |
+| `createEmailMailTemplates(overrides?)` | The mails per purpose and locale: `localeOf(requested)`, `messageOf(purpose, locale)` |
+| `createEmailAuthKeyHelper()`, `emailAuthKeyHelper` | Address normalization, the logged domain and the digests stored and throttled by |
+| `EmailCredentialRefused`, `EmailVerificationRefused` | The `AuthenFailed` refusals with status 401 and 403 |
+| `EMAIL_AUTH_PASSWORD_RESOURCE`, `EMAIL_AUTH_DEVICE_RESOURCE` | `'auth-email:password'`, `'auth-email:device'` |
+| `EMAIL_AUTH_PASSWORD_COLLECTION`, `EMAIL_AUTH_DEVICE_COLLECTION` | `'email-password'`, `'email-device'` |
+| `EMAIL_AUTH_THROTTLE_RULES` | The default throttle rules (see Options) |
+| `EMAIL_MAIL_LANGUAGES`, `EMAIL_MAIL_DEFAULT_LOCALE` | The built-in mail texts per language; `'en'` |
+| `EmailAuthServerOptions`, `EmailPasswordPolicyOptions`, `EmailTechOptions`, `EmailDeviceOptions`, `EmailIpResolver`, `EmailAuthThrottleRules`, `EmailThrottleRuleName`, `EmailMailOverrides`, `EmailMailPurpose`, `EmailConfirmPurpose` | Option types |
+| `EmailAuthService`, `EmailAuthServedProtocols`, `EmailAuthHandlerOptions`, `EmailAuthConfig`, `EmailAuthContext` | The service, its bindings and its context |
+| `EmailPasswordRecord`, `EmailDeviceRecord`, `EmailPasswordResource`, `EmailDeviceResource`, `EmailPasswordStore`, `EmailDeviceStore`, `EmailOfferTickets`, `EmailClock` | Storage types |
+| `EmailEnvelopes`, `EmailConfirmClaim`, `EmailPendingClaim`, `PasswordHasher`, `EmailAuthKeyHelper`, `EmailPasswordPolicy`, `EmailTechPolicy`, `EmailAuthThrottle`, `EmailMailTemplates`, `EmailMailLanguage`, `EmailMailPhrase` | Helper types |
+
 ## Security notes
 
 - **Private plugins.** Each sign-in runs through `makeAuthModel(ctx, { plugins })` from
@@ -158,7 +185,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0-alpha.0
+npx @owlmeans/agent-skills@^0.2.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

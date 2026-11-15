@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.2.0-alpha.0"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.2.0"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only owns the
 provider-independent parts (streaming discipline, retries, validation, observability). Serializable
@@ -32,7 +32,7 @@ symbol "because a test needs it".
 | `llmPluginRegistry.{plugins, register, resolvePlugin, resolveFor, pluginOf, pluginFor}` | The provider-plugin registry. `resolveFor(model)` = the configured provider's plugin, else instance lookup — call it on the unbound model. Also at `@owlmeans/llm/plugins`. |
 | `CacheDialect`, `CacheBoundary`, `OPENAI_EXPLICIT_CACHE_PREFIXES` | How a provider is told what to cache, the four boundaries of the layout, and the OpenAI families on explicit cache mode — see [[llm-prompt-caching]]. |
 | `anthropicPlugin`, `openAiPlugin`, `compatiblePlugin`, `openAiFamily` | Built-in providers; `openAiFamily` is the shared OpenAI-client behaviour to spread into a new plugin. |
-| `llmService.webSearch(alias, override?)` · `makeWebSearch({ alias, config, secret, plugin, fetch? })` · `WebSearchDialect` · `LlmSearchError`, `LlmSearchUnsupportedError` | Provider-hosted web search: an answer with citations, sources and queries, sent straight to the provider — never through the transport seam, so an installed proxy cannot touch it. See the `web-search` part. |
+| `llmService.webSearch(alias, override?)` · `makeWebSearch({ alias, config, secret, plugin, fetch? })` · `WebSearchDialect` · `LlmSearchError`, `LlmSearchTimeoutError`, `LlmSearchUnsupportedError` | Provider-hosted web search: an answer with citations, sources and queries, sent straight to the provider — never through the transport seam, so an installed proxy cannot touch it. See the `web-search` part. |
 | `llmTransportRegistry.{attach, detach, fetchFor}` · `LlmTransport` · `LlmFetch` | The transport seam: a package that knows another route to a provider's API (a proxy, a gateway) attaches a `fetch` per provider; the built-in plugins hand it to the SDK client they build. Nothing attached, nothing changes. Also at `@owlmeans/llm/plugins`. |
 | `NO_SAMPLING_PREFIXES` / `anthropicSupportHelper.rejectsSampling(model)` · `RESPONSES_API_PREFIXES` / `usesResponsesApi(model)` | Which families reject which sampling parameters — see the table in the `providers` part. Consumers pin presets against them. |
 | `llmPluginRegistry.effortSupportOf(config)` · `OPENAI_EFFORT_SUPPORT`, `OPENAI_HIDDEN_PROPERTY_NAMES`, `ANTHROPIC_MODEL_SUPPORT` / `anthropicSupportHelper.anthropicSupportOf(model)` · `REASONING_MIN_MAX_TOKENS` | Which `ModelConfig.effort` levels a model accepts, and the per-family Anthropic facts beside them — see "Fallback chains and provider effort" in the `presets` part. |

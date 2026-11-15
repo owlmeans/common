@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/llm-reader",
-  "version": "0.2.0-alpha.0",
-  "generatedAt": "2026-11-11T15:44:02.970Z",
+  "version": "0.2.0",
+  "generatedAt": "2026-11-15T13:38:38.708Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -26,6 +26,10 @@
             "ReaderModels",
             "ReaderMode",
             "ReaderTask",
+            "DescribeOptions",
+            "ExtractOptions",
+            "LinksOptions",
+            "ImagesOptions",
             "PageDescription",
             "PageClassification",
             "ExtractResult",
@@ -41,6 +45,54 @@
           ]
         },
         {
+          "name": "collect",
+          "file": "skills/llm-reader/parts/collect.md",
+          "description": "Cloning what a link points at into local files — collect (page bundles with bundle.json, streamed files, ReaderSource expansion), the CollectSink port and its limits, the built-in public S3 source, the seam a link-expanding plugin (a Drive folder) implements, offline reading of a collected bundle, and the bounded crawl.",
+          "purposes": [
+            "data",
+            "agent"
+          ],
+          "mentions": [
+            "createCollector",
+            "reader.collect",
+            "Collector",
+            "CollectSink",
+            "createDirectoryCollectSink",
+            "CollectOptions",
+            "CollectLimits",
+            "DEFAULT_COLLECT_LIMITS",
+            "CollectResult",
+            "CollectItem",
+            "CollectKind",
+            "CollectRole",
+            "CollectStatus",
+            "BundleManifest",
+            "BUNDLE_MANIFEST",
+            "BUNDLE_EXTERNAL_DIR",
+            "ReaderSource",
+            "ReaderSourceContext",
+            "SourceEntry",
+            "SourceAnswer",
+            "createS3Source",
+            "createS3UrlHelper",
+            "S3SourceOptions",
+            "S3Location",
+            "S3_SOURCE",
+            "DEFAULT_S3_ENDPOINT",
+            "SourceFetchInit",
+            "BundleInput",
+            "CollectFileInfo",
+            "DEFAULT_COLLECT_FILE_TIMEOUT_MS",
+            "reader.crawl",
+            "makeCrawler",
+            "CrawlOptions",
+            "CrawlResult",
+            "CrawledPage",
+            "ReaderLimitError",
+            "ROBOTS_AGENT"
+          ]
+        },
+        {
           "name": "design",
           "file": "skills/llm-reader/parts/design.md",
           "description": "The reader's design analysis — measured facts (stylesheets parsed and weighted by the DOM, computed styles merged from a renderer), the model's draft, and the DESIGN.md the package renders (Google Labs spec plus Responsive Behavior and Agent Prompt Guide).",
@@ -50,6 +102,8 @@
           ],
           "mentions": [
             "makeDesignAnalyst",
+            "DesignAnalyst",
+            "DesignOptions",
             "DesignFacts",
             "DesignReport",
             "DesignTokens",
@@ -63,12 +117,19 @@
         {
           "name": "fetching",
           "file": "skills/llm-reader/parts/fetching.md",
-          "description": "Fetching pages through the reader's fetcher — the integrated proxy plugin (list, key→proxy callback, strategies, cooldown, failover), the local SOCKS bridge, the Bun and Node transports, NO_PROXY fail-closed, the address guard, and local bundles served under a synthetic origin.",
+          "description": "Fetching pages through the reader's fetcher — streamed bodies, an injected pinned fetch (file-streams) as the transport, the integrated proxy plugin (list, key→proxy callback, strategies, cooldown, failover), the local SOCKS bridge, the Bun and Node transports, NO_PROXY fail-closed, the address guard, and local bundles served under a synthetic origin (and from a collected bundle's manifest).",
           "purposes": [
             "server-api",
             "config"
           ],
           "mentions": [
+            "FetchFunction",
+            "FetchInit",
+            "FetchTransportOptions",
+            "FetchRequest",
+            "FetchedResource",
+            "ReaderFetchPlugin",
+            "AddressGuard",
             "createPageFetcher",
             "createProxyPlugin",
             "createLocalBundlePlugin",
@@ -91,7 +152,7 @@
         {
           "name": "testing",
           "file": "skills/llm-reader/parts/testing.md",
-          "description": "The reader's specs — real local servers (fixture site, HTTP proxy, SOCKS server), offline fetch/proxy/bridge/page/image/design specs, the Node-runtime spec, and the gated live analysis, public-web and real-proxy specs.",
+          "description": "The reader's specs — real local servers (fixture site, collect site with a font CDN, S3 stand-in, HTTP proxy, SOCKS server), offline fetch/proxy/bridge/page/image/design/collect/S3/crawl/pinned specs, the Node-runtime spec, and the gated live analysis, public-web, S3 and real-proxy specs.",
           "purposes": [
             "test"
           ],
@@ -99,7 +160,12 @@
             "ANTHROPIC_SECRET",
             "OPENAI_SECRET",
             "LLM_READER_LIVE_WEB",
+            "LLM_READER_LIVE_S3",
             "LLM_READER_PROXIES",
+            "collect.spec.ts",
+            "s3.spec.ts",
+            "crawl.spec.ts",
+            "pinned.spec.ts",
             "servers.ts",
             "context.ts",
             "bundle.spec.ts",

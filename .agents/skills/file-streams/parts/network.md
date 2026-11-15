@@ -1,39 +1,62 @@
 ---
 name: network
-description: What the HTTP client may reach — the connect-time network policy, redirects (followed or returned) and sensitive headers, the pinned WHATWG fetch on the ./fetch subpath, the HTTP and SOCKS proxy plugins and their pinning, why the client is node:http over its own socket under Bun, and the Google Drive and Docs resolver.
+description: What the HTTP client may reach — the connect-time network policy, redirects (followed or returned) and sensitive headers, the pinned WHATWG fetch on the ./fetch subpath, the proxy router and the HTTP and SOCKS proxy plugins and their pinning, why the client is node:http over its own socket under Bun, and the Google Drive and Docs resolver.
 metadata:
   purposes: config, ops
-  mentions: createPinnedFetch, PinnedFetch, PinnedFetchOptions, HttpRedirectMode, anyStatus, createNetworkPolicy, allowCidrs, allowPrivate, createProxyRouter, createHttpProxyPlugin, createSocksProxyPlugin, trustProxyDns, createGoogleDriveResolver, googleDriveResolver, ResolverError, NetworkPolicyError
+  mentions: createPinnedFetch, PinnedFetch, PinnedFetchOptions, HttpRedirectMode, anyStatus, createNetworkPolicy, allowCidrs, allowPrivate, createProxyRouter, createHttpProxyPlugin, createSocksProxyPlugin, parseProxyEndpoint, trustProxyDns, createGoogleDriveResolver, googleDriveResolver, ResolverError, NetworkPolicyError
 ---
 
 # @owlmeans/file-streams — Network policy, proxies and Google Drive
 
-## Network policy and proxies
+## Network policy
 
-- Loopback, private, link-local, CGNAT, multicast, reserved and documentation ranges are refused,
-  and the IPv4 inside a mapped, NAT64, 6to4 or Teredo address is checked too; internal names
-  (`localhost`, `.local`, `.internal`, `.svc`, `.cluster.local`, `.home.arpa`) are refused before DNS.
-- The check is pinned to the connect: a direct socket goes to the address just resolved and
-  checked, a proxy tunnel carries that address (TLS keeps the host name for SNI and certificates).
-  Every redirect hop is checked again; https → http is refused; `Authorization`, `Cookie`,
-  `Proxy-Authorization` and `sensitiveHeaders` never cross origins.
+- Before any DNS, `assertUrl` checks the scheme (`schemes`, default `https:`/`http:`), credentials
+  in the URL (`allowUrlCredentials`), `allowHosts`/`denyHosts` (`x.com`, `*.x.com`), `ports` and an
+  https → http hop (`allowDowngrade`).
+- Loopback, private, link-local, CGNAT, benchmarking, multicast, reserved and documentation ranges
+  are refused, and the IPv4 inside a mapped, NAT64, 6to4, Teredo or IPv4-compatible address is
+  checked too; internal names (`localhost`, `.localhost`, `.local`, `.internal`, `.svc`,
+  `.cluster.local`, `.home.arpa`, `.lan`, `.intranet`) are refused before DNS unless `allowPrivate`
+  or an `allowHosts` pattern names them. Every resolved address must pass — one refused address
+  refuses the name (`blocked-address`). `allowCidrs` wins over `denyCidrs`, which wins over
+  `allowPrivate`. A custom `resolver` (DoH, split horizon, a test seam) must answer every address.
+- The check is pinned to the connect: a direct socket goes to an address just resolved and checked
+  (each in turn until one connects), a proxy tunnel carries that address (TLS keeps the host name
+  for SNI and certificates, TLS 1.2+, extra `ca` only — verification is never off). Every redirect
+  hop is checked again; https → http is refused; `Authorization`, `Cookie`, `Proxy-Authorization`
+  and `sensitiveHeaders` never cross origins.
 - `redirect: 'manual'` returns a 3xx with its `Location` (and body) instead of following it — for a
   caller that checks every hop itself; a resolver's own flow (Drive's virus-scan page and its hops)
   still follows inside the client under the policy, because it carries its cookie across them.
   `anyStatus: true` returns every status instead of `HttpError('status:<code>')`; a forward proxy's
   407 still throws `ProxyError('auth-failed')`. `HttpResponse.decoded` says the body was
-  transport-decoded and its `Content-Length` no longer applies.
+  transport-decoded and its `Content-Length` no longer applies; a gzip file is never decoded.
 - A local stand-in or an in-cluster origin needs `network: { allowCidrs: [...] }` (or
   `allowPrivate`). S3 traffic through the SDK is not policed — its endpoint is operator config.
-- Built-in plugins: `http`/`https` endpoints (CONNECT for https targets, absolute-form forward for
-  plain http — which a proxy resolves itself, so pinning holds only through CONNECT:
-  `createHttpProxyPlugin({ httpTargets: 'connect' })`), and `socks4`/`socks4a`/`socks5`/`socks5h`.
-  Remote-DNS endpoints (`socks5h`, `socks4a`) still pre-check the name locally and are refused when
-  it does not resolve unless `trustProxyDns`.
 - Bun's own `fetch({ proxy })` speaks only http/https proxies and undici dispatchers are unreliable
   under Bun, so the client is `node:http(s)` over a socket it connects itself — Bun 1.4.2 honours
   the `createConnection` option, an Agent's `createConnection`, the `lookup` option and TLS over an
   existing socket.
+
+## Proxies
+
+- `createProxyRouter({ proxies, credentials?, strategy?, bypass?, plugins?, retries?, cooldownMs? })`
+  — or the same object as `createHttpClient({ proxies })`. `proxies` is a list of endpoints or URLs
+  (`parseProxyEndpoint` reads `socks5h://user:pass@host:1080`; default ports 8080/443/1080) or a
+  provider `({ key, url }) => endpoint | url | null` (null goes direct). `credentials(endpoint,
+  request)` fills an endpoint that carries none. A request's `proxyKey` is the key.
+- Strategies: `round-robin` (default), `random`, `failover` (the first warm one), `by-key` (a key
+  hashes to one proxy; without a key, round-robin). A failed connect cools the proxy down
+  (`cooldownMs`, 30 s) and tries another (`retries`, 1); when every proxy is cooling, all are used.
+  `bypass` hosts go direct.
+- Built-in plugins: `http`/`https` endpoints (CONNECT for https targets, absolute-form forward for
+  plain http — which a proxy resolves itself, so pinning holds only through CONNECT:
+  `createHttpProxyPlugin({ httpTargets: 'connect' })`), and `socks4`/`socks4a`/`socks5`/`socks5h`.
+  Custom `plugins` are tried first; an unknown type is `ProxyError('no-plugin')`.
+- Remote-DNS endpoints (`socks5h`, `socks4a`, or a plugin built with `remoteDns: true`) receive the
+  name, not the checked address, so the proxy resolves it again: they still pre-check the name
+  locally and are refused when it does not resolve unless `trustProxyDns`.
+- Proxy credentials never reach the log: an endpoint is logged as its `id` or `<type>://host:port`.
 
 ## The pinned fetch
 
@@ -51,20 +74,25 @@ built graph).
   `redirect: 'manual'` returns the 3xx, `'error'` rejects `HttpError('redirect')`; an abort ends a
   request waiting for its head and a body in flight.
 - Only GET and HEAD (another method, or a body, rejects `HttpError('method:…' | 'body')`);
-  `Accept-Encoding` is always identity, hop-by-hop and `host` headers are dropped; a transport-decoded
-  body loses its `Content-Encoding`/`Content-Length`.
+  `Accept-Encoding` is always identity, hop-by-hop, `host` and `content-length` request headers are
+  dropped; a transport-decoded body loses its `Content-Encoding`/`Content-Length`; a 204/205/304
+  answer has a null body.
 - A policy refusal rejects with `NetworkPolicyError`, whose `refused === true` tells a consumer
   (llm-reader maps it to `ReaderRefusedError('pinned:…')`) a refusal from a network failure.
 
 ## Google Drive
 
-Share links (`/file/d/<id>/…`, `open?id=`, `uc?id=`) become `drive.usercontent.google.com/download`;
-the "can't scan this file for viruses" page is followed through its own `download-form` (action must
-be a Google origin; hidden `confirm`/`uuid` carried), then the legacy `confirm=` link, then a
-`download_warning` cookie. Docs, Sheets, Slides and Drawings links become export URLs (docx, xlsx,
-pptx, png by default; csv/tsv keep the `gid`). Folders, quota pages, sign-in redirects and forms
-posting elsewhere fail as `ResolverError('google-drive:<reason>')`. The page flow is the one gdown
-documents; it is reverse-engineered, so `FILE_STREAMS_LIVE_DRIVE_URL` exercises it against Google.
+Share links (`/file/d/<id>/…`, `open?id=`, `uc?id=`, `resourcekey` kept) become
+`drive.usercontent.google.com/download`; the "can't scan this file for viruses" page is followed
+through its own `download-form` (the action must be one of the resolver's Google origins; every
+hidden input carried), then the legacy `confirm=` link, then a `download_warning` cookie — at most
+3 steps, 256 KiB of a page read. Docs, Sheets, Slides and Drawings links become export URLs (docx,
+xlsx, pptx, png by default, `exports` changes them; csv/tsv keep the `gid`). Folders, quota pages,
+sign-in redirects and forms posting elsewhere fail as `ResolverError('google-drive:<reason>')`
+(`folder`, `quota`, `not-public`, `foreign-form`, `export-too-large`, `unrecognized`). A range
+request resolves first, then asks the bytes' own URL for the range; `raw: true` skips resolvers. The
+page flow is the one gdown documents; it is reverse-engineered, so `FILE_STREAMS_LIVE_DRIVE_URL`
+exercises it against Google.
 
 ## External docs
 

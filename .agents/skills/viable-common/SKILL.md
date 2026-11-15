@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.2.0-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.2.0"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -861,3 +861,4 @@ project creation. Both MCP transports reuse the SDK's `describe_blueprints` tool
 | Part | Load it when |
 |---|---|
 | [materials](parts/materials.md) | touching files or references (links, online research, package skills) attached to a new project: their record, the `docs/materials/index.md` catalogue, `references.json`, the `links/` prefix, the reference scan, the placement directories, the limits |
+| [material-references](parts/material-references.md) | links, online research or npm package references of a new project: the links budget and policy, the `links/` prefix, `references.json`, provenance, the reference scan and its research cues, generated documents, the connector's reference routes |
