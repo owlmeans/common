@@ -1,4 +1,5 @@
 import { ResilientError } from '@owlmeans/error'
+import { WEB_SEARCH_TIMEOUT_CODE } from './search/consts.js'
 
 export class LlmError extends ResilientError {
   public static override typeName = `Llm${ResilientError.typeName}`
@@ -102,6 +103,23 @@ export class LlmSearchError extends LlmError {
 }
 
 /**
+ * One search attempt ran out its deadline and its DIALECT says that asking again would only wait
+ * the same way — a delegated performer that stayed silent once is asked nothing more. Fatal in
+ * `makeWebSearch` (no further attempt) and recognisable by a caller, which may stop asking further
+ * searches. The HTTP dialects never raise it: a provider request that hit its deadline stays an
+ * ordinary failure and is retried. `code` is `timeout`; `detail` says how long it waited.
+ */
+export class LlmSearchTimeoutError extends LlmSearchError {
+  public static override typeName = `Timeout${LlmSearchError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`timeout:${message}`)
+    this.type = LlmSearchTimeoutError.typeName
+    this.code = WEB_SEARCH_TIMEOUT_CODE
+  }
+}
+
+/**
  * The config cannot run a web search: its provider has no search dialect (a delegated model), the
  * compatible host is unknown, or the call asks for a constraint the dialect cannot honour. A
  * misconfiguration — fatal on the first attempt.
@@ -171,6 +189,7 @@ ResilientError.registerErrorClass(LlmMissconfiguredError)
 ResilientError.registerErrorClass(LlmPluginError)
 ResilientError.registerErrorClass(LlmRetryExceededError)
 ResilientError.registerErrorClass(LlmSearchError)
+ResilientError.registerErrorClass(LlmSearchTimeoutError)
 ResilientError.registerErrorClass(LlmSearchUnsupportedError)
 ResilientError.registerErrorClass(LlmMediaError)
 ResilientError.registerErrorClass(LlmMediaTypeError)

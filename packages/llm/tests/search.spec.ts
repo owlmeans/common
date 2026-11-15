@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { ModelProvider } from '@owlmeans/llm-common'
 import {
-  LlmSearchError, LlmSearchUnsupportedError, WebSearchDialect, llmTransportRegistry, makeLlmService,
-  makeWebSearch, openAiPlugin,
+  LlmSearchError, LlmSearchTimeoutError, LlmSearchUnsupportedError, WEB_SEARCH_RETRIES, WEB_SEARCH_TIMEOUT_CODE,
+  WEB_SEARCH_TIMEOUT_MS, WebSearchDialect, llmTransportRegistry, makeLlmService, makeWebSearch, openAiPlugin,
 } from '../src/index.js'
 import type { LlmFetch, ModelConfig } from '../src/index.js'
 import {
@@ -327,6 +327,73 @@ describe('@owlmeans/llm — the attempt deadline', () => {
   test('the call\'s own timeout wins over the config\'s, and no config value keeps the default', async () => {
     expect((await searchOf(60, 20).search('q', { retries: 1, timeout: 2_000 })).text).toBe('answered')
     expect((await searchOf(60).search('q', { retries: 1 })).text).toBe('answered')
+  })
+
+  test('a dialect is told the attempt\'s deadline: the call\'s, else the config\'s, else the default', async () => {
+    const seen: number[] = []
+    const plugin = {
+      ...openAiPlugin, type: 'told-search',
+      search: async ({ timeout }: { timeout: number }) => {
+        seen.push(timeout)
+        return { dialect: 'told', model: 'told', parts: [{ text: 'answered', citations: [] }], sources: [], queries: [] }
+      },
+    }
+    const searchFor = (timeout?: number) => makeWebSearch({
+      alias: 'told', secret: 'told', plugin: plugin as never,
+      config: { alias: 'told', provider: 'told-search' as ModelProvider, model: 'told', ...(timeout != null ? { webSearch: { timeout } } : {}) },
+    })
+    await searchFor(1_234).search('q', { timeout: 4_321 })
+    await searchFor(1_234).search('q')
+    await searchFor().search('q')
+
+    expect(seen).toEqual([4_321, 1_234, WEB_SEARCH_TIMEOUT_MS])
+  })
+
+  test('a deadline that fires under a dialect that does not declare it final is retried, as before', async () => {
+    let attempts = 0
+    const plugin = {
+      ...slowPlugin(5_000),
+      search: async (params: { signal: AbortSignal }) => {
+        attempts++
+        return await slowPlugin(5_000).search(params)
+      },
+    }
+    const search = makeWebSearch({
+      alias: 'slow', secret: 'slow', plugin: plugin as never,
+      config: { alias: 'slow', provider: 'slow-search' as ModelProvider, model: 'slow', webSearch: { timeout: 20 } },
+    })
+    await expect(search.search('q')).rejects.toBeDefined()
+
+    expect(attempts).toBe(WEB_SEARCH_RETRIES)
+  })
+
+  test('a dialect that declares its timed-out attempt final is asked once — by class or by registered type', async () => {
+    for (const raise of [
+      () => new LlmSearchTimeoutError('performer:20ms'),
+      // The same error after crossing a package copy: only its registered type is left.
+      () => Object.assign(new Error('search:timeout:performer:20ms'), { type: LlmSearchTimeoutError.typeName }),
+    ]) {
+      let attempts = 0
+      const plugin = {
+        ...openAiPlugin, type: 'final-search',
+        search: async () => {
+          attempts++
+          throw raise()
+        },
+      }
+      const search = makeWebSearch({
+        alias: 'final', secret: 'final', plugin: plugin as never,
+        config: { alias: 'final', provider: 'final-search' as ModelProvider, model: 'final' },
+      })
+      const error = await search.search('q', { retries: 3 }).catch(e => e)
+
+      expect(attempts).toBe(1)
+      expect(error.type).toBe(LlmSearchTimeoutError.typeName)
+    }
+    const error = new LlmSearchTimeoutError('performer:20ms')
+    expect(error).toBeInstanceOf(LlmSearchError)
+    expect(error.code).toBe(WEB_SEARCH_TIMEOUT_CODE)
+    expect(error.message).toContain('search:timeout:performer:20ms')
   })
 })
 

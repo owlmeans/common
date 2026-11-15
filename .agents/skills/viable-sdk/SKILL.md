@@ -772,9 +772,21 @@ running on the worker is not queued again when it is redelivered. A pull that ca
 under `FAST_PULL_MS` (1 s) is followed by `EMPTY_PULL_PAUSE_MS` (1.5 s) of rest.
 
 The task queue hands out the task with the earliest `expiresAt` first (a synchronous check expires
-in seconds, a run's call in minutes). `take(waitMs, signal?)` is cancellable and REMOVES an aborted
-waiter — a leftover one swallows the next item, held as outstanding and shown to nobody — and
-`available(waitMs, signal?)` waits for a queued item without consuming it.
+in seconds, a search in ten minutes, a run's call in forty-five). `take(waitMs, signal?)` is cancellable
+and REMOVES an aborted waiter — a leftover one swallows the next item, held as outstanding and shown to
+nobody — and `available(waitMs, signal?)` waits for a queued item without consuming it.
+
+**A task past its deadline is WITHDRAWN.** The platform stops waiting at the operation's `deadlineAt`
+(a delegated web search's ten-minute deadline, else the model call's forty-five) and deletes the
+operation, so the session pushes each model task with a LOCAL expiry — what was left of the deadline at
+delivery (`deadlineAt − (deliveredAt ?? createdAt)`, both the platform's own clock) counted from now on
+this machine's, because a laptop's clock may be minutes off while the length of the wait is not.
+`OpQueue.push(item, opId, expiresAt?)` keeps it; once it passes, the item leaves the queue AND the
+outstanding set (`isWithdrawn(id)`; a redelivery is ignored, one arriving already past its time is never
+queued). `next_task` stops naming it, `next_task { taskId }` and a late `submit_task_result` answer
+`Task <id> was withdrawn …` (`TASK_WITHDRAWN`, `isError`, nothing sent; `SessionRuntime.taskWithdrawn`,
+optional), and the platform would have ignored the answer anyway (`{ ok: true, ignored: true }` for an
+operation it no longer holds). An item pushed without a time (a question) waits until it is answered.
 
 Results are remembered by operation id. A connector that reconnects is handed everything still
 outstanding, **including whatever it had already answered when the connection dropped**, and the
@@ -881,9 +893,9 @@ costs a whole retry — another task, another subagent, another wait — while o
 sentence the parent can act on immediately, with the subagent's context still open. It unfences,
 rejects an array or a scalar in `Json` and `Search` mode, and rejects a tool name the task never offered.
 
-A task is handed out ONCE, and the platform then waits on it for up to 45 minutes. So the loop has
-to survive a parent that lost the envelope — a compacted conversation, a subagent that died before
-answering. `next_task` takes an optional `taskId` that re-reads a task already handed out, and when
+A task is handed out ONCE, and the platform then waits on it until its deadline (45 minutes for a model
+call, 10 for a search). So the loop has to survive a parent that lost the envelope — a compacted
+conversation, a subagent that died before answering. `next_task` takes an optional `taskId` that re-reads a task already handed out, and when
 nothing new is queued but something is unanswered it NAMES the outstanding ids rather than re-handing
 them: re-handing would have a parent whose subagent is still working run the same task twice. A
 refused answer keeps the task outstanding for exactly the same reason.
@@ -1160,10 +1172,12 @@ phrasings; `conversion-confirmation.spec.ts` the proceed edits nested as
 the call's result, a call first answers as before, an identical repeat joins the running call, a
 refused call is reported in `settled[]`, `next_task` names a call still running, and a delegated
 create detaches, opens an unattached session, sends its id and attaches the new project (none of it
-in the cloud mode). `task-queue.spec.ts` pins the cancellable take, the non-consuming availability
-and the expiry order; `session-worker.spec.ts` that a model task is delivered while a slow slot
+in the cloud mode). `task-queue.spec.ts` pins the cancellable take, the non-consuming availability,
+the expiry order and the withdrawal (queued, handed out, arriving late, a settled one never withdrawn); `session-worker.spec.ts` that a model task is delivered while a slow slot
 command runs and a redelivered command runs once; `session-model-tasks.spec.ts` the `modelTasks:
-false` refusal (once, `Unavailable`, logged, never queued, questions still delivered).
+false` refusal (once, `Unavailable`, logged, never queued, questions still delivered) and a task withdrawn
+at its deadline counted from its delivery whatever the platform's clock says; `catalogue.spec.ts` the
+withdrawn re-read and late submit (refused, nothing sent).
 `client-header.spec.ts` pins `x-viable-client` on connector and planning calls and collect hops in
 every mode (`sdk` by default, a differently spelled header replaced) and `client()` (404 → `null`).
 `profile-seam.spec.ts` pins the seam — hidden and split tools, inherited output schemas, the

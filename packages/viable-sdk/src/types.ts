@@ -545,6 +545,11 @@ export interface SessionRuntime {
   taskAvailable: (waitMs: number, signal?: AbortSignal) => Promise<boolean>
   /** A task already handed out and not yet answered — what an answer is checked against. */
   taskById: (taskId: string) => ModelTask | null
+  /**
+   * Whether the task's deadline passed before it was answered: the platform withdrew it, so it is
+   * neither handed out nor named any more, and an answer to it would settle nothing.
+   */
+  taskWithdrawn?: (taskId: string) => boolean
   /** Handed to the parent and still unanswered, oldest first. */
   outstandingTasks: () => ModelTask[]
   /** Hand back what the parent agent's subagent produced. */

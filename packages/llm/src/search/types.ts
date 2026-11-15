@@ -140,7 +140,14 @@ export interface LlmSearchParams {
   input: string
   options: WebSearchOptions
   fetch: LlmFetch
+  /** Aborts at the attempt's deadline, or with the caller's own signal. */
   signal: AbortSignal
+  /**
+   * The attempt's deadline in ms — what `signal` aborts at when the caller does not abort first. A
+   * dialect that hands the attempt to somebody else states it to them (the delegated task's
+   * `expiresAt`); the HTTP dialects need only the signal.
+   */
+  timeout: number
   /** 0-based attempt; a plugin doubles an exhausted output budget with it. */
   attempt: number
 }

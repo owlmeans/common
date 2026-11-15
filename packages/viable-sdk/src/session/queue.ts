@@ -15,6 +15,10 @@
  *
  * The operation id is kept beside each item and never shown to the parent. It is what an answer is
  * routed back on, and a parent that could name one could answer an operation it was never given.
+ *
+ * An item pushed with a time (`expiresAt`) is WITHDRAWN once it passes: the platform stopped waiting
+ * at that deadline and deleted the operation, so a queued item is handed to nobody, a handed-out one
+ * is no longer named as outstanding, and its answer is refused here rather than sent to settle nothing.
  */
 import type { Waiting, Watching } from './types.js'
 
@@ -43,6 +47,14 @@ export class OpQueue<T extends { id: string }> {
   private readonly waiting: Array<Waiting<T>> = []
   /** Callers told when an item is QUEUED, without taking it — see {@link OpQueue.available}. */
   private readonly watching: Watching[] = []
+  /** When the platform stops waiting for an item, on this machine's clock (epoch ms) — only the items that say. */
+  private readonly expiry = new Map<string, number>()
+  /**
+   * Items whose time ran out before they were answered. The platform withdrew their operations at
+   * that deadline, so they are handed to nobody, named to nobody, and an answer to one is refused
+   * here — it would settle nothing.
+   */
+  private readonly withdrawn = new Set<string>()
 
   /**
    * @param order Which queued item goes first; absent, the oldest. Applied only among items that
@@ -50,8 +62,25 @@ export class OpQueue<T extends { id: string }> {
    */
   constructor(private readonly order?: (a: T, b: T) => number) {}
 
-  /** @returns whether the item was accepted — `false` for a redelivery of one already handed over. */
-  push(item: T, opId: string): boolean {
+  /**
+   * @param expiresAt when the platform stops waiting for the item, on this machine's clock (epoch ms);
+   *   past it the item is withdrawn. Absent, it waits until it is answered.
+   * @returns whether the item was accepted — `false` for a redelivery of one already handed over, and
+   *   for one that arrived already past its time.
+   */
+  push(item: T, opId: string, expiresAt?: number): boolean {
+    if (this.withdrawn.has(item.id)) return false
+    // The time is taken from the first delivery: a redelivery carries the same deadline, and an item
+    // already answered must not be withdrawn after the fact.
+    if (!this.seen.has(item.id) && expiresAt != null) {
+      if (expiresAt <= Date.now()) {
+        this.seen.add(item.id)
+        this.withdraw(item.id)
+
+        return false
+      }
+      this.expiry.set(item.id, expiresAt)
+    }
     // The op id is refreshed even for a known item: a redelivery carries the same id today, and
     // answering the wrong operation is worse than answering none.
     this.ops.set(item.id, opId)
@@ -78,6 +107,7 @@ export class OpQueue<T extends { id: string }> {
    * out to nobody, held as outstanding, and never shown to the parent that has to perform it.
    */
   async take(waitMs: number, signal?: AbortSignal): Promise<T | null> {
+    this.prune()
     const ready = this.shiftReady()
     if (ready != null) {
       this.held.set(ready.id, ready)
@@ -118,6 +148,7 @@ export class OpQueue<T extends { id: string }> {
    * caller was quicker, so the race goes on.
    */
   async available(waitMs: number, signal?: AbortSignal): Promise<boolean> {
+    this.prune()
     if (this.queue.length > 0) return true
     if (waitMs <= 0 || signal?.aborted === true) return false
 
@@ -145,25 +176,54 @@ export class OpQueue<T extends { id: string }> {
   }
 
   opIdOf(id: string): string | null {
+    this.prune()
     return this.ops.get(id) ?? null
   }
 
   outstandingById(id: string): T | null {
+    this.prune()
     return this.held.get(id) ?? null
   }
 
   /** Handed out and still unanswered, oldest first. */
   outstanding(): T[] {
+    this.prune()
     return [...this.held.values()]
+  }
+
+  /** Whether the item's time ran out before it was answered: the platform withdrew it. */
+  isWithdrawn(id: string): boolean {
+    this.prune()
+    return this.withdrawn.has(id)
   }
 
   settle(id: string): void {
     this.ops.delete(id)
     this.held.delete(id)
+    this.expiry.delete(id)
   }
 
   size(): number {
+    this.prune()
     return this.queue.length
+  }
+
+  /** Withdraw every item whose time ran out — queued or handed out alike. */
+  private prune(): void {
+    if (this.expiry.size === 0) return
+    const now = Date.now()
+    for (const [id, at] of [...this.expiry]) {
+      if (at <= now) this.withdraw(id)
+    }
+  }
+
+  private withdraw(id: string): void {
+    this.expiry.delete(id)
+    this.withdrawn.add(id)
+    this.ops.delete(id)
+    this.held.delete(id)
+    const at = this.queue.findIndex(item => item.id === id)
+    if (at >= 0) this.queue.splice(at, 1)
   }
 
   private shiftReady(): T | undefined {

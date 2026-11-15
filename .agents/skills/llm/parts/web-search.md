@@ -3,7 +3,7 @@ name: web-search
 description: Web search through LlmService.webSearch — the Anthropic, OpenAI Responses, OpenRouter and Chat-search dialects, the delegated performer's own search, the options each honours, the attempt deadline, why no transport or proxy ever sees it, the forced search and the enforced domain bound.
 metadata:
   purposes: agent, server-api
-  mentions: webSearch, makeWebSearch, WebSearch, WebSearchResult, WebSearchOptions, WebSearchDialect, WebSearchConfig, LlmSearchError, LlmSearchUnsupportedError, LlmSearchDialect, ModelConfig.webSearch, webSearch.timeout, web_search_20250305, openrouter:web_search, gpt-5-search-api, delegatedSearchHelper
+  mentions: webSearch, makeWebSearch, WebSearch, WebSearchResult, WebSearchOptions, WebSearchDialect, WebSearchConfig, LlmSearchError, LlmSearchTimeoutError, LlmSearchUnsupportedError, LlmSearchDialect, LlmSearchParams, ModelConfig.webSearch, webSearch.timeout, WEB_SEARCH_TIMEOUT_CODE, web_search_20250305, openrouter:web_search, gpt-5-search-api, delegatedSearchHelper
 ---
 
 # @owlmeans/llm — Web search
@@ -49,7 +49,9 @@ must send searches through its own egress passes `fetch` to `makeWebSearch`.
 
 `LlmPlugin.search?: LlmSearchDialect` runs one attempt in the provider's dialect and returns parts;
 the search object validates options, retries, joins the parts (shifting citation offsets), dedupes
-sources and records. Declare it per plugin, never in a family spread — `compatiblePlugin` spreads
+sources and records. A dialect receives the attempt's `signal` (the deadline, or the caller's abort)
+and its `timeout` in ms — the instant `signal` aborts at, for a dialect that hands the attempt to
+somebody who must be told (the delegated task's `expiresAt`). Declare it per plugin, never in a family spread — `compatiblePlugin` spreads
 `openAiFamily`, and an inherited dialect would send a gateway key to api.openai.com. A plugin
 without one answers `LlmSearchUnsupportedError`. A dialect need not send a request at all: the
 delegated plugin's (`@owlmeans/llm-delegate`, skill `llm-delegate`) hands the search to a performer
@@ -60,7 +62,7 @@ outside the process as a task.
 | `anthropic` | `anthropic` | Messages API, server tool `web_search_20250305` (`ModelConfig.webSearch.tool` picks a newer version, which is sent with `allowed_callers: ['direct']`), `anthropic-version: 2023-06-01`, `x-api-key` | The chat build's thinking switch, effort table and adaptive output floor; no sampling knob. The tool is model-driven: pinned (`tool_choice: {type:'tool', name:'web_search'}`) on a model that accepts a pin, a "search first" directive where a pin is a 400 (`rejectsForcedTool`). `pause_turn` is resumed with the assistant content unchanged, up to 5 times; text before the first result is dropped as narration. |
 | `openai` | `responses` | Responses API, `tools: [{ type: 'web_search' }]`, `tool_choice: 'required'`, `include: ['web_search_call.action.sources']`, `store: false`, `max_tool_calls` from `maxUses` | Whatever API the model's chat client uses. `webSearch.dialect: 'chat'` asks a Chat-Completions search model (`gpt-5-search-api`) instead. |
 | `compatible` | by `baseUrl` host | `openrouter.ai` (and subdomains) → Chat Completions + `tools: [{ type: 'openrouter:web_search', parameters }]`, `max_tokens` always sent (OpenRouter holds credit against it); `api.openai.com` / `api.perplexity.ai` → Chat Completions + `web_search_options` | Any other host is unsupported unless `webSearch.dialect` (`openrouter` / `chat` / `responses`) names one: an endpoint that does not know a search field rejects it or, worse, answers unsearched. No sampling knobs, no `provider.require_parameters`; `reasoning` forwarded to OpenRouter only. `webSearch.engine` picks OpenRouter's engine. |
-| `delegated` (`@owlmeans/llm-delegate`) | `delegated` | No request and no key: ONE `DelegatedMode.Search` task through the delegate transport the config names; the performer runs its own search and answers `{ text, sources, queries? }` or `{ unavailable: true }` | Every option is stated as text in the task (searches, sources — `maxResults` default 10 —, domains, location, answer length; `instructions` as what the answer is for). A refused answer is re-asked with the reason (3 rounds), then a fatal `LlmSearchError` 422; the refusal is `LlmSearchUnsupportedError`; the answering model is the config's `delegated:<tier>`. Its config sets `webSearch.timeout` to the delegated call's 45 min. |
+| `delegated` (`@owlmeans/llm-delegate`) | `delegated` | No request and no key: ONE `DelegatedMode.Search` task through the delegate transport the config names; the performer runs its own search and answers `{ text, sources, queries? }` or `{ unavailable: true }` | Every option is stated as text in the task (searches, sources — `maxResults` default 10 —, domains, location, answer length; `instructions` as what the answer is for). A refused answer is re-asked with the reason (3 rounds, one deadline), then a fatal `LlmSearchError` 422; the refusal is `LlmSearchUnsupportedError`; a performer silent at the deadline is withdrawn and answered `LlmSearchTimeoutError` (final); the answering model is the config's `delegated:<tier>`. Its config sets `webSearch.timeout` to `DELEGATED_SEARCH_TIMEOUT_MS` (10 min), never the model call's 45. |
 
 What each dialect honours — anything a dialect cannot honour throws, never silently drops:
 
@@ -83,9 +85,15 @@ What each dialect honours — anything a dialect cannot honour throws, never sil
   and each is reported as `{ code: 'out-of-domain', message: url }`.
 - An empty answer is an `LlmSearchError` (`incomplete` when cut by its budget, retried with a doubled
   one). Transient failures (network, 429, 5xx) are retried with backoff (`retry-after` honoured,
-  capped at 30 s), `retries` attempts in all (default 2). Fatal at once: the caller's abort, a
-  misconfiguration, 400/401/402/403/404/422, a 200 carrying an error body (OpenRouter's out-of-credit),
-  and OpenAI's `insufficient_quota` 429. Error `detail` never carries the key.
+  capped at 30 s), `retries` attempts in all (default 2) — an attempt that ran out its deadline under
+  an HTTP dialect is one of them. Fatal at once: the caller's abort, a misconfiguration,
+  400/401/402/403/404/422, a 200 carrying an error body (OpenRouter's out-of-credit), OpenAI's
+  `insufficient_quota` 429, and `LlmSearchTimeoutError` (by class or registered type; `code`
+  `WEB_SEARCH_TIMEOUT_CODE` = `timeout`) — what a DIALECT raises when an attempt that ran out its
+  deadline is not worth repeating: the delegated performer that stayed silent once would be waited on
+  the same way again. No HTTP dialect raises it, so a provider's retries are unchanged; a caller may
+  read it as "stop asking" (`research:implementation` records `search-timeout` and asks no further
+  query). Error `detail` never carries the key.
 
 ## External docs
 

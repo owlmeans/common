@@ -97,4 +97,28 @@ describe('viable-sdk — a connector that performs no model tasks', () => {
       }
     }
   })
+
+  test('a model task is withdrawn at its deadline, counted on this machine from its delivery — whatever the platform\'s clock says', async () => {
+    // A platform clock years away from this one: only the length of the wait counts.
+    const search = {
+      ...op('op-s', ConnectOpKind.ModelTask, { ...task, id: 'ts', mode: 'search' }),
+      createdAt: '2020-01-01T00:00:00.000Z', deliveredAt: '2020-01-01T00:00:00.000Z', deadlineAt: '2020-01-01T00:00:00.080Z',
+    }
+    const { runtime, submitted } = await sessionOf([[search]])
+    try {
+      const handed = await runtime.nextTask(2_000)
+      expect(handed?.id).toBe('ts')
+      expect(runtime.outstandingTasks().map(one => one.id)).toEqual(['ts'])
+
+      await new Promise(resolve => setTimeout(resolve, 150))
+      expect(runtime.taskById('ts')).toBeNull()
+      expect(runtime.outstandingTasks()).toEqual([])
+      expect(runtime.taskWithdrawn?.('ts')).toBe(true)
+      // Nothing was answered for it, and nothing will be.
+      expect(submitted).toEqual([])
+    } finally {
+      await runtime.close()
+    }
+  })
 })
+

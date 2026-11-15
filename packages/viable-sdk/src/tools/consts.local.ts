@@ -348,3 +348,11 @@ export const REFERENCES_CONFIRMED = 'Links and "search online" requests the edit
 
 /** The most references lines of each kind (links, research requests, packages) `list_materials` prints. */
 export const REFERENCES_SHOWN = 20
+
+/**
+ * A task whose deadline passed before it was answered: the platform withdrew it. Said by
+ * `next_task { taskId }` and refused by `submit_task_result` — the id follows the phrase.
+ */
+export const TASK_WITHDRAWN = 'was withdrawn: the platform stopped waiting for its answer at its deadline (a web'
+  + ' search waits ten minutes, a model call forty-five), so nothing was sent. Drop it — do not run or submit it'
+  + ' again — and call next_task with no id for the current work.'

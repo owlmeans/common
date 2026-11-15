@@ -26,7 +26,7 @@ bun add @owlmeans/web-research@^0.2.0-alpha.0
   so a resumed (or re-invoked) run repeats no search, clone or model call that finished.
 - **Screening** — a deterministic hidden-instruction signal pass on every cloned source; strong signals
   drop a source, weak ones are noted, a wired judge decides with a verbatim quote.
-- **Gaps** — why an output is thinner than asked (`search-unavailable`, `source-screened`,
+- **Gaps** — why an output is thinner than asked (`search-unavailable`, `search-timeout`, `source-screened`,
   `not-genuine`, …), always recorded, never thrown.
 
 ## Usage
@@ -90,7 +90,9 @@ patterns, the instructions and personas; errors `WebResearchError`, `ResearchCon
 ## Common pitfalls
 
 - Read `result.state.output` — the run's own files are gone after `cleanup`.
-- Without `search`, implementation research writes no report (`search-unavailable`).
+- Without `search`, implementation research writes no report (`search-unavailable`); a search that
+  times out for good (`LlmSearchTimeoutError`, a silent delegated performer) stops the searching
+  (`search-timeout`, the later queries not asked).
 - Without `inspector`, packages research writes nothing; only genuine packages get notes or skills.
 - Pass the same `runs` and `store` to resume; new models are fine.
 - A caller's `bundleRoot` is read in place and never removed.

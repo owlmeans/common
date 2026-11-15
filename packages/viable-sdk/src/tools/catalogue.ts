@@ -32,7 +32,7 @@ import type { CatalogueHelper } from './catalogue/types.js'
 import { toolHostHelper } from './host.js'
 import { makeHandoverHelper } from './handover.js'
 import { makeToolProfileModel } from './profile.js'
-import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, INFERENCE_LEVELS, INFERENCE_MODES, MATERIALS_ANSWER_MS, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, REFERENCES_CONFIRMED, REFERENCES_READ, SOURCES_KIND, STOP_SCOPES, WRITE } from './consts.local.js'
+import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, INFERENCE_LEVELS, INFERENCE_MODES, MATERIALS_ANSWER_MS, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, REFERENCES_CONFIRMED, REFERENCES_READ, SOURCES_KIND, STOP_SCOPES, TASK_WITHDRAWN, WRITE } from './consts.local.js'
 
 export { ToolHostKind }
 
@@ -2022,6 +2022,8 @@ export const catalogue: ToolDefinition[] = [
       if (typeof args.taskId === 'string') {
         const known = session.taskById(args.taskId)
         if (known == null) {
+          if (session.taskWithdrawn?.(args.taskId) === true) return fail(`Task ${args.taskId} ${TASK_WITHDRAWN}`)
+
           return fail(`No task ${args.taskId} is outstanding. Call next_task with no id.`)
         }
 
@@ -2073,9 +2075,12 @@ export const catalogue: ToolDefinition[] = [
     annotations: WRITE,
     run: async (args, deps) => {
       const session = await deps.session()
-      const pending = session as unknown as { taskById?: (id: string) => unknown }
+      const pending = session as unknown as { taskById?: (id: string) => unknown, taskWithdrawn?: (id: string) => boolean }
       const task = pending.taskById?.(args.taskId as string) as never
       if (task == null) {
+        // Its deadline passed: the platform withdrew the operation and would settle nothing with it.
+        if (pending.taskWithdrawn?.(args.taskId as string) === true) return fail(`Task ${String(args.taskId)} ${TASK_WITHDRAWN}`)
+
         return fail(`No task ${String(args.taskId)} is waiting. Call next_task for the current one.`)
       }
 

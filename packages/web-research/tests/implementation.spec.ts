@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { PipelineRunStatus } from '@owlmeans/agent-common'
-import { LlmSearchError, LlmSearchUnsupportedError } from '@owlmeans/llm'
+import { LlmSearchError, LlmSearchTimeoutError, LlmSearchUnsupportedError } from '@owlmeans/llm'
 import { ImplementationStep, makeResearchPipelines, ResearchGapCode, ResearchPipeline } from '../src/index.js'
 import type { ResearchWiring } from '../src/index.js'
 import { answer, fixtureSearch, localReader, runStore, scriptedResearch, tempStore } from './context.js'
@@ -130,6 +130,62 @@ describe('web-research — research:implementation', () => {
     expect(scripted.turns()).toBe(1)
     expect(result.state.output).toEqual({ sources: [], gaps: [{ code: ResearchGapCode.SearchUnavailable }] })
     expect(await temp.store.outputs.readDoc('research/lead-scoring.md')).toBeNull()
+    await temp.dispose()
+  }, 30_000)
+
+  test('the first search that times out for good: a search-timeout gap, no further search, no report', async () => {
+    // A delegated performer silent at the search's deadline: `makeWebSearch` already asked no retry.
+    const temp = await tempStore()
+    const asked: string[] = []
+    const search = {
+      search: async (query: string) => {
+        asked.push(query)
+        throw new LlmSearchTimeoutError('delegated:600000ms')
+      },
+    } as unknown as ResearchWiring['search']
+    const queries = ['b2b lead scoring guide', 'lead scoring decay model', 'predictive lead scoring']
+    const { models, scripted } = scriptedResearch([answer({ queries }), { content: 'never asked' }])
+    const result = await makeResearchPipelines({ models, store: temp.store, reader: localReader(), search, runs: runStore() }).implementation
+      .invoke({ input }, { runId: 'impl-7', deps: {}, scope: 'spec' })
+
+    expect(result.status).toBe(PipelineRunStatus.Done)
+    expect(asked).toEqual(['b2b lead scoring guide'])
+    // The plan only: nothing was found, so nothing is synthesized and no report is written.
+    expect(scripted.turns()).toBe(1)
+    expect(result.state.output).toEqual({
+      sources: [],
+      gaps: [{ code: ResearchGapCode.SearchTimeout, subject: 'b2b lead scoring guide', detail: 'llm:search:timeout:delegated:600000ms' }],
+    })
+    expect(await temp.store.outputs.readDoc('research/lead-scoring.md')).toBeNull()
+    await temp.dispose()
+  }, 30_000)
+
+  test('a timeout after a search that answered: what was found is still researched, the gap kept, the rest not asked', async () => {
+    const temp = await tempStore()
+    const fixture = searchAnswers()
+    const asked: string[] = []
+    const search = {
+      search: async (query: string, options?: Parameters<typeof fixture.search>[1]) => {
+        asked.push(query)
+        if (asked.length === 1) return await fixture.search(query, options)
+        // Crossed a package copy: only the registered type identifies it.
+        throw Object.assign(new Error('llm:search:timeout:delegated:600000ms'), { type: LlmSearchTimeoutError.typeName })
+      },
+    } as unknown as ResearchWiring['search']
+    const queries = ['b2b lead scoring guide', 'lead scoring decay model', 'predictive lead scoring']
+    const { models } = scriptedResearch([answer({ queries }), { content: REPORT }])
+    const result = await makeResearchPipelines({ models, store: temp.store, reader: localReader(), search, runs: runStore() }).implementation
+      .invoke({ input }, { runId: 'impl-8', deps: {}, scope: 'spec' })
+
+    expect(result.status).toBe(PipelineRunStatus.Done)
+    expect(asked).toEqual(['b2b lead scoring guide', 'lead scoring decay model'])
+    const output = result.state.output!
+    expect(output.doc).toBe('research/lead-scoring.md')
+    expect(output.sources.length).toBeGreaterThan(0)
+    expect(output.gaps[0]).toEqual({
+      code: ResearchGapCode.SearchTimeout, subject: 'lead scoring decay model', detail: 'llm:search:timeout:delegated:600000ms',
+    })
+    expect(output.gaps.map(gap => gap.code)).not.toContain(ResearchGapCode.SearchFailed)
     await temp.dispose()
   }, 30_000)
 

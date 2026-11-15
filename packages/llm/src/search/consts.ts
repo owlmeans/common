@@ -17,6 +17,12 @@ export enum WebSearchDialect {
 /** How long one search attempt may take, end to end, before it is aborted. */
 export const WEB_SEARCH_TIMEOUT_MS = 5 * 60 * 1000
 
+/**
+ * The `code` of an attempt whose dialect ran out its deadline and declared it final
+ * (`LlmSearchTimeoutError`) — the delegated performer's silence. Never set by the HTTP dialects.
+ */
+export const WEB_SEARCH_TIMEOUT_CODE = 'timeout'
+
 /** Attempts per search: the first plus one retry of a transient failure. */
 export const WEB_SEARCH_RETRIES = 2
 

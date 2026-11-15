@@ -1,5 +1,5 @@
 import { makePipeline } from '@owlmeans/agent'
-import { LlmSearchUnsupportedError } from '@owlmeans/llm'
+import { LlmSearchTimeoutError, LlmSearchUnsupportedError } from '@owlmeans/llm'
 import type { PipelineModel } from '@owlmeans/agent'
 import { ImplementationStep, ResearchGapCode, ResearchRole, SourceStatus } from '../consts.js'
 import type { ResearchDeps, ResearchGap, ResearchSourceRef } from '../types.js'
@@ -28,6 +28,13 @@ export const makeImplementationPipeline = (kit: ResearchKit): PipelineModel<Impl
    */
   const unsupported = (error: unknown): boolean => error instanceof LlmSearchUnsupportedError
     || (error as { type?: unknown } | null)?.type === LlmSearchUnsupportedError.typeName
+  /**
+   * A search the port declared timed out for good (`LlmSearchTimeoutError`, by class or registered
+   * type — a delegated performer that stayed silent): asking the next query would wait the same way,
+   * and research is optional, so the run stops searching and records the gap.
+   */
+  const timedOut = (error: unknown): boolean => error instanceof LlmSearchTimeoutError
+    || (error as { type?: unknown } | null)?.type === LlmSearchTimeoutError.typeName
 
   const taskText = (input: ImplementationInput): string => [
     `# Task\n\n${textUtils.line(input.topic, 500)}`,
@@ -87,6 +94,7 @@ export const makeImplementationPipeline = (kit: ResearchKit): PipelineModel<Impl
         } catch (error) {
           ctx.signal.throwIfAborted()
           if (unsupported(error)) return { query, urls: [], searches: 0, error: 'search-unavailable', unavailable: true }
+          if (timedOut(error)) return { query, urls: [], searches: 0, error: (error as Error).message, timeout: true }
           return { query, urls: [], searches: 0, error: (error as Error).message }
         }
       }
@@ -96,10 +104,13 @@ export const makeImplementationPipeline = (kit: ResearchKit): PipelineModel<Impl
         const unit = `search/${index + 1}.json`
         let answer = await area.read<ImplementationSearch>(unit)
         if (answer == null) {
-          // Once a search answered that searching is unavailable, the next queries are not asked.
+          // Once a search answered that searching is unavailable, or timed out for good, the next
+          // queries are not asked.
           answer = answers.some(earlier => earlier.unavailable === true)
             ? { query, urls: [], searches: 0, error: 'search-unavailable', unavailable: true }
-            : await ask(query)
+            : answers.some(earlier => earlier.timeout === true)
+              ? { query, urls: [], searches: 0, error: ResearchGapCode.SearchTimeout, timeout: true, skipped: true }
+              : await ask(query)
           await area.write(unit, answer)
         }
         answers.push(answer)
@@ -121,9 +132,12 @@ export const makeImplementationPipeline = (kit: ResearchKit): PipelineModel<Impl
         }
       }
       const unavailable = answers.some(answer => answer.unavailable === true)
+      const timeout = answers.find(answer => answer.timeout === true && answer.skipped !== true)
       const record: ImplementationCandidates = {
-        candidates, failed: answers.filter(answer => answer.error != null && answer.unavailable !== true).map(answer => answer.query),
+        candidates,
+        failed: answers.filter(answer => answer.error != null && answer.unavailable !== true && answer.timeout !== true).map(answer => answer.query),
         ...(unavailable ? { unavailable } : {}),
+        ...(timeout != null ? { timeout: { query: timeout.query, detail: textUtils.line(timeout.error ?? ResearchGapCode.SearchTimeout, 200) } } : {}),
       }
       await area.saveStep(ImplementationStep.Search, record)
       ctx.report(`${candidates.length} pages to open`)
@@ -176,16 +190,20 @@ export const makeImplementationPipeline = (kit: ResearchKit): PipelineModel<Impl
       const records = await area.units()
       // No search port, or a port that answered it cannot search: the same `search-unavailable`.
       const unavailable = planned?.unavailable === true || found?.unavailable === true
+      // A search that timed out for good stopped the searching: its gap leads, as unavailable's does.
+      const timeout = found?.timeout
+      const stopped = unavailable || timeout != null
       const gaps: ResearchGap[] = [
         ...(unavailable ? [{ code: ResearchGapCode.SearchUnavailable }] : []),
+        ...(timeout != null ? [{ code: ResearchGapCode.SearchTimeout, subject: timeout.query, detail: timeout.detail }] : []),
         ...(found?.failed ?? []).map(query => ({ code: ResearchGapCode.SearchFailed, subject: query })),
-        ...(!unavailable && (found?.candidates.length ?? 0) === 0 ? [{ code: ResearchGapCode.NoCandidates }] : []),
+        ...(!stopped && (found?.candidates.length ?? 0) === 0 ? [{ code: ResearchGapCode.NoCandidates }] : []),
         ...sources.gaps(records),
       ]
       const loaded = await sources.load(sources.usable(records))
       if (loaded.length === 0) {
         const output: ImplementationOutput = {
-          sources: [], gaps: sources.cap([...gaps, ...(unavailable ? [] : [{ code: ResearchGapCode.NoSources }])]),
+          sources: [], gaps: sources.cap([...gaps, ...(stopped ? [] : [{ code: ResearchGapCode.NoSources }])]),
         }
         await area.saveStep(ImplementationStep.Synthesize, { output })
         return { synthesizeAt: stamp(), cited: 0, output }

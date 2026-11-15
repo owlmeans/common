@@ -94,6 +94,19 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
     }
   }
 
+  /**
+   * When the platform stops waiting for an operation, on THIS machine's clock: what was left of its
+   * deadline when it was delivered (both instants the platform's own), counted from now — a laptop's
+   * clock may be minutes off, the length of the wait is not. Undefined when the operation says neither.
+   */
+  const expiryOf = (op: ConnectOp): number | undefined => {
+    const deadline = Date.parse(op.deadlineAt)
+    const from = Date.parse(op.deliveredAt ?? op.createdAt)
+    if (!Number.isFinite(deadline) || !Number.isFinite(from)) return undefined
+
+    return Date.now() + Math.max(0, deadline - from)
+  }
+
   const perform = async (op: ConnectOp): Promise<void> => {
     const cached = answered.get(op.id)
     if (cached != null) {
@@ -121,8 +134,9 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
         return
       }
       // Not executed here at all — it is the parent agent's to run, in its own clean subagent.
-      // What this loop owes it is delivery and nothing else.
-      if (tasks.push(op.payload as ModelTask, op.id)) {
+      // What this loop owes it is delivery and nothing else — until its deadline, when the platform
+      // withdraws it (a web search waits ten minutes, a model call forty-five).
+      if (tasks.push(op.payload as ModelTask, op.id, expiryOf(op))) {
         stats.tasksDelivered += 1
         stats.lastActivityAt = Date.now()
       }
@@ -248,6 +262,8 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
     },
 
     taskById: taskId => tasks.outstandingById(taskId),
+
+    taskWithdrawn: taskId => tasks.isWithdrawn(taskId),
 
     outstandingTasks: () => tasks.outstandingTasks(),
 
