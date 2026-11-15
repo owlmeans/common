@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/entrypoint
 
-**Install:** `bun add @owlmeans/entrypoint@^0.2.0-alpha.1`
+**Install:** `bun add @owlmeans/entrypoint@^0.2.1-alpha.0`
 
 **Layer:** Core
 

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/package-inspector
 
 **Layer:** Domain (cross-cutting, environment-agnostic)
-**Install:** `"@owlmeans/package-inspector": "^0.2.0-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/package-inspector": "^0.2.0"` in `dependencies`
 **Adapters:** OwlMeans connect — `@owlmeans/package-registry-npm` (`createNpmRegistry`, `appendNpmRegistry`)
 
 Answers one question before an AI agent installs a package a person named ("use the loadsh package"):
@@ -25,10 +25,13 @@ URLs, no wire values, no document shapes — those live in the adapter.
 | `PackageVerdict` | interface | `name`, `registry`, `verdict`, `reasons`, `findings` (`{ reason, effect, detail }`), `lookalikeOf?`, `downloads`, `facts`, `docs` (`{ homepage?, repository?, page?, readme }`), `intent?` |
 | `PackageVerdictKind` | enum | `Genuine` `'genuine'`, `Suspicious` `'suspicious'`, `Unknown` `'unknown'` |
 | `PackageReason` | enum | `not-found`, `unavailable`, `holding`, `unpublished`, `deprecated`, `lookalike`, `copied-description`, `young`, `low-downloads`, `install-scripts`, `no-repository`, `repository-mismatch`, `provenance`, `popular` |
-| `ReasonEffect`, `PACKAGE_REASON_EFFECTS` | enum, const | `blocking` / `caution` / `positive`, each reason's default weight |
-| `DEFAULT_INSPECTOR_THRESHOLDS` | const | `lookalikeRatio` 100, `copiedRatio` 10, `minTargetDownloads` 10 000, `popularDownloads` 1 000 000, `lowDownloads` 1 000, `youngDays` 30, `maxDescriptionChecks` 3, `nearDistance` 2 |
-| `packageNameHelper` / `createPackageNameHelper()` | helper | `split`, `isValid`, `distance` (unrestricted Damerau-Levenshtein), `normalise`, `stem`, `related(a, b, max?)`, `variants(name, { limit? })` |
-| `appendPackageInspector(ctx, options)`, `ensurePackageInspectorService(ctx)`, `createPackageInspectorService(alias?)`, `PACKAGE_INSPECTOR_SERVICE` | host | One inspector per registry id in a LAZY service: `register`, `get(registry?)`, `list()` |
+| `ReasonEffect`, `PACKAGE_REASON_EFFECTS`, `REASON_EFFECT_ORDER` | enum, const | `blocking` / `caution` / `positive`, each reason's default weight, the listing order (blocking, caution, positive) |
+| `DEFAULT_INSPECTOR_THRESHOLDS` (`PackageInspectorThresholds`) | const | `lookalikeRatio` 100, `copiedRatio` 10, `minTargetDownloads` 10 000, `popularDownloads` 1 000 000, `lowDownloads` 1 000, `youngDays` 30, `maxDescriptionChecks` 3, `nearDistance` 2 |
+| `DEFAULT_INSPECT_CONCURRENCY`, `MIN_COPIED_DESCRIPTION`, `DAY_MS` | const | `inspectAll` width 3; the shortest comparable description (12 chars); one day in ms |
+| `packageNameHelper` / `createPackageNameHelper()` | helper | `split` → `PackageNameParts` (`scope?`, `base`), `isValid`, `distance` (unrestricted Damerau-Levenshtein), `normalise`, `stem`, `related(a, b, max?)`, `variants(name, { limit? })` (`PackageVariantOptions`) |
+| `PACKAGE_NAME_ALPHABET`, `PACKAGE_NAME_SEPARATORS`, `PACKAGE_NAME_SUFFIXES`, `PACKAGE_NAME_PREFIXES`, `PACKAGE_VARIANT_LIMIT`, `PACKAGE_NAME_MAX_LENGTH`, `PACKAGE_NAME_PATTERN` | const | What variants edit with (`[a-z0-9-._]`; `-` `.` `_`; `js`/`-js`/`.js`; `node-`), the default bound 1024, the 214-char cap and the name pattern |
+| `appendPackageInspector(ctx, options)`, `ensurePackageInspectorService(ctx)`, `createPackageInspectorService(alias?)`, `PACKAGE_INSPECTOR_SERVICE` | host | `PackageInspectorService`: one inspector per registry id in a LAZY service — `register` (same id replaces), `get(registry?)` (no id: the only one, else `null`), `list()` |
+| `PackageInspectorOptions`, `PackageInspectOptions`, `PackageInspectRequest`, `PackageInspector`, `PackageFinding`, `PackageDocs`, `PackageRepository`, `RepositoryManifest`, `PackageEntry`, `PackageExportsMap` | types | The shapes named above |
 | `PackageRegistryError`, `PackageInspectorError` | errors | `package-inspector:registry:<registry>:<what>:<subject>:<cause>` |
 
 ## Usage
@@ -101,5 +104,27 @@ const inspector = ensurePackageInspectorService(context).get(NPM_REGISTRY)
   reason and offer `lookalikeOf` when present.
 - Never compare a verdict to a string literal — use `PackageVerdictKind` / `PackageReason`.
 - `intent` is carried, never judged: no rule reads it.
-- Tests are category A: judge recorded registry answers through an in-test `PackageRegistry` object
-  (input data, not a mock). The adapter's stand-in server and live gate belong to the adapter package.
+- `inspect` trims the name; `inspectAll` inspects each trimmed name once and puts each request's
+  own `intent` on its verdict.
+
+## Tests
+
+`bun test ./tests` in the package — category A: recorded registry answers judged through an in-test
+`PackageRegistry` (`makeRecordedRegistry` over `RECORDS`, the public npm facts of one recorded day
+plus invented `acme-*` packages that isolate one rule each; the clock is fixed with `now`). Input
+data, not a mock: neighbours are derived the way an adapter derives them, and `failing` makes one
+member throw the outage error.
+
+- `inspector.spec` — every rule and its verdict, thresholds moving the lines, `inspectAll` order,
+  dedupe and concurrency, an unreachable registry and an inconclusive repository host.
+- `names.spec` — the distance, variants reaching known typosquats' genuine names, normalisation.
+- `service.spec` — the host keeps one inspector per registry id.
+
+A new rule gets a recorded `acme-*` package that isolates it and a case in `inspector.spec`; an
+adapter's stand-in server and live gate belong to the adapter package.
+
+## Related
+
+- [[package-registry-npm]] (`@owlmeans/package-registry-npm`, OwlMeans connect) — the npm `PackageRegistry`
+- [[web-research]] (`@owlmeans/web-research`) — `research:packages` and `research:skill` research only genuine packages
+- [[file-inspector]] (`@owlmeans/file-inspector`) — the byte-level counterpart for files

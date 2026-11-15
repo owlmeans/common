@@ -23,7 +23,7 @@ any relay that exposes it.
 ## Installation
 
 ```bash
-bun add @owlmeans/mailer-smtp@^0.2.0-alpha.1
+bun add @owlmeans/mailer-smtp@^0.2.1-alpha.0
 ```
 
 ## Usage
@@ -86,7 +86,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0-alpha.2
+npx @owlmeans/agent-skills@^0.2.1-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

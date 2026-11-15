@@ -3,7 +3,7 @@ name: fetching
 description: Fetching pages through the reader's fetcher — streamed bodies, an injected pinned fetch (file-streams) as the transport, the integrated proxy plugin (list, key→proxy callback, strategies, cooldown, failover), the local SOCKS bridge, the Bun and Node transports, NO_PROXY fail-closed, the address guard, and local bundles served under a synthetic origin (and from a collected bundle's manifest).
 metadata:
   purposes: server-api, config
-  mentions: FetchFunction, FetchInit, FetchTransportOptions, createPageFetcher, createProxyPlugin, createLocalBundlePlugin, LocalBundle, LocalBundlePlugin, DEFAULT_BUNDLE_ORIGIN, ProxyResolver, ProxyLease, ProxyStrategy, createSocksBridge, createFetchTransport, createAddressGuard, BRIDGE_ERROR_HEADER, BRIDGE_REFUSED_HEADER, NO_PROXY, ReaderProxyError, ReaderRefusedError
+  mentions: FetchFunction, FetchInit, FetchTransportOptions, FetchRequest, FetchedResource, ReaderFetchPlugin, AddressGuard, createPageFetcher, createProxyPlugin, createLocalBundlePlugin, LocalBundle, LocalBundlePlugin, DEFAULT_BUNDLE_ORIGIN, ProxyResolver, ProxyLease, ProxyStrategy, createSocksBridge, createFetchTransport, createAddressGuard, BRIDGE_ERROR_HEADER, BRIDGE_REFUSED_HEADER, NO_PROXY, ReaderProxyError, ReaderRefusedError
 ---
 
 # @owlmeans/llm-reader — Fetching and proxies
@@ -11,18 +11,36 @@ metadata:
 ## The fetcher
 
 `createPageFetcher({ plugins, userAgent, timeout, maxBytes, maxRedirects, acceptStatus,
-allowPrivateNetwork, allowHosts, transport?, guard? })`. Plugins wrap the whole fetch, outermost
+allowPrivateNetwork, allowHosts, transport?, fetch?, guard? })` — defaults: 30 s per request, 5
+redirects, a user agent naming the package (`OwlMeansReader`). Plugins wrap the whole fetch, outermost
 first, so a page keeps one proxy across its redirects; the terminal step follows redirects itself
 (guarding each hop), caps the body while streaming (10 MB page, 2 MB stylesheet, 8 MB image), and
 decodes it by the declared charset, a `<meta charset>`/BOM sniff, or UTF-8 — legacy encodings
 (windows-1251, shift_jis, gbk) decode on both runtimes. A page purpose refuses binary content
 (`ReaderContentError`); any status comes back unless `acceptStatus` says otherwise — a 404 page is
-still a page. The default user agent names the package honestly.
+still a page.
 
 `FetchRequest.stream: true` hands the body back unread as `FetchedResource.body` (a web
 `ReadableStream`) — no `text`/`bytes`, no content-type refusal; a declared length over `maxBytes`
 is refused at once, a longer stream errors with `ReaderContentError('too-large:…')`. The caller
 reads or cancels it; the proxy plugin cancels a streamed answer it retries past.
+
+## The address guard
+
+`createAddressGuard({ allowPrivateNetwork?, allowHosts? })` (the fetcher builds one; `guard` replaces
+it) — `check(url, resolve)`, `checkAddress(host, address)`, `isNonPublic(address)`:
+
+- Refused (`ReaderRefusedError('<reason>:<host>')`): this-network, private, CGNAT, loopback,
+  link-local (169.254.169.254), IETF, documentation, benchmarking, multicast, reserved and broadcast
+  IPv4; IPv6 `::`, `::1`, unique-local, link-local, site-local, multicast, documentation and the
+  forms that carry an IPv4 address (mapped, NAT64, 6to4); local names (`localhost`, `*.localhost`,
+  `*.local`, `*.internal`, `*.home.arpa`) whatever DNS says; a scheme other than http(s);
+  credentials in the URL.
+- `check(url, true)` (a direct request) resolves the host and refuses when ANY address is
+  non-public, or none resolves; `check(url, false)` (through a proxy) checks literal addresses and
+  local names only.
+- `allowHosts` lets a host and its subdomains through whatever they resolve to; `allowPrivateNetwork`
+  lets every private target through.
 
 ## An injected fetch — pinning
 

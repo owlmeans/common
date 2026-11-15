@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/storage-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/storage-resource": "^0.2.0-alpha.1"` in `dependencies`
+**Install:** `"@owlmeans/storage-resource": "^0.2.1-alpha.0"` in `dependencies`
 
 Server-side (Node and Bun).
 

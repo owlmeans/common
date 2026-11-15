@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/common-inquiry",
-  "version": "0.2.0-alpha.1",
-  "generatedAt": "2026-11-10T16:04:35.992Z",
+  "version": "0.2.0",
+  "generatedAt": "2026-11-15T13:38:38.726Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-db",
-  "version": "0.2.0-alpha.1",
+  "version": "0.2.1-alpha.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,13 +31,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-context": "^0.2.0-alpha.1",
-    "@owlmeans/client-resource": "^0.2.0-alpha.1",
-    "@owlmeans/context": "^0.2.0-alpha.0",
+    "@owlmeans/client-context": "^0.2.1-alpha.0",
+    "@owlmeans/client-resource": "^0.2.1-alpha.0",
+    "@owlmeans/context": "^0.2.1-alpha.0",
     "idb-keyval": "^6.3.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.0-alpha.0",
+    "@owlmeans/dep-config": "^0.2.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

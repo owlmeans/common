@@ -9,7 +9,7 @@ can carry it alone, and no built-in provider. The server half is `@owlmeans/capt
 ## Installation
 
 ```bash
-bun add @owlmeans/web-captcha@^0.2.0-alpha.0
+bun add @owlmeans/web-captcha@^0.2.0
 ```
 
 ## Concepts
@@ -65,6 +65,13 @@ const submit = async () => {
 | `useCaptcha({ client, siteKey, action })` (`./react`) | `{ ready, error, execute }`; `siteKey` `null` = off: `ready` true, `execute()` resolves `null`; no client = never ready, `execute()` throws |
 | `CaptchaWidget`, `CaptchaWidgetProps`, `CaptchaWidgetClient`, `UseCaptchaOptions`, `UseCaptchaResult` (`./react`) | The widget slot and the hook's types |
 
+## Related packages
+
+- [`@owlmeans/captcha`](../captcha) — the server half: the provider host and the checks that advertise `{ provider, siteKey }`
+- [`@owlmeans/web-auth-email`](../web-auth-email) — e-mail sign-in, which asks the registered client for a token before send-PIN and password sign-in
+- [`@owlmeans/web-panel`](../web-panel) — its captcha sign-in plugin renders a client's `widget`
+- [`@owlmeans/web-captcha-recaptcha`](https://github.com/owlmeans/connect/tree/main/packages/web-captcha-recaptcha) (OwlMeans connect) — a client, registered with `appendRecaptchaClient()`
+
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
 
@@ -73,7 +80,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0-alpha.0
+npx @owlmeans/agent-skills@^0.2.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -3,7 +3,7 @@ name: design
 description: The reader's design analysis — measured facts (stylesheets parsed and weighted by the DOM, computed styles merged from a renderer), the model's draft, and the DESIGN.md the package renders (Google Labs spec plus Responsive Behavior and Agent Prompt Guide).
 metadata:
   purposes: theme, agent
-  mentions: makeDesignAnalyst, DesignFacts, DesignReport, DesignTokens, DesignDraft, renderDesignMd, DESIGN_SECTIONS, StyleSample, RenderedPage
+  mentions: makeDesignAnalyst, DesignAnalyst, DesignOptions, DesignFacts, DesignReport, DesignTokens, DesignDraft, renderDesignMd, DESIGN_SECTIONS, StyleSample, RenderedPage
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
@@ -11,8 +11,9 @@ metadata:
 
 ## Facts are measured
 
-`reader.design(url)` (or `makeDesignAnalyst(page, { models, fetcher }).facts()`) fetches up to 10
-linked stylesheets under the page's proxy key, adds `<style>` blocks and inline styles, and parses
+`reader.design(url)` (or `makeDesignAnalyst(page, { models, fetcher, maxStylesheets? })` —
+`facts({ key? })`, `analyze({ key? })`) fetches up to `maxStylesheets` (default 10;
+`LlmReaderOptions.maxStylesheets`) linked stylesheets under the page's proxy key, adds `<style>` blocks and inline styles, and parses
 them with css-tree. Every rule is weighted by how many elements of THIS page its selector matches
 (states stripped), so a site-wide sheet or a utility framework says only what this page uses; a font
 set on the root counts for every element it is inherited by. The facts:

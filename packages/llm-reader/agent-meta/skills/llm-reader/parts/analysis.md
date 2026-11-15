@@ -3,7 +3,7 @@ name: analysis
 description: The model-backed reading of a page — describe (the default Markdown description), classify, extract in text, DOM (an @owlmeans/agent agent) or auto mode, links by intent, pictures with their role, usage and vision captions — and the page model they read (metadata evidence, content, signals, the DOM index).
 metadata:
   purposes: agent, data
-  mentions: makePageAnalyst, makeReaderModels, ReaderModels, ReaderMode, ReaderTask, PageDescription, PageClassification, ExtractResult, Evidence, SelectedLink, PageImage, ImageRole, makePageModel, PageModel, DomIndex, PageSignals, MetaValue
+  mentions: makePageAnalyst, makeReaderModels, ReaderModels, ReaderMode, ReaderTask, DescribeOptions, ExtractOptions, LinksOptions, ImagesOptions, PageDescription, PageClassification, ExtractResult, Evidence, SelectedLink, PageImage, ImageRole, makePageModel, PageModel, DomIndex, PageSignals, MetaValue
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
@@ -13,9 +13,11 @@ metadata:
 
 `makePageModel({ url, html, fetched?, rendered? })` — every member lazy, computed once:
 
-- `meta()` — title, description, author, published, modified, site, each a `{ value, source }` with
-  its evidence (`json-ld` > `open-graph` / `meta` > `markup` > `content`), plus language, canonical,
-  image, favicon, `ogType`, every JSON-LD `@type`, feeds.
+- `meta()` — title, description, author, published, modified, site, each a `{ value, source }`
+  read from the first source that has it (`json-ld`, `open-graph`, `meta`, `markup`, `content` — the
+  order differs per field: JSON-LD leads for title, author and dates, the meta description for
+  description, `og:site_name` for site), plus language, canonical, image, favicon, `ogType`, every
+  JSON-LD `@type`, feeds.
 - `content()` — Markdown. An article-shaped page (an `<article>`, or a long main text without
   repeated cards) goes through Defuddle; anything else, or an article Defuddle reads under 150 words
   from, is rendered section by section with turndown (`method: 'article' | 'structure'`).
@@ -43,7 +45,9 @@ helper (the agent is built over one); a bare `LlmModel` serves text mode only.
 Every task — `describe`, `classify`, `extract`, `links` by intent, picture roles — is a JSON schema
 plus an instruction, and takes `mode`. **DOM mode is the default** whenever the reader has a helper
 execution for the task (`makeReaderModels`); a reader on one bare `LlmModel` reads in text mode. An
-explicit `mode` always wins, and `ReaderMode.Dom` without an execution is a `ReaderConfigError`.
+explicit `mode` always wins, and `ReaderMode.Dom` without an execution is
+`ReaderConfigError('dom-mode-needs-an-execution')`. `LlmReaderOptions.budget` (text-mode characters,
+default 60 000) and `maxTurns` (DOM agent turns, default 12) tune both.
 
 - **DOM** (the default): `makeAgentModel` (lazy-imported with its LangGraph peers) with `dom_outline`,
   `dom_query`, `dom_find`, `dom_expand`, `dom_text` and `submit`. Besides the DOM the agent is told
@@ -84,4 +88,6 @@ OpenAI hides such a property from the model, and `@owlmeans/llm` refuses the sch
   `mediaHelper.image` parts the model's provider plugin spells (JPEG/PNG/WebP/GIF ≤ 4 MB, four per
   call; a picture whose bytes are not its type is skipped). It needs a vision model —
   `ModelConfig.vision` — and is refused with `ReaderConfigError('no-vision-model')` before any call
-  otherwise.
+  otherwise. Without models `images()` returns the inventory alone (no `role`); `classify: true`
+  without models is `ReaderConfigError('no-models')`. Tracking pixels are left out unless
+  `skipTracking: false`.

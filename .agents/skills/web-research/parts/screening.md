@@ -1,9 +1,9 @@
 ---
 name: screening
-description: The deterministic hidden-instruction signal pass (ported verbatim from viable-materials' screen pre-pass), what kind html changes, strong vs weak signals, the judge port and the shipped judge, and what a dropped, flagged or cleared source looks like.
+description: The deterministic hidden-instruction signal pass, what kind html changes, strong vs weak signals, the judge port and the shipped judge, and what a dropped, flagged or cleared source looks like.
 metadata:
   purposes: agent, data
-  mentions: injectionSignalsHelper, createInjectionSignalsHelper, InjectionSignalKind, InjectionSignal, STRONG_SIGNAL_KINDS, HTML_INERT_BLOCKS, ResearchScreen, makeResearchJudge, ScreenVerdict, ScreenTextKind, JUDGE_INSTRUCTION, source-screened, source-flagged
+  mentions: injectionSignalsHelper, createInjectionSignalsHelper, InjectionSignalKind, InjectionSignal, InjectionSignalOptions, STRONG_SIGNAL_KINDS, HTML_INERT_BLOCKS, ResearchScreen, makeResearchJudge, ScreenVerdict, ScreenTextKind, JUDGE_INSTRUCTION, source-screened, source-flagged
 ---
 
 # @owlmeans/web-research — Screening
@@ -22,8 +22,9 @@ metadata:
 | `addressed-to-ai` | text addressed to an AI, an assistant, a model or an agent ("Note to AI agents reading…", "If you are an AI…") |
 | `override` | "ignore previous instructions", "new instructions:", "you are now…", "system prompt", "answer only with", "do not tell the user" |
 
-Each signal appears once (`kind` + excerpt). Without `kind` the text is read exactly as given — the
-same list viable-materials' `screenHelper.scan({ raw, hidden })` produces, so it can import this one.
+Each signal appears once (`kind` + excerpt, at most `SIGNAL_EXCERPT_CHARS` (240) characters).
+Without `kind` the text is read exactly as given — keep that path's output stable: other screeners
+reuse it for raw document text with its `hidden` runs.
 `kind: ScreenTextKind.Html` first removes `<script>`, `<style>` and `<template>` blocks
 (`HTML_INERT_BLOCKS`): no reader of the page sees them, and site bundles quote prompt words in code.
 `readable(text, kind)` is that text — what a judge is shown.
@@ -50,3 +51,9 @@ structured call (`InjectionAnswerSchema`: `injection`, `quote`, `reason`) under 
 found in the source (whitespace and case ignored) — an order the page does not hold is the model's.
 On the public web most pages carry weak signals (hidden menus, comments): with a judge they cost one
 call each and come back clean.
+
+## Changing the pass
+
+- A new signal kind is a value of `InjectionSignalKind`, its pattern constant exported beside the
+  others, and a case in `screen.spec`; decide whether it is strong (`STRONG_SIGNAL_KINDS`) — a strong
+  kind drops sources without a judge, so it must not fire on ordinary pages.

@@ -1,9 +1,9 @@
 ---
 name: materials
-description: The materials contract — files a person attaches to a NEW project's prompt: purposes, statuses, removal reasons and uses, the platform's catalogue record and its schema, the target's docs/materials/index.md document (render, parse, relevance), the workload directories and keep list, the upload limits and the brief budget.
+description: The materials contract — files a person attaches to a NEW project's prompt and the references they point at instead (links, online research, npm packages): purposes, statuses, removal reasons and uses, the platform's catalogue record and its schema, the target's docs/materials/index.md document (render, parse, relevance, generated documents), the workload directories and keep list, the upload limits and the brief budget.
 metadata:
   purposes: data, agent, config
-  mentions: MaterialPurpose, MaterialStatus, MaterialRemoval, MaterialUseBy, MaterialUseTarget, ProjectMaterialRecord, ProjectMaterialRecordSchema, MaterialIndexEntry, MaterialIndexEntrySchema, materialIndexHelper, MATERIALS_DIR, MATERIALS_INDEX, MATERIALS_ASSETS_DIR, MATERIALS_ASSET_PURPOSES, MATERIALS_KEEP, MATERIALS_LIMITS, MATERIALS_UPLOAD_POLICY, MATERIAL_TEXT_KINDS, MATERIALS_BRIEF_TOKENS, MATERIALS_SCOPE_PURPOSE
+  mentions: MaterialPurpose, MaterialStatus, MaterialRemoval, MaterialUseBy, MaterialUseTarget, ProjectMaterialRecord, ProjectMaterialRecordSchema, MaterialIndexEntry, MaterialIndexEntrySchema, materialIndexHelper, MATERIALS_DIR, MATERIALS_INDEX, MATERIALS_ASSETS_DIR, MATERIALS_ASSET_PURPOSES, MATERIALS_KEEP, MATERIALS_LIMITS, MATERIALS_UPLOAD_POLICY, MATERIAL_TEXT_KINDS, MATERIALS_BRIEF_TOKENS, MATERIALS_SCOPE_PURPOSE, materialPathHelper
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
@@ -12,7 +12,10 @@ metadata:
 "Materials" in code, "Files" in the UI: what a person attaches to a NEW project's prompt
 (`src/materials/`, in the barrel). Four runtimes read the same names — the browser that checks the
 limits, the API that enforces them and stores the rows, the agent that analyses and places the
-files, the publisher that serves the placed assets.
+files, the publisher that serves the placed assets. **References** are what a person points at
+instead of uploading — links, online research requests, npm packages — in the prompt or in the
+specification while confirming it; what is fetched for them becomes rows like uploaded files
+(the `material-references` part).
 
 ## Vocabulary
 
@@ -39,6 +42,14 @@ files, the publisher that serves the placed assets.
 
 `MaterialIndexEntry` is the record without `MATERIAL_PLATFORM_KEYS` (ids, `scope`, timestamps):
 what the target document carries.
+
+A fetched file's row carries its provenance at `details.link` (`MaterialLinkDetails`: `url` — the
+file's own, `linkId` — its ledger link, `intent`, `own`, `primaryDesign?`, `completes?` — the html
+path an asset was fetched to complete, whose ownership it inherits). `details` stays open; writers
+check the shape with `MaterialLinkDetailsSchema`, readers use `materialLinkOf(entry)` — tolerant: a
+link without `url`, `linkId`, a known `intent` or a boolean `own` reads as none, so a hand-edited
+index cannot make an upload look fetched. A file that is not the person's own is never a brand mark
+or a hero and is placed with the originals, never among the public assets.
 
 Schemas (`ProjectMaterialRecordSchema`, `MaterialIndexEntrySchema`, `MaterialUseSchema`) are
 record-element schemas re-applied as a Mongo `$jsonSchema`: no `integer`, `DateSchema` for dates,
@@ -78,6 +89,13 @@ nothing serves.
 - `relevant(entries, { purposes?, mentions? })` — usable entries only, index order; with neither
   every usable entry, otherwise purpose match OR a whole-name, case-insensitive mention of the name
   or path in one of the texts (`logo.svg` in "use logo.svg.", not in "biglogo.svg"/"logo.svg.bak").
+- `render(entries, generated?)` / `parseGenerated(markdown)` — the OPTIONAL generated-documents
+  section (`MaterialGeneratedDoc { path, title, kind }`, `kind` a `MaterialGeneratedKind`: `research`,
+  `reference-summary`, `reference-design`, `skill`; `path` a workload path). Only a non-empty list
+  adds a `generated` frontmatter key after `entries` and a "Generated documents" table, both sorted
+  by path, one per path; without it the bytes are exactly those of an index that never had the
+  section, so `MATERIALS_INDEX_VERSION` stays 1. `parseGenerated` is total like `parse`: an item
+  without a path or with an unknown kind is dropped, a missing title reads as the path.
 
 ## Limits and budgets
 
@@ -92,6 +110,12 @@ archives unpacked, `FileKind.Executable` refused (frozen; the platform's `viable
 
 ## Tests
 
+`tests/references.spec.ts`: the references wire values, the link budget and policy (the shared
+binary ceiling), places, the path helper (reserved prefix, folders, skill names, document paths),
+the ledger schema, total parse, render round trip, ids, merge and budget, the provenance schema and
+reader through the index document, the scan (URLs in prose, markdown, brackets, `s3://`, dedupe and
+order, cues and negatives in all eight languages), the researcher role in every role enumeration,
+and the index's generated-documents section (today's bytes without it, round trip with it).
 `tests/materials.spec.ts`: wire values, paths and limits (the shared binary ceiling), schema
 accept/refuse cases (`null` optionals, strays, open `kind`/`target`/`details`, no `integer`, no
 platform key in an entry), render determinism and round trip, the table, a total `parse`, relevance

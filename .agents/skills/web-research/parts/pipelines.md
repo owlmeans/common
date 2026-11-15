@@ -3,7 +3,7 @@ name: pipelines
 description: The five research pipelines — inputs, steps, what each step records, outputs and gaps; resume and crash behaviour; the composed packages run inside research:skill; the design reference format.
 metadata:
   purposes: agent, job, data
-  mentions: makeResearchPipelines, research:implementation, research:project, research:design, research:packages, research:skill, ImplementationInput, ImplementationOutput, ProjectInput, ProjectOutput, DesignInput, DesignOutput, PackagesInput, PackagesOutput, SkillInput, SkillOutput, ResearchGapCode, RESEARCH_LIMITS, asStep, makeDesignAnalyzer
+  mentions: makeResearchPipelines, ResearchPipelines, ResearchWiring, research:implementation, research:project, research:design, research:packages, research:skill, ImplementationInput, ImplementationOutput, ProjectInput, ProjectOutput, DesignInput, DesignOutput, PackagesInput, PackagesOutput, SkillInput, SkillOutput, ResearchGapCode, RESEARCH_LIMITS, asStep, makeDesignAnalyzer
 ---
 
 # @owlmeans/web-research — Pipelines
@@ -77,7 +77,8 @@ Data entities, Pricing model, Integrations, Differentiators, every statement `[n
   ESM and CJS, default vs named, then subpaths; Core API with signatures, Usage, Configuration, Pitfalls
   and breaking changes for the current major), cited per package. The facts it reads carry the
   manifest's entry points (`facts.entry`: module system, `main`, `module`, `types`, the exports root and
-  subpaths) and the readme's own import lines of the package, root imports first (`utils/entry.ts`);
+  subpaths) and the readme's own import lines of the package, root imports first (the internal
+`packageEntryUtils`);
   a CommonJS main with no named root import in the sources is a DEFAULT import. The package renders the
   same as `## Entry points (package manifest)` right under each notes title (ending
   `The package root is importable: \`<name>\`` when it is). The doc: a verdict table (suspicious ones
@@ -103,3 +104,22 @@ Data entities, Pricing model, Integrations, Differentiators, every statement `[n
 Build the pipelines again over the same `runs` and `store` (new models are fine) and call
 `resume(runId, { deps })`, or `invoke` the same `runId` (an unfinished row continues). Without a run
 store a re-invoke starts at the first step, and every step still skips on its durable record.
+
+## Adding a step or a pipeline
+
+- **A step** — an id in the pipeline's step enum (`ImplementationStep`, …), an entry in its spec
+  (`after:` its predecessor), a `<step>At` marker and counters on the state type. Its `skipWhen` is
+  the marker OR the step's durable record (`area.step(<step>) != null`); its `run` does the side
+  effects, then saves the record (`area.saveStep`), then returns the marker and counters — never page
+  text or an unbounded list.
+- **A loop** writes one unit record per unit (a search, a page, a package) and skips the units
+  already recorded, so a resume repeats nothing.
+- **Web sources** are cloned through the run's cloner and screened by its screener (the internal
+  `SourceCloner` and `SourceScreener` of `ResearchKit`) before any model reads them; synthesis reads
+  only the usable source records, fitted into `promptTokens`.
+- **Cleanup** marks the bounded `output` before it removes the run's area.
+- **A new pipeline** — its alias in `ResearchPipeline`, a step enum, a `PipelineSpec` and its
+  instructions exported from the index, input/output/state types, a `make…Pipeline(kit)` over the
+  internal `ResearchKit` (wiring, limits, sources helper, area, cloner, screener) added to
+  `makeResearchPipelines` and `ResearchPipelines`, its limits in `ResearchLimits` /
+  `RESEARCH_LIMITS`, and a spec of its own (resume included) — see the `testing` part.

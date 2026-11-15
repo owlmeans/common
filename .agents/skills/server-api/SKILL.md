@@ -6,7 +6,7 @@ user-invocable: false
 
 # @owlmeans/server-api
 
-**Install:** `bun add @owlmeans/server-api@^0.2.0-alpha.1`
+**Install:** `bun add @owlmeans/server-api@^0.2.1-alpha.0`
 
 Make handlers from the protocol declaration so input and output types stay coupled to the shared
 contract:

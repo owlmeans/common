@@ -3,7 +3,7 @@ name: collect
 description: Cloning what a link points at into local files — collect (page bundles with bundle.json, streamed files, ReaderSource expansion), the CollectSink port and its limits, the built-in public S3 source, the seam a link-expanding plugin (a Drive folder) implements, offline reading of a collected bundle, and the bounded crawl.
 metadata:
   purposes: data, agent
-  mentions: collect, createCollector, Collector, CollectSink, createDirectoryCollectSink, CollectOptions, CollectLimits, DEFAULT_COLLECT_LIMITS, CollectResult, CollectItem, CollectKind, CollectRole, CollectStatus, BundleManifest, BUNDLE_MANIFEST, BUNDLE_EXTERNAL_DIR, ReaderSource, ReaderSourceContext, SourceEntry, SourceAnswer, createS3Source, createS3UrlHelper, S3SourceOptions, S3Location, crawl, makeCrawler, CrawlOptions, CrawlResult, ReaderLimitError, ROBOTS_AGENT
+  mentions: createCollector, reader.collect, Collector, CollectSink, createDirectoryCollectSink, CollectOptions, CollectLimits, DEFAULT_COLLECT_LIMITS, CollectResult, CollectItem, CollectKind, CollectRole, CollectStatus, BundleManifest, BUNDLE_MANIFEST, BUNDLE_EXTERNAL_DIR, ReaderSource, ReaderSourceContext, SourceEntry, SourceAnswer, createS3Source, createS3UrlHelper, S3SourceOptions, S3Location, S3_SOURCE, DEFAULT_S3_ENDPOINT, SourceFetchInit, BundleInput, CollectFileInfo, DEFAULT_COLLECT_FILE_TIMEOUT_MS, reader.crawl, makeCrawler, CrawlOptions, CrawlResult, CrawledPage, ReaderLimitError, ROBOTS_AGENT
 ---
 
 # @owlmeans/llm-reader — Collect and crawl
@@ -12,7 +12,8 @@ metadata:
 
 `reader.collect(url, { sink, limits?, prefix?, key?, signal?, render?, timeout? })` (or
 `createCollector({ fetcher, render?, sources?, limits? }).collect`) turns ONE link into files on a
-`CollectSink`, as if the person had uploaded them. What the link is decides what it becomes
+`CollectSink`, as if the person had uploaded them. `timeout` is one file's download deadline
+(`DEFAULT_COLLECT_FILE_TIMEOUT_MS`, 120 s); `LlmReaderOptions.limits` sit under every collect's own. What the link is decides what it becomes
 (`CollectResult.kind`):
 
 | The link | Becomes |
@@ -93,6 +94,19 @@ rewrite the folder view and break the listing. The collector
 admits it by `size`, and reports an entry path that could leave the folder as `refused`
 (`unsafe-path`). Return at most `limits.maxFiles + 1` entries so the cut is reported.
 
+Writing a source:
+
+- `matches` reads the URL only — no request; `recognizes` reads the answer (`peek`) and claims only
+  a link it can expand.
+- Every request goes through `context.fetch` (guarded, the reader's plugins and transport); never
+  open a socket or a client of your own, and pass `context.signal` on.
+- Throw when a link cannot be expanded (a `ReaderFetchError` subclass keeps the reader's error
+  family); the collect turns it into the link's one item — `refused` for a refusal, `failed`
+  otherwise — with the message as its `reason`.
+- Entry `url`s are direct: a plain GET returns the bytes. Keep names as the provider gives them;
+  the collector makes paths safe.
+- Test it over a real local stand-in of the provider (as `s3.spec` does for S3) through a real reader.
+
 ## The S3 source
 
 `createS3Source({ endpoint?, pathStyle?, endpoints?, pageSize?, maxPages? })` — anonymous GET and
@@ -122,7 +136,8 @@ concurrency = 2, delay = 500, robots = true, describe?, key?, signal?, render? }
 `{ url, pages: CrawledPage[] ({ url, depth, from?, page, description? }), skipped: { url, reason }[] }`.
 Breadth-first, level by level, through `reader.page` (and `describe` on request). URLs are
 normalized (no fragment, credentials or `utm_*`/`fbclid`/`gclid`…), read once (a redirect onto a
-read page is a `duplicate`); asset URLs, other origins and non-2xx pages are skipped.
+read page is a `duplicate`); asset URLs, other origins and pages answering 400 or more are skipped
+(`skipped[].reason`: `robots`, `status-<code>`, `duplicate`, an error message).
 
 - **robots.txt** (RFC 9309), fetched once per origin through the fetcher: the group whose
   user-agent the token `OwlMeansReader` (`ROBOTS_AGENT`) contains — longest wins, `*` only when

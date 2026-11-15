@@ -54,3 +54,14 @@ first — `node-transport.spec.ts` runs the built package.
   link, and the 403 of the bucket root. `proxy.live.spec`
   (`LLM_READER_PROXIES`): every listed real proxy carries an HTTPS request.
 - Every test states its own timeout.
+
+## Adding a test
+
+- A fetch, proxy or collect behaviour: give the server in `tests/servers.ts` the route or header it
+  needs and assert through a real reader — never a mocked `fetch` or transport.
+- A source: a stand-in of its provider in `tests/servers.ts` (as `startS3`) and a spec of its own; a
+  connect source (`@owlmeans/llm-reader-google-drive`) keeps its stand-in in its own package.
+- A renderer case belongs to `@owlmeans/llm-reader-playwright`'s specs; a pinned-fetch case to
+  `pinned.spec`.
+- A live check goes behind a gate of `tests/context.ts` (`makeGates`: `anthropic`, `openai`, `web`,
+  `s3`, `proxies`) and self-skips with the printed reason.
