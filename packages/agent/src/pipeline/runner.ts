@@ -222,6 +222,19 @@ export const makePipeline = <S extends PipelineState, C>(
       }
     }
 
+    // One save of the row at a time, in commit order. Parallel steps settle together, and two first
+    // saves of a row that does not exist yet would both insert it — the store's upsert then fails one
+    // of them on the unique run id. Each save writes the row as it stood at its own commit.
+    let saving: Promise<void> = Promise.resolve()
+    const save = async (): Promise<void> => {
+      const snapshot: PipelineRun = {
+        ...row, completed: [...row.completed], pending: [...row.pending], warnings: [...row.warnings],
+      }
+      const next = saving.then(async () => { await runs?.save(snapshot) })
+      saving = next.catch(() => {})
+      await next
+    }
+
     const commit = async (patch: {
       completed?: string
       warning?: string
@@ -261,7 +274,7 @@ export const makePipeline = <S extends PipelineState, C>(
         row.pending = order.filter(step => !row.completed.includes(step))
         row.heartbeatAt = nowIso()
         row.updatedAt = row.heartbeatAt
-        await runs?.save(row)
+        await save()
 
         return
       }
@@ -281,7 +294,7 @@ export const makePipeline = <S extends PipelineState, C>(
       row.heartbeatAt = nowIso()
       row.updatedAt = row.heartbeatAt
 
-      await runs?.save(row)
+      await save()
       trace(
         `[pipe:${spec.alias}:${row.runId}] row saved · completed=${row.completed.length}`
         + `/${total} chars=${row.stateChars}`,
