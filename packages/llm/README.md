@@ -235,7 +235,7 @@ Everything under `src/utils/` is library-private and deliberately not exported.
 | `WebSearch.search(input, options?)` | `{ text, citations, sources, queries, searches, usage, provider, model, dialect, errors }`. Options: `maxUses`, `maxResults`, `contextSize`, `allowedDomains` / `blockedDomains`, `location`, `instructions`, `maxTokens`, `timeout`, `retries`, `signal`, `action`, `spectator`. |
 | `ModelConfig.webSearch` | `{ dialect?, tool?, engine? }` — force a dialect, pick the Anthropic tool version or the OpenRouter engine. |
 | `LlmPlugin.search` | A provider's dialect; a plugin without one cannot search (`LlmSearchUnsupportedError`). |
-| `LlmSearchError`, `LlmSearchUnsupportedError` | A provider failure (`status`, `code`, redacted `detail`); a config or option no dialect can run (fatal). |
+| `LlmSearchError`, `LlmSearchTimeoutError`, `LlmSearchUnsupportedError` | A provider failure (`status`, `code`, redacted `detail`); an attempt that ran out its deadline and its dialect declared final — the delegated performer's silence (fatal, never raised by an HTTP dialect); a config or option no dialect can run (fatal). |
 
 ### Plugins
 

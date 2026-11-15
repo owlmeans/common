@@ -69,6 +69,14 @@ export interface ImplementationSearch {
    * performer without a web search): recorded as the run's `search-unavailable`, never as a failure.
    */
   unavailable?: boolean
+  /**
+   * The search ran out its deadline and the port declared it final (`LlmSearchTimeoutError`; `error`
+   * says how long it waited): recorded as the run's `search-timeout`, never as a failure. A later query
+   * not asked because of it carries `skipped` beside it.
+   */
+  timeout?: boolean
+  /** Not asked: an earlier search timed out. */
+  skipped?: boolean
 }
 
 /** The search step's durable record: the pages to open, in order. */
@@ -78,6 +86,15 @@ export interface ImplementationCandidates {
   failed: string[]
   /** A search answered that searching is unavailable; the rest were not asked. */
   unavailable?: boolean
+  /** The search that timed out — the rest were not asked. */
+  timeout?: ImplementationSearchTimeout
+}
+
+/** The search of a run that ran out its deadline (`LlmSearchTimeoutError`). */
+export interface ImplementationSearchTimeout {
+  query: string
+  /** The error's message — how long the search waited. */
+  detail: string
 }
 
 /** The answer of the plan call. */

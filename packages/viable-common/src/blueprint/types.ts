@@ -204,10 +204,19 @@ export interface BlueprintCapabilities {
   bot?: boolean
 }
 
-// Kept as a type: a mapped type over the blueprint's keys.
+// Kept as types: mapped types over the blueprint's keys.
+/**
+ * One layer's part of a {@link BlueprintPatch}, as the merge reads it: a plain object is partial all
+ * the way down, an array or a scalar replaces the resolved value whole.
+ */
+export type BlueprintLayerPatch<T> = {
+  [K in keyof T]?: NonNullable<T[K]> extends readonly unknown[] ? T[K]
+    : NonNullable<T[K]> extends object ? BlueprintLayerPatch<NonNullable<T[K]>> : T[K]
+}
+
 /** A partial override of a blueprint, deep-merged over the resolved value. */
 export type BlueprintPatch = {
-  [K in keyof Blueprint]?: Blueprint[K] extends string ? Blueprint[K] : Partial<Blueprint[K]>
+  [K in keyof Blueprint]?: Blueprint[K] extends string ? Blueprint[K] : BlueprintLayerPatch<Blueprint[K]>
 }
 
 /**

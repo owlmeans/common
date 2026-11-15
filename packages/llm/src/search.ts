@@ -1,5 +1,5 @@
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
-import { LlmMissconfiguredError, LlmSearchError, LlmSearchUnsupportedError } from './errors.js'
+import { LlmMissconfiguredError, LlmSearchError, LlmSearchTimeoutError, LlmSearchUnsupportedError } from './errors.js'
 import { retryHelper } from './helpers/retry.js'
 import { spectate } from './helpers/spectate.js'
 import type { LlmFetch } from './plugins/transport/types.js'
@@ -44,10 +44,18 @@ export const makeWebSearch = (binding: WebSearchBinding): WebSearch => {
     }
   }
 
-  /** What no retry can fix — aborted by the caller, refused by the provider, out of money. */
+  /**
+   * What no retry can fix — aborted by the caller, refused by the provider, out of money, or an
+   * attempt its dialect declared final when it ran out its deadline (`LlmSearchTimeoutError`, by
+   * class or by its registered type when the error crossed a package copy). A deadline that fired
+   * under an HTTP dialect is none of these: it is retried as before.
+   */
   const fatalOf = (signal: AbortSignal | undefined) => (e: unknown): Error | null => {
     if (signal?.aborted === true) return e as Error
     if (e instanceof LlmMissconfiguredError) return e
+    if (e instanceof LlmSearchTimeoutError || (e as { type?: unknown } | null)?.type === LlmSearchTimeoutError.typeName) {
+      return e as Error
+    }
     if (e instanceof LlmSearchError) {
       if (e.status != null && FATAL_STATUSES.has(e.status)) return e
       if (e.code != null && QUOTA_CODES.has(e.code)) return e
@@ -129,9 +137,10 @@ export const makeWebSearch = (binding: WebSearchBinding): WebSearch => {
       if (attempt > 0) {
         await sleep(searchUtils.backoff(attempt, retryAfter), options.signal)
       }
-      const deadline = AbortSignal.timeout(options.timeout ?? config.webSearch?.timeout ?? WEB_SEARCH_TIMEOUT_MS)
+      const timeout = options.timeout ?? config.webSearch?.timeout ?? WEB_SEARCH_TIMEOUT_MS
+      const deadline = AbortSignal.timeout(timeout)
       const signal = options.signal != null ? AbortSignal.any([options.signal, deadline]) : deadline
-      const output = await plugin.search!({ alias, config, secret, input, options, fetch, signal, attempt })
+      const output = await plugin.search!({ alias, config, secret, input, options, fetch, signal, timeout, attempt })
       const normalized = normalize(output, options)
       if (normalized.text.length === 0) {
         // An answer cut by its budget is retried with a doubled one (the plugin reads `attempt`).

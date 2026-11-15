@@ -79,6 +79,12 @@ await pipelines.implementation.resume(runId, { deps: {} })   // a failed or cras
   (`LlmSearchUnsupportedError`, by class or registered type — a delegated performer without a web
   search) records the same `search-unavailable` after the plan, and the next queries are not asked; a
   search failing for one query stays that query's `search-failed`.
+- **The first search that times out for good stops the searching**: `LlmSearchTimeoutError` (by class or
+  registered type — a delegated performer silent at its ten-minute deadline; `makeWebSearch` already
+  asked no retry) records `search-timeout` (`subject` the query, `detail` the error's message) as the
+  output's FIRST gap, the later queries are recorded not asked (`skipped`) and never searched, and the
+  run goes on with what earlier searches found — none found: no report, no `no-candidates`/`no-sources`.
+  Research is optional; a gap is an acceptable outcome.
 - **Only genuine packages get notes or skills**; suspicious and unknown ones keep their verdict in the
   output (and a `not-genuine` gap). `research:packages` without an inspector writes nothing.
 - **A generated SKILL.md carries only `name` and `description`** — `normalize` drops every other field

@@ -30,7 +30,9 @@ or pages, gaps ≤ `maxGaps`). Output paths are the CALLER's (`input.outputs`), 
   second (round robin), fragments and tracking parameters dropped, blocked domains left out,
   `maxResults + collectSpare` kept. A failing search is a `search-failed` gap, never a failure. A
   search answering `LlmSearchUnsupportedError` is recorded `unavailable` (the unit and the step record);
-  the later queries are recorded unavailable without being asked.
+  the later queries are recorded unavailable without being asked. A search answering
+  `LlmSearchTimeoutError` is recorded `timeout` (the unit, its `error` the message; the step record's
+  `timeout: { query, detail }`); the later queries are recorded `timeout` + `skipped` without being asked.
 - `collect` — `reader.collect` candidates in order until `maxResults` are cloned
   (`limits.implementationCollect`: the page only, no assets); a page bundle's text becomes
   `content.md` (llm-reader's page content); a text file is read as is; a binary is `unreadable`.
@@ -38,7 +40,8 @@ or pages, gaps ≤ `maxGaps`). Output paths are the CALLER's (`input.outputs`), 
   one Analyst text call (Summary, Business recommendations, Technical recommendations, Risks and
   pitfalls, Open questions — every claim `[n]`), the package's `# Research: <topic>` title and Sources
   list around it. Nothing usable ⇒ no report and a `no-sources` gap (`search-unavailable` alone when
-  there was no search, or the search answered that it cannot search).
+  there was no search, or the search answered that it cannot search; `search-timeout` alone when the
+  first search timed out for good). `search-unavailable` and `search-timeout` lead the gaps when present.
 
 ## research:project
 

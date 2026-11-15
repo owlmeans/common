@@ -69,6 +69,11 @@ export enum SkillStep {
 export enum ResearchGapCode {
   /** No search port: implementation research writes no report. */
   SearchUnavailable = 'search-unavailable',
+  /**
+   * A search ran out its deadline and its port declared that final (`LlmSearchTimeoutError` — a
+   * delegated performer that stayed silent): the remaining queries were not asked.
+   */
+  SearchTimeout = 'search-timeout',
   /** One search failed; the others went on. */
   SearchFailed = 'search-failed',
   /** The searches named no page that could be opened. */

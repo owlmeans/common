@@ -1233,7 +1233,7 @@ describe('a task handed out can be read again', () => {
   }
 
   const depsWith = (opts: {
-    next?: unknown, outstanding?: unknown[], byId?: Record<string, unknown>
+    next?: unknown, outstanding?: unknown[], byId?: Record<string, unknown>, withdrawn?: string[], submitted?: unknown[]
   }) => ({
     host: host({ llm: ConnectLlm.Local }),
     api: {},
@@ -1241,6 +1241,8 @@ describe('a task handed out can be read again', () => {
       nextTask: async () => opts.next ?? null,
       outstandingTasks: () => opts.outstanding ?? [],
       taskById: (id: string) => (opts.byId ?? {})[id] ?? null,
+      taskWithdrawn: (id: string) => (opts.withdrawn ?? []).includes(id),
+      submitTask: async (result: unknown) => { opts.submitted?.push(result) },
       pendingTasks: () => 0,
     }),
     currentSession: () => null,
@@ -1287,6 +1289,21 @@ describe('a task handed out can be read again', () => {
     const result = await nextTask().run({ maxWaitSec: 0 }, depsWith({}))
 
     expect(result.text).toContain('project, story, conversion, or pipeline status')
+  })
+
+  test('a task withdrawn at its deadline is said to be, and its late answer is refused with nothing sent', async () => {
+    const reread = await nextTask().run({ taskId: 'ts' }, depsWith({ withdrawn: ['ts'] }))
+    expect(reread.isError).toBe(true)
+    expect(reread.text).toContain('Task ts was withdrawn')
+    expect(reread.text).toContain('next_task with no id')
+
+    const submitted: unknown[] = []
+    const submit = catalogue.find(entry => entry.name === 'submit_task_result')!
+    const late = await submit.run({ taskId: 'ts', result: '{"text": "late", "sources": []}' }, depsWith({ withdrawn: ['ts'], submitted }))
+    expect(late.isError).toBe(true)
+    expect(late.text).toContain('Task ts was withdrawn')
+    expect(late.text).toContain('nothing was sent')
+    expect(submitted).toEqual([])
   })
 })
 

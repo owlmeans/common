@@ -129,4 +129,48 @@ describe('the model tasks waiting for a parent agent', () => {
     expect((await queue.take(0))?.id).toBe('run')
     expect((await queue.take(0))?.id).toBe('undated')
   })
+
+  test('a queued task past its time is withdrawn: never handed out, an answer to it routes nowhere', async () => {
+    // The platform stopped waiting at that deadline and deleted the operation (a search waits ten minutes).
+    const queue = new TaskQueue()
+    expect(queue.push(task('search'), 'op1', Date.now() + 30)).toBe(true)
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(queue.size()).toBe(0)
+    expect(await queue.take(0)).toBeNull()
+    expect(await queue.available(0)).toBe(false)
+    expect(queue.opIdOf('search')).toBeNull()
+    expect(queue.isWithdrawn('search')).toBe(true)
+  })
+
+  test('a handed-out task past its time is no longer named as outstanding, and a redelivery is ignored', async () => {
+    const queue = new TaskQueue()
+    queue.push(task('search'), 'op1', Date.now() + 30)
+    expect((await queue.take(0))?.id).toBe('search')
+    expect(queue.outstandingTasks().map(one => one.id)).toEqual(['search'])
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(queue.outstandingTasks()).toEqual([])
+    expect(queue.outstandingById('search')).toBeNull()
+    expect(queue.isWithdrawn('search')).toBe(true)
+    expect(queue.push(task('search'), 'op1', Date.now() + 60_000)).toBe(false)
+  })
+
+  test('a task that arrives already past its time is never queued; one without a time waits until answered', async () => {
+    const queue = new TaskQueue()
+    expect(queue.push(task('late'), 'op1', Date.now() - 1)).toBe(false)
+    expect(queue.isWithdrawn('late')).toBe(true)
+
+    queue.push(task('undated'), 'op2')
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect((await queue.take(0))?.id).toBe('undated')
+    expect(queue.isWithdrawn('undated')).toBe(false)
+    // Answered in time: settled, never withdrawn.
+    queue.push(task('answered'), 'op3', Date.now() + 30)
+    await queue.take(0)
+    queue.settle('answered')
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(queue.isWithdrawn('answered')).toBe(false)
+  })
 })
+
