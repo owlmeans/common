@@ -340,7 +340,10 @@ fields removes `LANDING_GATE_SLOTS`). The optional bands (`useCases`, `different
 `linksDecided` (optional, nullable, strings) lists the story codes whose links were decided at
 DEVELOPMENT time — a decision of no control included; absent on a plan whose links the planner
 decided. It is written by code only, so `ScaffoldPlanAnswerSchema` leaves it out of what the model
-is offered while the stored `ScaffoldPlanSchema` validates it.
+is offered while the stored `ScaffoldPlanSchema` validates it. The answer schema REQUIRES each
+story's `interaction` key but lets it be `null` — only for a story over records the platform's IAM
+owns (organizations, members, invitations, roles, access), which have no domain entity; a story
+without the key is refused. The stored plan carries no key for such a story.
 
 **A field that crosses a version skew carries no `enum`.** Users run `viable-mcp` from a moving
 `npx` range against a separately deployed platform, so `ConnectCapabilitiesSchema.executors.items`

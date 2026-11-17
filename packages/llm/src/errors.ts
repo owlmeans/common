@@ -1,3 +1,4 @@
+import type { ErrorObject } from 'ajv'
 import { ResilientError } from '@owlmeans/error'
 import { WEB_SEARCH_TIMEOUT_CODE } from './search/consts.js'
 
@@ -40,6 +41,24 @@ export class LlmOutputRejection extends LlmModelError {
     super(`filter-rejected:${reason}`)
     this.type = LlmOutputRejection.typeName
     this.details = details
+  }
+}
+
+/**
+ * The SCHEMA refused what the model answered (`invoke`/`request`). Retryable like any
+ * {@link LlmModelError}, with the `validation-failed:` prefix and the first errors in its message;
+ * `details` carries EVERY Ajv error, `cause` the first.
+ */
+export class LlmSchemaRejection extends LlmModelError {
+  public static override typeName = `SchemaRejection${LlmModelError.typeName}`
+
+  public details: ErrorObject[]
+
+  // `unknown`: an unmarshalled copy is rebuilt through the `(message, stack?)` constructor shape.
+  constructor(summary: string = '[]', details?: unknown) {
+    super(`validation-failed:${summary}`)
+    this.type = LlmSchemaRejection.typeName
+    this.details = Array.isArray(details) ? details as ErrorObject[] : []
   }
 }
 
@@ -185,6 +204,7 @@ export class LlmMediaUnsupportedError extends LlmMediaError {
 ResilientError.registerErrorClass(LlmError)
 ResilientError.registerErrorClass(LlmModelError)
 ResilientError.registerErrorClass(LlmOutputRejection)
+ResilientError.registerErrorClass(LlmSchemaRejection)
 ResilientError.registerErrorClass(LlmMissconfiguredError)
 ResilientError.registerErrorClass(LlmPluginError)
 ResilientError.registerErrorClass(LlmRetryExceededError)

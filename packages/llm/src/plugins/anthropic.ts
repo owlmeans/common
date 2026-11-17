@@ -13,6 +13,7 @@ import { messageUtils } from '../utils/messages.js'
 import { promptUtils } from '../utils/prompt.js'
 import { pluginUtils } from './utils.js'
 import { llmTransportRegistry } from './transport.js'
+import type { LlmFetch } from './transport/types.js'
 import { ANTHROPIC_AUTOMATIC_MARKER, ANTHROPIC_MARKABLE_BLOCKS, CACHEABLE_PREFIX } from './consts.local.js'
 import { ADAPTIVE_MIN_MAX_TOKENS, ANTHROPIC_FAMILY, ANTHROPIC_MEDIA_LIMITS, CacheDialect, type ThinkingOff } from './consts.js'
 import type { AnthropicKwargs, ContentBlock, WireOutputConfig, WireThinking } from './types.local.js'
@@ -216,15 +217,22 @@ export const anthropicPlugin: LlmPlugin = {
     return withLocalThinking(new ChatAnthropic(cfg))
   },
 
-  refine: ({ base, attempt, rungAttempt, temperature, maxOutputCap }): BaseChatModel => {
+  refine: ({ base, attempt, rungAttempt, climb, temperature, maxOutputCap, observe }): BaseChatModel => {
     const model = base as ChatAnthropic
     const currentTemperature = temperature ?? model.temperature ?? 0
-    const maxTokens = pluginUtils.escalateMaxTokens(model.maxTokens, attempt, maxOutputCap)
+    // The output budget answers budget-fixable failures only; effort climbs within the rung.
+    const maxTokens = pluginUtils.escalateMaxTokens(model.maxTokens, climb ?? attempt, maxOutputCap)
     const kwargs = model.lc_kwargs as AnthropicKwargs
     // Effort is part of the cached prefix, so a climbed retry pays a cache write. A retry is
     // already the rare path, and the answer it buys is the point of retrying.
     const outputConfig = escalatedOutputConfig(model, kwargs, rungAttempt ?? attempt)
-    const escalated = outputConfig != null ? { outputConfig } : {}
+    // The attempt's observer hears the client's bytes — `ping` events included — on THIS instance only.
+    const escalated = {
+      ...(outputConfig != null ? { outputConfig } : {}),
+      ...(observe != null
+        ? { clientOptions: { ...kwargs.clientOptions, fetch: observe.wrap(kwargs.clientOptions?.fetch as LlmFetch | undefined) } }
+        : {}),
+    }
     // `lc_kwargs` carries whatever `build` put there, so a no-sampling model arrives clean;
     // what has to be suppressed is the escalator's own re-application of a temperature.
     if (anthropicSupportHelper.rejectsSampling(model.modelName ?? model.model)) {

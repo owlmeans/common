@@ -40,11 +40,12 @@ export const createRetryHelper = (): RetryHelper => {
     resolveFatal(e, fatal)
 
   const withRetry = async <T>(
-    { retries, outputErrors = false, fatal }: RetryOptions,
+    { retries, outputErrors = false, fatal, next }: RetryOptions,
     fn: (attempt: number) => Promise<T>
   ): Promise<T> => {
     const exceeded = new LlmRetryExceededError('max-retries')
-    for (let i = 0; i < retries; ++i) {
+    let i = 0
+    while (i < retries) {
       try {
         return await fn(i)
       } catch (e) {
@@ -55,6 +56,8 @@ export const createRetryHelper = (): RetryHelper => {
         if (outputErrors) {
           log.warn('Retry error on attempt', { attempt: i, error: e })
         }
+        // Never backwards: a callee may skip attempts, never repeat one.
+        i = Math.max(i + 1, next?.(i, e) ?? i + 1)
       }
     }
     throw exceeded

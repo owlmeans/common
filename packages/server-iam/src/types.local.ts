@@ -6,7 +6,7 @@ export interface IamServerConfig extends ServerConfig, WithSharedConfig {}
 export type IamServerContext<C extends IamServerConfig = IamServerConfig> = ServerContext<C>
 
 /** Who a route admits — and therefore which refusal a bare 403 from it means. */
-export type Access = 'subject' | 'member' | 'owner'
+export type Access = 'subject' | 'member' | 'owner' | 'admin'
 
 export interface Call {
   method: 'GET' | 'POST'

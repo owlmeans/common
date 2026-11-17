@@ -34,7 +34,14 @@ export interface HttpErrorHelper {
   errorStatus: (error: unknown) => number
   /** Invalid or absent configuration always resolves to the production-safe policy. */
   errorExposure: (config?: Pick<Config, 'http'>) => HttpErrorExposure
-  /** One central wire shape for every server error. */
+  /**
+   * One central wire shape for every server error.
+   *
+   * Development: the marshalled error with its stack. Production: a TYPED REFUSAL — a registered
+   * `ResilientError` class answering 4xx — as its marshalled type and message with an empty stack,
+   * so a client still rebuilds it into its class and acts on it; anything else (a 5xx, an untyped
+   * error) as the incident id alone. Both forms carry the incident id.
+   */
   serializeError: (error: Error, exposure?: HttpErrorExposure) => SerializedHttpError
   /**
    * Apply safe response metadata carried by an error without coupling its package to Fastify:

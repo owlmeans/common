@@ -2,10 +2,11 @@ import { AuthForbidden, AuthorizationError, AuthUnavailable } from '@owlmeans/au
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
 import { IAM_RUNTIME_ROUTES, IamClientError, IamError, type IamRuntimeAck, type IamRuntimeGrant, type IamRuntimeGrantList, type IamRuntimeMember, type IamRuntimeMemberList, type IamRuntimeOrganization, type IamRuntimeOrganizationList, type IamRuntimePermissionList } from '@owlmeans/iam'
-import { IAM_API_METADATA, ORGANIZATION_OWNER_REFUSAL, ORGANIZATION_REFUSAL } from '@owlmeans/oidc'
+import { IAM_API_METADATA } from '@owlmeans/oidc'
 import { DEFAULT_ALIAS as OIDC_CLIENT_SERVICE, type Config, type Context, type OidcClientService } from '@owlmeans/server-oidc-rp'
 import { makeOrganizationScope } from './organization.js'
-import { INCIDENT_ID_HEADER } from './consts.local.js'
+import { IAM_RUNTIME_ADMIN_ROUTES } from './consts.js'
+import { FORBIDDEN_REASONS, INCIDENT_ID_HEADER } from './consts.local.js'
 import type { Access, Call } from './types.local.js'
 import type { IamRuntimeClient } from './types.js'
 
@@ -31,8 +32,10 @@ const pathOf = (path: string, params: Record<string, string> = {}): string =>
  *
  * A development server sends the marshalled error, which is rebuilt into its own class. A production
  * one sends only an incident id, so the status and the route's access level are all there is to go
- * on: a 403 from an owner-level route is the subject not owning the organization, from any other
- * route the subject not being in it.
+ * on: a 403 from an owner-level route is the subject not owning the organization, from an admin
+ * route the subject not holding the app owner's marker, from any other route the subject not being
+ * in the organization. Any other status — a provider older than the route answers 404 — is an
+ * `IamError('runtime:status:<n>')`.
  */
 const failureOf = async (response: Response, access: Access): Promise<Error> => {
   const text = await response.text().catch(() => '')
@@ -49,7 +52,7 @@ const failureOf = async (response: Response, access: Access): Promise<Error> => 
   }
 
   const error = response.status === 401 ? new AuthorizationError('iam-runtime')
-    : response.status === 403 ? new AuthForbidden(access === 'owner' ? ORGANIZATION_OWNER_REFUSAL : ORGANIZATION_REFUSAL)
+    : response.status === 403 ? new AuthForbidden(FORBIDDEN_REASONS[access])
       : new IamError(`runtime:status:${response.status}`)
   if (incidentId != null) {
     error.incidentId = incidentId
@@ -142,6 +145,9 @@ export const makeIamRuntimeClient = <C extends Config, T extends Context<C>>(
     organizations: {
       list: async () => (await call<IamRuntimeOrganizationList>({
         method: 'GET', path: R.organizations, access: 'subject',
+      })).items,
+      all: async () => (await call<IamRuntimeOrganizationList>({
+        method: 'GET', path: IAM_RUNTIME_ADMIN_ROUTES.organizationsAll, access: 'admin',
       })).items,
       create: async body => call<IamRuntimeOrganization>({
         method: 'POST', path: R.organizations, access: 'subject', body: body ?? {},

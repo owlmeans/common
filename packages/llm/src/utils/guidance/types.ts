@@ -12,12 +12,18 @@ export interface CallGuidance<T> {
   input: (input: ModelInput) => ModelInput
   /**
    * Hand a refusal to the call's guide and keep what it answers for the next attempt (the latest
-   * replaces the previous). Answers the error, so the attempt throws it: `throw await refused(…)`.
+   * replaces the previous). A schema refusal ({@link LlmSchemaRejection}) the guide does not correct
+   * — no guide, `null`, or a guide that throws — gets the default correction, quoting the refused
+   * fragments from `validated` (the value the schema refused; `output` unless given — `request`
+   * validates its message's JSON). Answers the error, so the attempt throws it: `throw await refused(…)`.
    */
-  refused: (error: unknown, attempt: number, output: T) => Promise<unknown>
+  refused: (error: unknown, attempt: number, output: T, validated?: unknown) => Promise<unknown>
 }
 
 export interface GuidanceUtils {
-  /** The guidance of one call; with no guide every attempt is asked exactly as the first. */
+  /**
+   * The guidance of one call. With no guide, a filter-refused attempt is asked exactly as the first
+   * and a schema-refused one with the default correction.
+   */
   of: <T>(guide: LlmGuide<T> | undefined, action: string, fatal?: FatalErrorResolver) => CallGuidance<T>
 }

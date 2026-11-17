@@ -1,7 +1,7 @@
 import { LlmModelError } from '../errors.js'
 import { MODEL_STREAM_TIMEOUT_MS } from '../consts.js'
 import { STREAM_DRAIN_MS, STREAM_DRAIN_READS } from './stream/consts.js'
-import type { StreamDrain, StreamUtils } from './stream/types.js'
+import type { StreamDrain, StreamLiveness, StreamUtils } from './stream/types.js'
 
 export const createStreamUtils = (): StreamUtils => {
   const getChunkFinishReason = (chunk: unknown): string | undefined => {
@@ -28,21 +28,52 @@ export const createStreamUtils = (): StreamUtils => {
     start: (signal: AbortSignal) => Promise<AsyncIterable<T>>,
     timeoutMs: number = MODEL_STREAM_TIMEOUT_MS,
     drain: StreamDrain = { reads: STREAM_DRAIN_READS, windowMs: STREAM_DRAIN_MS },
+    liveness?: StreamLiveness,
   ): AsyncGenerator<T> {
     const controller = new AbortController()
     let rejectIdle: (error: LlmModelError) => void = () => {}
     const idle = new Promise<never>((_, reject) => { rejectIdle = reject })
-    // A consumer may pause at `yield` when the deadline fires.
+    // A consumer may pause at `yield` when a deadline fires.
     void idle.catch(() => {})
+    // The deadline that fired first: the attempt ends with exactly its error.
+    let stalled: LlmModelError | undefined
+    const stall = (error: LlmModelError): void => {
+      if (stalled != null) return
+      stalled = error
+      controller.abort()
+      rejectIdle(error)
+    }
+    // The CONNECTION deadline: re-armed by every chunk and every byte the attempt's observer hears.
     let disarm = () => {}
     const arm = () => {
       disarm()
       const timer = setTimeout(() => {
-        controller.abort()
-        rejectIdle(new LlmModelError(`stream-stalled:no token for ${timeoutMs}ms (idle deadline)`))
+        stall(new LlmModelError(`stream-stalled:no token for ${timeoutMs}ms (idle deadline)`))
       }, timeoutMs)
       disarm = () => clearTimeout(timer)
     }
+    // The PROGRESS deadline: armed once the observer saw a request leave, re-armed by chunks only.
+    const progressMs = Math.max(liveness?.progressMs ?? 0, timeoutMs)
+    let progressing = false
+    let disarmProgress = () => {}
+    const armProgress = () => {
+      disarmProgress()
+      progressing = true
+      const timer = setTimeout(() => {
+        stall(new LlmModelError(`stream-stalled:no content for ${progressMs}ms (progress deadline)`))
+      }, progressMs)
+      disarmProgress = () => clearTimeout(timer)
+    }
+    // Late bytes — the drain's, a cancelled body's — never re-arm anything.
+    const unobserve = () => {
+      liveness?.observer.disarm()
+      progressing = false
+      disarmProgress()
+    }
+    liveness?.observer.listen({
+      fetched: () => { if (!progressing) armProgress() },
+      received: () => arm(),
+    })
     let iterator: AsyncIterator<T> | undefined
     let closed = false
     const close = () => {
@@ -52,6 +83,7 @@ export const createStreamUtils = (): StreamUtils => {
       try { void Promise.resolve(iterator.return?.()).catch(() => {}) } catch {}
     }
     arm()
+    if (liveness?.observer.fetched() === true) armProgress()
     try {
       const starting = Promise.resolve().then(() => start(controller.signal)).then(stream => {
         iterator = stream[Symbol.asyncIterator]()
@@ -64,14 +96,16 @@ export const createStreamUtils = (): StreamUtils => {
         const next = await Promise.race([Promise.resolve().then(() => current.next()), idle])
         if (next.done) { closed = true; break }
         const chunk = next.value
-        arm() // reset the idle timer on each received token
+        arm() // reset both deadlines on each received chunk
+        if (progressing) armProgress()
         yield chunk
         const reason = getChunkFinishReason(chunk)
         if (reason != null && reason !== '') { finished = true; break }
       }
       if (finished) {
-        // The drain answers to its own fixed window, never to the idle deadline it replaces.
+        // The drain answers to its own fixed window, never to the deadlines it replaces.
         disarm()
+        unobserve()
         // A read that fails, or the window running out, resolves to `null`: the drain just ends.
         let endWindow = () => {}
         const window = new Promise<null>(resolve => {
@@ -93,12 +127,11 @@ export const createStreamUtils = (): StreamUtils => {
         }
       }
     } catch (e) {
-      if (controller.signal.aborted) {
-        throw new LlmModelError(`stream-stalled:no token for ${timeoutMs}ms (idle deadline)`)
-      }
+      if (stalled != null) throw stalled
       throw e
     } finally {
       disarm()
+      unobserve()
       if (!closed) controller.abort()
       close()
     }

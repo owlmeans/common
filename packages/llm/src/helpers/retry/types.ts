@@ -7,6 +7,12 @@ export interface RetryOptions {
    * (`registerFatalError`) and the provider plugins' `isFatal`.
    */
   fatal?: (e: unknown) => Error | null
+  /**
+   * The index of the attempt after a failed `attempt` — `attempt + 1` when omitted, and never less.
+   * A callee that moves ahead on its own ladder (a repeated schema refusal sends a model call to its
+   * next fallback rung) answers a later index; the loop still ends once the index reaches `retries`.
+   */
+  next?: (attempt: number, error: unknown) => number
 }
 
 /** Decides whether an error must abort a retry loop instead of being retried. */
@@ -41,7 +47,8 @@ export interface RetryHelper {
   isFatalError: (e: unknown, fatal?: FatalErrorResolver) => Error | null
   /**
    * Run `fn` up to `retries` times, passing the 0-based attempt number so the callee can
-   * escalate (a bigger output budget, a stronger model). Every non-fatal error is
+   * escalate (a bigger output budget, a stronger model) — {@link RetryOptions.next} may skip ahead,
+   * which spends the skipped attempts. Every non-fatal error is
    * swallowed and retained as the `cause` of the {@link LlmRetryExceededError} thrown when
    * the attempts run out; a fatal error (see {@link RetryHelper.registerFatalError}) is rethrown at once.
    */

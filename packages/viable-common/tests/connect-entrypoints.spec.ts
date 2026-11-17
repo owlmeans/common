@@ -62,8 +62,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.project.createWithReferences.alias).toBe(connect.project.createWithReferences)
     expect(tree.project.confirmWithReferences.alias).toBe(connect.project.confirmWithReferences)
     expect(tree.project.materials.file.alias).toBe(connect.project.materials.file)
-    expect(protocols(tree)).toHaveLength(124)
-    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(124)
+    expect(protocols(tree)).toHaveLength(126)
+    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(protocols(tree).length)
   })
 
   test('declares exactly the routes a connector calls — every alias, reference and path, and no socket', () => {

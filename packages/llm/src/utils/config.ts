@@ -1,5 +1,5 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { DEFAULT_MAX_OUTPUT_CAP, MODEL_STREAM_TIMEOUT_MS } from '../consts.js'
+import { DEFAULT_MAX_OUTPUT_CAP, MODEL_PROGRESS_TIMEOUT_MS, MODEL_STREAM_TIMEOUT_MS } from '../consts.js'
 import type { ModelConfig } from '../types.js'
 import type { ConfigUtils } from './config/types.js'
 
@@ -11,6 +11,9 @@ export const createConfigUtils = (): ConfigUtils => {
 
   const idleTimeout = (config: Partial<ModelConfig>): number =>
     config.streamTimeout ?? MODEL_STREAM_TIMEOUT_MS
+
+  const progressTimeout = (config: Partial<ModelConfig>): number =>
+    config.progressTimeout ?? MODEL_PROGRESS_TIMEOUT_MS
 
   const resolveOutputCap = (config: Partial<ModelConfig>): number => {
     const declared = typeof config.maxTokensCap === 'number' && config.maxTokensCap > 0
@@ -24,7 +27,7 @@ export const createConfigUtils = (): ConfigUtils => {
     return capability != null ? Math.min(cap, capability) : cap
   }
 
-  return { readConfig, idleTimeout, resolveOutputCap }
+  return { readConfig, idleTimeout, progressTimeout, resolveOutputCap }
 }
 
 export const configUtils = createConfigUtils()

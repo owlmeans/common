@@ -763,8 +763,9 @@ const answeredAreaProperties = {
  * The plan as the planning MODEL answers it — {@link ScaffoldPlanSchema} with the gate held to the
  * form and without the code-written `linksDecided`. The stored schema keeps the pre-form gate keys
  * optional so an old plan still validates; offering them to the model would let it write a chip
- * picker again. Typed as the stored plan
- * because every answer is one: the answer's gate is a subset of the stored gate.
+ * picker again. Every story answers its `interaction` key — `null` only for a story over records the
+ * platform's IAM owns; the planner drops those nulls before it stores the plan. Typed as the stored
+ * plan because every answer is one: the answer's gate is a subset of the stored gate.
  */
 export const ScaffoldPlanAnswerSchema = {
   ...ScaffoldPlanSchema,
@@ -779,7 +780,15 @@ export const ScaffoldPlanAnswerSchema = {
       items: {
         ...ScaffoldStoryPlanSchema,
         required: [...(ScaffoldStoryPlanSchema.required ?? []), 'interaction'],
-        properties: { ...ScaffoldStoryPlanSchema.properties, interaction: RecordInteractionPlanSchema },
+        properties: {
+          ...ScaffoldStoryPlanSchema.properties,
+          interaction: {
+            ...RecordInteractionPlanSchema,
+            nullable: true,
+            description: 'Null only for a story that works on records the platform\'s IAM owns — organizations,'
+              + ' members, invitations, roles, access; otherwise the story\'s record interaction.',
+          },
+        },
       },
     },
     guestHome: {
