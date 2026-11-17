@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -84,7 +84,7 @@
     "@owlmeans/context": "^0.2.0",
     "@owlmeans/error": "^0.2.0",
     "@owlmeans/flow": "^0.2.0",
-    "@owlmeans/llm": "^0.2.0",
+    "@owlmeans/llm": "^0.2.1",
     "@owlmeans/llm-common": "^0.2.0",
     "@owlmeans/log": "^0.2.0",
     "ajv": "^8.20.0"

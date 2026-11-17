@@ -202,6 +202,30 @@ describe('@owlmeans/server-api — production error exposure', () => {
     expect(response.body).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
   })
 
+  test('a typed refusal keeps its type and message in production, never its stack; a fault keeps neither', async () => {
+    const refused = await answer(new OutOfCreditForStory())
+    expect(refused.status).toBe(402)
+    const [type, message, stack, incidentId] = refused.body.split(SEPARATOR, 4)
+    expect(type).toBe(OutOfCreditForStory.typeName)
+    expect(message).toBe('out-of-credit:story')
+    expect(stack).toBe('')
+    expect(incidentId).toBe(refused.incidentId)
+    expect(refused.body).not.toContain('error-status.spec')
+
+    // What `@owlmeans/api` does with a non-2xx body carrying the separator: the class comes back.
+    const rebuilt = Object.assign(ResilientError.ensure(refused.body, true), { responseStatus: refused.status })
+    expect(rebuilt).toBeInstanceOf(OutOfCreditForStory)
+    expect(rebuilt.incidentId).toBe(refused.incidentId)
+    expect(apiStatusHelper.httpStatusOf(rebuilt)).toBe(402)
+
+    // A fault stays the incident id alone — typed or not, declared 5xx included.
+    for (const fault of [new ResilientError('Plain', 'plain-marker'), new TemporarilyUnavailable()]) {
+      const answered = await answer(fault)
+      expect(answered.status).toBeGreaterThanOrEqual(500)
+      expect(answered.body).toBe(answered.incidentId)
+    }
+  })
+
   test('includes stacks only under explicit development exposure and safely serializes SyntaxError', async () => {
     const development = await answer(new Error('development-marker'), '/handle-development')
     const [type, message, stack, incidentId] = development.body.split(SEPARATOR, 4)
@@ -236,7 +260,7 @@ describe('@owlmeans/server-api — handleError status', () => {
   test('honours a 4xx a class declares — inherited, redeclared, or after a marshal hop', async () => {
     const refused = await answer(new OutOfCredit('create'))
     expect(refused.status).toBe(402)
-    expect(refused.body).toBe(refused.incidentId)
+    expect(refused.body.split(SEPARATOR, 2)).toEqual([OutOfCredit.typeName, 'out-of-credit:create'])
 
     expect((await answer(new OutOfCreditForStory())).status).toBe(402)
     expect((await answer(new Busy())).status).toBe(409)
@@ -264,14 +288,14 @@ describe('@owlmeans/server-api — handleError status', () => {
   })
 
   // A refused sign-in (a banned account, blocked access, a deployment's own refusal) is 403 with the
-  // access-denied marker, so a production browser phrases it from the status alone. Every other
+  // access-denied marker; a production body names the refusal too, without a stack. Every other
   // failed sign-in keeps the status it had.
   test('a refused sign-in answers 403 with the access-denied marker; other failed sign-ins keep theirs', async () => {
     const refused = await answer(new AuthRefused('account:disabled'))
     expect(refused.status).toBe(403)
     expect(refused.denialKind).toBe(ACCESS_DENIED_KIND)
-    expect(refused.body).toBe(refused.incidentId)
-    expect(refused.body).not.toContain('account:disabled')
+    expect(refused.body).toContain('account:disabled')
+    expect(refused.body.split(SEPARATOR)[2]).toBe('')
     expect((await answer(new AuthRefused('operator:refused'), '/execute')).status).toBe(403)
 
     const development = await answer(new AuthRefused('profile:disabled'), '/handle-development')
@@ -366,10 +390,12 @@ describe('@owlmeans/server-api — storage refusals of @owlmeans/resource', () =
     expect((rebuilt as UnknownRecordError).id).toBe('shelf/3')
   })
 
-  test('a production body is the incident id alone, under the declared status', async () => {
+  test('a production body is the refusal without its stack, under the declared status', async () => {
     const response = await answer(new UnknownRecordError('shelf/3'))
     expect(response.status).toBe(404)
-    expect(response.body).toBe(response.incidentId)
-    expect(response.body).not.toContain('shelf')
+    const rebuilt = ResilientError.ensure(response.body, true)
+    expect(rebuilt).toBeInstanceOf(UnknownRecordError)
+    expect((rebuilt as UnknownRecordError).id).toBe('shelf/3')
+    expect(response.body.split(SEPARATOR)[2]).toBe('')
   })
 })

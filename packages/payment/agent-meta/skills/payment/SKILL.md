@@ -402,8 +402,9 @@ doubled prefix still parses):
 | `CancellationUnavailable` | 409 | `cancellation-unavailable:<CancellationUnavailableReason>` | `reason` |
 
 `consentRefusalOf(e)` → `'performance' | 'subscription-start' | null`: the class after
-`ResilientError.ensure`, else the marker or type name in `message`/`type`. A production body
-carries only an incident id — a bare 428 is the caller's to read with `@owlmeans/api/status`.
+`ResilientError.ensure`, else the marker or type name in `message`/`type`. A production body keeps
+the class (a typed 4xx goes out without its stack); a body that lost it (an older server, a proxy) is a
+bare 428 the caller reads with `@owlmeans/api/status`.
 
 ### The legal copy
 

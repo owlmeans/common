@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.2.0"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.2.1"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -734,7 +734,7 @@ would file a second conversion (the start is what a confirmation stops; the crea
 never repeated). Both take `confirm` (`z.boolean().default(false)`, described), sent only when the
 parent passed `true`, and their descriptions explain the conversion limit (1,000,000 credits today),
 the spend order and that a delegated conversion is never asked — so a parent can say it before it is
-refused. A production body carries only the status: a bare `api:client:status:428` to a call sent
+refused. A body that kept only the status (an older server, a proxy): a bare `api:client:status:428` to a call sent
 WITHOUT `confirm` is answered with `refusalHelper.unconfirmedConversionPhrase(retry)` (the confirmation, and the
 consent as what a second refusal of the confirmed call would mean); to a confirmed call it can only
 be the consent and falls to `REFUSALS`. `serverInstructions` says the same in one sentence of the
@@ -756,9 +756,9 @@ The same refusals also arrive where no class survives, and `REFUSALS` phrases th
 detail), `viable-connect:confirmation-required:` (`ConnectConfirmationRequired.decode` of the
 detail, the generic "same arguments and confirm: true" repeat), `performance-consent-required` (the web refusal inside a planning `commit-failed:` or a
 stored error — no URL, so "Billing in the OwlMeans web application") — both ABOVE the planning
-markers, because the consent is what the person acts on — and, for a production body that carries
-only an incident id (`@owlmeans/api` `ApiStatusError`), `api:client:status:428` (the consent
-sentence) and `api:client:status:402` (the balance sentence).
+markers, because the consent is what the person acts on — and, for a body that kept only an
+incident id (`@owlmeans/api` `ApiStatusError`: an older server, a proxy), `api:client:status:428`
+(the consent sentence) and `api:client:status:402` (the balance sentence).
 
 ## The session loop: a pull loop that never stops, a serial worker, and free to redeliver
 

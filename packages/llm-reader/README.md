@@ -32,7 +32,7 @@ way. Server-side only (Node or Bun).
 ## Installation
 
 ```bash
-bun add @owlmeans/llm-reader@^0.2.0
+bun add @owlmeans/llm-reader@^0.2.1
 bun add @langchain/core @langchain/langgraph @langchain/langgraph-checkpoint @langchain/openai @langchain/anthropic
 ```
 
@@ -250,7 +250,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0
+npx @owlmeans/agent-skills@^0.2.1
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

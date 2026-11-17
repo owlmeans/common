@@ -27,6 +27,9 @@ import { LlmSearchUnsupportedError } from '../errors.js'
 import { WebSearchDialect } from '../search/consts.js'
 import { openAiSearchHelper } from './openai/search.js'
 import { OPENAI_API_URL } from './openai/consts.local.js'
+import { openAiConstraintsHelper } from './openai/constraints.js'
+import { openAiBackgroundHelper } from './openai/background.js'
+import type { LlmFetch } from './transport/types.js'
 
 /** Whether this model id goes through the Responses API and therefore rejects sampling. */
 export const usesResponsesApi = (model: string | undefined): boolean =>
@@ -177,6 +180,93 @@ const markableAt = (messages: readonly MessageFieldWithRole[], from: number): nu
   return at
 }
 
+/**
+ * The `ChatOpenAI` one attempt is made on. `background`: the client may run the attempt in OpenAI
+ * background mode — only the `openai` plugin passes it, and only a client BUILT with a
+ * background-aware fetch (the direct route) takes it.
+ */
+const refineClient = (
+  { base, attempt, rungAttempt, climb, temperature, maxOutputCap, observe }: LlmRefineParams, background: boolean,
+): BaseChatModel => {
+  const model = base as ChatOpenAI
+  // The output budget answers budget-fixable failures only; effort climbs within the rung.
+  const steps = climb ?? attempt
+  const currentTemperature = temperature ?? model.temperature ?? 0
+  const baseKwargs = model.lc_kwargs as OpenAiKwargs
+  const responsesApi = usesResponsesApi(model.model ?? baseKwargs.model)
+    || baseKwargs.useResponsesApi === true
+  // Effort only where `build` chose the Responses API itself — the `compatible` plugin
+  // shares this hook and speaks an aggregator's `reasoning` dialect instead.
+  const effort = baseKwargs.useResponsesApi === true
+    ? effortUtils.effortFor(
+      openAiEffort(model.model ?? baseKwargs.model),
+      baseKwargs.modelKwargs?.reasoning?.effort as ModelEffort | undefined,
+      rungAttempt ?? attempt,
+    )
+    : undefined
+  const maxTokens = reasoningFloor(
+    pluginUtils.escalateMaxTokens(model.maxTokens, steps, maxOutputCap), effort, maxOutputCap,
+  )
+  // The dominant cause of an empty response is a reasoning model spending the whole
+  // budget on hidden thinking (finish_reason=length, empty content). The retry already
+  // raises maxTokens; ALSO shrink the absolute reasoning cap so the extra budget becomes
+  // visible output instead of more reasoning. Only touches `{ max_tokens: N }` reasoning
+  // configs — effort/enabled/exclude shapes are left untouched.
+  const reasoning = baseKwargs.modelKwargs?.reasoning
+  const modelKwargs = steps > 0 && typeof reasoning?.max_tokens === 'number'
+    ? {
+      ...baseKwargs.modelKwargs,
+      reasoning: { ...reasoning, max_tokens: Math.max(256, Math.floor(reasoning.max_tokens / Math.pow(2, steps))) },
+    }
+    : baseKwargs.modelKwargs
+
+  // The client's own fetch: a transport's, the background-aware one, or none (the SDK's own). The
+  // attempt's observer wraps it on THIS instance only — `build` never sees it.
+  const fetch = baseKwargs.configuration?.fetch as LlmFetch | undefined
+  const mode = background && responsesApi ? openAiBackgroundHelper.modeOf(fetch) : undefined
+  const configuration = observe != null
+    ? {
+      configuration: {
+        ...baseKwargs.configuration,
+        fetch: observe.wrap(mode != null && fetch != null ? openAiBackgroundHelper.observed(fetch, observe.resumed) : fetch),
+      },
+    }
+    : {}
+
+  // `build` hands a Responses-API model over without sampling knobs, but EVERY call is
+  // made on the instance `refine` returns — attempt 0 included — so re-applying a
+  // temperature here puts it on the wire for every single request, not just a retry.
+  // Suppressing it in one hook and restoring it in the other ships the parameter anyway.
+  if (responsesApi) {
+    const effortKwargs = withEffort(modelKwargs, effort)
+    // Background only on the refined instance: the built client's `modelKwargs` also reach the
+    // non-streamed `_generate` (and `responses.parse`) and every tool loop over the raw model.
+    const kwargs = mode != null && openAiBackgroundHelper.wants(mode, effort)
+      ? { ...effortKwargs, background: true }
+      : effortKwargs
+    const cfg = {
+      ...baseKwargs,
+      maxTokens,
+      ...(kwargs != null ? { modelKwargs: kwargs } : {}),
+      ...configuration,
+    }
+    delete cfg.temperature
+    delete cfg.topP
+    // The constructor field is the one langchain drops on `gpt-6-*` — never set it.
+    delete cfg.reasoning
+
+    return new ChatOpenAI(cfg)
+  }
+
+  return new ChatOpenAI({
+    ...baseKwargs,
+    temperature: currentTemperature,
+    maxTokens,
+    ...(modelKwargs != null ? { modelKwargs } : {}),
+    ...configuration,
+  })
+}
+
 /** Every plugin that constructs a `ChatOpenAI` shares these instance-level behaviours. */
 export const openAiFamily: OpenAiFamily = {
   family: OPENAI_FAMILY,
@@ -194,10 +284,15 @@ export const openAiFamily: OpenAiFamily = {
    * acceptable; the model's own ajv validation still enforces conformance afterwards.
    * With `provider.require_parameters` already set, sending `response_format` also makes
    * an aggregator route only to providers that actually support structured outputs.
+   *
+   * Non-strict mode shows the model the schema WITHOUT its validation keywords (`required`,
+   * lengths, counts, bounds, `pattern`, `format`), so the schema sent is a copy that states them in
+   * each node's `description` — a nested optional object's required key is otherwise never seen,
+   * and every answer fails validation the same way.
    */
   responseFormat: (toolName: string, schema: unknown): Record<string, unknown> => ({
     type: 'json_schema',
-    json_schema: { name: toolName, schema, strict: false },
+    json_schema: { name: toolName, schema: openAiConstraintsHelper.fold(schema), strict: false },
   }),
 
   /**
@@ -216,63 +311,7 @@ export const openAiFamily: OpenAiFamily = {
     ? { type: 'image_url', image_url: { url: dataUrlOf(part) } }
     : isPdf(part) ? { type: 'file', file: { filename: part.metadata.filename, file_data: dataUrlOf(part) } } : undefined,
 
-  refine: ({ base, attempt, rungAttempt, temperature, maxOutputCap }: LlmRefineParams): BaseChatModel => {
-    const model = base as ChatOpenAI
-    const currentTemperature = temperature ?? model.temperature ?? 0
-    const baseKwargs = model.lc_kwargs as OpenAiKwargs
-    const responsesApi = usesResponsesApi(model.model ?? baseKwargs.model)
-      || baseKwargs.useResponsesApi === true
-    // Effort only where `build` chose the Responses API itself — the `compatible` plugin
-    // shares this hook and speaks an aggregator's `reasoning` dialect instead.
-    const effort = baseKwargs.useResponsesApi === true
-      ? effortUtils.effortFor(
-        openAiEffort(model.model ?? baseKwargs.model),
-        baseKwargs.modelKwargs?.reasoning?.effort as ModelEffort | undefined,
-        rungAttempt ?? attempt,
-      )
-      : undefined
-    const maxTokens = reasoningFloor(
-      pluginUtils.escalateMaxTokens(model.maxTokens, attempt, maxOutputCap), effort, maxOutputCap,
-    )
-    // The dominant cause of an empty response is a reasoning model spending the whole
-    // budget on hidden thinking (finish_reason=length, empty content). The retry already
-    // raises maxTokens; ALSO shrink the absolute reasoning cap so the extra budget becomes
-    // visible output instead of more reasoning. Only touches `{ max_tokens: N }` reasoning
-    // configs — effort/enabled/exclude shapes are left untouched.
-    const reasoning = baseKwargs.modelKwargs?.reasoning
-    const modelKwargs = attempt > 0 && typeof reasoning?.max_tokens === 'number'
-      ? {
-        ...baseKwargs.modelKwargs,
-        reasoning: { ...reasoning, max_tokens: Math.max(256, Math.floor(reasoning.max_tokens / Math.pow(2, attempt))) },
-      }
-      : baseKwargs.modelKwargs
-
-    // `build` hands a Responses-API model over without sampling knobs, but EVERY call is
-    // made on the instance `refine` returns — attempt 0 included — so re-applying a
-    // temperature here puts it on the wire for every single request, not just a retry.
-    // Suppressing it in one hook and restoring it in the other ships the parameter anyway.
-    if (responsesApi) {
-      const kwargs = withEffort(modelKwargs, effort)
-      const cfg = {
-        ...baseKwargs,
-        maxTokens,
-        ...(kwargs != null ? { modelKwargs: kwargs } : {}),
-      }
-      delete cfg.temperature
-      delete cfg.topP
-      // The constructor field is the one langchain drops on `gpt-6-*` — never set it.
-      delete cfg.reasoning
-
-      return new ChatOpenAI(cfg)
-    }
-
-    return new ChatOpenAI({
-      ...baseKwargs,
-      temperature: currentTemperature,
-      maxTokens,
-      ...(modelKwargs != null ? { modelKwargs } : {}),
-    })
-  },
+  refine: params => refineClient(params, false),
 }
 
 /**
@@ -284,6 +323,13 @@ export const openAiPlugin: LlmPlugin = {
   ...openAiFamily,
 
   type: ModelProvider.OpenAI,
+
+  /**
+   * The family's rebuild, plus OpenAI background mode: on a client built for the direct route,
+   * an attempt at effort `high` or above (every attempt with `background: true`) asks with
+   * `background: true` — a status the splice can poll, a stream it resumes, a response it cancels.
+   */
+  refine: params => refineClient(params, true),
 
   structuredMode: (config: ModelConfig): StructuredMode =>
     config.structuredOutput === false ? StructuredMode.Tool : StructuredMode.Native,
@@ -398,10 +444,13 @@ export const openAiPlugin: LlmPlugin = {
 
   build: ({ alias, config, secret, callbacks }) => {
     const model = config.model ??= 'gpt-5.4-mini'
+    // A transport owns the route when it gives one. Otherwise a Responses-API client gets the
+    // background-aware fetch, marked with its mode — it changes nothing until a `refine` asks.
+    const routed = llmTransportRegistry.fetchFor({ provider: ModelProvider.OpenAI, alias, config })
     const configuration = pluginUtils.makeConfiguration({
       baseURL: undefined,
       headers: config.headers,
-      fetch: llmTransportRegistry.fetchFor({ provider: ModelProvider.OpenAI, alias, config }),
+      fetch: routed ?? (usesResponsesApi(model) ? openAiBackgroundHelper.fetchFor(config) : undefined),
     })
 
     // OpenAI's prompt cache is automatic and prefix-based — there is nothing to mark. The

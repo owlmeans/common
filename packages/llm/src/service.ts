@@ -110,9 +110,10 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
       ...defined(override),
       alias: baseConfig.alias,
     }
-    // The service-wide idle deadline is a floor, not an override: a preset that states its
-    // own `streamTimeout` knows something specific about that model and keeps it.
+    // The service-wide deadlines are a floor, not an override: a preset that states its own
+    // `streamTimeout` or `progressTimeout` knows something specific about that model and keeps it.
     config.streamTimeout ??= options.streamTimeout
+    config.progressTimeout ??= options.progressTimeout
 
     return config
   }

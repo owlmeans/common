@@ -4,7 +4,7 @@ import {
 import type { FastifyReply } from 'fastify'
 import { AccessError, AuthFailedError } from '../errors.js'
 import { AuthForbidden, AuthorizationError, AuthRefused } from '@owlmeans/auth'
-import { isResilientError, ResilientError, SEPARATOR } from '@owlmeans/error'
+import { isResilientError, ResilientError, RESILENT_ERROR, SEPARATOR } from '@owlmeans/error'
 import { randomUUID } from 'node:crypto'
 import { fastifyLogUtils } from './log.js'
 import type { Config, HttpErrorExposure } from '../types.js'
@@ -105,6 +105,10 @@ export const createHttpErrorHelper = (): HttpErrorHelper => {
     return error
   }
 
+  const isTypedRefusal = (error: Error, status: number): boolean =>
+    status >= CLIENT_ERROR_FIRST && status <= CLIENT_ERROR_LAST
+    && isResilientError(error) && error.type !== RESILENT_ERROR
+
   const serializeError = (
     error: Error, exposure: HttpErrorExposure = 'production'
   ): SerializedHttpError => {
@@ -112,13 +116,17 @@ export const createHttpErrorHelper = (): HttpErrorHelper => {
     const thrown = errorStatus(error)
     const status = thrown !== SERVER_ERROR ? thrown : errorStatus(normalized)
     const incidentId = randomUUID()
-    // The server log owns every diagnostic. Production callers receive only its correlation key;
-    // development keeps the typed wire form so local clients can retain their usual error details.
+    // The server log owns every diagnostic: a stack reaches a caller only under development
+    // exposure. A typed refusal (a registered class answering 4xx) is the caller's to act on, so
+    // production still sends its type and message — the refusal's code, never its stack; a fault
+    // (5xx, or an untyped error) sends the correlation key alone.
     Object.assign(error, { incidentId })
     if (isResilientError(normalized)) normalized.incidentId = incidentId
-    const body = exposure === 'production'
-      ? incidentId
-      : ResilientError.marshal(normalized, { includeStack: true, incidentId }).message
+    const body = exposure === 'development'
+      ? ResilientError.marshal(normalized, { includeStack: true, incidentId }).message
+      : isTypedRefusal(normalized, status)
+        ? ResilientError.marshal(normalized, { includeStack: false, incidentId }).message
+        : incidentId
 
     return { status, body, incidentId }
   }

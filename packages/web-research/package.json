@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-research",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Online research pipelines over llm-reader, provider web search and package-inspector: package usage research, package skills, implementation research, existing-project summaries and designs similar to an existing site; sources cloned, screened and cleaned.",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
@@ -33,12 +33,12 @@
     }
   },
   "dependencies": {
-    "@owlmeans/agent": "^0.2.0",
+    "@owlmeans/agent": "^0.2.1",
     "@owlmeans/agent-common": "^0.2.0",
     "@owlmeans/error": "^0.2.0",
-    "@owlmeans/llm": "^0.2.0",
+    "@owlmeans/llm": "^0.2.1",
     "@owlmeans/llm-common": "^0.2.0",
-    "@owlmeans/llm-reader": "^0.2.0",
+    "@owlmeans/llm-reader": "^0.2.1",
     "@owlmeans/log": "^0.2.0",
     "@owlmeans/package-inspector": "^0.2.0",
     "ajv": "^8.20.0"

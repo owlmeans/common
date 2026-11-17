@@ -173,6 +173,21 @@ describe('viable-common - the scaffold plan the model answers', () => {
     expect(answer(newPlan())).toBe(true)
   })
 
+  test('requires the interaction key on every story, null only answered explicitly', () => {
+    const missing = newPlan()
+    delete missing.stories[0].interaction
+    expect(answer(missing)).toBe(false)
+    expect(JSON.stringify(answer.errors)).toContain('interaction')
+
+    const nulled = newPlan()
+    ;(nulled.stories[0] as unknown as Record<string, unknown>).interaction = null
+    expect(answer(nulled), JSON.stringify(answer.errors)).toBe(true)
+
+    const blank = newPlan()
+    delete (blank.stories[0].interaction as unknown as Record<string, unknown>).entity
+    expect(answer(blank)).toBe(false)
+  })
+
   test('accepts the form gate', () => {
     expect(answer(newPlan()), JSON.stringify(answer.errors)).toBe(true)
   })

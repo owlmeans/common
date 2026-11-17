@@ -21,6 +21,16 @@ export interface IamGateOptions {
 export interface IamRuntimeClient {
   organizations: {
     list: () => Promise<IamRuntimeOrganization[]>
+    /**
+     * Every organization of the calling app, for the app owner alone — the provider admits only a
+     * subject holding the owner's marker permission. `owner`, `groups` and `home` describe the
+     * subject's own standing in each, `owner: false` where it is no member.
+     *
+     * @throws {AuthForbidden} `ADMIN_REFUSAL` — the subject is not the app's owner.
+     * @throws {IamError} `runtime:status:404` — a provider that predates the route; an untenanted app
+     *   is the provider's 409 (`runtime:status:409`, or the rebuilt `IamOrganizationError`).
+     */
+    all: () => Promise<IamRuntimeOrganization[]>
     /** The subject becomes the new organization's owner. */
     create: (body?: IamRuntimeOrganizationCreate) => Promise<IamRuntimeOrganization>
     update: (entitySlug: string, body: IamRuntimeOrganizationUpdate) => Promise<IamRuntimeOrganization>

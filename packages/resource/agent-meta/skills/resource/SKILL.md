@@ -90,9 +90,9 @@ Every method returns the record(s) themselves, never a driver result object — 
 The two refusals declare their HTTP status (`static httpStatus`, the `error` skill's rule), so an
 `@owlmeans/server-api` handler that lets one escape answers it: `UnknownRecordError` **404**,
 `RecordExists` **409** (a unique-key violation, a taken id, and a `create` handed an id —
-`id-present` — alike). Every other class of the family is a fault and answers 500. A development
-body rebuilds into the same class on the client; a production body is the incident id alone and
-arrives as `ApiStatusError` with that status (`@owlmeans/api`).
+`id-present` — alike). Every other class of the family is a fault and answers 500. Both refusals
+rebuild into the same class on the client in development and production alike (a production body
+drops only the stack); a fault's production body is the incident id alone (`ServerCrashedError`).
 
 So `get` only what the REQUEST addressed. A missing row it did not name — a configuration record,
 a session, an internal lookup — is not the caller's 404: `load` it and throw the fault or the

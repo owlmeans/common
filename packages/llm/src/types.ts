@@ -7,6 +7,7 @@ import type {
   CumulativeResults, FileProviderRef, LlmPurpose, ModelCapabilities, ModelEffort, ModelProvider, NullCapture,
   PromptFocus, SpectatorArgument, SpectatorEntryLogged,
 } from '@owlmeans/llm-common'
+import type { LlmNoticeKind } from './consts.js'
 import type { PromptInput, PromptService } from './prompt/types.js'
 import type { WebSearch, WebSearchConfig } from './search/types.js'
 
@@ -60,6 +61,15 @@ export interface LlmModelOptions extends LlmLogging {
    * Composed into `PromptBlock.Results`; ignored, like `prompt`, without a `prompts` resolver.
    */
   results?: CumulativeResults
+  /**
+   * `invoke` only: when the call is about to end on a schema refusal — the same refusal repeated
+   * on the last rung, or the last attempt refused — drop what the schema allows to be missing
+   * instead of failing: along each error's path the nearest `nullable` node is set to `null`, else
+   * the nearest key its object does not require is deleted (an `anyOf`/`oneOf`/`allOf` node as a
+   * whole; an array item never). The caller's `filter` then runs again and the result must
+   * validate; the pruned paths reach `LlmSpectator.notice`. Off by default.
+   */
+  prune?: boolean
 }
 
 /** OpenAI prompt-cache mode — automatic (`implicit`) or breakpoints only (`explicit`). */
@@ -123,8 +133,9 @@ export interface LlmCallOptions {
  *
  * Only an output refusal reaches a guide: a `filter` that returned null or threw (an
  * {@link LlmOutputRejection} carries the caller's own `details`), or the schema validation of
- * `invoke`/`request` (`validation-failed:…`, the first Ajv error on `cause`). A stalled stream, an
- * empty answer and a fatal error never do — there is nothing in them to correct.
+ * `invoke`/`request` — an {@link LlmSchemaRejection}: `validation-failed:` and the first errors in
+ * its message, EVERY Ajv error on `details`, the first on `cause`. A stalled stream, an empty
+ * answer and a fatal error never do — there is nothing in them to correct.
  */
 export interface LlmFailedAttempt<T> {
   /** Why the attempt was refused. */
@@ -146,8 +157,11 @@ export interface LlmFailedAttempt<T> {
  * Without a guide a refused attempt is asked again with the same prompt, and a model that does not
  * know why its answer was refused tends to give the same answer. The latest refusal's guidance
  * REPLACES the previous one: the model is told what was wrong with its LAST answer, never a history.
- * `null` asks again unguided. A guide that throws is logged and ignored — it never replaces the
- * attempt's own error. The guidance follows the caller's messages, so every cached prefix holds.
+ * `null` asks again unguided — except after a schema refusal, which then gets the default
+ * correction: up to eight errors with their paths, rules and the refused fragments, and the order
+ * to return the whole answer corrected. A guide that throws is logged and treated as absent — it
+ * never replaces the attempt's own error. The guidance follows the caller's messages, so every
+ * cached prefix holds.
  */
 export type LlmGuide<T> = (failed: LlmFailedAttempt<T>) => ModelInput | null | undefined
   | Promise<ModelInput | null | undefined>
@@ -238,11 +252,35 @@ export interface LlmSpectator {
    * not turn one exhausted budget into a notification storm.
    */
   error?: (event: LlmSpectatorError) => Promise<void>
+  /**
+   * Optional observer of what happens INSIDE a call's retry ladder: a refused attempt, a repeated
+   * refusal that stopped a rung or the call, an accepted pruned answer, a resumed provider stream. Best effort — an observer
+   * that throws or rejects is logged and never changes the call's outcome.
+   */
+  notice?: (event: LlmSpectatorNotice) => Promise<void> | void
 }
 
 export interface LlmSpectatorError {
   action: string
   error: unknown
+}
+
+/** One event inside a call's retry ladder — never the model's content. */
+export interface LlmSpectatorNotice {
+  action: string
+  kind: LlmNoticeKind
+  /** The attempt the event belongs to, from 0 — the index a `guide` and the spectator entry carry. */
+  attempt: number
+  /**
+   * Why: `filter-rejected[:<reason>]` or `validation-failed:<path> <rule> <detail>` (`rejected`),
+   * `next-rung` or `last-rung` (`stopped`), `after:<sequence>` — the last event delivered before
+   * the drop (`resumed`).
+   */
+  reason?: string
+  /** A schema refusal's signature — every distinct `path|rule|detail`, sorted. */
+  signature?: string
+  /** The instance paths a schema refusal names (`rejected`, `stopped`), or the pruned ones (`pruned`). */
+  paths?: string[]
 }
 
 /** Resolves a model of the same role at a different temperature. */
@@ -367,10 +405,26 @@ export interface ModelConfig {
    */
   structuredOutput?: boolean
   /**
-   * Idle/inactivity timeout (ms) for a streamed response. NOT a total cap — the timer
-   * resets on every chunk. Falls back to {@link MODEL_STREAM_TIMEOUT_MS}.
+   * Connection deadline (ms) of a streamed response: the longest SILENCE an attempt waits out. NOT
+   * a total cap — re-armed on every chunk and, where the plugin observes the client's traffic, on
+   * every byte (keepalives and pings included). Falls back to {@link MODEL_STREAM_TIMEOUT_MS}.
    */
   streamTimeout?: number
+  /**
+   * Progress deadline (ms): the longest an attempt whose client sent a request waits for a chunk
+   * of content while its connection stays alive. Used as `max(progressTimeout, streamTimeout)`;
+   * never applies to a call that makes no request of its own (a delegated performer). A preset that
+   * must notice a hang sooner than the connection does (a provider streaming processing comments
+   * forever) sets it equal to its `streamTimeout`. Falls back to {@link MODEL_PROGRESS_TIMEOUT_MS}.
+   */
+  progressTimeout?: number
+  /**
+   * OpenAI background mode on the direct route (Responses-API models, no transport attached):
+   * unset — a streamed call at effort `high` or above runs in background (status polling, a
+   * dropped stream resumed where it stopped, cancelled when abandoned); `true` — every streamed
+   * call does; `false` — none. A proxied route and every other provider ignore it.
+   */
+  background?: boolean
   /**
    * Stronger model the retry escalator switches to once the current rung has failed
    * {@link FALLBACK_AFTER_ATTEMPTS} times. A partial config merged over the rung above it; it
@@ -378,7 +432,7 @@ export interface ModelConfig {
    *
    * Same provider: it inherits every field it does not name (`secret`, `headers`, …).
    * Different `provider`: it inherits only the provider-neutral budget fields
-   * (`maxTokens`, `maxTokensCap`, `streamTimeout`, `cacheKey`) and must bring its own
+   * (`maxTokens`, `maxTokensCap`, `streamTimeout`, `progressTimeout`, `cacheKey`) and must bring its own
    * `secret`, `model` and capability — see `resolveFallbacks`.
    */
   fallback?: Partial<ModelConfig>
@@ -416,12 +470,18 @@ export interface LlmServiceOptions {
   /** The full config list; resolved by `alias` on every `getModel` call. */
   models: () => ModelConfig[]
   /**
-   * Idle deadline (ms) applied to every model this service builds, unless the model's own
+   * Connection deadline (ms) applied to every model this service builds, unless the model's own
    * config overrides it. This is the knob an application sets where it composes its
    * context — one place to tune how long the whole deployment waits on a silent provider,
    * without touching a preset. Falls back to {@link MODEL_STREAM_TIMEOUT_MS}.
    */
   streamTimeout?: number
+  /**
+   * Progress deadline (ms) applied to every model this service builds, unless the model's own config
+   * overrides it — how long a kept-alive connection may deliver no content. Falls back to
+   * {@link MODEL_PROGRESS_TIMEOUT_MS}.
+   */
+  progressTimeout?: number
 }
 
 /**

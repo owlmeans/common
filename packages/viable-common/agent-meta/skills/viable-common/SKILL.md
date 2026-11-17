@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.2.0"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.2.1"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -341,7 +341,10 @@ fields removes `LANDING_GATE_SLOTS`). The optional bands (`useCases`, `different
 `linksDecided` (optional, nullable, strings) lists the story codes whose links were decided at
 DEVELOPMENT time — a decision of no control included; absent on a plan whose links the planner
 decided. It is written by code only, so `ScaffoldPlanAnswerSchema` leaves it out of what the model
-is offered while the stored `ScaffoldPlanSchema` validates it.
+is offered while the stored `ScaffoldPlanSchema` validates it. The answer schema REQUIRES each
+story's `interaction` key but lets it be `null` — only for a story over records the platform's IAM
+owns (organizations, members, invitations, roles, access), which have no domain entity; a story
+without the key is refused. The stored plan carries no key for such a story.
 
 **A field that crosses a version skew carries no `enum`.** Users run `viable-mcp` from a moving
 `npx` range against a separately deployed platform, so `ConnectCapabilitiesSchema.executors.items`

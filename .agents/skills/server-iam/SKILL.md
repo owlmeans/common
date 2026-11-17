@@ -7,7 +7,7 @@ metadata:
 
 # Using `@owlmeans/server-iam`
 
-**Install:** `"@owlmeans/server-iam": "^0.2.0"` in `dependencies`
+**Install:** `"@owlmeans/server-iam": "^0.2.1"` in `dependencies`
 
 Boilerplate-less server-side consumer of the OwlMeans IAM. One call wires the OIDC RP stack and the
 IAM gate; the consumer never knows which IAM backend (Keycloak or integrated) is active. For a
@@ -28,8 +28,10 @@ as the signed-in subject.
 | `makeOrganizationScope(context, request).organizationOf(entitySlug)` | scope | One organization of the request's subject as a `ResolvedEntity` (`{ id: entityKey, slug, iamKey: entityKey }`); one the subject is not in is `AuthForbidden(ORGANIZATION_REFUSAL)` |
 | `makeOrganizationScope(context, request).organizationsOf()` | scope | Every organization of the request's subject, as `ResolvedEntity[]` |
 | `makeIamRuntimeClient(context, request)` | fn | The request-bound `IamRuntimeClient` of the provider's runtime IAM API — see "The runtime IAM client" |
-| `IamRuntimeClient` | type | `organizations.{list,create,update}`, `members.{list,add,update,remove}`, `permissions.list`, `grants.{list,assign,revoke}` |
+| `IamRuntimeClient` | type | `organizations.{list,all,create,update}`, `members.{list,add,update,remove}`, `permissions.list`, `grants.{list,assign,revoke}` |
+| `IAM_RUNTIME_ADMIN_ROUTES` | const | The runtime API's owner-only leaf paths, beside `@owlmeans/iam`'s `IAM_RUNTIME_ROUTES`: `organizationsAll` = `'/organizations/all'` |
 | `ORGANIZATION_REFUSAL` / `ORGANIZATION_OWNER_REFUSAL` | const | Re-exported from `@owlmeans/oidc`: the `AuthForbidden` reasons of a non-member and of a non-owner |
+| `ADMIN_REFUSAL` | const | `'permission'` — the `AuthForbidden` reason of a subject without the app owner's marker on an admin route (the gate's own permission reason) |
 | `SERVER_IAM_SERVICE` | const | `'server-iam-service'` — exported and referenced nowhere; the gate registers under `OIDC_GATE`, not under this |
 | Every `@owlmeans/iam` type | type | Re-exported wholesale, so a server needs one IAM import |
 
@@ -161,13 +163,21 @@ unauthenticated request or a session that is gone is `AuthorizationError` (401).
 - **Bearer** — the provider access token of the request's session record, read afresh on every call
   so a token the guard just refreshed is the one sent. A record without one is
   `AuthForbidden('record')`, and nothing is sent.
-- **Transport** — plain `fetch` over `IAM_RUNTIME_ROUTES`: the API is another service's tree, and a
+- **Transport** — plain `fetch` over `IAM_RUNTIME_ROUTES` and `IAM_RUNTIME_ADMIN_ROUTES`: the API is another service's tree, and a
   relying party binds none of it.
-- **Refusals** — a development server's marshalled error is rebuilt into its class. A production body
-  is only an incident id, so the status and the route decide: a 403 from an owner route is
-  `AuthForbidden(ORGANIZATION_OWNER_REFUSAL)`, from any other route `AuthForbidden(ORGANIZATION_REFUSAL)`;
-  a 401 is `AuthorizationError('iam-runtime')`; anything else `IamError('runtime:status:<n>')`. The
-  incident id travels on the error.
+- **Refusals** — a marshalled error (development, or a production typed 4xx without its stack) is
+  rebuilt into its class. A body that is only an incident id (a fault, an older server) leaves the
+  status and the route to decide: a 403 from an owner route is
+  `AuthForbidden(ORGANIZATION_OWNER_REFUSAL)`, from an admin route `AuthForbidden(ADMIN_REFUSAL)`, from
+  any other route `AuthForbidden(ORGANIZATION_REFUSAL)`; a 401 is `AuthorizationError('iam-runtime')`;
+  anything else `IamError('runtime:status:<n>')`. The incident id travels on the error.
+- **The owner's listing** — `organizations.all()` (`GET /organizations/all`, `IAM_RUNTIME_ADMIN_ROUTES`)
+  answers every organization of the calling app, not only the subject's own (`list()`). The provider
+  admits only the app's owner — a subject holding the owner's marker permission, unbound — and only for
+  a tenanted client (an untenanted one is its 409). `owner`, `groups` and `home` are the subject's own
+  standing in each organization, `owner: false` where it is no member; members are never listed. A
+  provider older than the route answers 404 → `IamError('runtime:status:404')`: a caller that must work
+  against one treats that as "no listing", never as an empty one.
 
 `members.add` is find-or-create by e-mail and idempotent — that is the provider's job, so a caller
 never checks for an existing member first. Owner and member rights are decided by the provider from

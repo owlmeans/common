@@ -102,9 +102,9 @@ exposure) and a status from `httpErrorHelper.errorStatus(error)` (`./utils`), re
   answers the same status. Match whole names, never substrings: a subclass's `typeName` does not
   reliably embed its parent's (`EntitlementRefusal` extends `AuthForbidden`). A declared
   `httpStatus` is a structural static read and survives duplicate copies as it is.
-- **The status is what a production client can act on.** Only a development body is rebuilt into
-  its class; a production body is the incident id alone, so a client knows a refusal by its status
-  (§ Error exposure) — give a refusal the client must act on its own distinct 4xx. Nothing in the
+- **A refusal the client must act on is a typed class with its own distinct 4xx.** A typed 4xx is
+  rebuilt into its class in production too (§ Error exposure); the status alone is what a client
+  still has when a body lost the class (an older server, a proxy's page) — so keep it distinct. Nothing in the
   framework treats a 404 specially — a missing route is a Fastify JSON body the client turns into
   a 404 `ApiStatusError`.
 
@@ -174,14 +174,19 @@ bodies private.
 `X-Incident-ID` response header (`INCIDENT_ID_HEADER` in `./utils`, the same name and value
 `@owlmeans/api` exports; exposed through CORS).
 
-- **Production (the default):** a non-2xx body carries ONLY that incident id, under the resolved
-  HTTP status. A typed refusal is never exposed — its class, message and packed fields stay in the
-  server log under the id.
-- **Development** (an explicit `cfg.http.errors.exposure = 'development'`): the typed marshalled
-  form with message and stack, which the client rebuilds into its class.
-- A client reads a production failure with `@owlmeans/api`'s `./status` subpath: `apiStatusHelper.httpStatusOf(e)`
-  (the status a 428 or 409 is acted on by) and `.incidentIdOf(e)` (the id a person reports). Keep
-  the default production-safe, and tell a client to report the incident id.
+- **Production (the default):** a TYPED REFUSAL — a registered `ResilientError` class (any type
+  but the bare `ResilientError`) answering 4xx — goes out as its marshalled type and message with an
+  EMPTY stack and the incident id (`Type|||message|||<empty>|||<id>`), so the client rebuilds it into
+  its class and reads its marker and packed fields exactly as in development. A FAULT — a 5xx
+  (declared ones included), or an untyped error under any status — carries ONLY the incident id; its
+  message and stack stay in the server log under the id.
+- **Development** (an explicit `cfg.http.errors.exposure = 'development'`): every error in its
+  typed marshalled form with message and stack, which the client rebuilds into its class.
+- A refusal's message is therefore wire content in production: never put a secret, an `entityId`
+  or another organization's data into a 4xx class's message — a fault (500) for anything internal.
+- A client reads a body that lost its class (a fault, an older server, a proxy) with `@owlmeans/api`'s
+  `./status` subpath: `apiStatusHelper.httpStatusOf(e)` (the status a 428 or 409 is acted on by)
+  and `.incidentIdOf(e)` (the id a person reports). Tell a client to report the incident id.
 
 Do not use unbound compatibility handler wrappers. For a WebSocket route use
 `@owlmeans/server-socket`'s `connection(protocol, callback)`.

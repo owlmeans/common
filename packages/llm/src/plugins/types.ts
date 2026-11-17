@@ -8,6 +8,33 @@ import type { ModelConfig } from '../types.js'
 import type { MediaPart } from '../helpers/media/types.js'
 import type { CacheBoundary, ThinkingOff } from './consts.js'
 import type { LlmSearchDialect } from '../search/types.js'
+import type { LlmFetch } from './transport/types.js'
+
+/**
+ * What ONE attempt's client reports about its own traffic — handed to `refine` as
+ * {@link LlmRefineParams.observe}, built afresh for every attempt, so two attempts in flight never
+ * hear each other. The model keeps the attempt alive on it: every byte re-arms the connection
+ * deadline, and the progress deadline is armed once a request left.
+ */
+export interface LlmFetchObserver {
+  /**
+   * The fetch this attempt's client uses: `fetch` (the client's own — a transport's or a
+   * background-aware one — or, when it has none, the global fetch read at call time), noting that a
+   * request left and every byte that arrives in a response body: SSE comments, keepalives and
+   * pings included. Once the attempt has ended nothing is noted any more; the bytes pass unchanged.
+   */
+  wrap: (fetch?: LlmFetch) => LlmFetch
+  /** A provider stream this attempt reads was dropped and resumed where it stopped. */
+  resumed: (event: LlmStreamResume) => void
+}
+
+/** One resumed provider stream (OpenAI background mode). */
+export interface LlmStreamResume {
+  /** The `sequence_number` of the last event delivered before the drop; the resumed stream continues after it. */
+  after: number
+  /** Resumes of this response so far. */
+  resumes: number
+}
 
 /** The effort levels one model accepts, least work first, and the one it uses when unset. */
 export interface EffortSupport {
@@ -31,17 +58,36 @@ export interface LlmBuildParams {
 export interface LlmRefineParams {
   /** The model to rebuild — the primary, or the fallback once escalation kicked in. */
   base: BaseChatModel
-  /** 0-based retry attempt; the output budget doubles with it. */
+  /**
+   * 0-based position on the call's ladder (`escalation` + the attempt's index): which rung runs,
+   * and `> 0` on every retry whatever refused the previous answer.
+   */
   attempt: number
   /**
-   * 0-based attempt within the active rung (the primary or one fallback); effort climbs
-   * with it, so every rung starts from its own declared level. Omitted, it is `attempt`.
+   * How far the output budget climbs: `escalation` + the BUDGET-FIXABLE failures so far — a null,
+   * empty or unparseable answer, a filter refusal. A schema refusal, a stalled stream or a
+   * transport error asks again at the same budget. The output budget doubles and an absolute
+   * reasoning cap halves with it. Omitted (a plugin called directly), it is `attempt`.
+   */
+  climb?: number
+  /**
+   * Budget-fixable failures since the call entered the active rung (the primary or one fallback),
+   * counted from the seed's own position on the rung it starts on; effort climbs with it, so every
+   * rung starts from its own declared level. Omitted, it is `attempt`.
    */
   rungAttempt?: number
   /** Call-site temperature override (`invoke`). */
   temperature?: number | undefined
   /** Hard ceiling the doubled output budget is clamped to. */
   maxOutputCap: number
+  /**
+   * This attempt's traffic observer. A plugin whose client speaks HTTP gives the instance it returns
+   * `observe.wrap(<the client's fetch>)` — on the refined instance only, never at `build` — so the
+   * attempt's deadlines hear its bytes. A plugin that sends no request of its own (a delegated
+   * performer) ignores it, and the attempt then never gets a progress deadline. Omitted (a plugin
+   * called directly), the client keeps its fetch.
+   */
+  observe?: LlmFetchObserver
 }
 
 /** One rendered section of the composed prompt, in emission order. */
@@ -133,9 +179,9 @@ export interface LlmPlugin {
   owns: (model: BaseChatModel) => boolean
 
   /**
-   * Rebuild the model for retry attempt N: raise the output budget toward
-   * `maxOutputCap` and apply any provider-specific escalation (e.g. shrinking a
-   * reasoning budget so the extra tokens become visible output).
+   * Rebuild the model for one attempt — attempt 0 included: raise the output budget toward
+   * `maxOutputCap` with `climb`, climb effort with `rungAttempt`, and apply any provider-specific
+   * escalation (e.g. shrinking a reasoning budget so the extra tokens become visible output).
    */
   refine: (params: LlmRefineParams) => BaseChatModel
 

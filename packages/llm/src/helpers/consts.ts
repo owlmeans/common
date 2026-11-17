@@ -6,5 +6,5 @@ import type { ModelConfig } from '../types.js'
  * switches, effort — belongs to the other provider and would be wrong, or a 400, on this one.
  */
 export const PROVIDER_NEUTRAL_FIELDS = [
-  'maxTokens', 'maxTokensCap', 'streamTimeout', 'cacheKey',
+  'maxTokens', 'maxTokensCap', 'streamTimeout', 'progressTimeout', 'cacheKey',
 ] as const satisfies ReadonlyArray<keyof ModelConfig>

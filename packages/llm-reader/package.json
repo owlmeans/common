@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/llm-reader",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Read the web for an LLM: fetch, parse, describe and extract from pages, write their DESIGN.md, clone links into files and crawl sites.",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
@@ -33,10 +33,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/agent": "^0.2.0",
+    "@owlmeans/agent": "^0.2.1",
     "@owlmeans/context": "^0.2.0",
     "@owlmeans/error": "^0.2.0",
-    "@owlmeans/llm": "^0.2.0",
+    "@owlmeans/llm": "^0.2.1",
     "@owlmeans/llm-common": "^0.2.0",
     "@owlmeans/log": "^0.2.0",
     "ajv": "^8.20.0",

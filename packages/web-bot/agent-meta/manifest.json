@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/web-bot",
-  "version": "0.2.0",
-  "generatedAt": "2026-11-15T13:38:38.728Z",
+  "version": "0.2.1",
+  "generatedAt": "2026-11-16T17:47:30.302Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
