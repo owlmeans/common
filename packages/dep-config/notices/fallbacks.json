@@ -1,4 +1,8 @@
 {
+  "@aws-sdk/credential-provider-http@3.972.79": {
+    "file": "licenses/aws-sdk-js-v3-3.1157.0.txt",
+    "source": "https://raw.githubusercontent.com/aws/aws-sdk-js-v3/e5988ecad1aded47fa75f5e18c9cc00ddcb608de/LICENSE"
+  },
   "@cfworker/json-schema@4.1.1": {
     "file": "licenses/cfworker-json-schema-4.1.1.txt",
     "source": "https://raw.githubusercontent.com/cfworker/cfworker/5409fdc2bd144f68e8b28c61c71fcb16600000a6/LICENSE.md"
@@ -68,5 +72,13 @@
   "victory-vendor@36.9.2": {
     "file": "licenses/victory-vendor-36.9.2.txt",
     "source": "https://raw.githubusercontent.com/FormidableLabs/victory/v36.9.2/LICENSE.txt"
+  },
+  "@aws-sdk/credential-provider-login@3.972.84": {
+    "file": "licenses/aws-sdk-js-v3-3.1157.0.txt",
+    "source": "https://raw.githubusercontent.com/aws/aws-sdk-js-v3/e5988ecad1aded47fa75f5e18c9cc00ddcb608de/LICENSE"
+  },
+  "@aws-sdk/nested-clients@3.997.51": {
+    "file": "licenses/aws-sdk-js-v3-3.1157.0.txt",
+    "source": "https://raw.githubusercontent.com/aws/aws-sdk-js-v3/e5988ecad1aded47fa75f5e18c9cc00ddcb608de/LICENSE"
   }
 }
