@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/file-inspector
 
 **Layer:** Infra
-**Install:** `"@owlmeans/file-inspector": "^0.2.1-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/file-inspector": "^0.2.1-rc.1"` in `dependencies`
 
 Server-side (Node and Bun). Detection works on bytes in hand (`inspect`) or reads a source through
 a narrow port (`probe`): a head sample plus a few bounded range reads, never more than the budget.
@@ -102,13 +102,28 @@ Shebang scripts stay `code` (with `language`); they are dangerous only under a p
 
 ## Active PDF
 
-A detected PDF is scanned for `/JavaScript`, `/JS`, `/Launch`, `/EmbeddedFile`, `/RichMedia` (names
-decoded from `#xx`, `/JS` only as a whole name), in its own text and inside FlateDecode object
-streams (`/ObjStm`), each inflated up to 16 MiB — past it counts as active, a stream that does not
-inflate is skipped. Found → `details.pdf.active`, reason `pdf-active`, `dangerous`. `inspect` scans
-every byte it is given (`trailer` only with `complete`); a probe reads a PDF that fits its budget
-whole, a larger one by its head sample and a 64 KiB tail (which also gives `details.pdf.trailer`,
-reason `pdf-no-trailer`) — what lies beyond both is not seen, so verify uploads on the complete file.
+A detected PDF is scanned for active names, decoded from `#xx`:
+
+- `/JavaScript`, `/Launch`, `/EmbeddedFile`, `/RichMedia` in EVERY byte — they never occur by chance,
+  and a reader finds an object by its xref offset wherever it sits (even inside a fake stream);
+- `/JS` (a whole name) only in the file's SYNTAX — everything outside a stream's payload. Three such
+  bytes turn up in compressed image or font data by chance (a Chrome-printed page's picture did), and a
+  JavaScript action names `/S /JavaScript` as well. One walk splits syntax from payloads: a payload
+  starts after `>>`, optional whitespace, `stream` and one end of line, and ends at the first
+  `endstream` after it (an early one only ends it early — a false positive, never a miss);
+- every name inside FlateDecode object streams (`/ObjStm`, its dictionary the syntax just before
+  `stream`), each inflated up to 16 MiB — past it counts as active, a stream that does not inflate is
+  skipped.
+
+A sample is the whole file unless the caller says (`isActive(bytes, { fromStart, toEnd })`): a head
+(`toEnd: false`) leaves a stream it cuts as payload to its end, a whole file reads what follows a
+never-closed stream as syntax, and a tail (`fromStart: false`) treats its bytes up to the first
+`endstream` as payload when no stream starts first — a tail always holds the `endstream` of the payload
+it opens in, the trailer follows it. Found → `details.pdf.active`, reason `pdf-active`, `dangerous`.
+`inspect` scans every byte it is given (`trailer` only with `complete`); a probe reads a PDF that fits
+its budget whole, a larger one by its head sample and a 64 KiB tail (which also gives
+`details.pdf.trailer`, reason `pdf-no-trailer`) — what lies beyond both is not seen, so verify uploads
+on the complete file. Accepted false positive: `/JS` inside a literal string of the syntax (a title).
 
 ## Probes
 

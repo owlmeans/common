@@ -49,6 +49,18 @@ export const objectStreamPdf = (content: string): Buffer => {
   return pdfOf(bytes(`5 0 obj\n<< /Type /ObjStm /N 1 /First 4 /Filter /FlateDecode /Length ${packed.length} >>\nstream\r\n`, packed,
     '\r\nendstream\nendobj'))
 }
+/** One stream object: its dictionary, the keyword (after `gap`, before `eol`), the payload, `endstream`. */
+export const streamObject = (
+  id: number, dictionary: string, payload: Uint8Array | string, { gap = ' ', eol = '\n' }: { gap?: string, eol?: string } = {},
+): Buffer => bytes(`${id} 0 obj\n<< ${dictionary} >>${gap}stream${eol}`, payload, '\nendstream\nendobj\n')
+/** Image pixels that happen to hold the bytes `/JS` and `/JS` again before a NUL and a space — as compressed data does by chance. */
+export const PIXELS_NAMING_JS = bytes([0x89, 0x12, 0xfe], '/JS', [0x00, 0x7f, 0x81], '/JS ', [0xc3, 0x01, 0x02, 0x03])
+/** A PDF whose image stream's payload holds `PIXELS_NAMING_JS` between `before` and `after`. */
+export const imagePdf = (before: string = '', after: string = ''): Buffer => pdfOf(bytes(
+  before,
+  streamObject(4, `/Type /XObject /Subtype /Image /Width 2 /Height 2 /Length ${PIXELS_NAMING_JS.length}`, PIXELS_NAMING_JS),
+  after,
+))
 /** A PDF of `size` bytes: `head` objects, comment padding, then `tail` objects before the trailer. */
 export const paddedPdf = (size: number, tail: string = ''): Buffer => {
   const start = bytes('%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n')

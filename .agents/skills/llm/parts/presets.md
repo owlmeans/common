@@ -62,6 +62,7 @@ build-with-claude/{effort,prompt-caching}):
 |---|---|---|
 | `gpt-6-sol`, `gpt-6-luna` | none, low, medium, high, xhigh, max | medium |
 | `gpt-6-astra` | low … max (`none` is a 400) | medium |
+| `gpt-6.2-sol` | low … max (`none` is a 400) | medium |
 | `gpt-5*` and older OpenAI | not sent — accepted sets vary per snapshot | — |
 | Claude Opus 5.5, Haiku 5.5 | low … max | medium |
 | Claude Sonnet 5.5, Opus 5, Fable 5.1/5, Mythos 5.1/5, Opus 4.8/4.7, Sonnet 5 | low … max | high |

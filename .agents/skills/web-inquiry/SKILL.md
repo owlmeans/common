@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-inquiry
 
 **Layer:** Web (depends on `@owlmeans/common-inquiry` and `@owlmeans/log`; no React, no widget code)
-**Install:** `"@owlmeans/web-inquiry": "^0.2.1-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/web-inquiry": "^0.2.1-rc.0"` in `dependencies`
 
 The host half of the inquiry widget. The dialog itself — React, styles, the captcha (a
 `@owlmeans/web-captcha` client), the upload — is a bundle the CRM serves; this package only loads it,

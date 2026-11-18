@@ -266,7 +266,7 @@ export const createFileInspector = (options: FileInspectorOptions = {}): FileIns
       complete,
       budgetHit,
       pdfTrailer: isPdf && complete ? pdf.hasTrailer(bytes.subarray(Math.max(0, bytes.length - PDF_TRAILER_BYTES))) : undefined,
-      pdfActive: isPdf ? pdf.isActive(bytes) : undefined,
+      pdfActive: isPdf ? pdf.isActive(bytes, { toEnd: complete }) : undefined,
       size: complete ? bytes.length : inspectOptions.size,
       name: claims.name,
     })
@@ -297,7 +297,7 @@ export const createFileInspector = (options: FileInspectorOptions = {}): FileIns
 
     return {
       pdfTrailer: tail != null ? pdf.hasTrailer(tail.subarray(Math.max(0, tail.length - PDF_TRAILER_BYTES))) : undefined,
-      pdfActive: pdf.isActive(head) || (tail != null && pdf.isActive(tail)),
+      pdfActive: pdf.isActive(head, { toEnd: false }) || (tail != null && pdf.isActive(tail, { fromStart: false })),
     }
   }
 

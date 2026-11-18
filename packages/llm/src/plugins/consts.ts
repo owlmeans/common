@@ -129,6 +129,11 @@ export const RESPONSES_API_PREFIXES = ['gpt-6', 'gpt-5', 'codex-']
  */
 export const OPENAI_EFFORT_SUPPORT: ReadonlyArray<EffortSupport & { prefix: string }> = [
   {
+    prefix: 'gpt-6.2-sol',
+    levels: [ModelEffort.Low, ModelEffort.Medium, ModelEffort.High, ModelEffort.XHigh, ModelEffort.Max],
+    default: ModelEffort.Medium,
+  },
+  {
     prefix: 'gpt-6-astra',
     levels: [ModelEffort.Low, ModelEffort.Medium, ModelEffort.High, ModelEffort.XHigh, ModelEffort.Max],
     default: ModelEffort.Medium,
