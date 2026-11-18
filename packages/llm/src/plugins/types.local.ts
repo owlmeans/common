@@ -31,3 +31,13 @@ export type ContentBlock = Record<string, unknown>
 export type OpenAiKwargs = ConstructorParameters<typeof ChatOpenAI>[0] & {
   modelKwargs?: { reasoning?: { max_tokens?: number, effort?: string } & Record<string, unknown> } & Record<string, unknown>
 }
+
+/** One item of a Responses API answer's `output`, as `response_metadata.output` carries it. */
+export interface ResponsesOutputItem {
+  type?: string
+  /** A `function_call`'s call id — the tool call's id everywhere else. */
+  call_id?: string
+  name?: string
+  /** A `function_call`'s arguments: JSON text. */
+  arguments?: string
+}

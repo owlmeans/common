@@ -18,6 +18,8 @@ export interface ScriptedTurn {
   before?: () => void | Promise<void>
   /** The call fails with this message instead of answering. */
   error?: string
+  /** Stream exactly these chunks — a provider's own shape (`content` and `toolCalls` are then ignored). */
+  chunks?: AIMessageChunk[]
 }
 
 export interface ScriptedModel {
@@ -52,6 +54,11 @@ export const scriptedModel = (script: ScriptedTurn[], extra: Record<string, unkn
     await turn.before?.()
     if (turn.error != null) {
       throw new Error(turn.error)
+    }
+
+    if (turn.chunks != null) {
+      const chunks = turn.chunks
+      return (async function* () { yield * chunks })()
     }
 
     const chunk = new AIMessageChunk({

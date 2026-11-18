@@ -23,4 +23,10 @@ export interface JsonHelper {
    * value that already matches its schema is returned untouched.
    */
   coerceToSchema: (value: unknown, schema: unknown) => unknown
+  /**
+   * A tool call's argument text as its object, strictly: empty text is no arguments (`{}`); text
+   * that is not one whole JSON object — a fragment, two objects run together, an array, a scalar —
+   * is `undefined`. Never salvages, unlike {@link parseJsonContent}.
+   */
+  parseArguments: (text: string) => Record<string, unknown> | undefined
 }

@@ -7,6 +7,7 @@ import type { ConnectLlm, ConnectTarget } from '../connect/consts.js'
 import type { ProjectOrigin } from '../convert/types.js'
 import type { StoryActor } from '../design/consts.js'
 import type { StoryWriteInput } from '../metadata/types.js'
+import type { WorkMode } from '../execution/consts.js'
 
 // Kept as a type: card fields must satisfy `Record<string, unknown>`, which needs the implicit index signature of a type literal.
 /**
@@ -44,6 +45,8 @@ export type ViableProjectFields = {
   origin?: ProjectOrigin
   /** Who performs a run's model calls on this project; absent inherits the owner's preference. */
   connectLlmMode?: ConnectLlm
+  /** How this project's pipeline steps work; absent inherits the environment's default (hybrid). */
+  workMode?: WorkMode
   /**
    * The landing-gate decision: which story a guest can start on the landing page.
    *

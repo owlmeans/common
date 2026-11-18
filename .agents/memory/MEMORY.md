@@ -15,7 +15,7 @@ Before non-trivial work, open every node whose scope matches the task's files or
 - [[auth]] `packages/*auth*/**, packages/web-client/src/login/**` — one account per e-mail; rows per (account, app, org); gate needs own app; ban/block; sticky revoke
 - [[shadcn]] `**/components.json, packages/web-*/**` — four durable decisions (incl. `@source`); picker subpath; strings/colour rules; Radix popover gotchas
 - [[agent-meta]] `packages/*/agent-meta/**` — sync sharp edges; general-scope skills; strict lint
-- [[llm]] `packages/llm/**, packages/llm-common/**` — provider plugins (no ifs); registration order; helpers-vs-utils rule; langchain peer deps; state-nesting fix
+- [[llm]] `packages/llm/**, packages/llm-common/**` — plugins, no ifs; registration order; helpers-vs-utils; langchain peers; streamed tool-call loss
 - [[agent]] `packages/agent/**, packages/agent-common/**` — agent runtime over LangGraph's functional API; AgentPlugin seam; storage PORTS not resources; first ExecutionPlugin impl; server-side FlowProvider
 - [[planning]] `packages/{planning,planning-auth,server-planning,client-planning,planning-postgres}/**` — fold hooks; scoped reads; native resources; auth links; Postgres gaps; app fields
 - [[logging]] `packages/{log,web-log,viable-log}/**, **/logger(` — one logging system; global state; console override; config timing; token redaction; Fastify adapter

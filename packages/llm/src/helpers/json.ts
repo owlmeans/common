@@ -96,7 +96,12 @@ export const createJsonHelper = (): JsonHelper => {
     return value
   }
 
-  return { parseJsonContent, coerceToSchema }
+  const parseArguments: JsonHelper['parseArguments'] = text => {
+    const value = tryParse(text.trim() === '' ? '{}' : text)
+    return value != null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined
+  }
+
+  return { parseJsonContent, coerceToSchema, parseArguments }
 }
 
 export const jsonHelper = createJsonHelper()

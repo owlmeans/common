@@ -3,7 +3,7 @@ name: testing
 description: The package's offline and gated specs, the golden prompt bytes, and the stream fixtures.
 metadata:
   purposes: test
-  mentions: ANTHROPIC_SECRET, OPENAI_SECRET, OPENROUTER_SECRET, media.spec.ts, capabilities.spec.ts, trace.spec.ts, tokens.spec.ts, results.spec.ts, model.spec.ts, anthropic-families.spec.ts, stream-sdk.spec.ts, search.spec.ts, search-live.spec.ts
+  mentions: ANTHROPIC_SECRET, OPENAI_SECRET, OPENROUTER_SECRET, tool-rounds.spec.ts, tool-calls.spec.ts, tool-golden.ts, media.spec.ts, capabilities.spec.ts, trace.spec.ts, tokens.spec.ts, results.spec.ts, model.spec.ts, anthropic-families.spec.ts, stream-sdk.spec.ts, search.spec.ts, search-live.spec.ts
 ---
 
 # @owlmeans/llm — Tests
@@ -25,6 +25,17 @@ pins the refusal of a hidden property name before any request. `plugins.spec.ts`
 `Compatible` provider offline and the cache dialects: `patchPrompt` on both providers (lifetime
 order, cumulative minimums, budget, OpenAI blocks and tool `input_text`, nothing on `compatible`),
 marker stripping, `loopCache`, and a fallback in another dialect prepared again.
+
+`tool-rounds.spec.ts` covers `LlmCallTools` with scripted models (`tool-fixtures.ts` records every
+request): the tool-less requests against `tool-golden.ts` — GOLDEN bytes recorded before the option
+existed, never re-recorded to make a change pass — the plain call on a rung without tools, rounds, stop
+tools, the answer-now and spent turns, contained and fatal tool errors, carried look-ups (same rung as
+messages, another rung as the note), invoke's tool choice and its re-ask after an answer in words,
+spectating, continuation, `loopCache` per round, and the wire of real chat-completions and Anthropic
+clients over a scripted SSE transport. `tool-calls.spec.ts` pins `toolCallsHelper` (parallel calls
+whose streamed fragments carry no position: rebuilt from the provider's record, else regrouped, never
+dropped), a round of parallel calls in the live shape — through the Responses API client too — and
+the re-asks of turns that may no longer look.
 
 `media.spec.ts` pins the parts (shapes, measured metadata, refusals by type, signature and size)
 and their wire through REAL clients with a recording transport (`tests/wire.ts`: a 400 or a

@@ -278,6 +278,29 @@ export interface StoryDesignJob {
    * automatic, so the answer is written down where the processor's author has to read it.
    */
   idempotency: string
+  /**
+   * When the broker runs it on its own — a nightly report, a sweep every quarter hour. A scheduled
+   * job has NO endpoint producer: its schedule is the producer, and its run carries no record id.
+   * Optional: every job an endpoint enqueues carries none. Read through `jobScheduleHelper.scheduleOf`,
+   * which answers only a valid one.
+   */
+  schedule?: StoryDesignJobSchedule
+}
+
+/**
+ * When the broker produces a job — the `@owlmeans/queue` `declareSchedule` fields the design decides
+ * (`cron` is the declaration's `pattern`: a property named `pattern` is hidden from a model shown the
+ * schema). Exactly one of `cron` and `every`; `tz` goes with `cron` and only with it.
+ */
+export interface StoryDesignJobSchedule {
+  /** A five-field cron pattern (`minute hour day-of-month month day-of-week`), read in `tz` — `7 2 * * *`. */
+  cron?: string
+  /** Milliseconds between runs. */
+  every?: number
+  /** The IANA time zone `cron` is read in — the story's own, else `UTC`. */
+  tz?: string
+  /** Run once as soon as the schedule is created or changed, then follow the pattern. With `cron` only. */
+  immediately?: boolean
 }
 
 /** An LLM agent or pipeline generated INTO the target. */

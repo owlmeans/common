@@ -41,3 +41,17 @@ export enum ModelRole {
   /** Runs the provider-hosted web search of online research — a model with a search tool. */
   Researcher = 'researcher',
 }
+
+/**
+ * How a run's pipeline steps do their work.
+ *
+ * `Linear` is the fixed recipe: code decides every input, each helper makes its one-shot model
+ * call, repair is the fixer's ladder. `Hybrid` makes every step a mini agent — each helper call
+ * becomes one bounded conversation that may look for what it misses, decides whether an existing
+ * artifact must change at all, checks its own output and repairs it, and files what it learned.
+ * Absent is `Hybrid`; a run finishes in the mode it started in.
+ */
+export enum WorkMode {
+  Linear = 'linear',
+  Hybrid = 'hybrid',
+}

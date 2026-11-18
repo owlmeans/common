@@ -51,3 +51,10 @@ export const agentLoopActions = new Set([
   'coding-agent-ask', 'arbitrary-modification', 'fix-agent', 'architect', 'declaration-lookup',
   'source-extract',
 ])
+
+/**
+ * The action prefix of a HYBRID pipeline step's conversation rounds (`hybrid:<step>:<phase>`, the
+ * agent library's `HYBRID_ACTION_PREFIX` and its separator). Such a round is loop activity like the
+ * actions above: its `read_file`/`search`-like tool calls must never render as a selection card.
+ */
+export const HYBRID_LOOP_ACTION_PREFIX = 'hybrid:'

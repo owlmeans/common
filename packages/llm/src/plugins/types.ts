@@ -1,6 +1,6 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/core/callbacks/base'
-import type { MessageFieldWithRole } from '@langchain/core/messages'
+import type { AIMessage, AIMessageChunk, MessageFieldWithRole, ToolCall } from '@langchain/core/messages'
 import type {
   CacheTtl, CacheTtlPolicy, MediaRequestLimits, ModelEffort, PromptBlock, PromptRegion, StructuredMode,
 } from '@owlmeans/llm-common'
@@ -171,10 +171,25 @@ export interface LlmPlugin {
   pinsTool?: (config: Partial<ModelConfig>) => boolean
 
   /**
+   * Whether this model may be handed look tools (`LlmCallTools`) and asked to call them. `false`: a
+   * call with `tools` takes the plain request on this rung. Omitted: any client with `bindTools` may.
+   */
+  toolCalling?: (config: Partial<ModelConfig>) => boolean
+
+  /**
    * Whether the structured-output tool is sent `strict` (grammar-constrained arguments) for this
    * model and schema. Omitted: never.
    */
   strictTool?: (config: Partial<ModelConfig>, schema: unknown) => boolean
+
+  /**
+   * The tool calls this provider's FINAL response names, each with its complete arguments — the
+   * record a streamed completion carries beside its chunks — or `undefined` when the completion
+   * carries none. Authoritative over the calls langchain rebuilds from the streamed chunks
+   * (`toolCallsHelper.reconcile`): ids are the provider's call ids; a call whose arguments do not
+   * parse is left out, so its streamed form stands. Omitted: the chunks are the only source.
+   */
+  toolCallsOf?: (message: AIMessage | AIMessageChunk) => ToolCall[] | undefined
 
   /**
    * What stops this provider from SHOWING the model a structured-output schema as written — one
@@ -264,6 +279,12 @@ export interface OpenAiFamily {
   /** A 400 means the request itself is malformed — retrying re-sends the same shape. */
   isFatal: (e: unknown) => Error | null
   refine: (params: LlmRefineParams) => BaseChatModel
+  /**
+   * The Responses API's own record of a streamed answer's function calls: the `function_call`
+   * items of `response_metadata.output` (`response.completed`), arguments parsed, ids the call ids.
+   * `undefined` for chat completions, which carries no such record.
+   */
+  toolCallsOf: (message: AIMessage | AIMessageChunk) => ToolCall[] | undefined
   /**
    * The chat-completions spelling of a media part: an image as `image_url` with a data URL (the
    * Responses converter turns it into `input_image`), a PDF as `file` with `file_data`.

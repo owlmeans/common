@@ -5,7 +5,7 @@ import * as z from 'zod'
 import { ExecutionLevel, ModelProvider, PromptBlock } from '@owlmeans/llm-common'
 import { anthropicPlugin, makePromptService, openAiPlugin } from '@owlmeans/llm'
 import type { Execution, ModelConfig, PromptService } from '@owlmeans/llm'
-import { HumanMessage, ToolMessage } from '@langchain/core/messages'
+import { AIMessageChunk, HumanMessage, ToolMessage } from '@langchain/core/messages'
 import { AgentRunStatus } from '@owlmeans/agent-common'
 import {
   AGENT_INBOX_PREFIX, AGENT_STOP_INSTRUCTION, AGENT_STOP_SUMMARY_TIMEOUT_MS, AGENT_STOPPED_NOTE,
@@ -90,6 +90,42 @@ describe('agent — the tool loop', () => {
     })
 
     expect(agent.invoke('spin')).rejects.toThrow(/loop-exhausted/)
+  })
+
+  test('parallel calls whose streamed arguments were lost run with the arguments the provider recorded', async () => {
+    const calls = [
+      { id: 'call_a', path: 'sources/common/src/entrypoints.ts' },
+      { id: 'call_b', path: 'sources/backend/src/models/flow/flow.ts' },
+      { id: 'call_c', path: 'sources/api/src/app/ticket/index.ts' },
+    ]
+    const read: string[] = []
+    const readFile = tool(
+      async ({ path }: { path: string }) => { read.push(path); return `content of ${path}` },
+      { name: 'read_file', description: 'Reads a file.', schema: z.object({ path: z.string() }) },
+    ) as unknown as AgentToolSet[string]
+    // The live shape: each call's header with its position, argument fragments with none, and the
+    // provider's final record (`response_metadata.output`) repeating every call whole.
+    const chunks = [
+      ...calls.flatMap((call, i) => [
+        new AIMessageChunk({ content: [], tool_call_chunks: [{ type: 'tool_call_chunk', id: call.id, name: 'read_file', args: '', index: i + 1 }] }),
+        new AIMessageChunk({ content: [], tool_call_chunks: [{ type: 'tool_call_chunk', args: JSON.stringify({ path: call.path }) }] }),
+      ]),
+      new AIMessageChunk({
+        content: [],
+        response_metadata: {
+          model_provider: 'openai',
+          output: calls.map(call => ({ type: 'function_call', call_id: call.id, name: 'read_file', arguments: JSON.stringify({ path: call.path }) })),
+        },
+      }),
+    ]
+    const scripted = scriptedModel([{ chunks }, { content: 'done' }])
+    const agent = makeAgentModel({
+      exec: execution(), agentModel: scripted.model, tools: { read_file: readFile }, provider: openAiPlugin,
+    })
+
+    expect((await agent.invoke('read them')).message.content).toBe('done')
+    expect(read).toEqual(calls.map(call => call.path))
+    expect(JSON.stringify(scripted.asked()[1])).toContain('content of sources/backend/src/models/flow/flow.ts')
   })
 })
 

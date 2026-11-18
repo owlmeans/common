@@ -5,7 +5,7 @@ import { createIdOfLength } from '@owlmeans/basic-ids'
 import { makeFlowModel } from '@owlmeans/flow'
 import type { FlowModel } from '@owlmeans/flow'
 import { PromptRegion } from '@owlmeans/llm-common'
-import { cacheHelper, llmPluginRegistry } from '@owlmeans/llm'
+import { cacheHelper, llmPluginRegistry, toolCallsHelper } from '@owlmeans/llm'
 import type { HelperExecution, LlmLoopCacheHints, ModelInputItem } from '@owlmeans/llm'
 import { logger } from '@owlmeans/log'
 import {
@@ -275,7 +275,8 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
           return new AIMessage({ content: '' })
         }
 
-        const result = new AIMessage(cacheHelper.withCacheTiers(final!))
+        // The calls as the provider recorded them: streamed fragments of parallel calls can lose their arguments.
+        const result = toolCallsHelper.messageOf(cacheHelper.withCacheTiers(final!), provider)
         await spectate?.(messages as ModelInputItem[], result, action, turn, startedAt, modelId)
 
         // Nothing runs after a summary, so a tool call in it — a provider that dropped `tool_choice` —

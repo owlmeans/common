@@ -38,6 +38,12 @@ export const MODEL_STREAM_TIMEOUT_MS = 3 * 60 * 1000
 export const FALLBACK_AFTER_ATTEMPTS = 3
 
 /**
+ * Look rounds one attempt of a call with `LlmCallTools` may run when the caller names no
+ * `maxRounds` — each a model turn whose tool calls run. A call that needs more is better split.
+ */
+export const DEFAULT_TOOL_ROUNDS = 3
+
+/**
  * Temperature a `TemperatureFactory` caller asks for, per `ModelConfig.effort` level it is
  * turned into. 0.3 is the step of the consumers' own "try something different" ladders, so
  * each rung of those climbs one effort level on a model that accepts effort.

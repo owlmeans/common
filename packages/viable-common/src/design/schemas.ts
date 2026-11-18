@@ -6,6 +6,7 @@ import { AREA_KEY_MAX, AREA_KEY_PATTERN } from '../areas/consts.js'
 import { ENGLISH_NAME_NOTE } from '../dev/consts.js'
 import { StatedRequirementSchema } from '../ba/schemas.js'
 import { STORY_BOT_TRIGGERS, StoryActor, StoryAgentKind } from './consts.js'
+import { CRON_SHAPE } from './schedule/consts.js'
 import type { StoryDesign, RuntimeDecision } from './types.js'
 
 /**
@@ -271,6 +272,28 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
               purpose: { type: 'string' },
               reason: { type: 'string' },
               idempotency: { type: 'string' },
+              // Optional: a job an endpoint enqueues carries none; one the broker runs on its own does.
+              schedule: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  cron: { type: 'string', nullable: true, pattern: CRON_SHAPE },
+                  every: { type: 'integer', nullable: true, minimum: 1 },
+                  tz: { type: 'string', nullable: true, minLength: 1 },
+                  immediately: { type: 'boolean', nullable: true },
+                },
+                required: [],
+                additionalProperties: false,
+                // Exactly one of the two, a time zone with a cron pattern only — the queue's own rules
+                // (`jobScheduleHelper.problemsOf` checks the values). Under `if` so `null` passes.
+                if: { type: 'object' },
+                then: {
+                  oneOf: [
+                    { required: ['cron', 'tz'], not: { required: ['every'] } },
+                    { required: ['every'], not: { anyOf: [{ required: ['cron'] }, { required: ['tz'] }] } },
+                  ],
+                },
+              },
             },
             required: ['queue', 'name', 'path', 'purpose', 'reason', 'idempotency'],
             additionalProperties: false,

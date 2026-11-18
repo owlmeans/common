@@ -6,9 +6,8 @@ updated: 2026-11
 
 # LLM (inference runtime + execution abstraction)
 
-Extracted from `viable-agent` so any OwlMeans app can drive an LLM. `llm-common` holds the
-serializable contracts (no langchain runtime); `llm` holds the model, the provider plugins, the
-model factory service and the generic execution service. Related: [[versioning]].
+`llm-common`: serializable contracts (no langchain runtime); `llm`: the model, provider plugins, the
+model factory service, the generic execution service. Related: [[versioning]].
 
 ## Facts
 
@@ -26,8 +25,9 @@ model factory service and the generic execution service. Related: [[versioning]]
 ## Invariants
 
 - Provider differences are `LlmPlugin` members — `build` / `owns` / `family` / `refine` /
-  `structuredMode` / `toolChoice` / `responseFormat` / `patchPrompt` / `loopCache` / `cacheDialect` / `isFatal`. No `instanceof`
-  or `provider ===` branch may return to `model.ts` or `service.ts`.
+  `structuredMode` / `toolChoice` / `toolCalling` / `toolCallsOf` / `responseFormat` / `patchPrompt` / `loopCache` /
+  `cacheDialect` / `isFatal`. No `instanceof` or `provider ===` branch may return to `model.ts` or `service.ts`.
+- A call without `LlmCallTools` sends byte-identical requests (`tests/tool-golden.ts`, never re-recorded).
 - A web search (`LlmService.webSearch`) is a direct request to the provider — never through
   `llmTransportRegistry` or an SDK client — so an installed LLM proxy cannot reroute it; its dialect is
   `LlmPlugin.search`, declared per plugin and never in `openAiFamily` (a spread would send a gateway
@@ -42,13 +42,10 @@ model factory service and the generic execution service. Related: [[versioning]]
   re-runs on a family change. Keyed on the primary's plugin, another provider's rung 400s on
   the first switched call. `resolveFallbacks` is the one merge (cross-provider rungs inherit
   only budgets). Detail: skill `llm`, "Fallback chains and provider effort".
-- **`refine` runs on EVERY call, attempt 0 included** — it is the instance the provider is
-  actually asked with, not a retry-only rebuild. A parameter a model rejects must therefore be
-  gated in `build` AND `refine`: gating only `build` put `temperature` back on every request and
-  400'd the whole `gpt-5*` family (`Unsupported parameter: 'temperature'`) — fatal by `isFatal`,
-  so the first call of a run died. Predicates are exported, one per family, never re-typed by a
-  consumer: `rejectsSampling` (Claude 4.7+/5) and `usesResponsesApi` (`gpt-6*`/`gpt-5*`/`codex-*`).
-  The same both-hooks rule holds for `effort`: `build` clamps it, `refine` climbs it per rung.
+- **`refine` runs on EVERY call, attempt 0 included**: a parameter a model rejects is gated in
+  `build` AND `refine`, or it returns on every request (`Unsupported parameter: 'temperature'`, fatal,
+  the run's first call dies). Family predicates are exported, never re-typed: `rejectsSampling`
+  (Claude 4.7+/5), `usesResponsesApi` (`gpt-6*`/`gpt-5*`/`codex-*`). `effort`: `build` clamps, `refine` climbs.
 - The ladder is per CALL, so a caller whose own loop validates the OUTPUT must pass
   `LlmCallOptions.escalation` (its outer attempt) or every call restarts at rung 0 — same
   model, same budget, same deterministic answer. Clamped to `retries - 1`; start rung only.
@@ -56,9 +53,8 @@ model factory service and the generic execution service. Related: [[versioning]]
   `resolveOutputCap` takes the declared cap and trims it by the capability. A `fallback` that
   changes `model` must restate `contextWindow`/`maxOutput` — it inherits every unnamed field
   from a different model.
-- `createModel` layers `presetOf(base.preset) < base < presetOf(override.preset) < override`.
-  A preset is a BASE; assigning it last (the old order) silently voided a role's own fields
-  and the caller's override, including effort-tier caps. One level deep, never a chain.
+- `createModel` layers `presetOf(base.preset) < base < presetOf(override.preset) < override`: a preset
+  is a BASE (last, it voids a role's own fields and the override). One level deep, never a chain.
 - `ExecutionPlugin` is **`advise`-only**. The `onCheckpoint`/`onRestore` pair and
   `ExecutionService.checkpoint` are gone: an execution is a COLLABORATOR rebuilt per run, not a
   thing that is restored, and resumability belongs to `@owlmeans/agent`'s pipeline runner, whose
@@ -86,7 +82,12 @@ model factory service and the generic execution service. Related: [[versioning]]
   which is why the config and plugin are resolved once from the ORIGINAL instance.
 - The `gpt-5*` / `codex-*` families go through the Responses API, which rejects
   `temperature`/`topP` — an offline spec asserting on sampling params must not use them.
-
+- Tools "called with `{}`" in a round of several parallel calls → the stream's argument deltas carried no
+  usable position (seen through a proxy on the Responses API) and langchain joins them by position →
+  read calls through `toolCallsHelper` (the record in `response_metadata.output` wins by call id).
+- Through some proxies a model keeps calling tools under `tool_choice: 'none'`, and a forced `any` is
+  ignored (an `invoke` answered in words) → `ask`'s answer-now turn binds no tool at all; `invoke` is
+  re-asked with its output tool pinned by name.
 - Claude 5-series models reason ADAPTIVELY whether or not the request asks, and it is billed from
   the same `max_tokens` as the answer — a budget sized for the answer alone comes back as a
   thinking-only completion with `stop_reason: "max_tokens"` and no text block. `ADAPTIVE_MIN_MAX_TOKENS`
@@ -112,10 +113,8 @@ model factory service and the generic execution service. Related: [[versioning]]
   The plugin sets the unsent field to `adaptive` on the 5 family (`withLocalThinking`); the SDK's
   `ThinkingConfigParam` has no `between_tools`, but langchain forwards the object unchanged.
 - Sonnet 5.5, Opus 5.5 and Fable/Mythos 5.1 answer a pinned `tool_choice` with a 400, and Opus 5.5 /
-  Fable 5 / Mythos 5 refuse every thinking off switch — before the per-family table the plugin sent
-  `disabled` to all of them under `disableThinking` (verified live 2026-09-29: Sonnet 5.5 at
-  `between_tools` + `auto` + `strict` → 200).
-- `@langchain/openai` 1.5.x sends its constructor `reasoning` only for `o*`/`gpt-5*` names, so every
-  `gpt-6-*` effort was silently dropped until it moved to `modelKwargs.reasoning`. The same run found
-  OpenAI's non-strict `json_schema` hiding a PROPERTY named `required` (the type catalogue's
-  `attributes[].required`) — eight identical validation failures; now refused up front.
+  Fable 5 / Mythos 5 refuse every thinking off switch — hence the per-family table (Sonnet 5.5 takes
+  `between_tools` + `auto` + `strict`).
+- `@langchain/openai` 1.5.x sends its constructor `reasoning` only for `o*`/`gpt-5*` names, so a
+  `gpt-6-*` effort rides `modelKwargs.reasoning`. OpenAI's non-strict `json_schema` hides a PROPERTY
+  named `required` from the model — such a schema is refused up front.

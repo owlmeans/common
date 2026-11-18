@@ -7,6 +7,7 @@ import { BOT_PLATFORM_ID_FORMAT, BOT_PLATFORMS_MAX, BotKit, CASE_QUOTE_MAX, Work
 import { REQUIREMENTS_VERSION, StoryKind } from '../ba/consts.js'
 import { RequirementsDocumentSchema } from '../ba/schemas.js'
 import { ConnectLlm, ConnectTarget } from '../connect/consts.js'
+import { WorkMode } from '../execution/consts.js'
 import { ProjectOriginSchema } from '../convert/schemas.js'
 import { StoryActor, STORY_DESIGN_VERSION } from '../design/consts.js'
 import type { ViableProjectFields, ViableStoryFields } from './types.js'
@@ -45,6 +46,7 @@ export const ViableProjectFieldsSchema = {
     target: { type: 'string', enum: [...Object.values(ConnectTarget), null], nullable: true },
     origin: { ...ProjectOriginSchema, nullable: true },
     connectLlmMode: { type: 'string', enum: [...Object.values(ConnectLlm), null], nullable: true },
+    workMode: { type: 'string', enum: [...Object.values(WorkMode), null], nullable: true },
     // `story: null` is a DECIDED "no gate" and must stay spellable; an absent `landing` is "never
     // decided". `at` carries no `format`: the planning registry compiles without ajv-formats.
     landing: {

@@ -187,6 +187,12 @@ messages repeat across calls — one cache breakpoint closes them), `cacheMax` (
 breakpoint budget), `focus` (the package documentation this call uses), `skills` (per-call
 skills, sent in the uncached tail), `temperature` (`invoke` only).
 
+`ask` and `invoke` also take `tools` (`LlmCallTools`): read-only look tools the call may use before
+it answers, stop tools that end it with a caller-supplied value (a "keep" verdict), a round budget.
+The rounds run inside each attempt, so retries, fallbacks, `filter`/`guide` and cache marks all keep
+working; a retry carries what was looked up, and `ref.conversation` holds the successful attempt for a
+later call to continue. Without `tools` a call sends exactly what it always did.
+
 ### Resilience built into every call
 
 | Problem | What the package does |
@@ -197,7 +203,8 @@ skills, sent in the uncached tail), `temperature` (`invoke` only).
 | A weak cheap model keeps failing | Walks the `ModelConfig.fallback` chain, `FALLBACK_AFTER_ATTEMPTS` attempts per rung; a rung may be another provider, called in its own dialect |
 | The same model keeps giving the same weak answer | Climbs `ModelConfig.effort` one level per attempt of the rung, up to the model's ceiling; a `TemperatureFactory` request climbs it too |
 | Model stringifies arrays / over-wraps scalars | `jsonHelper.coerceToSchema` reconciles the answer with the schema before validation |
-| Model ignores the tool and answers in prose | `jsonHelper.parseJsonContent` salvages JSON from fences and surrounding text |
+| Model ignores the tool and answers in prose | `jsonHelper.parseJsonContent` salvages JSON from fences and surrounding text; a call with `tools` asks again with the output tool pinned by name |
+| Parallel tool calls stream without their arguments (fragments with no usable position, seen through proxies) | `toolCallsHelper` rebuilds the calls from the provider's own record (`LlmPlugin.toolCallsOf`; OpenAI Responses: `response.completed`), else regroups the chunks — no call dropped, ids kept |
 | A blank message poisons the request (Anthropic 400 `text content blocks must contain non-whitespace text`, typically an empty file read pasted into a prompt) | Whitespace-only text blocks are dropped before every call; blank tool results are stubbed to keep their `tool_use` pairing, and an all-blank input becomes one stub user message |
 | Nothing usable came back | `NullCapture` — request, response, token accounting and finish reason, to the spectator |
 | An error no retry can fix | `retryHelper.registerFatalError` / `LlmPlugin.isFatal` abort the loop immediately |
@@ -205,7 +212,7 @@ skills, sent in the uncached tail), `temperature` (`invoke` only).
 ### Helpers (usable alongside a model)
 
 `retryHelper` (`withRetry`, `registerFatalError`, `isFatalError`) · `jsonHelper` (`parseJsonContent`,
-`coerceToSchema`) · `cacheHelper` (`readCacheUsage`, `hasCacheActivity`, `withCacheTiers`) · `spectate` ·
+`coerceToSchema`, `parseArguments`) · `toolCallsHelper` (`reconcile`, `messageOf`) · `cacheHelper` (`readCacheUsage`, `hasCacheActivity`, `withCacheTiers`) · `spectate` ·
 `normalizeInput` · `resolveFallbacks` · `mediaHelper` (`image`, `document`, `text`, `isMedia`, `redact`,
 `render`) · `capabilityHelper` (`of`, `fromConfigs`, `accepts`, `ladder`). Also exported from `@owlmeans/llm/helpers`.
 
@@ -252,7 +259,8 @@ bun test ./tests
 Offline specs always run. The live specs (`tests/model.spec.ts`, `tests/search-live.spec.ts`,
 `tests/media-live.spec.ts`) are gated: set `ANTHROPIC_SECRET`, `OPENAI_SECRET` and/or `OPENROUTER_SECRET` (optionally
 `OPENROUTER_URL`) in the repo root `.env`. With none set they self-skip with a printed reason —
-never a failure.
+never a failure. `tests/tool-golden.ts` holds the recorded requests of calls without `tools`: never
+re-record it to make a change pass.
 
 ## Depends On
 

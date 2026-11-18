@@ -1,6 +1,7 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { AIMessage, BaseMessage, MessageFieldWithRole } from '@langchain/core/messages'
 import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/core/callbacks/base'
+import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { JSONSchemaType } from 'ajv'
 import type { InitializedService } from '@owlmeans/context'
 import type {
@@ -21,6 +22,11 @@ export interface RefferedResult<T> {
   spectatorEntry?: SpectatorEntryLogged
   value?: T
   callback?: (arg: T) => Promise<void>
+  /**
+   * The conversation of a call made with {@link LlmCallTools} (`ask` / `invoke`), set when it
+   * succeeds — before `value` and the callback. A call without `tools` never sets it.
+   */
+  conversation?: LlmToolConversation
 }
 
 export interface LlmLogging {
@@ -152,11 +158,92 @@ export interface LlmFailedAttempt<T> {
 export type LlmGuide<T> = (failed: LlmFailedAttempt<T>) => ModelInput | null | undefined
   | Promise<ModelInput | null | undefined>
 
+/**
+ * A tool whose call ENDS the model call at once with a value the caller supplies — a verdict, not a
+ * look-up ("this file needs no change"). Nothing runs for it: `value` is the call's answer, and it
+ * bypasses `filter`, `guide` and, for `invoke`, the schema.
+ */
+export interface LlmStopTool<T> {
+  /** The name the model calls. */
+  name: string
+  /** When to call it — the only thing the model reads about it. */
+  description: string
+  /** JSON Schema of its arguments. Omitted: an object with no properties. */
+  parameters?: Record<string, unknown>
+  /** The call's answer, from the arguments the model called the tool with. */
+  value: (args: Record<string, unknown>) => T | Promise<T>
+}
+
+/**
+ * Read-only tools ONE `ask` / `invoke` may use before it answers — the call becomes a bounded
+ * conversation and keeps everything it has without them: the retry ladder with its fallbacks and
+ * growing output budget, `filter` and `guide`, `ref`, `stable`, focus and skills, cache marking and
+ * the spectator.
+ *
+ * Within one attempt the model is asked with the tools bound; every look-up it calls runs (a thrown
+ * error becomes the tool message's text, an error `retryHelper.isFatalError` names fatal — the call's
+ * `fatal` first — ends the call), and it is asked again — until it answers (`ask`: a text answer; `invoke`: the
+ * structured-output tool, which is bound beside the look tools and one of which it must call), calls a
+ * {@link LlmStopTool}, or spends {@link maxRounds}. The answer then goes through the call's usual
+ * path. A retry carries the look-ups of the failed attempt: nothing is read twice.
+ *
+ * A rung whose client has no `bindTools`, or whose plugin refuses tools (`LlmPlugin.toolCalling`),
+ * takes the plain call; {@link LlmToolConversation.tooled} tells which happened.
+ */
+export interface LlmCallTools<T> {
+  /** The look tools: they run when the model calls them, and their output is what it reads back. */
+  tools: StructuredToolInterface[]
+  /** Tools that end the call with a caller-supplied answer — see {@link LlmStopTool}. */
+  stop?: LlmStopTool<T>[]
+  /**
+   * Look rounds per attempt — model turns whose tool calls run. Once spent, or once
+   * {@link exhausted} says so, the model is told to answer now: look-ups are no longer run (`ask` is
+   * then asked with no tools bound, `invoke` with its output tool pinned); a stop tool stays
+   * callable for one more turn. Default `DEFAULT_TOOL_ROUNDS`.
+   */
+  maxRounds?: number
+  /**
+   * The caller's own budget — reads, time, a pool shared by several calls. Asked before every look
+   * round; `true` ends looking exactly as a spent {@link maxRounds} does.
+   */
+  exhausted?: () => boolean
+  /** Every look or stop tool call the model makes, before it runs — for the caller's counters. */
+  onToolCall?: (name: string, args: Record<string, unknown>) => void
+  /**
+   * The action (run name in the spectator) of a turn that ran look-ups, so a trace tells the rounds
+   * from the answer. Default: the call's own `action`, which the answering turn always keeps.
+   */
+  action?: string
+}
+
+/**
+ * What a call made with {@link LlmCallTools} leaves on {@link RefferedResult.conversation}: enough to
+ * meter it and to continue it — the caller sends `messages` plus its next turn as the input of
+ * another call, which composes the same system prompt around it.
+ */
+export interface LlmToolConversation {
+  /** The answering rung conversed with the tools bound — `false`: it took the plain call. */
+  tooled: boolean
+  /** Look rounds the successful attempt ran. */
+  rounds: number
+  /** The stop tool that ended the call, when one did. */
+  stop?: string
+  /**
+   * The successful attempt as provider-neutral messages, in order: the caller's input, what an earlier
+   * attempt looked up, the guidance it was asked with, its look rounds (an assistant turn with tool
+   * calls, then their results), and the answer as the model gave it (`invoke`: its JSON as text) —
+   * or the stop call and its acknowledgement. Never the composed system prompt or the Tail.
+   */
+  messages: ModelMessage[]
+}
+
 export interface LlmAskOptions extends LlmCallOptions {
   ref?: RefferedResult<AIMessage>
   filter?: (output: string, result: AIMessage) => (string | null) | Promise<string | null>
   /** Guided regeneration after a refused answer — see {@link LlmGuide}. */
   guide?: LlmGuide<string>
+  /** Look tools this call may use before it answers — see {@link LlmCallTools}. Omitted: one plain request. */
+  tools?: LlmCallTools<string>
 }
 
 export interface LlmTalkOptions extends LlmCallOptions {
@@ -191,6 +278,11 @@ export interface LlmInvokeOptions<T> extends LlmCallOptions, LlmStructuredOption
   filter?: (output: T, result: AIMessage) => (T | null) | Promise<T | null>
   /** Guided regeneration after a refused answer — see {@link LlmGuide}. */
   guide?: LlmGuide<T>
+  /**
+   * Look tools this call may use before it answers — see {@link LlmCallTools}. On a rung that takes
+   * them the answer is always the structured-output tool: `schemaPlacement` applies to the plain call.
+   */
+  tools?: LlmCallTools<T>
 }
 
 export interface LlmRequestOptions extends LlmCallOptions, LlmStructuredOptions {

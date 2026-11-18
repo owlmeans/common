@@ -8,6 +8,7 @@ import type { UXTransition } from '../ux/types.js'
 import type { SeniorityMode } from '../consts.js'
 import type { ViableProjectCard, ViableStoryCard } from '../planning/types.js'
 import type { OriginTenancyFacts } from '../areas/types.js'
+import type { WorkMode } from './consts.js'
 
 /**
  * Model-selection contracts are owned by `@owlmeans/llm-common` — the JSON-safe config
@@ -58,6 +59,17 @@ export interface ExecutionState extends LlmExecutionState {
    * project that was not converted from a tenanted origin, and while no tenancy flag is on.
    */
   originTenancy?: OriginTenancyFacts
+  /**
+   * How this run's pipeline steps work — linear recipes or hybrid mini agents. State, not a
+   * collaborator: it rides every snapshot and reaches every derived execution through the spread,
+   * so a resumed run keeps the mode it started in. Absent is hybrid.
+   */
+  work?: WorkPolicy
+}
+
+/** The work policy a run carries: today only its mode. */
+export interface WorkPolicy {
+  mode: WorkMode
 }
 
 /**

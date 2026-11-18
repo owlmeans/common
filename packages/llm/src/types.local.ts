@@ -1,6 +1,7 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import type { MessageFieldWithRole } from '@langchain/core/messages'
-import type { PromptFocus } from '@owlmeans/llm-common'
+import type { AIMessageChunk, MessageFieldWithRole } from '@langchain/core/messages'
+import type { PromptFocus, SpectatorEntryLogged } from '@owlmeans/llm-common'
+import type { LlmLoopCacheHints } from './plugins/types.js'
 import type { ModelInput } from './types.js'
 import type { Rung } from './utils/rungs/types.js'
 
@@ -28,6 +29,17 @@ export interface PrepareRequest {
   cacheMax?: number
 }
 
+/** The answering turn of an `invoke`, before its result is unwrapped, coerced and checked. */
+export interface StructuredTurn<T> {
+  piece: AIMessageChunk | null
+  result: T | null
+  /** The request the turn sent. */
+  msgs: MessageFieldWithRole[]
+  placed: number
+  startedAt: number
+  entry?: SpectatorEntryLogged
+}
+
 /** A request prepared for one rung, in that rung's cache dialect. */
 export interface PreparedRequest {
   msgs: MessageFieldWithRole[]
@@ -35,4 +47,10 @@ export interface PreparedRequest {
   options: Record<string, unknown>
   /** Cache breakpoints placed. */
   placed: number
+  /** The same request before any breakpoint was placed — what a tool round re-marks with `loopCache`. */
+  plain: MessageFieldWithRole[]
+  /** The composed opening, for `loopCache`: the system blocks, the project message, the lifetimes. */
+  hints: LlmLoopCacheHints
+  /** The composed policy caches the opening (`PromptPolicy.cacheSystem`). */
+  cached: boolean
 }

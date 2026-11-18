@@ -265,6 +265,13 @@ describe('viable-common - the viable field schemas', () => {
     expect(project({ converterLlmMode: null })).toBe(false)
   })
 
+  test('a project may pin how its pipeline steps work, from the closed set', () => {
+    expect(project({ workMode: 'linear' })).toBe(true)
+    expect(project({ workMode: 'hybrid' })).toBe(true)
+    expect(project({ workMode: null })).toBe(true)
+    expect(project({ workMode: 'strict' })).toBe(false)
+  })
+
   test('a project records a work kind from the closed set and a bounded case quote', () => {
     expect(project({ blueprintCase: 'work-management', workKind: 'crm', caseQuote: 'A CRM for ski resorts.' })).toBe(true)
     expect(project({ workKind: null, caseQuote: null })).toBe(true)

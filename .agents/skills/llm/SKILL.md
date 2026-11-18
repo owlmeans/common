@@ -1,6 +1,6 @@
 ---
 name: llm
-description: How to use @owlmeans/llm — the LLM inference runtime (four-method model, provider plugins, model factory service, policy-driven execution abstraction, the prompt/skill composition service, image and PDF parts with the models' vision/documents capabilities, and token budgets). Auto-invoked when importing the model, an LlmPlugin, the LlmService, the execution service, the prompt service, mediaHelper or tokenBudgetHelper.
+description: How to use @owlmeans/llm — the LLM inference runtime (four-method model, look tools inside one ask/invoke call, provider plugins, model factory service, policy-driven execution abstraction, the prompt/skill composition service, image and PDF parts with the models' vision/documents capabilities, and token budgets). Auto-invoked when importing the model, an LlmPlugin, the LlmService, the execution service, the prompt service, LlmCallTools, toolCallsHelper, mediaHelper or tokenBudgetHelper.
 user-invocable: false
 ---
 
@@ -22,6 +22,8 @@ symbol "because a test needs it".
 |--------|-------------|
 | `makeLlmModel({ model, purpose, prompt?, prompts?, files?, utility?, results?, retries?, … }, spectator)` | The four-method model: `ask` / `talk` / `invoke(input, schema, opts)` / `request`. `model` is an already-resolved `BaseChatModel`. |
 | `LlmCallOptions { action, stable?, cacheMax?, focus?, skills?, escalation?, fatal? }` · `schemaPlacement?: 'native' \| 'tail'` (`invoke`/`request`) | Per call: `stable` = how many lead messages repeat across calls (one breakpoint closes them; default 0), `cacheMax` = the breakpoint budget (≤ 4), `focus` = a `PromptFocus` over the execution's, `skills` = per-call skills in the uncached Tail, `'tail'` = the schema text in the Tail behind a constant format. There is no `useCache`. |
+| `tools?: LlmCallTools<T>` (`ask`/`invoke`) · `LlmStopTool<T>` · `LlmToolConversation` on `ref.conversation` · `DEFAULT_TOOL_ROUNDS` · `LlmPlugin.toolCalling` | Look tools inside ONE call: rounds within each attempt, stop tools ending it with a caller-supplied value, a round budget, a tool-less answer turn for `ask`, look-ups carried across retries, the conversation for a later call — see the `tools` part. Absent: the request is byte-identical. |
+| `toolCallsHelper.{reconcile, messageOf}` · `LlmPlugin.toolCallsOf` · `jsonHelper.parseArguments` | A streamed completion's tool calls made whole: the provider's own record of them (OpenAI Responses: `response_metadata.output`) by call id, else the chunks regrouped — for every loop that concatenates `stream` chunks and reads `tool_calls`. |
 | `makeLlmService(options, alias?)` · `appendLlmService(ctx, options, alias?)` · `llmServiceApi(options, self)` | Model factory/registry — `makeLlmService({ models: () => configs }).getModel(alias, override?)` resolves a `ModelConfig` by alias, memoized per alias+override. The `…Api` half omits `createService`, to compose into your own service (role accessors, domain helpers). |
 | `makeExecutionService(alias?, options?)` · `appendExecutionService(ctx, alias?, options?)` · `executionServiceApi(options, self)` | Frozen 3-level executions + policy resolution + snapshot/restore + advice + the results view (`withResults`), and the same composable half. |
 | `makePromptService(options?, alias?)` · `appendPromptService(ctx, options?, alias?)` · `promptServiceApi(options, self)` | Skill registry + the composition plugin chain. Also at `@owlmeans/llm/prompt`. |
@@ -73,7 +75,8 @@ usage-only reads within 10 s — Chat Completions sends token counts last) · ou
 adaptive-thinking budget floor · fallback chain across providers · effort climb per rung ·
 reasoning budget floor · caller-seeded ladder position
 (`escalation`) · schema coercion · JSON salvage from prose · `NullCapture` diagnostics · fatal-error
-short-circuit · blank-content sanitization (whitespace-only text blocks are dropped before every call
+short-circuit · parallel tool calls whose streamed arguments were lost rebuilt from the provider's record
+(`toolCallsHelper`) · blank-content sanitization (whitespace-only text blocks are dropped before every call
 — a blank block, e.g. an empty file read pasted into a prompt, is otherwise a fatal Anthropic 400;
 blank tool results are stubbed to keep their `tool_use` pairing). Details: package `README.md`.
 
@@ -97,6 +100,7 @@ blank tool results are stubbed to keep their `tool_use` pairing). Details: packa
 | [providers](parts/providers.md) | adding or changing a provider plugin, or an error that is retried when it should not be |
 | [execution](parts/execution.md) | deriving executions, resolving a model by role or effort, passing a results view, or using the utility tier |
 | [retries](parts/retries.md) | writing a retry or validation loop around model calls, guiding a refused answer into the next attempt (`guide`), or a call that hangs or retries too long |
+| [tools](parts/tools.md) | giving one `ask` / `invoke` look tools, a stop verdict ("keep"), a round budget, or continuing its conversation in a later call |
 | [presets](parts/presets.md) | writing or changing a model preset, a fallback rung or an effort level |
 | [reasoning](parts/reasoning.md) | turning reasoning on or off for a role, or diagnosing an empty or reasoning-only completion |
 | [media](parts/media.md) | sending images or PDFs, asking whether a model accepts them (`vision`, `documents`), a provider's media spelling, or a trace that must not carry a payload |

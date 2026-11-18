@@ -1,5 +1,5 @@
 
-import { agentLoopActions, codeActions, contractActions, documentActions, structuredActions } from './consts.local.js'
+import { agentLoopActions, codeActions, contractActions, documentActions, HYBRID_LOOP_ACTION_PREFIX, structuredActions } from './consts.local.js'
 import { AgentCodeLanguage, AgentMarkdownKind, AgentMessageCategory, AgentMessageRole, AgentStructuredKind } from './consts.js'
 import type { RecordValue } from './types.local.js'
 import type { AgentMessageClassificationInput, AgentMessagePresentation } from './types.js'
@@ -149,6 +149,10 @@ export const createAgentPresentationHelper = (): AgentPresentationHelper => {
     return listItems >= 2 ? AgentMarkdownKind.Documentation : undefined
   }
 
+  /** An unconstrained tool-calling loop's action, or a hybrid step's conversation round (`hybrid:<step>:<phase>`). */
+  const isLoopAction = (action: string): boolean =>
+    agentLoopActions.has(action) || action.startsWith(HYBRID_LOOP_ACTION_PREFIX)
+
   const isGenericStructure = (kind: AgentStructuredKind | undefined): boolean =>
     kind == null || kind === AgentStructuredKind.GenericRecord || kind === AgentStructuredKind.GenericList ||
     kind === AgentStructuredKind.GenericValue
@@ -161,10 +165,10 @@ export const createAgentPresentationHelper = (): AgentPresentationHelper => {
 
     if (input.outputType === 'tool_calls') {
       // A single pinned-schema call resolves to its own card; everything else — several calls in
-      // one turn, an unconstrained agent-loop action, or a shape too generic to be informative —
-      // is a tool call, not a schema result.
+      // one turn, an unconstrained agent-loop action or a hybrid step's round, or a shape too generic
+      // to be informative — is a tool call, not a schema result.
       const isMultiCall = Array.isArray(input.value) && input.value.length > 1
-      const isToolCalls = isMultiCall || agentLoopActions.has(action) || isGenericStructure(structure)
+      const isToolCalls = isMultiCall || isLoopAction(action) || isGenericStructure(structure)
       return {
         category: AgentMessageCategory.Structured,
         structure: isToolCalls ? AgentStructuredKind.ToolCalls : structure!,

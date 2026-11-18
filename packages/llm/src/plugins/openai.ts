@@ -1,6 +1,6 @@
 import { ChatOpenAI } from '@langchain/openai'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import type { MessageFieldWithRole } from '@langchain/core/messages'
+import type { MessageFieldWithRole, ToolCall } from '@langchain/core/messages'
 import { ModelEffort, ModelProvider, StructuredMode } from '@owlmeans/llm-common'
 import type { EffortSupport, LlmPlugin, LlmRefineParams, OpenAiFamily, PromptBoundary, PromptPatch } from './types.js'
 import type { ModelConfig } from '../types.js'
@@ -20,9 +20,10 @@ import type { DocumentPart, MediaPart } from '../helpers/media/types.js'
 import {
   OPENAI_BREAKPOINT, OPENAI_EXPLICIT_OPTIONS, OPENAI_MARKABLE_BLOCKS, OPENAI_TOOL_OUTPUT_BLOCKS,
 } from './consts.local.js'
-import type { ContentBlock, OpenAiKwargs } from './types.local.js'
+import type { ContentBlock, OpenAiKwargs, ResponsesOutputItem } from './types.local.js'
 import { effortUtils } from '../utils/effort.js'
 import { schemaUtils } from '../utils/schema.js'
+import { jsonHelper } from '../helpers/json.js'
 import { LlmSearchUnsupportedError } from '../errors.js'
 import { WebSearchDialect } from '../search/consts.js'
 import { openAiSearchHelper } from './openai/search.js'
@@ -211,6 +212,31 @@ export const openAiFamily: OpenAiFamily = {
    * surface `status` read silently miss it.
    */
   isFatal: (e: unknown): Error | null => pluginUtils.isBadRequest(e) ? e as Error : null,
+
+  /**
+   * langchain joins a streamed call's argument deltas to the call by `output_index` alone; a stream
+   * whose deltas do not carry the call's index (seen through a proxy, several calls in one answer)
+   * leaves every call with its empty header arguments `{}`. `response.completed` repeats every item
+   * whole, and langchain keeps them in `response_metadata.output`.
+   */
+  toolCallsOf: message => {
+    const output = (message.response_metadata as { output?: unknown } | undefined)?.output
+    if (!Array.isArray(output)) {
+      return undefined
+    }
+    const calls: ToolCall[] = []
+    for (const item of output as ResponsesOutputItem[]) {
+      if (item?.type !== 'function_call' || typeof item.call_id !== 'string' || typeof item.name !== 'string') {
+        continue
+      }
+      const args = typeof item.arguments === 'string' ? jsonHelper.parseArguments(item.arguments) : undefined
+      if (args != null) {
+        calls.push({ id: item.call_id, name: item.name, args, type: 'tool_call' })
+      }
+    }
+
+    return calls
+  },
 
   media: (part: MediaPart): unknown => part.type === 'image'
     ? { type: 'image_url', image_url: { url: dataUrlOf(part) } }

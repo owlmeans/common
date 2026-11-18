@@ -61,6 +61,23 @@ describe('@owlmeans/viable-common — agent message presentation', () => {
     })).toMatchObject({ category: AgentMessageCategory.Structured, structure: AgentStructuredKind.ToolCalls })
   })
 
+  test('a hybrid step\'s conversation rounds are loop activity, never a selection card', () => {
+    // `hybrid:<step>:<phase>` — a look round whose args shape-match ArtifactSelection, any case.
+    for (const action of ['hybrid:screens:expand', 'hybrid:types:verify', 'Hybrid:api:fix']) {
+      expect(agentPresentationHelper.classifyAgentMessage({
+        outputType: 'tool_calls',
+        action,
+        value: [{ name: 'read_file', args: { files: ['src/app.tsx'], why: 'the screen it mounts' } }],
+      })).toMatchObject({ category: AgentMessageCategory.Structured, structure: AgentStructuredKind.ToolCalls })
+    }
+    // The prefix with its separator only: a pinned-schema action that merely starts with the word keeps its card.
+    expect(agentPresentationHelper.classifyAgentMessage({
+      outputType: 'tool_calls',
+      action: 'hybrid-choose-files',
+      value: [{ name: 'answer', args: { files: ['src/app.tsx'], why: 'screen entrypoint' } }],
+    })).toMatchObject({ category: AgentMessageCategory.Structured, structure: AgentStructuredKind.ArtifactSelection })
+  })
+
   test('uses producer metadata for roles and action metadata for documents and decisions', () => {
     expect(agentPresentationHelper.classifyAgentMessage({ agent: 'ba-service', helper: 'ba-helper', action: 'write-specification', text: '# Brief' }))
       .toMatchObject({ category: AgentMessageCategory.Markdown, document: AgentMarkdownKind.Specification, role: AgentMessageRole.Analytical })

@@ -39,7 +39,8 @@ taxonomy.
   schema card. It reads as `ToolCalls` when any of these holds: more than one call arrived in the
   same turn, the action belongs to an unconstrained tool-calling loop (`agentLoopActions` —
   `coding-agent-ask`, `arbitrary-modification`, `fix-agent`, `architect`, `declaration-lookup`,
-  `source-extract`), or the single call's shape only reaches a `Generic*` kind. Without the
+  `source-extract`) or is a hybrid step's conversation round (any action starting
+  `HYBRID_LOOP_ACTION_PREFIX`, `hybrid:<step>:<phase>`), or the single call's shape only reaches a `Generic*` kind. Without the
   action check, a free-flight `read_sources({ files })` call reads as an `ArtifactSelection` card
   instead of a tool call, because its args happen to shape-match that schema.
 - `agentPresentationHelper.isAgentMessageHidden()` owns utility-run suppression. The source extractor's `source-extract`
