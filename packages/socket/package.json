@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/socket",
-  "version": "0.2.1-alpha.0",
+  "version": "0.2.1-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,13 +31,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.2.1-alpha.0",
-    "@owlmeans/basic-ids": "^0.2.1-alpha.0",
-    "@owlmeans/error": "^0.2.1-alpha.0",
-    "@owlmeans/log": "^0.2.1-alpha.0"
+    "@owlmeans/auth": "^0.2.1-rc.0",
+    "@owlmeans/basic-ids": "^0.2.1-rc.0",
+    "@owlmeans/error": "^0.2.1-rc.0",
+    "@owlmeans/log": "^0.2.1-rc.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.1-alpha.0",
+    "@owlmeans/dep-config": "^0.2.1-rc.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

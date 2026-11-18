@@ -1,13 +1,25 @@
 import type { DiagramFormat } from './types.js'
 
-/** The PDF names that make a document act rather than show (`/JS` only as a whole name). */
-export const PDF_ACTIVE_NAMES = /\/(?:JavaScript|JS|Launch|EmbeddedFile|RichMedia)(?![A-Za-z0-9])/
+/**
+ * The long PDF names that make a document act rather than show — looked for in EVERY byte: they
+ * never occur by chance, and a reader finds an object by its offset wherever it sits.
+ */
+export const PDF_ACTIVE_NAMES = /\/(?:JavaScript|Launch|EmbeddedFile|RichMedia)(?![A-Za-z0-9])/
+
+/**
+ * `/JS` as a whole name — looked for in the PDF's syntax only, never in a stream's payload, where
+ * three such bytes occur by chance (a JavaScript action names `/S /JavaScript` as well).
+ */
+export const PDF_SHORT_ACTIVE_NAME = /\/JS(?![A-Za-z0-9])/
+
+/** Where a stream's payload starts: its dictionary closed, the keyword, one end of line. */
+export const PDF_STREAM_START = />>\s*stream(?:\r\n|\n|\r)/
+
+/** The keyword a stream's payload ends at — the first after its start. */
+export const PDF_STREAM_END = 'endstream'
 
 /** How much one compressed object stream of a PDF may inflate to before it counts as active. */
 export const PDF_INFLATE_LIMIT = 16 * 1024 * 1024
-
-/** How far before a `stream` keyword its dictionary is looked for. */
-export const PDF_DICTIONARY_WINDOW = 4096
 
 /** The `%%EOF` marker that closes a PDF. */
 export const PDF_EOF_MARKER = '%%EOF'

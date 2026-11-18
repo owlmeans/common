@@ -9,7 +9,7 @@ browser. Local bundles (an uploaded prototype, a collected page) render from dis
 ## Installation
 
 ```bash
-bun add @owlmeans/llm-reader-playwright@^0.2.1-alpha.0 playwright
+bun add @owlmeans/llm-reader-playwright@^0.2.2-rc.1 playwright
 bunx playwright install chromium
 ```
 
@@ -118,7 +118,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.1-alpha.0
+npx @owlmeans/agent-skills@^0.2.2-rc.1
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -47,9 +47,20 @@ export interface ProbeFacts {
   name?: string
 }
 
+/** Which part of a PDF a scanned sample is: the whole file unless said otherwise. */
+export interface PdfSample {
+  /** The sample starts at the file's first byte. Default `true`; a tail does not. */
+  fromStart?: boolean
+  /** The sample reaches the file's last byte. Default `true`; a head does not. */
+  toEnd?: boolean
+}
+
 export interface PdfScanner {
-  /** Whether PDF bytes carry an active name, in their own text or in a FlateDecode object stream. */
-  isActive: (bytes: Uint8Array) => boolean
+  /**
+   * Whether PDF bytes carry an active name: a long one anywhere, `/JS` in the syntax — everything
+   * outside a stream's payload — or inside a FlateDecode object stream.
+   */
+  isActive: (bytes: Uint8Array, sample?: PdfSample) => boolean
   /** Whether a PDF's tail holds its `%%EOF` trailer. */
   hasTrailer: (tail: Uint8Array) => boolean
 }

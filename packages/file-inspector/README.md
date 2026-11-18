@@ -23,7 +23,7 @@ never a full download.
 ## Installation
 
 ```bash
-bun add @owlmeans/file-inspector@^0.2.1-alpha.0
+bun add @owlmeans/file-inspector@^0.2.1-rc.1
 ```
 
 No peer dependencies. `file-type`, `@file-type/cfbf`, `@file-type/xml` and `strtok3` come with the
@@ -262,7 +262,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.1-alpha.0
+npx @owlmeans/agent-skills@^0.2.2-rc.1
 ```
 
 The embedded files are version-matched to this package release. Do not edit them
