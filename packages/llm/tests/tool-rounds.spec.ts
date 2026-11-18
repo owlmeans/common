@@ -2,10 +2,12 @@ import { configureLog, logConfig } from '@owlmeans/log'
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test'
 import { AIMessage, ToolMessage } from '@langchain/core/messages'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
+import type { JSONSchemaType } from 'ajv'
 import { tool } from '@langchain/core/tools'
 import { ModelProvider } from '@owlmeans/llm-common'
 import {
-  anthropicPlugin, LlmMissconfiguredError, LlmOutputRejection, llmTransportRegistry, makeLlmModel, makeLlmService,
+  anthropicPlugin, LlmMissconfiguredError, LlmOutputRejection, LlmRetryExceededError, llmTransportRegistry, makeLlmModel,
+  makeLlmService,
 } from '@owlmeans/llm'
 import type { LlmCallTools, LlmLoopCacheHints, LlmStopTool, RefferedResult } from '@owlmeans/llm'
 import { recordingSpectator } from './context.js'
@@ -618,5 +620,63 @@ describe('@owlmeans/llm — tool rounds: cache marks per round', () => {
 
     expect(called).toBe(0)
     expect(JSON.stringify(scripted.sent[1]!)).not.toContain('cache_control')
+  })
+})
+
+describe('@owlmeans/llm — tool rounds: the call\'s ladder wraps them', () => {
+  test('a turn that streamed nothing climbs the output budget like a plain null result', async () => {
+    const { read } = reader()
+    const climbs: number[] = []
+    const scripted = scriptedModel([
+      { calls: [{ name: 'read', args: { path: 'a.ts' } }] },
+      { empty: true },
+      { content: 'answered' },
+    ], { provider: 'spec-climb', modelName: 'claude-haiku-4-5' })
+    registerAnthropicLike('spec-climb', [scripted.model], {
+      refine: ({ base, climb }) => { climbs.push(climb); return base },
+    })
+    expect(await plainLlm(scripted.model).ask('Write.', { action: 'climb', tools: { tools: [read] } })).toBe('answered')
+    expect(climbs).toEqual([0, 1])
+  })
+
+  test('an unguided schema refusal is corrected after the carried rounds; repeated, it stops the call', async () => {
+    const { read, runs } = reader()
+    const scripted = scriptedModel([
+      { calls: [{ name: 'read', args: { path: 'a.md' } }] },
+      { calls: [{ name: 'Specified', args: { title: 'T' } }] },
+    ])
+    const failure = await plainLlm(scripted.model).invoke('Describe it.', SpecifiedSchema, {
+      action: 'schema-stop', tools: { tools: [read] },
+    }).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(LlmRetryExceededError)
+    expect((failure as LlmRetryExceededError).message).toContain('repeated-refusal')
+    expect(runs).toEqual(['a.md'])
+    // Attempt 0: look + refused answer; attempt 1: the round carried, the correction after it — refused again.
+    expect(scripted.sent).toHaveLength(3)
+    expect(kindsOf(scripted.shapes[2]!)).toEqual(['user', 'ai+calls', 'tool', 'user'])
+    expect(scripted.shapes[2]!.at(-1)!.text).toContain('summary')
+  })
+
+  test('an answer about to end on a schema refusal is pruned (LlmModelOptions.prune)', async () => {
+    const { read } = reader()
+    const schema = {
+      type: 'object', title: 'Pruned',
+      properties: {
+        title: { type: 'string' },
+        meta: { type: 'object', properties: { owner: { type: 'string' } }, required: ['owner'] },
+      },
+      required: ['title'],
+    } as unknown as JSONSchemaType<{ title: string, meta?: { owner: string } }>
+    const scripted = scriptedModel([
+      { calls: [{ name: 'read', args: { path: 'a.md' } }] },
+      { calls: [{ name: 'Pruned', args: { title: 'T', meta: {} } }] },
+    ])
+    const ref: RefferedResult<AIMessage> = {}
+    const result = await makeLlmModel({ model: scripted.model, purpose: { type: 'tool-spec' }, retries: 1, prune: true }, nullSpectator)
+      .invoke('Describe it.', schema, { action: 'prune-tools', ref, tools: { tools: [read] } })
+
+    expect(result).toEqual({ title: 'T' })
+    expect(ref.conversation?.rounds).toBe(1)
   })
 })

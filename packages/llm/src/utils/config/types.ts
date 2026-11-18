@@ -11,8 +11,10 @@ export interface ConfigUtils {
    * That is why callers read the config from the ORIGINAL model.
    */
   readConfig: (model: BaseChatModel) => Partial<ModelConfig>
-  /** Per-model idle stream timeout (ms), falling back to the package default. */
+  /** Per-model connection deadline (ms) of a stream, falling back to the package default. */
   idleTimeout: (config: Partial<ModelConfig>) => number
+  /** Per-model progress deadline (ms) of a stream, falling back to the package default. */
+  progressTimeout: (config: Partial<ModelConfig>) => number
   /**
    * The output ceiling the retry escalator may climb to.
    *

@@ -26,7 +26,10 @@ const asWire = (messages: readonly (BaseMessage | MessageFieldWithRole)[]): Mess
 
 /**
  * The tool rounds of `ask` / `invoke` (`LlmCallTools`), run INSIDE one attempt of the call's retry
- * ladder, so a call that converses keeps its fallbacks, output budget, filter, guide and cache marks.
+ * ladder, so a call that converses keeps its fallbacks, output budget, filter, guide and cache marks —
+ * and the attempt bookkeeping (`CallAttempts`): a turn that comes back with nothing climbs, a schema
+ * refusal of the answer is judged, corrected, pruned or stopped by the call exactly as a plain answer's.
+ * Each turn streams under the attempt's deadlines; its observer is re-armed per turn.
  *
  * What one attempt sends, in order: the opening exactly as the call would send it without tools (the
  * same preparation — system, project message, the caller's turn with its Tail), then whatever an
@@ -36,7 +39,7 @@ const asWire = (messages: readonly (BaseMessage | MessageFieldWithRole)[]): Mess
  */
 export const makeRoundsUtils = (host: RoundsHost): RoundsUtils => {
   const of = <T>(call: RoundsCall<T>): CallRounds<T> => {
-    const { kind, tools, action, input, request, prepared, fatal, output } = call
+    const { kind, tools, action, input, request, prepared, fatal, attempts, output } = call
     const stops = tools.stop ?? []
     toolCallUtils.assertDistinct([
       ...tools.tools.map(tool => tool.name), ...stops.map(tool => tool.name), ...(output != null ? [output.toolName] : []),
@@ -135,7 +138,8 @@ export const makeRoundsUtils = (host: RoundsHost): RoundsUtils => {
           ...request, input: [...items(input), ...(note != null ? [note, ...guided, TOOL_ROUNDS_SPENT] : guided)],
         }, active)
       for (let asked = 0; ; asked++) {
-        const answered = await host.answer(active, request0, action, attempt, request.stable)
+        active.observer?.rearm()
+        const answered = await host.answer(active, request0, action, attempt, attempts, request.stable)
         if (asked >= FINAL_TURN_REASKS || !toolCallUtils.onlyCalls(answered.message)) {
           return answered
         }
@@ -211,17 +215,19 @@ export const makeRoundsUtils = (host: RoundsHost): RoundsUtils => {
           const { msgs, options, placed } = wireOf(base, [...after, ...asWire(sent)], active)
           const bound = refined.bindTools!(definitions, choice != null ? { tool_choice: choice } : undefined)
           const startedAt = Date.now()
+          // Every turn is one stream of the attempt's refined client: its observer hears this turn afresh.
+          active.observer?.rearm()
           let piece: AIMessageChunk | null = null
           for await (const chunk of streamUtils.streamWithDeadline(
             signal => bound.stream(msgs, { ...options, runName: action, metadata: { purpose: host.purpose }, signal } as StreamOptions),
-            configUtils.idleTimeout(config),
+            configUtils.idleTimeout(config), undefined, host.liveness(active),
           )) {
             piece = piece == null ? chunk : piece.concat(chunk)
           }
           if (piece == null) {
-            throw await host.nullResult(kind, config, {
+            throw attempts.climbing(await host.nullResult(kind, config, {
               action, attempt, startedAt, refined, msgs, raw: piece, useCache: placed > 0, stable: request.stable,
-            })
+            }))
           }
           cacheHelper.withCacheTiers(piece)
 

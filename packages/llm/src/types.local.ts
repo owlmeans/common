@@ -1,8 +1,12 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { AIMessageChunk, MessageFieldWithRole } from '@langchain/core/messages'
 import type { PromptFocus, SpectatorEntryLogged } from '@owlmeans/llm-common'
+import type { FatalErrorResolver } from './helpers/retry/types.js'
 import type { LlmLoopCacheHints } from './plugins/types.js'
-import type { ModelInput } from './types.js'
+import type { LlmCallOptions, LlmGuide, ModelInput } from './types.js'
+import type { CallAttempts } from './utils/attempts/types.js'
+import type { CallGuidance } from './utils/guidance/types.js'
+import type { AttemptObserver } from './utils/observer/types.js'
 import type { Rung } from './utils/rungs/types.js'
 
 export type StreamOptions = Parameters<BaseChatModel['stream']>[1]
@@ -10,6 +14,8 @@ export type StreamOptions = Parameters<BaseChatModel['stream']>[1]
 /** The rung an attempt runs on, and the instance refined for that attempt. */
 export interface ActiveRung extends Rung {
   refined: BaseChatModel
+  /** The attempt's traffic observer — absent on a rung without a plugin (no refine, no observer). */
+  observer?: AttemptObserver
 }
 
 /** Everything one call hands to `prepare` — the same for every rung it may run on. */
@@ -53,4 +59,22 @@ export interface PreparedRequest {
   hints: LlmLoopCacheHints
   /** The composed policy caches the opening (`PromptPolicy.cacheSystem`). */
   cached: boolean
+}
+
+/** What one call of a model method is built from, besides its request. */
+export interface CallControlParams<T> extends Pick<LlmCallOptions, 'action' | 'fatal' | 'escalation'> {
+  guide?: LlmGuide<T> | undefined
+}
+
+/** The per-call state of a model method: its rungs, where it starts, its guidance and its escalation. */
+export interface CallControl<T> {
+  action: string
+  /** The caller's own `LlmCallOptions.fatal`. */
+  fatal?: FatalErrorResolver | undefined
+  /** The rungs this call may run on — the role's chain less those refusing its media. */
+  ladder: Rung[]
+  /** Where the call starts on its ladder (`escalation`, clamped). */
+  seed: number
+  guidance: CallGuidance<T>
+  attempts: CallAttempts
 }

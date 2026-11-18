@@ -3,7 +3,7 @@ name: testing
 description: The package's offline and gated specs, the golden prompt bytes, and the stream fixtures.
 metadata:
   purposes: test
-  mentions: ANTHROPIC_SECRET, OPENAI_SECRET, OPENROUTER_SECRET, tool-rounds.spec.ts, tool-calls.spec.ts, tool-golden.ts, media.spec.ts, capabilities.spec.ts, trace.spec.ts, tokens.spec.ts, results.spec.ts, model.spec.ts, anthropic-families.spec.ts, stream-sdk.spec.ts, search.spec.ts, search-live.spec.ts
+  mentions: ANTHROPIC_SECRET, OPENAI_SECRET, OPENROUTER_SECRET, tool-rounds.spec.ts, tool-calls.spec.ts, tool-golden.ts, media.spec.ts, capabilities.spec.ts, trace.spec.ts, tokens.spec.ts, results.spec.ts, model.spec.ts, anthropic-families.spec.ts, stream-sdk.spec.ts, search.spec.ts, search-live.spec.ts, liveness.spec.ts, background.spec.ts, background-live.spec.ts
 ---
 
 # @owlmeans/llm — Tests
@@ -31,8 +31,10 @@ request): the tool-less requests against `tool-golden.ts` — GOLDEN bytes recor
 existed, never re-recorded to make a change pass — the plain call on a rung without tools, rounds, stop
 tools, the answer-now and spent turns, contained and fatal tool errors, carried look-ups (same rung as
 messages, another rung as the note), invoke's tool choice and its re-ask after an answer in words,
-spectating, continuation, `loopCache` per round, and the wire of real chat-completions and Anthropic
-clients over a scripted SSE transport. `tool-calls.spec.ts` pins `toolCallsHelper` (parallel calls
+spectating, continuation, `loopCache` per round, the call's ladder around the rounds (a turn that
+streamed nothing climbs the budget, an unguided schema refusal is corrected after the carried rounds
+and stops the call when it repeats, `prune` accepts a pruned answer), and the wire of real
+chat-completions and Anthropic clients over a scripted SSE transport. `tool-calls.spec.ts` pins `toolCallsHelper` (parallel calls
 whose streamed fragments carry no position: rebuilt from the provider's record, else regrouped, never
 dropped), a round of parallel calls in the live shape — through the Responses API client too — and
 the re-asks of turns that may no longer look.
@@ -67,3 +69,21 @@ failures, ignored late values, consumer cancellation and active streams exceedin
 windows. `bun test ./tests/stream-sdk.spec.ts` exercises actual ChatOpenAI Responses against local
 HTTP fixtures: missing headers, open headers without SSE, and a productive SSE control. It checks
 socket cancellation and absence of late callbacks without spending provider tokens.
+
+`liveness.spec.ts` pins the two deadlines over real HTTP (`tests/sse.ts`: a scripted local
+provider): keepalive bytes outlive several connection windows and the progress deadline ends the
+attempt; two calls in flight hear only their own bytes; every attempt gets its own observer and a
+plugin that never fetches arms no progress deadline; the drain and late bytes re-arm nothing.
+`background.spec.ts` pins OpenAI background mode — the flag never at build, on a refined direct-route
+call at effort `high`+ (and on the wire), never on a proxied route, the compatible plugin or a raw
+`.invoke()` — what a stored response still owes the stream, and the splice: a torn record dropped,
+the `starting_after` resume with its replay dropped, a resume answered later than a poll still taken
+(regression: OpenAI's headers come with its first record), a keepalive forwarded whatever its number
+and never moving the cursor, a resumed stream of keepalives only completed from the stored copy, no
+poll after `response.completed`, three failed polls a retryable stall (the lost response cancelled),
+a cancel on abort under its own signal but not after completion, and a `: poll` comment keeping a
+silent response's connection deadline alive. `background-live.spec.ts` (gate
+`openai`, `bun test ./tests/background-live.spec.ts --timeout 900000`) runs one background structured
+call on `gpt-6-luna` at high effort, one cut mid-stream that must be recovered without a second POST,
+one aborted that must be cancelled (up to two minutes for OpenAI's status to follow), and logs the record kinds on the wire (OpenAI's keepalive among them) and what
+`store: false` answers.

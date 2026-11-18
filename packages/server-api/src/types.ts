@@ -23,7 +23,10 @@ export interface ApiServerAppend {
 export type HttpErrorExposure = 'production' | 'development'
 
 export interface HttpErrorsConfig {
-  /** Production is the safe default; development is the only mode that exposes stacks. */
+  /**
+   * Production is the safe default: a typed 4xx refusal goes out without its stack, a fault as its
+   * incident id alone. Development is the only mode that exposes stacks and fault messages.
+   */
   exposure?: HttpErrorExposure
 }
 

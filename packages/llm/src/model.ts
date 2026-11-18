@@ -2,8 +2,8 @@ import { Ajv, type JSONSchemaType } from 'ajv'
 import { AIMessage, BaseMessage, type AIMessageChunk, type MessageContent, type MessageFieldWithRole } from '@langchain/core/messages'
 import { PromptRegion, StructuredMode, type NullKind } from '@owlmeans/llm-common'
 import { logger } from '@owlmeans/log'
-import { DEFAULT_MODEL_RETRIES, EMPTY_CONTENT_STUB, MAX_CACHE_BREAKPOINTS, TAIL_JSON_FORMAT, TAIL_SCHEMA_INSTRUCTION } from './consts.js'
-import { LlmMissconfiguredError, LlmModelError } from './errors.js'
+import { DEFAULT_MODEL_RETRIES, EMPTY_CONTENT_STUB, LlmNoticeKind, MAX_CACHE_BREAKPOINTS, TAIL_JSON_FORMAT, TAIL_SCHEMA_INSTRUCTION } from './consts.js'
+import { LlmMissconfiguredError, LlmModelError, type LlmSchemaRejection } from './errors.js'
 import { executionPolicyHelper } from './execution/policy.js'
 import { CacheBoundary } from './plugins/consts.js'
 import type { LlmLoopCacheHints, LlmPlugin, LlmSystemBlock, PromptBoundary } from './plugins/types.js'
@@ -16,8 +16,11 @@ import { spectate } from './helpers/spectate.js'
 import { toolCallsHelper } from './helpers/tool-calls.js'
 import type {
   ModelConfig, LlmAskOptions, LlmInvokeOptions, SchemaPlacement, LlmModel, LlmModelOptions, LlmRequestOptions, LlmSpectator,
-  LlmTalkOptions, LlmToolConversation, ModelInput, RefferedResult,
+  LlmSpectatorNotice, LlmTalkOptions, LlmToolConversation, ModelInput, RefferedResult,
 } from './types.js'
+import { attemptUtils } from './utils/attempts.js'
+import { STOP_LAST_RUNG, STOP_NEXT_RUNG } from './utils/attempts/consts.js'
+import type { AttemptStep, CallAttempts, SchemaVerdict } from './utils/attempts/types.js'
 import { guidanceUtils } from './utils/guidance.js'
 import type { CallGuidance } from './utils/guidance/types.js'
 import { configUtils } from './utils/config.js'
@@ -26,12 +29,18 @@ import { mediaUtils } from './utils/media.js'
 import { messageUtils } from './utils/messages.js'
 import { reportNull } from './utils/null-report.js'
 import type { NullReportParams } from './utils/null-report/types.js'
+import { pruneUtils } from './utils/prune.js'
+import { refusalUtils } from './utils/refusal.js'
 import { makeRoundsUtils } from './utils/rounds.js'
 import type { RoundsAnswer, RoundsStop } from './utils/rounds/types.js'
 import type { Rung } from './utils/rungs/types.js'
 import { rungUtils } from './utils/rungs.js'
 import { streamUtils } from './utils/stream.js'
-import type { ActiveRung, PrepareRequest, PreparedRequest, StreamOptions, StructuredTurn } from './types.local.js'
+import type { StreamLiveness } from './utils/stream/types.js'
+import { observerUtils } from './utils/observer.js'
+import type {
+  ActiveRung, CallControl, CallControlParams, PrepareRequest, PreparedRequest, StreamOptions, StructuredTurn,
+} from './types.local.js'
 import { promptUtils } from './utils/prompt.js'
 import { schemaUtils } from './utils/schema.js'
 
@@ -86,7 +95,7 @@ const takeLeadingSystem = (msgs: MessageFieldWithRole[]): string[] => {
  * structured output is requested, whether prompt caching exists — is delegated to the
  * `LlmPlugin` of the rung being called (see `plugins/`), so a fallback on another provider is
  * asked in that provider's shape. The model itself only owns the provider-independent parts:
- * streaming under an idle deadline, retry/fallback escalation, schema validation and
+ * streaming under connection and progress deadlines, retry/fallback escalation, schema validation and
  * coercion, spectator logging, and null diagnostics.
  */
 export const makeLlmModel = ({
@@ -100,9 +109,11 @@ export const makeLlmModel = ({
   files,
   utility,
   results,
+  prune = false,
 }: LlmModelOptions, spectator: LlmSpectator): LlmModel => {
 
-  const ajv = new Ajv({ strict: false })
+  // Every error, not the first: the default correction lists them and a repeat is judged on all.
+  const ajv = new Ajv({ strict: false, allErrors: true })
 
   // Each rung's config and plugin are static per model instance: a REFINED instance is
   // rebuilt from `lc_kwargs` and does not reliably carry the metadata back.
@@ -287,6 +298,67 @@ export const makeLlmModel = ({
   }
 
   /**
+   * Tell the spectator what happened inside a call's retry ladder. Best effort: an observer that
+   * throws or rejects is logged, and the call goes on exactly as it would without one.
+   */
+  const notice = async (event: LlmSpectatorNotice): Promise<void> => {
+    if (spectator.notice == null) return
+    try {
+      await spectator.notice(event)
+    } catch (error) {
+      log.warn('Model spectator notice failed', { action: event.action, kind: event.kind, error })
+    }
+  }
+
+  /** The per-call state every method builds the same way, before its first attempt. */
+  const controlOf = <T>(input: ModelInput, { action, guide, fatal, escalation }: CallControlParams<T>): CallControl<T> => {
+    const ladder = mediaUtils.ladderFor(rungs, mediaUtils.needsOf(normalizeInput(input)))
+    const seed = ladderSeed(escalation)
+
+    return {
+      action, fatal, ladder, seed,
+      guidance: guidanceUtils.of(guide, action, fatal),
+      attempts: attemptUtils.of({ ladder, seed, retries, fatal }),
+    }
+  }
+
+  /**
+   * The caller's filter refused the attempt: the next attempt climbs (a fuller answer may pass), the
+   * spectator hears of it, and the call's guidance gets it. Answers the error the attempt throws; a
+   * fatal one passes straight through.
+   */
+  const filterRefused = async <T>(
+    { action, fatal, guidance, attempts }: CallControl<T>, error: unknown, attempt: number, output: T,
+  ): Promise<unknown> => {
+    if (retryHelper.isFatalError(error, fatal) != null) return error
+    attempts.climbing(error)
+    await notice({ action, kind: LlmNoticeKind.Rejected, attempt, reason: refusalUtils.reasonOf(error) })
+
+    return await guidance.refused(error, attempt, output)
+  }
+
+  /**
+   * The schema refused the attempt: the spectator hears of it, and the call learns whether the same
+   * refusal came back after a correction — then the next rung is asked, or the call ends. The budget
+   * never climbs for it: a bigger budget does not fix a wrong shape.
+   */
+  const schemaRefused = async <T>(
+    { action, guidance, attempts }: CallControl<T>, refusal: LlmSchemaRejection, attempt: number,
+  ): Promise<SchemaVerdict> => {
+    const paths = refusalUtils.pathsOf(refusal.details)
+    const verdict = attempts.schemaRefused(refusal, attempt, guidance.active())
+    const { signature } = verdict
+    await notice({ action, kind: LlmNoticeKind.Rejected, attempt, reason: refusalUtils.reasonOf(refusal), signature, paths })
+    if (verdict.next !== 'retry') {
+      log.warn('Model repeated a schema refusal', { action, attempt, next: verdict.next, paths })
+      const reason = verdict.next === 'rung' ? STOP_NEXT_RUNG : STOP_LAST_RUNG
+      await notice({ action, kind: LlmNoticeKind.Stopped, attempt, reason, signature, paths })
+    }
+
+    return verdict
+  }
+
+  /**
    * Record the diagnostics of a call that produced nothing usable and build the
    * retryable error describing it. The caller throws it, so control flow stays visible.
    */
@@ -305,36 +377,49 @@ export const makeLlmModel = ({
   }
 
   /**
-   * Rebuild the model for attempt N.
+   * Rebuild the model for one attempt (`CallAttempts.at`).
    *
    * The attempts walk the call's ladder — the fallback chain the service hung off the primary, less
    * the rungs that do not accept the media the call carries — each rung gets
-   * {@link FALLBACK_AFTER_ATTEMPTS} of them and the last keeps the rest. A rung on another
-   * provider is fine: everything provider-shaped (the refine, the prompt rendering, the
-   * structured-output call) is taken from the rung's own plugin, never the primary's.
+   * {@link FALLBACK_AFTER_ATTEMPTS} of them and the last keeps the rest; a repeated schema refusal
+   * moves on early. A rung on another provider is fine: everything provider-shaped (the refine, the
+   * prompt rendering, the structured-output call) is taken from the rung's own plugin, never the
+   * primary's. The output budget follows `climb` and effort `rungAttempt` — both count only the
+   * failures a bigger budget can fix.
+   *
+   * Every attempt gets its own traffic observer (`LlmRefineParams.observe`): the plugin hands it the
+   * refined client's fetch, the attempt's deadlines hear its bytes, and a resumed provider stream
+   * reaches the spectator as a `resumed` notice. Nothing outlives the attempt.
    */
-  const refineModel = (ladder: Rung[], attempt: number, temperature?: number): ActiveRung => {
-    const { rung, rungAttempt } = rungUtils.rungAt(ladder, attempt)
-    if (rung.index > 0 && rungAttempt === 0) {
+  const refineModel = ({ rung, attempt, rungAttempt, climb, entered }: AttemptStep, action: string, temperature?: number): ActiveRung => {
+    if (entered) {
       log.warn('Switching to fallback model', {
         model: rung.model.getName(), fallback: rung.index, fallbackModel: rung.config.model, attempts: attempt,
       })
     }
     if (rung.plugin == null) return { ...rung, refined: rung.model }
 
+    const observer = observerUtils.of(({ after, resumes }) => {
+      log.warn('Model stream resumed', { action, attempt, after, resumes })
+      void notice({ action, kind: LlmNoticeKind.Resumed, attempt, reason: `after:${after}` })
+    })
     // Read from the ACTIVE rung, so the escalator sizes the model it is actually talking to.
     const maxOutputCap = configUtils.resolveOutputCap(rung.config)
     const refined = rung.plugin.refine({
-      base: rung.model, attempt, rungAttempt, temperature, maxOutputCap,
+      base: rung.model, attempt, rungAttempt, climb, temperature, maxOutputCap, observe: observer,
     })
 
     if (attempt > 0) {
       const maxTokens = (refined as unknown as { maxTokens?: number }).maxTokens
-      log.warn('Model retry attempt', { model: refined.getName(), attempt, outputLimit: maxTokens })
+      log.warn('Model retry attempt', { model: refined.getName(), attempt, climb, outputLimit: maxTokens })
     }
 
-    return { ...rung, refined }
+    return { ...rung, refined, observer }
   }
+
+  /** What arms an attempt's progress deadline: its observer — none for a rung without a plugin. */
+  const livenessOf = ({ config, observer }: ActiveRung): StreamLiveness | undefined =>
+    observer != null ? { observer, progressMs: configUtils.progressTimeout(config) } : undefined
 
   /**
    * Refuse a schema this rung's provider would not show the model as written — before the rung's
@@ -364,7 +449,7 @@ export const makeLlmModel = ({
     : (config.structuredOutput === true ? StructuredMode.Native : StructuredMode.Tool)
 
   /**
-   * Shared structured-output core for `invoke`/`request`. Streams under the idle deadline
+   * Shared structured-output core for `invoke`/`request`. Streams under the deadlines
    * (whose break-on-`finish_reason` also dedups the duplicate final chunk some providers
    * emit, which would otherwise corrupt accumulated tool-call arguments), accumulates the
    * chunks and extracts the parsed object.
@@ -416,7 +501,9 @@ export const makeLlmModel = ({
     }
 
     let piece: AIMessageChunk | null = null
-    for await (const rawChunk of streamUtils.streamWithDeadline(start, configUtils.idleTimeout(active.config))) {
+    for await (const rawChunk of streamUtils.streamWithDeadline(
+      start, configUtils.idleTimeout(active.config), undefined, livenessOf(active),
+    )) {
       const chunk = rawChunk as AIMessageChunk
       piece = piece == null ? chunk : (piece.concat(chunk) as AIMessageChunk)
     }
@@ -441,23 +528,27 @@ export const makeLlmModel = ({
     return { piece, result, mode }
   }
 
-  /** One plain `ask` request: streamed under the idle deadline, a null result diagnosed, the answer spectated. */
+  /**
+   * One plain `ask` request: streamed under the attempt's deadlines, a null result diagnosed (and
+   * counted as a climb — a bigger budget may fix it), the answer spectated.
+   */
   const askOnce = async (
-    active: ActiveRung, { msgs, options, placed }: PreparedRequest, action: string, attempt: number, stable?: number,
+    active: ActiveRung, { msgs, options, placed }: PreparedRequest, action: string, attempt: number,
+    attempts: CallAttempts, stable?: number,
   ): Promise<RoundsAnswer> => {
     const { refined } = active
     const startedAt = Date.now()
     let result: AIMessageChunk | null = null
     for await (const chunk of streamUtils.streamWithDeadline(
       signal => refined.stream(msgs, { ...options, runName: action, metadata: { purpose }, signal } as StreamOptions),
-      configUtils.idleTimeout(active.config),
+      configUtils.idleTimeout(active.config), undefined, livenessOf(active),
     )) {
       result = result == null ? chunk : result.concat(chunk)
     }
     if (result == null) {
-      throw await nullResult('ask', active.config, {
+      throw attempts.climbing(await nullResult('ask', active.config, {
         action, attempt, startedAt, refined, msgs, raw: result, useCache: placed > 0, stable,
-      })
+      }))
     }
     cacheHelper.withCacheTiers(result)
 
@@ -468,7 +559,7 @@ export const makeLlmModel = ({
   }
 
   /** The look-tool conversations of `ask` / `invoke` calls made with `tools`. */
-  const rounds = makeRoundsUtils({ purpose, spectator, prepare, nullResult, answer: askOnce })
+  const rounds = makeRoundsUtils({ purpose, spectator, prepare, nullResult, answer: askOnce, liveness: livenessOf })
 
   /** A stop tool ended a call with tools: its value is the answer, with no filter, guide or schema. */
   const stopWith = <T>(
@@ -495,19 +586,20 @@ export const makeLlmModel = ({
       return await observeFailure(action, async () => {
         const request: PrepareRequest = { input, action, json: false, skills, stable, focus, cacheMax }
         const prepared = preparing(request)
-        const guidance = guidanceUtils.of(guide, action, fatal)
+        const control = controlOf<string>(input, { action, guide, fatal, escalation })
+        const { guidance, attempts } = control
         const conversation = tools != null
-          ? rounds.of<string>({ kind: 'ask', tools, action, input, request, prepared, fatal })
+          ? rounds.of<string>({ kind: 'ask', tools, action, input, request, prepared, fatal, attempts })
           : undefined
-        const seed = ladderSeed(escalation)
-        const ladder = mediaUtils.ladderFor(rungs, mediaUtils.needsOf(normalizeInput(input)))
-        await prepared(rungUtils.rungAt(ladder, seed).rung)
-        return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
-        const active = refineModel(ladder, seed + i)
+        await prepared(rungUtils.rungAt(control.ladder, control.seed).rung)
+        return await retryHelper.withRetry({ retries, outputErrors, fatal: attempts.fatal, next: attempts.next }, async i => {
+        const active = refineModel(attempts.at(i), action)
         const { refined } = active
         log.debug('Use model to ask', { model: refined.getName(), id: refined.lc_kwargs.model })
         let answered: RoundsAnswer
         if (conversation?.tooled(active) === true) {
+          // The rounds run INSIDE this attempt: a failure anywhere in them fails the attempt, and the
+          // ladder (rung, budget climb, guidance) goes on exactly as for a plain answer.
           const outcome = await conversation.converse(active, i, guidance)
           if ('stopped' in outcome) {
             return stopWith(ref, conversation.conversation(), outcome.stopped)
@@ -518,7 +610,7 @@ export const makeLlmModel = ({
           const carried = conversation?.plain(guidance)
           answered = await askOnce(active, carried != null
             ? await prepare({ ...request, input: carried }, active)
-            : await attemptRequest(prepared, request, guidance, active), action, i, stable)
+            : await attemptRequest(prepared, request, guidance, active), action, i, attempts, stable)
         }
         const { piece: result, message, msgs, placed, startedAt, entry } = answered
         const useCache = placed > 0
@@ -549,9 +641,9 @@ export const makeLlmModel = ({
         // worse, skipping `reportNull`, whose stop reason and output-token count are the only
         // things that say WHY nothing came back (a model that spent its whole budget thinking).
         if (output.trim() === '') {
-          throw await nullResult('ask', active.config, {
+          throw attempts.climbing(await nullResult('ask', active.config, {
             action, attempt: i, startedAt, refined, msgs, raw: result, useCache, stable,
-          })
+          }))
         }
 
         const produced = output
@@ -560,12 +652,12 @@ export const makeLlmModel = ({
           try {
             filtered = await filter(produced, message)
           } catch (error) {
-            throw await guidance.refused(error, i, produced)
+            throw await filterRefused(control, error, i, produced)
           }
           if (filtered == null) {
             // The OUTPUT, not the message envelope: `JSON.stringify(new AIMessage(...))` is 80
             // constant characters of LangChain serialization stub and says nothing at all.
-            throw await guidance.refused(new LlmModelError(`filter-rejected:${produced.substring(0, 200)}`), i, produced)
+            throw await filterRefused(control, new LlmModelError(`filter-rejected:${produced.substring(0, 200)}`), i, produced)
           }
           output = filtered
         }
@@ -586,12 +678,11 @@ export const makeLlmModel = ({
       return await observeFailure(action, async () => {
         const request: PrepareRequest = { input, action, json: false, skills, stable, focus, cacheMax }
         const prepared = preparing(request)
-        const guidance = guidanceUtils.of(guide, action, fatal)
-        const seed = ladderSeed(escalation)
-        const ladder = mediaUtils.ladderFor(rungs, mediaUtils.needsOf(normalizeInput(input)))
-        await prepared(rungUtils.rungAt(ladder, seed).rung)
-        return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
-        const active = refineModel(ladder, seed + i)
+        const control = controlOf<AIMessage>(input, { action, guide, fatal, escalation })
+        const { guidance, attempts } = control
+        await prepared(rungUtils.rungAt(control.ladder, control.seed).rung)
+        return await retryHelper.withRetry({ retries, outputErrors, fatal: attempts.fatal, next: attempts.next }, async i => {
+        const active = refineModel(attempts.at(i), action)
         const { refined } = active
         const { msgs, options, placed } = await attemptRequest(prepared, request, guidance, active)
         log.debug('Use model to talk', { model: refined.getName(), id: refined.lc_kwargs.model })
@@ -599,14 +690,14 @@ export const makeLlmModel = ({
         let result: AIMessageChunk | null = null
         for await (const chunk of streamUtils.streamWithDeadline(
           signal => refined.stream(msgs, { ...options, runName: action, metadata: { purpose }, signal } as StreamOptions),
-          configUtils.idleTimeout(active.config),
+          configUtils.idleTimeout(active.config), undefined, livenessOf(active),
         )) {
           result = result == null ? chunk : result.concat(chunk)
         }
         if (result == null) {
-          throw await nullResult('talk', active.config, {
+          throw attempts.climbing(await nullResult('talk', active.config, {
             action, attempt: i, startedAt, refined, msgs, raw: result, useCache: placed > 0, stable,
-          })
+          }))
         }
         cacheHelper.withCacheTiers(result)
 
@@ -619,10 +710,10 @@ export const makeLlmModel = ({
           try {
             message = await filter(message)
           } catch (error) {
-            throw await guidance.refused(error, i, produced)
+            throw await filterRefused(control, error, i, produced)
           }
           if (message == null) {
-            throw await guidance.refused(new LlmModelError('filter-rejected:talk'), i, produced)
+            throw await filterRefused(control, new LlmModelError('filter-rejected:talk'), i, produced)
           }
         }
 
@@ -644,28 +735,27 @@ export const makeLlmModel = ({
         const toolName = schemaUtils.toToolName((innerSchema as { title?: string }).title ?? name)
         const request0: PrepareRequest = { input, action, json: true, skills, stable, focus, cacheMax, ...structuredPrompt(schemaPlacement, toolName, innerSchema) }
         const prepared = preparing(request0)
-        const guidance = guidanceUtils.of(guide, action, fatal)
+        const control = controlOf<T>(input, { action, guide, fatal, escalation })
+        const { guidance, attempts } = control
         // A rung that converses answers through the output tool, whatever the placement.
         const toolRequest: PrepareRequest = { input, action, json: true, skills, stable, focus, cacheMax, toolName }
         const conversation = tools != null
           ? rounds.of<T>({
-            kind: 'invoke', tools, action, input, request: toolRequest, fatal,
+            kind: 'invoke', tools, action, input, request: toolRequest, fatal, attempts,
             prepared: schemaPlacement === 'tail' ? preparing(toolRequest) : prepared,
             output: { toolName, innerSchema },
           })
           : undefined
-
-        const seed = ladderSeed(escalation)
-        const ladder = mediaUtils.ladderFor(rungs, mediaUtils.needsOf(normalizeInput(input)))
-        await prepared(rungUtils.rungAt(ladder, seed).rung)
-        return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
-        const active = refineModel(ladder, seed + i, temperature)
+        await prepared(rungUtils.rungAt(control.ladder, control.seed).rung)
+        return await retryHelper.withRetry({ retries, outputErrors, fatal: attempts.fatal, next: attempts.next }, async i => {
+        const active = refineModel(attempts.at(i), action, temperature)
         const tooled = conversation != null && conversation.tooled(active)
         if (tooled || schemaPlacement !== 'tail') assertSchemaShown(active, innerSchema)
         const { refined } = active
         log.debug('Use model invoke', { model: refined.getName(), id: refined.lc_kwargs.model })
         let turn: StructuredTurn<T>
         if (tooled) {
+          // The rounds run INSIDE this attempt; the answer they end on is checked below exactly as a plain one.
           const outcome = await conversation.converse(active, i, guidance)
           if ('stopped' in outcome) {
             return stopWith(ref, conversation.conversation(), outcome.stopped)
@@ -691,10 +781,10 @@ export const makeLlmModel = ({
         let result: T | null = turn.result
         if (ref != null && entry != null) ref.spectatorEntry = entry
         if (piece == null || result == null) {
-          throw await nullResult('invoke', active.config, {
+          throw attempts.climbing(await nullResult('invoke', active.config, {
             action, attempt: i, startedAt, refined, msgs, raw: piece,
             schema: { toolName, innerSchema }, useCache: turn.placed > 0, stable,
-          }, result != null)
+          }, result != null))
         }
 
         const message = new AIMessage(piece)
@@ -702,28 +792,53 @@ export const makeLlmModel = ({
         result = schemaUtils.unwrapNamed(result, name)
         result = jsonHelper.coerceToSchema(result, innerSchema) as T
         const produced = result
+        const conversed = (): void => {
+          if (ref != null && conversation != null) ref.conversation = conversation.conversation(JSON.stringify(produced))
+        }
 
         if (filter != null) {
           const preFilter = result
           try {
             result = await filter(result, message)
           } catch (error) {
-            throw await guidance.refused(error, i, preFilter)
+            throw await filterRefused(control, error, i, preFilter)
           }
           if (result == null) {
-            throw await guidance.refused(
-              new LlmModelError(`filter-rejected:${JSON.stringify(preFilter).substring(0, 200)}`), i, preFilter,
+            throw await filterRefused(
+              control, new LlmModelError(`filter-rejected:${JSON.stringify(preFilter).substring(0, 200)}`), i, preFilter,
             )
           }
         }
 
         if (!validate(result)) {
-          const err = new LlmModelError(`validation-failed:${JSON.stringify(validate.errors)}`)
-          err.cause = validate.errors?.[0]
-          throw await guidance.refused(err, i, result)
+          const refusal = refusalUtils.rejectionOf(validate.errors ?? [])
+          const verdict = await schemaRefused(control, refusal, i)
+          // The call ends on this refusal: what the schema allows to be missing is dropped, the
+          // caller's filter judges the rest again, and only a valid answer is accepted.
+          const pruned = verdict.ends && prune ? pruneUtils.prune(innerSchema, result, refusal.details) : null
+          if (pruned != null) {
+            let candidate: T | null = pruned.value
+            if (filter != null) {
+              try {
+                candidate = await filter(candidate, message)
+              } catch (error) {
+                if (retryHelper.isFatalError(error, fatal) != null) throw error
+                candidate = null
+              }
+            }
+            if (candidate != null && validate(candidate)) {
+              log.warn('Model answer pruned', { action, attempt: i, paths: pruned.paths })
+              await notice({ action, kind: LlmNoticeKind.Pruned, attempt: i, signature: verdict.signature, paths: pruned.paths })
+              conversed()
+              notifyRef(ref, message)
+              return candidate
+            }
+          }
+          if (verdict.next === 'stop') throw attempts.stop(refusal, i)
+          throw await guidance.refused(refusal, i, result)
         }
 
-        if (ref != null && conversation != null) ref.conversation = conversation.conversation(JSON.stringify(produced))
+        conversed()
         notifyRef(ref, message)
         return result as T
         })
@@ -742,13 +857,11 @@ export const makeLlmModel = ({
         const toolName = schemaUtils.toToolName((innerSchema as { title?: string }).title ?? name)
         const request0: PrepareRequest = { input, action, json: true, skills, stable, focus, cacheMax, ...structuredPrompt(schemaPlacement, toolName, innerSchema) }
         const prepared = preparing(request0)
-        const guidance = guidanceUtils.of(guide, action, fatal)
-
-        const seed = ladderSeed(escalation)
-        const ladder = mediaUtils.ladderFor(rungs, mediaUtils.needsOf(normalizeInput(input)))
-        await prepared(rungUtils.rungAt(ladder, seed).rung)
-        return await retryHelper.withRetry({ retries, outputErrors, fatal }, async i => {
-        const active = refineModel(ladder, seed + i)
+        const control = controlOf<AIMessage>(input, { action, guide, fatal, escalation })
+        const { guidance, attempts } = control
+        await prepared(rungUtils.rungAt(control.ladder, control.seed).rung)
+        return await retryHelper.withRetry({ retries, outputErrors, fatal: attempts.fatal, next: attempts.next }, async i => {
+        const active = refineModel(attempts.at(i), action)
         if (schemaPlacement !== 'tail') assertSchemaShown(active, innerSchema)
         const { refined } = active
         const request = await attemptRequest(prepared, request0, guidance, active)
@@ -763,10 +876,10 @@ export const makeLlmModel = ({
           : undefined
         if (ref != null && entry != null) ref.spectatorEntry = entry
         if (piece == null || result == null) {
-          throw await nullResult('request', active.config, {
+          throw attempts.climbing(await nullResult('request', active.config, {
             action, attempt: i, startedAt, refined, msgs, raw: piece,
             schema: { toolName, innerSchema }, useCache: request.placed > 0, stable,
-          }, result != null)
+          }, result != null))
         }
 
         let message: AIMessage | null = new AIMessage(piece)
@@ -782,19 +895,21 @@ export const makeLlmModel = ({
           try {
             message = await filter(message)
           } catch (error) {
-            throw await guidance.refused(error, i, produced)
+            throw await filterRefused(control, error, i, produced)
           }
           if (message == null) {
-            throw await guidance.refused(new LlmModelError('filter-rejected:request'), i, produced)
+            throw await filterRefused(control, new LlmModelError('filter-rejected:request'), i, produced)
           }
         } else if (message.content == null || message.content.toString().trim() === '') {
-          throw new LlmModelError(`empty-content:${JSON.stringify(message).substring(0, 50)}...`)
+          throw attempts.climbing(new LlmModelError(`empty-content:${JSON.stringify(message).substring(0, 50)}...`))
         }
 
-        if (!validate(JSON.parse(`${message.content}`))) {
-          const err = new LlmModelError(`validation-failed:${JSON.stringify(validate.errors)}`)
-          err.cause = validate.errors?.[0]
-          throw await guidance.refused(err, i, message)
+        const parsed: unknown = JSON.parse(`${message.content}`)
+        if (!validate(parsed)) {
+          const refusal = refusalUtils.rejectionOf(validate.errors ?? [])
+          const verdict = await schemaRefused(control, refusal, i)
+          if (verdict.next === 'stop') throw attempts.stop(refusal, i)
+          throw await guidance.refused(refusal, i, message, parsed)
         }
 
         notifyRef(ref, message)

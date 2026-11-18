@@ -1,6 +1,6 @@
 ---
 name: tools
-description: Look tools inside ONE ask or invoke call (LlmCallTools) — rounds within an attempt, stop tools that end the call with a caller-supplied value, the round budget and the answer-now turn (tool-less for ask), invoke's re-ask with the output tool pinned, what a retry carries, parallel calls whose streamed arguments were lost (toolCallsHelper), the plain call on a rung without tools, spectating and cache marks per round, and continuing the conversation through ref.conversation.
+description: Look tools inside ONE ask or invoke call (LlmCallTools) — rounds within an attempt, stop tools that end the call with a caller-supplied value, the round budget and the answer-now turn (tool-less for ask), invoke's re-ask with the output tool pinned, what a retry carries, how the call's ladder (budget climb, schema refusal, prune, background mode) wraps the rounds, parallel calls whose streamed arguments were lost (toolCallsHelper), the plain call on a rung without tools, spectating and cache marks per round, and continuing the conversation through ref.conversation.
 metadata:
   purposes: agent
   mentions: LlmCallTools, LlmStopTool, LlmToolConversation, RefferedResult, DEFAULT_TOOL_ROUNDS, toolCalling, maxRounds, exhausted, onToolCall, tool_choice, loopCache, makeRoundsUtils, toolCallUtils, toolCallsHelper, toolCallsOf, parseArguments, FINAL_TURN_REASKS, OUTPUT_TOOL_REQUIRED, TOOL_ROUNDS_NOTE_HEADER, CARRIED_LOOKUPS_HEADER, parallel tool calls
@@ -82,6 +82,22 @@ const design = await model.invoke(input, DesignSchema, { action: 'describe', too
 - Two tools of one name (look, stop, output) are refused with a fatal `LlmMissconfiguredError` before
   any request.
 
+## The call's ladder wraps the rounds
+
+The rounds run INSIDE one attempt of the call's retry loop, so the call's attempt bookkeeping
+(`CallAttempts`) treats a conversing attempt exactly as a plain one: a turn that streams nothing, or an
+answer with nothing usable, is a null result and climbs the output budget and effort; a stalled turn
+fails the attempt without climbing; the answer the rounds end on is unwrapped, coerced, filtered and
+validated like a plain answer — a schema refusal gets the default correction when no `guide` answers,
+the same refusal after a correction moves to the next rung or ends the call (`repeated-refusal`), and
+`prune` may accept the pruned answer on the call's last attempt (`ref.conversation` is set then too).
+Fallback rungs, `escalation` and the media ladder apply unchanged. A stop tool still ends the call
+with its value, bypassing all of it.
+
+OpenAI background mode (the direct-route Responses client, `ModelConfig.background`) carries tool
+turns as it carries a plain one: every turn of the attempt goes through the attempt's refined client,
+whose background splice completes `function_call` items like text. No turn is forced off it.
+
 ## Retries carry the look-ups
 
 `maxRounds` is per attempt; a retry (a filter or schema refusal, a null result, a stalled stream)
@@ -106,7 +122,9 @@ ignored. `ref.conversation.tooled` says which happened, for metering.
 - Every model turn is spectated as its own entry (usage per round): turns that ran look-ups under
   `tools.action` (default: the call's `action`), the answering turn under the call's `action`.
   `ref.spectatorEntry` is the answering turn's.
-- Every turn streams under the same idle deadline.
+- Every turn streams under the attempt's connection and progress deadlines; the attempt's traffic
+  observer is re-armed before each turn (`AttemptObserver.rearm`), so a later turn's keepalives and
+  resumes count as the first turn's do.
 - The first turn of a first attempt is the plain request exactly, with tools declared: the markers
   `patchPrompt` placed, no extra write for a call that ends without looking. Every later turn sends the
   unmarked opening plus what followed it through the rung's `loopCache(wire, model, hints)` — the hints

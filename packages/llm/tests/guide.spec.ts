@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { AIMessageChunk } from '@langchain/core/messages'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { JSONSchemaType } from 'ajv'
-import { LlmMissconfiguredError, LlmModelError, LlmOutputRejection, LlmRetryExceededError, makeLlmModel } from '@owlmeans/llm'
+import { LlmMissconfiguredError, LlmModelError, LlmOutputRejection, LlmRetryExceededError, LlmSchemaRejection, makeLlmModel } from '@owlmeans/llm'
 import type { LlmFailedAttempt, LlmSpectator } from '@owlmeans/llm'
 
 /**
@@ -117,6 +117,59 @@ describe('@owlmeans/llm — guided regeneration', () => {
       action: 'null-guide', filter: named => /^[A-Za-z]+$/.test(named.name) ? named : null, guide: () => null,
     })
     expect(silent.sent[1]).toBe(silent.sent[0]!)
+  })
+
+  test('a schema refusal with no guide, or a null one, gets the default correction', async () => {
+    for (const guide of [undefined, () => null]) {
+      const { model, sent } = scripted(['{"title":"x"}', '{"name":"Orders"}'])
+      const result = await llmOf(model).invoke('Name the section', NamedSchema, { action: 'default-correction', guide })
+
+      expect(result).toEqual({ name: 'Orders' })
+      const correction = lastMessage(sent[1]!)
+      expect(correction).toContain('does not match the required JSON schema')
+      expect(correction).toContain('(root): the required property \\"name\\" is missing')
+      expect(correction).toContain('(root): the property \\"title\\" is not allowed')
+      expect(correction).toContain('Your value: {\\"title\\":\\"x\\"}')
+      expect(correction).toContain('Return the whole answer again, corrected.')
+      expect(sent[1]!).toContain('Name the section')
+    }
+  })
+
+  test('the default correction lists at most eight errors, each fragment at most 600 characters', async () => {
+    interface Wide { [key: string]: string }
+    const keys = Array.from({ length: 10 }, (_, i) => `k${i}`)
+    const WideSchema = {
+      type: 'object', title: 'Wide', required: ['long', ...keys],
+      properties: Object.fromEntries([['long', { type: 'object', required: ['inner'] }], ...keys.map(key => [key, { type: 'string' }])]),
+    } as unknown as JSONSchemaType<Wide>
+    const { model, sent } = scripted([JSON.stringify({ long: { text: 'z'.repeat(2000) } }), '{}'])
+    await llmOf(model, 2).invoke('Fill it', WideSchema, { action: 'wide' }).catch(() => undefined)
+
+    const correction = JSON.parse(lastMessage(sent[1]!)) as string
+    expect(correction.match(/^\d+\. /gm)).toHaveLength(8)
+    expect(correction).toContain('… and 3 more.')
+    const fragment = correction.split('\n').find(line => line.includes('"text"'))!
+    expect(fragment.length).toBeLessThan(640)
+    expect(fragment).toEndWith('…')
+  })
+
+  test('a schema refusal carries every error on details, the first on cause, the first three in its message', async () => {
+    const ThreeSchema = {
+      type: 'object', title: 'Three', properties: { a: { type: 'string' }, b: { type: 'string' }, c: { type: 'string' }, d: { type: 'string' } },
+      required: ['a', 'b', 'c', 'd'],
+    } as unknown as JSONSchemaType<Named>
+    const { model } = scripted(['{}', '{"a":"1","b":"2","c":"3","d":"4"}'])
+    const seen: LlmFailedAttempt<Named>[] = []
+    await llmOf(model).invoke('Fill it', ThreeSchema, { action: 'details', guide: failed => { seen.push(failed); return null } })
+
+    const error = seen[0]!.error as LlmSchemaRejection
+    expect(error).toBeInstanceOf(LlmSchemaRejection)
+    expect(error).toBeInstanceOf(LlmModelError)
+    expect(error.details.map(detail => (detail.params as { missingProperty: string }).missingProperty)).toEqual(['a', 'b', 'c', 'd'])
+    expect(error.cause).toEqual(error.details[0])
+    expect(error.message).toContain('validation-failed:')
+    expect(error.message).toContain('+1 more')
+    expect(error.message).not.toContain('"d"')
   })
 
   test('a guide that throws never replaces the attempt error and leaves the next attempt unguided', async () => {

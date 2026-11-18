@@ -4,7 +4,7 @@ import { AuthForbidden, AuthorizationError } from '@owlmeans/auth'
 import { ResilientError } from '@owlmeans/error'
 import { IAM_API_METADATA, ORGANIZATION_OWNER_REFUSAL, ORGANIZATION_REFUSAL } from '@owlmeans/oidc'
 import { IamClientError, IamError, IamGrantMode, IamGrantOrigin } from '@owlmeans/iam'
-import { makeIamRuntimeClient } from '@owlmeans/server-iam'
+import { ADMIN_REFUSAL, IAM_RUNTIME_ADMIN_ROUTES, makeIamRuntimeClient } from '@owlmeans/server-iam'
 import type { IamRuntimeClient } from '@owlmeans/server-iam'
 import { ACCESS_TOKEN, requestOf, seedSession, start } from './context.js'
 
@@ -100,6 +100,18 @@ describe('@owlmeans/server-iam — iamRuntime', () => {
     expect(lastSeen()).toMatchObject({ method, path: `/iam/api/runtime${path}`, body, authorization: `Bearer ${ACCESS_TOKEN}` })
   })
 
+  test('the owner\'s listing of every organization: GET /organizations/all, as the session subject', async () => {
+    const { client } = await runtimeOf('runtime-all')
+    const items = [{ entitySlug: 'acme', owner: true, home: true }, { entitySlug: 'beta', owner: false }]
+    answer = () => Response.json({ items })
+
+    expect(IAM_RUNTIME_ADMIN_ROUTES.organizationsAll).toBe('/organizations/all')
+    expect(await client.organizations.all()).toEqual(items)
+    expect(lastSeen()).toEqual({
+      method: 'GET', path: '/iam/api/runtime/organizations/all', query: {}, authorization: `Bearer ${ACCESS_TOKEN}`,
+    })
+  })
+
   test('a grant listing sends its filter as the query and answers the items', async () => {
     const { client } = await runtimeOf('runtime-3')
     const grant = { profileId: 'acme-preview:sub', permission: 'order--edit', origin: IamGrantOrigin.Group, through: 'staff' }
@@ -122,6 +134,22 @@ describe('@owlmeans/server-iam — iamRuntime', () => {
     await expect(read).rejects.toBeInstanceOf(AuthForbidden)
     await expect(read.catch(error => (error as Error).message.includes(ORGANIZATION_OWNER_REFUSAL))).resolves.toBe(false)
     await expect(read).rejects.toThrow(ORGANIZATION_REFUSAL)
+  })
+
+  test('a bare 403 on the admin route is the admin refusal; an older provider\'s 404 an IAM error', async () => {
+    const { client } = await runtimeOf('runtime-admin')
+    answer = () => new Response('incident-4', { status: 403, headers: { 'X-Incident-ID': 'incident-4' } })
+
+    const refused = client.organizations.all()
+    await expect(refused).rejects.toBeInstanceOf(AuthForbidden)
+    await expect(refused).rejects.toThrow(`forbidden:${ADMIN_REFUSAL}`)
+    await expect(refused.catch(error => (error as Error).message.includes(ORGANIZATION_REFUSAL))).resolves.toBe(false)
+    await expect(refused.catch(error => error.incidentId)).resolves.toBe('incident-4')
+
+    answer = () => new Response('Not Found', { status: 404 })
+    const missing = client.organizations.all()
+    await expect(missing).rejects.toBeInstanceOf(IamError)
+    await expect(missing).rejects.toThrow('runtime:status:404')
   })
 
   test('a marshalled error is rebuilt into its own class', async () => {

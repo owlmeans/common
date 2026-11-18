@@ -13,21 +13,32 @@ export const PROMPT_SERVICE = 'owlmeans-llm-prompt-service'
 export const DEFAULT_MODEL_RETRIES = 8
 
 /**
- * Idle (inactivity) deadline in ms for a streamed response: abort the stream when no
- * new token has arrived within this window. NOT a total cap — the timer is re-armed on
- * every chunk, so long but actively-streaming generations are never aborted. Guards
- * against a provider that accepts the request and then never streams anything (observed
- * with throughput-sorted OpenRouter routing), which would otherwise block forever —
- * `maxRetries` never helps there because the request never errors, it just hangs.
- * Overridable per model via `ModelConfig.streamTimeout`, or for every model at once via
- * `LlmServiceOptions.streamTimeout` where the application composes its context.
+ * CONNECTION deadline in ms for a streamed response: abort the attempt when nothing at all has
+ * arrived within this window. NOT a total cap — the timer is re-armed on every LangChain chunk and,
+ * for a client whose `refine` handed it the attempt's observer, on every BYTE the provider sends
+ * (SSE comments, keepalives and pings included), so a long call the provider keeps alive is never
+ * cut off. Guards against a provider that accepts the request and then sends nothing (observed with
+ * throughput-sorted OpenRouter routing), which would otherwise block forever — `maxRetries` never
+ * helps there because the request never errors, it just hangs. Overridable per model via
+ * `ModelConfig.streamTimeout`, or for every model at once via `LlmServiceOptions.streamTimeout`.
  *
- * Three minutes, not longer: the timer resets on every token, so a legitimately long
- * generation is never at risk — this only bounds SILENCE. The cost of a high value is
- * paid entirely by hung calls, and a hang that takes five minutes to notice is a hang
- * that can stall an agent run for half an hour once retries multiply it.
+ * Three minutes, not longer: it only bounds SILENCE. The cost of a high value is paid entirely by
+ * hung calls, and a hang that takes five minutes to notice can stall an agent run for half an hour
+ * once retries multiply it. A connection kept alive with no content is bounded by
+ * {@link MODEL_PROGRESS_TIMEOUT_MS}.
  */
 export const MODEL_STREAM_TIMEOUT_MS = 3 * 60 * 1000
+
+/**
+ * PROGRESS deadline in ms: abort the attempt when no LangChain chunk (content, reasoning, tool-call
+ * arguments, metadata) has arrived within this window although the connection stays alive —
+ * keepalives with nothing behind them. Armed only once the attempt's observer saw a request leave
+ * (a delegated call never gets it), at `max(progressTimeout, streamTimeout)`. Its expiry is a
+ * retryable `stream-stalled:` error that does not climb the budget. The backstop, not the detector:
+ * ten minutes. Overridable per model via `ModelConfig.progressTimeout`, or for every model at once
+ * via `LlmServiceOptions.progressTimeout`.
+ */
+export const MODEL_PROGRESS_TIMEOUT_MS = 10 * 60 * 1000
 
 /**
  * Attempts each rung of a role's fallback chain gets before the retry escalator moves to the
@@ -154,3 +165,18 @@ export const EFFORT_TABLE: Record<ExecutionEffort, ModelConfigPatch> = {
 export const COLLABORATOR_KEYS: string[] = [
   'state', 'models', 'model', 'temperatureFactory', 'outputErrors', 'files', 'prompts',
 ]
+
+/**
+ * What a model call tells `LlmSpectator.notice` while it runs — events inside the retry ladder,
+ * never its final outcome (that is `LlmSpectator.error`).
+ */
+export enum LlmNoticeKind {
+  /** An attempt's answer was refused — by the caller's `filter` or by the schema. */
+  Rejected = 'rejected',
+  /** The call ended on a schema refusal and a pruned answer (`LlmModelOptions.prune`) was accepted. */
+  Pruned = 'pruned',
+  /** The same schema refusal came back after a correction: the call left its rung, or ended. */
+  Stopped = 'stopped',
+  /** A dropped provider stream was resumed (OpenAI background mode). */
+  Resumed = 'resumed',
+}

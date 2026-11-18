@@ -4,9 +4,11 @@ import type { LlmModelError } from '../../errors.js'
 import type { FatalErrorResolver } from '../../helpers/retry/types.js'
 import type { ActiveRung, PrepareRequest, PreparedRequest } from '../../types.local.js'
 import type { LlmCallTools, LlmSpectator, LlmToolConversation, ModelConfig, ModelInput } from '../../types.js'
+import type { CallAttempts } from '../attempts/types.js'
 import type { CallGuidance } from '../guidance/types.js'
 import type { NullReportParams } from '../null-report/types.js'
 import type { Rung } from '../rungs/types.js'
+import type { StreamLiveness } from '../stream/types.js'
 
 /**
  * Where one attempt's conversation stands: looking (look-ups run), spent (the budget is gone, a stop
@@ -22,10 +24,15 @@ export interface RoundsHost {
   /** The model's own preparation of a request for one rung. */
   prepare: (request: PrepareRequest, rung: Rung) => Promise<PreparedRequest>
   /**
-   * One plain request on a rung — no tools bound — streamed under the idle deadline, a null result
-   * diagnosed and the turn spectated under `action`: the call's own `ask` path.
+   * One plain request on a rung — no tools bound — streamed under the attempt's deadlines, a null
+   * result diagnosed (a climb of `attempts`) and the turn spectated under `action`: the call's own
+   * `ask` path.
    */
-  answer: (active: ActiveRung, request: PreparedRequest, action: string, attempt: number, stable?: number) => Promise<RoundsAnswer>
+  answer: (
+    active: ActiveRung, request: PreparedRequest, action: string, attempt: number, attempts: CallAttempts, stable?: number,
+  ) => Promise<RoundsAnswer>
+  /** What arms a stream's progress deadline on this rung: the attempt's observer — none without a plugin. */
+  liveness: (active: ActiveRung) => StreamLiveness | undefined
   /** Record a call that produced nothing usable and build its retryable error. */
   nullResult: (
     kind: NullKind, config: Partial<ModelConfig>, params: Omit<NullReportParams, 'kind' | 'purpose' | 'config'>,
@@ -51,6 +58,11 @@ export interface RoundsCall<T> {
   /** The call's cached preparation of {@link request}. */
   prepared: (rung: Rung) => Promise<PreparedRequest>
   fatal?: FatalErrorResolver
+  /**
+   * The call's escalation state: a turn that comes back with nothing is a climb, exactly as a plain
+   * call's null result — the rounds run inside one attempt of this ladder.
+   */
+  attempts: CallAttempts
   /** `invoke` only. */
   output?: RoundsOutput
 }
