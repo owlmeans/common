@@ -104,6 +104,13 @@ the configured provider's plugin, else instance lookup on the UNBOUND model — 
 is owned by no plugin, and instance lookup alone sends any `ChatOpenAI` to `compatible`. What each
 provider marks per round: the `caching-providers` part.
 
+An `ask` / `invoke` with look tools (`LlmCallTools`) marks its rounds the same way. Its first turn is
+the plain request exactly — `patchPrompt`'s markers, no extra write when nothing is looked up — and
+every later turn hands `loopCache` the opening as prepared but unmarked plus what followed it, with the
+hints of that same preparation (system blocks, project index, lifetimes). The caller's `stable` lead
+gets no marker of its own there: the moving round marks read it back. `cacheMax: 0` leaves the rounds
+unmarked; `cacheSystem: false` leaves them with the `stable` mark only. Detail: [[llm]], `tools` part.
+
 ## Determinism
 
 - Order is declared (`PROMPT_BLOCK_ORDER`); skills sort by `(order, alias)` with a code-unit compare

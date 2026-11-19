@@ -200,6 +200,31 @@ describe('viable-common - the design schema', () => {
     expect(validate(action)).toBe(false)
   })
 
+  test('accepts a run design of several user stories, and refuses a unit without its keys', () => {
+    // A combined run's design: the units' own story fields, every piece naming the units it serves.
+    const value = withScreens()
+    value.units = [
+      { code: 'US-ABC12', cardId: 'card-1', narrative: 'A visitor books a slot.', area: ProjectArea.User, reserved: {}, landing: false },
+      {
+        code: 'US-DEF34', cardId: 'card-2', narrative: 'An admin reviews bookings.', area: ProjectArea.Admin,
+        reserved: { section: 'Bookings' }, transitions: [{ from: 'a', to: 'b', initiator: 'c', action: 'open', type: 'navigate' }],
+        dropped: 'screens failed',
+      },
+    ]
+    value.screens[0].units = ['US-ABC12']
+    value.components[0].units = ['US-ABC12', 'US-DEF34']
+    value.models = [{ path: 'sources/backend/src/domain/booking.ts', entities: ['Booking'], units: ['US-ABC12', 'US-DEF34'] }]
+    expect(validate(value)).toBe(true)
+
+    const keyless = structuredClone(value)
+    delete (keyless.units![1] as { cardId?: string }).cardId
+    expect(validate(keyless)).toBe(false)
+
+    const stray = structuredClone(value)
+    ;(stray.units![0] as unknown as Record<string, unknown>).screens = []
+    expect(validate(stray)).toBe(false)
+  })
+
   test('keeps the write-back slots optional', () => {
     const value = withScreens()
     value.models = [{ path: 'sources/backend/src/domain/booking.ts', entities: ['Booking'] }]

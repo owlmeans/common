@@ -30,7 +30,9 @@ response body that notes each read. The progress deadline is armed only once the
 saw a request leave, so a call that makes none (a delegated performer, whose plugin ignores
 `observe`) never gets one; a rung without a plugin gets no observer and streams exactly as before.
 The observer is disarmed at the finish (before the usage drain) and when the stream ends: late
-bytes re-arm nothing.
+bytes re-arm nothing. A plain attempt streams once; a call with look tools streams one turn per
+round on the same refined client, and re-arms the observer before each (`rearm`: armed, no request
+seen yet).
 
 Stream creation and each iterator read race an independently rejecting deadline; forwarding an abort
 signal alone does not bound an SDK promise that ignores cancellation. Late values never reach the

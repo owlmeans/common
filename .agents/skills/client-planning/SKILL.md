@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.2.1-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.2.2-alpha.0"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps

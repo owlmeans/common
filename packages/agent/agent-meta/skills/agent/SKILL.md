@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/agent
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent": "^0.2.2-rc.1"` in `dependencies`, plus the `@langchain/core` and
+**Install:** `"@owlmeans/agent": "^0.2.2-alpha.0"` in `dependencies`, plus the `@langchain/core` and
 `@langchain/langgraph` **peers**
 
 The agent runtime. Contracts live in `@owlmeans/agent-common`.
@@ -73,6 +73,9 @@ strips and re-marks copies, the opening at its boundaries and the growing conver
 round after round — and streams with the call options it returns. The plugin is
 `AgentOptions.provider ?? llmPluginRegistry.resolveFor(model)` for the primary, resolved on the
 unbound model; `cacheSystem: false` on the persona sends no markers. Detail: [[llm-prompt-caching]].
+The round's answer is `toolCallsHelper.messageOf(final, plugin)`: the calls it runs are the ones the
+provider recorded whole when the streamed fragments of parallel calls lost their arguments (the llm
+`tools` part).
 
 **Images and PDFs ride the opening; the first rung that accepts them answers** — or `invoke` refuses
 the run before it starts. A tool result is always text. Detail: the `media` part.

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/context",
-  "version": "0.2.1-rc.0",
+  "version": "0.2.2-alpha.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,7 +32,7 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.1-rc.0",
+    "@owlmeans/dep-config": "^0.2.2-alpha.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

@@ -21,7 +21,7 @@ content, file and folder pickers, and a compact list with progress and localized
 ## Installation
 
 ```bash
-bun add @owlmeans/web-upload@^0.2.1-rc.1 @owlmeans/upload@^0.2.1-rc.1 @owlmeans/client-upload@^0.2.1-rc.1
+bun add @owlmeans/web-upload@^0.2.2-alpha.0 @owlmeans/upload@^0.2.2-alpha.0 @owlmeans/client-upload@^0.2.2-alpha.0
 bun add react react-dom lucide-react class-variance-authority clsx tailwind-merge tailwindcss
 ```
 
@@ -204,7 +204,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.2-rc.1
+npx @owlmeans/agent-skills@^0.2.2-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

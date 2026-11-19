@@ -49,6 +49,11 @@ export interface StoryDesignScreen {
    * story reaching further areas). Absent: the story's `area`.
    */
   area?: AreaKey
+  /**
+   * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
+   * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
+   */
+  units?: string[]
 }
 
 /** One tab of a tabbed screen: an id for the URL, a label a person reads, the components it holds. */
@@ -84,6 +89,11 @@ export interface StoryDesignComponent {
   specs: { ux: string, ui: string }
   /** The app whose web package holds this component; absent is `main`. */
   app?: string
+  /**
+   * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
+   * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
+   */
+  units?: string[]
   // `outcome` is deliberately ABSENT. Where a successful submit returns the actor is read per call
   // from the live registry, because the registry gains this story's own screens as the run goes;
   // a value decided at design time returns the user to a placeholder.
@@ -95,6 +105,11 @@ export interface StoryDesignType {
   purpose: string
   /** Which components need it — what makes the flat list re-groupable per entity. */
   components: string[]
+  /**
+   * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
+   * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
+   */
+  units?: string[]
 }
 
 export interface StoryDesignResource {
@@ -103,6 +118,11 @@ export interface StoryDesignResource {
   type: string
   alias: string
   purpose: string
+  /**
+   * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
+   * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
+   */
+  units?: string[]
 }
 
 export interface StoryDesignModel {
@@ -118,6 +138,11 @@ export interface StoryDesignModel {
    * back instead of paying for it again.
    */
   solution?: string
+  /**
+   * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
+   * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
+   */
+  units?: string[]
 }
 
 export interface StoryDesignEndpoint {
@@ -137,6 +162,11 @@ export interface StoryDesignApi {
   operations?: StoryRecordOperation[]
   /** The app whose api package serves this group — one copy per touched app; absent is `main`. */
   app?: string
+  /**
+   * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
+   * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
+   */
+  units?: string[]
 }
 
 export type StoryRecordOperation = 'list' | 'get' | 'create' | 'update' | 'remove'
@@ -148,6 +178,11 @@ export interface StoryDesignStore {
   api: string
   /** The app whose web package holds this store — one copy per touched app; absent is `main`. */
   app?: string
+  /**
+   * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
+   * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
+   */
+  units?: string[]
 }
 
 /** What the design was written against, so a reader can tell whether it still applies. */
@@ -227,7 +262,44 @@ export interface StoryDesign {
    * written before requirements existed reads as "none".
    */
   requirements?: StatedRequirement[]
+  /**
+   * The user stories ONE combined run builds together (a spec's members), in the order it implements
+   * them — each one's own narrative, area, reservation, interaction plan, requirements and transitions.
+   * Present only on a run design: its `code` then names the container, its `narrative` joins the units',
+   * and every piece names the units it serves (`units`). Absent on a design of one story — which is
+   * every design a one-story run writes, and every member's own slice.
+   */
+  units?: StoryDesignUnit[]
   provenance: StoryDesignProvenance
+}
+
+/**
+ * One user story of a combined run, as its run design holds it — what a one-story design keeps at its
+ * top level. A member's own design (its slice) is cut from the run design with these fields restored.
+ */
+export interface StoryDesignUnit {
+  /** The story's code — the target's vocabulary (registry, story file, placeholders). */
+  code: string
+  /** The story CARD's id — what the member's own design is written to. */
+  cardId: string
+  narrative: string
+  /** The story's area, by key. */
+  area: AreaKey
+  /** Further area keys the story reaches; absent — its area alone. */
+  areas?: AreaKey[]
+  /** What the scaffold reserved for this story, read once at the run's first design step. */
+  reserved: { section?: string, screen?: string }
+  interaction?: RecordInteractionPlan
+  requirements?: StatedRequirement[]
+  /** How a person moves between this story's screens. */
+  transitions?: UXTransition[]
+  /** The landing story (its card's `landing` field). */
+  landing?: boolean
+  /**
+   * Why the run dropped this story at design — a failure of its own, not of the run; absent for a
+   * story the run builds. A dropped story owns no piece and gets no slice.
+   */
+  dropped?: string
 }
 
 /** Who wrote a design revision and why — recorded on the transition, never in the design. */
@@ -285,6 +357,11 @@ export interface StoryDesignJob {
    * which answers only a valid one.
    */
   schedule?: StoryDesignJobSchedule
+  /**
+   * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
+   * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
+   */
+  units?: string[]
 }
 
 /**
@@ -315,6 +392,11 @@ export interface StoryDesignAgent {
   kind: StoryAgentKind
   /** The job that runs it — an agent is never invoked on the request path. */
   job?: string
+  /**
+   * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
+   * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
+   */
+  units?: string[]
 }
 
 /**

@@ -272,6 +272,12 @@ Caps: `REQUIREMENTS_CAP` (40) per prompt, `REQUESTED_STORY_CAP` (12), `STORY_SPL
 - A design carries its story's `requirements` and records `provenance.requirementsHash` (the
   `digest`); `designStaleness` answers `Narrative` when the hash moved (absent reads as `''`), checked
   right after the narrative itself. `emptyStoryDesign` adds neither key.
+- A RUN design (several stories built in one combined pass) carries `units?: StoryDesignUnit[]` — each
+  story's `code`, `cardId`, `narrative`, `area`, `areas?`, `reserved`, `interaction?`, `requirements?`,
+  `transitions?`, `landing?` and `dropped?` (why the run dropped it) — and every piece kind (screen,
+  component, type, resource, model, api, store, job, agent) `units?: string[]`, the stories it serves,
+  owner first. Both are additive under `STORY_DESIGN_VERSION` and absent on every one-story design,
+  including a member's own slice; the schema refuses a unit without its required keys or with another.
 
 ### Card helpers and the design port
 

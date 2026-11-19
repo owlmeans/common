@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-upload
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-upload": "^0.2.1-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/web-upload": "^0.2.2-alpha.0"` in `dependencies`
 
 The browser half of the upload family: the contract is `@owlmeans/upload`, the server
 `@owlmeans/server-upload`, the client `@owlmeans/client-upload` (which this package sends through). A

@@ -32,6 +32,19 @@ const specs = {
   additionalProperties: false,
 } as const
 
+const transition = {
+  type: 'object',
+  properties: {
+    from: { type: 'string' },
+    to: { type: 'string' },
+    initiator: { type: 'string' },
+    action: { type: 'string' },
+    type: { type: 'string' },
+  },
+  required: ['from', 'to', 'initiator', 'action', 'type'],
+  additionalProperties: false,
+} as const
+
 export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
   type: 'object',
   title: 'StoryDesign',
@@ -110,6 +123,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
             additionalProperties: false,
           },
           area: { type: 'string', nullable: true },
+          units: { type: 'array', items: { type: 'string' }, nullable: true },
         },
         required: [
           'name', 'definition', 'path', 'alias', 'url', 'parent', 'adopted', 'specs', 'components',
@@ -131,6 +145,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           entities: { type: 'array', items: { type: 'string' } },
           specs,
           app: { type: 'string', nullable: true },
+          units: { type: 'array', items: { type: 'string' }, nullable: true },
         },
         required: [
           'name', 'definition', 'path', 'viewModelPath', 'adopted', 'screen', 'entities', 'specs',
@@ -147,6 +162,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           entity: { type: 'string' },
           purpose: { type: 'string' },
           components: { type: 'array', items: { type: 'string' } },
+          units: { type: 'array', items: { type: 'string' }, nullable: true },
         },
         required: ['path', 'entity', 'purpose', 'components'],
         additionalProperties: false,
@@ -162,6 +178,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           type: { type: 'string' },
           alias: { type: 'string' },
           purpose: { type: 'string' },
+          units: { type: 'array', items: { type: 'string' }, nullable: true },
         },
         required: ['path', 'entity', 'type', 'alias', 'purpose'],
         additionalProperties: false,
@@ -175,6 +192,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           path: { type: 'string' },
           entities: { type: 'array', items: { type: 'string' } },
           solution: { type: 'string', nullable: true },
+          units: { type: 'array', items: { type: 'string' }, nullable: true },
         },
         required: ['path', 'entities'],
         additionalProperties: false,
@@ -205,6 +223,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
             },
           },
           app: { type: 'string', nullable: true },
+          units: { type: 'array', items: { type: 'string' }, nullable: true },
         },
         required: ['path', 'entity', 'type', 'model', 'endpoints'],
         additionalProperties: false,
@@ -220,26 +239,13 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           type: { type: 'string' },
           api: { type: 'string' },
           app: { type: 'string', nullable: true },
+          units: { type: 'array', items: { type: 'string' }, nullable: true },
         },
         required: ['path', 'entity', 'type', 'api'],
         additionalProperties: false,
       },
     },
-    transitions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          from: { type: 'string' },
-          to: { type: 'string' },
-          initiator: { type: 'string' },
-          action: { type: 'string' },
-          type: { type: 'string' },
-        },
-        required: ['from', 'to', 'initiator', 'action', 'type'],
-        additionalProperties: false,
-      },
-    },
+    transitions: { type: 'array', items: transition },
     access: {
       type: 'object',
       properties: {
@@ -294,6 +300,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
                   ],
                 },
               },
+              units: { type: 'array', items: { type: 'string' }, nullable: true },
             },
             required: ['queue', 'name', 'path', 'purpose', 'reason', 'idempotency'],
             additionalProperties: false,
@@ -309,6 +316,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
               purpose: { type: 'string' },
               kind: { type: 'string', enum: Object.values(StoryAgentKind) },
               job: { type: 'string', nullable: true },
+              units: { type: 'array', items: { type: 'string' }, nullable: true },
             },
             required: ['alias', 'path', 'purpose', 'kind'],
             additionalProperties: false,
@@ -346,6 +354,37 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
     },
     // Optional: a story without stated requirements carries none.
     requirements: { type: 'array', items: StatedRequirementSchema, nullable: true },
+    // Optional: only a run design that builds several user stories together carries its units.
+    units: {
+      type: 'array',
+      nullable: true,
+      items: {
+        type: 'object',
+        properties: {
+          code: { type: 'string', minLength: 1 },
+          cardId: { type: 'string' },
+          narrative: { type: 'string' },
+          area: { type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source },
+          areas: { type: 'array', items: { type: 'string' }, nullable: true },
+          reserved: {
+            type: 'object',
+            properties: {
+              section: { type: 'string', nullable: true },
+              screen: { type: 'string', nullable: true },
+            },
+            required: [],
+            additionalProperties: false,
+          },
+          interaction: { ...RecordInteractionPlanSchema, nullable: true },
+          requirements: { type: 'array', items: StatedRequirementSchema, nullable: true },
+          transitions: { type: 'array', items: transition, nullable: true },
+          landing: { type: 'boolean', nullable: true },
+          dropped: { type: 'string', nullable: true },
+        },
+        required: ['code', 'cardId', 'narrative', 'area', 'reserved'],
+        additionalProperties: false,
+      },
+    },
     provenance: {
       type: 'object',
       properties: {
