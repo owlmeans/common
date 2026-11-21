@@ -1,3 +1,4 @@
+import type { SlotAppClaim } from '@owlmeans/viable-common'
 import type { LocalProcessRecord, LocalRunRecord } from '../types.js'
 
 /** What a local run of ONE project directory is, written down, and the children it starts. */
@@ -11,8 +12,11 @@ export interface RunStateHelper {
    *
    * Detached so the whole group can be signalled later — the child is a shell wrapping `bun`, and a
    * signal aimed at the shell alone leaves `bun` holding the port.
+   *
+   * `app` (absent or `main`: main's api, exactly as before apps) starts another app's api of a split
+   * project — its own package, port (`3000 + 10·index`), base path and argv marker.
    */
-  startApi: (env?: Record<string, string>) => Promise<LocalProcessRecord>
+  startApi: (env?: Record<string, string>, app?: SlotAppClaim) => Promise<LocalProcessRecord>
   /**
    * Start the target's queue worker, when this tree has one.
    *
@@ -30,6 +34,9 @@ export interface RunStateHelper {
    * generate and no migration file to apply — the sync IS the restart. A tree with no run in front
    * of it answers `null`: there is no process to bounce, and reporting that as a failure would send
    * a caller after a repair that does not apply.
+   *
+   * `app` (absent or `main`: main's api) bounces ONE other app's api of a split run while the others
+   * keep serving — `null` too when the run holds no such app.
    */
-  restartApi: () => Promise<string | null>
+  restartApi: (app?: string) => Promise<string | null>
 }

@@ -4,6 +4,12 @@ import type { Location, NavigateFunction, RouteMatch, RouteObject, RouteBranch }
 export interface OwlLibraryRouter {
   routes: RouteObject[]
   branches: RouteBranch[]
+  /**
+   * The application's own base (`cfg.services[cfg.service].base`, normalized): `''` at the root,
+   * `/admin` when the host serves the application under `/admin`. Routes and every location the
+   * router hands out stay base-less; the history adds it on push/replace and strips it on read.
+   */
+  basename?: string
 }
 
 /** Value carried by the router state React context. */

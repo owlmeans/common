@@ -127,7 +127,9 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
       if (authorityStep.module == null) {
         throw new FlowStepMissconfigured(authorityStep.step)
       }
-      const authorityUrl = await context.entrypoint<Module>(authorityStep.module).url()
+      // The OIDC client needs an absolute authority — a base-less in-app path would resolve
+      // against the page, and miss an application served under a base.
+      const authorityUrl = await context.entrypoint<Module>(authorityStep.module).url(undefined, { absolute: true })
 
       const redirectTransition = flowModel.next()
       flowModel.transit(redirectTransition.transition, true)

@@ -1,4 +1,4 @@
-import type { SubProject, TargetLayout, TargetPaths } from '@owlmeans/viable-common'
+import type { AppDescriptor, SubProject, TargetLayout, TargetPaths } from '@owlmeans/viable-common'
 
 /**
  * Where a target project's packages live, in ONE directory.
@@ -23,10 +23,19 @@ export interface LayoutHelper {
   detectLayout: () => TargetLayout
   /** Where every role lives in this directory's target project. */
   targetPaths: () => TargetPaths
-  /** Absolute path of the package that runs as the target's HTTP server. */
-  apiPath: () => string
-  /** Absolute path of the package whose `dist/` is served to a browser. */
-  webPath: () => string
+  /**
+   * The applications this tree serves, `main` first, then by index — read from the target's topology
+   * record (`.agents/memory/topology.md`) per call. A v1 tree, a tree without the record, or a record
+   * whose app map breaks a rule is the one app every project has: `main` at the root.
+   */
+  apps: () => AppDescriptor[]
+  /**
+   * Absolute path of the package that runs as an app's HTTP server — `main`'s (the layout's api
+   * package) when `app` is absent or `main`, else that app's own (`sources/<app>-api` by default).
+   */
+  apiPath: (app?: string) => string
+  /** Absolute path of the package whose `dist/` is served to a browser — per app, as {@link apiPath}. */
+  webPath: (app?: string) => string
   /**
    * Absolute path of the package that runs as the target's queue worker, or `null` when this
    * layout has no such package at all.

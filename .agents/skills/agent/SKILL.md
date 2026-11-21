@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/agent
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent": "^0.2.1"` in `dependencies`, plus the `@langchain/core` and
+**Install:** `"@owlmeans/agent": "^0.2.2"` in `dependencies`, plus the `@langchain/core` and
 `@langchain/langgraph` **peers**
 
 The agent runtime. Contracts live in `@owlmeans/agent-common`.
@@ -162,6 +162,12 @@ history unconditionally. A failed fold costs detail, never the event.
 plugin needs, which is a far smaller surface than CRUD, and anything can satisfy it — a `Resource`,
 or a file on disk, which is what the project-history equivalent is. An unbound port is a no-op, not
 an error.
+
+**A pipeline's run row is saved one write at a time, in commit order.** Steps with no dependency
+between them settle together; the runner snapshots the row at each commit and chains the
+`PipelineRunStore.save` calls, so a store whose save is an upsert keyed by the run id (the Mongo
+store) never sees two first saves of a row race into a duplicate insert. A `save` implementation may
+therefore assume it is never called concurrently for one run (spec `pipeline-save-order.spec.ts`).
 
 **Memory writes merge, they do not replace.** Replacing would make every write a potential act of
 forgetting, which is not a decision one caller has the standing to take. A node that outgrows

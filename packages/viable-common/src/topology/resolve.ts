@@ -1,5 +1,5 @@
 import { TargetLayout } from '../integrity/consts.js'
-import type { ProjectArea } from '../areas/consts.js'
+import type { AreaKey } from '../areas/types.js'
 import type { SubProject } from '../slot/consts.js'
 import { LAYOUT_TOPOLOGIES, DEFAULT_TOPOLOGY } from './consts.js'
 import type {
@@ -84,7 +84,7 @@ export const createTopologyHelper = (): TopologyHelper => {
   ): TargetPackageDescriptor[] => topology.byRole[role] ?? []
 
   const packageForArea = (
-    topology: ResolvedTopology, role: SubProject, area: ProjectArea
+    topology: ResolvedTopology, role: SubProject, area: AreaKey
   ): TargetPackageDescriptor | null => {
     const candidates = packagesForRole(topology, role)
     return candidates.find(pkg => pkg.areas?.includes(area) === true)
@@ -108,6 +108,10 @@ export const createTopologyHelper = (): TopologyHelper => {
   const sameTopology = (a: TopologyDescriptor, b: TopologyDescriptor): boolean =>
     JSON.stringify(orderPackages(a.packages)) === JSON.stringify(orderPackages(b.packages))
       && a.dir === b.dir
+      // The app map changes what the record says without always changing a package (an area bound
+      // to another app), so it is compared too; two records without one compare as before.
+      && JSON.stringify(a.apps ?? null) === JSON.stringify(b.apps ?? null)
+      && JSON.stringify(a.areas ?? null) === JSON.stringify(b.areas ?? null)
 
   return {
     orderPackages, resolveTopology, topologyOf, packageForRole, packagesForRole, packageForArea, packageDir,

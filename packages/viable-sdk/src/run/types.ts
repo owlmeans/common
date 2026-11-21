@@ -24,10 +24,35 @@ export interface LocalProcessRecord {
 export interface LocalRunRecord {
   dir: string
   startedAt: string
+  /** main's api — the only api of a one-app tree, and what every older reader reads. */
   api?: LocalProcessRecord
   worker?: LocalProcessRecord
   /** The process serving the built browser app — this connector itself, not a child. */
   web?: LocalProcessRecord
+  /**
+   * Every app of a SPLIT project, `main` first, then by index — each with its own api (main's is
+   * {@link api} again). Absent for a one-app tree, so its record reads exactly as before apps.
+   */
+  apps?: LocalRunApp[]
+}
+
+/** One app of a split project's local run: who it is, and the api process serving it. */
+export interface LocalRunApp {
+  name: string
+  mount: string
+  index: number
+  /** Absent when the app's api had no build output to start. */
+  api?: LocalProcessRecord
+}
+
+/** Where one app of a split project answers locally — all of them on the one web port. */
+export interface LocalAppAddress {
+  name: string
+  mount: string
+  /** `http://localhost:5173/<mount>/` — `/` for main. */
+  url: string
+  /** The app's own api port (`3000 + 10·index`), proxied at `<mount>/api` on the web port. */
+  api: number
 }
 
 export interface RunLocalResult {
@@ -45,6 +70,8 @@ export interface RunLocalResult {
   error?: string
   /** A build ran and failed. The web server still comes up so the state is visible. */
   buildError?: string
+  /** Every app of a split project and where it answers; absent for a one-app tree. */
+  apps?: LocalAppAddress[]
 }
 
 /** One supervised process, as a status read finds it. */
@@ -72,6 +99,19 @@ export interface LocalRunStatus {
     worker?: LocalProcessStatus
     web?: LocalProcessStatus
   }
+  /** Every app of a split project's run, `main` first; absent for a one-app tree. */
+  apps?: LocalAppStatus[]
+}
+
+/** One app of a split project's run, as a status read finds its api. */
+export interface LocalAppStatus extends LocalAppAddress {
+  /** The app's api process is alive. */
+  alive: boolean
+  /** Its api says it is serving — the same health answer main's `ready` is. */
+  ready: boolean
+  phase?: string
+  /** Why it is not ready; absent when it is. */
+  reason?: string
 }
 
 export interface LocalServer {
@@ -83,4 +123,21 @@ export interface LocalServer {
 export interface LocalServerOptions {
   /** Where the target's api answers. The proxy target, not something the browser ever sees. */
   apiPort?: number
+  /**
+   * The apps of a split project, served by mount on the one port: `/<mount>/api(/…)` proxied to that
+   * app's api (the path kept), `/<mount>(/…)` from its own build with the SPA fallback, longest mount
+   * first, and `/` main's. Absent (or main alone): the one app, exactly as before apps.
+   */
+  apps?: LocalAppRoute[]
+}
+
+/** One app the local server routes to. */
+export interface LocalAppRoute {
+  name: string
+  /** One path segment, `''` for main. */
+  mount: string
+  /** The app's api port — its proxy target. */
+  apiPort: number
+  /** The app's built browser directory, read per request (a re-initialization may move it). */
+  webDir: () => string
 }

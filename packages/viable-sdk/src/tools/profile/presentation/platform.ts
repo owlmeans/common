@@ -1,7 +1,8 @@
 import type { ToolPresentation } from '../types.js'
 import { accountPresentHelper as account } from './platform/account.js'
+import { appsPresentHelper as apps } from './platform/apps.js'
 import {
-  APP_GRANT_OUTPUT, APP_GRANTS_OUTPUT, APP_GROUP_OUTPUT, APP_GROUPS_OUTPUT, APP_ORGANIZATION_OUTPUT,
+  APPS_OUTPUT, APP_GRANT_OUTPUT, APP_GRANTS_OUTPUT, APP_GROUP_OUTPUT, APP_GROUPS_OUTPUT, APP_ORGANIZATION_OUTPUT,
   APP_ORGANIZATIONS_OUTPUT, APP_PERMISSION_OUTPUT, APP_PERMISSIONS_OUTPUT, APP_USER_OUTPUT, APP_USERS_OUTPUT,
   BACKFILL_OUTPUT, CONFIGURATION_OUTPUT, CUSTOM_DOMAIN_OUTPUT, FILE_READ_OUTPUT, FILE_WRITTEN_OUTPUT, FILES_OUTPUT,
   GIT_COMMIT_OUTPUT, GIT_DISCARD_OUTPUT, GIT_HISTORY_OUTPUT, GIT_REVERT_OUTPUT, GIT_STATUS_OUTPUT,
@@ -20,7 +21,8 @@ import { workspacePresentHelper as workspace } from './platform/workspace.js'
 
 /**
  * The declared structured output and its presenter for every PLATFORM-domain tool of the listing
- * profiles — settings, configuration, branding, the account, a new project's files, files and the preview, git and GitHub,
+ * profiles — settings, configuration, branding, the account, a new project's files, files and the preview, a project's
+ * applications, git and GitHub,
  * production and the generated application's sign-in.
  *
  * Keyed by the BASE tool name: a split variant (`attach_custom_domain`, `invite_app_user`, …)
@@ -52,6 +54,8 @@ export const platformPresentation: Readonly<Record<string, ToolPresentation>> = 
   write_file: { output: FILE_WRITTEN_OUTPUT, present: workspace.written },
   delete_file: { output: FILE_WRITTEN_OUTPUT, present: workspace.written },
   preview_control: { output: PREVIEW_OUTPUT, present: workspace.preview },
+  project_apps: { output: APPS_OUTPUT, present: apps.apps },
+  restart_project_app: { output: APPS_OUTPUT, present: apps.apps },
 
   git_status: { output: GIT_STATUS_OUTPUT, present: git.status },
   git_history: { output: GIT_HISTORY_OUTPUT, present: git.history },

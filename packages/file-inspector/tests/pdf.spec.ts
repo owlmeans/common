@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { FileKind, FileMimicryError, fileInspector } from '../src/index.js'
 import { sourceOf } from './context.js'
-import { bytes, CLEAN_PDF, objectStreamPdf, paddedPdf, pdfOf } from './fixtures.js'
+import {
+  bytes, CLEAN_PDF, imagePdf, objectStreamPdf, paddedPdf, pdfOf, PIXELS_NAMING_JS, streamObject,
+} from './fixtures.js'
 
 describe('@owlmeans/file-inspector — active PDF', () => {
   test('passes a clean PDF and flags actions, scripts, embedded files and rich media, also #xx-escaped', async () => {
@@ -53,6 +55,50 @@ describe('@owlmeans/file-inspector — active PDF', () => {
     deep.write('/JavaScript', 1536 * 1024, 'latin1')
     expect((await fileInspector.probe(sourceOf(deep, { name: 'deep.pdf' }))).details.pdf).toEqual({ active: false, trailer: true })
     expect((await fileInspector.inspect(deep, { name: 'deep.pdf' }, { complete: true })).details.pdf?.active).toBe(true)
+  })
+
+  test('a stream payload is never read as syntax for /JS — whole, probed or cut short', async () => {
+    const image = imagePdf()
+    const whole = await fileInspector.inspect(image, { name: 'printed.pdf' }, { complete: true })
+    expect(whole).toMatchObject({ status: 'match', dangerous: false, details: { pdf: { active: false } } })
+    expect(whole.reasons).not.toContain('pdf-active')
+    expect((await fileInspector.probe(sourceOf(image, { name: 'printed.pdf' }))).dangerous).toBe(false)
+
+    const cut = image.subarray(0, image.indexOf('/JS ') + 4)
+    expect((await fileInspector.inspect(cut, { name: 'printed.pdf' })).details.pdf?.active).toBe(false)
+
+    const tagged = pdfOf(streamObject(4, '/Length 22', '/JS BMC 0 0 m 1 1 l EMC'))
+    expect((await fileInspector.inspect(tagged, { name: 'x.pdf' }, { complete: true })).dangerous).toBe(false)
+    const tight = pdfOf(streamObject(4, '/Length 4', '/JS ', { gap: '', eol: '\r' }))
+    expect((await fileInspector.inspect(tight, { name: 'x.pdf' }, { complete: true })).dangerous).toBe(false)
+  })
+
+  test('actions hidden around payloads stay found', async () => {
+    const asActive = async (pdf: Uint8Array): Promise<boolean | undefined> =>
+      (await fileInspector.inspect(pdf, { name: 'x.pdf' }, { complete: true })).details.pdf?.active
+
+    // A reader finds an object by its offset, so a long name inside a fake payload still counts.
+    const smuggled = pdfOf(streamObject(4, '/Length 9999', '7 0 obj\n<< /S /JavaScript /JS (go()) >>\nendobj'))
+    expect(await asActive(smuggled)).toBe(true)
+    // An `endstream` inside a payload ends it early: what follows is syntax again.
+    expect(await asActive(pdfOf(streamObject(4, '/Length 40', 'xx\nendstream\n8 0 obj\n<< /JS 9 0 R >>')))).toBe(true)
+    // A stream never closed in a whole file: what follows it is syntax.
+    expect(await asActive(pdfOf(bytes('4 0 obj\n<< /Length 10 >>\nstream\n', PIXELS_NAMING_JS, '\n8 0 obj\n<< /JS 9 0 R >>')))).toBe(true)
+    // An object stream after an image stream is still inflated and read.
+    const packed = objectStreamPdf('4 0 << /S /JavaScript /JS (app.alert(1)) >>')
+    expect(await asActive(Buffer.concat([imagePdf(), packed]))).toBe(true)
+  })
+
+  test('a tail that opens inside an image payload is read from its first endstream', async () => {
+    const padding = paddedPdf(3 * 1024 * 1024)
+    const pixels = Buffer.concat([Buffer.alloc(100 * 1024, 0x41), PIXELS_NAMING_JS, Buffer.alloc(1024, 0x41)])
+    const image = Buffer.concat([
+      padding.subarray(0, padding.length - 200 * 1024), Buffer.from('\n', 'latin1'),
+      streamObject(9, `/Type /XObject /Subtype /Image /Length ${pixels.length}`, pixels),
+      Buffer.from('trailer << /Root 1 0 R >>\n%%EOF\n', 'latin1'),
+    ])
+    const verdict = await fileInspector.probe(sourceOf(image, { name: 'large.pdf' }))
+    expect(verdict.details.pdf).toEqual({ active: false, trailer: true })
   })
 
   test('a head-only probe scans the head it read', async () => {

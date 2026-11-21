@@ -1,4 +1,4 @@
-import { TargetLayout } from '../integrity/index.js'
+import { TargetLayout } from '../integrity/consts.js'
 import { topologyHelper } from '../topology/resolve.js'
 import { SubProject } from './consts.js'
 import type { TargetPaths } from './types.js'

@@ -6,6 +6,7 @@ import path from 'node:path'
 import { SubProject, TargetLayout } from '@owlmeans/viable-common'
 
 import { makeLayoutHelper } from '../src/executor/layout.js'
+import { SPLIT_TOPOLOGY_FILE } from './apps-fixture.js'
 
 /**
  * Which tree the connector's directory actually holds.
@@ -130,6 +131,26 @@ describe('viable-sdk — target layout detection', () => {
     const root = await sandbox(['sources/api', 'sources/common'])
 
     expect(makeLayoutHelper(root).libraryPaths()).toEqual([path.join(root, 'sources', 'common')])
+  })
+
+  test('a tree without a topology record serves main alone, at the layout\'s own packages', async () => {
+    const root = await sandbox(['sources/common', 'sources/backend', 'sources/api', 'sources/web'])
+    const layout = makeLayoutHelper(root)
+
+    expect(layout.apps().map(app => [app.name, app.mount, app.web, app.api])).toEqual([['main', '', 'web', 'api']])
+    expect([layout.apiPath('main'), layout.webPath('main')]).toEqual([layout.apiPath(), layout.webPath()])
+  })
+
+  test('a split tree names every app, and each app\'s packages by its record', async () => {
+    const root = await sandbox(['sources/common', 'sources/backend', 'sources/api', 'sources/web'])
+    await fse.outputFile(path.join(root, '.agents/memory/topology.md'), SPLIT_TOPOLOGY_FILE)
+    const layout = makeLayoutHelper(root)
+
+    expect(layout.apps().map(app => app.name)).toEqual(['main', 'admin', 'backoffice'])
+    expect(layout.apiPath('backoffice')).toBe(path.join(root, 'sources', 'backoffice-api'))
+    expect(layout.webPath('admin')).toBe(path.join(root, 'sources', 'admin-web'))
+    // main stays the layout's own pair, whatever the record says beside it.
+    expect(layout.apiPath()).toBe(path.join(root, 'sources', 'api'))
   })
 
   test('a v1 tree has nowhere a worker could live', async () => {

@@ -20,7 +20,7 @@ contracts they are written against live in `@owlmeans/bot`.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-bot@^0.2.1
+bun add @owlmeans/web-bot@^0.2.2
 ```
 
 The package ships its own private shadcn primitives and imports them with relative specifiers.
@@ -111,7 +111,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.1
+npx @owlmeans/agent-skills@^0.2.2
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/router",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -16,7 +16,8 @@
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 60 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
-    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -31,13 +32,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.2.0"
+    "@owlmeans/context": "^0.2.2"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.0",
+    "@owlmeans/dep-config": "^0.2.2",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",

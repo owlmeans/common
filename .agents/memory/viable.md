@@ -1,7 +1,7 @@
 ---
 node: viable
 scope: "packages/viable-common/**, packages/viable-sdk/**"
-updated: 2026-10
+updated: 2026-11
 ---
 
 # Viable connector family (contracts + SDK + MCP server)
@@ -21,9 +21,8 @@ Related: [[llm]], [[agent]], [[versioning]].
 - The platform's REFUSAL classes (conversion, moderation, reserved name, target integrity) are
   declared in the product repo, so the SDK cannot `instanceof` them: they arrive as a marshalled
   `type|||marker|||stack` and are matched by marker.
-- During prerelease, `viable-mcp` is distributed under `next` but install commands carry its
-  compatible caret range (the skill's harness-written Install line). Version-skew tolerance against
-  the separately deployed platform is a design constraint for this family and nothing else.
+- `viable-mcp` prereleases go out under `next`, install commands carrying its caret range. Version-skew
+  tolerance against the separately deployed platform is a design constraint for this family alone.
 - A connector names its edition only in `x-viable-client` (`<kind>/<version>`): an older platform
   ignores an unknown header but refuses an unknown body field (`ConnectSessionOpenSchema` is closed),
   and an older connector may validate a response. New data therefore crosses on new routes only
@@ -49,6 +48,10 @@ Related: [[llm]], [[agent]], [[versioning]].
 - With no `ToolHost.profile` every SDK output is byte-identical — `tools/list` (no `outputSchema`
   key), instructions, `describe_platform`, results. Broke when violated: published `viable-mcp` and
   the platform's `/mcp` change under existing manual setups; store presentation goes in a profile.
+- An absent app map is one app, `main`, over the four standard areas: every app field (card
+  `fields.apps`, topology `apps`, `slot.apps`, `SlotShellArgs.app`, per-app reports) appears only for
+  a split project, and a one-app answer stays byte-identical. A non-main `app` is sent to a slot only
+  after its `RuntimeInfo` lists the capability — an older publisher ignores `app` and acts on main.
 - The `CONNECT_CLIENT_NO_INFERENCE` kinds never act as the platform's inference, and an unknown
   kind fails OPEN (`other` may do what `legacy` may) — a typo'd header must not lock out a client.
 - A transient job long-poll failure falls back once to `wait=0`; a second long poll can overrun the
@@ -72,8 +75,5 @@ Related: [[llm]], [[agent]], [[versioning]].
 
 ## Pointers
 
-- Skills `viable-common` (contracts, client kinds, the schema conventions), `viable-sdk` (tools,
-  sessions, envelopes, refusals, profiles, the local executor), closed's `viable-mcp-core` (the
-  stdio process) and its editions, `inquiry`, `agent-presentation`.
-- Product-side counterparts: `viable` repo skills `connect`, `viable-converter`, `intent-first`;
-  tenancy and access policy: `viable-agent` skill `target-tenancy`.
+- Skills `viable-common`, `viable-sdk`, closed's `viable-mcp-core` and editions, `inquiry`,
+  `agent-presentation`; product side `connect`, `viable-converter`, `intent-first`, `target-tenancy`.

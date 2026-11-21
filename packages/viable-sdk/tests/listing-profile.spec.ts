@@ -83,7 +83,7 @@ const REPEATING_SET = [
   'update_story', 'develop_story', 'start_story_batch', 'modify_project', 'steer_agent', 'rename_project',
   'resume_pipeline', 'next_question', 'answer_question', 'convert_project', 'proceed_conversion',
   'restart_preview', 'rebuild_preview', 'git_commit', 'git_revert', 'connect_github', 'publish_to_github',
-  'github_sync', 'publish_production', 'restart_production', 'run_local',
+  'github_sync', 'publish_production', 'restart_production', 'run_local', 'restart_project_app',
 ]
 
 /** The offered tools that never answer a structured part, and so declare no output. */

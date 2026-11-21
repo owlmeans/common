@@ -1,4 +1,4 @@
-import type { ProjectArea } from '../areas/consts.js'
+import type { AreaKey } from '../areas/types.js'
 import type { WidgetKind } from './consts.js'
 import type { RecordInteractionPlan } from '../interaction/types.js'
 
@@ -68,7 +68,11 @@ export interface ScaffoldStoryPlan {
 
 /** One area's shape: how its top menu is divided, and how it introduces itself. */
 export interface ScaffoldAreaPlan {
-  area: ProjectArea
+  /**
+   * The area this entry plans, by KEY — one of the four standard keys the planning model answers, or a
+   * custom area of the project's map, whose entry code writes.
+   */
+  area: AreaKey
   /** The introduction widget on the area's home screen. */
   intro: { title: string, text: string }
   /** The top-menu sections of this area, in menu order. */

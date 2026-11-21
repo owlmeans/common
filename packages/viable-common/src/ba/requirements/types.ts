@@ -62,7 +62,8 @@ export interface RequirementsHelper {
    * clamped anchor; a draft with no anchor goes to the end and carries none. A draft that repeats
    * an existing entry's text (case and whitespace collapsed) is dropped, and at most
    * `REQUESTED_STORY_CAP` are kept, in input order. The flow and connective entries are never
-   * moved relative to each other, so every connective `after` stays valid.
+   * moved relative to each other, so every connective `after` stays valid. Every entry keeps its
+   * draft's `area` key.
    */
   mergeRequested: (merged: readonly MergedStoryDraft[], requested: readonly RequestedStoryDraft[]) => MergedStoryDraft[]
 }

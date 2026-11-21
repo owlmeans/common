@@ -40,6 +40,8 @@ export interface ConnectingStoryHelper {
    *   "at the end", and one that is not a number at all means the front of the flow. Neither is a
    *   reason to lose a story.
    * - **Ties keep the model's order**, which is the only ranking anything has.
+   *
+   * Every entry keeps its draft's `area` — the area's key, a custom area of the project's map included.
    */
   mergeConnectingStories: (flow: StoryDraft[], connecting: ConnectingStoryDraft[]) => MergedStoryDraft[]
 }

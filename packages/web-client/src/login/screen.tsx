@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FC } from 'react'
-import { useContext } from '@owlmeans/client'
+import { clientBaseOf, useContext } from '@owlmeans/client'
 import { useI18nLib } from '@owlmeans/client-i18n'
 import { LoginIntent, LoginOutcome, LOGIN_INTENT_QUERY, LOGIN_METHOD_QUERY, LOGIN_NEXT_QUERY, type LoginService } from '@owlmeans/client-auth/login'
 import { USER_ID } from '@owlmeans/client-auth'
@@ -47,7 +47,8 @@ export const SurrogateScreen: FC = () => {
 
   const onAction = useCallback(() => {
     if (stage === SurrogateStage.Standalone) {
-      window.location.href = '/'
+      // The application's own home: `/` at the root, `/<base>/` under one.
+      window.location.href = clientBaseOf(context).href('/')
       return
     }
     if (stage === SurrogateStage.Gesture) {

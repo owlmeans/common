@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/package-inspector",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "Registry-agnostic package verification: whether a named package is the genuine one or a lookalike, security-holding, abandoned or risky one, judged from registry facts behind a PackageRegistry port; with its documentation links.",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
@@ -33,12 +33,12 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.2.0",
-    "@owlmeans/error": "^0.2.0",
-    "@owlmeans/log": "^0.2.0"
+    "@owlmeans/context": "^0.2.2",
+    "@owlmeans/error": "^0.2.2",
+    "@owlmeans/log": "^0.2.2"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.0",
+    "@owlmeans/dep-config": "^0.2.2",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",

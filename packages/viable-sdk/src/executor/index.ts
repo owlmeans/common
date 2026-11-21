@@ -175,10 +175,10 @@ export const makeLocalSlotExecutor = (
               return { result: await shellHelper.validate(args?.subproject) }
 
             case SlotShellCommand.ValidateWithRenderer:
-              return { result: await shellHelper.validateWithRenderer() }
+              return { result: await shellHelper.validateWithRenderer(args?.app) }
 
             case SlotShellCommand.Build: {
-              const result = await shellHelper.build()
+              const result = await shellHelper.build(args?.app)
               // The tree changed, so the next spawn re-reads it rather than trusting the verdict
               // this build was admitted on.
               integrityHelper.forgetIntegrity()
@@ -187,7 +187,7 @@ export const makeLocalSlotExecutor = (
             }
 
             case SlotShellCommand.ValidateBackend:
-              return { result: await shellHelper.validateBackend() }
+              return { result: await shellHelper.validateBackend(args?.app) }
 
             case SlotShellCommand.DbSync:
               return { result: await shellHelper.dbSync() }
@@ -195,6 +195,7 @@ export const makeLocalSlotExecutor = (
             case SlotShellCommand.BootCheck: {
               const report = await shellHelper.bootCheck({
                 skipBuild: args?.skipBuild === true, wait: args?.wait === true,
+                ...(typeof args?.app === 'string' ? { app: args.app } : {}),
               })
 
               // The shell contract is "error text or null", so a healthy boot reports null exactly
@@ -205,7 +206,7 @@ export const makeLocalSlotExecutor = (
             }
 
             case SlotShellCommand.BootCheckStatus: {
-              const status = await shellHelper.bootCheckStatus()
+              const status = await shellHelper.bootCheckStatus(typeof args?.app === 'string' ? { app: args.app } : {})
 
               return {
                 running: status.running,

@@ -1,8 +1,12 @@
+import path from 'node:path'
+
 import {
-  TARGET_API_BASE, TARGET_API_PORT, TARGET_WEB_PORT, TARGET_WORKER_PORT
+  MAIN_APP, TARGET_API_BASE, TARGET_API_PORT, TARGET_WEB_PORT, TARGET_WORKER_PORT, appMapHelper,
+  type SlotAppClaim,
 } from '@owlmeans/viable-common'
 
 import { makeProjectEnvHelper } from '../project/env.js'
+import { makeLayoutHelper } from './layout.js'
 import { ROOT_ENV_FILE } from '../project/consts.js'
 import { FRONTEND_STANDARD_KEYS } from './consts.local.js'
 import type { TargetEnvHelper } from './env/types.js'
@@ -23,7 +27,9 @@ import type { TargetEnvHelper } from './env/types.js'
 export const makeTargetEnvHelper = (dir: string): TargetEnvHelper => {
   const projectEnv = makeProjectEnvHelper(dir)
 
-  const backendEnv = async (): Promise<Record<string, string>> => {
+  const isMain = (app?: SlotAppClaim): boolean => app == null || app.name === MAIN_APP
+
+  const backendEnv = async (app?: SlotAppClaim): Promise<Record<string, string>> => {
     // The ROOT `.env` alone. The web package's file is compiled into a bundle anybody can read, so
     // the two are never merged in either direction.
     const values = await projectEnv.readEnvFile(ROOT_ENV_FILE)
@@ -39,19 +45,27 @@ export const makeTargetEnvHelper = (dir: string): TargetEnvHelper => {
       // The target's own values last: everything above is a default this machine can state without
       // asking, and everything the user or a configure push wrote outranks it.
       ...values,
+      // Another app's api binds its own port under its own mount — the root file describes main's.
+      ...(isMain(app) ? {} : appMapHelper.apiEnvOf(app!)),
     }
   }
 
-  const frontendEnv = async (): Promise<Record<string, string>> => {
-    const values = await projectEnv.readEnvFile(projectEnv.webEnvFile())
+  const frontendEnv = async (app?: SlotAppClaim): Promise<Record<string, string>> => {
+    const main = isMain(app)
+    // main's file is the web package's own; another app's is its own web package's, beside it.
+    const file = main
+      ? projectEnv.webEnvFile()
+      : path.relative(dir, path.join(makeLayoutHelper(dir).webPath(app!.name), ROOT_ENV_FILE))
+    const values = await projectEnv.readEnvFile(file)
+    const mounted = main ? null : appMapHelper.webEnvOf(app!)
 
     const env: Record<string, string> = {
       APP_UNSECURE: 'true',
       FRONTEND_PORT: `${TARGET_WEB_PORT}`,
       BACKEND_HOST: 'localhost',
       BACKEND_PORT: `${TARGET_WEB_PORT}`,
-      BACKEND_BASE_URL: TARGET_API_BASE,
-      BASE_URL: '/',
+      BACKEND_BASE_URL: mounted?.BACKEND_BASE_URL ?? TARGET_API_BASE,
+      BASE_URL: mounted?.BASE_URL ?? '/',
       ...values,
     }
 

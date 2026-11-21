@@ -1,4 +1,4 @@
-import type { ProjectArea } from '../areas/consts.js'
+import type { AreaKey } from '../areas/types.js'
 import type { SubProject } from '../slot/consts.js'
 import { topologyHelper } from './resolve.js'
 import type { ResolvedTopology, TargetPackageDescriptor, TopologyDescriptor } from './types.js'
@@ -17,7 +17,7 @@ export const packageForRole = (topology: ResolvedTopology, role: SubProject): Ta
 
 /** @deprecated compat:factory-refactor — use `topologyHelper.packageForArea(…)` */
 export const packageForArea = (
-  topology: ResolvedTopology, role: SubProject, area: ProjectArea
+  topology: ResolvedTopology, role: SubProject, area: AreaKey
 ): TargetPackageDescriptor | null => topologyHelper.packageForArea(topology, role, area)
 
 /** @deprecated compat:factory-refactor — use `topologyHelper.packageDir(…)` */

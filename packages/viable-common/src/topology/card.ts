@@ -1,4 +1,8 @@
+import { STANDARD_AREAS } from '../areas/consts.js'
 import { SubProject } from '../slot/consts.js'
+import { yamlUtils } from '../utils/yaml.js'
+import { appMapHelper } from './apps.js'
+import { APP_NAME_PATTERN, TARGET_APP_MOUNT_PATTERN } from './apps/consts.js'
 import { TOPOLOGY_VERSION } from './consts.js'
 import { topologyHelper } from './resolve.js'
 import type { TargetPackageDescriptor, TargetPackageKind, TopologyDescriptor, TopologyMeta } from './types.js'
@@ -27,6 +31,8 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
     const kind = KINDS.has(raw.kind as TargetPackageKind) ? raw.kind as TargetPackageKind : 'bundle'
     const areas = asStrings(raw.areas)
     const queues = asStrings(raw.queues)
+    const app = typeof raw.app === 'string' && APP_NAME_PATTERN.test(raw.app) ? raw.app : null
+    const mount = typeof raw.mount === 'string' && TARGET_APP_MOUNT_PATTERN.test(raw.mount) ? raw.mount : null
 
     return {
       name,
@@ -35,7 +41,24 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
       dependsOn: asStrings(raw.dependsOn),
       ...(areas.length > 0 ? { areas: areas as TargetPackageDescriptor['areas'] } : {}),
       ...(queues.length > 0 ? { queues } : {}),
+      ...(app != null ? { app } : {}),
+      ...(mount != null ? { mount } : {}),
     }
+  }
+
+  /**
+   * The record's app map, only when it is whole: every entry narrows and the map passes every rule.
+   * Anything less is NO apps — a consumer then serves `main` alone, the arrangement every project
+   * had before apps existed — rather than a partly trusted list.
+   */
+  const parseApps = (raw: Record<string, unknown>): Pick<TopologyDescriptor, 'areas' | 'apps'> => {
+    if (!Array.isArray(raw.apps)) return {}
+    const map = appMapHelper.narrow(raw)
+    if (map == null || map.apps.length !== raw.apps.length) return {}
+    if (Array.isArray(raw.areas) && map.areas.length !== raw.areas.length) return {}
+    if (appMapHelper.validate(map).length > 0) return {}
+
+    return Array.isArray(raw.areas) ? { areas: map.areas, apps: map.apps } : { apps: map.apps }
   }
 
   const parseTopologyMeta = (data: unknown): TopologyDescriptor | null => {
@@ -51,8 +74,13 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
       id: typeof raw.id === 'string' && raw.id !== '' ? raw.id : 'recorded',
       dir: raw.dir.trim(),
       packages,
+      ...parseApps(raw),
     }
   }
+
+  const frontmatterOf = (source: string): unknown => yamlUtils.frontmatterOf(source)
+
+  const parseTopologyFile = (source: string): TopologyDescriptor | null => parseTopologyMeta(frontmatterOf(source))
 
   const topologyMeta = (topology: TopologyDescriptor): TopologyMeta => ({
     ...topology,
@@ -68,6 +96,7 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
       const extra = [
         ...(pkg.areas != null ? [`areas: ${pkg.areas.join(', ')}`] : []),
         ...(pkg.queues != null ? [`queues: ${pkg.queues.join(', ')}`] : []),
+        ...(pkg.app != null ? [`app: ${pkg.app}`] : []),
       ].join('; ')
 
       return `| \`${topology.dir}/${pkg.name}\` | ${pkg.roles.join(', ')} | ${pkg.kind} | ${deps} | ${extra === '' ? '—' : extra} |`
@@ -83,10 +112,35 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
       '|---|---|---|---|---|',
       ...rows,
       '',
+      ...renderApps(topology),
     ].join('\n')
   }
 
-  return { parseTopologyMeta, topologyMeta, renderTopologyCard }
+  /** The apps table — only for a project split into apps; a one-app record renders as it always has. */
+  const renderApps = (topology: TopologyDescriptor): string[] => {
+    if (topology.apps == null || topology.apps.length < 2) return []
+    const map = { areas: topology.areas ?? STANDARD_AREAS.map(area => ({ ...area })), apps: topology.apps }
+    const rows = [...topology.apps].sort((a, b) => a.index - b.index).map(app => {
+      const path = app.mount === '' ? '/' : `/${app.mount}`
+      const areas = app.areas.map(key => `${key} (${appMapHelper.areaUrlOf(map, key)})`).join(', ')
+
+      return `| ${app.name} | \`${path}\` | ${areas} | \`${topology.dir}/${app.web}\` | \`${topology.dir}/${app.api}\` |`
+    })
+
+    return [
+      '## Apps',
+      '',
+      'One host, one path per app: each app is a web + api pair under its own path (`<path>` and',
+      '`<path>/api`), over the shared packages above. An area belongs to exactly one app.',
+      '',
+      '| App | Path | Areas (URL) | Web | Api |',
+      '|---|---|---|---|---|',
+      ...rows,
+      '',
+    ]
+  }
+
+  return { parseTopologyMeta, frontmatterOf, parseTopologyFile, topologyMeta, renderTopologyCard }
 }
 
 export const topologyCardHelper = createTopologyCardHelper()

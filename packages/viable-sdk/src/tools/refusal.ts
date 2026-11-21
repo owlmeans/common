@@ -369,6 +369,13 @@ export const createRefusalHelper = (): RefusalHelper => {
         + ' codes it has; a story of another project is named together with that projectId.',
     },
     {
+      // Before the generic refusal below: a story named an area the project's map does not know.
+      marker: 'viable-project:story:missconfigured:unknown-area:',
+      phrase: key => `This project has no area${key !== '' ? ` "${key}"` : ''}. project_apps lists the area keys a`
+        + ' story may name (guest, user, admin, operator and the project\'s own areas); leave area out to let the'
+        + ' platform decide it.',
+    },
+    {
       marker: 'viable-project:story:missconfigured:',
       phrase: reason => `The story is not in a state that change applies to${aside(reason)}. A completed`
         + ' story has generated code behind it and is neither reworded nor deleted; story_status says'
@@ -492,6 +499,24 @@ export const createRefusalHelper = (): RefusalHelper => {
       marker: 'authorization:forbidden:token',
       phrase: () => 'None of the user\'s own access tokens has that id, so nothing was revoked —'
         + ' list_access_tokens shows them.',
+    },
+
+    // ── A project's applications ─────────────────────────────────────────────────────────────────
+    {
+      marker: 'slot-app:unknown:',
+      phrase: app => `The preview serves no application${aside(app)}. project_apps lists the project's`
+        + ' applications by name. Nothing was restarted.',
+    },
+    {
+      marker: 'slot-app:restart-unsupported',
+      phrase: () => 'This project\'s preview runs a runtime older than restarting one application on its own,'
+        + ' so nothing was restarted. Restart the whole preview with preview_control { action: restart } —'
+        + ' that also brings the current runtime.',
+    },
+    {
+      marker: 'slot-app:apps-unsupported',
+      phrase: () => 'This project\'s preview runs a runtime that addresses only its main application. Restart'
+        + ' the whole preview with preview_control { action: restart } — that brings the current runtime.',
     },
 
     // ── The project is busy ──────────────────────────────────────────────────────────────────────

@@ -119,6 +119,15 @@ export interface WorkspacePresentHelper {
   preview: Presenter
 }
 
+/** A project's applications. */
+export interface AppsPresentHelper {
+  /**
+   * project_apps and restart_project_app — every application with its path, areas, interface and
+   * server (a local run's lines merged in by name), and which one a restart restarted.
+   */
+  apps: Presenter
+}
+
 /** A new project's files. */
 export interface MaterialsPresentHelper {
   /** create_project_with_files — the project status, and what became of each file. */

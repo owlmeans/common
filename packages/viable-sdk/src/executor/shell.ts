@@ -2,7 +2,7 @@ import fs from 'fs-extra'
 import { randomUUID } from 'node:crypto'
 import p from 'node:path'
 
-import { SubProject, TARGET_BOOTCHECK_MARKER, TARGET_BOOTCHECK_PORT, TARGET_BOOTCHECK_SCHEMA, type SlotShellResult, targetIntegrityHelper } from '@owlmeans/viable-common'
+import { MAIN_APP, SubProject, TARGET_BOOTCHECK_MARKER, TARGET_BOOTCHECK_PORT, TARGET_BOOTCHECK_SCHEMA, appMapHelper, type AppDescriptor, type SlotShellResult, targetIntegrityHelper } from '@owlmeans/viable-common'
 
 import { makeProjectEnvHelper } from '../project/env.js'
 import { probeHelper } from '../project/probe.js'
@@ -13,6 +13,7 @@ import type { BootCheckJob, BootCheckReport, BootCheckStatus } from './types.js'
 import type { LocalFileHelper } from './files/types.js'
 import type { LocalShellHelper } from './shell/types.js'
 import { makeTargetEnvHelper } from './env.js'
+import { healthHelper } from './health.js'
 import { integrityHelper } from './integrity.js'
 import { makeLayoutHelper } from './layout.js'
 import { spawnHelper } from './spawn.js'
@@ -31,11 +32,11 @@ export const isBuildVerdict = (reason: string | null): boolean =>
   reason == null || !reason.includes(NOT_INSTALLED_REASON)
 
 /**
- * One boot-check job per directory.
+ * One boot-check job per directory and app (`<dir>` for main, `<dir>#<app>` for another app).
  *
  * Module-level rather than per-helper because a helper is built per command: two `BootCheck`
  * calls would otherwise each start an instance onto the same port, and a `BootCheckStatus` would
- * read a job nobody had started.
+ * read a job nobody had started. Per app, so one app's verdict is never read as another's.
  */
 const _jobs = new Map<string, BootCheckJob>()
 
@@ -125,6 +126,25 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
     return null
   }
 
+  /**
+   * The app a scoped command names, when it is one of this tree's apps other than `main`; `null`
+   * for main — absent, `main`, or a name the tree does not serve (exactly what an older executor did).
+   */
+  const appScope = (app?: string): AppDescriptor | null => app == null || app === MAIN_APP
+    ? null
+    : layout.apps().find(candidate => candidate.name === app && candidate.name !== MAIN_APP) ?? null
+
+  const otherApps = (): AppDescriptor[] => layout.apps().filter(app => app.name !== MAIN_APP)
+
+  /** The boot-check job's key: the directory for main, `<dir>#<app>` for another app. */
+  const jobKey = (app: AppDescriptor | null): string => app == null ? root : `${root}#${app.name}`
+
+  /** One non-main app's api and web, each built in its own package — the web with its own base. */
+  const buildApp = async (app: AppDescriptor): Promise<Array<string | null>> => [
+    await runTargetScript('build', layout.apiPath(app.name)),
+    await runTargetScript('build', layout.webPath(app.name), await targetEnv.frontendEnv(app)),
+  ]
+
   const buildWorker = async (): Promise<string | null> => {
     const dir = layout.workerPath()
     if (dir == null || !layout.hasWorker()) {
@@ -198,26 +218,38 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
       return result === '' ? `validate: tsc produced no output for ${cwd}` : result
     },
 
-    validateWithRenderer: async (): Promise<string | null> =>
-      await buildLibraries() ?? await runTargetScript('build', layout.webPath(), await targetEnv.frontendEnv()),
+    validateWithRenderer: async (app?: string): Promise<string | null> => {
+      const scoped = appScope(app)
 
-    build: async (): Promise<string | null> => {
+      return await buildLibraries()
+        ?? await runTargetScript('build', layout.webPath(scoped?.name), await targetEnv.frontendEnv(scoped ?? undefined))
+    },
+
+    build: async (app?: string): Promise<string | null> => {
       const libraries = await buildLibraries()
       if (libraries != null) {
         return libraries
       }
 
-      const errors = [
-        await runTargetScript('build', layout.apiPath()),
-        await buildWorker(),
-        await runTargetScript('build', layout.webPath(), await targetEnv.frontendEnv()),
-      ].filter((error): error is string => error != null)
+      const scoped = appScope(app)
+      const results = scoped != null
+        ? await buildApp(scoped)
+        : [
+          await runTargetScript('build', layout.apiPath()),
+          await buildWorker(),
+          await runTargetScript('build', layout.webPath(), await targetEnv.frontendEnv()),
+        ]
+      if (scoped == null) {
+        // Every other app of a split project, in index order; a one-app tree has none.
+        for (const other of otherApps()) results.push(...await buildApp(other))
+      }
+      const errors = results.filter((error): error is string => error != null)
 
       return errors.length > 0 ? errors.join('\n') : null
     },
 
-    validateBackend: async (): Promise<string | null> =>
-      await buildLibraries() ?? await runTargetScript('build', layout.apiPath()),
+    validateBackend: async (app?: string): Promise<string | null> =>
+      await buildLibraries() ?? await runTargetScript('build', layout.apiPath(appScope(app)?.name)),
 
     dbSync: async (): Promise<string | null> => {
       const values = await projectEnv.readEnvFile(ROOT_ENV_FILE)
@@ -250,9 +282,11 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
     },
 
     bootCheck: async (
-      options: { skipBuild?: boolean, wait?: boolean } = {}
+      options: { skipBuild?: boolean, wait?: boolean, app?: string } = {}
     ): Promise<BootCheckReport | null> => {
-      const job = jobFor(root)
+      // Another app's api: its own package, env (port and mount from the app map) and health path.
+      const scoped = appScope(options.app)
+      const job = jobFor(jobKey(scoped))
 
       job.start(async () => {
         // `skipBuild` reaches `dist/index.js` with no build in front of it, so the guard has to be
@@ -272,19 +306,25 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
           }
         }
 
+        const api = layout.apiPath(scoped?.name)
+
         return await runBootCheck({
           port: TARGET_BOOTCHECK_PORT,
           marker: TARGET_BOOTCHECK_MARKER,
-          cwd: layout.apiPath(),
+          cwd: api,
           env: {
-            ...await targetEnv.backendEnv(),
+            ...await targetEnv.backendEnv(scoped ?? undefined),
             BACKEND_PORT: `${TARGET_BOOTCHECK_PORT}`,
             DATABASE_SCHEMA: TARGET_BOOTCHECK_SCHEMA,
           },
           bootId: randomUUID(),
+          ...(scoped != null ? {
+            readHealth: async (port: number, bootId: string, timeoutMs: number) =>
+              await healthHelper.readTargetHealth(port, bootId, timeoutMs, { path: appMapHelper.healthPath(scoped) }),
+          } : {}),
           ...(options.skipBuild === true
             ? {}
-            : { build: async () => await buildLibraries() ?? await runTargetScript('build', layout.apiPath()) }),
+            : { build: async () => await buildLibraries() ?? await runTargetScript('build', api) }),
         })
       })
 
@@ -293,7 +333,8 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
       return await job.pending() ?? job.status().report
     },
 
-    bootCheckStatus: async (): Promise<BootCheckStatus> => jobFor(root).status(),
+    bootCheckStatus: async (options: { app?: string } = {}): Promise<BootCheckStatus> =>
+      jobFor(jobKey(appScope(options.app))).status(),
   }
 
   return helper

@@ -130,6 +130,41 @@ const WORKLOAD = z.object({
 
 export const PREVIEW_OUTPUT = { projectId: PROJECT_ID, preview: WORKLOAD.nullable() }
 
+// --- a project's applications --------------------------------------------------------------------
+
+const APP = z.object({
+  name: z.string().describe('The application — what restart_project_app names as app.'),
+  path: z.string().describe('Where it answers on the project\'s address: / for main, /<mount> for another.'),
+  areas: z.array(z.string()).describe('The areas it serves; the first is its home.'),
+  main: z.boolean(),
+  url: z.string().optional().describe('The address a person opens.'),
+  interface: z.string().optional().describe('Its interface build: pending, ok, stale or failed.'),
+  server: z.string().optional().describe('Its server: idle, building, starting, running, crashed, failed or waiting.'),
+  cause: z.string().optional().describe('Why its server is not serving.'),
+  pending: z.boolean().optional().describe('Work for it is still in progress.'),
+  serving: z.boolean().optional().describe('On this machine: its server answers.'),
+})
+
+const AREA = z.object({
+  key: z.string().describe('The area\'s key — the value a story\'s area takes (create_story).'),
+  kind: z.string().describe('Its kind: guest, user, admin or operator — access and look follow it.'),
+  segment: z.string().describe('Its path segment inside its application; empty for an application\'s home area.'),
+  app: z.string().describe('The application serving it.'),
+  path: z.string().describe('Where it answers on the project\'s address.'),
+  label: z.string().optional(),
+  marker: z.string().optional().describe('The permission it demands — only the people the owner grants it may enter.'),
+})
+
+export const APPS_OUTPUT = {
+  projectId: PROJECT_ID,
+  local: z.boolean().describe('The sources live on the user\'s machine; the platform knows the map alone.'),
+  recorded: z.boolean().describe('The project records its applications; false: main alone, as every project without a record.'),
+  apps: z.array(APP),
+  areas: z.array(AREA).optional().describe('Every area of the project, the four standard ones first.'),
+  worker: z.string().optional().describe('The background worker\'s state, when one is reported.'),
+  restarted: z.string().optional().describe('The application a restart restarted.'),
+}
+
 // --- a new project's files ----------------------------------------------------------------------
 
 const MATERIAL_OUTCOME = z.object({

@@ -18,8 +18,9 @@ model factory service and the generic execution service. Related: [[versioning]]
 - `llmServiceApi` / `executionServiceApi` return the implementation WITHOUT `createService`, so a
   consumer composes them into its own service (role accessors, observability factories). Both take
   a `() => service` late-binding accessor.
-- Observability is a minimal sink (`LlmSpectator`: `log`, optional `captureNull`, `error`, `notice`).
-  Anything richer (storage, `derive`, `update`) belongs to the consumer.
+- `LlmSpectator` logs model calls (`log`) and optionally captures null results, reports errors,
+  and emits retry notices (`captureNull`, `error`, `notice`). The consumer owns trace storage,
+  derivation, and updates.
 - Live specs are gated via `@owlmeans/test` `makeGates` on `OPENROUTER_SECRET` / `ANTHROPIC_SECRET` /
   `OPENAI_SECRET` in the repo-root `.env` (documented in `.env.example`); with none set they self-skip.
 

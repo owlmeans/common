@@ -47,5 +47,9 @@ export interface StoryHelper {
    * is what every other story tool takes. A new fact is a new flag beside `primary`, never a
    * substitute for one, and the area stays last.
    */
-  renderStories: (items: readonly Workcard[], page: number, total: number) => string
+  /**
+   * One page as lines — `code · status[ · primary][ · landing gate][ · app: <name>][ · area]`. `apps`
+   * (card id → the app names its card names) adds the app flag only to the cards it holds.
+   */
+  renderStories: (items: readonly Workcard[], page: number, total: number, apps?: ReadonlyMap<string, readonly string[]>) => string
 }

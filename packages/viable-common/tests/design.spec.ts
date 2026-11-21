@@ -166,8 +166,9 @@ describe('viable-common - the design schema', () => {
     expect(validate(rogue)).toBe(false)
   })
 
-  test('refuses an area outside the closed set', () => {
-    const rogue = { ...design(), area: 'partner' }
+  test('takes the area as a key: a custom slug passes, an ill-shaped key is refused', () => {
+    expect(validate({ ...design(), area: 'partner' })).toBe(true)
+    const rogue = { ...design(), area: 'Partner Portal' }
 
     expect(validate(rogue)).toBe(false)
   })

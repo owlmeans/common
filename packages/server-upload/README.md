@@ -25,7 +25,7 @@ server-side.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-upload@^0.2.0 @owlmeans/upload@^0.2.0 @owlmeans/file-streams@^0.2.0
+bun add @owlmeans/server-upload@^0.2.2 @owlmeans/upload@^0.2.2 @owlmeans/file-streams@^0.2.2
 ```
 
 `@owlmeans/upload` declares the tree (shared with the client), `@owlmeans/file-streams` gives the
@@ -237,7 +237,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.0
+npx @owlmeans/agent-skills@^0.2.2
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

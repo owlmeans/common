@@ -1,3 +1,5 @@
+import type { SlotAppClaim } from '@owlmeans/viable-common'
+
 /**
  * The environment a locally-run target sees, composed for ONE directory.
  *
@@ -18,8 +20,11 @@ export interface TargetEnvHelper {
    * Read at runtime, never baked into the bundle — the api resolves `DATABASE_URL`, `VALKEY_URL`
    * and the OIDC triple when it boots, which is why a configure push that lands after a build still
    * reaches it with nothing more than a restart.
+   *
+   * `app` (absent or `main`: exactly today's) is another app of a split project: its own port, base
+   * path and api base (`appMapHelper.apiEnvOf`) laid over the root file, which describes main's.
    */
-  backendEnv: () => Promise<Record<string, string>>
+  backendEnv: (app?: SlotAppClaim) => Promise<Record<string, string>>
   /**
    * Build-time environment for the target's browser bundle.
    *
@@ -34,6 +39,9 @@ export interface TargetEnvHelper {
    * same boundary as an allow-list (`frontendEnvVars` / `frontendSecrets`); here it is the file
    * split, and it is what keeps `DATABASE_URL` and `OIDC_SECRET` out of a bundle every visitor
    * downloads.
+   *
+   * `app` (absent or `main`: exactly today's) is another app's web: its own package's `.env`, its
+   * build base `/<mount>` and its api `<mount>/api` as defaults — still on the one local web port.
    */
-  frontendEnv: () => Promise<Record<string, string>>
+  frontendEnv: (app?: SlotAppClaim) => Promise<Record<string, string>>
 }

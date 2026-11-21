@@ -1,8 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { LAYOUTS, TargetLayout, slotLayoutHelper } from '@owlmeans/viable-common'
-import type { SubProject, TargetPaths } from '@owlmeans/viable-common'
+import {
+  LAYOUTS, MAIN_APP, TOPOLOGY_FILE, TargetLayout, appMapHelper, slotLayoutHelper, topologyCardHelper,
+} from '@owlmeans/viable-common'
+import type { AppDescriptor, SubProject, TargetPaths } from '@owlmeans/viable-common'
 
 import { LAYOUT_MARKER_PATHS } from './consts.local.js'
 import type { LayoutHelper } from './layout/types.js'
@@ -31,13 +33,38 @@ export const makeLayoutHelper = (dir: string): LayoutHelper => {
 
   const targetPaths = (): TargetPaths => LAYOUTS[detectLayout()]
 
-  const apiPath = (): string => {
+  const apps = (): AppDescriptor[] => {
+    // Only a current-layout tree is ever split; a v1 tree, a missing or unreadable record and a map
+    // that breaks a rule all read as the one app every project has.
+    if (detectLayout() !== TargetLayout.V2) return appMapHelper.fromTopology(null)
+    let source: string | null = null
+    try {
+      source = fs.readFileSync(path.join(dir, TOPOLOGY_FILE), 'utf-8')
+    } catch {
+      source = null
+    }
+
+    return appMapHelper.fromTopology(source == null ? null : topologyCardHelper.parseTopologyFile(source))
+  }
+
+  /** The package directory of one side of a non-main app: its record's, else the naming rule's. */
+  const appDir = (app: string, side: 'web' | 'api'): string => {
+    const found = apps().find(candidate => candidate.name === app)
+
+    return path.resolve(dir, targetPaths().dir, found?.[side] ?? `${app}-${side}`)
+  }
+
+  const isMain = (app?: string): boolean => app == null || app === '' || app === MAIN_APP
+
+  const apiPath = (app?: string): string => {
+    if (!isMain(app)) return appDir(app!, 'api')
     const paths = targetPaths()
 
     return path.resolve(dir, paths.dir, paths.api)
   }
 
-  const webPath = (): string => {
+  const webPath = (app?: string): string => {
+    if (!isMain(app)) return appDir(app!, 'web')
     const paths = targetPaths()
 
     return path.resolve(dir, paths.dir, paths.web)
@@ -66,5 +93,5 @@ export const makeLayoutHelper = (dir: string): LayoutHelper => {
       .filter(library => fs.existsSync(library))
   }
 
-  return { detectLayout, targetPaths, apiPath, webPath, workerPath, hasWorker, subprojectDir, libraryPaths }
+  return { detectLayout, targetPaths, apps, apiPath, webPath, workerPath, hasWorker, subprojectDir, libraryPaths }
 }

@@ -1,4 +1,5 @@
 import type { ProjectArea } from '../../areas/consts.js'
+import type { AreaKey } from '../../areas/types.js'
 import type {
   ArchitectureCase, ConversionStage, ConvertibilityVerdict, OriginKind, PurposeEvidenceSource, StackFamily, StackId
 } from '../consts.js'
@@ -91,7 +92,8 @@ export interface StoryListDocMeta extends ConversionDocMeta {
 
 export interface StoryProofDocMeta extends ConversionDocMeta {
   code: string
-  area: ProjectArea
+  /** The story's area, by key. */
+  area: AreaKey
   origin: string[]
   complexity: number
 }

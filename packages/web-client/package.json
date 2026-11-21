@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-client",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -16,7 +16,8 @@
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 354 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
-    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -31,23 +32,23 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.2.0",
-    "@owlmeans/auth-common": "^0.2.0",
-    "@owlmeans/client": "^0.2.0",
-    "@owlmeans/client-auth": "^0.2.0",
-    "@owlmeans/client-context": "^0.2.0",
-    "@owlmeans/client-i18n": "^0.2.0",
-    "@owlmeans/client-entrypoint": "^0.2.0",
-    "@owlmeans/client-resource": "^0.2.0",
-    "@owlmeans/client-route": "^0.2.0",
-    "@owlmeans/config": "^0.2.0",
-    "@owlmeans/context": "^0.2.0",
-    "@owlmeans/error": "^0.2.0",
-    "@owlmeans/i18n": "^0.2.0",
-    "@owlmeans/log": "^0.2.0",
-    "@owlmeans/route": "^0.2.0",
-    "@owlmeans/web-db": "^0.2.0",
-    "@owlmeans/web-router": "^0.2.0",
+    "@owlmeans/auth": "^0.2.2",
+    "@owlmeans/auth-common": "^0.2.2",
+    "@owlmeans/client": "^0.2.2",
+    "@owlmeans/client-auth": "^0.2.2",
+    "@owlmeans/client-context": "^0.2.2",
+    "@owlmeans/client-i18n": "^0.2.2",
+    "@owlmeans/client-entrypoint": "^0.2.2",
+    "@owlmeans/client-resource": "^0.2.2",
+    "@owlmeans/client-route": "^0.2.2",
+    "@owlmeans/config": "^0.2.2",
+    "@owlmeans/context": "^0.2.2",
+    "@owlmeans/error": "^0.2.2",
+    "@owlmeans/i18n": "^0.2.2",
+    "@owlmeans/log": "^0.2.2",
+    "@owlmeans/route": "^0.2.2",
+    "@owlmeans/web-db": "^0.2.2",
+    "@owlmeans/web-router": "^0.2.2",
     "react-dropzone": "^20.1.4"
   },
   "peerDependencies": {
@@ -55,7 +56,7 @@
     "react-dom": "*"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.0",
+    "@owlmeans/dep-config": "^0.2.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "nodemon": "^3.1.14",

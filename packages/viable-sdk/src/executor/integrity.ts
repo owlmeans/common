@@ -1,7 +1,7 @@
 import fs from 'fs-extra'
 import p from 'node:path'
 
-import { formatIntegrityReport, TARGET_INTEGRITY_FILES, verifyTargetShape, type TargetFileMap, type TargetIntegrityReport } from '@owlmeans/viable-common'
+import { targetIntegrityHelper, type TargetFileCollection, type TargetFileMap, type TargetIntegrityReport } from '@owlmeans/viable-common'
 import { VERDICT_TTL_MS } from './consts.local.js'
 import type { IntegrityHelper } from './integrity/types.js'
 
@@ -25,19 +25,27 @@ import type { IntegrityHelper } from './integrity/types.js'
 let _cached: { at: number, root: string, report: TargetIntegrityReport } | null = null
 
 export const createIntegrityHelper = (): IntegrityHelper => {
-  const readTargetFiles = async (dir: string): Promise<TargetFileMap> => {
-    const entries = await Promise.all(TARGET_INTEGRITY_FILES.map(async file =>
-      [file, await fs.readFile(p.join(dir, file), 'utf-8').catch(() => null)] as const))
+  // The manifest follows the record, exactly as the publisher reads it: the base set first, then what
+  // the topology record of a project split into apps asks for — its extra app packages and the
+  // `sources/` listing. A one-pass reader sees a split tree's app packages as missing and refuses it.
+  const collectTargetFiles = async (dir: string): Promise<TargetFileCollection> =>
+    await targetIntegrityHelper.collectTargetFiles(
+      async file => await fs.readFile(p.join(dir, file), 'utf-8').catch(() => null),
+      async sub => await fs.readdir(p.join(dir, sub)).catch(() => [] as string[]),
+    )
 
-    return Object.fromEntries(entries)
-  }
+  const readTargetFiles = async (dir: string): Promise<TargetFileMap> => (await collectTargetFiles(dir)).files
 
   const verifyTarget = async (dir: string): Promise<TargetIntegrityReport> => {
     if (_cached != null && _cached.root === dir && Date.now() - _cached.at < VERDICT_TTL_MS) {
       return _cached.report
     }
 
-    const report = verifyTargetShape(await readTargetFiles(dir))
+    const { files, workspaceDirs } = await collectTargetFiles(dir)
+    // The listing exists only for a split tree; any other tree is verified exactly as before.
+    const report = workspaceDirs != null
+      ? targetIntegrityHelper.verifyTargetShape(files, { workspaceDirs })
+      : targetIntegrityHelper.verifyTargetShape(files)
     _cached = { at: Date.now(), root: dir, report }
 
     return report
@@ -51,10 +59,10 @@ export const createIntegrityHelper = (): IntegrityHelper => {
     return report.ok
       ? null
       : `${prefix}: the project in this directory is not a Viable application\n`
-        + formatIntegrityReport(report)
+        + targetIntegrityHelper.formatIntegrityReport(report)
   }
 
-  return { readTargetFiles, verifyTarget, forgetIntegrity, integrityRefusal }
+  return { readTargetFiles, collectTargetFiles, verifyTarget, forgetIntegrity, integrityRefusal }
 }
 
 export const integrityHelper = createIntegrityHelper()

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/server-upload",
-  "version": "0.2.0",
-  "generatedAt": "2026-11-15T13:38:38.702Z",
+  "version": "0.2.2",
+  "generatedAt": "2026-11-21T09:26:21.988Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

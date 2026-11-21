@@ -10,7 +10,7 @@ import {
 } from './requirements/consts.js'
 import type { RequirementsFileStory, RequirementsHelper } from './requirements/types.js'
 import type {
-  MergedStoryDraft, RequestedStoryDraft, RequirementPackage, RequirementsDocument, StatedRequirement,
+  MergedStoryDraft, RequirementPackage, RequirementsDocument, StatedRequirement,
 } from './types.js'
 
 export const createRequirementsHelper = (): RequirementsHelper => {
@@ -227,9 +227,7 @@ export const createRequirementsHelper = (): RequirementsHelper => {
   const digest = (items: readonly StatedRequirement[]): string =>
     storyDesignHelper.designHash(canonicalJson(sorted(items)))
 
-  const mergeRequested = (
-    merged: readonly MergedStoryDraft[], requested: readonly RequestedStoryDraft[],
-  ): MergedStoryDraft[] => {
+  const mergeRequested: RequirementsHelper['mergeRequested'] = (merged, requested) => {
     const result = [...merged]
     const flowCount = merged.filter(entry => entry.kind === StoryKind.Flow).length
     const seen = new Set(merged.map(entry => canonical(entry.story)))

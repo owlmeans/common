@@ -72,4 +72,9 @@ export interface TaskExecutionState
   /** The story card the task develops, as plain data — the aggregate above is derived from it. */
   card?: ViableStoryCard
   transitions?: UXTransition[]
+  /**
+   * The app this task works in, by name (`AppDescriptor.name`). Absent — every task before apps
+   * existed, and every task of a one-app project — is `main`.
+   */
+  app?: string
 }

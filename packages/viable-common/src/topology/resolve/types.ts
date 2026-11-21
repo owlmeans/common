@@ -1,4 +1,4 @@
-import type { ProjectArea } from '../../areas/consts.js'
+import type { AreaKey } from '../../areas/types.js'
 import type { TargetLayout } from '../../integrity/consts.js'
 import type { SubProject } from '../../slot/consts.js'
 import type { ResolvedTopology, TargetPackageDescriptor, TopologyDescriptor } from '../types.js'
@@ -31,7 +31,7 @@ export interface TopologyHelper {
   /** Every package holding a role — more than one only where a topology splits that role. */
   packagesForRole: (topology: ResolvedTopology, role: SubProject) => TargetPackageDescriptor[]
   /** The package serving an area, for a topology that splits the browser app across several. */
-  packageForArea: (topology: ResolvedTopology, role: SubProject, area: ProjectArea) => TargetPackageDescriptor | null
+  packageForArea: (topology: ResolvedTopology, role: SubProject, area: AreaKey) => TargetPackageDescriptor | null
   /** `<dir>/<package>` — the only place a topology directory is composed. */
   packageDir: (topology: TopologyDescriptor, pkg: TargetPackageDescriptor) => string
   /**

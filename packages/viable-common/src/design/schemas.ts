@@ -2,7 +2,7 @@ import type { JSONSchemaType } from 'ajv'
 import { BotKitAction } from '../blueprint/consts.js'
 import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
-import { ProjectArea } from '../areas/consts.js'
+import { AREA_KEY_MAX, AREA_KEY_PATTERN } from '../areas/consts.js'
 import { ENGLISH_NAME_NOTE } from '../dev/consts.js'
 import { StatedRequirementSchema } from '../ba/schemas.js'
 import { STORY_BOT_TRIGGERS, StoryActor, StoryAgentKind } from './consts.js'
@@ -40,7 +40,9 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
     version: { type: 'integer', minimum: 1 },
     code: { type: 'string' },
     narrative: { type: 'string' },
-    area: { type: 'string', enum: Object.values(ProjectArea) },
+    // The area's KEY: a design stored with one of the four standard kinds (`'user'`) reads unchanged.
+    area: { type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source },
+    areas: { type: 'array', items: { type: 'string' }, nullable: true },
     reserved: {
       type: 'object',
       properties: {
@@ -106,6 +108,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
             required: ['kind', 'tabs', 'shared', 'weights'],
             additionalProperties: false,
           },
+          area: { type: 'string', nullable: true },
         },
         required: [
           'name', 'definition', 'path', 'alias', 'url', 'parent', 'adopted', 'specs', 'components',
@@ -126,6 +129,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           screen: { type: 'string' },
           entities: { type: 'array', items: { type: 'string' } },
           specs,
+          app: { type: 'string', nullable: true },
         },
         required: [
           'name', 'definition', 'path', 'viewModelPath', 'adopted', 'screen', 'entities', 'specs',
@@ -199,6 +203,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
               additionalProperties: false,
             },
           },
+          app: { type: 'string', nullable: true },
         },
         required: ['path', 'entity', 'type', 'model', 'endpoints'],
         additionalProperties: false,
@@ -213,6 +218,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
           entity: { type: 'string' },
           type: { type: 'string' },
           api: { type: 'string' },
+          app: { type: 'string', nullable: true },
         },
         required: ['path', 'entity', 'type', 'api'],
         additionalProperties: false,

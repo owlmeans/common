@@ -6,6 +6,7 @@ import path from 'node:path'
 import { TARGET_API_BASE, TARGET_API_PORT, TARGET_WEB_PORT } from '@owlmeans/viable-common'
 import { MIME, PLACEHOLDER } from './consts.local.js'
 import type { LocalServer, LocalServerOptions } from './types.js'
+import type { LocalRoute } from './serve/types.js'
 
 /**
  * Serve the target's built browser app, and put its `/api` behind the same origin.
@@ -35,8 +36,22 @@ export const createLocalServer = (
   const apiPrefix = `/${TARGET_API_BASE}`
   let server: http.Server | null = null
   let port = TARGET_WEB_PORT
+  // A split project's prefixes, longest first: `/<mount>/api`, `/<mount>`, …, `/api`, `/`. `null` for
+  // one app — then every request takes exactly the path it always took.
+  const routes: LocalRoute[] | null = (options.apps ?? []).length > 1
+    ? [...options.apps!]
+      .flatMap((app): LocalRoute[] => {
+        const base = app.mount === '' ? '' : `/${app.mount}`
 
-  const proxy = (req: http.IncomingMessage, res: http.ServerResponse): void => {
+        return [
+          { prefix: `${base}${apiPrefix}`, side: 'api', app },
+          { prefix: base === '' ? '/' : base, side: 'web', app },
+        ]
+      })
+      .sort((a, b) => b.prefix.length - a.prefix.length)
+    : null
+
+  const proxy = (req: http.IncomingMessage, res: http.ServerResponse, apiPort: number): void => {
     const upstream = http.request(
       {
         host: '127.0.0.1',
@@ -82,14 +97,8 @@ export const createLocalServer = (
     return true
   }
 
-  const handle = async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
-    const url = req.url ?? '/'
-    if (url === apiPrefix || url.startsWith(`${apiPrefix}/`)) {
-      return proxy(req, res)
-    }
-
-    const dir = getWebDir()
-    const pathname = decodeURIComponent(url.split('?')[0])
+  /** One app's built browser directory: the file the path names, else the SPA's `index.html`. */
+  const serveStatic = async (res: http.ServerResponse, dir: string, pathname: string): Promise<void> => {
     const resolved = path.resolve(dir, `.${path.posix.normalize(pathname)}`)
     // Confinement, exactly as on the file side: a resolved path is the only one that can be
     // compared to the root, and this server answers requests from a browser.
@@ -110,6 +119,36 @@ export const createLocalServer = (
 
     res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' })
     res.end(PLACEHOLDER)
+  }
+
+  /** A split project's request: the longest prefix it falls under decides the app and the side. */
+  const route = async (req: http.IncomingMessage, res: http.ServerResponse, table: LocalRoute[]): Promise<void> => {
+    const url = req.url ?? '/'
+    const pathname = decodeURIComponent(url.split('?')[0])
+    const found = table.find(({ prefix }) => prefix === '/' || pathname === prefix || pathname.startsWith(`${prefix}/`))
+    if (found == null) {
+      res.writeHead(404)
+      res.end()
+
+      return
+    }
+    // The api keeps the whole path: a mounted api answers under `<mount>/api` itself.
+    if (found.side === 'api') return proxy(req, res, found.app.apiPort)
+
+    // The build sits at the root of its own directory; its mount is the address, not a folder.
+    const inner = found.prefix === '/' ? pathname : pathname.slice(found.prefix.length)
+
+    return await serveStatic(res, found.app.webDir(), inner === '' ? '/' : inner)
+  }
+
+  const handle = async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
+    if (routes != null) return await route(req, res, routes)
+    const url = req.url ?? '/'
+    if (url === apiPrefix || url.startsWith(`${apiPrefix}/`)) {
+      return proxy(req, res, apiPort)
+    }
+
+    return await serveStatic(res, getWebDir(), decodeURIComponent(url.split('?')[0]))
   }
 
   return {

@@ -1,16 +1,51 @@
 import type { ProjectArea } from './consts.js'
 
+// Kept as a type: a primitive alias.
+/**
+ * How every story, design, screen, plan entry, registry row and navigation line REFERENCES an area:
+ * its key, a kebab-case slug ({@link AREA_KEY_PATTERN}) — never the kind.
+ *
+ * The four standard areas are keyed by their kind's word (`guest`, `user`, `admin`, `operator`), so a
+ * record written before custom areas existed (`area: 'user'`) is a valid key unchanged. A custom area —
+ * only ever on an explicit request — carries its own key and one of the four kinds. Where a rule needs
+ * the KIND (access, surface, analysis, scaffold defaults) it is read from the project's app map:
+ * `appMapHelper.kindOf(map, key)`.
+ */
+export type AreaKey = string
+
 /**
  * A user story as the analysis stage produces it: the narrative, plus the area whose
  * audience acts in it.
  *
  * The area is structured data rather than a phrase inside the sentence because everything
  * downstream keys off it — which entrypoint the story's screens hang under, what access they
- * inherit, and which URL the preview opens when the story is done.
+ * inherit, and which URL the preview opens when the story is done. It is the area's KEY: one of the
+ * four standard keys, or a custom area of the project's map.
  */
 export interface StoryDraft {
   story: string
-  area: ProjectArea
+  area: AreaKey
+}
+
+/**
+ * One area of a project: which kind of audience it is, and where it lives inside its app.
+ *
+ * `kind` is the closed {@link ProjectArea} — access, surface and every analysis rule key off it — and
+ * `key` names the instance. `segment` is the area's path segment inside its app's router; the app's
+ * HOME area is served at the app's root whatever its segment says, so the guest area carries `''`.
+ */
+export interface AreaDescriptor {
+  key: AreaKey
+  kind: ProjectArea
+  /** One lower-case path segment, or `''` (only meaningful for an app's home area). */
+  segment: string
+  /** What a person reads for the area; absent reads as {@link AREA_DEFAULT_LABELS} of its kind. */
+  label?: string
+  /**
+   * The marker permission a signed-in custom area demands (`project--<key>`), declared on the
+   * project's client and granted by the owner. Absent: the kind's own gate alone.
+   */
+  marker?: string
 }
 
 /**
@@ -21,7 +56,8 @@ export interface StoryDraft {
  * path and nothing else.
  */
 export interface NavEntry {
-  area: ProjectArea
+  /** The area the entry belongs to, by key. */
+  area: AreaKey
   section: string
   /** The screen's `app.web.*` alias. */
   alias: string

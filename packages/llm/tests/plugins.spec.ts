@@ -254,6 +254,7 @@ describe('@owlmeans/llm — provider effort', () => {
 
   test('a level the model does not accept is clamped to one it does, never sent as is', () => {
     expect(openAiEffort(build(openAiPlugin, { model: 'gpt-6-astra', effort: ModelEffort.None }))).toBe('low')
+    expect(openAiEffort(build(openAiPlugin, { model: 'gpt-6.2-sol', effort: ModelEffort.None }))).toBe('low')
     expect(anthropicEffort(build(anthropicPlugin, {
       model: 'claude-sonnet-4-6', effort: ModelEffort.XHigh,
     }))).toBe('high')
