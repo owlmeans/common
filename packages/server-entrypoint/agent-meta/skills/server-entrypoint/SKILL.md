@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-entrypoint
 
-**Install:** `bun add @owlmeans/server-entrypoint@^0.2.1-rc.0`
+**Install:** `bun add @owlmeans/server-entrypoint@^0.2.2`
 
 Bind the imported protocol object to the implementation that serves it:
 

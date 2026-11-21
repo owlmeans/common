@@ -12,7 +12,7 @@ config package. Protocol declarations live in `@owlmeans/entrypoint`; data acces
 ## Installation
 
 ```bash
-bun add @owlmeans/context@^0.2.1-rc.0
+bun add @owlmeans/context@^0.2.2
 ```
 
 ## Concepts
@@ -304,7 +304,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.2-rc.1
+npx @owlmeans/agent-skills@^0.2.2
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-research
 
 **Layer:** Server (Node / Bun — it clones through `@owlmeans/llm-reader`)
-**Install:** `"@owlmeans/web-research": "^0.2.2-rc.1"` in `dependencies`, plus the `@langchain/core`,
+**Install:** `"@owlmeans/web-research": "^0.2.2"` in `dependencies`, plus the `@langchain/core`,
 `@langchain/langgraph`, `@langchain/langgraph-checkpoint`, `@langchain/openai` and `@langchain/anthropic` **peers**
 
 Online research as five `@owlmeans/agent` pipelines. Nothing in it names an application: the
