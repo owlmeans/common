@@ -1,4 +1,5 @@
-import { type JobOptions, type JobRecord, DEFAULT_ATTEMPTS, JobState } from '@owlmeans/queue'
+import { type JobOptions, type JobRecord, type JobReply, DEFAULT_ATTEMPTS, JobState } from '@owlmeans/queue'
+import { ResilientError } from '@owlmeans/error'
 import { UnsupportedArgumentError } from '@owlmeans/resource'
 import type { Job, JobProgress, JobsOptions } from 'bullmq'
 import { STATES } from './consts.local.js'
@@ -97,7 +98,22 @@ export const createJobRecordHelper = (): JobRecordHelper => {
       (result, [key, value]) => ({ ...result, [idOfJobKey(key)]: value }), {}
     )
 
-  return { jobStateOf, progressOf, jobRecordOf, mergeJobOptions, bullOptionsOf, idOfJobKey, byJobId }
+  const refusalOf = (result: unknown): string | null => {
+    if (result == null || typeof result !== 'object' || !('error' in result)) {
+      return null
+    }
+    const error = (result as JobReply).error
+    if (error == null) {
+      return null
+    }
+    // `entrypointJobsOf` marshals every refusal into a string already; anything else is marshalled
+    // here, so the reason always rebuilds as a class on the producer's side.
+    return typeof error === 'string'
+      ? error
+      : ResilientError.marshal(ResilientError.ensure(error instanceof Error ? error : `${String(error)}`)).message
+  }
+
+  return { jobStateOf, progressOf, jobRecordOf, mergeJobOptions, bullOptionsOf, idOfJobKey, byJobId, refusalOf }
 }
 
 export const jobRecordHelper = createJobRecordHelper()

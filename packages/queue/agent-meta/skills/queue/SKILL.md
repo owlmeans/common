@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/queue": "^0.2.3-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/queue": "^0.2.3"` in `dependencies`
 
 Backend transport contracts only. It carries no broker code — a driver package
 (`@owlmeans/redis-queue`) implements them. Depend on this one from a shared backend package;
@@ -81,6 +81,12 @@ const result = await queue.waitFor(tokenBalance.reconcile, queued)
 Per-call `id`, delay, attempts, backoff and retention belong here; putting them into an alias-based
 helper forfeits protocol inference. `queueBridgeHelper.queueJobOf(request)` exposes `{ id, name,
 queue, attempt }` to the rare protocol handler that must compare a broker job with its persisted claim.
+Every request the bridge rebuilds from a job also carries `request.delivery` = `{ id: '<queue>:<job
+id>', attempt, enqueuedAt?, maxAge? }` (`RequestDelivery`, `@owlmeans/entrypoint`): set in-process
+only — the envelope cannot supply it, HTTP never carries it — and what `GUARD_ED25519` binds the
+signed request's nonce to, so the broker's own redelivery of the same job (a stall, a retry) is not a
+replay, and judges its signature at (`enqueuedAt`, from `JobContext.enqueuedAt`) the enqueue within
+the queue's window (`maxAge` = `envelopeTtl` × 1000) (`auth-common`).
 
 `reply: false` makes it fire-and-forget: the call resolves `Accepted` with `{ id, queue }` as soon
 as the BROKER has accepted the enqueue — before any worker has picked the job up, so the resolution
@@ -207,14 +213,21 @@ measured from the envelope's `enqueuedAt` — when the PRODUCER enqueued it, not
 it up — so a captured envelope stops being replayable, and so does a job that sat behind a backlog
 longer than the window: it answers `EnvelopeExpired` at pickup rather than running late. Size the
 window against the longest backlog you are willing to let run, and leave `envelopeTtl` unset — the
-default — for a queue whose jobs may legitimately wait.
+default — for a queue whose jobs may legitimately wait. The same window bounds a SIGNED job: with
+`envelopeTtl` set, `request.delivery` carries `maxAge` (the window, ms) beside `enqueuedAt` (the
+broker's own stamp, never the envelope's), and `GUARD_ED25519` judges the signature at the enqueue
+and admits the job until the window passes; unset, a signed job must be picked up within the
+signature's 60 seconds.
 
 ## Errors cross the hop as classes
 
 A refusal the caller must recognise — `ContentRefused`, `AgentLocked` — is marshalled into the
 reply and rebuilt on the producer side as its own class, so `catch (e) { if (e instanceof ...) }`
 keeps working across the broker. Only broker- and connection-level faults propagate as throws,
-because those are the only ones a retry can fix.
+because those are the only ones a retry can fix. The DRIVER records a reply carrying `error` as a
+FAILED job that is never retried (`redis-queue`: an `UnrecoverableError` with the marshalled refusal
+as its reason, which `wait` rebuilds) — never as a completed job with an error inside, which no
+hook, listing or person reads as a failure; `onJobDead` fires for it like for any dead job.
 
 ## What runs where
 
@@ -241,13 +254,13 @@ this process both serves and listens to, grouped by queue, which is what a drive
 | `JobRecord<D, R>` / `JobState` / `isSettled` / `JobEvent` / `JobEventType` | The record shape and lifecycle |
 | `FlowSpec<D>` | A graph node — `name`, optional `queue`, `data`, `opts`, `children` |
 | `QueueWorkerService` | `process(queue, name, fn)`, `start`, `stop`, `listening`, `hooks` |
-| `JobContext<D>` | What a processor gets: `id`, `name`, `queue`, `attempt`, `data`, `signal`, `scheduled?`, `touch`, `progress`, `children`, `failedChildren` |
+| `JobContext<D>` | What a processor gets: `id`, `name`, `queue`, `attempt` (deliveries started, this one included), `stalls?` (times the broker took it back from a worker that stopped renewing it), `enqueuedAt?` (the broker's own enqueue stamp, ms), `data`, `signal`, `scheduled?`, `touch`, `progress`, `children`, `failedChildren` |
 | `QueueHooks` | `wrapHandler`, `onJobResult`, `onJobStalled`, `onJobDead` — the compensation seam |
 | `QueueAppend` | The `ctx.jobs(queue?)` mixin a driver installs; `QueueDriver` is what a driver supplies |
 | `appendQueueTransport` / `makeQueueTransport` | Binds the QUEUE protocol so `call()` routes through the broker |
 | `queueWorkerMiddleware` | Starts the worker at Ready stage |
 | `entrypointJobsOf(ctx)` — `handle` / `served` / `processor` | The bridge a driver dispatches through |
-| `queueBridgeHelper` — `requestOf` / `assertFresh`; `JobEnvelope` / `JobReply` | The envelope, and rebuilding a request from it |
+| `queueBridgeHelper` — `requestOf` / `assertFresh`; `JobEnvelope` / `JobReply` | The envelope, and rebuilding a request from it (with `delivery` when a job is given) |
 | Errors | `QueueError`, `QueueTimeout`, `UnknownJob`, `UnknownJobName`, `UnknownQueue`, `QueueNotListening`, `JobNotServed`, `EnvelopeExpired`, `ScheduleMisdeclared` |
 | Constants | `DEFAULT_ALIAS` (`queue`), `DEFAULT_JOB_TIMEOUT` (60 000 ms), `DEFAULT_ATTEMPTS` (1) |
 

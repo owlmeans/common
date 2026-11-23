@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-did",
-  "version": "0.2.3-alpha.0",
+  "version": "0.2.3",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,17 +31,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.2.3-alpha.0",
-    "@owlmeans/client": "^0.2.3-alpha.0",
-    "@owlmeans/client-context": "^0.2.3-alpha.0",
-    "@owlmeans/client-resource": "^0.2.3-alpha.0",
-    "@owlmeans/context": "^0.2.3-alpha.0",
-    "@owlmeans/did": "^0.2.3-alpha.0",
-    "@owlmeans/log": "^0.2.3-alpha.0",
-    "@owlmeans/state": "^0.2.3-alpha.0"
+    "@owlmeans/auth": "^0.2.3",
+    "@owlmeans/client": "^0.2.3",
+    "@owlmeans/client-context": "^0.2.3",
+    "@owlmeans/client-resource": "^0.2.3",
+    "@owlmeans/context": "^0.2.3",
+    "@owlmeans/did": "^0.2.3",
+    "@owlmeans/log": "^0.2.3",
+    "@owlmeans/state": "^0.2.3"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.3-alpha.0",
+    "@owlmeans/dep-config": "^0.2.3",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

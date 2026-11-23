@@ -33,4 +33,10 @@ export interface JobRecordHelper {
   idOfJobKey: (key: string) => string
   /** Re-key a children map from bullmq's job keys onto plain job ids. */
   byJobId: <T>(values: Record<string, T>) => Record<string, T>
+  /**
+   * The refusal an entrypoint job's reply (`JobReply`) carries, as the marshalled message the
+   * producer's `wait` rebuilds the class from — `null` for a reply without `error` or a value that
+   * is no reply at all.
+   */
+  refusalOf: (result: unknown) => string | null
 }

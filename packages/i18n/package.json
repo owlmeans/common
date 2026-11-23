@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/i18n",
-  "version": "0.2.3-alpha.0",
+  "version": "0.2.3",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -39,7 +39,7 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.3-alpha.0",
+    "@owlmeans/dep-config": "^0.2.3",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

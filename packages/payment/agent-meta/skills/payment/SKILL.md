@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/payment
 
 **Layer:** Core
-**Install:** `"@owlmeans/payment": "^0.2.3-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/payment": "^0.2.3"` in `dependencies`
 
 The contracts half of payments: the catalogue (products, plans, localizations), amount- and
 quantity-priced checkout, the entitlement model — plan capabilities, counted limits, promos,
@@ -402,8 +402,9 @@ doubled prefix still parses):
 | `CancellationUnavailable` | 409 | `cancellation-unavailable:<CancellationUnavailableReason>` | `reason` |
 
 `consentRefusalOf(e)` → `'performance' | 'subscription-start' | null`: the class after
-`ResilientError.ensure`, else the marker or type name in `message`/`type`. A production body
-carries only an incident id — a bare 428 is the caller's to read with `@owlmeans/api/status`.
+`ResilientError.ensure`, else the marker or type name in `message`/`type`. A production body keeps
+the class (a typed 4xx goes out without its stack); a body that lost it (an older server, a proxy) is a
+bare 428 the caller reads with `@owlmeans/api/status`.
 
 ### The legal copy
 

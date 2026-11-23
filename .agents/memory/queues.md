@@ -50,6 +50,9 @@ remain protocol declarations end-to-end.
   itself and passes it in the envelope's `headers` (viable's `enqueueSigned`), and waits for the
   reply the way the transport does when it needs the outcome (viable's `invokeSigned`). A server
   binding has `handle` only — `invoke` and `call` are undefined in the serving process.
+- **A stalled job's redelivery is not a replay; a waited job is not stale; a refused reply fails.** The
+  bridge's `request.delivery` (id, attempt, broker `timestamp`, `envelopeTtl`) binds the Ed25519 nonce to
+  the job and dates its signature at enqueue; a reply carrying `error` is a `failed` job (`onJobDead`).
 - **Valkey works** — RESP only, no modules, no TTLs, nothing depending on eviction.
 - **Schedules are BullMQ job schedulers** (bullmq ≥ 5.78: `upsertJobScheduler` / `getJobSchedulers`
   / `removeJobScheduler`), id `owlmeans:<schedule id>`, reconciled by

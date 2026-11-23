@@ -1,10 +1,24 @@
-import type { AbstractRequest } from '@owlmeans/entrypoint'
+import type { AbstractRequest, RequestDelivery } from '@owlmeans/entrypoint'
 import type { BasicContext } from '@owlmeans/context'
-import type { JobEnvelope, QueueJobMeta } from './types.js'
+import type { Config, JobEnvelope, QueueJobMeta } from './types.js'
 import type { QueueBridgeHelper } from './bridge/types.js'
 import { EnvelopeExpired } from './errors.js'
 
 export const createQueueBridgeHelper = (): QueueBridgeHelper => {
+  /**
+   * The delivery a job is: its identity and attempt, and — when the broker recorded when it took the
+   * job in and the queue bounds how long a job stays deliverable (`envelopeTtl`) — both, so a signed
+   * request is judged fresh at its ENQUEUE, never refused for the time it waited.
+   */
+  const deliveryOf = (job: QueueJobMeta, context?: BasicContext<any>): RequestDelivery => {
+    const ttl = (context?.cfg as Config | undefined)?.queue?.envelopeTtl
+    return {
+      id: `${job.queue}:${job.id}`, attempt: job.attempt,
+      ...(job.enqueuedAt != null && Number.isFinite(job.enqueuedAt) ? { enqueuedAt: job.enqueuedAt } : {}),
+      ...(ttl != null && Number.isFinite(ttl) && ttl > 0 ? { maxAge: ttl * 1000 } : {}),
+    }
+  }
+
   const requestOf = (
     envelope: JobEnvelope, path: string, context?: BasicContext<any>, job?: QueueJobMeta,
   ): AbstractRequest => ({
@@ -18,6 +32,9 @@ export const createQueueBridgeHelper = (): QueueBridgeHelper => {
     // Fastify request. There is no raw request here, so the shape is supplied deliberately — a
     // handler must not have to know which transport delivered it.
     original: context != null || job != null ? { _ctx: context, _job: job } : undefined,
+    // The broker hands a job back after a stall or a failed attempt: an admission claim bound to the
+    // job (the signed request's nonce) is bound to this identity, so a redelivery is not a replay.
+    ...(job != null ? { delivery: deliveryOf(job, context) } : {}),
   })
 
   const queueJobOf = (request: unknown): QueueJobMeta | null => {

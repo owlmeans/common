@@ -146,6 +146,23 @@ export const makePipeline = <S extends PipelineState, C>(
     return answers
   }
 
+  /**
+   * Why a fatal error is an expected stop (`options.expected`), or `null` for a failure. A classifier
+   * that throws is a failure too: it is asked on the way out of a run, where nothing may replace the
+   * fatal error that is about to be rethrown.
+   */
+  const expectedOf = (e: unknown): string | null => {
+    try {
+      const reason = options.expected?.(e)
+
+      return typeof reason === 'string' && reason !== '' ? reason : null
+    } catch (classifier) {
+      log.warn('Pipeline stop classifier failed', { alias: spec.alias, error: classifier })
+
+      return null
+    }
+  }
+
   /** The copy of an answer this pipeline's STATE is allowed to hold. */
   const forState = (answer: InquiryAnswer): InquiryAnswer =>
     inquiryHelper.stateAnswerOf(inquiryHelper.capAnswer(answer, maxAnswerChars))
@@ -688,10 +705,19 @@ export const makePipeline = <S extends PipelineState, C>(
           error: asError(outcome.fatal).message,
           freezeState: true,
         }).catch(saveError => log.error('Pipeline could not record a fatal outcome', saveError))
-        log.error('Pipeline failed', {
-          alias: spec.alias, runId: row.runId, step: row.failedAt, ms: Date.now() - startedAt,
-          completed: row.completed.length, message: asError(outcome.fatal).message, error: asError(outcome.fatal),
-        }, { event: 'job.fail' })
+        const reason = expectedOf(outcome.fatal)
+        if (reason != null) {
+          // An outcome a person resolves (`options.expected`), not a fault: no stack, and not `job.fail`.
+          log.warn('Pipeline stopped', {
+            alias: spec.alias, runId: row.runId, reason, step: row.failedAt, ms: Date.now() - startedAt,
+            completed: row.completed.length, steps: total, message: asError(outcome.fatal).message,
+          }, { event: 'job.stop' })
+        } else {
+          log.error('Pipeline failed', {
+            alias: spec.alias, runId: row.runId, step: row.failedAt, ms: Date.now() - startedAt,
+            completed: row.completed.length, message: asError(outcome.fatal).message, error: asError(outcome.fatal),
+          }, { event: 'job.fail' })
+        }
         if (hooked) {
           await exiting(resultOf(asError(outcome.fatal)), true)
         }

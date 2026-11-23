@@ -17,8 +17,9 @@ model factory service, the generic execution service. Related: [[versioning]].
 - `llmServiceApi` / `executionServiceApi` return the implementation WITHOUT `createService`, so a
   consumer composes them into its own service (role accessors, observability factories). Both take
   a `() => service` late-binding accessor.
-- `LlmSpectator` logs model calls and can receive diagnostics and retry notices. The consumer owns
-  trace storage, derivation, and update behavior.
+- `LlmSpectator` logs model calls (`log`) and optionally captures null results, reports errors,
+  and emits retry notices (`captureNull`, `error`, `notice`). The consumer owns trace storage,
+  derivation, and updates.
 - Live specs are gated via `@owlmeans/test` `makeGates` on `OPENROUTER_SECRET` / `ANTHROPIC_SECRET` /
   `OPENAI_SECRET` in the repo-root `.env` (documented in `.env.example`); with none set they self-skip.
 
@@ -42,24 +43,24 @@ model factory service, the generic execution service. Related: [[versioning]].
   re-runs on a family change. Keyed on the primary's plugin, another provider's rung 400s on
   the first switched call. `resolveFallbacks` is the one merge (cross-provider rungs inherit
   only budgets). Detail: skill `llm`, "Fallback chains and provider effort".
-- **`refine` runs on EVERY call, attempt 0 included**: a parameter a model rejects is gated in
-  `build` AND `refine`, or it returns on every request (`Unsupported parameter: 'temperature'`, fatal,
-  the run's first call dies). Family predicates are exported, never re-typed: `rejectsSampling`
-  (Claude 4.7+/5), `usesResponsesApi` (`gpt-6*`/`gpt-5*`/`codex-*`). `effort`: `build` clamps, `refine` climbs.
+- Gate rejected parameters in `build` and `refine`, which runs even on attempt zero. Use
+  `rejectsSampling` (Claude 4.7+/5) and `usesResponsesApi` (`gpt-6*`/`gpt-5*`/`codex-*`). Build clamps effort and refine can increase it.
 - The ladder is per CALL, so a caller whose own loop validates the OUTPUT must pass
   `LlmCallOptions.escalation` (its outer attempt) or every call restarts at rung 0 — same
   model, same budget, same deterministic answer. Clamped to `retries - 1`; start rung only.
+- Escalation follows the failure CLASS: `attempt` picks the rung and stays `> 0` per retry (the delegate
+  keys on it); budget/effort climb only on budget-fixable failures, never a schema refusal (`retries`).
+- Liveness and OpenAI background mode are ATTEMPT-level: the observer (`LlmRefineParams.observe`) and
+  `background: true` live only on `refine`'s instance, never `build` (built `modelKwargs` also drive the
+  non-streamed `_generate` and tool loops; `transport.spec` pins build config). No AsyncLocalStorage.
 - `maxTokensCap` is what the deployment budgets, `maxOutput` what the provider allows;
   `resolveOutputCap` takes the declared cap and trims it by the capability. A `fallback` that
   changes `model` must restate `contextWindow`/`maxOutput` — it inherits every unnamed field
   from a different model.
-- `createModel` layers `presetOf(base.preset) < base < presetOf(override.preset) < override`: a preset
-  is a BASE (last, it voids a role's own fields and the override). One level deep, never a chain.
-- `ExecutionPlugin` is **`advise`-only**. The `onCheckpoint`/`onRestore` pair and
-  `ExecutionService.checkpoint` are gone: an execution is a COLLABORATOR rebuilt per run, not a
-  thing that is restored, and resumability belongs to `@owlmeans/agent`'s pipeline runner, whose
-  run row is the authority. `TaskExecutionState.{phase,completed,cursor}` survive as LABELS for
-  traces and prompts — never as a position anything resumes from.
+- `createModel` layers `presetOf(base.preset) < base < presetOf(override.preset) < override`.
+  Each preset is one level deep. Applying it last voids the role and caller overrides, including effort caps.
+- `ExecutionPlugin` advises a collaborator rebuilt per run. The pipeline runner's run row holds the
+  resume position. `TaskExecutionState.{phase,completed,cursor}` label traces and prompts.
 - The inquiry transport registry is module-level and keyed, exactly like the provider-plugin and
   delegate registries beside it, and its accessor is named `inquiryTransportFor` — `@owlmeans/llm`
   and `@owlmeans/llm-delegate` are re-exported into one namespace by `@owlmeans/viable`, so a bare
@@ -82,12 +83,10 @@ model factory service, the generic execution service. Related: [[versioning]].
   which is why the config and plugin are resolved once from the ORIGINAL instance.
 - The `gpt-5*` / `codex-*` families go through the Responses API, which rejects
   `temperature`/`topP` — an offline spec asserting on sampling params must not use them.
-- Tools "called with `{}`" in a round of several parallel calls → the stream's argument deltas carried no
-  usable position (seen through a proxy on the Responses API) and langchain joins them by position →
-  read calls through `toolCallsHelper` (the record in `response_metadata.output` wins by call id).
-- Through some proxies a model keeps calling tools under `tool_choice: 'none'`, and a forced `any` is
-  ignored (an `invoke` answered in words) → `ask`'s answer-now turn binds no tool at all; `invoke` is
-  re-asked with its output tool pinned by name.
+- Parallel tool calls can show empty arguments when a Responses proxy drops delta positions.
+  `toolCallsHelper` recovers the provider record from `response_metadata.output` by call id.
+- Some proxies ignore `tool_choice: 'none'` and forced `any`. The final `ask` binds no tools when
+  it can answer directly. The final `invoke` re-asks with its output tool pinned by name.
 - Claude 5-series models reason ADAPTIVELY whether or not the request asks, and it is billed from
   the same `max_tokens` as the answer — a budget sized for the answer alone comes back as a
   thinking-only completion with `stop_reason: "max_tokens"` and no text block. `ADAPTIVE_MIN_MAX_TOKENS`
@@ -96,25 +95,26 @@ model factory service, the generic execution service. Related: [[versioning]].
 - Anthropic never sets `response_metadata.finish_reason`; langchain puts the stop reason in
   `additional_kwargs.stop_reason`. Reading only the former printed `finishReason: undefined` on
   every Anthropic null report, hiding the cause above.
+- The OpenAI SDK's SSE reader swallows an AbortError-shaped body error into a short "success" and fails
+  on a half event flushed at end of stream: a wrapper around a provider body errors with
+  `LlmModelError('stream-stalled:…')` and forwards complete SSE records only.
 - An empty completion is classified as a null result BEFORE the caller's filter runs. Every shipped
   filter returns null only for empty input, so letting one run first blamed the caller and skipped
   `reportNull` — losing the only diagnostics that explain the failure.
 
 ## Pointers
 
-- `packages/llm/README.md` — the resilience table (what the package already handles) and the
-  plugin-authoring example; skills `llm` / `llm-common`.
+- `packages/llm/README.md` — the resilience table and the plugin-authoring example.
 - Skills: `llm`, `llm-common` and `inquiry` (the transport registry and `ExecutionService.ask`).
   The `ModelProvider.Delegated` runtime is `@owlmeans/llm-delegate` in the `internal` monorepo —
   contracts here, runtime there; consumers reach it through `@owlmeans/viable`.
 - Consumer side: `viable-agent` skills `/llm-model` and `/execution`.
-- `@langchain/anthropic` 1.5.8 validates its own UNSENT `thinking: disabled` default: an Opus 5/5.5
-  call at `xhigh`/`max` with no `thinking` set threw locally (not a 400, so retried to exhaustion).
-  The plugin sets the unsent field to `adaptive` on the 5 family (`withLocalThinking`); the SDK's
-  `ThinkingConfigParam` has no `between_tools`, but langchain forwards the object unchanged.
+- `@langchain/anthropic` 1.5.8 validates its UNSENT `thinking: disabled` default: Opus 5/5.5 at `xhigh`/`max`
+  threw locally (retried to exhaustion); `withLocalThinking` sets it to `adaptive` on the 5 family (the
+  SDK type lacks `between_tools`, langchain forwards the object unchanged).
 - Sonnet 5.5, Opus 5.5 and Fable/Mythos 5.1 answer a pinned `tool_choice` with a 400, and Opus 5.5 /
-  Fable 5 / Mythos 5 refuse every thinking off switch — hence the per-family table (Sonnet 5.5 takes
-  `between_tools` + `auto` + `strict`).
-- `@langchain/openai` 1.5.x sends its constructor `reasoning` only for `o*`/`gpt-5*` names, so a
-  `gpt-6-*` effort rides `modelKwargs.reasoning`. OpenAI's non-strict `json_schema` hides a PROPERTY
-  named `required` from the model — such a schema is refused up front.
+  Fable 5 / Mythos 5 refuse every thinking off switch. The per-family table allows Sonnet 5.5
+  to use `between_tools` with `auto` and `strict`.
+- `@langchain/openai` 1.5.x sends constructor `reasoning` only for `o*` and `gpt-5*`.
+  `gpt-6-*` uses `modelKwargs.reasoning`. Non-strict `json_schema` hides validation keywords,
+  so the helper mirrors constraints in descriptions and refuses properties with reserved names.

@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/web-payment
 
-**Install:** `bun add @owlmeans/web-payment@^0.2.3-alpha.0`
+**Install:** `bun add @owlmeans/web-payment@^0.2.3`
 
 Public MIT web package paired with `@owlmeans/server-payment`. It incorporates checkout, balance,
 entitlement and shallow-auth helpers over the underlying `@owlmeans/client-payment` service, plus
@@ -251,8 +251,8 @@ useCancellation(cancel) → { submit, receipt, pending, error, reset, form }
 ### Recognising a consent refusal
 
 `consentRefusalHelper.isConsentRefusal(e)` — `consentRefusalOf(e) != null` (the class after the registry, or its marker
-in `message`/`type`) OR `apiStatusHelper.httpStatusOf(e) === 428` (`@owlmeans/api/status`: a production body is only
-an incident id, so the status is all that is left). Read on the error AND on what it wraps —
+in `message`/`type`) OR `apiStatusHelper.httpStatusOf(e) === 428` (`@owlmeans/api/status`: a body that lost the class —
+an older server, a proxy — leaves only the status). Read on the error AND on what it wraps —
 `cause`, `error`, `original`, `originalError`, `inner`, `reason`, an aggregate's `errors`, and
 strings — five levels deep with a cycle guard, so a planning `CommitFailed`
 (`planning:commit-failed:<transition>:<the refusal's text>`) is recognised without depending on

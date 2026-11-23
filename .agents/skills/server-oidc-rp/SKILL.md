@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-oidc-rp
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-rp": "^0.2.3-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-rp": "^0.2.3"` in `dependencies`
 
 ## Key Exports
 

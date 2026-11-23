@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/package-inspector
 
 **Layer:** Domain (cross-cutting, environment-agnostic)
-**Install:** `"@owlmeans/package-inspector": "^0.2.3-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/package-inspector": "^0.2.3"` in `dependencies`
 **Adapters:** OwlMeans connect — `@owlmeans/package-registry-npm` (`createNpmRegistry`, `appendNpmRegistry`)
 
 Answers one question before an AI agent installs a package a person named ("use the loadsh package"):

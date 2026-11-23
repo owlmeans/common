@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/api
 
 **Layer:** Core
-**Install:** `"@owlmeans/api": "^0.2.3-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/api": "^0.2.3"` in `dependencies`
 
 ## Key Exports
 
@@ -103,11 +103,12 @@ browser reads that header cross-origin only when the server exposes it, the body
 
 | Body | Rejects with |
 |---|---|
-| Development — the marshaled `ResilientError` (carries the separator) | The original class, rebuilt through the registry, stamped `responseStatus` and `incidentId` |
-| Production — a bare incident UUID; also proxy HTML, framework JSON, anything else | `ServerCrashedError` `api:client:crashed:<id>` (500) · `ServerAuthError` `api:client:auth:<id>` (401) · `ApiClientError` `api:client:forbidden[:<id>]` (403) · `ApiStatusError` `api:client:status:<n>[:<id>]` (every other status) |
+| The marshaled `ResilientError` (carries the separator) — every development body, and a production typed 4xx refusal (empty stack) | The original class, rebuilt through the registry, stamped `responseStatus` and `incidentId` |
+| A bare incident UUID (a production fault, an older server); also proxy HTML, framework JSON, anything else | `ServerCrashedError` `api:client:crashed:<id>` (500) · `ServerAuthError` `api:client:auth:<id>` (401) · `ApiClientError` `api:client:forbidden[:<id>]` (403) · `ApiStatusError` `api:client:status:<n>[:<id>]` (every other status) |
 
-An `@owlmeans/server-api` boundary in production exposure sends ONLY the incident id, so a typed
-refusal's class never reaches the browser — its status does. Read it with
+An `@owlmeans/server-api` boundary in production exposure sends a typed 4xx refusal without its
+stack (its class reaches the browser) and a fault as the incident id ALONE; a body that lost the class
+still carries the status. Read it with
 `apiStatusHelper.httpStatusOf(e)`: the stamped `responseStatus`, else an `ApiClientError`'s parsed
 `status`, else a class's declared `httpStatus` (a 4xx; a 5xx only with `allowServerErrorStatus`,
 exactly what the server answers), else an `api:client:*` marker in the message or type; `null` when

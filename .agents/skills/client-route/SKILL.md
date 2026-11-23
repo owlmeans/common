@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-route
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-route": "^0.2.3-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/client-route": "^0.2.3"` in `dependencies`
 
 ## Key Exports
 

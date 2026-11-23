@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/llm",
-  "version": "0.2.3-alpha.0",
-  "generatedAt": "2026-11-22T10:31:17.730Z",
+  "version": "0.2.3",
+  "generatedAt": "2026-11-23T12:48:29.721Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -187,9 +187,6 @@
             "ANTHROPIC_SECRET",
             "OPENAI_SECRET",
             "OPENROUTER_SECRET",
-            "tool-rounds.spec.ts",
-            "tool-calls.spec.ts",
-            "tool-golden.ts",
             "media.spec.ts",
             "capabilities.spec.ts",
             "trace.spec.ts",
@@ -223,37 +220,6 @@
             "TokenBudgetFitOptions",
             "TOKEN_BUDGET_SEPARATOR",
             "gpt-tokenizer"
-          ]
-        },
-        {
-          "name": "tools",
-          "file": "skills/llm/parts/tools.md",
-          "description": "Look tools inside ONE ask or invoke call (LlmCallTools) — rounds within an attempt, stop tools that end the call with a caller-supplied value, the round budget and the answer-now turn (tool-less for ask), invoke's re-ask with the output tool pinned, what a retry carries, how the call's ladder (budget climb, schema refusal, prune, background mode) wraps the rounds, parallel calls whose streamed arguments were lost (toolCallsHelper), the plain call on a rung without tools, spectating and cache marks per round, and continuing the conversation through ref.conversation.",
-          "purposes": [
-            "agent"
-          ],
-          "mentions": [
-            "LlmCallTools",
-            "LlmStopTool",
-            "LlmToolConversation",
-            "RefferedResult",
-            "DEFAULT_TOOL_ROUNDS",
-            "toolCalling",
-            "maxRounds",
-            "exhausted",
-            "onToolCall",
-            "tool_choice",
-            "loopCache",
-            "makeRoundsUtils",
-            "toolCallUtils",
-            "toolCallsHelper",
-            "toolCallsOf",
-            "parseArguments",
-            "FINAL_TURN_REASKS",
-            "OUTPUT_TOOL_REQUIRED",
-            "TOOL_ROUNDS_NOTE_HEADER",
-            "CARRIED_LOOKUPS_HEADER",
-            "parallel tool calls"
           ]
         },
         {

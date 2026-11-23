@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/agent
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent": "^0.2.3-alpha.0"` in `dependencies`, plus the `@langchain/core` and
+**Install:** `"@owlmeans/agent": "^0.2.3"` in `dependencies`, plus the `@langchain/core` and
 `@langchain/langgraph` **peers**
 
 The agent runtime. Contracts live in `@owlmeans/agent-common`.
@@ -20,7 +20,7 @@ The agent runtime. Contracts live in `@owlmeans/agent-common`.
 | `makeAgentModel(options)` | An agent over the LangGraph functional API: `invoke(input, { action, context, stop, inbox })`, `use`, `conversation`. |
 | `AgentInbox` · `AGENT_INBOX_PREFIX` | The person's messages for a running loop (`drain`, `drainOrClose`) and the prefix of the turn that carries them. |
 | `AGENT_STOP_INSTRUCTION` · `AGENT_STOPPED_TOOL_RESULT` · `AGENT_STOP_SUMMARY_TIMEOUT_MS` · `AGENT_STOPPED_NOTE` | A stopped loop's summary turn, the answer to a tool call it did not run, the summary's deadline, the `autoFinish` note. |
-| `makePipeline(spec, options)` | A resumable state machine over a checkpointed LangGraph `StateGraph`: `invoke`, `resume`, `snapshot`, `asStep`. `options.plugins` seats `PipelinePlugin`s; `stop` on `invoke`/`resume` is the cooperative stop (`PipelineResult.stopped`, `PipelineStopReason`). |
+| `makePipeline(spec, options)` | A resumable state machine over a checkpointed LangGraph `StateGraph`: `invoke`, `resume`, `snapshot`, `asStep`. `options.plugins` seats `PipelinePlugin`s; `options.fatal` errors are written `Failed` and rethrown, and `options.expected` names those logged as a warn stop rather than an error; `stop` on `invoke`/`resume` is the cooperative stop (`PipelineResult.stopped`, `PipelineStopReason`). |
 | `cumulativeResultsPlugin(options)` · `CUMULATIVE_RESULTS_PLUGIN` · `DEFAULT_RESULT_SUMMARY_SCHEMA` | CUMULATIVE PIPELINE RESULTS — tells every step what its predecessors produced; see the `cumulative-results` part. |
 | `PipelinePlugin` and its events, `StepResults`, `PipelineParentRef` | The pipeline plugin seam (types, from `./pipeline`). |
 | `makeCheckpointSaver(store)` | A `BaseCheckpointSaver` over the `CheckpointStore` port. |
@@ -73,9 +73,6 @@ strips and re-marks copies, the opening at its boundaries and the growing conver
 round after round — and streams with the call options it returns. The plugin is
 `AgentOptions.provider ?? llmPluginRegistry.resolveFor(model)` for the primary, resolved on the
 unbound model; `cacheSystem: false` on the persona sends no markers. Detail: [[llm-prompt-caching]].
-The round's answer is `toolCallsHelper.messageOf(final, plugin)`: the calls it runs are the ones the
-provider recorded whole when the streamed fragments of parallel calls lost their arguments (the llm
-`tools` part).
 
 **Images and PDFs ride the opening; the first rung that accepts them answers** — or `invoke` refuses
 the run before it starts. A tool result is always text. Detail: the `media` part.

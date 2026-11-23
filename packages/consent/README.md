@@ -15,7 +15,7 @@ preferences on the server are `@owlmeans/marketing-consent`, not this package.
 ## Installation
 
 ```bash
-bun add @owlmeans/consent@^0.2.3-alpha.0
+bun add @owlmeans/consent@^0.2.3
 ```
 
 ## Concepts

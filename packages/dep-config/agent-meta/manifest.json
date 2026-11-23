@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/dep-config",
-  "version": "0.2.3-alpha.0",
-  "generatedAt": "2026-11-22T10:31:17.732Z",
+  "version": "0.2.3",
+  "generatedAt": "2026-11-23T12:48:29.723Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

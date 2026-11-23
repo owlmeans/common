@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/entrypoint",
-  "version": "0.2.3-alpha.0",
+  "version": "0.2.3",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -38,13 +38,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.2.3-alpha.0",
-    "@owlmeans/context": "^0.2.3-alpha.0",
-    "@owlmeans/route": "^0.2.3-alpha.0",
+    "@owlmeans/auth": "^0.2.3",
+    "@owlmeans/context": "^0.2.3",
+    "@owlmeans/route": "^0.2.3",
     "ajv": "^8.20.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.3-alpha.0",
+    "@owlmeans/dep-config": "^0.2.3",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

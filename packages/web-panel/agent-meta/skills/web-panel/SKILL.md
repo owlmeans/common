@@ -1,6 +1,6 @@
 ---
 name: web-panel
-description: "How to use @owlmeans/web-panel — base browser context factory (makeContext) with shadcn/Radix + Tailwind and the default OwlMeans router wired in, the two-layer navigation shell (NavLayout/TopNav/SideNav/Footer), form/panel components, and the controlled JSON editor (`./editor`: JsonEditor), the standard icon + colour picker (`./picker`: IconColorPicker, ColorPicker, IconPicker, IconTile, ColorDot). Auto-invoked when building a web app's makeContext, wiring its navigation or layout, importing web panel components, or letting a person choose (or showing) an icon or a colour."
+description: How to use @owlmeans/web-panel — base browser context factory (makeContext) with shadcn/Radix + Tailwind and the default OwlMeans router wired in, the two-layer navigation shell (NavLayout/TopNav/SideNav/Footer), form/panel components, and the controlled JSON editor (`./editor`: JsonEditor), the standard icon + colour picker (`./picker`: IconColorPicker, ColorPicker, IconPicker, IconTile, ColorDot). Auto-invoked when building a web app's makeContext, wiring its navigation or layout, importing web panel components, or letting a person choose (or showing) an icon or a colour.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.2.3-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.2.3"` in `dependencies`
 
 ## Choosing a component
 

@@ -3,7 +3,7 @@ name: pipelines
 description: Resumable pipelines over a checkpointed StateGraph — steps and edges, the PipelinePlugin seam, and the rules for run rows, step guards, state size, failures and retries.
 metadata:
   purposes: agent, job, state
-  mentions: makePipeline, PipelineSpec, PipelinePlugin, asStep, skipWhen, nonIdempotent, makeCheckpointSaver, PipelineRunStore, CheckpointStore, maxStateChars, ctx.mark, ctx.stop, PipelineStopReason, @owlmeans/agent/pipeline
+  mentions: makePipeline, PipelineSpec, PipelinePlugin, asStep, skipWhen, nonIdempotent, makeCheckpointSaver, PipelineRunStore, CheckpointStore, maxStateChars, ctx.mark, ctx.stop, PipelineStopReason, PipelineOptions.fatal, PipelineOptions.expected, @owlmeans/agent/pipeline
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
@@ -25,7 +25,7 @@ const spec: PipelineSpec = {
   ],
 }
 
-const pipeline = makePipeline<State, Deps>(spec, { steps, runs, checkpointer, fatal })
+const pipeline = makePipeline<State, Deps>(spec, { steps, runs, checkpointer, fatal, expected })
 await pipeline.invoke(seed, { runId, deps, scope: projectId, stop: person.signal })
 await pipeline.resume(runId, { deps, from: 'data' })
 ```
@@ -142,6 +142,15 @@ truncated, because a resume replaying from a cut-down state replays from a state
 write before it decides anything, and a throwing runner puts that in a `catch` where it gets
 forgotten. The one exception is `options.fatal`: those are written to the row Failed FIRST and then
 rethrown, so an exhausted budget cannot become a result a caller carries on from.
+
+**A fatal error a person resolves is logged as a stop, not a failure.** `options.expected(e)` is
+asked of an error `fatal` called fatal; a non-empty answer is its reason, and the run's terminal line
+is `warn` `Pipeline stopped` (`reason`, `step`, `message`, no stack; event `job.stop`) instead of
+`error` `Pipeline failed` (`job.fail`). Logging only — the row, `failedAt` and the rethrow are a fatal
+error's either way, so a resume continues from the step. The runner knows no reason of its own: the
+application passes the classifier beside its `fatal` (a platform names an exhausted balance
+`out of credits`). Absent, answering nothing, or throwing (`Pipeline stop classifier failed`, warn),
+the fatal error stays an `error` line.
 
 **No default retry.** `attempts` defaults to 1, because retry budgets in this family MULTIPLY — an
 outer retry around a model's own inner retry is their product. `attempts > 1` on a `nonIdempotent`

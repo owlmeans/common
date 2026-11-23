@@ -6,7 +6,7 @@ abstraction that resolves models from an inheritable policy.
 
 ## Overview
 
-- **Model** — `ask` / `talk` / `invoke` / `request` with streaming under an idle deadline,
+- **Model** — `ask` / `talk` / `invoke` / `request` with streaming under connection and progress deadlines,
   retry with an escalating output budget, schema validation and coercion, observability
   and full diagnostics when a call returns nothing usable
 - **Plugins** — everything provider-specific (client construction, retry refinement,
@@ -22,7 +22,7 @@ abstraction that resolves models from an inheritable policy.
 ## Installation
 
 ```bash
-bun add @owlmeans/llm@^0.2.3-alpha.0 @owlmeans/llm-common@^0.2.3-alpha.0
+bun add @owlmeans/llm@^0.2.3 @owlmeans/llm-common@^0.2.3
 bun add @langchain/core @langchain/openai @langchain/anthropic   # peer dependencies
 ```
 
@@ -197,11 +197,16 @@ later call to continue. Without `tools` a call sends exactly what it always did.
 
 | Problem | What the package does |
 |---------|-----------------------|
-| Provider accepts the request and never streams | Independent idle deadline rejects stream creation or reads and aborts the SDK; late values and cleanup cannot delay the retry — `ModelConfig.streamTimeout` |
+| Provider accepts the request and never streams | Independent connection deadline rejects stream creation or reads and aborts the SDK; late values and cleanup cannot delay the retry — `ModelConfig.streamTimeout` (3 min of silence) |
+| A long call looks like a dead one | Every byte the attempt's client receives (keepalives, pings, SSE comments) re-arms the connection deadline; a progress deadline, re-armed by content only, ends a connection kept alive with nothing behind it — `ModelConfig.progressTimeout` (10 min); both are retried without climbing |
+| An OpenAI stream drops in the middle of a long answer | On the direct route a call at effort `high` or above runs in background mode: the response is polled, a dropped stream completed after its last event (resumed, or from the stored response once it finished), an abandoned response cancelled — `ModelConfig.background` |
 | Duplicate final SSE chunk corrupts tool-call arguments | After the first non-empty `finish_reason` only usage-only chunks are delivered (a bounded drain, so Chat Completions' trailing usage is still billed) |
-| Reasoning eats the whole output budget | Retry doubles `maxTokens` toward `maxTokensCap` **and** shrinks an absolute reasoning cap |
+| Reasoning eats the whole output budget | A retry after a null, empty or unparseable answer or a filter refusal doubles `maxTokens` toward `maxTokensCap` **and** shrinks an absolute reasoning cap; a schema refusal, a stall or a transport error is asked again at the same budget |
 | A weak cheap model keeps failing | Walks the `ModelConfig.fallback` chain, `FALLBACK_AFTER_ATTEMPTS` attempts per rung; a rung may be another provider, called in its own dialect |
-| The same model keeps giving the same weak answer | Climbs `ModelConfig.effort` one level per attempt of the rung, up to the model's ceiling; a `TemperatureFactory` request climbs it too |
+| The same model keeps giving the same weak answer | Climbs `ModelConfig.effort` one level per budget-fixable failure on the rung, up to the model's ceiling; a `TemperatureFactory` request climbs it too |
+| OpenAI's non-strict `json_schema` hides `required`, lengths, counts, bounds, `pattern`, `format` | The OpenAI family sends a copy of the schema stating them in each node's `description`; Ajv validates the original |
+| The model is not told why its answer failed the schema | A schema refusal no `guide` corrects gets a default correction: up to eight errors with paths, rules and the refused fragments |
+| The same schema refusal comes back after a correction | The call moves to the next fallback rung; on the last it ends (`LlmRetryExceededError('repeated-refusal')`), or with `prune: true` returns the answer with the refused optional parts dropped, if the filter and the schema accept it |
 | Model stringifies arrays / over-wraps scalars | `jsonHelper.coerceToSchema` reconciles the answer with the schema before validation |
 | Model ignores the tool and answers in prose | `jsonHelper.parseJsonContent` salvages JSON from fences and surrounding text; a call with `tools` asks again with the output tool pinned by name |
 | Parallel tool calls stream without their arguments (fragments with no usable position, seen through proxies) | `toolCallsHelper` rebuilds the calls from the provider's own record (`LlmPlugin.toolCallsOf`; OpenAI Responses: `response.completed`), else regroups the chunks — no call dropped, ids kept |
@@ -280,7 +285,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.3-alpha.0
+npx @owlmeans/agent-skills@^0.2.3
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

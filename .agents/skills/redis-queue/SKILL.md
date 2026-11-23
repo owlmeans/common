@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/redis-queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis-queue": "^0.2.3-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/redis-queue": "^0.2.3"` in `dependencies`
 
 The driver behind `@owlmeans/queue`, on BullMQ over the existing Redis connection. Contracts live
 in `queue`; nothing here belongs in an application's imports beyond the wiring call.
@@ -88,7 +88,17 @@ part of what this process promised.
 
 A name neither answers fails as an `UnrecoverableError` carrying a marshalled `UnknownJobName`, so
 BullMQ spends one attempt however many the job allows, and the producer's `wait()` still rebuilds
-the error as its own class. `start()` is idempotent — a queue already bound is left alone.
+the error as its own class. An ENTREPOINT job whose reply carries `error` (a refusal the handler or
+its guard answered — `jobRecordHelper.refusalOf`) fails the same way, after `wrapHandler` has seen the
+reply: the job lands in `failed` with the refusal as its reason, `Job attempt failed` + `Job dead`
+are logged and `onJobDead` fires — never `completed` with the error in its return value. A processor
+registered with `process()` keeps its own return contract. `start()` is idempotent — a queue already
+bound is left alone.
+
+`JobContext.attempt` is BullMQ's `attemptsStarted` (a stall redelivery counts up; `attemptsMade`
+does not), `JobContext.stalls` its `stalledCounter` — what tells a redelivery after a dead worker
+from a retry after a failure — and `JobContext.enqueuedAt` its job `timestamp` (stamped at `add`,
+outside the job's data; the same on every attempt), which a signed job's freshness is judged at.
 
 Worker options come from the declaration's `worker` block over these defaults, which deliberately
 differ from BullMQ's: `lockDuration` 60 s rather than 30 (a model call that neither answers nor

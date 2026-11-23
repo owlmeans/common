@@ -14,16 +14,35 @@ export interface BasicEd25519GuardOptions {
   cache?: string
   /** Explicit replay store, for consumers that do not register a Resource on the context. */
   replay?: SignedRequestReplayStore
+  /**
+   * How long (ms) a nonce claimed by a queued request stays bound to its job at least, so the broker's
+   * own redelivery of that job is admitted on it. Default {@link BED255_DELIVERY_TTL}. A delivery that
+   * carries the queue's window (`RequestDelivery.maxAge`) keeps its claim until that window after the
+   * signature has passed, whichever is later.
+   */
+  deliveryTtl?: number
 }
 
 /** A create-once claim over one signed request identity. */
 export interface SignedRequestReplayStore {
-  claim: (id: string, expiresAt: Date) => Promise<boolean>
+  /**
+   * Claim `id` until `expiresAt`. `owner` binds the claim to one delivery of the request (a queued
+   * job, `RequestDelivery.id`); a claim another caller already holds answers `false` — whoever holds it.
+   */
+  claim: (id: string, expiresAt: Date, owner?: string) => Promise<boolean>
+  /**
+   * The owner a live claim was bound to — `null` when the claim is gone or was taken without an
+   * owner (an HTTP request). A store without it never recognises a redelivery: every second
+   * presentation of a nonce is a replay there.
+   */
+  holder?: (id: string) => Promise<string | null>
 }
 
 /** The small Resource surface needed by the Redis-compatible replay adapter. */
 export interface SignedRequestReplayResource extends BasicResource {
   create: (record: Partial<ResourceRecord>, opts?: WriteOptions) => Promise<ResourceRecord>
+  /** Reads a claim back for {@link SignedRequestReplayStore.holder}; without it no redelivery is recognised. */
+  load?: (id: string) => Promise<ResourceRecord | null>
 }
 
 /** What `signBasicEd25519Request` signs: the request body and the signer's identity. */

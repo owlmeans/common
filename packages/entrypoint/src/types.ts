@@ -96,6 +96,37 @@ export interface AbstractRequest<T extends {} = {}> {
   onUploadProgress?: TransferProgressListener
   /** Called as the response body is received, when the transport can report it (HTTP). */
   onDownloadProgress?: TransferProgressListener
+  /**
+   * Which delivery of a request this is, when the transport that delivered it can deliver the same
+   * request more than once — a queue hands a job back after its worker died (a stall) or after a
+   * failed attempt (a retry). Set only in-process by such a transport (the queue bridge, from the
+   * broker's own job identity); it is never read from or written to the wire, so an HTTP request
+   * never carries it.
+   */
+  delivery?: RequestDelivery
+}
+
+/**
+ * One delivery of a request by a transport that may deliver it again. An admission claim bound to a
+ * request (a signed request's nonce) is bound to `id`, so the transport's own redelivery presents
+ * the claim it already holds instead of reading as a replay.
+ */
+export interface RequestDelivery {
+  /** The delivery identity, stable across redeliveries (`<queue>:<job id>`). */
+  id: string
+  /** 1 for the first delivery; every redelivery counts up. */
+  attempt: number
+  /**
+   * When the request entered the transport (ms since the epoch) — the transport's own record (the
+   * broker's job timestamp), never the request's data. A signed request's freshness is judged at this
+   * moment, so a request that waited in the transport is not refused for the wait.
+   */
+  enqueuedAt?: number
+  /**
+   * How long after `enqueuedAt` the transport still delivers the request (ms) — its own window (the
+   * queue's `envelopeTtl`). Absent: the transport sets no bound, and freshness is judged at delivery.
+   */
+  maxAge?: number
 }
 
 /** How far one direction of a transfer has got, as the transport reports it. */
