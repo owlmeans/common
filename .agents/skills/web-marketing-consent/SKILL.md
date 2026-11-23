@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-marketing-consent
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-marketing-consent": "^0.2.2"` in `dependencies`
+**Install:** `"@owlmeans/web-marketing-consent": "^0.2.3"` in `dependencies`
 **Contracts:** `@owlmeans/marketing-consent` — the catalogue, `marketingConsentHelper.consentStatus`, the protocol tree
 **Server half:** `@owlmeans/server-marketing-consent` — `serveMarketingConsentEntrypoints` binds the
 same `status`/`save`/`terms` protocols this package calls

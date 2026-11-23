@@ -66,5 +66,5 @@ them; write your own guidance as separate, un-bannered files. Refresh after addi
 `@owlmeans/*` packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.2
+npx @owlmeans/agent-skills@^0.2.3
 ```

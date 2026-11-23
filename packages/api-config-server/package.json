@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/api-config-server",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,13 +31,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api-config": "^0.2.2",
-    "@owlmeans/server-api": "^0.2.2",
-    "@owlmeans/server-context": "^0.2.2",
-    "@owlmeans/server-entrypoint": "^0.2.2"
+    "@owlmeans/api-config": "^0.2.3",
+    "@owlmeans/server-api": "^0.2.3",
+    "@owlmeans/server-context": "^0.2.3",
+    "@owlmeans/server-entrypoint": "^0.2.3"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.2",
+    "@owlmeans/dep-config": "^0.2.3",
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

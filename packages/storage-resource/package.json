@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/storage-resource",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -36,22 +36,22 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1158.0",
-    "@owlmeans/context": "^0.2.2",
-    "@owlmeans/error": "^0.2.2",
-    "@owlmeans/log": "^0.2.2",
-    "@owlmeans/resource": "^0.2.2",
-    "@owlmeans/server-context": "^0.2.2",
-    "@owlmeans/storage-common": "^0.2.2",
+    "@owlmeans/context": "^0.2.3",
+    "@owlmeans/error": "^0.2.3",
+    "@owlmeans/log": "^0.2.3",
+    "@owlmeans/resource": "^0.2.3",
+    "@owlmeans/server-context": "^0.2.3",
+    "@owlmeans/storage-common": "^0.2.3",
     "file-type": "^22.2.0",
-    "@owlmeans/file-inspector": "^0.2.2"
+    "@owlmeans/file-inspector": "^0.2.3"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.2",
+    "@owlmeans/dep-config": "^0.2.3",
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2",
-    "@owlmeans/test": "^0.2.2",
-    "@owlmeans/test-integration": "^0.2.2",
+    "@owlmeans/test": "^0.2.3",
+    "@owlmeans/test-integration": "^0.2.3",
     "@types/bun": "^1.4.4"
   },
   "publishConfig": {

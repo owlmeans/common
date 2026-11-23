@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-db
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-db": "^0.2.2"` in `dependencies`
+**Install:** `"@owlmeans/web-db": "^0.2.3"` in `dependencies`
 
 ## Key Exports
 

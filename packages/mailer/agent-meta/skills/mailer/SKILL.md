@@ -8,7 +8,7 @@ metadata:
 
 # Using `@owlmeans/mailer`
 
-**Install:** `"@owlmeans/mailer": "^0.2.2"` in `dependencies`
+**Install:** `"@owlmeans/mailer": "^0.2.3"` in `dependencies`
 
 Provider-agnostic email dispatch. Callers resolve one `MailerService` by alias and call `send`;
 behind that alias sits the **mailer host**, which dispatches every message to one registered

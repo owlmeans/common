@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-socket
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-socket": "^0.2.2"` in `dependencies`
+**Install:** `"@owlmeans/client-socket": "^0.2.3"` in `dependencies`
 
 The browser carrier for `@owlmeans/socket`. It supplies the four members the connection model
 leaves abstract — `send`, `close`, `prepare`, `authenticate` — and hands back a plain `Connection`,

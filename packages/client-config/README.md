@@ -13,7 +13,7 @@ knows about React or the browser.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-config@^0.2.2
+bun add @owlmeans/client-config@^0.2.3
 ```
 
 ## Concepts
@@ -121,7 +121,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.2
+npx @owlmeans/agent-skills@^0.2.3
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

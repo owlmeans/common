@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/queue",
-  "version": "0.2.2",
-  "generatedAt": "2026-11-22T08:55:49.262Z",
+  "version": "0.2.3",
+  "generatedAt": "2026-11-23T12:48:29.707Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

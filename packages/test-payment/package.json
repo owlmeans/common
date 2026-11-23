@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/test-payment",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,17 +32,17 @@
   },
   "description": "Test harness for @owlmeans/server-payment and its providers: an in-memory context, catalogue fixtures and a fake paygate.",
   "dependencies": {
-    "@owlmeans/context": "^0.2.2",
-    "@owlmeans/mailer": "^0.2.2",
-    "@owlmeans/mongo-resource": "^0.2.2",
-    "@owlmeans/payment": "^0.2.2",
-    "@owlmeans/resource": "^0.2.2",
-    "@owlmeans/server-api": "^0.2.2",
-    "@owlmeans/server-context": "^0.2.2",
-    "@owlmeans/server-payment": "^0.2.2"
+    "@owlmeans/context": "^0.2.3",
+    "@owlmeans/mailer": "^0.2.3",
+    "@owlmeans/mongo-resource": "^0.2.3",
+    "@owlmeans/payment": "^0.2.3",
+    "@owlmeans/resource": "^0.2.3",
+    "@owlmeans/server-api": "^0.2.3",
+    "@owlmeans/server-context": "^0.2.3",
+    "@owlmeans/server-payment": "^0.2.3"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.2",
+    "@owlmeans/dep-config": "^0.2.3",
     "@types/bun": "^1.4.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

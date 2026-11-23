@@ -14,7 +14,7 @@ shared auth protocols and organization-entity resolution (`makeEntityScope(req)`
 ## Installation
 
 ```bash
-bun add @owlmeans/auth@^0.2.2
+bun add @owlmeans/auth@^0.2.3
 ```
 
 `ajv` is a **peer** dependency — install it alongside, or `authHelper.verifyAuth` /
@@ -331,7 +331,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.2
+npx @owlmeans/agent-skills@^0.2.3
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

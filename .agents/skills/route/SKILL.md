@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/route
 
 **Layer:** Core
-**Install:** `"@owlmeans/route": "^0.2.2"` in `dependencies`
+**Install:** `"@owlmeans/route": "^0.2.3"` in `dependencies`
 
 ## Key Exports
 

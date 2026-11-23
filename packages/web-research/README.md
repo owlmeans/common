@@ -12,7 +12,7 @@ and storage are ports the consumer wires.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-research@^0.2.2
+bun add @owlmeans/web-research@^0.2.3
 bun add @langchain/core @langchain/langgraph @langchain/langgraph-checkpoint @langchain/openai @langchain/anthropic
 ```
 
@@ -189,7 +189,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.2
+npx @owlmeans/agent-skills@^0.2.3
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -5,7 +5,7 @@ description: "Generate and retain mandatory third-party license texts and attrib
 
 # Third-party notices
 
-**Install:** `"@owlmeans/dep-config": "^0.2.2"` in build-time devDependencies.
+**Install:** `"@owlmeans/dep-config": "^0.2.3"` in build-time devDependencies.
 
 Use `createThirdPartyNoticesPlugin` from `@owlmeans/dep-config/notices` in Rollup/Vite plugins.
 Pass the build package's absolute `root`. The default output is `THIRD-PARTY-NOTICES.txt`.

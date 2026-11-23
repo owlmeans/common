@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "package": "@owlmeans/bot-postgres",
-  "version": "0.2.2",
-  "generatedAt": "2026-11-21T09:26:21.979Z",
+  "version": "0.2.3",
+  "generatedAt": "2026-11-23T12:48:29.718Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
