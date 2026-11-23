@@ -62,9 +62,9 @@ export const createAgentPresentationHelper = (): AgentPresentationHelper => {
     }
 
     // Checked ahead of the single-array shapes below: a scaffold plan carries its own `stories`
-    // array (so the StoryPlan check would otherwise swallow it), and a runtime decision straight
+    // array (so the WorkcardPlan check would otherwise swallow it), and a runtime decision straight
     // from the MODEL never carries `actor`/`worker` — those are added only once the decision is
-    // persisted onto a StoryDesign — so requiring them here missed every live model call.
+    // persisted onto a WorkcardDesign — so requiring them here missed every live model call.
     if ('identity' in object && 'guestHome' in object && 'areas' in object && 'stories' in object) {
       return AgentStructuredKind.ScaffoldPlan
     }
@@ -74,7 +74,7 @@ export const createAgentPresentationHelper = (): AgentPresentationHelper => {
 
     if (Array.isArray(object.files)) return AgentStructuredKind.ArtifactSelection
     if (Array.isArray(object.entities)) return AgentStructuredKind.EntitySelection
-    if (Array.isArray(object.stories)) return AgentStructuredKind.StoryPlan
+    if (Array.isArray(object.stories)) return AgentStructuredKind.WorkcardPlan
     if (Array.isArray(object.screens)) return AgentStructuredKind.ScreenPlan
     if (Array.isArray(object.components)) return AgentStructuredKind.ComponentPlan
     if (Array.isArray(object.transitions)) return AgentStructuredKind.TransitionPlan

@@ -15,7 +15,8 @@
     "transit": "Status geändert",
     "link": "Verknüpft",
     "unlink": "Verknüpfung entfernt",
-    "delete": "Gelöscht"
+    "delete": "Gelöscht",
+    "retype": "Typ geändert"
   },
   "commit": {
     "pending": "Wird gespeichert…",
@@ -41,6 +42,7 @@
     "PlanningErrorSpecificationSlotUnknown": "Diese Art von Dokument ist hier nicht erlaubt",
     "PlanningErrorSpecificationRevisionConflict": "Dieses Dokument existiert bereits — bearbeite es stattdessen",
     "PlanningErrorRelationshipRefused": "Diese Verknüpfung ist nicht erlaubt",
+    "PlanningErrorRetypeNotAllowed": "Dieses Element kann nicht in diesen Typ geändert werden",
     "PlanningErrorCodeTaken": "Dieser Code ist bereits vergeben",
     "PlanningErrorWorkcardConflict": "Jemand hat dieses Element inzwischen geändert — neu laden und erneut versuchen",
     "PlanningErrorCommitTimeout": "Die Änderung wird noch gespeichert — prüfe es gleich noch einmal",

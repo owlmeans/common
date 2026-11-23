@@ -1,6 +1,6 @@
 ---
 name: materials
-description: The materials contract — files a person attaches to a NEW project's prompt and the references they point at instead (links, online research, npm packages): purposes, statuses, removal reasons and uses, the platform's catalogue record and its schema, the target's docs/materials/index.md document (render, parse, relevance, generated documents), the workload directories and keep list, the upload limits and the brief budget.
+description: "The materials contract — files a person attaches to a NEW project's prompt and the references they point at instead (links, online research, npm packages): purposes, statuses, removal reasons and uses, the platform's catalogue record and its schema, the target's docs/materials/index.md document (render, parse, relevance, generated documents), the workload directories and keep list, the upload limits and the brief budget."
 metadata:
   purposes: data, agent, config
   mentions: MaterialPurpose, MaterialStatus, MaterialRemoval, MaterialUseBy, MaterialUseTarget, ProjectMaterialRecord, ProjectMaterialRecordSchema, MaterialIndexEntry, MaterialIndexEntrySchema, materialIndexHelper, MATERIALS_DIR, MATERIALS_INDEX, MATERIALS_ASSETS_DIR, MATERIALS_ASSET_PURPOSES, MATERIALS_KEEP, MATERIALS_LIMITS, MATERIALS_UPLOAD_POLICY, MATERIAL_TEXT_KINDS, MATERIALS_BRIEF_TOKENS, MATERIALS_SCOPE_PURPOSE, materialPathHelper

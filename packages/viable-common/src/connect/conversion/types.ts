@@ -2,7 +2,7 @@ import type {
   ArchitectureCase, ConversionDecision, ConversionStage, ConversionStatus, ConvertibilityReason,
   ConvertibilityVerdict, OriginKind, OriginShape, OriginState
 } from '../../convert/consts.js'
-import type { ConversionEstimate, StoryEstimateBand } from '../../convert/estimate/types.js'
+import type { ConversionEstimate, WorkcardEstimateBand } from '../../convert/estimate/types.js'
 import type { ConversionStackRef } from '../../convert/record/types.js'
 import type { ConnectTarget, ConnectWaitReason } from '../consts.js'
 import type { InquiryPayload } from '../ops/types.js'
@@ -108,7 +108,7 @@ export interface ConversionStatusView {
   architecture?: ArchitectureCase
   /** One per stage that has been estimated, newest last. */
   estimates: ConversionEstimate[]
-  storyEstimate?: StoryEstimateBand
+  storyEstimate?: WorkcardEstimateBand
   originState: OriginState
   /** How many questions the conversion answered for itself. Each one is readable in the docs. */
   assumptions: number

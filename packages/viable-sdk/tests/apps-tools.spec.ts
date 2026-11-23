@@ -10,7 +10,7 @@ import { catalogue, catalogueHelper } from '../src/tools/catalogue.js'
 import { ToolHostKind } from '../src/tools/consts.js'
 import { registerCatalogue } from '../src/tools/mcp.js'
 import { listingProfile, localPluginProfile } from '../src/tools/profile/listing.js'
-import { storyHelper } from '../src/tools/stories.js'
+import { storyHelper } from '../src/tools/workcards.js'
 import type { McpServerLike, McpToolAnswer, ToolDeps, ToolHost } from '../src/tools/types.js'
 import { makeTargetTree } from './apps-fixture.js'
 

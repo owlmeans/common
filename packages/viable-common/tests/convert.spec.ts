@@ -10,7 +10,7 @@ import {
 } from '../src/convert/index.js'
 import { censusHelper } from '../src/convert/census.js'
 import { conversionStageHelper } from '../src/convert/stage.js'
-import { storyComplexity } from '../src/convert/estimate.js'
+import { workcardComplexity } from '../src/convert/estimate.js'
 import { conversionOriginHelper } from '../src/convert/origin.js'
 import { HISTORY_FILE } from '../src/metadata/consts.js'
 import { CONVERTED_ORIGIN_DIR, ConversionDecision } from '../src/convert/consts.js'
@@ -255,7 +255,7 @@ describe('viable-common - the conversion contracts', () => {
     for (const doc of CONVERSION_DOCS) {
       expect(doc.startsWith(`${CONVERSION_DIR}/`), doc).toBe(true)
     }
-    expect(conversionDocHelper.conversionStoryDoc('US-ABC12').startsWith(`${CONVERSION_DIR}/`)).toBe(true)
+    expect(conversionDocHelper.conversionWorkcardDoc('US-ABC12').startsWith(`${CONVERSION_DIR}/`)).toBe(true)
     // The whole-file summaries too — so they survive the relocation and the install with the rest.
     expect(conversionDocHelper.conversionSummaryDoc(CONVERSION_SUMMARY_ROOT))
       .toBe(`${CONVERSION_SUMMARY_DIR}/${CONVERSION_SUMMARY_ROOT}.md`)
@@ -331,10 +331,10 @@ describe('viable-common - the conversion contracts', () => {
       })),
     })
 
-    expect(storyComplexity(proof(2, 0))).toBe(1)
-    expect(storyComplexity(proof(5, 0))).toBe(1.5)
-    expect(storyComplexity(proof(2, 1))).toBe(1.5)
-    expect(storyComplexity(proof(2, 2))).toBe(2)
+    expect(workcardComplexity(proof(2, 0))).toBe(1)
+    expect(workcardComplexity(proof(5, 0))).toBe(1.5)
+    expect(workcardComplexity(proof(2, 1))).toBe(1.5)
+    expect(workcardComplexity(proof(2, 2))).toBe(2)
   })
 
   test('the source-list exclusions carry the metadata trees and the origin', () => {

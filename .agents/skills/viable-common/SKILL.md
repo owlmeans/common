@@ -1,13 +1,13 @@
 ---
 name: viable-common
-description: How to use @owlmeans/viable-common — the runtime-free contract package of the OwlMeans Viable platform. Covers planning cards and flows (including the landing-gate and tenancy fields), project/story refusals, the app map (apps, areas), slot commands and layouts, slot metadata keys, target integrity, connector domain statuses and routes, the client editions and their header, the intent-first hand-off (`./intent`), shared legal dates (`./legal`), conversion vocabulary, the materials contract (files and links attached to a new project), blueprint layer types and case vocabulary, ViableSkill/ViablePersona names, what belongs here vs in @owlmeans/viable, generated-project analysis/design/scaffold/metadata shapes, StoryDesignPort, schema conventions, and wire-version rules. Auto-invoked when importing a viable card type or flow, a slot command, a material or reference type, a materials helper, a connector, client-kind or conversion type, legal dates, a target-integrity helper, or any *Schema this package exports.
+description: How to use @owlmeans/viable-common — the runtime-free contract package of the Viable platform. Covers planning cards and flows (the five work-card types, containment, their documents and exchange shapes, landing-gate and tenancy fields), project/card refusals, the app map, slot commands and layouts, slot metadata keys, target integrity, connector statuses and routes (cards included), the client editions and their header, the intent-first hand-off (`./intent`), legal dates (`./legal`), conversion vocabulary, the materials contract, blueprint layer types and case vocabulary, ViableSkill/ViablePersona names, what belongs here vs in @owlmeans/viable, analysis/design/scaffold/metadata shapes, WorkcardDesignPort, schema conventions, and wire-version rules. Auto-invoked when importing a viable card type or flow, a slot command, a material or reference type, a materials helper, a connector, client or conversion type, legal dates, a target-integrity helper, or any *Schema this package exports.
 user-invocable: false
 ---
 
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.2.2-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.2.3-alpha.0"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` · `./legal` · `./iam-console` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -35,10 +35,10 @@ and record/parent bindings. `selectionComponents` carries actual list/board/pick
 record-open controls enter the same detail as its contextual actions; it is optional for legacy reads.
 Optional `componentResponsibilities` assigns entity, roles, capabilities, scope and nested parent to
 each allocated component. Roles are collection/detail/editor/owned-section/support; one component may
-bind several entities. `StoryDesignApi.operations` optionally limits an endpoint group to the
-current story's required list/get/create/update/remove operations. These additions preserve old plans.
+bind several entities. `WorkcardDesignApi.operations` optionally limits an endpoint group to the
+current card's required list/get/create/update/remove operations. These additions preserve old plans.
 Optional `interaction` fields on scaffold, design and target metadata preserve legacy reads; the
-scaffold model answer requires one for each story. `recordInteractionHelper` separates host menu
+scaffold model answer requires one for each user story. `recordInteractionHelper` separates host menu
 eligibility from editor route parameters. These are runtime-free contracts; generation prompts and
 wiring implementations belong to viable-agent. Pipeline and shape-version constants remain 1.
 
@@ -46,10 +46,10 @@ wiring implementations belong to viable-agent. Pipeline and shape-version consta
 
 | Subpath | What it declares |
 |---|---|
-| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the app map (`AreaKey`, `AreaDescriptor`, `STANDARD_AREAS`, `AREA_KEY_PATTERN`, `AREA_DEFAULT_LABELS`, `AppDescriptor`, `AppMap`, `ViableAppsDecision`, `SlotAppClaim`, `AppEndpoints`, `appMapHelper`, `MAIN_APP`, `APP_NAME_PATTERN`, `RESERVED_APP_NAMES`, `RESERVED_MOUNTS`, `TARGET_APP_MAX_INDEX`, `APP_DEFAULT_SPLIT`, the record schemas `AreaDescriptorSchema` / `AppDescriptorSchema` / `ViableAppsDecisionSchema` / `SlotAppClaimSchema` — below); the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision` (+ `origin?`), `OriginTenancyFacts`, `NO_TENANCY`, `tenancyHelper` (`tenancyOf`, `tenantedArea`), `TENANCY_QUOTE_MAX`, `ORIGIN_TENANCY_WORD_MAX` / `ORIGIN_TENANCY_LIST_MAX`); `ModelRole` and the viable `ExecutionState` (+ `originTenancy?`, `work?`), `WorkMode` / `WorkPolicy`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch` (deep-partial per layer, `BlueprintLayerPatch`), `BlueprintCase` / `GameKind` / `WorkKind` / `BotKit` / `BotKitAction`, `BOT_PLATFORM_ID_FORMAT` / `BOT_PLATFORMS_MAX` (the card's platform ids), the deprecated `BotPlatform` enum (a verbatim 0.1 copy for code written against it — never new code), `CASE_QUOTE_MAX`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor` (+ `areas?`, `apps?`), `LAYOUT_TOPOLOGIES`, `topologyHelper` (`resolveTopology`, `packageForRole`), `topologyCardHelper` (`parseTopologyMeta`, `parseTopologyFile`, `frontmatterOf`, `renderTopologyCard`) — meaning in `/blueprints`); the BA shapes (`connectingStoryHelper.mergeConnectingStories`; the stated requirements — `StatedRequirement`, `RequirementsDocument`, `RequirementPart` / `RequirementKind` / `RequirementSource`, `requirementsHelper`, `RequirementsDocumentSchema` / `StatedRequirementSchema`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas (with `StoryDesignBotHandler` / `StoryDesignBotTrigger`, `STORY_BOT_TRIGGERS`, `storyRuntimeHelper.botHandlersOf`; a job's schedule — `StoryDesignJobSchedule`, `jobScheduleHelper`, `ScheduleProblem`, `CRON_SHAPE`, `SCHEDULE_DEFAULT_TZ`), `StoryDesignPort`; the content gate's vocabulary (`ModerationCategory`, `ModerationSubject`, `ModerationReviewer`, `ModerationInput`, the screen `ModerationScreen` / `ModerationScreenItem` and the rewrite `ModerationRewriteInput` / `ModerationRewrite` with their `*Schema`s, `moderationVerdictHelper.decideModeration`; reviewers resolve `ModelRole.SecurityExpert` / `JuniorSecurityExpert` — viable-agent `/moderation-gate`); the `docs/` metadata paths; `PreviewEventType` (error kinds plus `Analytics` — an analytics event a target's web posted through the preview reporter's channel; the target-side plugins live in `@owlmeans/viable-log`) and the `OwlMeansAnalyticsPayload` shape; the agent-output taxonomy (`agentPresentationHelper` — `classifyAgentMessage`, `isAgentMessageHidden`; `/agent-presentation`) and the spectator entry types; the story batch and the agent controls (`src/batch/`, below); the materials contract (`src/materials/` — `MaterialPurpose`/`Status`/`Removal`/`UseBy`/`UseTarget`, `ProjectMaterialRecord(Schema)`, `MaterialIndexEntry(Schema)`, `materialIndexHelper`, `MATERIALS_*`; the references — `MaterialLinkIntent`, `MATERIALS_LINK_LIMITS` / `_POLICY`, `MATERIALS_LINKS_PREFIX`, the `references.json` ledger (`ReferencesLedger(Schema)`, `referencesLedgerHelper`), `MaterialLinkDetails` + `materialLinkOf`, `materialPathHelper`, `referenceScanHelper`, `ModelRole.Researcher`; part [materials](parts/materials.md)) |
-| `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` / `SlotDatabaseCommand` sets; the binary pair's shapes (`SlotWriteBinaryFileArgs`, `SlotReadBinaryFileArgs`, `SlotReadBinaryFileResult`) and its one ceiling (`SLOT_BINARY_MAX_BYTES`, `SLOT_BINARY_MAX_BASE64_CHARS`); `SlotDatabaseInfo`, `SlotDatabaseQueryArgs` / `SlotDatabaseQueryResult`, `DATABASE_READ_LIMITS`; the per-command deadlines and timeouts (`slotCommandHelper` — `commandDeadline`, `commandTimeout`, each taking a `SlotCommandScale { apps? }` that adds `APP_BUILD_DEADLINE_STEP` per extra app to a `Build`), the app scope `SlotShellArgs.app`, `SlotRuntimeCapability` / `SLOT_RUNTIME_CAPABILITIES`, `SlotRuntimeApp`, `TargetPaths.apps?` / `TargetAppPaths`, `SubProject`, `LAYOUTS` / `ROLE_DIRS` / `slotLayoutHelper.subprojectDirOf`, `WorkloadKind`, the target ports and process markers, `slotOriginHelper` (`slotOrigin` / `targetRedirectUrisForOrigin`) |
+| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_WORK_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `VIABLE_WORK_TYPES` / `VIABLE_CONTAINER_TYPES` / `VIABLE_LEAF_TYPES`, `VIABLE_WORK_FLOW`, `VIABLE_WORK_SLOTS`, `ViableWorkcardStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableTypeBy`, `ViableSpecOrigin`, `ViableInitScope`, `ViableProjectCard`/`ViableWorkcard` and the other work cards (`AnyViableWorkCard`), the card helpers and `viableWorkHelper`, a container's re-run (`WorkRerunScope` `failed` \| `unfinished` — a wire value — and `workRerunHelper`: `membersOf` the members a scope builds (a feature: its user stories; never one in progress), `blockOf` `running` \| `member`, `scopesOf` what a card menu offers, `isScope`), the landing sentence helpers, the `Project*` refusals); the work documents and exchange shapes (`src/work/`: `WorkPlan(Schema)`, `TaskOperations(Schema)`, `WorkProposals(Schema)`, `SpecGrouping`, `LooseCardAssignment`, `TriageResult`, `TypeFitAnswer`, below); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the app map (`AreaKey`, `AreaDescriptor`, `STANDARD_AREAS`, `AREA_KEY_PATTERN`, `AREA_DEFAULT_LABELS`, `AppDescriptor`, `AppMap`, `ViableAppsDecision`, `SlotAppClaim`, `AppEndpoints`, `appMapHelper`, `MAIN_APP`, `APP_NAME_PATTERN`, `RESERVED_APP_NAMES`, `RESERVED_MOUNTS`, `TARGET_APP_MAX_INDEX`, `APP_DEFAULT_SPLIT`, the record schemas `AreaDescriptorSchema` / `AppDescriptorSchema` / `ViableAppsDecisionSchema` / `SlotAppClaimSchema` — below); the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision` (+ `origin?`), `OriginTenancyFacts`, `NO_TENANCY`, `tenancyHelper` (`tenancyOf`, `tenantedArea`), `TENANCY_QUOTE_MAX`, `ORIGIN_TENANCY_WORD_MAX` / `ORIGIN_TENANCY_LIST_MAX`); `ModelRole` and the viable `ExecutionState` (+ `originTenancy?`, `work?`), `WorkMode` / `WorkPolicy`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch` (deep-partial per layer, `BlueprintLayerPatch`), `BlueprintCase` / `GameKind` / `WorkKind` / `BotKit` / `BotKitAction`, `BOT_PLATFORM_ID_FORMAT` / `BOT_PLATFORMS_MAX` (the card's platform ids), the deprecated `BotPlatform` enum (a verbatim 0.1 copy for code written against it — never new code), `CASE_QUOTE_MAX`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor` (+ `areas?`, `apps?`), `LAYOUT_TOPOLOGIES`, `topologyHelper` (`resolveTopology`, `packageForRole`), `topologyCardHelper` (`parseTopologyMeta`, `parseTopologyFile`, `frontmatterOf`, `renderTopologyCard`) — meaning in `/blueprints`); the BA shapes (`connectingUserStoryHelper.mergeConnectingUserStories`; the stated requirements — `StatedRequirement`, `RequirementsDocument`, `RequirementPart` / `RequirementKind` / `RequirementSource`, `requirementsHelper`, `RequirementsDocumentSchema` / `StatedRequirementSchema`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas (with `WorkcardDesignBotHandler` / `WorkcardDesignBotTrigger`, `WORKCARD_BOT_TRIGGERS`, `workcardRuntimeHelper.botHandlersOf`; a job's schedule — `WorkcardDesignJobSchedule`, `jobScheduleHelper`, `ScheduleProblem`, `CRON_SHAPE`, `SCHEDULE_DEFAULT_TZ`), `WorkcardDesignPort`; the content gate's vocabulary (`ModerationCategory`, `ModerationSubject`, `ModerationReviewer`, `ModerationInput`, the screen `ModerationScreen` / `ModerationScreenItem` and the rewrite `ModerationRewriteInput` / `ModerationRewrite` with their `*Schema`s, `moderationVerdictHelper.decideModeration`; reviewers resolve `ModelRole.SecurityExpert` / `JuniorSecurityExpert` — viable-agent `/moderation-gate`); the `docs/` metadata paths; `PreviewEventType` (error kinds plus `Analytics` — an analytics event a target's web posted through the preview reporter's channel; the target-side plugins live in `@owlmeans/viable-log`) and the `OwlMeansAnalyticsPayload` shape; the agent-output taxonomy (`agentPresentationHelper` — `classifyAgentMessage`, `isAgentMessageHidden`; `/agent-presentation`) and the spectator entry types; the card batch and the agent controls (`src/batch/`, below); the materials contract (`src/materials/` — `MaterialPurpose`/`Status`/`Removal`/`UseBy`/`UseTarget`, `ProjectMaterialRecord(Schema)`, `MaterialIndexEntry(Schema)`, `materialIndexHelper`, `MATERIALS_*`; the references — `MaterialLinkIntent`, `MATERIALS_LINK_LIMITS` / `_POLICY`, `MATERIALS_LINKS_PREFIX`, the `references.json` ledger (`ReferencesLedger(Schema)`, `referencesLedgerHelper`), `MaterialLinkDetails` + `materialLinkOf`, `materialPathHelper`, `referenceScanHelper`, `ModelRole.Researcher`; part [materials](parts/materials.md)) |
+| `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` / `SlotDatabaseCommand` sets; the binary pair's shapes (`SlotWriteBinaryFileArgs`, `SlotReadBinaryFileArgs`, `SlotReadBinaryFileResult`) and its one ceiling (`SLOT_BINARY_MAX_BYTES`, `SLOT_BINARY_MAX_BASE64_CHARS`); `SlotDatabaseInfo`, `SlotDatabaseQueryArgs` / `SlotDatabaseQueryResult`, `DATABASE_READ_LIMITS` (Info/Query inspect; repairs belong in target migrations), and the one task exception — `Change` (one DML statement, one transaction, idempotency key, row cap: `SlotDatabaseChangeArgs` / `SlotDatabaseChangeResult`, `DATABASE_CHANGE_LIMITS`), `Dump` / `Restore` of the app schema behind a fingerprint (`SlotDatabaseDump`, `SlotDatabaseDumpTable`, `SlotDatabaseDumpResult`, `SlotDatabaseRestoreArgs` / `SlotDatabaseRestoreResult`, `DATABASE_BACKUP_LIMITS`), failures as data (`SlotDatabaseError`), per-command `DATABASE_COMMAND_DEADLINES` / `DATABASE_COMMAND_TIMEOUTS`; the per-command deadlines and timeouts (`slotCommandHelper` — `commandDeadline`, `commandTimeout`, each taking a `SlotCommandScale { apps? }` that adds `APP_BUILD_DEADLINE_STEP` per extra app to a `Build`), the app scope `SlotShellArgs.app`, `SlotRuntimeCapability` / `SLOT_RUNTIME_CAPABILITIES`, `SlotRuntimeApp`, `TargetPaths.apps?` / `TargetAppPaths`, `SubProject`, `LAYOUTS` / `ROLE_DIRS` / `slotLayoutHelper.subprojectDirOf`, `WorkloadKind`, the target ports and process markers, `slotOriginHelper` (`slotOrigin` / `targetRedirectUrisForOrigin`) |
 | `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave` / `ConnectProjectBrandingFields` / `ConnectBrandingCredit` / `ConnectBrandingCreditBody`, the configuration contract (`ConnectScopeQuery`, `ConnectConfigScope`, `ConnectProjectConfig`, `ConnectConfigVariable`, `ConnectFrontendVariable`, `ConnectConfigValue`, `ConnectConfigSaveBody`, `CONNECT_CONFIG_*`), the organization's defaults (`ConnectOrganizationBranding(Save)`, `ConnectBrandingBackfill`), the planning-kit views (`PlanningKitView`, `ConnectKitDescribe`, `ConnectKitApplyBody`, `ConnectKitApplyResult` and their `*Schema`s), `ModelTier` + `modelTierHelper` (`tierOfRole`/`clampTier`), `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the convert bodies (`ConnectConvertCreateBody`, `ConnectConvertStartBody`, `ConnectConvertProceedBody` + `ConnectConvertProceedUpdate`), `ConnectAgentLock`, the apps views (`ConnectAppsView`, `ConnectAppView`, `ConnectAreaView`, `connectAppsHelper` — `areasOf(map)`, `ConnectAppParams`, `ConnectAppRestartBody`, `CONNECT_APP_CAUSE_MAX`), `ConnectPaidGate` + `ConnectGateRef` + `ConnectEntrypointOptions`, the call collection (`CONNECT_CALL_HEADER`, `CONNECT_CALL_ACCEPT_MS`, `CONNECT_CALL_COLLECT_WAIT_SEC`, `CONNECT_CALL_LOST_MS`, `ConnectCallState`, `ConnectCallPending`, `ConnectCallResult`, `ConnectCallCollectParams` / `ConnectCallCollectQuery` and their `*Schema`s), the client editions (`ConnectClientKind`, `CONNECT_CLIENT_HEADER`, `CONNECT_CLIENT_VERSION_MAX` / `CONNECT_CLIENT_RAW_MAX`, `CONNECT_CLIENT_NO_INFERENCE`, `ConnectClient`, `ConnectClientView`, `connectClientHelper` — `format` / `parse` / `mayInfer`), the `Connect*` error family with `ConnectConfirmation` / `ConnectConfirmationAction`, `connectProtocols(opts)` and every `*Schema` behind them |
-| `./convert` | `ConversionStage`/`Status`/`Decision` and the `conversionStageHelper` transitions (`stageAfter`/`decisionFor`/`canEnter`), `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`censusHelper` — `fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, the flow census and its consolidation (`OriginFlowEntry` — a census flow without proofs, `OriginFlowConsolidation(Schema)`, the settled `OriginStoryPlan`, `OriginFlowDisposition`, the CLOSED `PlatformFlow` — its two organization flows only through `TENANT_PLATFORM_FLOWS`), the origin's tenancy (`OriginTenancy`, `OriginTenant`, `OriginTenancyPart`, `OriginTenancyRecord`, the model-facing `OriginTenancyAnswer(Schema)`, `CONVERSION_TENANCY_FILE`), the whole-file summaries (`FileSummary` and its parts, the model-facing `FileSummaryAnswer` / `FileSummaryBatch(Schema)`, `CONVERSION_SUMMARY_DIR`, `CONVERSION_SUMMARY_ROOT`, `SummaryDocMeta`), the origin's own types (`OriginTypeSpec` and its `OriginTypeAttribute` / `OriginTypeRelation`, `OriginDefinition`, `OriginTypeRepresentation`, the definitions facts `OriginDefinitionFacts` — type, flow, container, card — with `OriginFieldSchema`, `OriginTypesRecord`, `OriginTypesDocMeta`, `originTypesHelper` (`recordOf`, `definitionsOf`, `entityOf`), `CONVERSION_TYPES_FILE`, `ORIGIN_DEFINITIONS_SECTION`), the estimator's `RolePlanEntry` (`perStory`, `perWindow`), and the model-answer schemas the conversion asks with |
+| `./convert` | `ConversionStage`/`Status`/`Decision` and the `conversionStageHelper` transitions (`stageAfter`/`decisionFor`/`canEnter`), `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`censusHelper` — `fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, the flow census and its consolidation (`OriginFlowEntry` — a census flow without proofs, `OriginFlowConsolidation(Schema)`, the settled `OriginWorkcardPlan`, `OriginFlowDisposition`, the CLOSED `PlatformFlow` — its two organization flows only through `TENANT_PLATFORM_FLOWS`), the origin's tenancy (`OriginTenancy`, `OriginTenant`, `OriginTenancyPart`, `OriginTenancyRecord`, the model-facing `OriginTenancyAnswer(Schema)`, `CONVERSION_TENANCY_FILE`), the whole-file summaries (`FileSummary` and its parts, the model-facing `FileSummaryAnswer` / `FileSummaryBatch(Schema)`, `CONVERSION_SUMMARY_DIR`, `CONVERSION_SUMMARY_ROOT`, `SummaryDocMeta`), the origin's own types (`OriginTypeSpec` and its `OriginTypeAttribute` / `OriginTypeRelation`, `OriginDefinition`, `OriginTypeRepresentation`, the definitions facts `OriginDefinitionFacts` — type, flow, container, card — with `OriginFieldSchema`, `OriginTypesRecord`, `OriginTypesDocMeta`, `originTypesHelper` (`recordOf`, `definitionsOf`, `entityOf`), `CONVERSION_TYPES_FILE`, `ORIGIN_DEFINITIONS_SECTION`), the estimator's `RolePlanEntry` (`perStory`, `perWindow`), and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `targetLayoutHelper` (`detectTargetLayout`, `isLegacyLayout`, `targetPackageName`), `targetIntegrityHelper` (`verifyTargetShape(files, tree?)`, `readPlan`, `collectTargetFiles`, `protectedFilesOf`, `formatIntegrityReport`), `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES`, `TargetIntegrityTree` / `TargetIntegrityPlan` / `TargetFileCollection` |
 | `./intent` | `intent` (the six aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants (`INTENT_IMPORT_PATH`, `INTENT_PRO_PATH`, `INTENT_IMPORT_KIND` included), `IntentDraft` / `IntentImportDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
 | `./iam-console` | The owner console's IAM contract both doors share (the browser's `back.iam`, the connector's `connect.iam`): the route params (`IamProjectParams`, `IamProjectUserParams`, `IamOrganizationParams`, `IamMemberParams`, `IamGroupParams`), `IamScoped`, the bodies (`IamDefinitionUpdate`, `IamStaffSync`, `IamAssignGrant` / `IamRevokeGrant`, `IamGrantsQuery`, `IamProjectUserInvite` / `Update`, `IamOrganizationEdit`, `IamProjectMemberInvite` / `Update`, `IamGroupCreate` / `Edit`, `IamGroupMembersChange`), the answers (`IamListResponse` + `external`, `IamUsersResponse`, `IamPermissionsResponse` + `IamTenancy`, …, `IamStaffSyncResponse`), every `Iam*Schema` (with `IamScopedSchema`, `IamGroupRefSchema`), `IAM_REFUSED`, and the `@owlmeans/iam` vocabulary re-exported (`IamDefaultClass`, `IamGrantMode`, `IamGrantOrigin`, `IamRemovalPolicy`, `IAM_AREAS`, `IAM_MEMBERS_GROUP`, the record types). The refusal's CLASS (`IamRefused`, 409) is the platform's |
@@ -81,8 +81,8 @@ static-site consumers; both must receive the same table revision.
 
 ## The planning module
 
-A Viable project, its user stories and the documents behind them are `@owlmeans/planning`
-WORKCARDS. The planning packages own the record, transition, fold, stores and protocol tree
+A Viable project, its work cards (user stories, specs, features, improvements, tasks) and the
+documents behind them are `@owlmeans/planning` WORKCARDS. The planning packages own the record, transition, fold, stores and protocol tree
 (`/planning`); this module owns what a Viable card IS — its type, flow, `fields`, slots and code.
 A plugin registers `VIABLE_TYPE_SCHEMAS` and `VIABLE_FLOW_SCHEMAS`; nothing redeclares a type or a
 flow locally.
@@ -91,21 +91,33 @@ flow locally.
 
 | Type | Kind | Primary flow | Code | May hold |
 |---|---|---|---|---|
-| `viable:project` (`VIABLE_PROJECT_TYPE`) | project | `viable:project` | slug, unique in the organization, mutable (rename, host ladder) | `viable:user-story` |
-| `viable:user-story` (`VIABLE_STORY_TYPE`) | card | `viable:user-story` | `US-` + 5 uppercase, unique in the project, never changes | — |
+| `viable:project` (`VIABLE_PROJECT_TYPE`) | project | `viable:project` | slug, unique in the organization, mutable (rename, host ladder) | every work type (`VIABLE_WORK_TYPES`) |
+| `viable:user-story` (`VIABLE_USER_STORY_TYPE`) | card | `viable:user-story` (`VIABLE_WORK_FLOW`) | `US-` + 5 uppercase, unique in the project | — |
+| `viable:spec-card` (`VIABLE_SPEC_CARD_TYPE`) | card | the work flow | `SPEC-` + 5 | `VIABLE_SPEC_CARD_MEMBERS`: feature, user story, improvement, task, spec-card (the board refuses a spec in a spec) |
+| `viable:feature` (`VIABLE_FEATURE_TYPE`) | card | the work flow | `FEAT-` + 5 | `VIABLE_FEATURE_MEMBERS`: user story, improvement, task |
+| `viable:improvement` (`VIABLE_IMPROVEMENT_TYPE`) / `viable:task` (`VIABLE_TASK_TYPE`) | card | the work flow | `IMP-` / `TASK-` + 5 | — |
 | `viable:spec` (`VIABLE_SPEC_TYPE`) | specification | `viable:spec` (one status, `current`) | none | — |
-| `viable:bug` / `viable:improvement` / `viable:requirement` | card | `viable:user-story` | `BUG-` / `IMP-` / `REQ-` | — |
+| `viable:bug` / `viable:requirement` | card | `viable:user-story` | `BUG-` / `REQ-` | — |
 
-The three RESERVED types are declared in full so their prefix and flow are decided once, and are
+**Work cards.** The five work types (`VIABLE_WORK_TYPES`; containers `VIABLE_CONTAINER_TYPES` = spec,
+feature; leaves `VIABLE_LEAF_TYPES`) all run the one work flow — its id stays `viable:user-story`,
+stored in every card's `flows` map, so `VIABLE_WORK_FLOW` is the same value — and carry ONE slot set
+(`VIABLE_WORK_SLOTS`), so a retype never orphans a status or a document. Each lists the four others
+in `retypes` (Viable's rules — planning-viable — say when). A member's primary parent stays its
+project; its container is its SECOND `parents` entry (`viableWorkHelper.containerIdOf`); a leaf's
+`parents.types` admit project, spec and feature, a feature's project and spec. `viable:spec-card` is
+the spec CARD — `viable:spec` stays the type of every document.
+
+The two RESERVED types are declared in full so their prefix and flow are decided once, and are
 absent from the project type's `cardTypes`: nothing creates one until a feature adds it there. A
 type always runs a flow — the planning executor has no status for a flowless card, so a document
 runs the one-status `viable:spec` flow.
 
 ### The two flows
 
-Story flow — the keys are wire contracts (the `docs/stories/<code>.md` frontmatter, the
-connector's story-status mapping, the board columns, their i18n keys, every e2e selector), and a
-key is never renamed.
+The work flow (id `viable:user-story`, every work type's) — the keys are wire contracts (the
+`docs/stories/<code>.md` frontmatter, the connector's story-status mapping, the board columns, their
+i18n keys, every e2e selector), and a key is never renamed.
 
 | Status | Intrinsic | Tone | | Transition | From | To |
 |---|---|---|---|---|---|---|
@@ -114,9 +126,9 @@ key is never renamed.
 | `completed` | closed | green | | `fail` | `in-progress` | `failed` |
 | `failed` | **planned** | red | | `reset` | `*` | `planned` |
 
-`failed` is intrinsically planned: a failed story is work still to do, so "done" is the closed
+`failed` is intrinsically planned: a failed card is work still to do, so "done" is the closed
 count and a retry is `start` again. `reset` is the manual recovery and the only move a completed
-story accepts.
+card accepts.
 
 Project flow: `draft` (initial; planned, blue), `confirmed` (in-progress, yellow), `active`
 (in-progress, green), `archived` (closed, neutral); `confirm` (`draft → confirmed`), `activate`
@@ -131,7 +143,7 @@ never from a local table.
 ### Where each fact lives on a card
 
 Generic code reads only the card's top level; what is Viable's lives under `fields`, validated by
-`ViableProjectFieldsSchema` / `ViableStoryFieldsSchema`. The left column is the name a fact keeps on
+`ViableProjectFieldsSchema` / `ViableWorkcardFieldsSchema`. The left column is the name a fact keeps on
 the wire and in target files — a parent agent's vocabulary, which never changes.
 
 | Fact | On the card |
@@ -143,16 +155,19 @@ the wire and in target files — a parent agent's vocabulary, which never change
 | the landing-gate decision | project `fields.landing` — `{ story: code \| null, at }` |
 | the tenancy decision | project `fields.tenancy` — `ViableTenancyDecision` `{ operators, users, quotes?, by: 'model' \| 'owner', at, origin? }`; `origin` (`OriginTenancyFacts { label, keys, people }`, words ≤ 64, lists ≤ 8) only on a conversion whose origin kept tenants |
 | story narrative (`story`) / `code` / `status` | `title` / `code` / `status` (same strings) |
-| the text a person typed for a story, verbatim | `description` (the viable plugin keeps it; `title` is the formatted reading) |
+| the text a person typed for a card, verbatim | `description` (the viable plugin keeps it; `title` is the formatted reading) |
 | story `projectId` | `parent` |
 | story position in the flow | `order` — a double; a connective story sits between two flow steps (`3.5`) |
 | story `area`, `primary`, `actor`, `warning`, `kind`, `landing` | `fields.*` |
-| a story's design / the scaffold plan | specification `design` under the STORY card / `scaffold` under the PROJECT card |
-| the stated requirements | specification `requirements` — every one with its story codes under the PROJECT card, a story's slice under the STORY card |
+| who decided a work card's type / why / the codes a retype took | every work type's `fields.typeBy` (`ViableTypeBy`: `person` — respected until the text changes — or `model`; `auto` is a create's MARKER, never a stored decision: the person left the type to the type check, which a connector create otherwise skips — the format rule files it `model`) / `fields.typeReason` (the type check's reason for its retype, ≤ `VIABLE_TYPE_REASON_MAX`; a person's retype clears it) / `fields.formerCodes` (oldest first, ≤ `MAX_FORMER_CODES`) |
+| a spec's `warning`, `origin` (`ViableSpecOrigin`) · a feature's `area` (its role), `actor`, `warning`, `kind` · an improvement's `area`, `areas`, `warning`, `kind` · a task's `warning` | `fields.*` (`ViableSpecCardFieldsSchema`, `ViableFeatureFieldsSchema`, `ViableImprovementFieldsSchema`, `ViableTaskFieldsSchema`; `viableWorkHelper.fieldsFor(type, fields)` fits fields to a type) |
+| the confirm's choice: preview only or the first spec implemented | project `fields.initScope` (`ViableInitScope`: `preview` \| `implement`), written by the confirm transit's own `changes` from the request's `ViableImplementChoice` (`preview` \| `spec`); absent is the preview |
+| a card's design (a container's: its run design) / the scaffold plan | specification `design` under the work card / `scaffold` under the PROJECT card |
+| the stated requirements | specification `requirements` — every one with its card codes under the PROJECT card, a card's slice under the work card |
 
-`area` and `primary` are required in `ViableStoryFieldsSchema`; a create without an area still
+`area` and `primary` are required in `ViableWorkcardFieldsSchema`; a create without an area still
 validates, because validation runs after the planning middlewares and the viable plugin fills the
-area of a narrative a person wrote. `viableCardHelper.storyFieldsOf` answers an absent area as `guest` and an
+area of a narrative a person wrote. `viableCardHelper.workcardFieldsOf` answers an absent area as `guest` and an
 absent flag as `false`.
 
 ### The landing gate on the cards
@@ -165,11 +180,11 @@ full-scale screen after signing in (`/target-areas`). Two fields record it:
   is never written, since `null` would read as a decided "none" that nothing asks again. `at`
   carries no `format` because the planning registry compiles without ajv-formats.
 - story `fields.landing: true` marks the chosen card — at most one per project — and is what design
-  and development key on. `viableCardHelper.storyWriteInputOf` copies it into `StoryWriteInput.landing` only when
-  set, so `StoryMeta.landing` appears only in that story's `docs/stories/<code>.md`; like `primary`
-  it is the CARD's and is never passed in `StoryWriteContent`.
+  and development key on. `viableCardHelper.workcardWriteInputOf` copies it into `WorkcardWriteInput.landing` only when
+  set, so `WorkcardMeta.landing` appears only in that story's `docs/stories/<code>.md`; like `primary`
+  it is the CARD's and is never passed in `WorkcardWriteContent`.
 
-`landingSentenceHelper.withLandingSentence` appends `LANDING_STORY_SENTENCE` to the chosen narrative — a note for people
+`landingSentenceHelper.withLandingSentence` appends `LANDING_USER_STORY_SENTENCE` to the chosen narrative — a note for people
 reading the board, never the authority. It is idempotent (`.hasLandingSentence`,
 whitespace-insensitive), joins with one space, and never pushes a title past `TITLE_MAX`: a
 narrative with no room is returned uncut. Both take an optional `sentence` — the landing sentence in the
@@ -218,21 +233,36 @@ source reads through it.
 | project | `vision`, `design-system` | markdown | |
 | project | `scaffold` | json | revisioned, keeps `VIABLE_DESIGN_REVISIONS_KEPT` (3), body is a `ScaffoldPlan` |
 | project | `requirements` | json | revisioned, keeps 3, body is a `RequirementsDocument` at `REQUIREMENTS_VERSION` |
-| story | `design` | json | revisioned, keeps 3, body is a `StoryDesign` at `STORY_DESIGN_VERSION` |
-| story | `requirements` | json | as on the project; the story's slice plus its own `S…` items |
+| every work card | `design` | json | revisioned, keeps 3, body is a `WorkcardDesign` at `WORKCARD_DESIGN_VERSION` (a container's holds its run design) |
+| every work card | `requirements` | json | as on the project; the card's slice plus its own `S…` items |
+| every work card | `plan` | json | revisioned, keeps 3, body is a `WorkPlan` at `WORK_PLAN_VERSION` (`WorkPlanSchema`) |
+| every work card | `operations` | json | revisioned, keeps 3, body is a task's `TaskOperations` at `TASK_OPERATIONS_VERSION` — names, statuses, counts, backup ids; no field a value could travel in |
+| every work card | `proposals` | json | revisioned, keeps 3, body is `WorkProposals` at `WORK_PROPOSALS_VERSION` — a feature's focus split, a spec's derived members; a person changes only an item's `status` |
+
+**The work exchange shapes** (`src/work/`): `WorkPlan` (`members`, `steps` and `helpers` — the engine's
+step catalogue keys —, `targets { unit, part, path?, change }`, `rationale`, `decisions`, `notes`,
+`outcomes` by `WorkOutcome`), `TaskOperation` (`TaskOperationKind`, `TaskOperationStatus`) /
+`TaskOperations` / `TaskReport`, `WorkProposal` (`WorkProposalKind`, `WorkProposalStatus`) /
+`WorkProposals`, `SpecGrouping { specs: [{ title, summary, cards, features: [{ title, area, capability,
+cards }] }] }`, `LooseCardAssignment { placements: [{ card, container | null, order, reason? }], newSpec? }`
+(Run all), `TriageResult { kind: TriageKind (question, fix, card), cards?, runNow, reason }` (`runNow` is the
+model's reading; the engine settles it against the request's explicit start words), `TypeFitAnswer { type?,
+typeReason? }`. Types and the three document schemas live here; the model-answer schemas of the steps
+that produce them are the engine's.
 
 The co-located `*.spec.md` / `*.ux.md` / `*.ui.md` files of a target are FILES, never slots — that
 prose lives in the `design` payload — so no type declares a `ux` or `ui` slot.
 
-A story CODE (`US-XXXXX`) is the target's vocabulary: every file, registry entry and widget stamp
-names the code, and a card id never reaches a target file — `viableCardHelper.storyWriteInputOf` refuses a card
-with no code (`ProjectStoryMissconfigured('no-code')`). A project's code is its alias, minted by
+A card CODE (`US-XXXXX`, `SPEC-XXXXX`, …) is the target's vocabulary: every file, registry entry and
+widget stamp names the code, and a card id never reaches a target file — `viableCardHelper.workcardWriteInputOf` refuses a card
+with no code (`ProjectWorkcardMissconfigured('no-code')`). A project's code is its alias, minted by
 the platform's name ladder; the slug policy only guards uniqueness.
 
-`follows`, `shares-widget` and `shares-screen` run story → story. Only `follows` is WRITTEN: a
-connective or an anchored requested story follows the flow story it was anchored after, created in
-the same transition from `MergedStoryDraft.after` (the clamped 1-based position, filled by
-`connectingStoryHelper.mergeConnectingStories` and `requirementsHelper.mergeRequested` alone).
+`follows`, `shares-widget` and `shares-screen` run between work cards (any work type, `single`).
+Only `follows` is WRITTEN: a connective or an anchored requested user story follows the flow story it
+was anchored after, created in
+the same transition from `MergedUserStoryDraft.after` (the clamped 1-based position, filled by
+`connectingUserStoryHelper.mergeConnectingUserStories` and `requirementsHelper.mergeRequested` alone).
 The `shares-*` types are declared only — the `scaffold` specification is their single authority.
 
 ### The write channel
@@ -244,48 +274,51 @@ own writes are `agent` or `pipeline`. Four rules ask `viableCardHelper.isUserCha
 
 - the balance refusal — `ConnectOutOfCredits` for `connect`, `AgentOutOfTokens` otherwise;
 - re-formatting a narrative through the analyst — `web`/`connect` only;
-- extracting a story's own requirements — a committed story create or title update by `web`/`connect`;
+- extracting a card's own requirements — a committed card create or title update by `web`/`connect`;
 - the develop trigger — only a committed `start` written by `web`/`connect`, never the `start` a
   conversion or free flight writes for itself.
 
 ### Stated requirements
 
 The requester's prompt is split into explicit requirements, each quoted verbatim: `R1`, `R2`, … from
-the prompt (`RequirementSource.Prompt`), `S1`, … from a story a person typed (`Story`). A
+the prompt (`RequirementSource.Prompt`), `S1`, … from a card text a person typed (`Story`). A
 `StatedRequirement` carries a `kind` (`story` — a kind of user does something; `rule` — how something
 must work, be stored, look or behave; `platform` — the platform provides it; `unsupported` — a stack
 the platform replaces, `note` says what it does instead), a testable `statement`, and up to four
 `parts` (`RequirementPart`: `tech`, `ba`, `ux`, `ui` — what each level must do), `packages`
-(`{ name, side: SubProject }`) and, on the project document only, `stories` — the story codes it applies to.
-Caps: `REQUIREMENTS_CAP` (40) per prompt, `REQUESTED_STORY_CAP` (12), `STORY_SPLIT_CAP` (3).
+(`{ name, side: SubProject }`) and, on the project document only, `stories` — the card codes it applies to.
+Caps: `REQUIREMENTS_CAP` (40) per prompt, `REQUESTED_USER_STORY_CAP` (12), `USER_STORY_SPLIT_CAP` (3).
 
-- A story no main-flow step covers is `StoryKind.Requested` — never primary, never a landing
-  candidate; `requirementsHelper.mergeRequested` places `RequestedStoryDraft`s after the last entry of
+- A story no main-flow step covers is `UserStoryKind.Requested` — never primary, never a landing
+  candidate; `requirementsHelper.mergeRequested` places `RequestedUserStoryDraft`s after the last entry of
   their anchor flow story (unanchored at the end, deduplicated by text, capped).
 - `requirementsHelper` is pure and byte-stable (code-unit order, no clock): `compareIds` (`R` before
   `S`, numeric), `partsOf`, `card` (the model-facing markdown, `''` when empty, every `@owlmeans/`
   scope stripped so a package-detection plugin never fires on it), `specificationSections` (sections
   5–9 of the specification, titles `REQUIREMENTS_SECTION_*`, lines marked `**R<n>**`),
   `idsInSpecification` / `retained` (a confirmed specification keeps only the items whose marker a
-  person left in it), `sliceFor`, `frontmatterOf` (`StoryMeta.requirements`, ids per part),
-  `requirementsFile` (the target's `REQUIREMENTS_FILE`, `docs/requirements.md`) and `digest`.
-- A design carries its story's `requirements` and records `provenance.requirementsHash` (the
+  person left in it), `sliceFor`, `frontmatterOf` (`WorkcardMeta.requirements`, ids per part),
+  `requirementsFile` (the target's `REQUIREMENTS_FILE`, `docs/requirements.md`), `digest`, and
+  `mergeItems(kept, incoming)` — one card's items from two writers (an accepted focus proposal's move, the
+  review's own quotes): `kept` unchanged, an incoming repeat (same source and quote, case and space
+  collapsed) dropped, a taken `S` id renumbered past the highest, a taken `R` id dropped; sorted by id.
+- A design carries its card's `requirements` and records `provenance.requirementsHash` (the
   `digest`); `designStaleness` answers `Narrative` when the hash moved (absent reads as `''`), checked
-  right after the narrative itself. `emptyStoryDesign` adds neither key.
-- A RUN design (several stories built in one combined pass) carries `units?: StoryDesignUnit[]` — each
-  story's `code`, `cardId`, `narrative`, `area`, `areas?`, `reserved`, `interaction?`, `requirements?`,
+  right after the narrative itself. `emptyWorkcardDesign` adds neither key.
+- A RUN design (a container's members built in one combined pass) carries `units?: WorkcardDesignUnit[]` —
+  each member's `code`, `cardId`, `narrative`, `area`, `areas?`, `reserved`, `interaction?`, `requirements?`,
   `transitions?`, `landing?` and `dropped?` (why the run dropped it) — and every piece kind (screen,
-  component, type, resource, model, api, store, job, agent) `units?: string[]`, the stories it serves,
-  owner first. Both are additive under `STORY_DESIGN_VERSION` and absent on every one-story design,
+  component, type, resource, model, api, store, job, agent) `units?: string[]`, the members it serves,
+  owner first. Both are additive under `WORKCARD_DESIGN_VERSION` and absent on every one-card design,
   including a member's own slice; the schema refuses a unit without its required keys or with another.
 
 ### Card helpers and the design port
 
-`viableCardHelper.isViableProject` / `.isViableStory` check kind AND type. `viableSpecHelper.projectBriefOf(project, specs)` assembles
+`viableCardHelper.isViableProject` / `.isViableWorkcard` check kind AND type. `viableSpecHelper.projectBriefOf(project, specs)` assembles
 the `AgentProject` brief (highest revision per part, `''` for an unwritten part, `alias` from the
 code). `viableCardHelper.userStoryOf(card, design?)` builds the coders' aggregate — the card wins on narrative,
-code, area and actor, the design supplies entities and screens; `storyDesignHelper.userStoryOfDesign(design)` is the
-design-only reading. `viableCardHelper.storyDraftOf(card)` feeds the analysis prompts and moderation.
+code, area and actor, the design supplies entities and screens; `workcardDesignHelper.userStoryOfDesign(design)` is the
+design-only reading. `viableCardHelper.workcardDraftOf(card)` feeds the analysis prompts and moderation.
 `ExecutionState.projectCard` and `TaskExecutionState.card` carry the cards as plain data.
 
 ### How a run works: `WorkMode`
@@ -300,9 +333,9 @@ design-only reading. `viableCardHelper.storyDraftOf(card)` feeds the analysis pr
   reaches every derived execution through the spread, so a resumed run keeps the mode it started in.
   The platform resolves it once per run; `@owlmeans/viable` only reads it.
 
-`StoryDesignPort` is addressed by CARD id — `current(cardId)` and
+`WorkcardDesignPort` is addressed by CARD id — `current(cardId)` and
 `put(cardId, design, { runId?, cause? })` answering the revision. The port picks the slot (`design`
-for a story, `scaffold` for the project) and answers `null` for a stored design of another
+for a work card, `scaffold` for the project) and answers `null` for a stored design of another
 version; the code inside a design never addresses a record.
 
 ## A schema here is written for the reader that will refuse it
@@ -388,9 +421,10 @@ and `connectRef` (typed references) name the same set, the two bases aside:
 | `account` | `base` — the organization's and the person's own records, the account gate inherited; `branding.get` GET / `.save` POST `/branding` (`ConnectOrganizationBranding { organizationName, copyright }`, the save a PATCH `ConnectOrganizationBrandingSave`), `branding.backfill` POST `/branding/backfill` → `ConnectBrandingBackfill { projects }`; `llm.get` GET / `llm.set` POST `/llm` (`ConnectLlmBody` → `ConnectProfileSettingsView { llmMode, canUseLocal }`, the set the `LocalLlm` paid gate); `tokens.list` GET `/access-tokens` → `ConnectAccessTokenList` (`ConnectAccessToken` — no secret, no hash, no owner ids, `oauth`), `tokens.revoke` POST `/access-tokens/:id/revoke` (`ConnectAccessTokenParams` ≤ `CONNECT_TOKEN_ID_MAX`) → `ConnectAccessTokenRevoked` — NO create, and never under `/tokens`; `privacy.status` GET `/privacy` → `ConnectPrivacyChoices { pending, items: ConnectPrivacyChoice[] }` (`granted` = the SAVED answer), `privacy.withdraw` POST `/privacy/withdraw` (`ConnectPrivacyWithdrawBody { keys }`, 1–`CONNECT_PRIVACY_KEYS_MAX` unique keys ≤ `CONNECT_PRIVACY_KEY_MAX`, no field a grant could travel in) — NO grant or terms; `intent.pickup` POST `/intent/pickup` (`ConnectIntentPickupBody { ref }`, the guest pickup's ref shape) → `ConnectIntentPickup { prompt }`; `iam.users` GET `/iam/users` → `IamUsersResponse` — every end user of every app the organization owns, read-only; `notifications` GET `/notifications` (`ConnectFeedQuery`) → `ConnectFeedPage` — the organization's notices |
 | `session` | `open` POST `/session`, `openDelegated` POST `/session/delegated`, `close` POST `/session/:sessionId/close` |
 | `op` | `pull` GET `/session/:sessionId/ops` (the long poll), `submit` POST `/session/:sessionId/ops/:opId` |
-| `project` | `stop` POST `/project/:id/stop` (`AgentStopArgs`) → `ConnectAgentLock`, `steer` POST `/project/:id/steer` (`AgentSteerArgs`) → `AgentSteerResult`, `batch.start` POST / `batch.get` GET `/project/:id/batch` (`StoryBatchStartArgs` → `StoryBatchView`; the get `StoryBatchView \| null`), `batch.cancel` POST `/project/:id/batch/cancel` → `StoryBatchView` — ownership only, no paid kind, never under a story path; `create` POST / `list` GET `/project`, `createWithReferences` POST `/project/with-references` (the create body; the platform reads the prompt's links and research requests), `attach` POST `/project/attach`, `confirm`, `confirmWithReferences` POST `/project/:id/confirm-with-references` (the confirm body; the init refreshes the references), `status`, `reinit`, `modify`, `rename` (`ConnectRenameBody { name, description? }` — the name, brief and code, never the address) under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding`, `branding.credit` POST `/project/:id/branding/credit` (`ConnectBrandingCreditBody { hideCredit }`, the `Whitelabel` paid gate), `branding.copyDefaults` POST `/project/:id/branding/copy-defaults` — all four with `?scope=` (`ConnectScopeQuery`), `kit.describe` GET / `kit.apply` POST `/project/:id/kits`, `apps` GET `/project/:id/apps` → `ConnectAppsView { projectId, local, recorded, apps: ConnectAppView[], areas?: ConnectAreaView[], worker? }` (`ConnectAppView { name, mount, areas, main, url?, build?, backend?, cause?, causeKind?, pending? }`; `ConnectAreaView { key, kind, segment, app, path, label?, marker? }` — every area a story may name, built by `connectAppsHelper.areasOf(map)`; plain strings, `cause` ≤ `CONNECT_APP_CAUSE_MAX`; a route of its own, never a field of the project status — cloud: the map + each app's live state, local: the map alone), `destroy` DELETE `/project/:id` → `ConnectProjectSummary` — ownership only (the tree declares no force-unlock; `ConnectAgentLock { locked, task?, lockedAt? }` is `ConnectProjectStatus.agent` and `stop`'s answer), `llm.get` GET / `llm.set` POST `/project/:id/llm` (`ConnectProjectLlmBody { llmMode: ConnectLlm \| null }` — `null` inherits — → `ConnectProjectSettings { llmMode, effective, canUseLocal }`, the set the `LocalLlm` paid gate); `activity` GET `/project/:id/activity` (`ConnectActivityQuery` — a feed query + `detail`) → `ConnectFeedPage`; a NEW project's files: `createWithMaterials` POST `/project/with-materials` (`ConnectCreateWithMaterialsBody` — the closed create body's properties + `materials: ConnectMaterialsAnnouncement { files, bytes }` within `MATERIALS_LIMITS`) → `ConnectProjectStatus`; `materials` — `@owlmeans/upload`'s `makeUploadProtocols` under `base` (`alias` `connect.project.materials.base`, path `/project/materials`, `sessionParam: 'id'`, `maxFileBytes: MATERIALS_LIMITS.fileBytes`) WITHOUT its `open` and `abort`: `state` GET `/:id`, `file` PUT `/:id/file` (stream), `remove` DELETE `/:id/file/:file`, `seal` POST `/:id/seal` (→ `UploadSession`), plus `draft` POST `/:id/draft` (`ConnectMaterialsDraftBody { force? }` → `ConnectMaterialsState { state, files, bytes, rejected, lastError? }`), `catalogue` GET `/:id/catalogue` → `ConnectMaterialCatalogue` (the state + `entries: MaterialIndexEntry[]` + `references?` / `generated?`), `read` GET `/:id/content` (`ConnectMaterialQuery { path }`) → `ConnectMaterialText { path, source: ConnectMaterialTextSource (transcript, text, generated) \| null, text, length, truncated? }` cut at `CONNECT_MATERIAL_TEXT_MAX` — ownership only; `materials.base` is a third base `connectRef` leaves out |
+| `project` | `stop` POST `/project/:id/stop` (`AgentStopArgs`) → `ConnectAgentLock`, `steer` POST `/project/:id/steer` (`AgentSteerArgs`) → `AgentSteerResult`, `batch.start` POST / `batch.get` GET `/project/:id/batch` (`WorkcardBatchStartArgs` → `WorkcardBatchView`; the get `WorkcardBatchView \| null`), `batch.cancel` POST `/project/:id/batch/cancel` → `WorkcardBatchView` — ownership only, no paid kind, never under a story path; `create` POST / `list` GET `/project`, `createWithReferences` POST `/project/with-references` (the create body; the platform reads the prompt's links and research requests), `attach` POST `/project/attach`, `confirm`, `confirmWithReferences` POST `/project/:id/confirm-with-references` (the confirm body; the init refreshes the references), `confirmImplementation` POST `/project/:id/confirm-implementation` (`ConnectConfirmImplementationBody` — the confirm body plus a REQUIRED `implement: ViableImplementChoice` (`preview` \| `spec`), the choice at the specification approval) → `ConnectProjectStatus`, `status`, `reinit`, `modify`, `rename` (`ConnectRenameBody { name, description? }` — the name, brief and code, never the address) under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding`, `branding.credit` POST `/project/:id/branding/credit` (`ConnectBrandingCreditBody { hideCredit }`, the `Whitelabel` paid gate), `branding.copyDefaults` POST `/project/:id/branding/copy-defaults` — all four with `?scope=` (`ConnectScopeQuery`), `kit.describe` GET / `kit.apply` POST `/project/:id/kits`, `apps` GET `/project/:id/apps` → `ConnectAppsView { projectId, local, recorded, apps: ConnectAppView[], areas?: ConnectAreaView[], worker? }` (`ConnectAppView { name, mount, areas, main, url?, build?, backend?, cause?, causeKind?, pending? }`; `ConnectAreaView { key, kind, segment, app, path, label?, marker? }` — every area a story may name, built by `connectAppsHelper.areasOf(map)`; plain strings, `cause` ≤ `CONNECT_APP_CAUSE_MAX`; a route of its own, never a field of the project status — cloud: the map + each app's live state, local: the map alone), `destroy` DELETE `/project/:id` → `ConnectProjectSummary` — ownership only (the tree declares no force-unlock; `ConnectAgentLock { locked, task?, lockedAt? }` is `ConnectProjectStatus.agent` and `stop`'s answer), `llm.get` GET / `llm.set` POST `/project/:id/llm` (`ConnectProjectLlmBody { llmMode: ConnectLlm \| null }` — `null` inherits — → `ConnectProjectSettings { llmMode, effective, canUseLocal }`, the set the `LocalLlm` paid gate); `activity` GET `/project/:id/activity` (`ConnectActivityQuery` — a feed query + `detail`) → `ConnectFeedPage`; a NEW project's files: `createWithMaterials` POST `/project/with-materials` (`ConnectCreateWithMaterialsBody` — the closed create body's properties + `materials: ConnectMaterialsAnnouncement { files, bytes }` within `MATERIALS_LIMITS`) → `ConnectProjectStatus`; `materials` — `@owlmeans/upload`'s `makeUploadProtocols` under `base` (`alias` `connect.project.materials.base`, path `/project/materials`, `sessionParam: 'id'`, `maxFileBytes: MATERIALS_LIMITS.fileBytes`) WITHOUT its `open` and `abort`: `state` GET `/:id`, `file` PUT `/:id/file` (stream), `remove` DELETE `/:id/file/:file`, `seal` POST `/:id/seal` (→ `UploadSession`), plus `draft` POST `/:id/draft` (`ConnectMaterialsDraftBody { force? }` → `ConnectMaterialsState { state, files, bytes, rejected, lastError? }`), `catalogue` GET `/:id/catalogue` → `ConnectMaterialCatalogue` (the state + `entries: MaterialIndexEntry[]` + `references?` / `generated?`), `read` GET `/:id/content` (`ConnectMaterialQuery { path }`) → `ConnectMaterialText { path, source: ConnectMaterialTextSource (transcript, text, generated) \| null, text, length, truncated? }` cut at `CONNECT_MATERIAL_TEXT_MAX` — ownership only; `materials.base` is a third base `connectRef` leaves out |
 | `config` | `get` GET / `save` POST `/project/:id/config` (`?scope=`; the save `ConnectConfigSaveBody { backend?, frontend? }` — lists of `ConnectConfigValue { name, value }`, a name matching `CONNECT_CONFIG_NAME_PATTERN` ≤ `CONNECT_CONFIG_NAME_MAX`, a value ≤ `CONNECT_CONFIG_VALUE_MAX`, ≤ `CONNECT_CONFIG_SAVE_MAX` per side), `recollect` POST `/project/:id/config/recollect` → `ConnectProjectConfig { scope, backend: ConnectConfigVariable[], frontend: ConnectFrontendVariable[] }` — ownership only |
 | `story` | `status` GET `/project/:id/story/:storyId/status` |
+| `cards` | the cards wire (`src/connect/cards/types.ts`), ownership only, no paid kind: `status` GET `/project/:id/cards/:cardId/status` (`ConnectCardParams`) → `ConnectCardStatus { projectId, card: ConnectCardBrief + intrinsic/description?/warning?/container?/typeBy?, members?, plan?: WorkPlan, proposals?, inputs?: ConnectCardInput[] { name, kind: variable \| secret, status, set } — never a value —, inputsUrl?, run?, waitingFor?, pendingInquiry?, updatedAt }`; `together` POST `/project/:id/cards/together` (`ConnectCardsTogetherBody { cards ≤ CONNECT_CARDS_TOGETHER_MAX, start?, title?, key? ≤ CONNECT_CARDS_KEY_MAX }`) → `ConnectCardsTogetherView { spec, code?, members, started }`; `plan` GET `/project/:id/cards/plan` → `ConnectCardsPlanView { assignment: LooseCardAssignment, loose, containers }`; `runAll` POST `/project/:id/cards/run-all` (`ConnectCardsRunAllBody { assignment }`) → `WorkcardBatchView`; `rerun` POST `/project/:id/cards/rerun` (`ConnectCardsRerunBody { card, scope: WorkRerunScope }`, closed) → `ConnectCardsRerunView { card, code?, scope, members, started }` — a container started for exactly those members. Beside them `project.request` POST `/project/:id/request` (the `modify` body) → `ConnectRequestView { kind: TriageKind, cards?: ConnectRequestCard[], start?: ConnectRequestStart { card, started, refusal? } }` — a request triaged first; `modify` keeps its exact behaviour |
 | `files` | `list` GET `/project/:id/files`; `get` GET / `save` POST / `remove` DELETE `/project/:id/files/content` (`ConnectFileQuery { path }` ≤ `CONNECT_FILE_PATH_MAX` in the query; the save body `ConnectFileSaveBody { path, content }` — the whole file) → `ConnectFileContent { path, content }` / `ConnectFileWritten { path, buildWarning? }`; `meta` GET `/project/:id/files/meta` (`ConnectFileMetaQuery { kind: MetadataListKind, category?: SpecCategory }`, the category a nullable enum carrying `null`) → `string[]` — ownership only; `changes` GET `/project/:id/files/changes` (`ConnectFeedQuery`) → `ConnectFileChanges` (a feed page + `watching`) |
 | `sandbox` | `run`, `restart`, `stop`, `rebuild` POST `/project/:id/sandbox/<verb>` → `ConnectSlotView` — the PREVIEW workload, ownership only; `restartApp` POST to the preview's per-app restart route (the sandbox route with the app name and the `restart` verb) (`ConnectAppParams { id, app }` — `APP_NAME_PATTERN`; `ConnectAppRestartBody { api?, web? }`, closed) → `ConnectAppsView` — one app of the preview while its siblings keep serving, ownership only |
 | `slot` | `list` GET `/slot` → `ConnectSlotView[]` — the organization's workloads, ownership only |
@@ -428,8 +462,11 @@ and `connectRef` (typed references) name the same set, the two bases aside:
 - A new route is added here first (alias, declaration, `connectRef` entry), then bound in every
   runtime that serves or calls it — a route declared on one side alone is an unexplained 404. Raw
   aliases stay private to declaration modules; consumers receive protocol objects.
-- NO story routes: a story is a planning card, listed, created, edited, deleted and started through
-  the planning tree the platform mounts beside the connector (`makePlanningProtocols`).
+- NO card create/edit/delete routes: a card of every work type is a planning card, listed, created,
+  edited, retyped, deleted and started through the planning tree the platform mounts beside the
+  connector (`makePlanningProtocols`); the `cards` branch carries only what planning cannot (a status
+  with members, plan and inputs; together; Run all's plan and run), and `story.status` stays the legacy
+  user-story read, unchanged.
   `ConnectProjectStatus.project` flattens the project card into a parent agent's names (`name` =
   title, `alias` = code, the three brief bodies) plus `status` and `intrinsic`;
   `ConnectConfirmBody` carries the three brief parts including `designSystem`.
@@ -521,38 +558,43 @@ and `connectRef` (typed references) name the same set, the two bases aside:
   and `waitingFor` reason; none exposes a generic operation id. A new long-running domain extends
   its view and endpoint, never a parallel polling vocabulary.
 
-## The agent's controls and story batches (`src/batch/`, in the barrel)
+## The agent's controls and card batches (`src/batch/`, in the barrel)
 
-A person can Run all (a BATCH: several planned stories implemented one after another, in an order
-the platform chooses for building), Stop what the agent runs, and Steer a running open-ended change.
-The browser's routes are the platform's; the connector twins are `connect.project.{stop,steer,batch.*}`
-above. Every name crossing a boundary is declared here once:
+A person can Run all (a BATCH: cards started one after another — `batch.start` over planned user
+stories in the order the platform chooses for building, or Run all's accepted assignment through
+`cards.runAll`: planned cards of any type in the given order, existing specs first, the new spec
+last), Stop what the agent runs, and Steer a running open-ended change. The wire keeps its stored
+names (`stories`, `storyId`, the stop scope `story`, the `story-batch-*` markers); they name any work
+card. The browser's routes are the platform's; the connector twins are
+`connect.project.{stop,steer,batch.*}` and `connect.cards.{plan,runAll}` above. Every name crossing a
+boundary is declared here once:
 
-- **Enums** (`consts.ts`): `StoryBatchKind` (`stories` — a person's Run all; `conversion` — a
-  conversion's implementation stage), `StoryBatchStatus` (`ordering`, `running` — `STORY_BATCH_LIVE`,
-  at most one per project; `completed`, `cancelled`, `halted` final), `StoryBatchOutcome` (`completed`,
-  `failed`, `stopped`, `skipped`, `refused` — a story with one is never started by that batch again),
-  `StoryBatchOrderSource` (`model`, `graph`, `board`), `AgentStopScope` (`run`, `story`, `batch`).
-  Bounds `STORY_BATCH_MAX` (256), `AGENT_STEER_PROMPT_MAX` (16384, a free-flight prompt's),
-  `STORY_BATCH_REASON_MAX` (1024); `STORY_BATCH_STALLED` (`'stalled'`) is the halt reason of a story
+- **Enums** (`consts.ts`): `WorkcardBatchKind` (`stories` — a person's Run all; `conversion` — a
+  conversion's implementation stage), `WorkcardBatchStatus` (`ordering`, `running` — `WORKCARD_BATCH_LIVE`,
+  at most one per project; `completed`, `cancelled`, `halted` final), `WorkcardBatchOutcome` (`completed`,
+  `failed`, `stopped`, `skipped`, `refused` — a card with one is never started by that batch again),
+  `WorkcardBatchOrderSource` (`model`, `graph`, `board`), `AgentStopScope` (`run`, `story` — the card in
+  progress, `batch`).
+  Bounds `WORKCARD_BATCH_MAX` (256), `AGENT_STEER_PROMPT_MAX` (16384, a free-flight prompt's),
+  `WORKCARD_BATCH_REASON_MAX` (1024); `WORKCARD_BATCH_STALLED` (`'stalled'`) is the halt reason of a card
   nothing runs any more — every other halt reason is a refusal marker.
-- **Shapes** (`types.ts`): `StoryBatchView` names stories by CARD id (`stories` in implementation
-  order, `codes` id → story code for display, `outcomes` id → outcome, `current` the one last started,
-  `ordering?: StoryBatchOrdering { source, reasons }` keyed by id), dates as ISO strings;
-  `StoryBatchStartArgs { stories? }` (omitted or `null` = every planned story), `AgentStopArgs { scope?,
+- **Shapes** (`types.ts`): `WorkcardBatchView` names cards by CARD id (`stories` in implementation
+  order, `codes` id → card code for display, `outcomes` id → outcome, `current` the one last started,
+  `ordering?: WorkcardBatchOrdering { source, reasons }` keyed by id), dates as ISO strings;
+  `WorkcardBatchStartArgs { stories? }` (omitted or `null` = every planned user story), `AgentStopArgs { scope?,
   storyId?, confirm? }`, `AgentSteerArgs { prompt }`, `AgentSteerResult { queued: true, id }`.
 - **Schemas** (`schemas.ts`): the three bodies are closed with nullable optionals (`scope` a nullable
   enum carrying `null`); `stories` is unique and bounded but may be EMPTY — the platform answers that
-  as the phrased `StoryBatchEmpty`, not a schema 400. `StoryBatchViewSchema` is a closed wire view
+  as the phrased `WorkcardBatchEmpty`, not a schema 400. `WorkcardBatchViewSchema` is a closed wire view
   (maps as `additionalProperties`), never a collection validator.
 - **The lock view carries the controls**: `ConnectAgentLock` gains optional `stopping`,
   `stoppingStoryId`, `stopScope` and `steerable`, each set only while it applies; it is what
   `connect.project.stop` answers and `ConnectProjectStatus.agent`.
 - **Refusals** (`errors.ts`, in the `viable-project:` family over `ProjectError`): `AgentNotRunning`
-  (409, `viable-project:agent-not-running:<what>`), `StoryBatchActive` (409,
-  `viable-project:story-batch-active:<batchId>`), `StoryBatchEmpty` (400,
+  (409, `viable-project:agent-not-running:<what>`), `WorkcardBatchActive` (409,
+  `viable-project:story-batch-active:<batchId>`), `WorkcardBatchEmpty` (400,
   `viable-project:story-batch-empty[:<detail>]`). The markers are `AGENT_NOT_RUNNING_MARKER`,
-  `STORY_BATCH_ACTIVE_MARKER`, `STORY_BATCH_EMPTY_MARKER`; readers match them by substring. The
+  `WORKCARD_BATCH_ACTIVE_MARKER`, `WORKCARD_BATCH_EMPTY_MARKER`; readers match them by substring. The
   platform throws these classes and never redeclares them.
 
 ## The intent-first hand-off (`./intent`)
@@ -630,21 +672,21 @@ ONE host, over the shared `common`, `backend` and `worker`. `AppMap { areas, app
   (`appMapHelper.markerOf(key)`; `AREA_MARKER_PREFIX`) — its area gate's one parameter, declared on the
   project's client by the platform (`markedAreasOf(map)` lists them).
 - **Every REFERENCE to an area is its key** (`AreaKey`, a kebab-case slug, `AREA_KEY_PATTERN`) — never
-  the kind: `ViableStoryFields.area` (+ `areas?`), `StoryDraft.area` (and every draft built on it —
-  connecting, merged, requested), `UserStory.area`, `StoryDesign.area` (+ `areas?`),
-  `StoryDesignScreen.area?`, `ScaffoldAreaPlan.area`, `RegistryAllocation.area`, `StoryMeta.area`,
-  `NavEntry.area`, `TargetPackageDescriptor.areas?`, `ConversionStoryRef.area`, `StoryProofDocMeta.area`.
+  the kind: `ViableWorkcardFields.area` (+ `areas?`), `WorkcardDraft.area` (and every draft built on it —
+  connecting, merged, requested), `UserStory.area`, `WorkcardDesign.area` (+ `areas?`),
+  `WorkcardDesignScreen.area?`, `ScaffoldAreaPlan.area`, `RegistryAllocation.area`, `WorkcardMeta.area`,
+  `NavEntry.area`, `TargetPackageDescriptor.areas?`, `ConversionWorkcardRef.area`, `WorkcardProofDocMeta.area`.
   The four standard keys are the kinds' words, so a record written before custom areas (`area:
   'user'`) is a valid key unchanged and a standard project's values are byte-identical. Persisted
   schemas check the SHAPE (`type: string` + `AREA_KEY_PATTERN` + `AREA_KEY_MAX`) — whether the map knows
   the key is the writer's check; there is no separate `areaKey` field anywhere. Model-answer schemas keep
-  the closed four (`StoryDraftSchema`, `ScaffoldPlanAnswerSchema`'s area entry — a custom area's plan
+  the closed four (`UserStoryDraftSchema`, `ScaffoldPlanAnswerSchema`'s area entry — a custom area's plan
   entry is written by code); `@owlmeans/viable` widens an answer's enum to the project's keys.
 - **The kind is the map's**: `appMapHelper.kindOf(map, key)` is THE derivation every kind rule uses
   (`areaOf` for the descriptor; an unknown custom key reads as a signed-in user area at its own
   segment); `hasArea(map, key)` — a standard key always, a custom one only where the map lists it (what a
-  writer checks a story's `area` against); `keysOf(map)` — the four standard keys, then the map's own (the
-  vocabulary a story may name).
+  writer checks a card's `area` against); `keysOf(map)` — the four standard keys, then the map's own (the
+  vocabulary a card may name).
 - **`AppDescriptor { name, mount, areas, web, api, index }`** — `main` is mount `''`, packages `web`
   / `api`, index 0; any other app is `^[a-z][a-z0-9]{1,15}$` (no hyphen; not `RESERVED_APP_NAMES`),
   one mount segment outside `RESERVED_MOUNTS`, packages `<name>-web` / `<name>-api`, an index 1..9
@@ -726,20 +768,20 @@ This package does not depend on `@owlmeans/bot`: a platform is a string id here,
 `BotPlatform` enum in `blueprint/consts.ts` is a verbatim copy of the 0.1 one, kept only so older code
 compiles — the one place a platform name appears in common.
 `BlueprintCapabilities.bot?` turns the stock bot packages on (connections, hook, receivers, activity);
-it is optional and absent reads as off. A story's `runtime.bot?.handlers` (`StoryDesignBotHandler {
+it is optional and absent reads as off. A card design's `runtime.bot?.handlers` (`WorkcardDesignBotHandler {
 name, purpose, trigger: 'keywords' | 'all' | 'command' | 'addressed', command?, actions:
-BotKitAction[], agent?, records? }`) is read only through `storyRuntimeHelper.botHandlersOf(runtime)`,
+BotKitAction[], agent?, records? }`) is read only through `workcardRuntimeHelper.botHandlersOf(runtime)`,
 total (`[]` without the block); `needsRuntime` stays about the queue, the worker and agents.
-A job the broker runs on its own carries `StoryDesignJob.schedule` (`StoryDesignJobSchedule { cron?,
+A job the broker runs on its own carries `WorkcardDesignJob.schedule` (`StoryDesignJobSchedule { cron?,
 every?, tz?, immediately? }` — the queue's `declareSchedule` fields, `cron` standing for its `pattern`,
 a property name a provider hides): exactly one of `cron` (five fields, read in the IANA zone `tz`,
 which it requires) and `every` (milliseconds, no `tz`); `immediately` only with `cron`. Such a job has
 no endpoint producer — its schedule is the producer and its run carries no record id. Every reader asks
 `jobScheduleHelper.scheduleOf(job)` (or `.isScheduled`), which answers only a valid schedule: a job whose
-schedule fails `problemsOf` is an endpoint's to enqueue. `StoryDesignSchema` holds the shape
+schedule fails `problemsOf` is an endpoint's to enqueue. `WorkcardDesignSchema` holds the shape
 (`CRON_SHAPE`, one-of under `if`, so `null` passes); the helper checks the values. A
 `keywords` handler matches the message against the product's own keyword-group records, the type
-named in `records` (which also names the records an `intake` handler writes). `StoryDesignSchema` declares the block, so a design that
+named in `records` (which also names the records an `intake` handler writes). `WorkcardDesignSchema` declares the block, so a design that
 carries one is not refused. `TemplateLayer.seeds` names case seed directories under the overlay's `.cases/`, copied
 over the staged tree in order (names, never paths; a variant lists its base seed first). What a case MEANS (`BLUEPRINT_CASES`,
 `applyBlueprintCase`, `applyBlueprintPatch` / `freezeBlueprint`, `joinPersonaSkills`, the
@@ -801,7 +843,7 @@ recover-account). It is the one way a census flow may leave a conversion's story
 that names user management (inviting, roles, blocking) would let an origin's admin area be dropped.
 
 `docs/conversion/` is addressed only through the path builders (`CONVERSION_*_FILE`,
-`conversionDocHelper.conversionStoryDoc`, `.conversionSeedDoc`, `.conversionSummaryDoc`) — the purge reads them back, and a path spelled at a
+`conversionDocHelper.conversionWorkcardDoc`, `.conversionSeedDoc`, `.conversionSummaryDoc`) — the purge reads them back, and a path spelled at a
 call site is a file the purge leaves behind.
 
 **`FileSummary` is one origin file read WHOLE**: `path` (origin-relative), `hash` (sha256 of the
@@ -872,9 +914,9 @@ and rebuilt in `finalizeUnmarshal()`:
 `ConnectSessionGone` is registered FATAL on the agent side: the step fails as an OUTCOME, so the
 run row records where it stopped and `pipeline.resume` picks it up when a connector returns.
 
-The project and story refusals — `ProjectNotFound`, `ProjectPermissionError`,
-`ProjectStoryNotFound`, `ProjectStoryMissconfigured`, `ProjectAgentOccupied` and their bases
-(`ProjectResourceError`, `ProjectStoryError`, `ProjectError`, `ProjectAgentError`) — are declared
+The project and card refusals — `ProjectNotFound`, `ProjectPermissionError`,
+`ProjectWorkcardNotFound`, `ProjectWorkcardMissconfigured`, `ProjectAgentOccupied` and their bases
+(`ProjectResourceError`, `ProjectWorkcardError`, `ProjectError`, `ProjectAgentError`) — are declared
 here because the viable planning plugin throws them from a process-neutral package. Type names and
 `viable-project:` markers are wire contracts. The platform re-exports the family and never
 redeclares a base: unmarshalling is by type name with the last registration winning, so a second
@@ -887,9 +929,9 @@ refuses an exported class whose status was not decided:
 |---|---|
 | 402 | `ConnectOutOfCredits` |
 | 428 | `ConnectConsentRequired`, `ConnectConfirmationRequired` |
-| 400 | `StoryBatchEmpty` (the selection holds no planned story) |
-| 404 | `ProjectNotFound`, `ProjectStoryNotFound`, `ConnectSessionNotFound`, `ConnectOpUnknown`, `ConnectMaterialUnknown` |
-| 409 | `ProjectAgentOccupied`, `ProjectStoryMissconfigured`, `ConnectSessionGone` (no connector attached), `LocalSlotUnsupported`, `AgentNotRunning`, `StoryBatchActive` |
+| 400 | `WorkcardBatchEmpty` (the selection holds no planned card) |
+| 404 | `ProjectNotFound`, `ProjectWorkcardNotFound`, `ConnectSessionNotFound`, `ConnectOpUnknown`, `ConnectMaterialUnknown` |
+| 409 | `ProjectAgentOccupied`, `ProjectWorkcardMissconfigured`, `ConnectSessionGone` (no connector attached), `LocalSlotUnsupported`, `AgentNotRunning`, `WorkcardBatchActive` |
 | 410 | `ConnectCallLost` (the outcome is gone, not late) |
 | 422 | `ConnectOpRefused` |
 | none (500) | the bases, `ConnectOpTimeout` (a peer's fault), `ProjectPermissionError` (never thrown; a permission refusal extends `AuthForbidden`) |
@@ -914,7 +956,7 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 | `iam-console.spec.ts` | the owner-console schemas (one subject, closed bodies, `null` in nullable enums, `mode: inherit` on a revoke and — deliberately — on a grant body, the `inherit`/`bundle` values), the 22 `connect.iam` routes under the base with no paid gate, the customer-wide listing under the account base, POST writes with `scope` in the body and reads with it in the query, the connector's IAM params |
 | `convert.spec.ts` | the three structural walks over the barrel, nullable enums under Ajv, census classifiers, stage transitions, every document path (summaries included) under `CONVERSION_DIR` |
 | `schedule.spec.ts` | cron fields, IANA zones, the one-of rules, `scheduleOf` answering only a valid schedule, the design schema on a job's schedule |
-| `design.spec.ts` | the design aggregate, staleness ranking (the requirements hash included), schema refusals, a runtime's bot handlers (schema — `keywords`, never `rules` — and `botHandlersOf`), `storyDesignHelper.userStoryOfDesign` |
+| `design.spec.ts` | the design aggregate, staleness ranking (the requirements hash included), schema refusals, a runtime's bot handlers (schema — `keywords`, never `rules` — and `botHandlersOf`), `workcardDesignHelper.userStoryOfDesign` |
 | `requirements.spec.ts` | id order, the card's exact shape and scope stripping, sections 5–9 and retained markers, slices and frontmatter, `docs/requirements.md`, digest stability, requested-story placement / dedupe / cap, the document schema |
 | `error-status.spec.ts` · `connect-errors.spec.ts` | declared statuses through a marshal · packed refusal fields fresh and after a round trip, the confirmation's `decode` |
 | `intent.spec.ts` | the four declarations without guards, schema cases incl. crafted refs, the flow walk and `flowLandingOf(context).suspendFlow` payload, error statuses |

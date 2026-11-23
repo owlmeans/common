@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/basic-keys
 
 **Layer:** Core
-**Install:** `"@owlmeans/basic-keys": "^0.2.2-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/basic-keys": "^0.2.3-alpha.0"` in `dependencies`
 
 ## Key Exports
 

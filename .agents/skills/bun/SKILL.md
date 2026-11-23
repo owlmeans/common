@@ -8,11 +8,13 @@ allowed-tools: Bash(bun *)
 
 This monorepo is managed with **Bun** — always `bun`, never `yarn` or `npm`. The root pins
 `packageManager: bun@1.4.2`; every linked consumer repo pins the same version. `bunfig.toml` sets
-`linker = "hoisted"` and a 15s default `bun test` timeout. A package whose specs need longer
-raises it in its own `bunfig.toml`, and `redis-queue` is the only one that does (60s, because its
-specs drive a real broker end to end); its file repeats `linker = "hoisted"` next to the timeout.
-The one other `bunfig.toml` under `packages/` is the scaffold seed in `create-app/template`, which
-sets the linker and no timeout.
+`linker = "hoisted"`. Its `[test] timeout` lines (root 15 s, `redis-queue` 60 s) have NO effect: bun 1.4
+has no such key and reads only the `bunfig.toml` of the directory it runs in, so every test starts
+from bun's 5 s default. A spec that needs longer passes its own budget as `test`'s third argument (or
+the package's `test` script passes `--timeout`); a package that wants a different default for all its
+specs names a preload calling `setDefaultTimeout` from `bun:test` in its OWN `bunfig.toml` (the
+pattern viable uses: `scripts/test-preload.ts`). The scaffold seed in `create-app/template` sets the
+linker only.
 
 ## Package Management
 

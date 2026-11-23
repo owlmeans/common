@@ -32,5 +32,5 @@ export interface AppsToolHelper {
    * standard area reaching nothing further is absent from the answer, so a project without apps reads
    * exactly as before.
    */
-  storyApps: (deps: Pick<ToolDeps, 'api'>, projectId: string, cards: readonly Workcard[]) => Promise<Map<string, string[]>>
+  workcardApps: (deps: Pick<ToolDeps, 'api'>, projectId: string, cards: readonly Workcard[]) => Promise<Map<string, string[]>>
 }

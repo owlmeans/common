@@ -1,4 +1,5 @@
 import type { AgentStopScope } from '../../batch/consts.js'
+import type { ViableImplementChoice } from '../../planning/consts.js'
 import type { ConnectTarget, ConnectWaitReason } from '../consts.js'
 import type { InquiryPayload } from '../ops/types.js'
 import type { ConnectSessionView } from '../session/types.js'
@@ -136,6 +137,15 @@ export interface ConnectConfirmBody {
   vision?: string
   designSystem?: string
   target?: ConnectTarget
+}
+
+/**
+ * A confirm that carries the choice at the specification approval (`connect.project.confirmImplementation`):
+ * `preview` draws the application only (what every other confirm does), `spec` also implements the
+ * init's spec right away — asked of the spec gate at the confirm.
+ */
+export interface ConnectConfirmImplementationBody extends ConnectConfirmBody {
+  implement: ViableImplementChoice
 }
 
 export interface ConnectModifyBody {

@@ -1,6 +1,6 @@
 ---
 name: web-marketing-consent
-description: How to use @owlmeans/web-marketing-consent — the browser half of @owlmeans/marketing-consent: the post-sign-in privacy-choices step (MarketingConsentBody for a host that owns its layout, MarketingConsentScreen as the plain frame), a reusable MarketingConsentPreferences settings-card body, appendMarketingConsent's login step and terms landing hook, and the MarketingConsentClientService (fail-open, signed-out-safe). Auto-invoked when wiring the marketing-consent screen into a web app, framing it in an application's own layout, rendering a settings card for privacy choices, or diagnosing a person stuck on (or never shown) the marketing-consent step.
+description: "How to use @owlmeans/web-marketing-consent — the browser half of @owlmeans/marketing-consent: the post-sign-in privacy-choices step (MarketingConsentBody for a host that owns its layout, MarketingConsentScreen as the plain frame), a reusable MarketingConsentPreferences settings-card body, appendMarketingConsent's login step and terms landing hook, and the MarketingConsentClientService (fail-open, signed-out-safe). Auto-invoked when wiring the marketing-consent screen into a web app, framing it in an application's own layout, rendering a settings card for privacy choices, or diagnosing a person stuck on (or never shown) the marketing-consent step."
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-marketing-consent
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-marketing-consent": "^0.2.2-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/web-marketing-consent": "^0.2.3-alpha.0"` in `dependencies`
 **Contracts:** `@owlmeans/marketing-consent` — the catalogue, `marketingConsentHelper.consentStatus`, the protocol tree
 **Server half:** `@owlmeans/server-marketing-consent` — `serveMarketingConsentEntrypoints` binds the
 same `status`/`save`/`terms` protocols this package calls

@@ -74,22 +74,22 @@ export interface EntityMeta extends Record<string, unknown> {
 }
 
 /** Ref to a screen inside a docs/stories/<code>.md index */
-export interface StoryScreenRef {
+export interface WorkcardScreenRef {
   name: string
   path: string
   /** Top-menu group this screen renders under. A label, never a URL segment. */
   section?: string
-  components: StoryComponentRef[]
+  components: WorkcardComponentRef[]
 }
 
 /** Ref to a component inside a docs/stories/<code>.md index */
-export interface StoryComponentRef {
+export interface WorkcardComponentRef {
   name: string
   path: string
 }
 
 /** Frontmatter for docs/stories/<code>.md */
-export interface StoryMeta extends Record<string, unknown> {
+export interface WorkcardMeta extends Record<string, unknown> {
   interaction?: import('../interaction/types.js').RecordInteractionPlan
   code: string
   status: string
@@ -118,7 +118,7 @@ export interface StoryMeta extends Record<string, unknown> {
   requirements?: Partial<Record<RequirementPart, string[]>>
   entity: string
   entities: string[]
-  screens: StoryScreenRef[]
+  screens: WorkcardScreenRef[]
   transitions: Array<{
     from: string
     to: string
@@ -146,27 +146,27 @@ export interface ComponentMeta extends Record<string, unknown> {
 }
 
 /**
- * Payload the agent passes to store.writeStory — all data the developer
+ * Payload the agent passes to store.writeWorkcard — all data the developer
  * collected during one develop run.
  */
-export interface StoryWriteInput {
+export interface WorkcardWriteInput {
   interaction?: import('../interaction/types.js').RecordInteractionPlan
   code: string
   narrative: string
   status: string
   primary: boolean
-  /** The card's landing flag — see {@link StoryMeta.landing}. Absent reads as `false`. */
+  /** The card's landing flag — see {@link WorkcardMeta.landing}. Absent reads as `false`. */
   landing?: boolean
   /** Carried through a develop run so the rewrite does not drop the scaffold's assignment. */
   section?: string
   /** Likewise the reserved screen name. */
   screen?: string
-  /** The story's stated requirement ids per part — see {@link StoryMeta.requirements}. */
+  /** The story's stated requirement ids per part — see {@link WorkcardMeta.requirements}. */
   requirements?: Partial<Record<RequirementPart, string[]>>
   userStory: import('../ba/types.js').UserStory
-  /** Each entry maps a StoryScreen to its source path in the target project */
+  /** Each entry maps a UserStoryScreen to its source path in the target project */
   screenPaths: Record<string, string>
-  /** Each entry maps a StoryComponent to its source path in the target project */
+  /** Each entry maps a UserStoryComponent to its source path in the target project */
   componentPaths: Record<string, string>
   transitions: Array<{
     from: string
@@ -255,7 +255,7 @@ export interface RegistryAllocation extends Record<string, unknown> {
    * steps of one flow that act on the same record through the same shape share ONE widget, and
    * then the widget belongs to a SET. `story` stays the code the file is named after, because
    * `widgetDefinition(code)` derives the filename from exactly one; this is what lets
-   * `byStory` answer to every member, and what stops a departing member from retiring an
+   * `byWorkcard` answer to every member, and what stops a departing member from retiring an
    * artifact the others still name.
    *
    * Absent on an artifact nobody shares — the ordinary case, and the shape every slot drawn

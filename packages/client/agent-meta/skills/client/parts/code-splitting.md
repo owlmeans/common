@@ -34,11 +34,10 @@ const Chart = lazyComponent(() => import('./chart.js'), 'Chart', {
 <a onMouseEnter={() => void reportsScreen.preload()} onFocus={() => void reportsScreen.preload()}>
 ```
 
-- **Module scope only.** The route renderer (`utils/route.tsx`) wraps the resolved screen in a
-  fresh `memo(...)` on every render, so the route subtree remounts on each navigation. A lazy
-  object made at module scope is already resolved by then and renders synchronously; one created
-  during a render or inside a handler factory is a new `React.lazy` each time and re-suspends — the
-  fallback flashes on every visit.
+- **Module scope only.** A lazy object made at module scope is already resolved when its screen is
+  visited again and renders synchronously; one created during a render or inside a handler factory
+  is a new `React.lazy` — a new component type — each time, which remounts its subtree and
+  re-suspends: the fallback flashes on every render.
 - **`preload()`** starts or joins the load and resolves to the component. Once loaded, every later
   render resolves in the same tick — no re-suspend.
 - **`fallback`** is a node or `fallback(props)`. **`error`** is a node or a `LazyErrorRenderer`

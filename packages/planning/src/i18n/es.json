@@ -15,7 +15,8 @@
     "transit": "Estado cambiado",
     "link": "Vinculado",
     "unlink": "Vínculo eliminado",
-    "delete": "Eliminado"
+    "delete": "Eliminado",
+    "retype": "Tipo cambiado"
   },
   "commit": {
     "pending": "Guardando…",
@@ -41,6 +42,7 @@
     "PlanningErrorSpecificationSlotUnknown": "Este tipo de documento no está permitido aquí",
     "PlanningErrorSpecificationRevisionConflict": "Este documento ya existe — edítalo en su lugar",
     "PlanningErrorRelationshipRefused": "Este vínculo no está permitido",
+    "PlanningErrorRetypeNotAllowed": "Este elemento no puede cambiar a ese tipo",
     "PlanningErrorCodeTaken": "Este código ya está en uso",
     "PlanningErrorWorkcardConflict": "Alguien cambió este elemento mientras tanto — recarga e inténtalo de nuevo",
     "PlanningErrorCommitTimeout": "El cambio aún se está guardando — vuelve a comprobarlo en breve",

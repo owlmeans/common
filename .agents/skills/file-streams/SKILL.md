@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/file-streams
 
 **Layer:** Infra
-**Install:** `"@owlmeans/file-streams": "^0.2.2-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/file-streams": "^0.2.3-alpha.0"` in `dependencies`
 
 Server-side (Node and Bun). Every byte moves as a Node `Readable` — the shape storage-resource's
 `StoredRecord.stream`, the AWS SDK, zlib and the archive codecs share. `createStreamSource` takes a

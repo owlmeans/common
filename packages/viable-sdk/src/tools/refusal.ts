@@ -1,7 +1,7 @@
 import { ResilientError } from '@owlmeans/error'
-import { AGENT_NOT_RUNNING_MARKER, ConnectConfirmationRequired, ConnectConsentRequired, ConnectOutOfCredits, STORY_BATCH_ACTIVE_MARKER, STORY_BATCH_EMPTY_MARKER, type ConnectConfirmation } from '@owlmeans/viable-common'
+import { AGENT_NOT_RUNNING_MARKER, ConnectConfirmationRequired, ConnectConsentRequired, ConnectOutOfCredits, WORKCARD_BATCH_ACTIVE_MARKER, WORKCARD_BATCH_EMPTY_MARKER, type ConnectConfirmation } from '@owlmeans/viable-common'
 import { settingsHelper } from './settings.js'
-import { CAPABILITY_LABELS, LIMIT_EXHAUSTED_FIELDS, MARKER_SHAPE, MODERATION, PROTECTED_FILE_DETAIL, STACK_FRAME } from './consts.local.js'
+import { CAPABILITY_LABELS, CHANGE_GATE, LIMIT_EXHAUSTED_FIELDS, MARKER_SHAPE, MODERATION, PROTECTED_FILE_DETAIL, RETYPE_REFUSALS, SPEC_FLOOR_CREDITS, SPEC_GATE, STACK_FRAME } from './consts.local.js'
 import { UNKNOWN_REFUSAL, UNPHRASED_REFUSAL } from './consts.js'
 import type { RefusalPhrase } from './types.js'
 import type { RefusalHelper } from './refusal/types.js'
@@ -98,6 +98,32 @@ export const createRefusalHelper = (): RefusalHelper => {
       + ' Tell the user; they free one up or change the plan in Billing in the OwlMeans web application.'
   }
 
+  /**
+   * A balance refusal, said for the gate it met: the organization in debt (no new work until the next
+   * top-up settles it), a spec or a feature (the 100,000-credit floor, or a spec's free implementation of
+   * the month on the Pro plan), an improvement or a task (a positive balance), anything else as before.
+   */
+  const outOfCreditsPhrase = (e: ConnectOutOfCredits): string => {
+    const topUp = `Ask the user to top up here: ${e.topUpUrl} — then retry.`
+    if (e.balanceUsd < 0) {
+      return 'Nothing was started: the organization is in debt — work that kept going after its credits ran out'
+        + ` left $${(-e.balanceUsd).toFixed(2)} to settle, and no new work starts until a top-up settles it. ${topUp}`
+    }
+    if (e.gate === SPEC_GATE) {
+      return `Nothing was started: a spec or a feature needs at least ${creditsOf(SPEC_FLOOR_CREDITS)} credits (about`
+        + ` $${e.requiredUsd.toFixed(2)}) to start, and the account has $${e.balanceUsd.toFixed(2)}. A spec is also covered`
+        + ' by the Pro plan\'s one free spec implementation of the month — already used, or not in this plan (the Free'
+        + ` plan has none). ${topUp}`
+    }
+    if (e.gate === CHANGE_GATE) {
+      return 'Nothing was started: an improvement or a task needs a positive balance to start, and the account has'
+        + ` $${e.balanceUsd.toFixed(2)}. ${topUp}`
+    }
+
+    return `Not enough balance to do this — it needs about $${e.requiredUsd.toFixed(2)} and the account has `
+      + `$${e.balanceUsd.toFixed(2)} left. Nothing was started. ${topUp}`
+  }
+
   /** What follows `marker` in a refusal's message, or `null` when the message does not carry it. */
   const detailOf = (message: string, marker: string): string | null => {
     const at = message.indexOf(marker)
@@ -107,9 +133,7 @@ export const createRefusalHelper = (): RefusalHelper => {
 
   const personRefusalPhrase = (e: unknown, retry?: string): string | null => {
     if (e instanceof ConnectOutOfCredits) {
-      return `Not enough balance to do this — it needs about $${e.requiredUsd.toFixed(2)} and the account has `
-        + `$${e.balanceUsd.toFixed(2)} left. Nothing was started. Ask the user to top up here: `
-        + `${e.topUpUrl} — then retry.`
+      return outOfCreditsPhrase(e)
     }
     if (e instanceof ConnectConsentRequired) {
       return consentRequiredPhrase(e.consentUrl, e.deadline)
@@ -376,6 +400,22 @@ export const createRefusalHelper = (): RefusalHelper => {
         + ' platform decide it.',
     },
     {
+      // Before the generic refusal below: a retype the card's state or the client refuses.
+      marker: 'viable-project:story:missconfigured:retype:',
+      phrase: why => RETYPE_REFUSALS[why.split(/[\s:]/)[0] ?? ''] ?? `The card cannot change its type now${aside(why)}; card_status says where it stands.`,
+    },
+    {
+      // A person may write a card's design prose, its requirements' texts and a proposal's decision — nothing else.
+      marker: 'viable-project:story:missconfigured:artifact-locked:',
+      phrase: where => `That part of the card is the platform's to write${aside(where)}: a proposal is decided`
+        + ' (accept or dismiss) and nothing else of it changes; a plan and a task\'s operations are never written by hand.',
+    },
+    {
+      marker: 'planning:card-type-not-allowed:',
+      phrase: detail => `That card cannot sit there${aside(detail)}: a spec holds features, user stories, improvements`
+        + ' and tasks; a feature holds user stories, improvements and tasks; nothing else holds cards.',
+    },
+    {
       marker: 'viable-project:story:missconfigured:',
       phrase: reason => `The story is not in a state that change applies to${aside(reason)}. A completed`
         + ' story has generated code behind it and is neither reworded nor deleted; story_status says'
@@ -521,6 +561,17 @@ export const createRefusalHelper = (): RefusalHelper => {
 
     // ── The project is busy ──────────────────────────────────────────────────────────────────────
     {
+      // Before the generic refusal below: a re-run of a spec or a feature while it runs, or one of its cards does.
+      marker: 'viable-project:agent:occupied:rerun:running',
+      phrase: () => 'That card is running now, so nothing of it starts again. card_status follows the run; once it'
+        + ' ends, rerun_card builds the cards it left failed or unfinished.',
+    },
+    {
+      marker: 'viable-project:agent:occupied:rerun:member',
+      phrase: () => 'One of the cards inside it is running on its own, so the card does not start beside it.'
+        + ' card_status follows that run; ask again once it ends.',
+    },
+    {
       marker: 'viable-project:agent:occupied:',
       phrase: verb => `The platform is already working on this project${aside(verb)}.`
         + ' Read project_status and ask again once it settles.',
@@ -541,12 +592,22 @@ export const createRefusalHelper = (): RefusalHelper => {
         + ' reaches only an open-ended change while it works — modify_project starts one.',
     },
     {
-      marker: `${STORY_BATCH_ACTIVE_MARKER}:`,
+      marker: `${WORKCARD_BATCH_ACTIVE_MARKER}:`,
       phrase: batch => `A story batch is already running on this project${aside(batch)} — one runs at a time.`
         + ' story_batch_status shows it; cancel_story_batch stops it, once the user agreed, before another starts.',
     },
     {
-      marker: STORY_BATCH_EMPTY_MARKER,
+      // Before the batch's own refusal below: a re-run that found nothing to build.
+      marker: `${WORKCARD_BATCH_EMPTY_MARKER}:rerun:failed`,
+      phrase: () => 'Nothing was started: none of the cards inside it failed. card_status lists them; rerun_card'
+        + ' { scope: unfinished } builds every card inside it that is not completed.',
+    },
+    {
+      marker: `${WORKCARD_BATCH_EMPTY_MARKER}:rerun:unfinished`,
+      phrase: () => 'Nothing was started: every card inside it is completed, so nothing is left to run.',
+    },
+    {
+      marker: WORKCARD_BATCH_EMPTY_MARKER,
       phrase: () => 'Nothing was started: the selection holds no planned story of this project, and a batch'
         + ' implements planned stories only. list_stories shows where each stands; reset_story puts one back to'
         + ' planned.',

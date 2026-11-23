@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { ResilientError } from '@owlmeans/error'
 import {
-  ConnectConsentRequired, ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget, ViableStoryTransition,
+  ConnectConsentRequired, ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget, ViableWorkcardTransition,
 } from '@owlmeans/viable-common'
 import { registerCatalogue } from '../src/tools/mcp.js'
 import type { McpServerLike, ToolDeps, ToolHost } from '../src/tools/types.js'
@@ -155,11 +155,11 @@ describe('viable-sdk — a planning refusal, at the MCP boundary', () => {
     log: (line: string) => { logged.push(line) },
   }) as unknown as ToolDeps
 
-  const developed = async (planning: ToolDeps['api']['planning'], projectId: string, storyId: string, logged: string[]) => {
+  const developed = async (planning: ToolDeps['api']['planning'], projectId: string, workcardId: string, logged: string[]) => {
     const { server, run } = fakeServer()
     registerCatalogue(server, depsOver(planning, logged))
 
-    return await run('develop_story', { projectId, storyId }) as {
+    return await run('develop_story', { projectId, storyId: workcardId }) as {
       content: Array<{ text: string }>
       isError?: boolean
     }
@@ -169,7 +169,7 @@ describe('viable-sdk — a planning refusal, at the MCP boundary', () => {
     const suite = await makePlanningSuite()
     const project = await suite.project()
     const running = await suite.story(project.id!, 'As a clerk, I record a sale.', {
-      moves: [ViableStoryTransition.Start],
+      moves: [ViableWorkcardTransition.Start],
     })
 
     // In process — the platform's own `/mcp` host — the refusal arrives as its class.

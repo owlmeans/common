@@ -11,6 +11,10 @@ export interface CodeUtils {
    * (first answer wins, and is checked too); otherwise the type's policy mints one — a slug policy
    * derives it from the title. A type with no policy and no supplied code gets none.
    *
+   * A `retype` keeps the code when the new type has no policy, or when the code carries the new
+   * policy's prefix and is free in the new type's scope; otherwise it mints one under the new policy
+   * (the plugins' chain first) and appends the old code to `fields.formerCodes`.
+   *
    * @throws {CodeTaken}
    */
   assignCode: (

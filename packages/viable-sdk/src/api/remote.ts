@@ -2,10 +2,10 @@ import { apiStatusHelper } from '@owlmeans/api'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { makeUploadClient } from '@owlmeans/client-upload'
 import type { UploadProtocols } from '@owlmeans/upload'
-import { connectProtocols, connectRef, type ConnectClientView, type ConnectAppRestartBody, type ConnectAppsView, type AgentSteerArgs, type AgentStopArgs, type StoryBatchStartArgs, type StoryBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload } from '@owlmeans/viable-common'
+import { connectProtocols, connectRef, type ConnectClientView, type ConnectAppRestartBody, type ConnectAppsView, type AgentSteerArgs, type AgentStopArgs, type WorkcardBatchStartArgs, type WorkcardBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload, type ConnectCardStatus, type ConnectCardsPlanView, type ConnectCardsRerunBody, type ConnectCardsRerunView, type ConnectCardsRunAllBody, type ConnectCardsTogetherBody, type ConnectCardsTogetherView, type ConnectRequestView } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import { MATERIALS_FILE_TIMEOUT_MS, NOT_FOUND } from './consts.local.js'
-import type { ConnectorApi, OpenSessionArgs, ProjectEdits } from '../types.js'
+import type { ConnectorApi, OpenSessionArgs, ProjectEdits, ProjectImplementEdits } from '../types.js'
 import type { Ctx } from './types.local.js'
 import type { RemoteConnectorOptions } from './types.js'
 import { planningContextOf } from '@owlmeans/client-planning'
@@ -91,6 +91,10 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
         await context.entrypoint(connectRef.project.confirmWithReferences).call({
           params: { id }, body: edits, timeout,
         }),
+      confirmImplementation: async (id: string, edits: ProjectImplementEdits) =>
+        await context.entrypoint(connectRef.project.confirmImplementation).call({
+          params: { id }, body: edits, timeout,
+        }),
       list: async () => await context.entrypoint(connectRef.project.list).call({ timeout }),
       status: async (id: string): Promise<ConnectProjectStatus> => await context
         .entrypoint(connectRef.project.status).call({ params: { id }, timeout }),
@@ -101,6 +105,10 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
         .entrypoint(connectRef.project.reinit).call({ params: { id }, timeout }),
       modify: async (id: string, prompt: string) =>
         await context.entrypoint(connectRef.project.modify).call({
+          params: { id }, body: { prompt }, timeout,
+        }),
+      request: async (id: string, prompt: string): Promise<ConnectRequestView> =>
+        await context.entrypoint(connectRef.project.request).call({
           params: { id }, body: { prompt }, timeout,
         }),
       rename: async (id: string, name: string, description?: string) =>
@@ -129,14 +137,14 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
       steer: async (id: string, args: AgentSteerArgs) => await context
         .entrypoint(connectRef.project.steer).call({ params: { id }, body: { prompt: args.prompt }, timeout }),
       batch: {
-        start: async (id: string, args: StoryBatchStartArgs): Promise<StoryBatchView> => await context
+        start: async (id: string, args: WorkcardBatchStartArgs): Promise<WorkcardBatchView> => await context
           .entrypoint(connectRef.project.batch.start).call({
             params: { id }, body: args.stories != null ? { stories: args.stories } : {}, timeout,
           }),
         // No batch ever ran: the platform answers `null`, and an empty body reads the same.
-        get: async (id: string): Promise<StoryBatchView | null> => (await context
+        get: async (id: string): Promise<WorkcardBatchView | null> => (await context
           .entrypoint(connectRef.project.batch.get).call({ params: { id }, timeout })) ?? null,
-        cancel: async (id: string): Promise<StoryBatchView> => await context
+        cancel: async (id: string): Promise<WorkcardBatchView> => await context
           .entrypoint(connectRef.project.batch.cancel).call({ params: { id }, timeout }),
       },
       activity: async (id: string, query?: ConnectActivityQuery) => await context
@@ -206,8 +214,31 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
     },
 
     story: {
-      status: async (id: string, storyId: string): Promise<ConnectStoryStatus> => await context
-        .entrypoint(connectRef.story.status).call({ params: { id, storyId }, timeout }),
+      status: async (id: string, workcardId: string): Promise<ConnectStoryStatus> => await context
+        .entrypoint(connectRef.story.status).call({ params: { id, storyId: workcardId }, timeout }),
+    },
+
+    cards: {
+      status: async (id: string, cardId: string): Promise<ConnectCardStatus> => await context
+        .entrypoint(connectRef.cards.status).call({ params: { id, cardId }, timeout }),
+      // Only the fields named cross the wire: the body is a closed shape.
+      together: async (id: string, body: ConnectCardsTogetherBody): Promise<ConnectCardsTogetherView> => await context
+        .entrypoint(connectRef.cards.together).call({
+          params: { id },
+          body: {
+            cards: body.cards,
+            ...(body.start != null ? { start: body.start } : {}),
+            ...(body.title != null ? { title: body.title } : {}),
+            ...(body.key != null ? { key: body.key } : {}),
+          },
+          timeout,
+        }),
+      plan: async (id: string): Promise<ConnectCardsPlanView> => await context
+        .entrypoint(connectRef.cards.plan).call({ params: { id }, timeout }),
+      runAll: async (id: string, body: ConnectCardsRunAllBody): Promise<WorkcardBatchView> => await context
+        .entrypoint(connectRef.cards.runAll).call({ params: { id }, body: { assignment: body.assignment }, timeout }),
+      rerun: async (id: string, body: ConnectCardsRerunBody): Promise<ConnectCardsRerunView> => await context
+        .entrypoint(connectRef.cards.rerun).call({ params: { id }, body: { card: body.card, scope: body.scope }, timeout }),
     },
 
     materials: {
@@ -423,11 +454,13 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
     },
 
     pipeline: {
+      // A child run's id holds a `/`; the edge redirects an encoded slash, so it travels as `%2F`
+      // (encoded once more by the path), which the platform reads back as `/`.
       state: async (id: string, runId: string): Promise<ConnectPipelineState> => await context
-        .entrypoint(connectRef.pipeline.state).call({ params: { id, runId }, timeout }),
+        .entrypoint(connectRef.pipeline.state).call({ params: { id, runId: runId.replaceAll('/', '%2F') }, timeout }),
       resume: async (id: string, runId: string, args) =>
         await context.entrypoint(connectRef.pipeline.resume).call({
-          params: { id, runId }, body: args ?? {}, timeout,
+          params: { id, runId: runId.replaceAll('/', '%2F') }, body: args ?? {}, timeout,
         }),
     },
 

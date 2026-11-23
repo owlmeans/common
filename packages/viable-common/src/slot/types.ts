@@ -22,6 +22,18 @@ export interface SlotDatabaseQueryArgs {
   timeoutMs?: number
 }
 
+/**
+ * A database command's failure, returned as data rather than thrown: the driver's SQLSTATE, detail
+ * and hint survive the HTTP error policy, which exposes only an incident id for a thrown error.
+ */
+export interface SlotDatabaseError {
+  message: string
+  code?: string
+  detail?: string
+  hint?: string
+  position?: string
+}
+
 // Kept as a type: a union of the success and the failure shape.
 export type SlotDatabaseQueryResult = {
   ok: true
@@ -30,7 +42,82 @@ export type SlotDatabaseQueryResult = {
   truncated: boolean
 } | {
   ok: false
-  error: { message: string; code?: string; detail?: string; hint?: string; position?: string }
+  error: SlotDatabaseError
+}
+
+/** `SlotDatabaseCommand.Change`'s arguments — one DML statement of a task. */
+export interface SlotDatabaseChangeArgs {
+  /** One INSERT, UPDATE or DELETE (an optional `WITH …` prefix allowed), at most `maxStatementChars`. */
+  statement: string
+  /** Positional `$n` values, at most `maxParams` scalars. */
+  params?: Array<string | number | boolean | null>
+  /** Idempotency key, 1..`maxKeyChars`: a key the slot already applied runs nothing again. */
+  key: string
+  /** Run, count and roll back — the count the person confirms. */
+  dryRun?: boolean
+  /** Row cap: a statement touching more rows is rolled back. Defaults to and is at most `DATABASE_CHANGE_LIMITS.maxRows`. */
+  maxRows?: number
+  /** Statement timeout in ms, at most `DATABASE_CHANGE_LIMITS.timeoutMs`. */
+  timeoutMs?: number
+}
+
+/** What `SlotDatabaseCommand.Change` answers. */
+export interface SlotDatabaseChangeResult {
+  ok: boolean
+  /** Rows the statement touched — on a dry run the count it would touch. */
+  rows?: number
+  dryRun?: boolean
+  /** `true` committed now; `false` the key was applied before — `rows` is the recorded count and nothing ran. */
+  applied?: boolean
+  /** The statement's target table, as written. */
+  table?: string
+  error?: SlotDatabaseError
+}
+
+/** One table of a dump. */
+export interface SlotDatabaseDumpTable {
+  name: string
+  /** The non-generated columns `data` carries, in ordinal order. */
+  columns: string[]
+  rows: number
+  /** Postgres-rendered JSON array text of the rows — never parsed by JS (numeric precision). */
+  data: string
+}
+
+/** An app-schema data dump: its schema's fingerprint and every base table's rows. */
+export interface SlotDatabaseDump {
+  schema: string
+  /** sha256 over the schema's canonical description: tables, columns, types, nullability, generation, foreign keys. */
+  fingerprint: string
+  tables: SlotDatabaseDumpTable[]
+  /** Size of `tables` as JSON on the wire, at most `DATABASE_BACKUP_LIMITS.maxBytes`. */
+  bytes: number
+  /** ISO time the dump's snapshot was taken. */
+  takenAt: string
+}
+
+/** What `SlotDatabaseCommand.Dump` answers. */
+export interface SlotDatabaseDumpResult {
+  ok: boolean
+  dump?: SlotDatabaseDump
+  error?: SlotDatabaseError
+}
+
+/** `SlotDatabaseCommand.Restore`'s arguments. */
+export interface SlotDatabaseRestoreArgs {
+  dump: SlotDatabaseDump
+}
+
+/** What `SlotDatabaseCommand.Restore` answers. */
+export interface SlotDatabaseRestoreResult {
+  ok: boolean
+  /** Why nothing was touched: the schema changed since the dump, the dump is too large, or malformed. */
+  refused?: 'fingerprint' | 'size' | 'shape'
+  tables?: number
+  rows?: number
+  /** The restarted backend's boot verdict: `null` it booted, text why it did not. Absent when it was never stopped. */
+  boot?: string | null
+  error?: SlotDatabaseError
 }
 
 /** `SlotFileCommand.WriteBinaryFile`'s arguments; it answers `{}`. */

@@ -1,6 +1,6 @@
-import { AgentStopScope, type AgentSteerResult, type ConnectAgentLock, type StoryBatchView } from '@owlmeans/viable-common'
+import { AgentStopScope, type AgentSteerResult, type ConnectAgentLock, type WorkcardBatchView } from '@owlmeans/viable-common'
 import { statusTextHelper } from './status.js'
-import { STORY_STOP_ROLLBACK as ROLLBACK } from './consts.local.js'
+import { WORKCARD_STOP_ROLLBACK as ROLLBACK } from './consts.local.js'
 import type { ControlToolHelper } from './control/types.js'
 
 export const createControlToolHelper = (): ControlToolHelper => {
@@ -9,7 +9,7 @@ export const createControlToolHelper = (): ControlToolHelper => {
   const unconfirmedStop = (scope?: AgentStopScope): string => {
     const what = scope === AgentStopScope.Batch
       ? `No further story of the batch starts, and ${ROLLBACK}.`
-      : scope === AgentStopScope.Story
+      : scope === AgentStopScope.Workcard
         ? `${ROLLBACK.charAt(0).toUpperCase()}${ROLLBACK.slice(1)}.`
         : `When a story is being implemented, ${ROLLBACK}; an open-ended change stops and keeps its edits.`
 
@@ -28,7 +28,7 @@ export const createControlToolHelper = (): ControlToolHelper => {
           + ' further runs — and ends with a short summary of what it changed and what is left. Its edits stay.'
         : scope === AgentStopScope.Batch
           ? `Stop requested: no further story of the batch starts, and ${ROLLBACK}.`
-          : scope === AgentStopScope.Story
+          : scope === AgentStopScope.Workcard
             ? `Stop requested: ${ROLLBACK}.`
             : `Stop requested${lock.task != null ? ` (${lock.task})` : ''}: a story run stops at its next step and is`
               + ' rolled back to where that run started; an open-ended change stops once the model\'s current'
@@ -42,8 +42,8 @@ export const createControlToolHelper = (): ControlToolHelper => {
     + ' the message steers what it does next.'
     + `\nnext: project_status { "projectId": "${projectId}" }`
 
-  const renderCancel = (view: StoryBatchView, storyStopped: boolean): string => [
-    storyStopped
+  const renderCancel = (view: WorkcardBatchView, workcardStopped: boolean): string => [
+    workcardStopped
       ? `The batch is cancelled: no further story starts, and ${ROLLBACK}.`
       : 'The batch is cancelled: no further story starts. No story of it was being implemented.',
     statusTextHelper.renderBatchStatus(view),

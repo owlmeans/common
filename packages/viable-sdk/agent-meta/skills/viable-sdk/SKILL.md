@@ -1,6 +1,6 @@
 ---
 name: viable-sdk
-description: How to use @owlmeans/viable-sdk — the connector SDK an external coding agent drives the OwlMeans Viable platform with — the token-authenticated client context, the two host kinds and their tool catalogue, the client header every request names its edition with, the session operation loop and its model-task seam, the local slot executor and local run, the model-task envelope, the extension seam a host adds its own tools through, and the profile seam that presents the catalogue for a store listing or a plugin (the listing profiles). Auto-invoked when building or changing a connector, an MCP host, a connector tool, a tool profile, the task envelope, or anything that executes platform slot commands on a developer's machine.
+description: How to use @owlmeans/viable-sdk — the connector SDK an external coding agent drives the OwlMeans Viable platform with — the token-authenticated client context, the two host kinds and their tool catalogue (the story tools, the `cards` group, the triaged `modify_project`, `confirm_project`'s `implement`), the client header every request names its edition with, the session operation loop and its model-task seam, the local slot executor and local run, the model-task envelope, the extension seam a host adds its own tools through, and the profile seam that presents the catalogue for a store listing or a plugin (the listing profiles). Auto-invoked when building or changing a connector, an MCP host, a connector tool, a tool profile, the task envelope, or anything that executes platform slot commands on a developer's machine.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,10 +8,10 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.2.2-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.2.3-alpha.0"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
-vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
+vocabulary — the work-card types and their one flow) and `@owlmeans/planning` (the planning protocol tree
 and facade) — every name on the wire is declared there, so the SDK and the platform cannot spell one
 differently.
 
@@ -122,10 +122,12 @@ without the capability is refused at the boundary rather than by a check somewhe
 `ConnectorApi` has exactly one member per connector route plus the planning facade — the session
 (`openSession`, `closeSession`, `pullOps`, `submitOp`), projects (`project.create` and its references
 twin `project.createWithReferences(prompt, target?, sessionId?)`, `project.confirm` and
-`project.confirmWithReferences(id, edits)` — same arguments, their own routes; with the agent controls
+`project.confirmWithReferences(id, edits)` — same arguments, their own routes — and
+`project.confirmImplementation(id, ProjectImplementEdits)` (the edits plus the required `implement`
+choice, `connect.project.confirmImplementation`); with the agent controls
 `project.stop(id, AgentStopArgs)` → `ConnectAgentLock`, `project.steer(id, { prompt })` → `AgentSteerResult`
 and the story batch `project.batch.start(id, { stories? })` / `.get(id)` (`null` when none ran) /
-`.cancel(id)` → `StoryBatchView` — only the fields named cross the wire), branding (`projectBranding(id, scope?)`,
+`.cancel(id)` → `WorkcardBatchView` — only the fields named cross the wire), branding (`projectBranding(id, scope?)`,
 `saveProjectBranding(id, patch, scope?)`, `setPlatformCredit(id, hidden, scope?)`,
 `copyOrganizationBranding(id, scope?)` — a scope sent only when named), the configuration
 (`config.get(id, scope?)`, `config.save(id, body, scope?)`, `config.recollect(id)`), the
@@ -144,7 +146,9 @@ path)`; the tree has no `open` and no `abort`), files
 → `ConnectAppsView`, only the sides named), a project's applications (`project.apps(projectId)` →
 `ConnectAppsView`), the organization's `slot.list`,
 `client()` (how the platform sees this connection, `ConnectClientView`; `null` when an older platform
-answers the route 404 — any other failure throws), pipeline state, conversion (`create`, `check`, `start(projectId, body?)`, `proceed(projectId, body)`
+answers the route 404 — any other failure throws), the triaged request (`project.request(id, prompt)` →
+`ConnectRequestView`), work cards (`cards.status(id, cardId)`, `cards.together(id, body)` — only the named
+fields —, `cards.plan(id)`, `cards.runAll(id, { assignment })`), pipeline state (a child run id's `/` is sent as `%2F`, encoded again by the path — the edge redirects an encoded slash — and read back by the platform), conversion (`create`, `check`, `start(projectId, body?)`, `proceed(projectId, body)`
 — the bodies are the route's, `confirm` included —, `status`, `purge`) and inquiry answers. There is
 no capability view, no session read or heartbeat, no conversion cancel, no token create and no
 consent grant. A member is added together with the route in `connectProtocols` and its
@@ -280,7 +284,7 @@ polling strategy or treat a parked run as failed. What HAPPENED along the way is
 
 ## The story tools speak planning
 
-A user story is a planning CARD of `VIABLE_STORY_TYPE` under its project card, and every change to one
+A user story is a planning CARD of `VIABLE_USER_STORY_TYPE` under its project card, and every change to one
 is a transition executed through `ConnectorApi.planning` — a `PlanningFacade`: the client facade
 `appendPlanningClient` registers over HTTP, and `ensurePlanningService(ctx).for(scope)` in the
 platform's in-process host. The scope a call answers for is the CREDENTIAL's; a tool sends none.
@@ -289,7 +293,7 @@ platform's in-process host. The scope a call answers for is the CREDENTIAL's; a 
 |---|---|
 | `list_stories` | `cards.list({ ...storyHelper.storyQuery(project, { status, area }), page, size, sort: STORY_ORDER })` → `storyHelper.renderStories` |
 | `search_stories` | the same with `{ q }` |
-| `create_story` | `execute({ action: create, card: { kind: card, type: VIABLE_STORY_TYPE, parent, title, fields: { primary: false, area? } } }, { wait: true, timeout: COMMIT_WAIT_MS })` — `area` only when the person named one, by KEY (`AREA_KEY_PATTERN`, ≤ `AREA_KEY_MAX`; a custom area's slug from `project_apps` included); the platform checks it against the project's map and keeps it over the formatted area |
+| `create_story` | `execute({ action: create, card: { kind: card, type: VIABLE_USER_STORY_TYPE, parent, title, fields: { primary: false, area? } } }, { wait: true, timeout: COMMIT_WAIT_MS })` — `area` only when the person named one, by KEY (`AREA_KEY_PATTERN`, ≤ `AREA_KEY_MAX`; a custom area's slug from `project_apps` included); the platform checks it against the project's map and keeps it over the formatted area |
 | `update_story` | `storyHelper.resolveStory` → `execute({ card, action: update, changes: { title }, expectSeq: head ?? seq }, { wait: true, … })` |
 | `delete_story` | `storyHelper.resolveStory` → `execute({ card, action: delete }, { wait: true, … })` → the project-lock poll |
 | `develop_story` | `storyHelper.transit(deps, project, storyId, start, 'connector:develop-story')` |
@@ -308,7 +312,7 @@ Rules the table rests on:
   never substituted.
 - **`storyId` accepts a code or an id**, because `list_stories` prints the CODE — the handle every
   generated file names a story by. `storyHelper.resolveStory` asks for both at once, the id wins, a code is also
-  tried uppercased, and neither answers for a story of another project (`ProjectStoryNotFound`).
+  tried uppercased, and neither answers for a story of another project (`ProjectWorkcardNotFound`).
 - **A story moves through its flow by ONE helper.** `storyHelper.transit(deps, projectId, ref,
   transition, cause)` resolves the story, executes the transition awaited to its commit and answers
   `{ card, status }` from `story.status`. Development is the story's `start`, not a call of its own:
@@ -347,19 +351,71 @@ Rules the table rests on:
   is never replaced) and `api:auth:guard:auth-token` (a file token the platform refused — forgotten,
   the next call signs in). Each ends with "call this tool again".
 
-- **Run all, Stop and Steer are the browser's own controls.** A batch is the PROJECT's (no story
-  route), started over planned stories only, ordered by the platform before its first story, and
-  each of its stories runs exactly as `develop_story`'s would; `start_story_batch` is never a near-twin
+- **Run all, Stop and Steer are the browser's own controls.** `start_story_batch`'s batch is the
+  PROJECT's (no story route), started over planned user stories only, ordered by the platform before
+  its first story, and each of its stories runs exactly as `develop_story`'s would (`run_all_cards` is
+  the cards group's Run all over every type); `start_story_batch` is never a near-twin
   of `develop_story` in its description. `stop_agent { scope?: run | story | batch, storyId?, confirm? }`
-  sends only what it was given (a `storyId` resolved to its card): a story stop rolls the story back to
-  where that run started and returns it to planned, `batch` also cancels the batch, `run` (an open-ended
+  sends only what it was given (a `storyId` resolved to its card): a `story` stop rolls the card in
+  progress (any work type) back to where that run started and returns it to planned, `batch` also cancels the batch, `run` (an open-ended
   change) stops once the model's current answer arrives and keeps its edits — so every scope but `run`
   (an omitted scope included) needs `confirm: true`. A stop opens no session; `steer_agent { prompt }`
   does (`ensureSession`: its content check is a model call) and answers the queued message id.
-  `AgentNotRunning`, `StoryBatchActive` and `StoryBatchEmpty` are phrased in `REFUSALS` by their
+  `AgentNotRunning`, `WorkcardBatchActive` and `WorkcardBatchEmpty` are phrased in `REFUSALS` by their
   `viable-common` markers ("Nothing is running on this project right now …"). `project_status` says
   `agent: stopping (…)` while `agent.stopping`, and names `steer_agent` / `stop_agent` while
   `agent.steerable`.
+
+## Work cards: the `cards` tool group, and `modify_project` triaged
+
+Every work type is a planning card too, so the `cards` group works through `ConnectorApi.planning` like the
+story tools, plus `ConnectorApi.cards` for what planning cannot answer alone (`connect.cards.*`). It is ONE
+capability group (`PLATFORM_CATALOGUE.capabilities` `cards`), offered on every host and target; helpers
+`cardsToolHelper` (`tools/cards.ts`: type words, the query, `resolveCard` by code or id of ANY work type,
+the renderers, `routeMissing`) and `cardsPlanMemoOf(api)`.
+
+| Tool | What it does | Annotation |
+|---|---|---|
+| `list_cards { projectId?, type?, status?, container?, page? }` | every work type (`container` → `within`), each line `code · type · status[ · in <container code>]` | read-only |
+| `create_card { projectId?, type: auto\|user-story\|spec\|feature\|improvement\|task, title, description?, cards?, inputs? }` | a named type is filed `typeBy: person`; `auto` files a user story with the marker `typeBy: auto` (`ViableTypeBy.Auto`), which asks the platform's type check on `connect`; `cards` (spec/feature only) moves existing cards in on the person's scope; `inputs [{ name, secret, note? }]` (a task only — with `auto` they make it a task) are written into the description under `CARD_INPUTS_HEADING`, NEVER a value | write |
+| `update_card { projectId?, cardId, title?, description?, proposals? }` | title/description with `expectSeq`; `proposals [{ id, decision: accept\|dismiss }]` rewrite only those items' `status` on the `proposals` document | idempotent write |
+| `retype_card { projectId?, cardId, type }` | `TransitionAction.Retype` with the fields fitted (`viableWorkHelper.fieldsFor` / `unsetFor`) and `typeBy: person`; a cards client only (`retype:client` otherwise) | idempotent write |
+| `run_card { projectId?, cardId }` | the person's `transit start` (late commit → answered from status), then `card_status` | write |
+| `run_cards_together { projectId?, cards[], title? }` | `cards.together { cards: ids, start: true }`, then the spec's status | write |
+| `run_all_cards { projectId?, confirm? }` | without `confirm`: `cards.plan` rendered, remembered for 30 min, nothing run; with `confirm: true`: the remembered proposal (else a fresh one) → `cards.runAll` | write |
+| `rerun_card { projectId?, cardId, scope: failed\|unfinished }` | `cards.rerun { card, scope }` (`CARD_RERUN_SCOPES` = the wire values of `WorkRerunScope`): a spec or a feature started as the person's Start for exactly its failed or its unfinished cards (a feature: its user stories) — spends credits like `run_card` for a spec or a feature, no `confirm` (as `run_card`); answered `renderRerun` + the card's status | write |
+| `card_status { projectId?, cardId }` | `cards.status`: members, plan, open proposals, a task's inputs `set`/`missing` with `inputsUrl` (where the USER types a secret), run, question, `next:` | read-only |
+| `delete_card { projectId?, cardId }` | the delete, then the two unlocked observations `delete_story` waits for | destructive |
+
+- **Story tools are untouched**: their names, inputs, bodies and answers stay as they were; `create_story`
+  never sends the marker, so a story stays a story.
+- **A platform older than the cards routes** answers a bare 404: `card_status`, `run_cards_together`,
+  `run_all_cards` and `rerun_card` answer `CARDS_UNSUPPORTED`; `run_card` keeps its lead line.
+- **`modify_project` asks `connect.project.request` first** (`requestToolOf(api)`, `tools/request.ts`): a
+  bare 404 falls back to `project.modify` with the same prompt, remembered per API, and answers exactly the
+  released `{ project }`. Its answer is `renderRequest(view)` (question / fix / the cards filed and the
+  start — a refused start's `refusal` is the marshalled error, rebuilt with `ResilientError.ensure` and
+  phrased like a thrown one) over the project status, structured `{ project, request }`; a request still
+  being read after `REQUEST_ANSWER_MS` (38 s) answers the project status and points at `project_activity`.
+  The description carries the triage sentence.
+- **Gate refusals are phrased per gate** (`refusalHelper.personRefusalPhrase` over `ConnectOutOfCredits`):
+  balance below zero → the organization is in debt, nothing new starts until a top-up settles it; gate
+  `spec` → the 100,000-credit floor (`SPEC_FLOOR_CREDITS`) or the Pro plan's free spec of the month; gate
+  `change` → a positive balance; any other gate reads as before. Retype refusals (`retype:<why>`,
+  `RETYPE_REFUSALS`), `artifact-locked:` and `card-type-not-allowed:` have their own sentences, and so do a
+  re-run's (listed BEFORE the generic occupied and batch-empty entries, first match wins):
+  `occupied:rerun:running` / `occupied:rerun:member` (the card or one of its cards runs) and
+  `story-batch-empty:rerun:failed` / `:unfinished` (nothing to build).
+- **Feeds**: `FEED_TOAST_WORDS` phrases `credits-finishing` (the run finishes, settled from the next
+  top-up) and `credits-stopping` (the step finishes, then the run stops).
+- **Listings** name every card tool in `LISTING_TOOLS` (credits, repeats; `rerun_card` REWRITES, in the
+  destructive, credit and repeating sets) and present them (`rerun_card` as `CardStatusOutput`)
+  (`CardPageOutput`, `CardOutput`, `CardStatusOutput`, `CardsRunAllOutput`, `CardDeletedOutput`;
+  `modify_project` → `RequestStatusOutput` = the project status + an optional `request`).
+- Spec: `tests/cards-tools.spec.ts` (the group, the marker, inputs without values, members, the start and
+  its status, the per-gate phrases, Run together, Run all's proposal and its confirm, a container's re-run
+  and its refusals, the status rendering,
+  proposals, the older platform, the triaged `modify_project` and its fallback, the routes over HTTP).
 
 ## An irreversible tool asks for `confirm: true`, and every tool declares its annotations
 
@@ -417,6 +473,22 @@ create still names its unattached `sessionId`, and target `local` + llm `local` 
 - Spec: `tests/references-tools.spec.ts` (routes and bodies, the tools on a platform with the routes, the
   404 fallback asked once, a decided refusal not retried, an implementation without the members, the
   delegated local create, the descriptions, the catalogue rendering, the generated read).
+
+### `confirm_project`'s `implement` choice
+
+`confirm_project { implement?: 'preview' | 'spec' }` (`ViableImplementChoice`, described by `IMPLEMENT_INPUT`;
+the description and the listings' say it through `IMPLEMENT_CONFIRMED`, `tools/consts.local.ts`): `preview`
+draws the application only, `spec` also implements the specification right away and costs a spec — the Pro
+plan's free spec of the month, otherwise 100,000 credits; the Free plan needs topped-up credits. With
+`implement` the tool calls `project.confirmImplementation` (never `referencesToolOf`: that route refreshes
+the references itself); without it the tool is exactly the references confirm above.
+
+- **The choice is never downgraded.** A bare 404 with no incident id, or a `ConnectorApi` without the member,
+  answers `IMPLEMENT_UNSUPPORTED` (`isError`: not offered yet, nothing confirmed, call again without
+  `implement`) — never a fallback to a preview. A decided refusal (`ConnectOutOfCredits` from the spec gate)
+  is thrown as it came.
+- Spec: `tests/confirm-implementation.spec.ts` (the member's route and body, the new route with the choice
+  and the released one without it, the 404 and the member-less host, the decided refusal, the descriptions).
 
 ## A new project's files: sent from this machine, read on every host
 
@@ -482,7 +554,7 @@ mount (`/admin`, `/backoffice`, …) — each with its interface and server. Bot
   `project.apps` (404 again ⇒ restart the whole preview; else "serves no application" + the list).
 - **Stories**: `renderStories(items, page, total, apps?)` adds ` · app: <name>` (` · apps: a, b`)
   after the landing flag, the area still last, and `renderStoryStatus` an `app:` line — only for a
-  card whose `fields.area` is a custom key or that names `fields.areas` (`appsToolHelper.storyApps`
+  card whose `fields.area` is a custom key or that names `fields.areas` (`appsToolHelper.workcardApps`
   reads the project card once, only then). Every other line, and `project_status` / `session_status`, stays byte-identical
   (`apps-tools.spec.ts`).
 
@@ -1204,7 +1276,7 @@ pipeline, feature or group names exists, every tool is in exactly one group, eve
 `absent` sentence, and `serverInstructions` names a tool of every group a host offers and none it hides; `planning-wiring.spec.ts` pins
 the planning aliases and paths a context binds, and `remote.spec.ts` drives the remote facade, the
 settings and the kit routes through a captured transport to pin their paths and deadlines, and pins that the remote
-`ConnectorApi` has no member without a connector route (the `files`, `sandbox` and `slot` members by
+`ConnectorApi` has no member without a connector route (the `files`, `sandbox`, `slot` and `cards` members by
 name) and every connector alias is bound, and that a
 delegated create keeps the tool deadline and sends its `sessionId`. `materials-tools.spec.ts` pins the
 upload's availability per host kind and mode (and that instructions and `describe_platform` name it only

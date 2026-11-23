@@ -19,6 +19,7 @@ Nothing is appended before step 11 — every refusal leaves the log untouched.
 3. **Idempotency** — a `key` already in the entity's log answers ITS receipt, before any
    validation or middleware.
 4. **Resolve** — the card (`WorkcardNotFound`; another entity's card is `PlanningScopeMismatch`;
+   a `retype`'s new type too — `Resolved.target`, in the same layer, a retired one refused;
    one outside the scope's `projects` is `WorkcardNotFound`), its type and flow, every draft parent
    (`ParentNotFound` — loaded through the facade, so an invisible parent is absent) and the parent
    project's `cardTypes`/`projectTypes` (`CardTypeNotAllowed`), the specification slot. Where the
@@ -26,16 +27,23 @@ Nothing is appended before step 11 — every refusal leaves the log untouched.
    after reads that project's resolved layer (`Resolved.schemas`): a data-defined type of a
    project with `scopedCardTypes` is admitted, a retired type creates nothing
    (`UnknownWorkcardType('retired:…')`). Without the port `Resolved.schemas` IS the code registry.
-5. **`before` chain** — in plugin order; re-resolved once when it changed the card, type or parent.
-6. **Validate** — shape (`planning:malformed:*`), the flow rule (`IllegalTransition`), immutables
-   (`planning:immutable:*`, `createdBy` among them — `creatorHelper.assertCreatorFixed`), merged `fields` against the
-   type's `fieldsSchema` — its own `fields` plus the app's base card fields (`FieldsInvalid`; the fold re-checks it), labels (`LabelNotAllowed`), a moved
+5. **`before` chain** — in plugin order; re-resolved once when it changed the card, type, parent or a
+   retype's `toType`.
+6. **Validate** — shape (`planning:malformed:*`: a `retype` without `toType`, `toType` on another
+   action), the flow rule (`IllegalTransition`), immutables
+   (`planning:immutable:*`, `createdBy` among them — `creatorHelper.assertCreatorFixed`; a retype never
+   names `code`), a `retype`'s own checks (below), merged `fields` against the
+   type's `fieldsSchema` — its own `fields` plus the app's base card fields; a retype's against the NEW
+   type, the `formerCodes` the code step appends included (`FieldsInvalid`; the fold re-checks it), labels (`LabelNotAllowed`; a retype's kept labels against the new type), a moved
    parent, the slot (`SpecificationSlotUnknown`, `SpecificationRevisionConflict`, JSON body schema
    → `FieldsInvalid`), relationships (`RelationshipRefused`: undeclared type, `from` not the card,
    missing target, type constraints, `single`, unlinking an absent edge).
 7. **Card id** — `store.newId?.() ?? options.ids?.() ?? idHelper.uuid()`. Ids are the store's.
 8. **Code** — a supplied code is checked; else the plugins' `mintCode` (first answer wins, checked);
-   else the type's `CodePolicy` (a slug policy derives from the title) → `CodeTaken`.
+   else the type's `CodePolicy` (a slug policy derives from the title) → `CodeTaken`. A `retype`
+   keeps the code when the new type has no policy, or when the code carries the new policy's prefix
+   and is free in the new type's scope; otherwise it mints one the same way (a draft of the new type)
+   and appends the old code to `fields.formerCodes` (`FORMER_CODES_FIELD`, at most `MAX_FORMER_CODES`).
 9. **Changes** — `changesHelper.computeChanges`. An `update` that changes nothing answers the card's latest
    receipt and appends nothing.
 10. **Seq** — `transitions.nextSeq(card, expectSeq)`, a CAS against `head` (`WorkcardConflict`).
@@ -43,6 +51,18 @@ Nothing is appended before step 11 — every refusal leaves the log untouched.
 12. **Project** — `store.cards.project(card)`: a sync store folds now, a queued one enqueues.
 13. **Receipt** — `{ transition, card? (once committed), committed(opts) }`.
 14. **`wait: true`** — `committed()` before returning (`CommitTimeout`, `CommitFailed`).
+
+**A `retype`'s own checks** (step 6, before the fields): another type (`RetypeNotAllowed('same:…')`)
+of the same kind (`kind:…`) that the CURRENT type lists in `retypes` (opt-in per type — a type listing
+none is never retyped), routed to the same store (`store:…`); no `parent`/`parents` in it
+(`malformed:retype-moves-parent`); every flow of the new type declaring the status the card holds in
+it (`status:<flow>:<status>`); every parent admitting the new type (`CardTypeNotAllowed`); every
+document's slot declared by the new type with the same format (`document:<category>`); every card
+link fitting the rules from either end — an outgoing one declared by the new type (`from`/`to`), an
+incoming one whose owner's rule `to` admits the new type (`RelationshipRefused('retype:…')`; field-
+derived edges are recomputed by the fold). The children are checked by the projection invariants: a
+card whose `type` changed re-validates everything under it as a moved one does (`CardTypeNotAllowed`).
+The appended row carries the NEW type; the fold writes it onto the record (`planning` → fold part).
 
 `actor` is the SCOPE's: `profileId`/`userId`/`service`/`channel` come from the scope only; an
 in-process caller may add `agent`/`runId` on the execution. A handler never passes a wire `actor`.

@@ -10,10 +10,10 @@ import type {
 import { appendPlanningService } from '@owlmeans/server-planning'
 import { makeMemoryPlanningStore } from '@owlmeans/server-planning/store'
 import {
-  ProjectArea, VIABLE_FLOW_SCHEMAS, VIABLE_PROJECT_TYPE, VIABLE_STORY_TYPE, VIABLE_TYPE_SCHEMAS,
+  ProjectArea, VIABLE_FLOW_SCHEMAS, VIABLE_PROJECT_TYPE, VIABLE_USER_STORY_TYPE, VIABLE_TYPE_SCHEMAS,
   ViableChannel,
 } from '@owlmeans/viable-common'
-import type { ViableStoryCard, ViableStoryFields } from '@owlmeans/viable-common'
+import type { ViableWorkcard, ViableWorkcardFields } from '@owlmeans/viable-common'
 
 export const ENTITY_ID = 'entity-acme'
 export const PROFILE_ID = 'profile-1'
@@ -28,8 +28,8 @@ export interface PlanningSuite {
   received: TransitionExecution[]
   project: (title?: string, code?: string) => Promise<Project>
   story: (project: string, title: string, opts?: {
-    order?: number, fields?: Partial<ViableStoryFields>, moves?: string[]
-  }) => Promise<ViableStoryCard>
+    order?: number, fields?: Partial<ViableWorkcardFields>, moves?: string[]
+  }) => Promise<ViableWorkcard>
 }
 
 /**
@@ -56,7 +56,7 @@ export const makePlanningSuite = async (): Promise<PlanningSuite> => {
         return
       }
       const draft = exec.card
-      if (draft.type !== VIABLE_STORY_TYPE) {
+      if (draft.type !== VIABLE_USER_STORY_TYPE) {
         return
       }
 
@@ -94,7 +94,7 @@ export const makePlanningSuite = async (): Promise<PlanningSuite> => {
     story: async (project, title, opts = {}) => {
       let card = await create({
         kind: WorkcardKind.Card,
-        type: VIABLE_STORY_TYPE,
+        type: VIABLE_USER_STORY_TYPE,
         parent: project,
         title,
         ...(opts.order != null ? { order: opts.order } : {}),
@@ -106,7 +106,7 @@ export const makePlanningSuite = async (): Promise<PlanningSuite> => {
         }, { wait: true })).card!
       }
 
-      return card as ViableStoryCard
+      return card as ViableWorkcard
     },
   }
 }

@@ -15,7 +15,8 @@
     "transit": "Zmieniono status",
     "link": "Powiązano",
     "unlink": "Usunięto powiązanie",
-    "delete": "Usunięto"
+    "delete": "Usunięto",
+    "retype": "Zmieniono typ"
   },
   "commit": {
     "pending": "Zapisywanie…",
@@ -41,6 +42,7 @@
     "PlanningErrorSpecificationSlotUnknown": "Ten rodzaj dokumentu jest tutaj niedozwolony",
     "PlanningErrorSpecificationRevisionConflict": "Ten dokument już istnieje — edytuj go",
     "PlanningErrorRelationshipRefused": "To powiązanie jest niedozwolone",
+    "PlanningErrorRetypeNotAllowed": "Tego elementu nie można zmienić na ten typ",
     "PlanningErrorCodeTaken": "Ten kod jest już zajęty",
     "PlanningErrorWorkcardConflict": "Ktoś w międzyczasie zmienił ten element — odśwież i spróbuj ponownie",
     "PlanningErrorCommitTimeout": "Zmiana jest nadal zapisywana — sprawdź ponownie za chwilę",

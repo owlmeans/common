@@ -1,11 +1,12 @@
 import {
-  ConversionStatus, STORY_BATCH_LIVE, STORY_BATCH_STALLED, StoryBatchStatus, conversionStageHelper,
+  ConversionStatus, WORKCARD_BATCH_LIVE, WORKCARD_BATCH_STALLED, WorkcardBatchStatus, conversionStageHelper,
   type ConnectFeedEntry, type ConversionStage,
 } from '@owlmeans/viable-common'
 import { STORY_PAGE_SIZE } from '../../../../consts.js'
+import { CARD_PAGE_SIZE } from '../../../cards/consts.js'
 import { BATCH_STALLED_WORDS, DRAFT_CAP } from '../../../consts.local.js'
 import { feedToolHelper } from '../../../feed.js'
-import { BATCH_STORY_PENDING, LOCAL_ORIGIN, NARRATIVE_CAP, WARNING_CAP } from './consts.js'
+import { BATCH_WORKCARD_PENDING, LOCAL_ORIGIN, NARRATIVE_CAP, WARNING_CAP } from './consts.js'
 import { shapeHelper } from './shape.js'
 import type { Presenter, WorkPresenters } from './types.js'
 
@@ -109,7 +110,7 @@ export const createWorkPresenters = (): WorkPresenters => {
   }
 
   /** A story card — its code, narrative, flow status and the flags the board shows. */
-  const storyOf = (value: unknown): Record<string, unknown> => {
+  const workcardOf = (value: unknown): Record<string, unknown> => {
     const card = record(value)
     const fields = record(card.fields)
 
@@ -301,24 +302,24 @@ export const createWorkPresenters = (): WorkPresenters => {
 
   const pageOf = (structured: object, args: Record<string, unknown>, paged: boolean): Record<string, unknown> => {
     const list = record(structured)
-    const stories = records(list.items).map(storyOf)
+    const workcards = records(list.items).map(workcardOf)
     const page = number(list.page) ?? (paged ? number(args.page) : undefined) ?? 0
     const size = number(list.size) ?? (paged ? number(args.size) : undefined) ?? STORY_PAGE_SIZE
-    const total = number(list.total) ?? stories.length
+    const total = number(list.total) ?? workcards.length
 
     return compact({
       total,
       page,
       nextPage: paged && size > 0 && (page + 1) * size < total ? page + 1 : undefined,
-      stories,
+      stories: workcards,
     })
   }
 
-  const storyPage: Presenter = (structured, args) => pageOf(structured, args, true)
+  const workcardPage: Presenter = (structured, args) => pageOf(structured, args, true)
 
-  const storySearch: Presenter = (structured, args) => pageOf(structured, args, false)
+  const workcardSearch: Presenter = (structured, args) => pageOf(structured, args, false)
 
-  const storyCard: Presenter = structured => {
+  const workcardRecord: Presenter = structured => {
     const value = record(structured)
     // A create answers its transition when the card has not landed yet: the card's id and the
     // narrative it was created with are all it says.
@@ -332,23 +333,23 @@ export const createWorkPresenters = (): WorkPresenters => {
       }
     }
 
-    return { story: storyOf(value) }
+    return { story: workcardOf(value) }
   }
 
-  const storyStatus: Presenter = (structured, args) => {
+  const workcardStatus: Presenter = (structured, args) => {
     const outer = record(structured)
     const status = within(outer, 'story')
-    const story = record(status.story)
+    const workcard = record(status.story)
 
     return compact({
       projectId: projectIdOf(status, args),
       story: compact({
-        id: required(story.id),
-        code: text(story.code),
-        title: text(story.title, NARRATIVE_CAP) ?? '',
-        status: text(story.status),
-        intrinsic: text(story.intrinsic),
-        warning: phrase(story.warning),
+        id: required(workcard.id),
+        code: text(workcard.code),
+        title: text(workcard.title, NARRATIVE_CAP) ?? '',
+        status: text(workcard.status),
+        intrinsic: text(workcard.intrinsic),
+        warning: phrase(workcard.warning),
         // Read off the card the tool holds: developing it also replaces the guest-home sketch.
         landing: outer.landing === true ? true : undefined,
       }),
@@ -358,7 +359,7 @@ export const createWorkPresenters = (): WorkPresenters => {
     })
   }
 
-  const storyBatch: Presenter = (structured, args) => {
+  const workcardBatch: Presenter = (structured, args) => {
     const outer = record(structured)
     const view = record(outer.batch)
     const projectId = text(view.projectId) ?? projectIdOf(outer, args)
@@ -370,13 +371,13 @@ export const createWorkPresenters = (): WorkPresenters => {
     const ordering = record(view.ordering)
     const reasons = record(ordering.reasons)
     const status = required(view.status)
-    const live = (STORY_BATCH_LIVE as readonly string[]).includes(status)
+    const live = (WORKCARD_BATCH_LIVE as readonly string[]).includes(status)
     const current = text(view.current)
     const ids = texts(view.stories)
     const refOf = (id: string): Record<string, unknown> => compact({ id, code: text(codes[id]) })
     const stateOf = (id: string): string => text(outcomes[id]) ?? (id === current
-      ? live ? BATCH_STORY_PENDING.current : BATCH_STORY_PENDING.currentSettled
-      : live ? BATCH_STORY_PENDING.queued : BATCH_STORY_PENDING.unreached)
+      ? live ? BATCH_WORKCARD_PENDING.current : BATCH_WORKCARD_PENDING.currentSettled
+      : live ? BATCH_WORKCARD_PENDING.queued : BATCH_WORKCARD_PENDING.unreached)
     const reason = text(view.reason)
     const stopped = text(outer.stopped)
 
@@ -390,8 +391,8 @@ export const createWorkPresenters = (): WorkPresenters => {
         current: current != null ? refOf(current) : undefined,
         finished: Object.values(outcomes).filter(outcome => typeof outcome === 'string').length,
         total: ids.length,
-        halted: status === StoryBatchStatus.Halted
-          ? reason === STORY_BATCH_STALLED ? BATCH_STALLED_WORDS : phrase(reason)
+        halted: status === WorkcardBatchStatus.Halted
+          ? reason === WORKCARD_BATCH_STALLED ? BATCH_STALLED_WORDS : phrase(reason)
           : undefined,
       }),
       stopped: stopped != null ? refOf(stopped) : undefined,
@@ -568,6 +569,116 @@ export const createWorkPresenters = (): WorkPresenters => {
     }
   }
 
+  /** A work card of any type — its code, type, status and the container it sits in. */
+  const cardOf = (value: unknown): Record<string, unknown> => {
+    const card = record(value)
+    const fields = record(card.fields)
+    const parents = texts(card.parents)
+
+    return compact({
+      id: required(card.id),
+      code: text(card.code),
+      type: required(card.type),
+      title: text(card.title, NARRATIVE_CAP) ?? '',
+      status: text(card.status),
+      intrinsic: text(card.intrinsic),
+      // A container is a card's second parent; a composed status names it directly.
+      container: text(card.container) ?? (parents.length > 1 ? parents[1] : undefined),
+      warning: phrase(fields.warning ?? card.warning),
+    })
+  }
+
+  const cardPage: Presenter = (structured, args) => {
+    const list = record(structured)
+    const cards = records(list.cards ?? list.items).map(cardOf)
+    const page = number(list.page) ?? number(args.page) ?? 0
+    const total = number(list.total) ?? cards.length
+
+    return compact({
+      total,
+      page,
+      nextPage: (page + 1) * CARD_PAGE_SIZE < total ? page + 1 : undefined,
+      cards,
+    })
+  }
+
+  const cardRecord: Presenter = structured => {
+    const card = record(record(structured).card)
+    // A create answers its transition when the card has not landed yet: its id and title are all it says.
+    if (typeof card.card === 'string' && typeof card.title !== 'string') {
+      const changes = record(card.changes)
+
+      return { card: compact({ id: card.card, code: text(changes.code), type: required(changes.type), title: text(changes.title, NARRATIVE_CAP) ?? '' }) }
+    }
+
+    return { card: cardOf(card) }
+  }
+
+  const cardStatus: Presenter = (structured, args) => {
+    const outer = record(structured)
+    const status = record(outer.card)
+    const plan = record(status.plan)
+    const together = record(outer.together)
+
+    return compact({
+      projectId: projectIdOf(status, args),
+      card: cardOf(status.card),
+      members: nonEmpty(records(status.members).map(cardOf)),
+      plan: isRecord(status.plan) ? compact({ steps: texts(plan.steps), rationale: text(plan.rationale, NARRATIVE_CAP) }) : undefined,
+      proposals: nonEmpty(records(status.proposals).filter(proposal => proposal.status === 'open').map(proposal => compact({
+        id: required(proposal.id), kind: required(proposal.kind), title: text(proposal.title, NARRATIVE_CAP) ?? '', type: text(proposal.type),
+      }))),
+      inputs: nonEmpty(records(status.inputs).map(input => ({ name: required(input.name), kind: required(input.kind), set: input.set === true }))),
+      inputsUrl: text(status.inputsUrl),
+      run: runOf(status.run),
+      waitingFor: text(status.waitingFor),
+      question: inquiryOf(status.pendingInquiry),
+      together: isRecord(outer.together) ? { spec: required(together.spec), started: together.started === true } : undefined,
+    })
+  }
+
+  const cardsRunAll: Presenter = (structured, args) => {
+    const outer = record(structured)
+    const assignment = record(record(outer.plan).assignment)
+    const batch = isRecord(outer.batch) ? record(workcardBatch({ batch: outer.batch, projectId: outer.projectId }, args).batch) : undefined
+
+    return compact({
+      projectId: projectIdOf(outer, args),
+      placements: records(assignment.placements).map(placement => compact({
+        card: required(placement.card), container: text(placement.container), order: number(placement.order) ?? 0,
+        reason: text(placement.reason, WARNING_CAP),
+      })),
+      newSpec: text(record(assignment.newSpec).title),
+      loose: nonEmpty(texts(assignment.loose)),
+      batch: batch != null && isRecord(batch) && Object.keys(batch).length > 0 ? batch : undefined,
+    })
+  }
+
+  const cardDeleted: Presenter = structured => {
+    const card = record(record(structured).card)
+
+    return { deleted: record(structured).deleted === true, card: compact({ id: required(card.id), code: text(card.code) }) }
+  }
+
+  const requestStatus: Presenter = (structured, args) => {
+    const request = record(record(structured).request)
+
+    return compact({
+      ...projectStatus(structured, args),
+      request: isRecord(record(structured).request)
+        ? compact({
+          kind: required(request.kind),
+          cards: nonEmpty(records(request.cards).map(card => compact({
+            id: required(card.id), code: text(card.code), type: required(card.type), title: text(card.title, NARRATIVE_CAP) ?? '',
+          }))),
+          start: isRecord(request.start)
+            ? compact({ card: required(record(request.start).card), started: record(request.start).started === true, refusal: phrase(record(request.start).refusal) })
+            : undefined,
+        })
+        : undefined,
+    })
+  }
+
   const slots: Presenter = structured => {
     const list = records(record(structured).slots).map(slotOf)
 
@@ -575,9 +686,10 @@ export const createWorkPresenters = (): WorkPresenters => {
   }
 
   return {
-    blueprints, projectStatus, projectList, projectDeleted, kits, kitApply, storyPage, storySearch, storyCard,
-    storyStatus, storyBatch, steer, stop, pipeline, convertCheck, conversion, question, activity, notifications,
-    fileChanges, intent, localStatus, runLocal, setupReport, slots,
+    blueprints, projectStatus, projectList, projectDeleted, kits, kitApply, storyPage: workcardPage, storySearch: workcardSearch, storyCard: workcardRecord,
+    storyStatus: workcardStatus, storyBatch: workcardBatch, steer, stop, pipeline, convertCheck, conversion, question, activity, notifications,
+    fileChanges, intent, localStatus, runLocal, setupReport, slots, cardPage, card: cardRecord, cardStatus, cardsRunAll, cardDeleted,
+    requestStatus,
   }
 }
 

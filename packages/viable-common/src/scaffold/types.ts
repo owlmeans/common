@@ -27,7 +27,7 @@ export interface SketchContent {
 }
 
 /** What the scaffold draws for one user story. */
-export interface ScaffoldStoryPlan {
+export interface ScaffoldWorkcardPlan {
   /** Capabilities and their host, planned before previews or navigation are drawn. */
   interaction?: RecordInteractionPlan
   /** The story's code — always one of the codes the planner was given. */
@@ -385,7 +385,7 @@ export interface ScaffoldPlan {
   identity: ProductIdentity
   guestHome: GuestHomePlan
   areas: ScaffoldAreaPlan[]
-  stories: ScaffoldStoryPlan[]
+  stories: ScaffoldWorkcardPlan[]
   /**
    * How this product's illustrations should look — the scene, its domain objects and their
    * palette. The one field here that is prose, because it is read by a model.

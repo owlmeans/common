@@ -3,7 +3,7 @@ import { ApiStatusError, ServerCrashedError } from '@owlmeans/api'
 import { CommitState, TransitionAction } from '@owlmeans/planning'
 import {
   CONNECT_CALL_HEADER, CONNECT_CLIENT_HEADER, CONNECT_TOKEN_PREFIX, ConnectCallState, ConnectClientKind, ConnectLlm, connect,
-  connectRef, VIABLE_STORY_TYPE, type ConnectClient,
+  connectRef, VIABLE_USER_STORY_TYPE, type ConnectClient,
 } from '@owlmeans/viable-common'
 
 import { makeRemoteConnectorApi } from '../src/api/remote.js'
@@ -44,7 +44,7 @@ describe('viable-sdk — every request names its edition in x-viable-client', ()
       await api.project.status('p1')
       await api.slot.list()
       await api.planning.cards.list({ parent: 'p1' } as never)
-      await api.planning.execute({ action: TransitionAction.Create, card: { kind: 'card', type: VIABLE_STORY_TYPE, parent: 'p1', title: 'x' } } as never)
+      await api.planning.execute({ action: TransitionAction.Create, card: { kind: 'card', type: VIABLE_USER_STORY_TYPE, parent: 'p1', title: 'x' } } as never)
 
       expect(calls.map(call => [call.alias, clientOf(call)])).toEqual([
         [connect.project.create, 'sdk'],

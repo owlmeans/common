@@ -152,6 +152,23 @@ export class RelationshipRefused extends PlanningError {
   }
 }
 
+/**
+ * A `retype` the card's type or state does not admit: the current type does not list the new one in
+ * `retypes`, another kind, the same type, another store, a status the new type's flow lacks, or a
+ * document whose slot the new type does not declare. Fields, parents, children and links refuse with
+ * their own classes.
+ */
+export class RetypeNotAllowed extends PlanningError {
+  public static override typeName: string = `${PlanningError.typeName}RetypeNotAllowed`
+  /** The card cannot become that type: answered 422. */
+  public static httpStatus = 422
+
+  constructor(message: string = 'error') {
+    super(`retype-not-allowed:${message}`)
+    this.type = RetypeNotAllowed.typeName
+  }
+}
+
 export class CodeTaken extends PlanningError {
   public static override typeName: string = `${PlanningError.typeName}CodeTaken`
   /** Another card holds the code: answered 409. */
@@ -295,6 +312,7 @@ ResilientError.registerErrorClass(LabelNotAllowed)
 ResilientError.registerErrorClass(SpecificationSlotUnknown)
 ResilientError.registerErrorClass(SpecificationRevisionConflict)
 ResilientError.registerErrorClass(RelationshipRefused)
+ResilientError.registerErrorClass(RetypeNotAllowed)
 ResilientError.registerErrorClass(CodeTaken)
 ResilientError.registerErrorClass(WorkcardConflict)
 ResilientError.registerErrorClass(CommitTimeout)

@@ -1,4 +1,4 @@
-import type { AgentSteerResult, AgentStopScope, ConnectAgentLock, StoryBatchView } from '@owlmeans/viable-common'
+import type { AgentSteerResult, AgentStopScope, ConnectAgentLock, WorkcardBatchView } from '@owlmeans/viable-common'
 
 /** How the agent's controls — stopping it, steering it, cancelling a story batch — are put into words. */
 export interface ControlToolHelper {
@@ -13,5 +13,5 @@ export interface ControlToolHelper {
   /** A queued steering message, and when the agent reads it. */
   renderSteer: (projectId: string, result: AgentSteerResult) => string
   /** A cancelled batch, led by whether the story it was implementing was stopped too. */
-  renderCancel: (view: StoryBatchView, storyStopped: boolean) => string
+  renderCancel: (view: WorkcardBatchView, workcardStopped: boolean) => string
 }

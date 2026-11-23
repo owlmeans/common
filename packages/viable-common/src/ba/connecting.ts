@@ -1,20 +1,20 @@
-import type { ConnectingStoryDraft } from "./types.js"
-import { StoryKind } from "./consts.js"
-import type { ConnectingStoryHelper } from './connecting/types.js'
+import type { ConnectingUserStoryDraft } from "./types.js"
+import { UserStoryKind } from "./consts.js"
+import type { ConnectingUserStoryHelper } from './connecting/types.js'
 
-export const createConnectingStoryHelper = (): ConnectingStoryHelper => {
-  const connectingStoryCap = (flowCount: number): number => Math.max(flowCount - 1, 0)
+export const createConnectingUserStoryHelper = (): ConnectingUserStoryHelper => {
+  const connectingUserStoryCap = (flowCount: number): number => Math.max(flowCount - 1, 0)
 
   /** Collapse case and whitespace, so "the same story twice" is recognised as such. */
-  const canonical = (story: string): string => story.trim().replace(/\s+/g, ' ').toLowerCase()
+  const canonical = (userStory: string): string => userStory.trim().replace(/\s+/g, ' ').toLowerCase()
 
-  const mergeConnectingStories: ConnectingStoryHelper['mergeConnectingStories'] = (flow, connecting) => {
+  const mergeConnectingUserStories: ConnectingUserStoryHelper['mergeConnectingUserStories'] = (flow, connecting) => {
     if (flow.length < 1) {
       return []
     }
 
-    const seen = new Set(flow.map(({ story }) => canonical(story)))
-    const placed: Array<{ draft: ConnectingStoryDraft, at: number }> = []
+    const seen = new Set(flow.map(({ story: userStory }) => canonical(userStory)))
+    const placed: Array<{ draft: ConnectingUserStoryDraft, at: number }> = []
 
     for (const draft of connecting) {
       const text = canonical(draft.story)
@@ -39,23 +39,23 @@ export const createConnectingStoryHelper = (): ConnectingStoryHelper => {
     const surviving = placed
       .map((entry, order) => ({ ...entry, order }))
       .sort((a, b) => a.at - b.at || a.order - b.order)
-      .slice(0, connectingStoryCap(flow.length))
+      .slice(0, connectingUserStoryCap(flow.length))
 
     // Bucket N holds what comes immediately after flow story N (1-based, as the prompt numbers them).
-    const buckets: Array<Array<ConnectingStoryDraft>> = flow.map(() => [])
+    const buckets: Array<Array<ConnectingUserStoryDraft>> = flow.map(() => [])
     for (const { draft, at } of surviving) {
       buckets[at - 1]!.push(draft)
     }
 
     return flow.flatMap((draft, index) => [
-      { story: draft.story, area: draft.area, kind: StoryKind.Flow },
+      { story: draft.story, area: draft.area, kind: UserStoryKind.Flow },
       ...buckets[index]!.map(connecting => (
-        { story: connecting.story.trim(), area: connecting.area, kind: StoryKind.Connective, after: index + 1 }
+        { story: connecting.story.trim(), area: connecting.area, kind: UserStoryKind.Connective, after: index + 1 }
       )),
     ])
   }
 
-  return { connectingStoryCap, mergeConnectingStories }
+  return { connectingUserStoryCap, mergeConnectingUserStories }
 }
 
-export const connectingStoryHelper = createConnectingStoryHelper()
+export const connectingUserStoryHelper = createConnectingUserStoryHelper()

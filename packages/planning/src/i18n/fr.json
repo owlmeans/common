@@ -15,7 +15,8 @@
     "transit": "Statut modifié",
     "link": "Lié",
     "unlink": "Délié",
-    "delete": "Supprimé"
+    "delete": "Supprimé",
+    "retype": "Type modifié"
   },
   "commit": {
     "pending": "Enregistrement…",
@@ -41,6 +42,7 @@
     "PlanningErrorSpecificationSlotUnknown": "Ce type de document n’est pas autorisé ici",
     "PlanningErrorSpecificationRevisionConflict": "Ce document existe déjà : modifiez-le plutôt",
     "PlanningErrorRelationshipRefused": "Ce lien n’est pas autorisé",
+    "PlanningErrorRetypeNotAllowed": "Cet élément ne peut pas passer à ce type",
     "PlanningErrorCodeTaken": "Ce code est déjà utilisé",
     "PlanningErrorWorkcardConflict": "Quelqu’un a modifié cet élément entre-temps. Actualisez la page puis réessayez.",
     "PlanningErrorCommitTimeout": "La modification est encore en cours d’enregistrement. Vérifiez de nouveau dans un instant.",

@@ -2,12 +2,12 @@ import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import { ProjectArea } from '../src/areas/consts.js'
 import {
-  REQUESTED_STORY_CAP, REQUIREMENT_PARTS, REQUIREMENTS_SECTIONS, RequirementKind, RequirementPart,
-  RequirementSource, StoryKind,
+  REQUESTED_USER_STORY_CAP, REQUIREMENT_PARTS, REQUIREMENTS_SECTIONS, RequirementKind, RequirementPart,
+  RequirementSource, UserStoryKind,
 } from '../src/ba/consts.js'
 import { requirementsHelper } from '../src/ba/requirements.js'
 import { RequirementsDocumentSchema } from '../src/ba/schemas.js'
-import type { MergedStoryDraft, RequirementsDocument, StatedRequirement } from '../src/ba/types.js'
+import type { MergedUserStoryDraft, RequirementsDocument, StatedRequirement } from '../src/ba/types.js'
 import { SubProject } from '../src/slot/consts.js'
 
 const requirement = (id: string, extra: Partial<StatedRequirement> = {}): StatedRequirement => ({
@@ -16,7 +16,7 @@ const requirement = (id: string, extra: Partial<StatedRequirement> = {}): Stated
   statement: `Statement of ${id}.`,
   kind: RequirementKind.Rule,
   parts: {},
-  source: id.startsWith('S') ? RequirementSource.Story : RequirementSource.Prompt,
+  source: id.startsWith('S') ? RequirementSource.UserStory : RequirementSource.Prompt,
   ...extra,
 })
 
@@ -28,7 +28,7 @@ const items = (): StatedRequirement[] => [
     packages: [{ name: '@owlmeans/planning', side: SubProject.Backend }, { name: 'date-fns', side: SubProject.Web }],
   }),
   requirement('R2', {
-    kind: RequirementKind.Story,
+    kind: RequirementKind.UserStory,
     quote: 'managers approve leave',
     statement: 'A manager approves a leave request.',
     parts: { ba: 'Only a manager approves.', ux: 'Approve from the request list.', ui: 'A green approve button.' },
@@ -55,6 +55,28 @@ describe('viable-common - requirement ids', () => {
       .toEqual(['R2', 'R10'])
     expect(requirementsHelper.partsOf(items(), [RequirementPart.Ui]).map(item => item.id)).toEqual(['R2'])
     expect(requirementsHelper.partsOf([requirement('S1', { parts: { ux: ' ' } })], REQUIREMENT_PARTS)).toEqual([])
+  })
+})
+
+describe('viable-common - one card\'s requirements from two writers', () => {
+  test('what the card holds stays; a repeat is dropped, a taken own id renumbered, a taken prompt id dropped', () => {
+    const kept = [requirement('R2'), requirement('S1', { quote: 'refunds by card' }), requirement('S2')]
+    const incoming = [
+      requirement('S1', { quote: '  Refunds   BY card ' }),
+      requirement('S1', { quote: 'reports for the accountant' }),
+      requirement('R2', { quote: 'another wording of R2' }),
+      requirement('R7'),
+      requirement('S9'),
+    ]
+
+    const merged = requirementsHelper.mergeItems(kept, incoming)
+
+    expect(merged.map(item => [item.id, item.quote])).toEqual([
+      ['R2', 'quote of R2'], ['R7', 'quote of R7'],
+      ['S1', 'refunds by card'], ['S2', 'quote of S2'], ['S9', 'quote of S9'], ['S10', 'reports for the accountant'],
+    ])
+    expect(requirementsHelper.mergeItems([], incoming.slice(3)).map(item => item.id)).toEqual(['R7', 'S9'])
+    expect(requirementsHelper.mergeItems(kept, [])).toEqual(kept)
   })
 })
 
@@ -178,13 +200,13 @@ describe('viable-common - slices and the target files', () => {
   })
 
   test('requirementsFile lists the project and each story with its own items, deterministically', () => {
-    const stories = [
+    const userStories = [
       { code: 'US-AAAAA', title: 'A member signs up.', items: [requirement('S2', { parts: { ux: 'Two steps.' } }), requirement('S1')] },
       { code: 'US-BBBBB', title: 'Nothing of its own.', items: [] },
     ]
-    const file = requirementsHelper.requirementsFile(doc, stories)
+    const file = requirementsHelper.requirementsFile(doc, userStories)
 
-    expect(file).toBe(requirementsHelper.requirementsFile(doc, stories))
+    expect(file).toBe(requirementsHelper.requirementsFile(doc, userStories))
     expect(file.startsWith('# Stated requirements\n')).toBe(true)
     expect(file).toContain('### R1. Statement of R1.')
     expect(file).toContain('- Stories: US-AAAAA, US-BBBBB')
@@ -216,14 +238,14 @@ describe('viable-common - the requirements digest', () => {
 })
 
 describe('viable-common - requested stories', () => {
-  const merged = (): MergedStoryDraft[] => [
-    { story: 'One', area: ProjectArea.User, kind: StoryKind.Flow },
-    { story: 'Tracker', area: ProjectArea.User, kind: StoryKind.Connective, after: 1 },
-    { story: 'Two', area: ProjectArea.User, kind: StoryKind.Flow },
-    { story: 'Three', area: ProjectArea.Admin, kind: StoryKind.Flow },
-    { story: 'Queue', area: ProjectArea.Admin, kind: StoryKind.Connective, after: 3 },
+  const merged = (): MergedUserStoryDraft[] => [
+    { story: 'One', area: ProjectArea.User, kind: UserStoryKind.Flow },
+    { story: 'Tracker', area: ProjectArea.User, kind: UserStoryKind.Connective, after: 1 },
+    { story: 'Two', area: ProjectArea.User, kind: UserStoryKind.Flow },
+    { story: 'Three', area: ProjectArea.Admin, kind: UserStoryKind.Flow },
+    { story: 'Queue', area: ProjectArea.Admin, kind: UserStoryKind.Connective, after: 3 },
   ]
-  const shape = (list: MergedStoryDraft[]) => list.map(({ story, kind, after }) => ({ story, kind, after }))
+  const shape = (list: MergedUserStoryDraft[]) => list.map(({ story: userStory, kind, after }) => ({ story: userStory, kind, after }))
 
   test('lands each after the last entry of its flow story, in input order, carrying the clamped anchor', () => {
     const input = merged()
@@ -236,16 +258,16 @@ describe('viable-common - requested stories', () => {
     ])
 
     expect(shape(result)).toEqual([
-      { story: 'One', kind: StoryKind.Flow, after: undefined },
-      { story: 'Tracker', kind: StoryKind.Connective, after: 1 },
-      { story: 'Export', kind: StoryKind.Requested, after: 1 },
-      { story: 'Audit', kind: StoryKind.Requested, after: 1 },
-      { story: 'Early', kind: StoryKind.Requested, after: 1 },
-      { story: 'Two', kind: StoryKind.Flow, after: undefined },
-      { story: 'Three', kind: StoryKind.Flow, after: undefined },
-      { story: 'Queue', kind: StoryKind.Connective, after: 3 },
-      { story: 'Late', kind: StoryKind.Requested, after: 3 },
-      { story: 'Anywhere', kind: StoryKind.Requested, after: undefined },
+      { story: 'One', kind: UserStoryKind.Flow, after: undefined },
+      { story: 'Tracker', kind: UserStoryKind.Connective, after: 1 },
+      { story: 'Export', kind: UserStoryKind.Requested, after: 1 },
+      { story: 'Audit', kind: UserStoryKind.Requested, after: 1 },
+      { story: 'Early', kind: UserStoryKind.Requested, after: 1 },
+      { story: 'Two', kind: UserStoryKind.Flow, after: undefined },
+      { story: 'Three', kind: UserStoryKind.Flow, after: undefined },
+      { story: 'Queue', kind: UserStoryKind.Connective, after: 3 },
+      { story: 'Late', kind: UserStoryKind.Requested, after: 3 },
+      { story: 'Anywhere', kind: UserStoryKind.Requested, after: undefined },
     ])
     expect('after' in result.at(-1)!).toBe(false)
     expect('covers' in result[2]!).toBe(false)
@@ -256,14 +278,14 @@ describe('viable-common - requested stories', () => {
     const result = requirementsHelper.mergeRequested(merged(), [
       { story: 'Middle', area: ProjectArea.User, covers: ['R1'], after: 2 },
     ])
-    const flows = result.filter(entry => entry.kind === StoryKind.Flow)
+    const flows = result.filter(entry => entry.kind === UserStoryKind.Flow)
 
-    expect(result.filter(entry => entry.kind !== StoryKind.Requested)).toEqual(merged())
+    expect(result.filter(entry => entry.kind !== UserStoryKind.Requested)).toEqual(merged())
     for (const [index, entry] of result.entries()) {
-      if (entry.kind === StoryKind.Flow || entry.after == null) continue
+      if (entry.kind === UserStoryKind.Flow || entry.after == null) continue
       const anchor = flows[entry.after - 1]!
       const between = result.slice(result.indexOf(anchor) + 1, index)
-      expect(between.every(other => other.kind !== StoryKind.Flow), entry.story).toBe(true)
+      expect(between.every(other => other.kind !== UserStoryKind.Flow), entry.story).toBe(true)
     }
   })
 
@@ -275,21 +297,21 @@ describe('viable-common - requested stories', () => {
       { story: '   ', area: ProjectArea.User, covers: ['R4'] },
     ])
 
-    expect(result.filter(entry => entry.kind === StoryKind.Requested).map(entry => entry.story)).toEqual(['Export   ORDERS'])
+    expect(result.filter(entry => entry.kind === UserStoryKind.Requested).map(entry => entry.story)).toEqual(['Export   ORDERS'])
   })
 
   test('keeps at most the cap, in input order', () => {
-    const many = Array.from({ length: REQUESTED_STORY_CAP + 3 }, (_, index) => (
+    const many = Array.from({ length: REQUESTED_USER_STORY_CAP + 3 }, (_, index) => (
       { story: `Requested ${index}`, area: ProjectArea.User, covers: [`R${index + 1}`] }
     ))
-    const kept = requirementsHelper.mergeRequested(merged(), many).filter(entry => entry.kind === StoryKind.Requested)
+    const kept = requirementsHelper.mergeRequested(merged(), many).filter(entry => entry.kind === UserStoryKind.Requested)
 
-    expect(kept.map(entry => entry.story)).toEqual(many.slice(0, REQUESTED_STORY_CAP).map(draft => draft.story))
+    expect(kept.map(entry => entry.story)).toEqual(many.slice(0, REQUESTED_USER_STORY_CAP).map(draft => draft.story))
   })
 
   test('appends everything, unanchored, to a list without a flow', () => {
     expect(shape(requirementsHelper.mergeRequested([], [{ story: 'Alone', area: ProjectArea.User, covers: ['R1'], after: 2 }])))
-      .toEqual([{ story: 'Alone', kind: StoryKind.Requested, after: undefined }])
+      .toEqual([{ story: 'Alone', kind: UserStoryKind.Requested, after: undefined }])
   })
 })
 

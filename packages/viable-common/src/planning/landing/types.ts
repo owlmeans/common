@@ -13,7 +13,7 @@ export interface LandingSentenceHelper {
    * title longer than a card accepts (`TITLE_MAX`): a narrative with no room left is returned as it
    * is rather than cut, because a person's words are worth more than the note, and the flag on the
    * card still carries the fact. `sentence` is the landing sentence in the project's language; absent,
-   * the English {@link LANDING_STORY_SENTENCE}.
+   * the English {@link LANDING_USER_STORY_SENTENCE}.
    */
   withLandingSentence: (title: string, sentence?: string) => string
 }

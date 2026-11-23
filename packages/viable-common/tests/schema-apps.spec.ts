@@ -3,11 +3,11 @@ import Ajv from 'ajv'
 import addFormats from 'ajv-formats'
 import { makeSchemaRegistry } from '@owlmeans/planning'
 import { ProjectArea } from '../src/areas/consts.js'
-import { StoryDesignSchema, storyDesignHelper } from '../src/design/index.js'
-import type { StoryDesign } from '../src/design/index.js'
+import { WorkcardDesignSchema, workcardDesignHelper } from '../src/design/index.js'
+import type { WorkcardDesign } from '../src/design/index.js'
 import {
-  VIABLE_FLOW_SCHEMAS, VIABLE_PROJECT_TYPE, VIABLE_STORY_TYPE, VIABLE_TYPE_SCHEMAS, ViableProjectFieldsSchema,
-  ViableStoryFieldsSchema,
+  VIABLE_FLOW_SCHEMAS, VIABLE_PROJECT_TYPE, VIABLE_USER_STORY_TYPE, VIABLE_TYPE_SCHEMAS, ViableProjectFieldsSchema,
+  ViableWorkcardFieldsSchema,
 } from '../src/planning/index.js'
 import { ScaffoldPlanAnswerSchema, ScaffoldPlanSchema } from '../src/scaffold/schemas.js'
 import type { ScaffoldPlan } from '../src/scaffold/types.js'
@@ -24,7 +24,7 @@ const at = '2026-11-11T10:00:00.000Z'
 
 describe('viable-common - the card fields an app map adds', () => {
   const project = ajv.compile(ViableProjectFieldsSchema)
-  const story = ajv.compile(ViableStoryFieldsSchema)
+  const workcard = ajv.compile(ViableWorkcardFieldsSchema)
 
   test('a project card written before apps validates as it did', () => {
     expect(project({})).toBe(true)
@@ -42,31 +42,31 @@ describe('viable-common - the card fields an app map adds', () => {
   })
 
   test('a story written before apps validates unchanged — every standard kind is a valid area key', () => {
-    for (const area of Object.values(ProjectArea)) expect(story({ area, primary: false })).toBe(true)
-    expect(story({ area: ProjectArea.User, primary: false, areas: ['admin', 'operator'] })).toBe(true)
-    expect(story({ area: ProjectArea.User, primary: false, areas: null })).toBe(true)
-    expect(story({ area: ProjectArea.User, primary: false, areas: [] })).toBe(true)
+    for (const area of Object.values(ProjectArea)) expect(workcard({ area, primary: false })).toBe(true)
+    expect(workcard({ area: ProjectArea.User, primary: false, areas: ['admin', 'operator'] })).toBe(true)
+    expect(workcard({ area: ProjectArea.User, primary: false, areas: null })).toBe(true)
+    expect(workcard({ area: ProjectArea.User, primary: false, areas: [] })).toBe(true)
   })
 
   test('the area is a key: a custom slug passes, ill-formed keys, a separate areaKey, duplicates and strays are refused', () => {
-    expect(story({ area: 'partner-portal', primary: false })).toBe(true)
-    expect(story({ area: 'partner-portal', primary: false, areas: ['admin'] })).toBe(true)
-    expect(story({ area: 'Partner Portal', primary: false })).toBe(false)
-    expect(story({ area: 'a--b', primary: false })).toBe(false)
-    expect(story({ area: '', primary: false })).toBe(false)
-    expect(story({ area: ProjectArea.User, primary: false, areaKey: 'partner-portal' })).toBe(false)
-    expect(story({ area: ProjectArea.User, primary: false, areas: ['admin', 'admin'] })).toBe(false)
-    expect(story({ area: ProjectArea.User, primary: false, app: 'admin' })).toBe(false)
+    expect(workcard({ area: 'partner-portal', primary: false })).toBe(true)
+    expect(workcard({ area: 'partner-portal', primary: false, areas: ['admin'] })).toBe(true)
+    expect(workcard({ area: 'Partner Portal', primary: false })).toBe(false)
+    expect(workcard({ area: 'a--b', primary: false })).toBe(false)
+    expect(workcard({ area: '', primary: false })).toBe(false)
+    expect(workcard({ area: ProjectArea.User, primary: false, areaKey: 'partner-portal' })).toBe(false)
+    expect(workcard({ area: ProjectArea.User, primary: false, areas: ['admin', 'admin'] })).toBe(false)
+    expect(workcard({ area: ProjectArea.User, primary: false, app: 'admin' })).toBe(false)
   })
 
   test('the planning registry still compiles every type, and checks old and new cards with them', () => {
     const registry = makeSchemaRegistry({ flows: VIABLE_FLOW_SCHEMAS, types: VIABLE_TYPE_SCHEMAS })
-    const storyFields = registry.validator(VIABLE_STORY_TYPE)
+    const workcardFields = registry.validator(VIABLE_USER_STORY_TYPE)
     const projectFields = registry.validator(VIABLE_PROJECT_TYPE)
-    expect(storyFields({ area: ProjectArea.User, primary: true })).toBe(true)
-    expect(storyFields({ area: 'partner-portal', primary: true, areas: ['admin'] })).toBe(true)
-    expect(storyFields({ area: ProjectArea.User, primary: true, areaKey: null })).toBe(false)
-    expect(storyFields({ area: ProjectArea.User, primary: true, stray: 1 })).toBe(false)
+    expect(workcardFields({ area: ProjectArea.User, primary: true })).toBe(true)
+    expect(workcardFields({ area: 'partner-portal', primary: true, areas: ['admin'] })).toBe(true)
+    expect(workcardFields({ area: ProjectArea.User, primary: true, areaKey: null })).toBe(false)
+    expect(workcardFields({ area: ProjectArea.User, primary: true, stray: 1 })).toBe(false)
     expect(projectFields({ language: 'en' })).toBe(true)
     expect(projectFields({ apps: { ...appMapHelper.defaultFor(['user', 'admin']), by: 'default', at } })).toBe(true)
     expect(projectFields({ apps: { ...appMapHelper.legacy(), by: 'default' } })).toBe(false)
@@ -74,9 +74,9 @@ describe('viable-common - the card fields an app map adds', () => {
 })
 
 describe('viable-common - the design keys an app map adds', () => {
-  const validate = ajv.compile(StoryDesignSchema)
-  const design = (): StoryDesign => ({
-    ...storyDesignHelper.emptyStoryDesign({ code: 'US-ABC12', narrative: 'A visitor books a slot.', area: ProjectArea.User }),
+  const validate = ajv.compile(WorkcardDesignSchema)
+  const design = (): WorkcardDesign => ({
+    ...workcardDesignHelper.emptyWorkcardDesign({ code: 'US-ABC12', narrative: 'A visitor books a slot.', area: ProjectArea.User }),
     screens: [{
       name: 'booking/list/overview', definition: 'booking-overview', path: 'sources/web/src/screens/booking-overview.tsx',
       alias: 'booking-overview', url: '/frontoffice/booking-overview', parent: 'area-user', adopted: false,

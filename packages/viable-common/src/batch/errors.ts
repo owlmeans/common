@@ -1,6 +1,6 @@
 import { ResilientError } from '@owlmeans/error'
 import { ProjectError } from '../planning/errors.js'
-import { AGENT_NOT_RUNNING_MARKER, STORY_BATCH_ACTIVE_MARKER, STORY_BATCH_EMPTY_MARKER } from './consts.js'
+import { AGENT_NOT_RUNNING_MARKER, WORKCARD_BATCH_ACTIVE_MARKER, WORKCARD_BATCH_EMPTY_MARKER } from './consts.js'
 
 /**
  * The refusals of the agent's controls and of a story batch.
@@ -25,29 +25,29 @@ export class AgentNotRunning extends ProjectError {
 }
 
 /** A story batch already runs on the project — one at a time (`message` is its id). */
-export class StoryBatchActive extends ProjectError {
+export class WorkcardBatchActive extends ProjectError {
   public static override typeName = `StoryBatchActive${ProjectError.typeName}`
   /** Another batch is under way: answered 409. */
   public static httpStatus = 409
 
   constructor(message: string = 'error') {
-    super(`${STORY_BATCH_ACTIVE_MARKER}:${message}`)
-    this.type = StoryBatchActive.typeName
+    super(`${WORKCARD_BATCH_ACTIVE_MARKER}:${message}`)
+    this.type = WorkcardBatchActive.typeName
   }
 }
 
 /** The selection holds no planned story of the project, so there is nothing to implement. */
-export class StoryBatchEmpty extends ProjectError {
+export class WorkcardBatchEmpty extends ProjectError {
   public static override typeName = `StoryBatchEmpty${ProjectError.typeName}`
   /** The request selected nothing a batch takes: answered 400. */
   public static httpStatus = 400
 
   constructor(message: string = '') {
-    super(message !== '' ? `${STORY_BATCH_EMPTY_MARKER}:${message}` : STORY_BATCH_EMPTY_MARKER)
-    this.type = StoryBatchEmpty.typeName
+    super(message !== '' ? `${WORKCARD_BATCH_EMPTY_MARKER}:${message}` : WORKCARD_BATCH_EMPTY_MARKER)
+    this.type = WorkcardBatchEmpty.typeName
   }
 }
 
 ResilientError.registerErrorClass(AgentNotRunning)
-ResilientError.registerErrorClass(StoryBatchActive)
-ResilientError.registerErrorClass(StoryBatchEmpty)
+ResilientError.registerErrorClass(WorkcardBatchActive)
+ResilientError.registerErrorClass(WorkcardBatchEmpty)

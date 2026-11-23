@@ -4,7 +4,7 @@ import { AuthenPayloadError } from '@owlmeans/auth'
 import { ApiStatusError } from '@owlmeans/api'
 import { ResilientError } from '@owlmeans/error'
 import { CommitTimeout, IllegalTransition, type PlanningFacade, type WorkcardDraft } from '@owlmeans/planning'
-import { ConnectHarness, ConnectLlm, ConnectTarget, OriginKind, ProjectArea, ProjectStoryNotFound, VIABLE_STORY_TYPE, ViableStoryStatus, ViableStoryTransition, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ViableStoryCard } from '@owlmeans/viable-common'
+import { ConnectHarness, ConnectLlm, ConnectTarget, OriginKind, ProjectArea, ProjectWorkcardNotFound, VIABLE_USER_STORY_TYPE, ViableWorkcardStatus, ViableWorkcardTransition, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ViableWorkcard } from '@owlmeans/viable-common'
 import { catalogue, catalogueHelper } from '../src/tools/catalogue.js'
 import { registerCatalogue } from '../src/tools/mcp.js'
 import { statusTextHelper } from '../src/tools/status.js'
@@ -84,9 +84,9 @@ describe('viable-sdk — what a parent agent is offered', () => {
     } as unknown as ToolHostDeps
 
     expect((await tool.run({}, deps)).structured).toEqual({ projectId: 'p1', total: 1, files: ['a.ts'] })
-    const stories = await tool.run({ kind: 'stories', category: 'ux' }, deps)
-    expect(stories.text).toContain('1 stories document(s)')
-    expect(stories.structured).toEqual({ projectId: 'p1', kind: 'stories', total: 1, files: ['docs/stories/s1.md'] })
+    const workcards = await tool.run({ kind: 'stories', category: 'ux' }, deps)
+    expect(workcards.text).toContain('1 stories document(s)')
+    expect(workcards.structured).toEqual({ projectId: 'p1', kind: 'stories', total: 1, files: ['docs/stories/s1.md'] })
     await tool.run({ kind: 'meta', category: 'ux' }, deps)
     await tool.run({ kind: 'all' }, deps)
     expect(calls).toEqual([
@@ -361,9 +361,9 @@ describe('the story tools speak planning', () => {
           },
         },
         story: {
-          status: async (projectId: string, storyId: string) => {
-            order.push(`story-status:${projectId}:${storyId}`)
-            const card = await suite.planning.cards.get(storyId) as ViableStoryCard
+          status: async (projectId: string, workcardId: string) => {
+            order.push(`story-status:${projectId}:${workcardId}`)
+            const card = await suite.planning.cards.get(workcardId) as ViableWorkcard
 
             return {
               projectId,
@@ -400,36 +400,36 @@ describe('the story tools speak planning', () => {
     const suite = await makePlanningSuite()
     const previous = await suite.project('Previous', 'previous')
     const named = await suite.project('Named', 'named')
-    const story = await suite.story(named.id!, 'As a clerk, I record a sale.')
+    const workcard = await suite.story(named.id!, 'As a clerk, I record a sale.')
     const { deps, order, attached } = connectorFor(suite, previous.id!)
 
-    const result = await toolNamed('develop_story').run({ projectId: named.id, storyId: story.code }, deps)
+    const result = await toolNamed('develop_story').run({ projectId: named.id, storyId: workcard.code }, deps)
 
     expect(attached()).toBe(named.id!)
     expect(order).toEqual([
-      `session:${named.id}`, 'execute:transit:start', `story-status:${named.id}:${story.id}`,
+      `session:${named.id}`, 'execute:transit:start', `story-status:${named.id}:${workcard.id}`,
     ])
-    expect(result.text).toContain(`${story.code} · ${story.title}`)
+    expect(result.text).toContain(`${workcard.code} · ${workcard.title}`)
     // The move committed before status was read: that commit is what starts the run.
-    expect((await suite.planning.cards.get(story.id!)).status).toBe(ViableStoryStatus.InProgress)
+    expect((await suite.planning.cards.get(workcard.id!)).status).toBe(ViableWorkcardStatus.InProgress)
   })
 
   test('develop_story answers from story status when the commit is late, and refuses what the flow refuses', async () => {
     const suite = await makePlanningSuite()
     const project = await suite.project()
-    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+    const workcard = await suite.story(project.id!, 'As a clerk, I record a sale.')
 
     // Late: the transition is durable, so domain status is the answer rather than a broken tool.
     const late = connectorFor(suite, project.id!, {
       execute: async () => { throw new CommitTimeout('transition-1') },
     })
-    const answered = await toolNamed('develop_story').run({ storyId: story.code }, late.deps)
+    const answered = await toolNamed('develop_story').run({ storyId: workcard.code }, late.deps)
     expect(answered.isError).not.toBe(true)
-    expect(late.order.at(-1)).toBe(`story-status:${project.id}:${story.id}`)
+    expect(late.order.at(-1)).toBe(`story-status:${project.id}:${workcard.id}`)
 
     // Refused: a story already in progress cannot be started again, and no status read hides it.
     const running = await suite.story(project.id!, 'As a clerk, I void a sale.', {
-      moves: [ViableStoryTransition.Start],
+      moves: [ViableWorkcardTransition.Start],
     })
     const refused = connectorFor(suite, project.id!)
     await expect(toolNamed('develop_story').run({ storyId: running.code }, refused.deps))
@@ -446,10 +446,10 @@ describe('the story tools speak planning', () => {
 
     expect(order).toEqual([`session:${project.id}`, 'execute:create'])
     const sent = suite.received.at(-1)!.card as WorkcardDraft
-    expect(sent).toMatchObject({ type: VIABLE_STORY_TYPE, parent: project.id, title: 'let clerks refund a sale' })
+    expect(sent).toMatchObject({ type: VIABLE_USER_STORY_TYPE, parent: project.id, title: 'let clerks refund a sale' })
     expect(sent.fields).toEqual({ primary: false })
 
-    const card = result.structured as ViableStoryCard
+    const card = result.structured as ViableWorkcard
     expect(card.code).toMatch(/^US-/)
     expect(card.fields.area).toBe(FORMATTED_AREA)
     expect(result.text).toContain(card.code!)
@@ -472,57 +472,57 @@ describe('the story tools speak planning', () => {
   test('update_story carries only the narrative, guarded by the head it read', async () => {
     const suite = await makePlanningSuite()
     const project = await suite.project()
-    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+    const workcard = await suite.story(project.id!, 'As a clerk, I record a sale.')
     const { deps, order } = connectorFor(suite, project.id!)
 
-    await toolNamed('update_story').run({ storyId: story.id, story: 'As a clerk, I record a cash sale.' }, deps)
+    await toolNamed('update_story').run({ storyId: workcard.id, story: 'As a clerk, I record a cash sale.' }, deps)
 
     expect(order).toEqual([`session:${project.id}`, 'execute:update'])
     const sent = suite.received.at(-1)!
     expect(sent.changes).toEqual({ title: 'As a clerk, I record a cash sale.' })
-    expect(sent.expectSeq).toBe(story.head ?? story.seq)
-    const updated = await suite.planning.cards.get(story.id!)
+    expect(sent.expectSeq).toBe(workcard.head ?? workcard.seq)
+    const updated = await suite.planning.cards.get(workcard.id!)
     expect(updated.title).toBe('As a clerk, I record a cash sale.')
-    expect(updated.status).toBe(ViableStoryStatus.Planned)
+    expect(updated.status).toBe(ViableWorkcardStatus.Planned)
   })
 
   test('delete_story deletes the card, then waits through the cleanup still holding the lock', async () => {
     const suite = await makePlanningSuite()
     const project = await suite.project()
-    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+    const workcard = await suite.story(project.id!, 'As a clerk, I record a sale.')
     const connector = connectorFor(suite, project.id!, { locked: check => check < 3 })
 
-    const result = await toolNamed('delete_story').run({ storyId: story.code }, connector.deps)
+    const result = await toolNamed('delete_story').run({ storyId: workcard.code }, connector.deps)
 
     expect(result.isError).not.toBe(true)
     expect(connector.order.slice(0, 2)).toEqual([`session:${project.id}`, 'execute:delete'])
     expect(connector.checks()).toBeGreaterThanOrEqual(4)
-    expect(await suite.planning.cards.load(story.id!)).toBeNull()
+    expect(await suite.planning.cards.load(workcard.id!)).toBeNull()
   })
 
   test('reset_story and complete_story move the story through its flow, then read its status', async () => {
     const suite = await makePlanningSuite()
     const project = await suite.project()
-    const story = await suite.story(project.id!, 'As a clerk, I record a sale.', {
-      moves: [ViableStoryTransition.Start],
+    const workcard = await suite.story(project.id!, 'As a clerk, I record a sale.', {
+      moves: [ViableWorkcardTransition.Start],
     })
     const connector = connectorFor(suite, project.id!)
 
-    const completed = await toolNamed('complete_story').run({ storyId: story.code }, connector.deps)
+    const completed = await toolNamed('complete_story').run({ storyId: workcard.code }, connector.deps)
     expect(completed.isError).not.toBe(true)
-    expect((await suite.planning.cards.get(story.id!)).status).toBe(ViableStoryStatus.Completed)
+    expect((await suite.planning.cards.get(workcard.id!)).status).toBe(ViableWorkcardStatus.Completed)
 
-    const reset = await toolNamed('reset_story').run({ storyId: story.code }, connector.deps)
+    const reset = await toolNamed('reset_story').run({ storyId: workcard.code }, connector.deps)
     expect(reset.isError).not.toBe(true)
-    expect((await suite.planning.cards.get(story.id!)).status).toBe(ViableStoryStatus.Planned)
+    expect((await suite.planning.cards.get(workcard.id!)).status).toBe(ViableWorkcardStatus.Planned)
     expect(connector.order).toEqual([
-      `session:${project.id}`, 'execute:transit:complete', `story-status:${project.id}:${story.id}`,
-      `session:${project.id}`, 'execute:transit:reset', `story-status:${project.id}:${story.id}`,
+      `session:${project.id}`, 'execute:transit:complete', `story-status:${project.id}:${workcard.id}`,
+      `session:${project.id}`, 'execute:transit:reset', `story-status:${project.id}:${workcard.id}`,
     ])
 
     // Only a story in progress completes: the flow refuses, and no status read hides it.
     const refused = connectorFor(suite, project.id!)
-    await expect(toolNamed('complete_story').run({ storyId: story.code }, refused.deps))
+    await expect(toolNamed('complete_story').run({ storyId: workcard.code }, refused.deps))
       .rejects.toBeInstanceOf(IllegalTransition)
     expect(refused.order.some(entry => entry.startsWith('story-status:'))).toBe(false)
   })
@@ -530,15 +530,15 @@ describe('the story tools speak planning', () => {
   test('reset_story and complete_story answer from story status when the commit is late', async () => {
     const suite = await makePlanningSuite()
     const project = await suite.project()
-    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+    const workcard = await suite.story(project.id!, 'As a clerk, I record a sale.')
     for (const name of ['reset_story', 'complete_story']) {
       const late = connectorFor(suite, project.id!, {
         execute: async () => { throw new CommitTimeout('transition-1') },
       })
-      const answered = await toolNamed(name).run({ storyId: story.code }, late.deps)
+      const answered = await toolNamed(name).run({ storyId: workcard.code }, late.deps)
 
       expect([name, answered.isError === true]).toEqual([name, false])
-      expect(late.order.at(-1)).toBe(`story-status:${project.id}:${story.id}`)
+      expect(late.order.at(-1)).toBe(`story-status:${project.id}:${workcard.id}`)
     }
   })
 
@@ -548,7 +548,7 @@ describe('the story tools speak planning', () => {
     await suite.story(project.id!, 'Third step', { order: 3 })
     await suite.story(project.id!, 'First step', { order: 1, fields: { primary: true } })
     await suite.story(project.id!, 'Admin reviews it', {
-      order: 1.5, fields: { area: ProjectArea.Admin }, moves: [ViableStoryTransition.Start],
+      order: 1.5, fields: { area: ProjectArea.Admin }, moves: [ViableWorkcardTransition.Start],
     })
     const { deps } = connectorFor(suite, project.id!)
 
@@ -574,21 +574,21 @@ describe('the story tools speak planning', () => {
     const suite = await makePlanningSuite()
     const project = await suite.project()
     const other = await suite.project('Other', 'other')
-    const story = await suite.story(project.id!, 'As a clerk, I record a sale.', {
-      fields: { warning: 'the boot gate refused it' }, moves: [ViableStoryTransition.Start, ViableStoryTransition.Fail],
+    const workcard = await suite.story(project.id!, 'As a clerk, I record a sale.', {
+      fields: { warning: 'the boot gate refused it' }, moves: [ViableWorkcardTransition.Start, ViableWorkcardTransition.Fail],
     })
     const foreign = await suite.story(other.id!, 'As a clerk, I close a till.')
     const { deps } = connectorFor(suite, project.id!)
 
-    for (const storyId of [story.code, story.id, story.code!.toLowerCase()]) {
-      const result = await toolNamed('story_status').run({ storyId }, deps)
-      expect(result.text).toContain(`${story.code} · ${story.title}`)
+    for (const workcardId of [workcard.code, workcard.id, workcard.code!.toLowerCase()]) {
+      const result = await toolNamed('story_status').run({ storyId: workcardId }, deps)
+      expect(result.text).toContain(`${workcard.code} · ${workcard.title}`)
       expect(result.text).toContain('story: failed')
       expect(result.text).toContain('warning: the boot gate refused it')
     }
 
     await expect(toolNamed('story_status').run({ storyId: foreign.id }, deps))
-      .rejects.toBeInstanceOf(ProjectStoryNotFound)
+      .rejects.toBeInstanceOf(ProjectWorkcardNotFound)
   })
 
   test('the landing gate story is marked from its card, in the list and in its status', async () => {
@@ -1720,7 +1720,7 @@ describe('viable-sdk — tool annotations', () => {
     }
     const destructive = catalogue.filter(tool => tool.annotations.destructiveHint === true).map(tool => tool.name).sort()
     expect(destructive).toEqual([
-      'cancel_story_batch', 'delete_file', 'delete_project', 'delete_story', 'disconnect_github', 'git_discard', 'git_revert',
+      'cancel_story_batch', 'delete_card', 'delete_file', 'delete_project', 'delete_story', 'disconnect_github', 'git_discard', 'git_revert',
       'manage_app_grant', 'manage_app_group', 'manage_app_organization', 'manage_app_user', 'production_control', 'publish_production', 'purge_origin', 'reinitialize_project', 'revoke_access_token',
       'stop_agent', 'write_file',
     ])

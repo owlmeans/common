@@ -25,7 +25,8 @@ export interface ChangesHelper {
    *
    * `status`/`intrinsic`/`flows`/`closedAt` move only through `transit` (a create's draft may name
    * the initial status); `code` is fixed once minted unless the type's policy says `mutable`;
-   * `category` is fixed; `revision`/`bodyChars` are computed; `createdBy` is the create DRAFT's
+   * `category` is fixed; a `retype` never names a code (the executor mints it);
+   * `revision`/`bodyChars` are computed; `createdBy` is the create DRAFT's
    * alone — named in `changes` or `unset` it is refused on every action, so an owner check
    * (`card.createdBy === profileId`) can trust it.
    *
@@ -45,6 +46,9 @@ export interface ChangesHelper {
    * - `transit`: `flows[flow] = rule.to`, `status` when the flow is primary, `intrinsic` when it
    *   moves, `closedAt` set on entering closed and cleared on leaving it — plus the caller's own
    *   changes, diffed as in an update.
+   * - `retype` (`type` is the NEW type): the caller's changes diffed as in an update — the code the
+   *   executor minted and `fields.formerCodes` among them — every flow keeping its status, and
+   *   `status`/`intrinsic`/`closedAt` mirrored again under the new type's primary flow and policy.
    * - `link`, `unlink`, `delete`: nothing.
    *
    * `createdBy` comes from a create's draft only: `changes` and `unset` never carry it, on any action

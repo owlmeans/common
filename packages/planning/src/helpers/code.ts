@@ -1,5 +1,5 @@
 import { createIdOfLength, generateWordSlug, IdStyle, nextSlugCandidate } from '@owlmeans/basic-ids'
-import { CODE_MAX, CODE_MINT_ATTEMPTS, CodeScope, CodeStyle, DEFAULT_CODE_LENGTH } from '../consts.js'
+import { CODE_MAX, CODE_MINT_ATTEMPTS, CodeScope, CodeStyle, DEFAULT_CODE_LENGTH, FORMER_CODES_FIELD, MAX_FORMER_CODES } from '../consts.js'
 import { CodeTaken } from '../errors.js'
 import type { CodePolicy, WorkcardDraft } from '../types.js'
 import type { CodeHelper, MintCodeOptions } from './code/types.js'
@@ -49,7 +49,17 @@ export const createCodeHelper = (): CodeHelper => {
   const codeScopeOf = (policy: CodePolicy, draft: Pick<WorkcardDraft, 'parent'>): { parent?: string } =>
     policy.uniqueWithin === CodeScope.Parent ? { parent: draft.parent } : {}
 
-  return { slugOf, mintCode, codeScopeOf }
+  const remintsOn = (policy: CodePolicy | undefined, code: string | undefined): boolean =>
+    policy != null && (code == null || code === '' || !code.startsWith(policy.prefix ?? ''))
+
+  const formerCodesOf = (fields: Record<string, unknown> | undefined, code: string): string[] => {
+    const earlier = fields?.[FORMER_CODES_FIELD]
+    const kept = Array.isArray(earlier) ? earlier.filter((entry): entry is string => typeof entry === 'string' && entry !== code) : []
+
+    return [...kept, code].slice(-MAX_FORMER_CODES)
+  }
+
+  return { slugOf, mintCode, codeScopeOf, remintsOn, formerCodesOf }
 }
 
 export const codeHelper = createCodeHelper()

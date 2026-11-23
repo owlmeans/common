@@ -300,6 +300,11 @@ export interface WorkcardTypeSchema {
   /** Primary/direct hierarchy declarations. Missing means the legacy project-only rule. */
   parents?: { types?: string[], required?: boolean }
   children?: { types: string[] }
+  /**
+   * The types a card of this type may become through a `retype` (same kind). Absent or empty: the
+   * type is never retyped. Opt-in per type, so a type that does not list any is unaffected.
+   */
+  retypes?: string[]
   /** Allowed labels. Any when omitted. */
   labels?: string[]
   code?: CodePolicy
@@ -563,6 +568,8 @@ export interface TransitionExecution {
   /** A card id, or the draft of the card a `create` makes. */
   card: string | WorkcardDraft
   action: TransitionAction
+  /** A `retype`'s new type key — required by that action, refused by every other. */
+  toType?: string
   transition?: string
   flow?: string
   changes?: WorkcardChanges

@@ -21,9 +21,12 @@ import type {
   IamOrganizationsResponse, IamPermissionDefinition, IamPermissionsResponse, IamProjectMemberInvite,
   IamProjectMemberUpdate, IamProjectUserInvite, IamProjectUserUpdate, IamRevokeGrant, IamUser, IamUsersResponse,
   ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFileChanges,
-  AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView,
+  AgentSteerArgs, AgentSteerResult, AgentStopArgs, WorkcardBatchStartArgs, WorkcardBatchView,
   ConnectCreateWithMaterialsBody, ConnectMaterialCatalogue, ConnectMaterialsState, ConnectMaterialText,
   ConnectAppRestartBody, ConnectAppsView,
+  ConnectCardStatus, ConnectCardsPlanView, ConnectCardsRerunBody, ConnectCardsRerunView, ConnectCardsRunAllBody, ConnectCardsTogetherBody,
+  ConnectCardsTogetherView,
+  ConnectRequestView, ViableImplementChoice,
 } from '@owlmeans/viable-common'
 import type { UploadInput, UploadInputResult, UploadRunOptions } from '@owlmeans/client-upload'
 import type { UploadSession } from '@owlmeans/upload'
@@ -79,11 +82,26 @@ export interface ConnectorApi {
      * 404 (the tools then fall back to `confirm`).
      */
     confirmWithReferences: (projectId: string, edits: ProjectEdits) => Promise<ConnectProjectStatus>
+    /**
+     * `confirmWithReferences` with the choice at the specification approval
+     * (`connect.project.confirmImplementation`): `preview` draws the application only, `spec` also
+     * implements the init's spec right away — asked of the spec gate at the confirm, so a Free plan
+     * without topped-up credits is refused (`ConnectOutOfCredits`). A platform older than the route
+     * answers 404 (the tool then says the choice is not offered yet — never a silent preview).
+     */
+    confirmImplementation: (projectId: string, edits: ProjectImplementEdits) => Promise<ConnectProjectStatus>
     list: () => Promise<Array<{ id: string, name: string, alias: string }>>
     status: (projectId: string) => Promise<ConnectProjectStatus>
     attach: (args: { projectId?: string, slug?: string }) => Promise<ConnectProjectStatus>
     reinit: (projectId: string) => Promise<ConnectProjectStatus>
     modify: (projectId: string, prompt: string) => Promise<ConnectProjectStatus>
+    /**
+     * A person's request in words, triaged first (`connect.project.request`): a question is answered by
+     * reading, a small fix made at once (free flight), anything bigger filed as cards of the right type
+     * as the person's own — and started on request once the agent lets go of the project. Answers what
+     * it became. A platform older than the route answers 404 (the tool then falls back to `modify`).
+     */
+    request: (projectId: string, prompt: string) => Promise<ConnectRequestView>
     /**
      * Rename the project: its record, specification, vision and what its code calls it. The web
      * address stays. A new name starts an agent run, paid like an open-ended change.
@@ -125,14 +143,14 @@ export interface ConnectorApi {
     batch: {
       /**
        * Start one over the stories named (card ids), or every planned story when `stories` is left
-       * out. Refused `StoryBatchActive` while another runs, `StoryBatchEmpty` when nothing planned is
+       * out. Refused `WorkcardBatchActive` while another runs, `WorkcardBatchEmpty` when nothing planned is
        * selected; each story's start is admitted like a person's Start.
        */
-      start: (projectId: string, args: StoryBatchStartArgs) => Promise<StoryBatchView>
+      start: (projectId: string, args: WorkcardBatchStartArgs) => Promise<WorkcardBatchView>
       /** The project's latest batch, or `null` when none ever ran. */
-      get: (projectId: string) => Promise<StoryBatchView | null>
+      get: (projectId: string) => Promise<WorkcardBatchView | null>
       /** No further story starts; the story in progress is stopped through {@link stop}. */
-      cancel: (projectId: string) => Promise<StoryBatchView>
+      cancel: (projectId: string) => Promise<WorkcardBatchView>
     }
     /**
      * What the project's agent did after a cursor — run starts and stops, pipeline steps, card,
@@ -239,7 +257,30 @@ export interface ConnectorApi {
   }
 
   story: {
-    status: (projectId: string, storyId: string) => Promise<ConnectStoryStatus>
+    status: (projectId: string, workcardId: string) => Promise<ConnectStoryStatus>
+  }
+
+  /**
+   * Work cards of every type — what planning cannot answer alone. The cards themselves are read and
+   * written through {@link planning}; a platform older than these routes answers 404.
+   */
+  cards: {
+    /** One card composed: its members, plan, open proposals, a task's inputs (set or missing — never a value) and its run. */
+    status: (projectId: string, cardId: string) => Promise<ConnectCardStatus>
+    /**
+     * Run together: the selected cards (ids) become ONE new spec's members, started as the person's
+     * Start when `start` says so (its gate's non-consuming check first).
+     */
+    together: (projectId: string, body: ConnectCardsTogetherBody) => Promise<ConnectCardsTogetherView>
+    /** Run all's proposal: where each loose planned card would go. Nothing is written. */
+    plan: (projectId: string) => Promise<ConnectCardsPlanView>
+    /** Run all: the accepted assignment applied, then ONE batch — the existing specs first, the new spec next, the cards on their own last. */
+    runAll: (projectId: string, body: ConnectCardsRunAllBody) => Promise<WorkcardBatchView>
+    /**
+     * A container's re-run: the spec or feature started as the person's Start for exactly its failed
+     * (`failed`) or its unfinished (`unfinished`) members — the container's gate, spending credits.
+     */
+    rerun: (projectId: string, body: ConnectCardsRerunBody) => Promise<ConnectCardsRerunView>
   }
 
   /**
@@ -530,6 +571,11 @@ export interface ProjectEdits {
   vision?: string
   designSystem?: string
   target?: ConnectTarget
+}
+
+/** {@link ProjectEdits} and the choice at the specification approval — the `confirmImplementation` body. */
+export interface ProjectImplementEdits extends ProjectEdits {
+  implement: ViableImplementChoice
 }
 
 /** What a connector executes locally. Absent for a cloud target — the platform's pod does it. */

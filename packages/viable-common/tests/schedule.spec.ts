@@ -2,18 +2,18 @@ import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import { ProjectArea } from '../src/areas/consts.js'
 import {
-  NO_RUNTIME, ScheduleProblem, StoryDesignSchema, jobScheduleHelper, storyDesignHelper,
+  NO_RUNTIME, ScheduleProblem, WorkcardDesignSchema, jobScheduleHelper, workcardDesignHelper,
 } from '../src/design/index.js'
-import type { StoryDesign, StoryDesignJob, StoryDesignJobSchedule } from '../src/design/index.js'
+import type { WorkcardDesign, WorkcardDesignJob, WorkcardDesignJobSchedule } from '../src/design/index.js'
 
-const JOB: StoryDesignJob = {
+const JOB: WorkcardDesignJob = {
   queue: 'app-jobs', name: 'inventory-report:build', path: '', purpose: 'Builds the previous day\'s report.',
   reason: 'It is scheduled rather than requested.', idempotency: 'Skips a day whose report is stored.',
 }
 
-const designWith = (schedule?: StoryDesignJobSchedule | null): StoryDesign => ({
-  ...storyDesignHelper.emptyStoryDesign({ code: 'US-NIGHT', narrative: 'A nightly report.', area: ProjectArea.Admin }),
-  runtime: { ...NO_RUNTIME, worker: true, jobs: [{ ...JOB, ...(schedule !== undefined ? { schedule } : {}) } as StoryDesignJob] },
+const designWith = (schedule?: WorkcardDesignJobSchedule | null): WorkcardDesign => ({
+  ...workcardDesignHelper.emptyWorkcardDesign({ code: 'US-NIGHT', narrative: 'A nightly report.', area: ProjectArea.Admin }),
+  runtime: { ...NO_RUNTIME, worker: true, jobs: [{ ...JOB, ...(schedule !== undefined ? { schedule } : {}) } as WorkcardDesignJob] },
 })
 
 describe('viable-common - a job\'s schedule', () => {
@@ -58,7 +58,7 @@ describe('viable-common - a job\'s schedule', () => {
 })
 
 describe('viable-common - the design schema on a job\'s schedule', () => {
-  const validate = new Ajv({ allErrors: true, strict: false }).compile(StoryDesignSchema)
+  const validate = new Ajv({ allErrors: true, strict: false }).compile(WorkcardDesignSchema)
 
   test('accepts a job with no schedule, a null one, a cron pattern with its zone and an interval', () => {
     expect(validate(designWith())).toBe(true)

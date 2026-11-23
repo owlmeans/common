@@ -15,7 +15,8 @@
     "transit": "Status changed",
     "link": "Linked",
     "unlink": "Unlinked",
-    "delete": "Deleted"
+    "delete": "Deleted",
+    "retype": "Type changed"
   },
   "commit": {
     "pending": "Saving…",
@@ -41,6 +42,7 @@
     "PlanningErrorSpecificationSlotUnknown": "This kind of document is not allowed here",
     "PlanningErrorSpecificationRevisionConflict": "This document already exists — edit it instead",
     "PlanningErrorRelationshipRefused": "This link is not allowed",
+    "PlanningErrorRetypeNotAllowed": "This item cannot change to that type",
     "PlanningErrorCodeTaken": "This code is already taken",
     "PlanningErrorWorkcardConflict": "Someone changed this item in the meantime — reload and try again",
     "PlanningErrorCommitTimeout": "The change is still being saved — check again shortly",

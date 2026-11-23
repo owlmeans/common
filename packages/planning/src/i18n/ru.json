@@ -15,7 +15,8 @@
     "transit": "Статус изменён",
     "link": "Связано",
     "unlink": "Связь удалена",
-    "delete": "Удалено"
+    "delete": "Удалено",
+    "retype": "Тип изменён"
   },
   "commit": {
     "pending": "Сохранение…",
@@ -41,6 +42,7 @@
     "PlanningErrorSpecificationSlotUnknown": "Этот вид документа здесь недопустим",
     "PlanningErrorSpecificationRevisionConflict": "Этот документ уже существует — отредактируйте его",
     "PlanningErrorRelationshipRefused": "Эта связь недопустима",
+    "PlanningErrorRetypeNotAllowed": "Этот элемент нельзя перевести в этот тип",
     "PlanningErrorCodeTaken": "Этот код уже занят",
     "PlanningErrorWorkcardConflict": "Кто-то изменил этот элемент за это время — обновите и попробуйте снова",
     "PlanningErrorCommitTimeout": "Изменение ещё сохраняется — проверьте чуть позже",

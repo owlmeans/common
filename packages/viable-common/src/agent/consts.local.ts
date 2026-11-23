@@ -24,9 +24,9 @@ export const contractActions = new Set(['update-contract'])
 export const structuredActions: Record<string, AgentStructuredKind> = {
   'choose-files-for-fix': AgentStructuredKind.ArtifactSelection,
   'list-files-to-fix': AgentStructuredKind.ArtifactSelection,
-  'extract-user-stories-from-spec': AgentStructuredKind.StoryPlan,
-  'derive-connecting-stories': AgentStructuredKind.StoryPlan,
-  'derive-area-scaffold-stories': AgentStructuredKind.StoryPlan,
+  'extract-user-stories-from-spec': AgentStructuredKind.WorkcardPlan,
+  'derive-connecting-stories': AgentStructuredKind.WorkcardPlan,
+  'derive-area-scaffold-stories': AgentStructuredKind.WorkcardPlan,
   'describe-ux-story-transitions': AgentStructuredKind.TransitionPlan,
   'find-entrypoint-for-screen': AgentStructuredKind.EntrypointSelection,
   'describe-api-access': AgentStructuredKind.AccessPolicy,

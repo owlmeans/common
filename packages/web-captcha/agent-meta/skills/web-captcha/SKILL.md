@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-captcha
 
 **Layer:** Web (L0 — no `@owlmeans/*` dependencies; React an optional peer, used only by `./react`)
-**Install:** `"@owlmeans/web-captcha": "^0.2.2-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/web-captcha": "^0.2.3-alpha.0"` in `dependencies`
 **Server half:** `@owlmeans/captcha` (its provider advertises `{ provider, siteKey }`)
 **Clients:** connect packages — Google reCAPTCHA is `@owlmeans/web-captcha-recaptcha`
 (`appendRecaptchaClient()`, skill `web-captcha-recaptcha`)

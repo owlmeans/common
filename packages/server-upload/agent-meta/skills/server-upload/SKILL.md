@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-upload
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-upload": "^0.2.2-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/server-upload": "^0.2.3-alpha.0"` in `dependencies`
 
 Server half of the upload family: the contract is `@owlmeans/upload`, the client
 `@owlmeans/client-upload`, the React UI `@owlmeans/web-upload`. Files are verified on THIS service

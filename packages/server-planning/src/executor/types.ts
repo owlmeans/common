@@ -7,6 +7,8 @@ export interface Resolved {
   /** The existing card (not a create). */
   card?: Workcard
   type: AnyTypeSchema
+  /** A `retype`'s new type, resolved in the same layer as `type`. */
+  target?: AnyTypeSchema
   flowId: string
   flow: StatusFlowSchema
   /** The primary parent, when it resolves. */

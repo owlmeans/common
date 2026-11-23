@@ -81,7 +81,10 @@ export const makePlanningInvariants = (runtime: PlanningRuntime): PlanningInvari
           }
         }
       }
-      if (before != null && (before.parent !== after.parent || JSON.stringify(before.parents) !== JSON.stringify(after.parents))) {
+      // A moved card, or a retyped one, re-checks everything under it as if the write had landed: a
+      // retype must leave every child pair allowed against the type the card becomes.
+      if (before != null && (before.parent !== after.parent || JSON.stringify(before.parents) !== JSON.stringify(after.parents)
+        || before.type !== after.type)) {
         const reader = runtime.reader()
         const alternate: PlanningRuntime = { ...runtime, reader: () => ({ ...reader, cards: { ...reader.cards, get: async (id, entityId) => id === after.id && entityId === after.entityId ? after : await reader.cards.get(id, entityId) } }) }
         const hypothetical = makePlanningHierarchy(alternate)

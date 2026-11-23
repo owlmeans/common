@@ -41,6 +41,7 @@ const DESTRUCTIVE_SET = [
   'revoke_access_token', 'withdraw_marketing_consent',
   'update_story', 'delete_story', 'develop_story', 'reset_story', 'complete_story', 'start_story_batch',
   'cancel_story_batch', 'modify_project', 'stop_agent', 'resume_pipeline',
+  'update_card', 'retype_card', 'run_card', 'run_cards_together', 'run_all_cards', 'rerun_card', 'delete_card',
   'convert_project', 'proceed_conversion', 'purge_origin',
   'write_file', 'delete_file', 'stop_preview', 'rebuild_preview',
   'git_discard', 'git_revert', 'github_sync', 'disconnect_github', 'link_github_origin',
@@ -75,6 +76,7 @@ const CREDIT_SET = [
   'create_project', 'create_project_with_files', 'confirm_project', 'reinitialize_project', 'recollect_configuration', 'create_story',
   'update_story', 'develop_story', 'start_story_batch', 'modify_project', 'rename_project', 'resume_pipeline',
   'answer_question', 'convert_project', 'proceed_conversion', 'purge_origin',
+  'create_card', 'update_card', 'run_card', 'run_cards_together', 'run_all_cards', 'rerun_card',
 ]
 
 /** NOT IDEMPOTENT — a write whose second call repeats its effect (another record, another paid run). */
@@ -84,6 +86,7 @@ const REPEATING_SET = [
   'resume_pipeline', 'next_question', 'answer_question', 'convert_project', 'proceed_conversion',
   'restart_preview', 'rebuild_preview', 'git_commit', 'git_revert', 'connect_github', 'publish_to_github',
   'github_sync', 'publish_production', 'restart_production', 'run_local', 'restart_project_app',
+  'create_card', 'update_card', 'run_card', 'run_cards_together', 'run_all_cards', 'rerun_card',
 ]
 
 /** The offered tools that never answer a structured part, and so declare no output. */
@@ -443,6 +446,44 @@ describe('viable-sdk — a listing registered on an MCP server', () => {
     const older = await serve(hostedHost(openaiListingProfile), { client: async () => null }).run('session_status')
     expect(older.structuredContent).toEqual({ client: null })
     expect(schema.safeParse(older.structuredContent).success).toBe(true)
+  })
+
+  test('run_all_cards presents the cards that run on their own, in its declared shape — omitted when there are none', async () => {
+    const plan = {
+      assignment: {
+        placements: [{ card: 'c1', container: 's1', order: 0 }], loose: ['c3', 'c2'],
+      },
+      loose: [
+        { id: 'c1', code: 'US-1', type: 'viable:user-story', title: 'One' }, { id: 'c2', code: 'IMP-1', type: 'viable:improvement', title: 'Two' },
+        { id: 'c3', code: 'TASK-1', type: 'viable:task', title: 'Three' },
+      ],
+      containers: [{ id: 's1', code: 'SPEC-1', type: 'viable:spec', title: 'Billing' }],
+    }
+    const batch = { id: 'b1', projectId: 'p1', kind: 'cards', status: 'running', stories: ['s1', 'c3', 'c2'], outcomes: {}, codes: {} }
+    const runAll: unknown[] = []
+    const { run, configs } = serve(hostedHost(listingProfile), {
+      cards: {
+        plan: async () => plan,
+        runAll: async (_projectId: string, body: unknown) => { runAll.push(body); return batch },
+      },
+    })
+    const schema = z.object(configs.get('run_all_cards')!.outputSchema as z.ZodRawShape).strict()
+
+    const proposal = await run('run_all_cards')
+    expect(proposal.structuredContent).toMatchObject({ projectId: 'p1', placements: [{ card: 'c1', container: 's1', order: 0 }], loose: ['c3', 'c2'] })
+    expect(schema.safeParse(proposal.structuredContent).success).toBe(true)
+    expect(proposal.content[0]!.text).toContain('on its own (runs after the specs)')
+
+    const ran = await run('run_all_cards', { confirm: true })
+    expect(runAll).toEqual([{ assignment: plan.assignment }])
+    expect(ran.structuredContent).toMatchObject({ loose: ['c3', 'c2'] })
+    expect(schema.safeParse(ran.structuredContent).success).toBe(true)
+
+    const none = serve(hostedHost(listingProfile), {
+      cards: { plan: async () => ({ ...plan, assignment: { placements: plan.assignment.placements, loose: [] } }) },
+    })
+    const placed = await none.run('run_all_cards')
+    expect(Object.keys(placed.structuredContent ?? {})).not.toContain('loose')
   })
 
   test('a split variant runs its base with the action fixed, its answer said with the offered names', async () => {

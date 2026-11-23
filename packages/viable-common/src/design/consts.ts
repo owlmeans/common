@@ -6,9 +6,9 @@
  * the fields it is missing were absent because they had not been designed and which because the
  * shape did not have them yet. Those are different questions with different answers.
  */
-import type { StoryDesignBotTrigger, StoryDesignRuntime } from './types.js'
+import type { WorkcardDesignBotTrigger, WorkcardDesignRuntime } from './types.js'
 
-export const STORY_DESIGN_VERSION = 1
+export const WORKCARD_DESIGN_VERSION = 1
 
 /** How far a design may drift from the project it was written against before it is stale. */
 export enum DesignStaleness {
@@ -25,7 +25,7 @@ export enum DesignStaleness {
 }
 
 /** Who acts in a story. */
-export enum StoryActor {
+export enum WorkcardActor {
   /** A person, in one of the four areas. Every story until something says otherwise. */
   Human = 'human',
   /**
@@ -41,7 +41,7 @@ export enum StoryActor {
 }
 
 /** The ephemeral actors — those a permission may never be granted to. */
-export const EPHEMERAL_ACTORS: StoryActor[] = [StoryActor.Agent, StoryActor.Worker]
+export const EPHEMERAL_ACTORS: WorkcardActor[] = [WorkcardActor.Agent, WorkcardActor.Worker]
 
 /**
  * The three shapes that can perform work with a model, cheapest first.
@@ -52,7 +52,7 @@ export const EPHEMERAL_ACTORS: StoryActor[] = [StoryActor.Agent, StoryActor.Work
  * failure mode, so the right answer is the simplest shape that does the job — and for most work
  * that asks for a model at all, it is a call.
  */
-export enum StoryAgentKind {
+export enum WorkcardAgentKind {
   /** One prompt, one answer, optionally schema-shaped. The default. */
   Call = 'call',
   /** Ordered steps decided by the application, not by the model. */
@@ -62,13 +62,13 @@ export enum StoryAgentKind {
 }
 
 /** What a design carries when nobody has asked the question — and when the answer was "no". */
-export const NO_RUNTIME: StoryDesignRuntime = {
-  actor: StoryActor.Human,
+export const NO_RUNTIME: WorkcardDesignRuntime = {
+  actor: WorkcardActor.Human,
   worker: false,
   jobs: [],
   agents: [],
   kv: false,
 }
 
-/** Every {@link StoryDesignBotTrigger}, for a schema's `enum`. */
-export const STORY_BOT_TRIGGERS: StoryDesignBotTrigger[] = ['keywords', 'all', 'command', 'addressed']
+/** Every {@link WorkcardDesignBotTrigger}, for a schema's `enum`. */
+export const WORKCARD_BOT_TRIGGERS: WorkcardDesignBotTrigger[] = ['keywords', 'all', 'command', 'addressed']

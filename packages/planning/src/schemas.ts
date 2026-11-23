@@ -345,6 +345,7 @@ const typeProperties = {
   specifications: { type: 'array', items: SpecificationSlotSchema },
   parents: { type: 'object', properties: { types: { type: 'array', items: TypeKey, nullable: true }, required: { type: 'boolean', nullable: true } }, required: [], additionalProperties: false, nullable: true },
   children: { type: 'object', properties: { types: { type: 'array', items: TypeKey } }, required: ['types'], additionalProperties: false, nullable: true },
+  retypes: { type: 'array', items: TypeKey, nullable: true },
   relationships: { type: 'array', items: RelationshipTypeSchema, nullable: true },
   labels: { type: 'array', items: Label, nullable: true },
   code: { ...CodePolicySchema, nullable: true },
@@ -572,6 +573,7 @@ const executionProperties = {
   /** A card id, or the draft of a create. */
   card: { anyOf: [Id, WorkcardDraftSchema] },
   action: TransitionActionSchema,
+  toType: { ...TypeKey, nullable: true },
   transition: { ...Label, nullable: true },
   flow: { ...TypeKey, nullable: true },
   changes: { ...WorkcardChangesSchema, nullable: true },

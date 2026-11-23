@@ -1,14 +1,14 @@
 import { CommitTimeout, IntrinsicStatus, TransitionAction, WorkcardKind, type Workcard, type WorkcardQuery } from '@owlmeans/planning'
-import { isViableStory, ProjectStoryNotFound, storyFieldsOf, VIABLE_STORY_TYPE, type ViableStoryCard, type ViableStoryTransition } from '@owlmeans/viable-common'
+import { isViableWorkcard, ProjectWorkcardNotFound, workcardFieldsOf, VIABLE_USER_STORY_TYPE, type ViableWorkcard, type ViableWorkcardTransition } from '@owlmeans/viable-common'
 import { COMMIT_WAIT_MS } from '../consts.js'
 import type { ToolDeps, StoryFilter } from './types.js'
 import { LANDING_MARK } from './consts.js'
-import type { StoryHelper, StoryTransit } from './stories/types.js'
+import type { StoryHelper, StoryTransit } from './workcards/types.js'
 
 export const createStoryHelper = (): StoryHelper => {
   const storyQuery = (projectId: string, filter: StoryFilter = {}): WorkcardQuery => ({
     kind: WorkcardKind.Card,
-    type: VIABLE_STORY_TYPE,
+    type: VIABLE_USER_STORY_TYPE,
     parent: projectId,
     ...(filter.status != null ? { status: filter.status } : {}),
     // The area is the story's own field rather than a column of the card.
@@ -18,7 +18,7 @@ export const createStoryHelper = (): StoryHelper => {
 
   const resolveStory = async (
     deps: Pick<ToolDeps, 'api'>, projectId: string, ref: string
-  ): Promise<ViableStoryCard> => {
+  ): Promise<ViableWorkcard> => {
     const [byId, byCode] = await Promise.all([
       // A code is not an id, and a store may refuse it as malformed rather than as absent — either
       // way it is simply not the card this lookup is about.
@@ -30,19 +30,19 @@ export const createStoryHelper = (): StoryHelper => {
       }),
     ])
 
-    if (isViableStory(byId) && byId.parent === projectId) {
+    if (isViableWorkcard(byId) && byId.parent === projectId) {
       return byId
     }
     const found = byCode.items[0]
-    if (isViableStory(found)) {
+    if (isViableWorkcard(found)) {
       return found
     }
 
-    throw new ProjectStoryNotFound(ref)
+    throw new ProjectWorkcardNotFound(ref)
   }
 
   const transit = async (
-    deps: Pick<ToolDeps, 'api' | 'log'>, projectId: string, ref: string, transition: ViableStoryTransition, cause: string,
+    deps: Pick<ToolDeps, 'api' | 'log'>, projectId: string, ref: string, transition: ViableWorkcardTransition, cause: string,
   ): Promise<StoryTransit> => {
     const card = await resolveStory(deps, projectId, ref)
     try {
@@ -60,7 +60,7 @@ export const createStoryHelper = (): StoryHelper => {
     return { card, status: await deps.api.story.status(projectId, card.id!) }
   }
 
-  const isLandingStory = (card: Workcard): boolean => storyFieldsOf(card).landing === true
+  const isLandingStory = (card: Workcard): boolean => workcardFieldsOf(card).landing === true
 
   /** `2 planned, 1 in progress` — the page's cards per intrinsic state, zeros left out. */
   const intrinsicCounts = (items: readonly Workcard[]): string => {
@@ -82,7 +82,7 @@ export const createStoryHelper = (): StoryHelper => {
       ? 'No stories.'
       : `${items.length} of ${total} (page ${page}) — ${intrinsicCounts(items)}:\n`
         + items.map(item => {
-          const fields = storyFieldsOf(item)
+          const fields = workcardFieldsOf(item)
           const named = apps?.get(item.id ?? item.code ?? '')
 
           return `  ${item.code ?? item.id ?? ''} · ${item.status}`

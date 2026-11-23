@@ -42,10 +42,23 @@ export enum SlotCommandType {
   Database = 'database',
 }
 
-/** Inspection of the live dev database; mutations belong in target source migrations. */
+/**
+ * The database commands of a slot.
+ *
+ * `Info` and `Query` inspect the live dev database; a target's schema and data repairs belong in its
+ * source migrations. `Change`, `Dump` and `Restore` are the one narrow exception — the data change a
+ * person asked a task for: DML only, one statement, one transaction, a row cap, a statement timeout,
+ * the app role, on the preview database only, and always behind a `Dump` the agent takes first.
+ */
 export enum SlotDatabaseCommand {
   Info = 'databaseInfo',
   Query = 'databaseQuery',
+  /** One DML statement in one transaction, under an idempotency key ({@link DATABASE_CHANGE_LIMITS}). */
+  Change = 'databaseChange',
+  /** A data dump of the app schema with its schema fingerprint ({@link DATABASE_BACKUP_LIMITS}). */
+  Dump = 'databaseDump',
+  /** Put a dump back: refused unless the schema fingerprint still matches; the backend is stopped meanwhile. */
+  Restore = 'databaseRestore',
 }
 
 export const DATABASE_READ_LIMITS = {
@@ -55,6 +68,29 @@ export const DATABASE_READ_LIMITS = {
   maxQueryChars: 16_000,
   maxParams: 100,
   timeoutMs: 10_000,
+} as const
+
+/**
+ * The bounds of one task data change (`SlotDatabaseCommand.Change`): statement length, parameter
+ * count, the default and highest row cap, the statement timeout, and the idempotency key's length.
+ */
+export const DATABASE_CHANGE_LIMITS = {
+  maxStatementChars: 16_000,
+  maxParams: 100,
+  maxRows: 1_000,
+  timeoutMs: 15_000,
+  maxKeyChars: 200,
+} as const
+
+/**
+ * The bounds of one app-schema backup: a dump's size on the wire (its tables as JSON, escapes
+ * included — so a restore's request body stays under the publisher's body limit), and the statement
+ * timeouts of a dump and of a restore's one transaction.
+ */
+export const DATABASE_BACKUP_LIMITS = {
+  maxBytes: 16 * 1024 * 1024,
+  dumpTimeoutMs: 60_000,
+  restoreTimeoutMs: 120_000,
 } as const
 
 export enum SlotGitCommand {
@@ -366,6 +402,22 @@ export const FILE_COMMAND_DEADLINES: Partial<Record<SlotFileCommand, number>> = 
 export const DEFAULT_FILE_COMMAND_DEADLINE = 30_000
 
 /**
+ * EXECUTOR-side ceilings for the database commands that do more than one bounded read.
+ *
+ * A change is one statement under a 15 s timeout plus its ledger; a dump reads the whole app schema
+ * under a 60 s one; a restore stops the backend, rewrites every table in one transaction under a
+ * 120 s timeout and restarts the backend through its two-stage boot verdict.
+ */
+export const DATABASE_COMMAND_DEADLINES: Partial<Record<SlotDatabaseCommand, number>> = {
+  [SlotDatabaseCommand.Change]: 45_000,
+  [SlotDatabaseCommand.Dump]: 120_000,
+  [SlotDatabaseCommand.Restore]: 420_000,
+}
+
+/** What `Info` and `Query` get. The value the type-level branch used to hard-code. */
+export const DEFAULT_DATABASE_COMMAND_DEADLINE = 30_000
+
+/**
  * CALLER-side ceilings per command type: how long the asker waits for an answer.
  *
  * Deliberately separate from {@link COMMAND_DEADLINES} and deliberately larger — the caller's
@@ -423,6 +475,13 @@ export const FILE_COMMAND_TIMEOUTS: Partial<Record<SlotFileCommand, number>> = {
   [SlotFileCommand.RemoveTree]: 160_000,
   [SlotFileCommand.ReadHead]: 70_000,
   [SlotFileCommand.ReadBinaryFile]: 70_000,
+}
+
+/** The database commands' caller ceilings: each executor deadline plus the same 40 s margin. */
+export const DATABASE_COMMAND_TIMEOUTS: Partial<Record<SlotDatabaseCommand, number>> = {
+  [SlotDatabaseCommand.Change]: 85_000,
+  [SlotDatabaseCommand.Dump]: 160_000,
+  [SlotDatabaseCommand.Restore]: 460_000,
 }
 
 /**

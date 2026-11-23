@@ -100,9 +100,14 @@ export const createApplyHelper = (): ApplyHelper => {
     }
 
     const record = structuredClone(card) as unknown as Record<string, unknown>
-    if (transition.action === TransitionAction.Update || transition.action === TransitionAction.Transit) {
+    if (transition.action === TransitionAction.Update || transition.action === TransitionAction.Transit
+      || transition.action === TransitionAction.Retype) {
       writeChanges(record, changes)
       unsetOn(record, transition.unset)
+    }
+    if (transition.action === TransitionAction.Retype) {
+      // The one transition that moves `type`: its row carries the NEW type.
+      record.type = transition.type
     }
     record.seq = transition.seq
     record.head = head

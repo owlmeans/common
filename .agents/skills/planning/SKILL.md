@@ -1,13 +1,13 @@
 ---
 name: planning
-description: How to use @owlmeans/planning — the runtime-free workcard model (cards, projects, specifications), typed relationships, shareable status flows with three intrinsic states, the Transition event and its pure fold, the schema registry, the query language and its wire encoding, the protocol tree, and the models that work identically on a server and in a browser. Auto-invoked when importing a Workcard type, a status flow, applyHelper, changesHelper, queryHelper, wireHelper, makePlanningProtocols or a planning model.
+description: How to use @owlmeans/planning — the runtime-free workcard model (cards, projects, specifications), typed relationships, the card hierarchy and the opt-in retype action, shareable status flows with three intrinsic states, the Transition event and its pure fold, the schema registry, the query language and its wire encoding, the protocol tree, and the models that work identically on a server and in a browser. Auto-invoked when importing a Workcard type, a status flow, applyHelper, changesHelper, queryHelper, wireHelper, makePlanningProtocols or a planning model.
 user-invocable: false
 ---
 
 # @owlmeans/planning
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/planning": "^0.2.2-alpha.0"` in `dependencies` (`ajv` and `ajv-formats` are peers)
+**Install:** `"@owlmeans/planning": "^0.2.3-alpha.0"` in `dependencies` (`ajv` and `ajv-formats` are peers)
 
 The contracts of project planning: record shapes, schemas, refusals, the protocol tree, the pure
 fold and the models. No database, no fastify, no React. The executor, the plugin registry, the
@@ -31,8 +31,8 @@ entityId, profileId })`) and the remote one (`@owlmeans/client-planning`).
   wire validates against it; in process an unknown key is silently ignored: `card` — the `WorkcardDraft` of a
   create (`kind`, `type`, `title` required; `parent`/`parents`, `description`, `code`, `labels`,
   `order`, `fields`, `status`, and a specification's `category`/`format`/`body`), the card id
-  otherwise — and `action` (`TransitionAction`), then per action `transition`, `flow`, `changes`,
-  `unset`, `link` / `links`, and `cause`, `key`, `expectSeq`.
+  otherwise — and `action` (`TransitionAction`), then per action `toType` (a `retype`'s new type),
+  `transition`, `flow`, `changes`, `unset`, `link` / `links`, and `cause`, `key`, `expectSeq`.
 - The **options** are `{ wait?, timeout? }`, always the second argument. Only the wire body
   (`ExecuteRequest`) carries them beside the execution.
 
@@ -52,13 +52,13 @@ forms generated code keeps writing are `server-planning` → Creating and readin
 | `ScopedSchemaRecord`, `ScopedSchemaWhere`, `ScopedSchemaBundle`, `ScopedSchemaRegistry`, `SchemaDeclarations`, `SchemaWriteOptions`, `SchemaScope`, `SchemaKey`, `SchemaListQuery`, `SchemaDefineRequest`, `SchemaDefineReply` | Data-defined types and flows |
 | `WorkcardKind`, `IntrinsicStatus`, `IntrinsicPolicy`, `TransitionAction`, `CommitState`, `SpecificationFormat`, `CodeStyle`, `CodeScope`, `PlanningSchemaKind`, `SchemaOrigin`, `SchemaWriteMode` | Enums |
 | `PLANNING_SERVICE` (`'planning'`), `PLANNING_PATH`, `PLANNING_COMMIT_EVENT` (`'planning-commit'`), `planningAliasHelper.planningAliases(base)`, `planningAliasHelper.planningDefinitionAliases(base)` | Names both sides share |
-| `TITLE_MAX` 2048, `DESCRIPTION_MAX` 16384, `CODE_MAX` 64, `BODY_MAX` 1048576, `MAX_LABELS` 32, `MAX_PARENTS` 32, `DEFAULT_COMMIT_TIMEOUT` 30 s, `DEFAULT_COMMIT_POLL` 20 s, `MAX_COMMIT_POLL` 55 s, `CODE_MINT_ATTEMPTS` 8 | Limits |
+| `TITLE_MAX` 2048, `DESCRIPTION_MAX` 16384, `CODE_MAX` 64, `BODY_MAX` 1048576, `MAX_LABELS` 32, `MAX_PARENTS` 32, `DEFAULT_COMMIT_TIMEOUT` 30 s, `DEFAULT_COMMIT_POLL` 20 s, `MAX_COMMIT_POLL` 55 s, `CODE_MINT_ATTEMPTS` 8, `FORMER_CODES_FIELD` (`formerCodes`), `MAX_FORMER_CODES` 16 | Limits |
 | `applyHelper` — `applyTransition`, `applyRelationship` | The fold |
 | `changesHelper` — `computeChanges`, `isEmptyChange`, `assertMutable`, `mergeFields`, `applyUnset`, `sameValue` | What a transition records |
 | `statusHelper` — `intrinsicOf`, `initialStatusOf`, `ruleOf`, `canTransit`, `transitionsFrom`, `initialFlowsOf`, `resolveIntrinsic`, `primaryFlowOf`, `isTerminal` | Status helpers |
 | `queryHelper` — `criteriaOf`, `listOptionsOf`, `specCriteriaOf`, `linkWhereOf`, `transitionWhereOf`, `summaryOf` | Querying |
 | `wireHelper` — `encode*Query` / `decode*Query` (Workcard, Summary, Transition, Specification, Relationship), `encodeSort`, `decodeSort`, `encodeList`, `decodeList` | The wire form of a query |
-| `codeHelper` — `mintCode`, `codeScopeOf`, `slugOf` | Codes |
+| `codeHelper` — `mintCode`, `codeScopeOf`, `slugOf`, `remintsOn`, `formerCodesOf` | Codes (a retype's re-mint and its former codes) |
 | `specificationHelper` — `slotOf`, `currentSpecification`, `nextRevision`, `specificationTypeOf`, `bodyCharsOf` | Specifications |
 | `makeAjv`, `validateHelper` — `validateFields`, `validateCard`, `validateSpecificationBody`, `invalidFieldKeys`, `ajvErrorText` | Validation |
 | `makeSchemaRegistry(bundle?)` | Types, flows, the app declarations (`registerApp`, `app`), `fieldsSchema(type)` and its cached validator; `bundle()` / `load()` |
@@ -123,8 +123,22 @@ forms generated code keeps writing are `server-planning` → Creating and readin
 `makeWorkcardModel(record, facade)` (and `makeProjectModel`, `makeSpecificationModel`, `modelOf`
 by kind) is the same object on a server and in a browser. `schema`, `flow`, `statusOf`,
 `intrinsicOf`, `can`, `available`, `pending` answer from the registry with no I/O; `transit`,
-`update`, `remove`, `link`, `unlink`, `write` build a `TransitionExecution` and call
+`update`, `retype`, `remove`, `link`, `unlink`, `write` build a `TransitionExecution` and call
 `facade.execute`.
+
+## Retype
+
+`TransitionAction.Retype` (`toType`) turns a card into another type of the same kind — only where
+its current type lists the new one in `retypes` (opt-in per type: a type that lists none, every
+generated target's included, is never retyped). The row's `type` is the NEW type and the fold writes
+it onto the record — the one transition that moves `type`; earlier rows keep the type they were
+written under. Its `changes`/`unset` fit the fields to the new type (the type's own checks refuse
+what does not fit); the code is never named: the executor keeps it when the new type has no policy
+or its prefix already matches, else re-mints it and appends the old one to `fields.formerCodes` — so
+a type listing `retypes` declares `formerCodes` (an array of strings) in its `fields`. The status,
+every flow's status, parents, children, links and documents must all hold under the new type
+(`server-planning` → executor part). Refusal `RetypeNotAllowed` (422) for the type pair, the kind,
+the store, a status or a document; the other refusals keep their own classes.
 
 - `expectSeq` defaults to `record.head ?? record.seq`; pass `null` to opt out, a number to pin.
   A stale model therefore refuses with `WorkcardConflict` — `reload()` and retry.

@@ -5,29 +5,29 @@ import { ResilientError } from '@owlmeans/error'
 import { CodeScope, CodeStyle, IntrinsicStatus, makeSchemaRegistry, SpecificationFormat, TITLE_MAX, WorkcardKind, type Specification, statusHelper } from '@owlmeans/planning'
 import { ProjectArea } from '../src/areas/consts.js'
 import { BOT_PLATFORMS_MAX } from '../src/blueprint/consts.js'
-import { ConnectingStoryKind, REQUIREMENTS_VERSION, SpecCategory, StoryKind } from '../src/ba/consts.js'
+import { ConnectingUserStoryKind, REQUIREMENTS_VERSION, SpecCategory, UserStoryKind } from '../src/ba/consts.js'
 import { RequirementsDocumentSchema } from '../src/ba/schemas.js'
-import { connectingStoryHelper } from '../src/ba/connecting.js'
-import { STORY_DESIGN_VERSION, StoryActor } from '../src/design/consts.js'
-import { storyDesignHelper } from '../src/design/story.js'
-import type { StoryDesign } from '../src/design/types.js'
-import { LANDING_STORY_SENTENCE, landingSentenceHelper } from '../src/index.js'
-import { ProjectAgentOccupied, ProjectNotFound, ProjectStoryMissconfigured, VIABLE_FLOW_SCHEMAS, VIABLE_PROJECT_FLOW, VIABLE_PROJECT_FLOW_SCHEMA, VIABLE_PROJECT_TYPE, VIABLE_PROJECT_TYPE_SCHEMA, VIABLE_RESERVED_TYPE_SCHEMAS, VIABLE_SPEC_TYPE, VIABLE_STORY_FLOW, VIABLE_STORY_FLOW_SCHEMA, VIABLE_STORY_TYPE, VIABLE_STORY_TYPE_SCHEMA, VIABLE_TYPE_SCHEMAS, ViableChannel, ViableProjectFieldsSchema, ViableProjectStatus, ViableProjectTransition, ViableRelationship, ViableSpecCategory, ViableStoryFieldsSchema, ViableStoryStatus, ViableStoryTransition, type ViableProjectCard, type ViableStoryCard, viableCardHelper, viableSpecHelper } from '../src/planning/index.js'
+import { connectingUserStoryHelper } from '../src/ba/connecting.js'
+import { WORKCARD_DESIGN_VERSION, WorkcardActor } from '../src/design/consts.js'
+import { workcardDesignHelper } from '../src/design/workcard.js'
+import type { WorkcardDesign } from '../src/design/types.js'
+import { LANDING_USER_STORY_SENTENCE, landingSentenceHelper } from '../src/index.js'
+import { ProjectAgentOccupied, ProjectNotFound, ProjectWorkcardMissconfigured, VIABLE_FLOW_SCHEMAS, VIABLE_PROJECT_FLOW, VIABLE_PROJECT_FLOW_SCHEMA, VIABLE_PROJECT_TYPE, VIABLE_PROJECT_TYPE_SCHEMA, VIABLE_RESERVED_TYPE_SCHEMAS, VIABLE_SPEC_TYPE, VIABLE_WORKCARD_FLOW, VIABLE_WORKCARD_FLOW_SCHEMA, VIABLE_USER_STORY_TYPE, VIABLE_USER_STORY_TYPE_SCHEMA, VIABLE_TYPE_SCHEMAS, VIABLE_WORK_TYPES, ViableChannel, ViableProjectFieldsSchema, ViableProjectStatus, ViableProjectTransition, ViableRelationship, ViableSpecCategory, ViableWorkcardFieldsSchema, ViableWorkcardStatus, ViableWorkcardTransition, type ViableProjectCard, type ViableWorkcard, viableCardHelper, viableSpecHelper } from '../src/planning/index.js'
 
 const at = '2026-09-16T10:00:00.000Z'
 
-const storyCard = (extra: Partial<ViableStoryCard> = {}): ViableStoryCard => ({
+const workcardRecord = (extra: Partial<ViableWorkcard> = {}): ViableWorkcard => ({
   id: 'story-card',
   kind: WorkcardKind.Card,
-  type: VIABLE_STORY_TYPE,
+  type: VIABLE_USER_STORY_TYPE,
   entityId: 'entity',
   code: 'US-ABC12',
   title: 'A member books a slot.',
   parent: 'project-card',
   parents: ['project-card'],
-  status: ViableStoryStatus.Planned,
+  status: ViableWorkcardStatus.Planned,
   intrinsic: IntrinsicStatus.Planned,
-  flows: { [VIABLE_STORY_FLOW]: ViableStoryStatus.Planned },
+  flows: { [VIABLE_WORKCARD_FLOW]: ViableWorkcardStatus.Planned },
   labels: [],
   order: 1,
   fields: { area: ProjectArea.User, primary: true },
@@ -76,7 +76,7 @@ const spec = (category: string, body: string, revision?: number): Specification 
   ...(revision != null ? { revision } : {}),
 })
 
-const designed = (): StoryDesign => storyDesignHelper.emptyStoryDesign({
+const designed = (): WorkcardDesign => workcardDesignHelper.emptyWorkcardDesign({
   code: 'US-OLD00',
   narrative: 'The narrative the design was written against.',
   area: ProjectArea.Guest,
@@ -96,41 +96,41 @@ const designed = (): StoryDesign => storyDesignHelper.emptyStoryDesign({
 
 describe('viable-common - the story flow', () => {
   test('keeps the status keys every stored story, selector and frontmatter already carries', () => {
-    expect(Object.values(ViableStoryStatus)).toEqual(['planned', 'in-progress', 'completed', 'failed'])
-    expect(VIABLE_STORY_FLOW_SCHEMA.statuses.map(status => status.key))
+    expect(Object.values(ViableWorkcardStatus)).toEqual(['planned', 'in-progress', 'completed', 'failed'])
+    expect(VIABLE_WORKCARD_FLOW_SCHEMA.statuses.map(status => status.key))
       .toEqual(['planned', 'in-progress', 'completed', 'failed'])
-    expect(VIABLE_STORY_FLOW_SCHEMA.statuses.filter(status => status.initial === true)
+    expect(VIABLE_WORKCARD_FLOW_SCHEMA.statuses.filter(status => status.initial === true)
       .map(status => status.key)).toEqual(['planned'])
   })
 
   test('maps a failed story onto PLANNED, so done is the closed count and a retry is a start', () => {
-    const flow = VIABLE_STORY_FLOW_SCHEMA
+    const flow = VIABLE_WORKCARD_FLOW_SCHEMA
 
-    expect(statusHelper.intrinsicOf(flow, ViableStoryStatus.Planned)).toBe(IntrinsicStatus.Planned)
-    expect(statusHelper.intrinsicOf(flow, ViableStoryStatus.InProgress)).toBe(IntrinsicStatus.InProgress)
-    expect(statusHelper.intrinsicOf(flow, ViableStoryStatus.Completed)).toBe(IntrinsicStatus.Closed)
-    expect(statusHelper.intrinsicOf(flow, ViableStoryStatus.Failed)).toBe(IntrinsicStatus.Planned)
+    expect(statusHelper.intrinsicOf(flow, ViableWorkcardStatus.Planned)).toBe(IntrinsicStatus.Planned)
+    expect(statusHelper.intrinsicOf(flow, ViableWorkcardStatus.InProgress)).toBe(IntrinsicStatus.InProgress)
+    expect(statusHelper.intrinsicOf(flow, ViableWorkcardStatus.Completed)).toBe(IntrinsicStatus.Closed)
+    expect(statusHelper.intrinsicOf(flow, ViableWorkcardStatus.Failed)).toBe(IntrinsicStatus.Planned)
   })
 
   test('starts from planned or failed only, and resets from anywhere', () => {
-    const flow = VIABLE_STORY_FLOW_SCHEMA
-    const { Planned, InProgress, Completed, Failed } = ViableStoryStatus
+    const flow = VIABLE_WORKCARD_FLOW_SCHEMA
+    const { Planned, InProgress, Completed, Failed } = ViableWorkcardStatus
 
-    expect(statusHelper.canTransit(flow, ViableStoryTransition.Start, Planned)).toBe(true)
-    expect(statusHelper.canTransit(flow, ViableStoryTransition.Start, Failed)).toBe(true)
-    expect(statusHelper.canTransit(flow, ViableStoryTransition.Start, InProgress)).toBe(false)
-    expect(statusHelper.canTransit(flow, ViableStoryTransition.Start, Completed)).toBe(false)
-    expect(statusHelper.canTransit(flow, ViableStoryTransition.Complete, InProgress)).toBe(true)
-    expect(statusHelper.canTransit(flow, ViableStoryTransition.Fail, InProgress)).toBe(true)
-    expect(statusHelper.canTransit(flow, ViableStoryTransition.Fail, Planned)).toBe(false)
-    for (const status of Object.values(ViableStoryStatus)) {
-      expect(statusHelper.canTransit(flow, ViableStoryTransition.Reset, status)).toBe(true)
+    expect(statusHelper.canTransit(flow, ViableWorkcardTransition.Start, Planned)).toBe(true)
+    expect(statusHelper.canTransit(flow, ViableWorkcardTransition.Start, Failed)).toBe(true)
+    expect(statusHelper.canTransit(flow, ViableWorkcardTransition.Start, InProgress)).toBe(false)
+    expect(statusHelper.canTransit(flow, ViableWorkcardTransition.Start, Completed)).toBe(false)
+    expect(statusHelper.canTransit(flow, ViableWorkcardTransition.Complete, InProgress)).toBe(true)
+    expect(statusHelper.canTransit(flow, ViableWorkcardTransition.Fail, InProgress)).toBe(true)
+    expect(statusHelper.canTransit(flow, ViableWorkcardTransition.Fail, Planned)).toBe(false)
+    for (const status of Object.values(ViableWorkcardStatus)) {
+      expect(statusHelper.canTransit(flow, ViableWorkcardTransition.Reset, status)).toBe(true)
     }
   })
 
   test('offers a completed story nothing but a reset', () => {
-    expect(statusHelper.transitionsFrom(VIABLE_STORY_FLOW_SCHEMA, ViableStoryStatus.Completed).map(rule => rule.name))
-      .toEqual([ViableStoryTransition.Reset])
+    expect(statusHelper.transitionsFrom(VIABLE_WORKCARD_FLOW_SCHEMA, ViableWorkcardStatus.Completed).map(rule => rule.name))
+      .toEqual([ViableWorkcardTransition.Reset])
   })
 })
 
@@ -161,8 +161,8 @@ describe('viable-common - the viable types', () => {
     for (const type of VIABLE_TYPE_SCHEMAS) {
       expect(() => client.validator(type.type), type.type).not.toThrow()
     }
-    expect(client.primaryFlow(VIABLE_STORY_TYPE).id).toBe(VIABLE_STORY_FLOW)
-    expect(client.validator(VIABLE_STORY_TYPE)({ area: ProjectArea.Guest, primary: false })).toBe(true)
+    expect(client.primaryFlow(VIABLE_USER_STORY_TYPE).id).toBe(VIABLE_WORKCARD_FLOW)
+    expect(client.validator(VIABLE_USER_STORY_TYPE)({ area: ProjectArea.Guest, primary: false })).toBe(true)
   })
 
   test('declares every flow a type runs, and carries a tone for every status', () => {
@@ -177,9 +177,9 @@ describe('viable-common - the viable types', () => {
     }
   })
 
-  test('slots the brief, the plan and the requirements under a project, the design and the requirements under a story, and no co-located spec', () => {
+  test('slots the brief, the plan and the requirements under a project, the work documents under a story, and no co-located spec', () => {
     const project = VIABLE_PROJECT_TYPE_SCHEMA.specifications
-    const story = VIABLE_STORY_TYPE_SCHEMA.specifications
+    const workcard = VIABLE_USER_STORY_TYPE_SCHEMA.specifications
     const requirements = expect.objectContaining({
       category: ViableSpecCategory.Requirements, format: SpecificationFormat.Json, revisioned: true,
       keepRevisions: 3, version: REQUIREMENTS_VERSION, schema: RequirementsDocumentSchema,
@@ -193,58 +193,62 @@ describe('viable-common - the viable types', () => {
     expect(project.find(slot => slot.category === ViableSpecCategory.Scaffold))
       .toEqual(expect.objectContaining({ format: SpecificationFormat.Json, revisioned: true, keepRevisions: 3 }))
     expect(project.find(slot => slot.category === ViableSpecCategory.Requirements)).toEqual(requirements)
-    expect(story).toEqual([expect.objectContaining({
+    expect(workcard.slice(0, 2)).toEqual([expect.objectContaining({
       category: ViableSpecCategory.Design, format: SpecificationFormat.Json, revisioned: true,
-      keepRevisions: 3, version: STORY_DESIGN_VERSION,
+      keepRevisions: 3, version: WORKCARD_DESIGN_VERSION,
     }), requirements])
+    expect(workcard.map(slot => slot.category)).toEqual([
+      ViableSpecCategory.Design, ViableSpecCategory.Requirements, ViableSpecCategory.Plan,
+      ViableSpecCategory.Operations, ViableSpecCategory.Proposals,
+    ])
 
     const categories = VIABLE_TYPE_SCHEMAS.flatMap(type => type.specifications.map(slot => slot.category))
     for (const coLocated of Object.values(SpecCategory)) expect(categories).not.toContain(coLocated)
   })
 
   test('mints US- codes within the project and takes a project code as a slug within the entity', () => {
-    expect(VIABLE_STORY_TYPE_SCHEMA.code).toEqual({
+    expect(VIABLE_USER_STORY_TYPE_SCHEMA.code).toEqual({
       prefix: 'US-', style: CodeStyle.Random, length: 5, uppercase: true, uniqueWithin: CodeScope.Parent,
     })
     expect(VIABLE_PROJECT_TYPE_SCHEMA.code).toEqual({ style: CodeStyle.Slug, uniqueWithin: CodeScope.Entity, mutable: true })
-    expect(VIABLE_STORY_TYPE_SCHEMA.code?.mutable).not.toBe(true)
-    expect(VIABLE_STORY_TYPE_SCHEMA.relationships?.map(link => link.name)).toEqual([
+    expect(VIABLE_USER_STORY_TYPE_SCHEMA.code?.mutable).not.toBe(true)
+    expect(VIABLE_USER_STORY_TYPE_SCHEMA.relationships?.map(link => link.name)).toEqual([
       ViableRelationship.Follows, ViableRelationship.SharesWidget, ViableRelationship.SharesScreen,
     ])
   })
 
-  test('reserves bug, improvement and requirement on the story flow without letting a project hold one', () => {
-    expect(VIABLE_RESERVED_TYPE_SCHEMAS.map(type => type.code?.prefix)).toEqual(['BUG-', 'IMP-', 'REQ-'])
+  test('reserves bug and requirement on the story flow without letting a project hold one', () => {
+    expect(VIABLE_RESERVED_TYPE_SCHEMAS.map(type => type.code?.prefix)).toEqual(['BUG-', 'REQ-'])
     for (const type of VIABLE_RESERVED_TYPE_SCHEMAS) {
-      expect(type.flows).toEqual([VIABLE_STORY_FLOW])
+      expect(type.flows).toEqual([VIABLE_WORKCARD_FLOW])
       expect(VIABLE_PROJECT_TYPE_SCHEMA.cardTypes).not.toContain(type.type)
     }
-    expect(VIABLE_PROJECT_TYPE_SCHEMA.cardTypes).toEqual([VIABLE_STORY_TYPE])
+    expect(VIABLE_PROJECT_TYPE_SCHEMA.cardTypes).toEqual([...VIABLE_WORK_TYPES])
   })
 })
 
 describe('viable-common - the viable field schemas', () => {
   const ajv = addFormats(new Ajv({ allErrors: true, strict: false }))
-  const story = ajv.compile(ViableStoryFieldsSchema)
+  const workcard = ajv.compile(ViableWorkcardFieldsSchema)
   const project = ajv.compile(ViableProjectFieldsSchema)
 
   test('a story accepts its area and flag, and an explicit null for an optional', () => {
-    expect(story({ area: ProjectArea.User, primary: false })).toBe(true)
-    expect(story({
-      area: ProjectArea.Admin, primary: true, actor: StoryActor.Agent, warning: '', kind: StoryKind.Connective,
+    expect(workcard({ area: ProjectArea.User, primary: false })).toBe(true)
+    expect(workcard({
+      area: ProjectArea.Admin, primary: true, actor: WorkcardActor.Agent, warning: '', kind: UserStoryKind.Connective,
     })).toBe(true)
-    expect(story({ area: ProjectArea.User, primary: false, kind: null, actor: null })).toBe(true)
-    expect(story({ area: ProjectArea.User, primary: false, kind: StoryKind.Requested })).toBe(true)
+    expect(workcard({ area: ProjectArea.User, primary: false, kind: null, actor: null })).toBe(true)
+    expect(workcard({ area: ProjectArea.User, primary: false, kind: UserStoryKind.Requested })).toBe(true)
   })
 
   test('a story refuses an undeclared field, a missing area, an ill-shaped area key and a value outside a closed set', () => {
-    expect(story({ area: ProjectArea.User, primary: false, story: 'narrative' })).toBe(false)
-    expect(story({ primary: false })).toBe(false)
+    expect(workcard({ area: ProjectArea.User, primary: false, story: 'narrative' })).toBe(false)
+    expect(workcard({ primary: false })).toBe(false)
     // The area is a key: a custom slug is shaped right (the project's map decides whether it is known).
-    expect(story({ area: 'partner', primary: false })).toBe(true)
-    expect(story({ area: 'Partner Portal', primary: false })).toBe(false)
-    expect(story({ area: 'partner--portal', primary: false })).toBe(false)
-    expect(story({ area: ProjectArea.User, primary: false, kind: 'queue' })).toBe(false)
+    expect(workcard({ area: 'partner', primary: false })).toBe(true)
+    expect(workcard({ area: 'Partner Portal', primary: false })).toBe(false)
+    expect(workcard({ area: 'partner--portal', primary: false })).toBe(false)
+    expect(workcard({ area: ProjectArea.User, primary: false, kind: 'queue' })).toBe(false)
   })
 
   test('a project accepts none of its fields, all of them, and refuses a stray one', () => {
@@ -293,9 +297,9 @@ describe('viable-common - the viable field schemas', () => {
   })
 
   test('a story carries the landing flag, spelled or nulled', () => {
-    expect(story({ area: ProjectArea.User, primary: false, landing: true })).toBe(true)
-    expect(story({ area: ProjectArea.User, primary: false, landing: null })).toBe(true)
-    expect(story({ area: ProjectArea.User, primary: false, landing: 'yes' })).toBe(false)
+    expect(workcard({ area: ProjectArea.User, primary: false, landing: true })).toBe(true)
+    expect(workcard({ area: ProjectArea.User, primary: false, landing: null })).toBe(true)
+    expect(workcard({ area: ProjectArea.User, primary: false, landing: 'yes' })).toBe(false)
   })
 
   test('a project records a decided "no gate" as story null, and never a decision without a time', () => {
@@ -351,24 +355,24 @@ describe('viable-common - the viable field schemas', () => {
 
 describe('viable-common - the viable card helpers', () => {
   test('recognises a card by kind AND type', () => {
-    expect(viableCardHelper.isViableStory(storyCard())).toBe(true)
-    expect(viableCardHelper.isViableStory(storyCard({ type: 'notion:task' }))).toBe(false)
+    expect(viableCardHelper.isViableWorkcard(workcardRecord())).toBe(true)
+    expect(viableCardHelper.isViableWorkcard(workcardRecord({ type: 'notion:task' }))).toBe(false)
     expect(viableCardHelper.isViableProject(projectCard())).toBe(true)
-    expect(viableCardHelper.isViableProject(storyCard())).toBe(false)
+    expect(viableCardHelper.isViableProject(workcardRecord())).toBe(false)
   })
 
   test('userStoryOf lets the card win on narrative, code, area and actor, and takes screens from the design', () => {
-    const card = storyCard({ fields: { area: ProjectArea.User, primary: true, actor: StoryActor.Worker } })
-    const story = viableCardHelper.userStoryOf(card, designed())
+    const card = workcardRecord({ fields: { area: ProjectArea.User, primary: true, actor: WorkcardActor.Worker } })
+    const workcard = viableCardHelper.userStoryOf(card, designed())
 
-    expect(story.story).toBe(card.title)
-    expect(story.code).toBe('US-ABC12')
-    expect(story.area).toBe(ProjectArea.User)
-    expect(story.actor).toBe(StoryActor.Worker)
-    expect(story.screens.map(screen => screen.name)).toEqual(['booking/list/overview'])
-    expect(story.entities.map(entity => entity.name)).toEqual(['Booking'])
+    expect(workcard.story).toBe(card.title)
+    expect(workcard.code).toBe('US-ABC12')
+    expect(workcard.area).toBe(ProjectArea.User)
+    expect(workcard.actor).toBe(WorkcardActor.Worker)
+    expect(workcard.screens.map(screen => screen.name)).toEqual(['booking/list/overview'])
+    expect(workcard.entities.map(entity => entity.name)).toEqual(['Booking'])
     expect(viableCardHelper.userStoryOf(card).screens).toEqual([])
-    expect(viableCardHelper.storyDraftOf(card)).toEqual({ story: card.title, area: ProjectArea.User })
+    expect(viableCardHelper.workcardDraftOf(card)).toEqual({ story: card.title, area: ProjectArea.User })
   })
 
   test('projectBriefOf reads the highest revision per part and answers an unwritten part empty', () => {
@@ -386,28 +390,28 @@ describe('viable-common - the viable card helpers', () => {
 
   test('storyWriteInputOf takes code, narrative and primary from the card, and refuses a card with no code', () => {
     const content = {
-      userStory: viableCardHelper.userStoryOf(storyCard()), screenPaths: {}, componentPaths: {}, transitions: [],
+      userStory: viableCardHelper.userStoryOf(workcardRecord()), screenPaths: {}, componentPaths: {}, transitions: [],
       section: 'Booking',
     }
 
-    expect(viableCardHelper.storyWriteInputOf(storyCard(), content)).toEqual(expect.objectContaining({
+    expect(viableCardHelper.workcardWriteInputOf(workcardRecord(), content)).toEqual(expect.objectContaining({
       code: 'US-ABC12', narrative: 'A member books a slot.', primary: true,
-      status: ViableStoryStatus.Planned, section: 'Booking',
+      status: ViableWorkcardStatus.Planned, section: 'Booking',
     }))
-    expect(viableCardHelper.storyWriteInputOf(storyCard(), { ...content, status: ViableStoryStatus.Completed }).status)
-      .toBe(ViableStoryStatus.Completed)
-    expect(() => viableCardHelper.storyWriteInputOf(storyCard({ code: undefined }), content))
-      .toThrow(ProjectStoryMissconfigured)
+    expect(viableCardHelper.workcardWriteInputOf(workcardRecord(), { ...content, status: ViableWorkcardStatus.Completed }).status)
+      .toBe(ViableWorkcardStatus.Completed)
+    expect(() => viableCardHelper.workcardWriteInputOf(workcardRecord({ code: undefined }), content))
+      .toThrow(ProjectWorkcardMissconfigured)
   })
 
   test('storyWriteInputOf copies the landing flag from the card, and only when it is set', () => {
     const content = {
-      userStory: viableCardHelper.userStoryOf(storyCard()), screenPaths: {}, componentPaths: {}, transitions: [],
+      userStory: viableCardHelper.userStoryOf(workcardRecord()), screenPaths: {}, componentPaths: {}, transitions: [],
     }
-    const landing = storyCard({ fields: { area: ProjectArea.User, primary: false, landing: true } })
+    const landing = workcardRecord({ fields: { area: ProjectArea.User, primary: false, landing: true } })
 
-    expect(viableCardHelper.storyWriteInputOf(landing, content).landing).toBe(true)
-    expect('landing' in viableCardHelper.storyWriteInputOf(storyCard(), content)).toBe(false)
+    expect(viableCardHelper.workcardWriteInputOf(landing, content).landing).toBe(true)
+    expect('landing' in viableCardHelper.workcardWriteInputOf(workcardRecord(), content)).toBe(false)
   })
 
   test('only a person writes through the web and connect channels', () => {
@@ -422,14 +426,14 @@ describe('viable-common - the landing sentence', () => {
   test('is appended once, with one space, and a resumed step never adds a second copy', () => {
     const once = landingSentenceHelper.withLandingSentence('A member books a slot.')
 
-    expect(once).toBe(`A member books a slot. ${LANDING_STORY_SENTENCE}`)
+    expect(once).toBe(`A member books a slot. ${LANDING_USER_STORY_SENTENCE}`)
     expect(landingSentenceHelper.withLandingSentence(once)).toBe(once)
     expect(landingSentenceHelper.hasLandingSentence(once)).toBe(true)
     expect(landingSentenceHelper.hasLandingSentence('A member books a slot.')).toBe(false)
   })
 
   test('is recognised whatever whitespace a person left around it', () => {
-    const rewrapped = `A member books a slot.\n${LANDING_STORY_SENTENCE.replace('; after', ';\n  after')}`
+    const rewrapped = `A member books a slot.\n${LANDING_USER_STORY_SENTENCE.replace('; after', ';\n  after')}`
 
     expect(landingSentenceHelper.hasLandingSentence(rewrapped)).toBe(true)
     expect(landingSentenceHelper.withLandingSentence(rewrapped)).toBe(rewrapped)
@@ -439,9 +443,9 @@ describe('viable-common - the landing sentence', () => {
     const long = 'x'.repeat(TITLE_MAX - 10)
 
     expect(landingSentenceHelper.withLandingSentence(long)).toBe(long)
-    expect(landingSentenceHelper.withLandingSentence('x'.repeat(TITLE_MAX - LANDING_STORY_SENTENCE.length - 1)).length)
+    expect(landingSentenceHelper.withLandingSentence('x'.repeat(TITLE_MAX - LANDING_USER_STORY_SENTENCE.length - 1)).length)
       .toBe(TITLE_MAX)
-    expect(landingSentenceHelper.withLandingSentence('  ')).toBe(LANDING_STORY_SENTENCE)
+    expect(landingSentenceHelper.withLandingSentence('  ')).toBe(LANDING_USER_STORY_SENTENCE)
   })
 })
 
@@ -452,32 +456,32 @@ describe('viable-common - the follows anchor', () => {
       { story: 'Two', area: ProjectArea.User },
       { story: 'Three', area: ProjectArea.Admin },
     ]
-    const merged = connectingStoryHelper.mergeConnectingStories(flow, [
-      { story: 'Queue', area: ProjectArea.Admin, kind: ConnectingStoryKind.Queue, after: 9 },
-      { story: 'Tracker', area: ProjectArea.User, kind: ConnectingStoryKind.Tracker, after: 1 },
+    const merged = connectingUserStoryHelper.mergeConnectingUserStories(flow, [
+      { story: 'Queue', area: ProjectArea.Admin, kind: ConnectingUserStoryKind.Queue, after: 9 },
+      { story: 'Tracker', area: ProjectArea.User, kind: ConnectingUserStoryKind.Tracker, after: 1 },
     ])
 
-    expect(merged.map(({ story, kind, after }) => ({ story, kind, after }))).toEqual([
-      { story: 'One', kind: StoryKind.Flow, after: undefined },
-      { story: 'Tracker', kind: StoryKind.Connective, after: 1 },
-      { story: 'Two', kind: StoryKind.Flow, after: undefined },
-      { story: 'Three', kind: StoryKind.Flow, after: undefined },
-      { story: 'Queue', kind: StoryKind.Connective, after: 3 },
+    expect(merged.map(({ story: workcard, kind, after }) => ({ story: workcard, kind, after }))).toEqual([
+      { story: 'One', kind: UserStoryKind.Flow, after: undefined },
+      { story: 'Tracker', kind: UserStoryKind.Connective, after: 1 },
+      { story: 'Two', kind: UserStoryKind.Flow, after: undefined },
+      { story: 'Three', kind: UserStoryKind.Flow, after: undefined },
+      { story: 'Queue', kind: UserStoryKind.Connective, after: 3 },
     ])
   })
 
   test('a story\'s area is its key — a project\'s own area travels on `area` exactly like a standard one', () => {
-    const merged = connectingStoryHelper.mergeConnectingStories([
+    const merged = connectingUserStoryHelper.mergeConnectingUserStories([
       { story: 'One', area: 'field-ops' },
       { story: 'Two', area: ProjectArea.User },
     ], [
-      { story: 'Crew queue', area: 'field-ops', kind: ConnectingStoryKind.Queue, after: 1 },
+      { story: 'Crew queue', area: 'field-ops', kind: ConnectingUserStoryKind.Queue, after: 1 },
     ])
 
     expect(merged).toEqual([
-      { story: 'One', area: 'field-ops', kind: StoryKind.Flow },
-      { story: 'Crew queue', area: 'field-ops', kind: StoryKind.Connective, after: 1 },
-      { story: 'Two', area: ProjectArea.User, kind: StoryKind.Flow },
+      { story: 'One', area: 'field-ops', kind: UserStoryKind.Flow },
+      { story: 'Crew queue', area: 'field-ops', kind: UserStoryKind.Connective, after: 1 },
+      { story: 'Two', area: ProjectArea.User, kind: UserStoryKind.Flow },
     ])
     expect(merged.map(entry => Object.keys(entry))).toEqual([
       ['story', 'area', 'kind'], ['story', 'area', 'kind', 'after'], ['story', 'area', 'kind'],
@@ -488,12 +492,12 @@ describe('viable-common - the follows anchor', () => {
 describe('viable-common - the project refusals', () => {
   test('keep the type names and markers the browser and the connector match on', () => {
     const occupied = ResilientError.ensure(new ProjectAgentOccupied('story').marshal())
-    const refused = ResilientError.ensure(new ProjectStoryMissconfigured('wrong-status').marshal())
+    const refused = ResilientError.ensure(new ProjectWorkcardMissconfigured('wrong-status').marshal())
 
     expect(occupied).toBeInstanceOf(ProjectAgentOccupied)
     expect(occupied.type).toBe('OccupiedAgentViableProjectResilientError')
     expect(occupied.message).toContain('viable-project:agent:occupied:story')
-    expect(refused).toBeInstanceOf(ProjectStoryMissconfigured)
+    expect(refused).toBeInstanceOf(ProjectWorkcardMissconfigured)
     expect(refused.message).toContain('viable-project:story:missconfigured:wrong-status')
     expect(new ProjectNotFound('x').type).toBe('NotFoundViableProjectResourceError')
   })

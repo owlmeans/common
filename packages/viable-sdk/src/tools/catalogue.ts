@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { TransitionAction, WorkcardKind } from '@owlmeans/planning'
-import { APP_NAME_PATTERN, AREA_KEY_MAX, AREA_KEY_PATTERN, MAIN_APP, type ConnectAppsView, MATERIAL_PATH_MAX, MATERIALS_LIMITS, AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, STORY_BATCH_MAX, type StoryBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
+import { CommitTimeout, TransitionAction, WorkcardKind } from '@owlmeans/planning'
+import { APP_NAME_PATTERN, AREA_KEY_MAX, AREA_KEY_PATTERN, MAIN_APP, type ConnectAppsView, MATERIAL_PATH_MAX, MATERIALS_LIMITS, AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, WORKCARD_BATCH_MAX, type WorkcardBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, WORKCARD_BAND_MAX_USD, WORKCARD_BAND_MIN_USD, VIABLE_USER_STORY_TYPE, ViableWorkcardTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableWorkcard, CONNECT_CARDS_TOGETHER_MAX, VIABLE_CONTAINER_TYPES, VIABLE_TASK_TYPE, ViableSpecCategory, ViableTypeBy, WORK_NAME_MAX, WORK_TEXT_MAX, WorkProposalStatus, viableWorkHelper, type AnyViableWorkCard, type WorkProposals, ViableImplementChoice } from '@owlmeans/viable-common'
 import {
   COMMIT_WAIT_MS, HANDOVER_WAIT_MS, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
 } from '../consts.js'
@@ -27,7 +27,13 @@ import { materialsToolHelper } from './materials.js'
 import { referencesToolOf } from './references.js'
 import { controlToolHelper } from './control.js'
 import { statusTextHelper } from './status.js'
-import { storyHelper } from './stories.js'
+import { storyHelper } from './workcards.js'
+import { cardsPlanMemoOf, cardsToolHelper } from './cards.js'
+import {
+  CARD_INPUTS_MAX, CARD_INPUT_NOTE_MAX, CARD_PAGE_SIZE, CARD_RERUN_SCOPES, CARD_RETYPE_WORDS, CARD_TYPE_WORDS, CARDS_UNSUPPORTED, REQUEST_ANSWER_MS,
+} from './cards/consts.js'
+import type { CardInput } from './cards/types.js'
+import { requestToolOf } from './request.js'
 import { appsToolHelper } from './apps.js'
 import { LOCAL_APP_RESTART_HINT, ONE_APP_PLATFORM, RESTART_WHOLE_PREVIEW } from './apps/consts.local.js'
 import type { ToolDeps, ToolDefinition, ToolHost, ToolResult } from './types.js'
@@ -35,7 +41,7 @@ import type { CatalogueHelper } from './catalogue/types.js'
 import { toolHostHelper } from './host.js'
 import { makeHandoverHelper } from './handover.js'
 import { makeToolProfileModel } from './profile.js'
-import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, INFERENCE_LEVELS, INFERENCE_MODES, MATERIALS_ANSWER_MS, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, REFERENCES_CONFIRMED, REFERENCES_READ, SOURCES_KIND, STOP_SCOPES, TASK_WITHDRAWN, WRITE } from './consts.local.js'
+import { APP_GRANT_ACTIONS, APP_GROUP_ACTIONS, APP_ORGANIZATION_ACTIONS, APP_USER_ACTIONS, BARE_428, CONFIG_SCOPES, CONVERSION_COST, DESTRUCTIVE, DOMAIN_ACTIONS, DRAFT_CAP, FEED_DETAILS, FILE_READ_CAP, GIT_SYNC_DIRECTIONS, IDEMPOTENT_WRITE, IMPLEMENT_CONFIRMED, IMPLEMENT_INPUT, IMPLEMENT_UNSUPPORTED, INFERENCE_LEVELS, INFERENCE_MODES, MATERIALS_ANSWER_MS, PREVIEW_ACTIONS, PROCEED_UPDATE_FIELDS, PRODUCTION_ACTIONS, READ_ONLY, REFERENCES_CONFIRMED, REFERENCES_READ, SOURCES_KIND, STOP_SCOPES, TASK_WITHDRAWN, WRITE } from './consts.local.js'
 
 export { ToolHostKind }
 
@@ -172,7 +178,7 @@ const projectResult = (status: ConnectProjectStatus) => ok(
   statusTextHelper.renderProjectStatus(status), { project: status as unknown as Record<string, unknown> }
 )
 /** A story's domain status, with what its card says that the status route does not carry. */
-const storyResult = (status: ConnectStoryStatus, card: ViableStoryCard, apps?: readonly string[]) => {
+const workcardResult = (status: ConnectStoryStatus, card: ViableWorkcard, apps?: readonly string[]) => {
   const landing = storyHelper.isLandingStory(card)
   // Only a card that names an area carries apps: every other story reads exactly as before them.
   const named = apps != null && apps.length > 0 ? apps : undefined
@@ -214,7 +220,7 @@ const pipelineResult = (status: ConnectPipelineState) => ok(
   statusTextHelper.renderPipelineStatus(status), { pipeline: status as unknown as Record<string, unknown> }
 )
 /** A story batch, led by what a call just did where one did. */
-const batchResult = (view: StoryBatchView, lead?: string) => ok(
+const batchResult = (view: WorkcardBatchView, lead?: string) => ok(
   (lead != null ? `${lead}\n\n` : '') + statusTextHelper.renderBatchStatus(view),
   { batch: view as unknown as Record<string, unknown> }
 )
@@ -223,14 +229,14 @@ const batchResult = (view: StoryBatchView, lead?: string) => ok(
  * which cancels FIRST so no next story can start in between. Nothing running is no failure: the
  * batch may have been between two stories. Answers whether a stop was requested.
  */
-const stopBatchStory = async (deps: ToolDeps, projectId: string, storyId: string): Promise<boolean> => {
+const stopBatchWorkcard = async (deps: ToolDeps, projectId: string, workcardId: string): Promise<boolean> => {
   try {
-    await deps.api.project.stop(projectId, { scope: AgentStopScope.Story, storyId, confirm: true })
+    await deps.api.project.stop(projectId, { scope: AgentStopScope.Workcard, storyId: workcardId, confirm: true })
 
     return true
   } catch (e) {
     if (e instanceof AgentNotRunning || refusalHelper.refusalMessage(e).includes(AGENT_NOT_RUNNING_MARKER)) {
-      deps.log(`cancel_story_batch: nothing to stop for ${storyId}: ${refusalHelper.refusalMessage(e)}`)
+      deps.log(`cancel_story_batch: nothing to stop for ${workcardId}: ${refusalHelper.refusalMessage(e)}`)
 
       return false
     }
@@ -266,6 +272,21 @@ const rebuildNote = (buildWarning: string | undefined): string => buildWarning !
 const slotResult = (lead: string, projectId: string, slot: ConnectSlotView) => ok(
   `${lead}\n${statusTextHelper.renderSlot(slot)}`, { projectId, slot: slot as unknown as Record<string, unknown> }
 )
+
+/** One card's composed status, led by what a call just did — or, on a platform older than the route, the lead alone. */
+const cardStatusResult = async (
+  deps: ToolDeps, projectId: string, cardId: string, lead?: string, extra: Record<string, unknown> = {},
+): Promise<ToolResult> => {
+  try {
+    const status = await deps.api.cards.status(projectId, cardId)
+
+    return ok((lead != null ? `${lead}\n\n` : '') + cardsToolHelper.renderStatus(status), { ...extra, card: status })
+  } catch (e) {
+    if (!cardsToolHelper.routeMissing(e)) throw e
+
+    return lead != null ? ok(lead, { ...extra, cardId }) : fail(CARDS_UNSUPPORTED)
+  }
+}
 
 /**
  * Attach a connector, where this host can hold one.
@@ -314,7 +335,7 @@ const unattachedSessionId = async (deps: ToolDeps): Promise<string | undefined> 
  * The delete's COMMIT is no substitute: it says the card is gone, and nothing about the
  * placeholder screens the slot is still retiring under the project lock.
  */
-const waitForStoryCleanup = async (deps: ToolDeps, projectId: string): Promise<void> => {
+const waitForWorkcardCleanup = async (deps: ToolDeps, projectId: string): Promise<void> => {
   const deadline = Date.now() + 5 * 60_000
   let unlockedAt: number | null = null
 
@@ -491,7 +512,7 @@ const renderConversion = (view: ConversionStatusView): string => {
     lines.push(
       `implementing the stories: $${view.storyEstimate.minUsd}–$${view.storyEstimate.maxUsd}`,
       `  A band, not a price: a story costs what it turns out to need, usually`
-      + ` $${STORY_BAND_MIN_USD}–$${STORY_BAND_MAX_USD} each.`
+      + ` $${WORKCARD_BAND_MIN_USD}–$${WORKCARD_BAND_MAX_USD} each.`
     )
   }
   // Phrased, exactly like a thrown one: the platform writes a failed stage's cause here with
@@ -813,7 +834,7 @@ export const catalogue: ToolDefinition[] = [
     description:
       'Confirm the drafted project, optionally editing what the analysis produced. This is what'
       + ' starts the build: the template lands, dependencies install, the whole application is'
-      + ' drawn. ' + REFERENCES_CONFIRMED
+      + ' drawn. ' + REFERENCES_CONFIRMED + ' ' + IMPLEMENT_CONFIRMED
       + ' Returns the project status while the server-side run continues.',
     input: {
       projectId: z.string().optional(),
@@ -822,6 +843,7 @@ export const catalogue: ToolDefinition[] = [
       specification: z.string().optional(),
       vision: z.string().optional(),
       designSystem: z.string().optional(),
+      implement: z.enum(Object.values(ViableImplementChoice) as [string, ...string[]]).optional().describe(IMPLEMENT_INPUT),
     },
     availability: toolHostHelper.anyHost,
     annotations: WRITE,
@@ -832,16 +854,30 @@ export const catalogue: ToolDefinition[] = [
       // whose connector has not filed a session yet is not queued for later — a local target
       // answers it with `ConnectSessionGone` and the step fails.
       await ensureSession(deps, project)
-      // With the references refreshed from the confirmed specification; an older platform without
-      // that route confirms through the released one.
-      const status = await referencesToolOf(deps.api).confirm(project, {
+      const edits = {
         ...(typeof args.name === 'string' ? { name: args.name } : {}),
         ...(typeof args.description === 'string' ? { description: args.description } : {}),
         ...(typeof args.specification === 'string' ? { specification: args.specification } : {}),
         ...(typeof args.vision === 'string' ? { vision: args.vision } : {}),
         ...(typeof args.designSystem === 'string' ? { designSystem: args.designSystem } : {}),
-      })
-      return projectResult(status)
+      }
+      // The choice at the approval has its own route (the references refreshed too). A platform older
+      // than it — a bare 404, or a host's implementation without the member — confirms nothing: a
+      // spec asked for is never silently drawn as a preview.
+      if (typeof args.implement === 'string') {
+        if (typeof deps.api.project.confirmImplementation !== 'function') return fail(IMPLEMENT_UNSUPPORTED)
+        try {
+          return projectResult(await deps.api.project.confirmImplementation(project, {
+            ...edits, implement: args.implement as ViableImplementChoice,
+          }))
+        } catch (e) {
+          if (cardsToolHelper.routeMissing(e)) return fail(IMPLEMENT_UNSUPPORTED)
+          throw e
+        }
+      }
+      // With the references refreshed from the confirmed specification; an older platform without
+      // that route confirms through the released one.
+      return projectResult(await referencesToolOf(deps.api).confirm(project, edits))
     },
   },
 
@@ -1526,7 +1562,7 @@ export const catalogue: ToolDefinition[] = [
         sort: STORY_ORDER,
       })
 
-      const apps = await appsToolHelper.storyApps(deps, projectOf(args, deps), list.items)
+      const apps = await appsToolHelper.workcardApps(deps, projectOf(args, deps), list.items)
 
       return ok(storyHelper.renderStories(list.items, list.page ?? page, list.total, apps), list)
     },
@@ -1549,7 +1585,7 @@ export const catalogue: ToolDefinition[] = [
         sort: STORY_ORDER,
       })
 
-      const apps = await appsToolHelper.storyApps(deps, projectOf(args, deps), list.items)
+      const apps = await appsToolHelper.workcardApps(deps, projectOf(args, deps), list.items)
 
       return ok(storyHelper.renderStories(list.items, list.page ?? 0, list.total, apps), list)
     },
@@ -1583,7 +1619,7 @@ export const catalogue: ToolDefinition[] = [
         action: TransitionAction.Create,
         card: {
           kind: WorkcardKind.Card,
-          type: VIABLE_STORY_TYPE,
+          type: VIABLE_USER_STORY_TYPE,
           parent: project,
           title: args.story as string,
           fields: { primary: false, ...(typeof args.area === 'string' ? { area: args.area } : {}) },
@@ -1643,7 +1679,7 @@ export const catalogue: ToolDefinition[] = [
         action: TransitionAction.Delete,
         cause: 'connector:delete-story',
       }, { wait: true, timeout: COMMIT_WAIT_MS })
-      await waitForStoryCleanup(deps, project)
+      await waitForWorkcardCleanup(deps, project)
 
       return ok('Story deleted.')
     },
@@ -1666,10 +1702,10 @@ export const catalogue: ToolDefinition[] = [
       // run once that move has COMMITTED — which is also where it is refused (the wrong status,
       // another story in progress, the balance).
       const { card, status } = await storyHelper.transit(
-        deps, project, args.storyId as string, ViableStoryTransition.Start, 'connector:develop-story',
+        deps, project, args.storyId as string, ViableWorkcardTransition.Start, 'connector:develop-story',
       )
 
-      return storyResult(status, card)
+      return workcardResult(status, card)
     },
   },
 
@@ -1687,10 +1723,10 @@ export const catalogue: ToolDefinition[] = [
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
       const { card, status } = await storyHelper.transit(
-        deps, project, args.storyId as string, ViableStoryTransition.Reset, 'connector:reset-story',
+        deps, project, args.storyId as string, ViableWorkcardTransition.Reset, 'connector:reset-story',
       )
 
-      return storyResult(status, card)
+      return workcardResult(status, card)
     },
   },
 
@@ -1708,10 +1744,10 @@ export const catalogue: ToolDefinition[] = [
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
       const { card, status } = await storyHelper.transit(
-        deps, project, args.storyId as string, ViableStoryTransition.Complete, 'connector:complete-story',
+        deps, project, args.storyId as string, ViableWorkcardTransition.Complete, 'connector:complete-story',
       )
 
-      return storyResult(status, card)
+      return workcardResult(status, card)
     },
   },
 
@@ -1727,9 +1763,9 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       const card = await storyHelper.resolveStory(deps, project, args.storyId as string)
-      const apps = await appsToolHelper.storyApps(deps, project, [card])
+      const apps = await appsToolHelper.workcardApps(deps, project, [card])
 
-      return storyResult(await deps.api.story.status(project, card.id!), card, apps.get(card.id ?? card.code ?? ''))
+      return workcardResult(await deps.api.story.status(project, card.id!), card, apps.get(card.id ?? card.code ?? ''))
     },
   },
 
@@ -1743,7 +1779,7 @@ export const catalogue: ToolDefinition[] = [
       + ' fails does not stop the rest. Leave storyIds out for every planned story. Takes many minutes per'
       + ' story and returns the batch — follow it with story_batch_status. For one story, use develop_story.',
     input: {
-      storyIds: z.array(z.string().min(1)).min(1).max(STORY_BATCH_MAX).optional().describe(
+      storyIds: z.array(z.string().min(1)).min(1).max(WORKCARD_BATCH_MAX).optional().describe(
         'The stories to implement, by code or id — planned ones only. Leave it out for every planned story.'
       ),
       projectId: z.string().optional(),
@@ -1757,8 +1793,8 @@ export const catalogue: ToolDefinition[] = [
       // A code is what list_stories prints; the platform keys a batch on card ids.
       const refs = Array.isArray(args.storyIds) ? args.storyIds as string[] : []
       const cards = await Promise.all(refs.map(async ref => await storyHelper.resolveStory(deps, project, ref)))
-      const stories = [...new Set(cards.map(card => card.id!))]
-      const view = await deps.api.project.batch.start(project, stories.length > 0 ? { stories } : {})
+      const workcards = [...new Set(cards.map(card => card.id!))]
+      const view = await deps.api.project.batch.start(project, workcards.length > 0 ? { stories: workcards } : {})
 
       return batchResult(view, `Batch ${view.id} started over ${view.stories.length} `
         + `${view.stories.length === 1 ? 'story' : 'stories'}: the platform orders them, then implements them one at a time.`)
@@ -1809,7 +1845,7 @@ export const catalogue: ToolDefinition[] = [
       const project = projectOf(args, deps)
       const view = await deps.api.project.batch.cancel(project)
       const current = view.current != null && view.outcomes[view.current] == null ? view.current : null
-      const stopped = current != null && await stopBatchStory(deps, project, current)
+      const stopped = current != null && await stopBatchWorkcard(deps, project, current)
 
       return ok(controlToolHelper.renderCancel(view, stopped), {
         batch: view as unknown as Record<string, unknown>, ...(stopped ? { stopped: current } : {}),
@@ -1818,11 +1854,422 @@ export const catalogue: ToolDefinition[] = [
   },
 
   {
+    name: 'list_cards',
+    title: 'The work cards of a project',
+    description:
+      'One page of the project\'s work cards of every type — specs, features, user stories, improvements and'
+      + ' tasks — with each one\'s status and the spec or feature it sits in. container lists one spec\'s or'
+      + ' feature\'s members. For user stories alone, list_stories reads them the way it always has.',
+    input: {
+      projectId: z.string().optional(),
+      type: z.enum(CARD_RETYPE_WORDS).optional().describe('Only cards of this type.'),
+      status: z.string().optional().describe('Only cards in this status (planned, in-progress, completed, failed).'),
+      container: z.string().optional().describe('A spec\'s or a feature\'s code or id: only its members.'),
+      page: z.number().int().min(0).optional(),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: READ_ONLY,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const page = typeof args.page === 'number' ? args.page : 0
+      const container = typeof args.container === 'string' && args.container.trim() !== ''
+        ? (await cardsToolHelper.resolveCard(deps, project, args.container.trim())).id!
+        : undefined
+      const list = await deps.api.planning.cards.list({
+        ...cardsToolHelper.cardQuery(project, {
+          ...(typeof args.type === 'string' ? { type: cardsToolHelper.typeOf(args.type).type } : {}),
+          ...(typeof args.status === 'string' ? { status: args.status } : {}),
+          ...(container != null ? { container } : {}),
+        }),
+        page,
+        size: CARD_PAGE_SIZE,
+        sort: STORY_ORDER,
+      })
+      // The containers the page's members sit in, by code: those on the page, then one read for the rest.
+      const codes = new Map(list.items.map(item => [item.id!, item.code ?? item.id!]))
+      const missing = [...new Set(list.items.map(item => viableWorkHelper.containerIdOf(item))
+        .filter((id): id is string => id != null && !codes.has(id)))]
+      if (missing.length > 0) {
+        const held = await deps.api.planning.cards.list({ ids: missing, size: missing.length }).catch(() => null)
+        for (const item of held?.items ?? []) codes.set(item.id!, item.code ?? item.id!)
+      }
+
+      return ok(cardsToolHelper.renderCards(list.items, list.page ?? page, list.total, codes), {
+        projectId: project, total: list.total, page: list.page ?? page, cards: list.items,
+      })
+    },
+  },
+
+  {
+    name: 'create_card',
+    title: 'Add a work card',
+    description:
+      'Add a card in your own words: a spec (several cards built together in one run), a feature (one capability'
+      + ' for one role), a user story, an improvement (a change to what exists) or a task (configuration,'
+      + ' secrets, a data change — no code). With type auto the platform decides the type. The platform files the'
+      + ' title the way its pipeline needs and checks the text, a short model call that spends credits. cards moves'
+      + ' existing cards into a new spec or feature; inputs names what a task needs — never a value: a secret is'
+      + ' typed by the user into the task\'s secure input in the web application. Each call adds another card.',
+    input: {
+      projectId: z.string().optional(),
+      type: z.enum(CARD_TYPE_WORDS).describe('auto lets the platform decide; otherwise the type you name is kept.'),
+      title: z.string().min(1).max(WORK_NAME_MAX),
+      description: z.string().max(WORK_TEXT_MAX).optional(),
+      cards: z.array(z.string().min(1)).min(1).max(CONNECT_CARDS_TOGETHER_MAX).optional().describe(
+        'For a spec or a feature: existing cards (codes or ids) to move in as its members.'
+      ),
+      inputs: z.array(z.object({
+        name: z.string().min(1).max(WORK_NAME_MAX),
+        secret: z.boolean().describe('A secret is never sent here: the user types it into the task\'s secure input.'),
+        note: z.string().max(CARD_INPUT_NOTE_MAX).optional(),
+      })).min(1).max(CARD_INPUTS_MAX).optional().describe('For a task: the variables and secrets it needs, by name only.'),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const inputs = Array.isArray(args.inputs) ? args.inputs as CardInput[] : []
+      // Inputs make a task whatever else was said; any other explicit type keeps its own word.
+      const choice = inputs.length > 0 && args.type === 'auto'
+        ? cardsToolHelper.typeOf('task')
+        : cardsToolHelper.typeOf(args.type as string)
+      if (inputs.length > 0 && choice.type !== VIABLE_TASK_TYPE) {
+        return fail('Not done: inputs belong to a task — create it with type task (or auto), or leave inputs out.')
+      }
+      const refs = Array.isArray(args.cards) ? args.cards as string[] : []
+      if (refs.length > 0 && !VIABLE_CONTAINER_TYPES.includes(choice.type)) {
+        return fail('Not done: only a spec or a feature holds cards — create it with type spec or feature, or leave cards out.')
+      }
+      // Formatting reads the target's file-backed entities: a local project needs its connector attached.
+      await ensureSession(deps, project)
+      const members = await Promise.all(refs.map(async ref => await cardsToolHelper.resolveCard(deps, project, ref)))
+      const description = cardsToolHelper.describe(typeof args.description === 'string' ? args.description : undefined, inputs)
+      const receipt = await deps.api.planning.execute({
+        action: TransitionAction.Create,
+        card: {
+          kind: WorkcardKind.Card,
+          type: choice.type,
+          parent: project,
+          title: args.title as string,
+          ...(description != null ? { description } : {}),
+          // A named type is the person's choice; auto asks the platform's type check to decide it.
+          fields: {
+            ...(choice.type === VIABLE_USER_STORY_TYPE ? { primary: false } : {}),
+            typeBy: choice.auto ? ViableTypeBy.Auto : ViableTypeBy.Person,
+          },
+        },
+        cause: 'connector:create-card',
+      }, { wait: true, timeout: COMMIT_WAIT_MS })
+      const card = receipt.card
+      const moved: string[] = []
+      if (card?.id != null) {
+        for (const member of members) {
+          if (member.id === card.id) continue
+          await deps.api.planning.execute({
+            card: member.id!, action: TransitionAction.Update, changes: { parents: [project, card.id] },
+            expectSeq: member.head ?? member.seq, cause: 'connector:create-card',
+          }, { wait: true, timeout: COMMIT_WAIT_MS })
+          moved.push(member.code ?? member.id!)
+        }
+      }
+      const filed = card != null ? `${cardsToolHelper.wordOf(card.type)} ${card.code ?? card.id}` : 'card'
+      const secrets = inputs.filter(input => input.secret).map(input => input.name)
+
+      return ok([
+        `Created the ${filed}${choice.auto ? ' — the platform decided its type' : ''}.`,
+        ...(moved.length > 0 ? [`Moved in: ${moved.join(', ')}.`] : []),
+        ...(secrets.length > 0 ? [`When it runs, the task asks for ${secrets.join(', ')} through its secure input: the user`
+          + ' types each value in the web application (card_status gives the link) — never into this conversation.'] : []),
+        `next: card_status { "projectId": "${project}", "cardId": "${card?.id ?? ''}" } — run_card starts it`,
+      ].join('\n'), { card: card ?? receipt.transition, ...(moved.length > 0 ? { moved } : {}) })
+    },
+  },
+
+  {
+    name: 'update_card',
+    title: 'Reword a work card or decide its proposals',
+    description:
+      'Change what a card says — its title or description; the platform files the new title the way its pipeline'
+      + ' needs and checks the type again, a short model call that spends credits. proposals accepts or dismisses'
+      + ' what the platform proposed on the card (card_status lists them). Its status is not changed — run_card does that.',
+    input: {
+      projectId: z.string().optional(),
+      cardId: z.string().min(1),
+      title: z.string().min(1).max(WORK_NAME_MAX).optional(),
+      description: z.string().max(WORK_TEXT_MAX).optional(),
+      proposals: z.array(z.object({
+        id: z.string().min(1).max(32),
+        decision: z.enum(['accept', 'dismiss']),
+      })).min(1).max(32).optional().describe('Proposals by id, each accepted or dismissed.'),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: IDEMPOTENT_WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const title = typeof args.title === 'string' ? args.title : undefined
+      const description = typeof args.description === 'string' ? args.description : undefined
+      const decisions = Array.isArray(args.proposals) ? args.proposals as Array<{ id: string, decision: 'accept' | 'dismiss' }> : []
+      if (title == null && description == null && decisions.length === 0) {
+        return fail('Not done: name a title, a description or proposals to decide.')
+      }
+      await ensureSession(deps, project)
+      let card = await cardsToolHelper.resolveCard(deps, project, args.cardId as string)
+      const said: string[] = []
+      if (title != null || description != null) {
+        // Guarded by the head the card was read at: a change somebody made in between is refused, never overwritten.
+        const receipt = await deps.api.planning.execute({
+          card: card.id!, action: TransitionAction.Update,
+          changes: { ...(title != null ? { title } : {}), ...(description != null ? { description } : {}) },
+          expectSeq: card.head ?? card.seq, cause: 'connector:update-card',
+        }, { wait: true, timeout: COMMIT_WAIT_MS })
+        card = (receipt.card as AnyViableWorkCard | undefined) ?? card
+        said.push(`Card ${card.code ?? card.id} updated.`)
+      }
+      if (decisions.length > 0) {
+        const document = await deps.api.planning.specifications.current(card.id!, ViableSpecCategory.Proposals)
+        const body = document?.body != null ? JSON.parse(document.body) as WorkProposals : null
+        const known = new Set((body?.items ?? []).map(item => item.id))
+        const unknown = decisions.filter(decision => !known.has(decision.id)).map(decision => decision.id)
+        if (document == null || body == null || unknown.length > 0) {
+          return fail(`Not done: ${unknown.length > 0 ? `no proposal ${unknown.join(', ')} on` : 'no proposals on'} card`
+            + ` ${card.code ?? card.id} — card_status lists them.`)
+        }
+        const decided = new Map(decisions.map(decision => [decision.id, decision.decision === 'accept' ? WorkProposalStatus.Accepted : WorkProposalStatus.Dismissed]))
+        // Only an existing proposal's status changes — everything else of the document stays as the platform wrote it.
+        const next: WorkProposals = { ...body, items: body.items.map(item => decided.has(item.id) ? { ...item, status: decided.get(item.id)! } : item) }
+        await deps.api.planning.execute({
+          card: document.id!, action: TransitionAction.Update, changes: { body: JSON.stringify(next) },
+          expectSeq: document.head ?? document.seq, cause: 'connector:update-card',
+        }, { wait: true, timeout: COMMIT_WAIT_MS })
+        said.push(`Proposals decided: ${decisions.map(decision => `${decision.id} ${decision.decision === 'accept' ? 'accepted' : 'dismissed'}`).join(', ')}.`)
+      }
+
+      return ok(said.join('\n'), { card })
+    },
+  },
+
+  {
+    name: 'retype_card',
+    title: 'Change a card\'s type',
+    description:
+      'Make a planned card another type — say a user story that is really a feature, or an improvement that is'
+      + ' really a task. It gets a new code (the old one is kept as a former code), and the type you name is kept'
+      + ' until its text changes again. Refused once the generated code holds pieces the card owns.',
+    input: {
+      projectId: z.string().optional(),
+      cardId: z.string().min(1),
+      type: z.enum(CARD_RETYPE_WORDS),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: IDEMPOTENT_WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const card = await cardsToolHelper.resolveCard(deps, project, args.cardId as string)
+      const toType = cardsToolHelper.typeOf(args.type as string).type
+      if (card.type === toType) {
+        return ok(`Card ${card.code ?? card.id} already is a ${cardsToolHelper.wordOf(toType)}.`, { card })
+      }
+      // The fields fitted to the new type, and the type marked as the person's choice.
+      const fields = viableWorkHelper.fieldsFor(toType, { ...card.fields, typeBy: ViableTypeBy.Person })
+      const receipt = await deps.api.planning.execute({
+        card: card.id!, action: TransitionAction.Retype, toType,
+        changes: { fields }, unset: viableWorkHelper.unsetFor(toType, card.fields),
+        expectSeq: card.head ?? card.seq, cause: 'connector:retype-card',
+      }, { wait: true, timeout: COMMIT_WAIT_MS })
+      const retyped = receipt.card ?? card
+
+      return ok(`Card ${card.code ?? card.id} is now the ${cardsToolHelper.wordOf(toType)} ${retyped.code ?? retyped.id}.`, { card: retyped })
+    },
+  },
+
+  {
+    name: 'run_card',
+    title: 'Run a work card',
+    description:
+      'Start one card: a user story is designed and built; a spec builds all its members together in one run; a'
+      + ' feature or an improvement runs a planned set of steps; a task carries out its configuration or data'
+      + ' change. It takes many minutes and spends credits — a spec or a feature needs the 100,000-credit floor (a'
+      + ' spec on the Pro plan may use its free spec of the month instead), an improvement or a task a positive'
+      + ' balance; nothing new starts while the organization is in debt. A card already running is refused;'
+      + ' calling it again after its run ended starts it again and spends again. Returns the card status.',
+    input: { projectId: z.string().optional(), cardId: z.string().min(1) },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      await ensureSession(deps, project)
+      const card = await cardsToolHelper.resolveCard(deps, project, args.cardId as string)
+      // A card's run is its `start`: the platform begins it once the move COMMITS, and refuses it there (the
+      // flow, one run per project, the balance of the card's type).
+      try {
+        await deps.api.planning.execute({
+          card: card.id!, action: TransitionAction.Transit, transition: ViableWorkcardTransition.Start, cause: 'connector:run-card',
+        }, { wait: true, timeout: COMMIT_WAIT_MS })
+      } catch (e) {
+        if (!(e instanceof CommitTimeout)) throw e
+        deps.log(`run_card: the start of ${card.code ?? card.id} has not committed yet; answering from card status`)
+      }
+
+      return await cardStatusResult(deps, project, card.id!, `Started the ${cardsToolHelper.wordOf(card.type)} ${card.code ?? card.id}.`)
+    },
+  },
+
+  {
+    name: 'run_cards_together',
+    title: 'Build several cards together',
+    description:
+      'Put several planned cards into ONE new spec and start it: they are designed and built together in one run,'
+      + ' sharing what they need — usually cheaper and faster than one at a time. Spends credits like any spec (the'
+      + ' 100,000-credit floor, or the Pro plan\'s free spec of the month). Calling it again with the same cards'
+      + ' finds the same spec again. Returns the spec\'s status.',
+    input: {
+      projectId: z.string().optional(),
+      cards: z.array(z.string().min(1)).min(1).max(CONNECT_CARDS_TOGETHER_MAX).describe('The cards, by code or id — planned or failed ones in no spec.'),
+      title: z.string().min(1).max(WORK_NAME_MAX).optional().describe('The new spec\'s title; drawn from its cards when left out.'),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      await ensureSession(deps, project)
+      const cards = await Promise.all((args.cards as string[]).map(async ref => await cardsToolHelper.resolveCard(deps, project, ref)))
+      const ids = [...new Set(cards.map(card => card.id!))]
+      try {
+        const view = await deps.api.cards.together(project, { cards: ids, start: true, ...(typeof args.title === 'string' ? { title: args.title } : {}) })
+
+        return await cardStatusResult(deps, project, view.spec, cardsToolHelper.renderTogether(view), { together: view })
+      } catch (e) {
+        if (cardsToolHelper.routeMissing(e)) return fail(CARDS_UNSUPPORTED)
+        throw e
+      }
+    },
+  },
+
+  {
+    name: 'run_all_cards',
+    title: 'Run every loose card',
+    description:
+      'The web application\'s Run all for cards: without confirm it answers where the platform would place every'
+      + ' loose planned card — into the existing spec or feature it most fittingly continues, or into one new spec'
+      + ' together with the other cards it belongs with; a card that fits nothing runs on its own (it is never put'
+      + ' alone into a spec) — and starts nothing. With confirm: true it applies that placement and starts them one'
+      + ' after another, the existing specs first, the new spec next and the cards on their own last, each start'
+      + ' spending credits like run_card. Ask the user before confirming; calling it again with confirm starts'
+      + ' another round.',
+    input: {
+      projectId: z.string().optional(),
+      confirm: z.boolean().optional().describe('Set true ONLY after the user agreed to the placement this tool answered without it.'),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const memo = cardsPlanMemoOf(deps.api)
+      try {
+        if (args.confirm !== true) {
+          const view = await deps.api.cards.plan(project)
+          memo.remember(project, view)
+
+          return ok(cardsToolHelper.renderPlan(project, view), { projectId: project, plan: view })
+        }
+        await ensureSession(deps, project)
+        // The placement the user agreed to, where this host still holds it; else the platform plans again.
+        const view = memo.recall(project) ?? await deps.api.cards.plan(project)
+        if (view.assignment.placements.length === 0 && (view.assignment.loose ?? []).length === 0) {
+          return ok(cardsToolHelper.renderPlan(project, view), { projectId: project, plan: view })
+        }
+        const batch = await deps.api.cards.runAll(project, { assignment: view.assignment })
+        memo.forget(project)
+
+        return ok(cardsToolHelper.renderRunAll(batch), { projectId: project, plan: view, batch: batch as unknown as Record<string, unknown> })
+      } catch (e) {
+        if (cardsToolHelper.routeMissing(e)) return fail(CARDS_UNSUPPORTED)
+        throw e
+      }
+    },
+  },
+
+  {
+    name: 'rerun_card',
+    title: 'Run a spec\'s or a feature\'s cards again',
+    description:
+      'Start a spec or a feature again for exactly some of the cards inside it: scope failed builds only the ones that'
+      + ' failed, scope unfinished every one not completed (planned or failed); the completed ones are left as they'
+      + ' are, on every step. It takes many minutes and spends credits like run_card for a spec or a feature — the'
+      + ' 100,000-credit floor (a spec on the Pro plan may use its free spec of the month instead); nothing new starts'
+      + ' while the organization is in debt. Refused when nothing matches, while the card runs or while one of its'
+      + ' cards runs on its own; calling it again after its run ended starts it again and spends again. Returns the'
+      + ' card status.',
+    input: {
+      projectId: z.string().optional(),
+      cardId: z.string().min(1).describe('The spec or the feature, by code or id.'),
+      scope: z.enum(CARD_RERUN_SCOPES).describe('failed — only the cards inside it that failed; unfinished — every one not completed.'),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      await ensureSession(deps, project)
+      const card = await cardsToolHelper.resolveCard(deps, project, args.cardId as string)
+      try {
+        // The container's own Start for exactly those cards: the platform's rules, its gate and its billing.
+        const view = await deps.api.cards.rerun(project, { card: card.id!, scope: args.scope as typeof CARD_RERUN_SCOPES[number] })
+
+        return await cardStatusResult(deps, project, card.id!, cardsToolHelper.renderRerun(view, card))
+      } catch (e) {
+        if (cardsToolHelper.routeMissing(e)) return fail(CARDS_UNSUPPORTED)
+        throw e
+      }
+    },
+  },
+
+  {
+    name: 'card_status',
+    title: 'Where a work card stands',
+    description:
+      'One card of any type: its status, a spec\'s or a feature\'s members, its plan, the proposals still open, a'
+      + ' task\'s inputs as set or missing with the link where the user types a secret, its run and any question it'
+      + ' waits on.',
+    input: { projectId: z.string().optional(), cardId: z.string().min(1) },
+    availability: toolHostHelper.anyHost,
+    annotations: READ_ONLY,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const card = await cardsToolHelper.resolveCard(deps, project, args.cardId as string)
+
+      return await cardStatusResult(deps, project, card.id!)
+    },
+  },
+
+  {
+    name: 'delete_card',
+    title: 'Remove a work card',
+    description:
+      'Delete a card that is not running and has not been built. A spec or a feature that still holds cards is'
+      + ' refused — take its members out first. A user story\'s placeholder screens are retired.',
+    input: { projectId: z.string().optional(), cardId: z.string().min(1) },
+    availability: toolHostHelper.anyHost,
+    annotations: DESTRUCTIVE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      // A user story's delete retires its file-backed scaffold: the local session must be there.
+      await ensureSession(deps, project)
+      const card = await cardsToolHelper.resolveCard(deps, project, args.cardId as string)
+      await deps.api.planning.execute({ card: card.id!, action: TransitionAction.Delete, cause: 'connector:delete-card' }, { wait: true, timeout: COMMIT_WAIT_MS })
+      await waitForWorkcardCleanup(deps, project)
+
+      return ok(`Card ${card.code ?? card.id} deleted.`, { deleted: true, card: { id: card.id, code: card.code } })
+    },
+  },
+
+  {
     name: 'modify_project',
     title: 'Ask the agent for an open-ended change',
     description:
-      'Describe a change in words and let the platform\'s own coding agent make it. For anything'
-      + ' that is not a user story: a fix, a styling change. To rename the product, use'
+      'Describe a change in words and let the platform decide what it is: a question is answered by reading the'
+      + ' project and changes nothing, a small fix (a wording, a colour, one bug) is made by the platform\'s own'
+      + ' coding agent at once, and anything bigger is filed as cards of the right type on the board and reported'
+      + ' here — started only when the request asks for it to be done now. To rename the product, use'
       + ' rename_project. Returns project status.',
     input: { prompt: z.string().min(1), projectId: z.string().optional() },
     availability: toolHostHelper.anyHost,
@@ -1830,7 +2277,22 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
-      return projectResult(await deps.api.project.modify(project, args.prompt as string))
+      // The triaging route first; an older platform answers the released open-ended change, exactly as before.
+      const asked = requestToolOf(deps.api).ask(project, args.prompt as string)
+      const outcome = await within(asked, REQUEST_ANSWER_MS)
+      if (outcome == null) {
+        asked.catch(e => deps.log(`modify_project: the request ended later with ${refusalHelper.refusalMessage(e)}`))
+        const status = await deps.api.project.status(project)
+
+        return ok('The platform is still reading the request — what it files or changes shows in project_activity'
+          + ` and list_cards.\n\n${statusTextHelper.renderProjectStatus(status)}`, { project: status as unknown as Record<string, unknown> })
+      }
+      if (outcome.view == null) return projectResult(outcome.status!)
+      const status = await deps.api.project.status(project)
+
+      return ok(`${cardsToolHelper.renderRequest(outcome.view)}\n\n${statusTextHelper.renderProjectStatus(status)}`, {
+        project: status as unknown as Record<string, unknown>, request: outcome.view,
+      })
     },
   },
 
@@ -1958,12 +2420,12 @@ export const catalogue: ToolDefinition[] = [
         return fail(controlToolHelper.unconfirmedStop(scope))
       }
       const project = projectOf(args, deps)
-      const storyId = typeof args.storyId === 'string' && args.storyId.trim() !== ''
+      const workcardId = typeof args.storyId === 'string' && args.storyId.trim() !== ''
         ? (await storyHelper.resolveStory(deps, project, args.storyId.trim())).id!
         : undefined
       const lock = await deps.api.project.stop(project, {
         ...(scope != null ? { scope } : {}),
-        ...(storyId != null ? { storyId } : {}),
+        ...(workcardId != null ? { storyId: workcardId } : {}),
         ...(args.confirm === true ? { confirm: true } : {}),
       })
 

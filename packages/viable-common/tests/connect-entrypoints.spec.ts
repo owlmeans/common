@@ -8,6 +8,7 @@ import {
   CONNECT_CALL_HEADER, CONNECT_CALL_LOST_MS, CONNECT_CONFIG_SAVE_MAX, CONNECT_FILE_PATH_MAX, CONNECT_PRIVACY_KEYS_MAX,
   CONNECT_REDIRECTS_MAX, CONNECT_TOKEN_ID_MAX, ConnectCallState, ConnectPaidGate,
   CONNECT_FEED_LIMIT_MAX, CONNECT_FEED_START, CONNECT_FEED_WAIT_MAX_SEC, ConnectFeedDetail, ConnectFeedKind,
+  CONNECT_CARDS_TOGETHER_MAX,
 } from '../src/connect/consts.js'
 import {
   ConnectAccessTokenParamsSchema, ConnectIntentPickupBodySchema, ConnectLlmBodySchema, ConnectPrivacyWithdrawBodySchema,
@@ -18,11 +19,13 @@ import {
   ConnectGithubLinkBodySchema, ConnectGithubPublishBodySchema, ConnectGithubRepoQuerySchema, ConnectKitApplyBodySchema,
   ConnectProductionDomainBodySchema, ConnectProductionRedirectsBodySchema, ConnectKitApplyResultSchema, ConnectKitDescribeSchema, ConnectProjectBrandingSaveSchema,
   PlanningKitViewSchema, ConnectActivityQuerySchema, ConnectFeedQuerySchema, ConnectAppParamsSchema,
-  ConnectAppRestartBodySchema,
+  ConnectAppRestartBodySchema, ConnectCardParamsSchema, ConnectCardsRerunBodySchema, ConnectCardsRunAllBodySchema,
+  ConnectCardsTogetherBodySchema,
 } from '../src/connect/schemas.js'
+import { WorkRerunScope } from '../src/planning/consts.js'
 import { connectProtocols } from '../src/connect/entrypoints.js'
-import { AGENT_STEER_PROMPT_MAX, AgentStopScope, STORY_BATCH_MAX } from '../src/batch/consts.js'
-import { AgentSteerArgsSchema, AgentStopArgsSchema, StoryBatchStartArgsSchema } from '../src/batch/schemas.js'
+import { AGENT_STEER_PROMPT_MAX, AgentStopScope, WORKCARD_BATCH_MAX } from '../src/batch/consts.js'
+import { AgentSteerArgsSchema, AgentStopArgsSchema, WorkcardBatchStartArgsSchema } from '../src/batch/schemas.js'
 import { connectRef } from '../src/connect/references.js'
 
 describe('@owlmeans/viable-common — connector protocol tree', () => {
@@ -62,7 +65,13 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.project.createWithReferences.alias).toBe(connect.project.createWithReferences)
     expect(tree.project.confirmWithReferences.alias).toBe(connect.project.confirmWithReferences)
     expect(tree.project.materials.file.alias).toBe(connect.project.materials.file)
-    expect(protocols(tree)).toHaveLength(126)
+    expect(tree.project.request.alias).toBe(connect.project.request)
+    expect(tree.cards.status.alias).toBe(connect.cards.status)
+    expect(tree.cards.together.alias).toBe(connect.cards.together)
+    expect(tree.cards.plan.alias).toBe(connect.cards.plan)
+    expect(tree.cards.runAll.alias).toBe(connect.cards.runAll)
+    expect(tree.cards.rerun.alias).toBe(connect.cards.rerun)
+    expect(protocols(tree)).toHaveLength(133)
     expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(protocols(tree).length)
   })
 
@@ -76,7 +85,7 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'GET /:id', 'GET /:id/catalogue', 'GET /:id/content', 'GET /access-tokens', 'GET /blueprints', 'GET /branding', 'GET /call/:callId', 'GET /client', 'GET /convert/:id', 'GET /convert/:id/check',
       'GET /iam/users', 'GET /llm', 'GET /notifications', 'GET /pipeline/:id/:runId',
       'GET /privacy', 'GET /project', 'GET /project/:id/activity', 'GET /project/:id/apps', 'GET /project/:id/batch',
-      'GET /project/:id/branding', 'GET /project/:id/config', 'GET /project/:id/files', 'GET /project/:id/files/changes',
+      'GET /project/:id/branding', 'GET /project/:id/cards/:cardId/status', 'GET /project/:id/cards/plan', 'GET /project/:id/config', 'GET /project/:id/files', 'GET /project/:id/files/changes',
       'GET /project/:id/files/content',
       'GET /project/:id/files/meta', 'GET /project/:id/git', 'GET /project/:id/git/log', 'GET /project/:id/github/branches',
       'GET /project/:id/github/repos', 'GET /project/:id/iam/grants', 'GET /project/:id/iam/organizations',
@@ -92,7 +101,9 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /pipeline/:id/:runId/resume', 'POST /privacy/withdraw', 'POST /project', 'POST /project/:id/batch',
       'POST /project/:id/batch/cancel', 'POST /project/:id/branding',
       'POST /project/:id/branding/copy-defaults', 'POST /project/:id/branding/credit',
-      'POST /project/:id/config', 'POST /project/:id/config/recollect', 'POST /project/:id/confirm', 'POST /project/:id/confirm-with-references',
+      'POST /project/:id/cards/rerun', 'POST /project/:id/cards/run-all', 'POST /project/:id/cards/together',
+      'POST /project/:id/config', 'POST /project/:id/config/recollect', 'POST /project/:id/confirm', 'POST /project/:id/confirm-implementation',
+      'POST /project/:id/confirm-with-references',
       'POST /project/:id/files/content',
       'POST /project/:id/git/commit', 'POST /project/:id/git/discard', 'POST /project/:id/git/revert',
       'POST /project/:id/github/authorize', 'POST /project/:id/github/disconnect', 'POST /project/:id/github/link',
@@ -113,7 +124,7 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /project/:id/production/auth/redirects', 'POST /project/:id/production/domain/attach',
       'POST /project/:id/production/domain/detach', 'POST /project/:id/production/domain/verify',
       'POST /project/:id/production/publish', 'POST /project/:id/production/restart', 'POST /project/:id/production/stop',
-      'POST /project/:id/reinit', 'POST /project/:id/rename',
+      'POST /project/:id/reinit', 'POST /project/:id/rename', 'POST /project/:id/request',
       'POST /project/:id/sandbox/apps/:app/restart', 'POST /project/:id/sandbox/rebuild', 'POST /project/:id/sandbox/restart', 'POST /project/:id/sandbox/run',
       'POST /project/:id/sandbox/stop', 'POST /project/:id/steer', 'POST /project/:id/stop',
       'POST /project/attach', 'POST /project/with-materials', 'POST /project/with-references', 'POST /session',
@@ -453,7 +464,7 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     const ajv = new Ajv({ strict: false })
     const stopBody = ajv.compile(AgentStopArgsSchema)
     expect(stopBody({})).toBe(true)
-    expect(stopBody({ scope: AgentStopScope.Story, storyId: 'card-1', confirm: true })).toBe(true)
+    expect(stopBody({ scope: AgentStopScope.Workcard, storyId: 'card-1', confirm: true })).toBe(true)
     // A connector serialises an unset optional as `null`: the nullable enum carries it.
     expect(stopBody({ scope: null, storyId: null, confirm: null })).toBe(true)
     expect(stopBody({ scope: 'everything' })).toBe(false)
@@ -463,14 +474,14 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(steerBody({ prompt: '' })).toBe(false)
     expect(steerBody({ prompt: 'x'.repeat(AGENT_STEER_PROMPT_MAX + 1) })).toBe(false)
     expect(steerBody({ prompt: 'x', id: 'm1' })).toBe(false)
-    const startBody = ajv.compile(StoryBatchStartArgsSchema)
+    const startBody = ajv.compile(WorkcardBatchStartArgsSchema)
     expect(startBody({})).toBe(true)
     expect(startBody({ stories: null })).toBe(true)
     expect(startBody({ stories: ['c1', 'c2'] })).toBe(true)
-    // An empty selection reaches the platform, which answers it as the phrased StoryBatchEmpty.
+    // An empty selection reaches the platform, which answers it as the phrased WorkcardBatchEmpty.
     expect(startBody({ stories: [] })).toBe(true)
     expect(startBody({ stories: ['c1', 'c1'] })).toBe(false)
-    expect(startBody({ stories: Array.from({ length: STORY_BATCH_MAX + 1 }, (_, at) => `c${at}`) })).toBe(false)
+    expect(startBody({ stories: Array.from({ length: WORKCARD_BATCH_MAX + 1 }, (_, at) => `c${at}`) })).toBe(false)
     expect(startBody({ stories: ['c1'], kind: 'conversion' })).toBe(false)
   })
 
@@ -776,5 +787,43 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(activity({ detail: null })).toBe(true)
     expect(activity({ detail: 'everything' })).toBe(false)
     expect(activity({ after: '1-0', wait: 5, detail: 'progress' })).toBe(true)
+  })
+
+  test('the cards wire: its own routes under the owned base, no paid gate, and closed bodies', () => {
+    const owned = connectProtocols({
+      guard: DEFAULT_GUARD,
+      gate: { alias: 'test-gate', params: ['owner'] },
+      localLlm: { alias: 'test-paid-llm', params: ['cap'] },
+    })
+    const routes = [owned.project.request, owned.cards.status, owned.cards.together, owned.cards.plan, owned.cards.runAll, owned.cards.rerun]
+    expect(routes.map(protocol => `${protocol.route.route.method!.toUpperCase()} ${protocol.route.route.path}`)).toEqual([
+      'POST /project/:id/request', 'GET /project/:id/cards/:cardId/status', 'POST /project/:id/cards/together',
+      'GET /project/:id/cards/plan', 'POST /project/:id/cards/run-all', 'POST /project/:id/cards/rerun',
+    ])
+    // The legacy modify is untouched: same path, same body schema, answering the project status.
+    expect(owned.project.modify.route.route.path).toBe('/project/:id/modify')
+    expect(routes.every(protocol => protocol.route.route.parent === connect.base)).toBe(true)
+    expect([connectRef.project.request.alias, connectRef.cards.status.alias, connectRef.cards.together.alias, connectRef.cards.plan.alias, connectRef.cards.runAll.alias, connectRef.cards.rerun.alias])
+      .toEqual([connect.project.request, connect.cards.status, connect.cards.together, connect.cards.plan, connect.cards.runAll, connect.cards.rerun])
+
+    const ajv = new Ajv({ strict: false })
+    const together = ajv.compile(ConnectCardsTogetherBodySchema)
+    expect(together({ cards: ['a', 'b'], start: true })).toBe(true)
+    expect(together({ cards: [] })).toBe(false)
+    expect(together({ cards: Array.from({ length: CONNECT_CARDS_TOGETHER_MAX + 1 }, (_, at) => `c${at}`) })).toBe(false)
+    expect(together({ cards: ['a'], value: 'x' })).toBe(false)
+    const runAll = ajv.compile(ConnectCardsRunAllBodySchema)
+    expect(runAll({ assignment: { placements: [{ card: 'a', container: null, order: 0 }], newSpec: { title: 'T', summary: 'S' } } })).toBe(true)
+    expect(runAll({ assignment: { placements: [{ card: 'a', order: -1 }] } })).toBe(false)
+    expect(runAll({ assignment: { placements: [] }, extra: 1 })).toBe(false)
+    const rerun = ajv.compile(ConnectCardsRerunBodySchema)
+    expect(rerun({ card: 'c', scope: WorkRerunScope.Failed })).toBe(true)
+    expect(rerun({ card: 'c', scope: WorkRerunScope.Unfinished })).toBe(true)
+    expect(rerun({ card: 'c', scope: 'all' })).toBe(false)
+    expect(rerun({ card: 'c' })).toBe(false)
+    expect(rerun({ card: 'c', scope: WorkRerunScope.Failed, members: ['m'] })).toBe(false)
+    const params = ajv.compile(ConnectCardParamsSchema)
+    expect(params({ id: 'p', cardId: 'c' })).toBe(true)
+    expect(params({ id: 'p' })).toBe(false)
   })
 })

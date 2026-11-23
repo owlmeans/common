@@ -1,6 +1,6 @@
 import type { BlueprintCatalogue } from '../blueprint/catalogue/types.js'
-import { AgentSteerArgsSchema, AgentStopArgsSchema, StoryBatchStartArgsSchema } from '../batch/schemas.js'
-import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView } from '../batch/types.js'
+import { AgentSteerArgsSchema, AgentStopArgsSchema, WorkcardBatchStartArgsSchema } from '../batch/schemas.js'
+import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, WorkcardBatchStartArgs, WorkcardBatchView } from '../batch/types.js'
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { route, RouteMethod } from '@owlmeans/route'
 import { makeUploadProtocols } from '@owlmeans/upload'
@@ -8,7 +8,7 @@ import { MATERIALS_LIMITS } from '../materials/consts.js'
 import { connect, ConnectPaidGate } from './consts.js'
 import {
   ConnectAccessTokenParamsSchema, ConnectIntentPickupBodySchema, ConnectLlmBodySchema, ConnectPrivacyWithdrawBodySchema,
-  ConnectProjectLlmBodySchema, ConnectAttachBodySchema, ConnectBrandingCreditBodySchema, ConnectCallCollectParamsSchema, ConnectConfigSaveBodySchema, ConnectCallCollectQuerySchema, ConnectConfirmBodySchema, ConnectConvertCreateBodySchema,
+  ConnectProjectLlmBodySchema, ConnectAttachBodySchema, ConnectBrandingCreditBodySchema, ConnectCallCollectParamsSchema, ConnectConfigSaveBodySchema, ConnectCallCollectQuerySchema, ConnectConfirmBodySchema, ConnectConfirmImplementationBodySchema, ConnectConvertCreateBodySchema,
   ConnectConvertProceedBodySchema, ConnectConvertStartBodySchema, ConnectCreateBodySchema,
   ConnectFileMetaQuerySchema, ConnectFileQuerySchema, ConnectFileSaveBodySchema,
   ConnectInquiryParamsSchema, ConnectKitApplyBodySchema,
@@ -22,7 +22,12 @@ import {
   ConnectIamOrganizationParamsSchema, ConnectIamUserParamsSchema, ConnectActivityQuerySchema, ConnectFeedQuerySchema,
   ConnectCreateWithMaterialsBodySchema, ConnectMaterialQuerySchema, ConnectMaterialsDraftBodySchema,
   ConnectAppParamsSchema, ConnectAppRestartBodySchema,
+  ConnectCardParamsSchema, ConnectCardsRerunBodySchema, ConnectCardsRunAllBodySchema, ConnectCardsTogetherBodySchema,
 } from './schemas.js'
+import type {
+  ConnectCardParams, ConnectCardStatus, ConnectCardsPlanView, ConnectCardsRerunBody, ConnectCardsRerunView,
+  ConnectCardsRunAllBody, ConnectCardsTogetherBody, ConnectCardsTogetherView, ConnectRequestView,
+} from './cards/types.js'
 import type { ConnectAppParams, ConnectAppRestartBody, ConnectAppsView } from './apps/types.js'
 import type {
   ConnectAccessTokenList, ConnectAccessTokenParams, ConnectAccessTokenRevoked, ConnectBrandingBackfill, ConnectIntentPickup,
@@ -54,7 +59,7 @@ import type { ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFi
 import type { ConnectInquiryAnswerBody, ConnectOpResult } from './ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
 import type {
-  ConnectAgentLock, ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody,
+  ConnectAgentLock, ConnectAttachBody, ConnectConfirmBody, ConnectConfirmImplementationBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody,
   ConnectProjectStatus, ConnectProjectSummary, ConnectStoryStatus
 } from './project/types.js'
 import type {
@@ -86,7 +91,8 @@ import type {
  * poll, no socket), the operation relay, projects (their lifecycle and agent lock included, the
  * agent's stop and steering, and story batches — several stories implemented one after another), a
  * NEW project's files (a create that waits for them, their upload whose session is the project, the
- * drafting asked again, the catalogue and one material's text), story
+ * drafting asked again, the catalogue and one material's text), a person's request triaged first,
+ * work cards of every type (one card's status, Run together, Run all's proposal and its run), story
  * status, generated files (read, written, deleted, metadata listed), the project's applications (read,
  * and one of the preview's restarted), the preview workload's controls,
  * the organization's workloads, the project's git repository and GitHub connection, its production
@@ -347,6 +353,14 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       }),
       contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectConfirmBody>(ConnectConfirmBodySchema) }, typed<ConnectProjectStatus>())
     ),
+    // `confirmWithReferences` with the choice at the specification approval — the preview only, or the
+    // init's spec implemented right away (the spec gate asked at the confirm): the same answer.
+    confirmImplementation: protocol(
+      route(connect.project.confirmImplementation, '/project/:id/confirm-implementation', {
+        parent: base, method: RouteMethod.POST
+      }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectConfirmImplementationBody>(ConnectConfirmImplementationBodySchema) }, typed<ConnectProjectStatus>())
+    ),
     status: protocol(
       route(connect.project.status, '/project/:id/status', {
         parent: base, method: RouteMethod.GET
@@ -364,6 +378,15 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
         parent: base, method: RouteMethod.POST
       }),
       contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectModifyBody>(ConnectModifyBodySchema) }, typed<ConnectProjectStatus>())
+    ),
+    // A person's request, triaged first (a question, a small fix, or cards filed as theirs). Its own
+    // route, so `modify` keeps its exact behaviour for every client that sends it. No payment gate on
+    // the route: free flight's floor is checked inside, and a filed card's start is the person's own.
+    request: protocol(
+      route(connect.project.request, '/project/:id/request', {
+        parent: base, method: RouteMethod.POST
+      }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectModifyBody>(ConnectModifyBodySchema) }, typed<ConnectRequestView>())
     ),
     rename: protocol(
       route(connect.project.rename, '/project/:id/rename', {
@@ -407,20 +430,20 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
         }),
         contract.request({
           params: typed<{ id: string }>(ConnectProjectIdSchema),
-          body: typed<StoryBatchStartArgs>(StoryBatchStartArgsSchema),
-        }, typed<StoryBatchView>())
+          body: typed<WorkcardBatchStartArgs>(WorkcardBatchStartArgsSchema),
+        }, typed<WorkcardBatchView>())
       ),
       get: protocol(
         route(connect.project.batch.get, '/project/:id/batch', {
           parent: base, method: RouteMethod.GET
         }),
-        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<StoryBatchView | null>())
+        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<WorkcardBatchView | null>())
       ),
       cancel: protocol(
         route(connect.project.batch.cancel, '/project/:id/batch/cancel', {
           parent: base, method: RouteMethod.POST
         }),
-        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<StoryBatchView>())
+        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<WorkcardBatchView>())
       ),
     },
     // The project's agent activity by cursor — the browser's project socket, polled; the ownership gate alone.
@@ -555,6 +578,42 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       }, typed<ConnectStoryStatus>())
     ),
 
+    },
+
+    // Work cards of every type: one card's composed status, Run together, Run all (the proposal
+    // first, then the accepted assignment) and a container's re-run. The ownership gate alone — no payment gate on a route, as
+    // on the web's twins: every start inside is admitted like a person's Start.
+    cards: {
+      status: protocol(
+        route(connect.cards.status, '/project/:id/cards/:cardId/status', { parent: base, method: RouteMethod.GET }),
+        contract.request({ params: typed<ConnectCardParams>(ConnectCardParamsSchema) }, typed<ConnectCardStatus>())
+      ),
+      together: protocol(
+        route(connect.cards.together, '/project/:id/cards/together', { parent: base, method: RouteMethod.POST }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+          body: typed<ConnectCardsTogetherBody>(ConnectCardsTogetherBodySchema),
+        }, typed<ConnectCardsTogetherView>())
+      ),
+      plan: protocol(
+        route(connect.cards.plan, '/project/:id/cards/plan', { parent: base, method: RouteMethod.GET }),
+        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectCardsPlanView>())
+      ),
+      runAll: protocol(
+        route(connect.cards.runAll, '/project/:id/cards/run-all', { parent: base, method: RouteMethod.POST }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+          body: typed<ConnectCardsRunAllBody>(ConnectCardsRunAllBodySchema),
+        }, typed<WorkcardBatchView>())
+      ),
+      // A container started again for exactly its failed or unfinished members — the person's Start.
+      rerun: protocol(
+        route(connect.cards.rerun, '/project/:id/cards/rerun', { parent: base, method: RouteMethod.POST }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+          body: typed<ConnectCardsRerunBody>(ConnectCardsRerunBodySchema),
+        }, typed<ConnectCardsRerunView>())
+      ),
     },
 
     // --- generated files and conversion ----------------------------------------------------

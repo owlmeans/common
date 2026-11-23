@@ -1,10 +1,10 @@
 import type {
-  AgentStopScope, StoryBatchKind, StoryBatchOrderSource, StoryBatchOutcome, StoryBatchStatus,
+  AgentStopScope, WorkcardBatchKind, WorkcardBatchOrderSource, WorkcardBatchOutcome, WorkcardBatchStatus,
 } from './consts.js'
 
 /** How a batch's order was decided, and the one-line reason of each story's place (keyed by card id). */
-export interface StoryBatchOrdering {
-  source: StoryBatchOrderSource
+export interface WorkcardBatchOrdering {
+  source: WorkcardBatchOrderSource
   reasons: Record<string, string>
 }
 
@@ -14,21 +14,21 @@ export interface StoryBatchOrdering {
  * Stories are named by CARD id everywhere in it; `codes` maps each to its story code for display.
  * Dates are ISO strings.
  */
-export interface StoryBatchView {
+export interface WorkcardBatchView {
   id: string
   projectId: string
-  kind: StoryBatchKind
-  status: StoryBatchStatus
+  kind: WorkcardBatchKind
+  status: WorkcardBatchStatus
   /** Story card ids, in implementation order (the board's until the ordering has written its own). */
   stories: string[]
   /** Card id → story code. */
   codes: Record<string, string>
-  ordering?: StoryBatchOrdering
+  ordering?: WorkcardBatchOrdering
   /** The story the batch last started. */
   current?: string
   /** Card id → what became of it; a story without an entry has not finished in this batch. */
-  outcomes: Record<string, StoryBatchOutcome>
-  /** Why a halted batch stopped: a refusal marker, or {@link STORY_BATCH_STALLED}. */
+  outcomes: Record<string, WorkcardBatchOutcome>
+  /** Why a halted batch stopped: a refusal marker, or {@link WORKCARD_BATCH_STALLED}. */
   reason?: string
   createdAt: string
   updatedAt: string
@@ -36,7 +36,7 @@ export interface StoryBatchView {
 }
 
 /** Start a batch. `stories` (card ids) omitted or `null`: every planned story of the project. */
-export interface StoryBatchStartArgs {
+export interface WorkcardBatchStartArgs {
   stories?: string[]
 }
 

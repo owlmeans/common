@@ -42,24 +42,24 @@ export class ProjectPermissionError extends ProjectResourceError {
   }
 }
 
-export class ProjectStoryError extends ProjectResourceError {
+export class ProjectWorkcardError extends ProjectResourceError {
   public static override typeName = `Story${ProjectResourceError.typeName}`
 
   constructor(message: string = 'error') {
     super(`story:${message}`)
-    this.type = ProjectStoryError.typeName
+    this.type = ProjectWorkcardError.typeName
   }
 }
 
 /** No story card with that id or code under the project. */
-export class ProjectStoryNotFound extends ProjectStoryError {
-  public static override typeName = `NotFound${ProjectStoryError.typeName}`
+export class ProjectWorkcardNotFound extends ProjectWorkcardError {
+  public static override typeName = `NotFound${ProjectWorkcardError.typeName}`
   /** The addressed story is absent from the project: answered 404. */
   public static httpStatus = 404
 
   constructor(message: string = 'error') {
     super(`not-found:${message}`)
-    this.type = ProjectStoryNotFound.typeName
+    this.type = ProjectWorkcardNotFound.typeName
   }
 }
 
@@ -69,14 +69,14 @@ export class ProjectStoryNotFound extends ProjectStoryError {
  * `wrong-status` is the marker a completed story's refusal carries — the manager matches the whole
  * `viable-project:story:missconfigured:` prefix, so the reason after it is free to grow.
  */
-export class ProjectStoryMissconfigured extends ProjectStoryError {
-  public static override typeName = `Missconfigured${ProjectStoryError.typeName}`
+export class ProjectWorkcardMissconfigured extends ProjectWorkcardError {
+  public static override typeName = `Missconfigured${ProjectWorkcardError.typeName}`
   /** The story's current state does not take the write: answered 409. */
   public static httpStatus = 409
 
   constructor(message: string = 'error') {
     super(`missconfigured:${message}`)
-    this.type = ProjectStoryMissconfigured.typeName
+    this.type = ProjectWorkcardMissconfigured.typeName
   }
 }
 
@@ -117,9 +117,9 @@ export class ProjectAgentOccupied extends ProjectAgentError {
 ResilientError.registerErrorClass(ProjectResourceError)
 ResilientError.registerErrorClass(ProjectNotFound)
 ResilientError.registerErrorClass(ProjectPermissionError)
-ResilientError.registerErrorClass(ProjectStoryError)
-ResilientError.registerErrorClass(ProjectStoryNotFound)
-ResilientError.registerErrorClass(ProjectStoryMissconfigured)
+ResilientError.registerErrorClass(ProjectWorkcardError)
+ResilientError.registerErrorClass(ProjectWorkcardNotFound)
+ResilientError.registerErrorClass(ProjectWorkcardMissconfigured)
 ResilientError.registerErrorClass(ProjectError)
 ResilientError.registerErrorClass(ProjectAgentError)
 ResilientError.registerErrorClass(ProjectAgentOccupied)

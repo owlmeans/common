@@ -690,6 +690,13 @@ export const connect = Object.freeze({
      */
     confirmWithReferences: 'viable:manager-api:connect:project:confirm-with-references',
     /**
+     * Confirm a drafted project with the CHOICE at the specification approval (`implement`): the
+     * preview only, or the init's spec implemented right away once the application is drawn — the spec
+     * gate asked at the confirm (create, then spec). `confirmWithReferences`' body and answer otherwise
+     * (the references are refreshed). A route of its own — the released `confirm` is unchanged.
+     */
+    confirmImplementation: 'viable:manager-api:connect:project:confirm-implementation',
+    /**
      * A NEW project's files ("materials"): the upload tree whose session IS the project (`state`, the
      * streamed `file`, `remove`, `seal` — no `open`: the creation opens the session, and no `abort`:
      * a connector seals with what arrived), the
@@ -712,6 +719,13 @@ export const connect = Object.freeze({
     attach: 'viable:manager-api:connect:project:attach',
     reinit: 'viable:manager-api:connect:project:reinit',
     modify: 'viable:manager-api:connect:project:modify',
+    /**
+     * A person's request in words, TRIAGED first: a question is answered by reading, a small fix is
+     * made by the agent at once (free flight), anything bigger is filed as cards of the right type on
+     * the person's own channel — and started on request once the agent lets go of the project. What a
+     * cards client sends `modify_project` to; the legacy `modify` keeps its exact behaviour.
+     */
+    request: 'viable:manager-api:connect:project:request',
     /**
      * Rename a project — its name, brief and what its code says it is called; never its address.
      * A new name is an agent run paid like free flight.
@@ -800,6 +814,21 @@ export const connect = Object.freeze({
   }),
   story: Object.freeze({
     status: 'viable:manager-api:connect:story:status',
+  }),
+  /**
+   * Work cards of every type — the cards wire. The cards themselves are planning cards reached
+   * through the planning tree; these are what planning cannot answer alone: one card's composed status
+   * (its members, plan, proposals, a task's inputs and its run), Run together (a new spec of the
+   * selected cards, started on request), and Run all as a proposal first (`plan`, nothing written) and
+   * the accepted assignment applied (`runAll`, one batch); `rerun` starts a container for exactly its
+   * failed or unfinished members (the person's Start, the container's gate).
+   */
+  cards: Object.freeze({
+    status: 'viable:manager-api:connect:cards:status',
+    together: 'viable:manager-api:connect:cards:together',
+    plan: 'viable:manager-api:connect:cards:plan',
+    runAll: 'viable:manager-api:connect:cards:run-all',
+    rerun: 'viable:manager-api:connect:cards:rerun',
   }),
   convert: Object.freeze({
     create: 'viable:manager-api:connect:convert:create',
@@ -979,3 +1008,12 @@ export enum ConnectPaidGate {
 
 /** Tier → the model the parent will run it on. Free-form; display only. */
 export const ModelTierValues = Object.values(ModelTier)
+
+/**
+ * The most cards one Run together selection names through the connector — the platform's spec cap
+ * (`SPEC_CARDS_MAX`): the combined pass's prompt and settle bound grow with every member.
+ */
+export const CONNECT_CARDS_TOGETHER_MAX = 24
+
+/** The longest idempotency key a Run together request names. */
+export const CONNECT_CARDS_KEY_MAX = 128

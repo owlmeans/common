@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm-reader
 
 **Layer:** Server (Node / Bun — sockets and a local proxy bridge)
-**Install:** `"@owlmeans/llm-reader": "^0.2.2-alpha.0"` in `dependencies`, plus the `@langchain/core`,
+**Install:** `"@owlmeans/llm-reader": "^0.2.3-alpha.0"` in `dependencies`, plus the `@langchain/core`,
 `@langchain/langgraph`, `@langchain/langgraph-checkpoint`, `@langchain/openai` and
 `@langchain/anthropic` **peers**
 **Plugins:** `@owlmeans/llm-reader-playwright` (rendering) · `@owlmeans/llm-reader-google-drive`

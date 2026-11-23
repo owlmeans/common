@@ -87,10 +87,43 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
+      id: 'vib:spec:develop',
+      title: 'Build a spec — several cards together',
+      what: 'Plans the spec\'s members, designs them together, implements every piece once for all the members it'
+        + ' serves, then checks the application still boots. Members that pass complete and the rest fail ("k of n");'
+        + ' running it again runs only the members still open — or only the failed ones (rerun_card).',
+      startedBy: ['run_card', 'run_cards_together', 'run_all_cards', 'rerun_card'],
+      stages: ['plan', 'design', 'implement', 'widget', 'landing', 'boot gate'],
+      resumable: true,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
+    },
+    {
+      id: 'vib:work:run',
+      title: 'An improvement or a standalone feature',
+      what: 'An architect picks the shortest set of steps the change needs, then the platform runs exactly those'
+        + ' (a feature first scopes its capability and the user stories it needs; its re-run builds only the stories'
+        + ' inside it that failed or are unfinished).',
+      startedBy: ['run_card', 'rerun_card'],
+      stages: ['scope', 'plan', 'design', 'implement', 'report'],
+      resumable: true,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
+    },
+    {
+      id: 'vib:task:run',
+      title: 'A task — no code',
+      what: 'Configuration variables, secrets the person types into the task\'s secure input, one guarded data'
+        + ' change at a time behind an automatic backup, backups and restores. It asks before it changes data.',
+      startedBy: ['run_card'],
+      stages: ['prepare', 'execute', 'verify', 'record'],
+      resumable: true,
+      waitsFor: [ConnectWaitReason.Person, ConnectWaitReason.ModelTask],
+    },
+    {
       id: 'free flight',
       title: 'An open-ended change',
       what: 'The platform\'s own coding agent makes a change described in words — a fix, a styling'
-        + ' pass, or restating a new name through the code. For anything that is not a user story.',
+        + ' pass, or restating a new name through the code. A request is read first: a question is answered'
+        + ' without changes, and work bigger than a fix is filed as cards instead (started only when asked now).',
       startedBy: ['modify_project', 'rename_project'],
       resumable: true,
       waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
@@ -333,6 +366,21 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       absent: 'no story tools are offered here',
     },
     {
+      id: 'cards',
+      title: 'Work cards: specs, features, improvements and tasks',
+      what: 'Every kind of work is a card: a spec (several cards built together in one run), a feature (one'
+        + ' capability for one role), a user story, an improvement (a change to what exists) and a task'
+        + ' (configuration, secrets, a data change — no code). List, add (type auto lets the platform decide),'
+        + ' reword, retype, decide proposals, run one, build several together, run every loose card, build a spec\'s or'
+        + ' a feature\'s failed or unfinished cards again, follow one and delete it. A task\'s secrets are typed by the'
+        + ' user into its secure input — never sent here.',
+      tools: [
+        'list_cards', 'create_card', 'update_card', 'retype_card', 'run_card', 'run_cards_together',
+        'run_all_cards', 'rerun_card', 'card_status', 'delete_card',
+      ],
+      absent: 'no cards tools are offered here',
+    },
+    {
       id: 'runs',
       title: 'Runs and statuses',
       what: 'Read where a run stopped, continue it, stop what the agent runs now (a story run is rolled'
@@ -354,8 +402,8 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     {
       id: 'free-flight',
       title: 'An open-ended change',
-      what: 'Describe a change in words and let the platform\'s own coding agent make it — for'
-        + ' anything that is not a user story — and send it messages while it works.',
+      what: 'Describe a change in words: a question is answered, a small fix is made by the platform\'s own'
+        + ' coding agent, and anything bigger becomes cards on the board — and send the agent messages while it works.',
       tools: ['modify_project', 'steer_agent'],
       absent: 'open-ended changes are not offered here',
     },

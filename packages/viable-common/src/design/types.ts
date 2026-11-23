@@ -6,7 +6,7 @@ import type { RecordInteractionPlan } from '../interaction/types.js'
 import type { AccessList } from '../dev/types.js'
 import type { UXTransition } from '../ux/types.js'
 
-import { StoryActor, StoryAgentKind } from './consts.js'
+import { WorkcardActor, WorkcardAgentKind } from './consts.js'
 
 /**
  * One screen, as the design decided it.
@@ -15,7 +15,7 @@ import { StoryActor, StoryAgentKind } from './consts.js'
  * whoever writes the file later. That is the difference between a design and a wish: two runs days
  * apart address the same file because the design named it, not because they guessed alike.
  */
-export interface StoryDesignScreen {
+export interface WorkcardDesignScreen {
   /** The UX name, `{section}/{part}/{purpose}`. Not a path. */
   name: string
   /** The path-shaped stem the file and its aliases are derived from. */
@@ -43,7 +43,7 @@ export interface StoryDesignScreen {
    * How the screen arranges its components, decided by the `composition` design step: one page, or
    * one TAB per heavy form. Absent on a design written before the step, and on a one-component screen.
    */
-  composition?: StoryScreenComposition
+  composition?: WorkcardScreenComposition
   /**
    * The area this screen hangs under, by KEY — set only when it is not the story's own area (a
    * story reaching further areas). Absent: the story's `area`.
@@ -57,27 +57,27 @@ export interface StoryDesignScreen {
 }
 
 /** One tab of a tabbed screen: an id for the URL, a label a person reads, the components it holds. */
-export interface StoryScreenTab {
+export interface WorkcardScreenTab {
   id: string
   label: string
-  /** Keys into `StoryDesign.components`, in render order. */
+  /** Keys into `WorkcardDesign.components`, in render order. */
   components: string[]
 }
 
-export interface StoryScreenComposition {
+export interface WorkcardScreenComposition {
   kind: 'page' | 'tabs'
   /** The tabs, in order; empty for a page. */
-  tabs: StoryScreenTab[]
+  tabs: WorkcardScreenTab[]
   /** Components shown above the tabs on every tab — the ones that only display records. */
   shared: string[]
   /** What each component weighs, by its key — the facts the decision was taken from. */
-  weights: Record<string, StoryComponentWeight>
+  weights: Record<string, WorkcardComponentWeight>
 }
 
 /** `complex` — rows of fields the person adds and removes, or many inputs; `form` — a few fields and a submit; `display` — shows and opens records. */
-export type StoryComponentWeight = 'complex' | 'form' | 'display'
+export type WorkcardComponentWeight = 'complex' | 'form' | 'display'
 
-export interface StoryDesignComponent {
+export interface WorkcardDesignComponent {
   name: string
   definition: string
   path: string
@@ -99,7 +99,7 @@ export interface StoryDesignComponent {
   // a value decided at design time returns the user to a placeholder.
 }
 
-export interface StoryDesignType {
+export interface WorkcardDesignType {
   path: string
   entity: string
   purpose: string
@@ -112,7 +112,7 @@ export interface StoryDesignType {
   units?: string[]
 }
 
-export interface StoryDesignResource {
+export interface WorkcardDesignResource {
   path: string
   entity: string
   type: string
@@ -125,7 +125,7 @@ export interface StoryDesignResource {
   units?: string[]
 }
 
-export interface StoryDesignModel {
+export interface WorkcardDesignModel {
   path: string
   entities: string[]
   /**
@@ -145,21 +145,21 @@ export interface StoryDesignModel {
   units?: string[]
 }
 
-export interface StoryDesignEndpoint {
+export interface WorkcardDesignEndpoint {
   alias: string
   method: string
   path: string
   purpose: string
 }
 
-export interface StoryDesignApi {
+export interface WorkcardDesignApi {
   path: string
   entity: string
   type: string
   model: string
-  endpoints: StoryDesignEndpoint[]
+  endpoints: WorkcardDesignEndpoint[]
   /** Required operations; a read dependency does not acquire an unrelated management workflow. */
-  operations?: StoryRecordOperation[]
+  operations?: WorkcardRecordOperation[]
   /** The app whose api package serves this group — one copy per touched app; absent is `main`. */
   app?: string
   /**
@@ -169,9 +169,9 @@ export interface StoryDesignApi {
   units?: string[]
 }
 
-export type StoryRecordOperation = 'list' | 'get' | 'create' | 'update' | 'remove'
+export type WorkcardRecordOperation = 'list' | 'get' | 'create' | 'update' | 'remove'
 
-export interface StoryDesignStore {
+export interface WorkcardDesignStore {
   path: string
   entity: string
   type: string
@@ -186,7 +186,7 @@ export interface StoryDesignStore {
 }
 
 /** What the design was written against, so a reader can tell whether it still applies. */
-export interface StoryDesignProvenance {
+export interface WorkcardDesignProvenance {
   designedAt: string
   narrativeHash: string
   /** Specification + vision + design system, hashed together. */
@@ -214,7 +214,7 @@ export interface StoryDesignProvenance {
  * not named here. That split is what makes a story re-implementable without re-designing it — and
  * what makes a design reviewable, amendable and reusable at all.
  */
-export interface StoryDesign {
+export interface WorkcardDesign {
   /** Shared by scaffold, guided development and free flight. Absent on legacy designs. */
   interaction?: RecordInteractionPlan
   version: number
@@ -233,13 +233,13 @@ export interface StoryDesign {
    */
   reserved: { section?: string, screen?: string }
   entities: Array<{ name: string, description: string, dir: string }>
-  screens: StoryDesignScreen[]
-  components: StoryDesignComponent[]
-  types: StoryDesignType[]
-  resources: StoryDesignResource[]
-  models: StoryDesignModel[]
-  api: StoryDesignApi[]
-  stores: StoryDesignStore[]
+  screens: WorkcardDesignScreen[]
+  components: WorkcardDesignComponent[]
+  types: WorkcardDesignType[]
+  resources: WorkcardDesignResource[]
+  models: WorkcardDesignModel[]
+  api: WorkcardDesignApi[]
+  stores: WorkcardDesignStore[]
   transitions: UXTransition[]
   /**
    * WRITE-BACK slot, filled by the implementation stage.
@@ -255,7 +255,7 @@ export interface StoryDesign {
    * Optional, and read through {@link runtimeOf} everywhere: a design written before the gate
    * existed carries none, and "none" is both the safe reading and the true one.
    */
-  runtime?: StoryDesignRuntime
+  runtime?: WorkcardDesignRuntime
   /**
    * The stated requirements this story must honour — its slice of the project's, plus the ones
    * quoted from a person's own story. Optional: a story without any carries none, and a design
@@ -269,15 +269,15 @@ export interface StoryDesign {
    * and every piece names the units it serves (`units`). Absent on a design of one story — which is
    * every design a one-story run writes, and every member's own slice.
    */
-  units?: StoryDesignUnit[]
-  provenance: StoryDesignProvenance
+  units?: WorkcardDesignUnit[]
+  provenance: WorkcardDesignProvenance
 }
 
 /**
  * One user story of a combined run, as its run design holds it — what a one-story design keeps at its
  * top level. A member's own design (its slice) is cut from the run design with these fields restored.
  */
-export interface StoryDesignUnit {
+export interface WorkcardDesignUnit {
   /** The story's code — the target's vocabulary (registry, story file, placeholders). */
   code: string
   /** The story CARD's id — what the member's own design is written to. */
@@ -303,7 +303,7 @@ export interface StoryDesignUnit {
 }
 
 /** Who wrote a design revision and why — recorded on the transition, never in the design. */
-export interface StoryDesignPutOptions {
+export interface WorkcardDesignPutOptions {
   runId?: string
   cause?: string
 }
@@ -318,15 +318,15 @@ export interface StoryDesignPutOptions {
  * holds the payload. The code a design carries is the target's vocabulary; it never addresses a
  * record.
  */
-export interface StoryDesignPort {
+export interface WorkcardDesignPort {
   /** The card's current design and its revision; `null` when none was written or its version differs. */
-  current: (cardId: string) => Promise<{ revision: number, design: StoryDesign } | null>
+  current: (cardId: string) => Promise<{ revision: number, design: WorkcardDesign } | null>
   /** Write a design as the card's next revision and answer the revision number it received. */
-  put: (cardId: string, design: StoryDesign, opts?: StoryDesignPutOptions) => Promise<number>
+  put: (cardId: string, design: WorkcardDesign, opts?: WorkcardDesignPutOptions) => Promise<number>
 }
 
 /** One queued unit of work. */
-export interface StoryDesignJob {
+export interface WorkcardDesignJob {
   /** The queue it is enqueued onto. */
   queue: string
   /** The job name, which becomes the backend-only `job:<name>` protocol alias. */
@@ -356,7 +356,7 @@ export interface StoryDesignJob {
    * Optional: every job an endpoint enqueues carries none. Read through `jobScheduleHelper.scheduleOf`,
    * which answers only a valid one.
    */
-  schedule?: StoryDesignJobSchedule
+  schedule?: WorkcardDesignJobSchedule
   /**
    * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
    * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
@@ -369,7 +369,7 @@ export interface StoryDesignJob {
  * (`cron` is the declaration's `pattern`: a property named `pattern` is hidden from a model shown the
  * schema). Exactly one of `cron` and `every`; `tz` goes with `cron` and only with it.
  */
-export interface StoryDesignJobSchedule {
+export interface WorkcardDesignJobSchedule {
   /** A five-field cron pattern (`minute hour day-of-month month day-of-week`), read in `tz` — `7 2 * * *`. */
   cron?: string
   /** Milliseconds between runs. */
@@ -381,7 +381,7 @@ export interface StoryDesignJobSchedule {
 }
 
 /** An LLM agent or pipeline generated INTO the target. */
-export interface StoryDesignAgent {
+export interface WorkcardDesignAgent {
   /** Its alias in the target's own agent registry. */
   alias: string
   /** The module, relative to the shared backend package's `src`. */
@@ -389,7 +389,7 @@ export interface StoryDesignAgent {
   /** What it is for. */
   purpose: string
   /** Which of the three shapes this is — a call, a pipeline, or a tool-using agent. */
-  kind: StoryAgentKind
+  kind: WorkcardAgentKind
   /** The job that runs it — an agent is never invoked on the request path. */
   job?: string
   /**
@@ -405,12 +405,12 @@ export interface StoryDesignAgent {
  * Absent on a design written before this existed, and read as "none of it" everywhere — which is
  * both the safe answer and the true one for every story developed until now.
  */
-export interface StoryDesignRuntime {
-  actor: StoryActor
+export interface WorkcardDesignRuntime {
+  actor: WorkcardActor
   /** Whether this story puts work on the queue at all. */
   worker: boolean
-  jobs: StoryDesignJob[]
-  agents: StoryDesignAgent[]
+  jobs: WorkcardDesignJob[]
+  agents: WorkcardDesignAgent[]
   /**
    * Whether this story's data belongs in the key/value store rather than in Postgres.
    *
@@ -429,10 +429,10 @@ export interface StoryDesignRuntime {
   /**
    * The bot handlers this story writes — on a target whose blueprint has `capabilities.bot`.
    *
-   * Optional, read through `storyRuntimeHelper.botHandlersOf`: an absent block (every design written
+   * Optional, read through `workcardRuntimeHelper.botHandlersOf`: an absent block (every design written
    * before bots, and every story that reacts to no message) reads as no handlers.
    */
-  bot?: { handlers: StoryDesignBotHandler[] }
+  bot?: { handlers: WorkcardDesignBotHandler[] }
 }
 
 // Kept as a type: a closed string union.
@@ -441,15 +441,15 @@ export interface StoryDesignRuntime {
  * (`keywords` — the handler loads the type named in `records` and matches the text against it), every
  * message (`all`), one `/command`, or those addressed to the bot (a DM, a mention, a reply to it).
  */
-export type StoryDesignBotTrigger = 'keywords' | 'all' | 'command' | 'addressed'
+export type WorkcardDesignBotTrigger = 'keywords' | 'all' | 'command' | 'addressed'
 
 /** One generated bot handler: `sources/backend/src/bot/handlers/<name>.ts`, listed in the barrel. */
-export interface StoryDesignBotHandler {
+export interface WorkcardDesignBotHandler {
   /** The handler's name — its file slug and the name it is registered under. */
   name: string
   /** What it does, in one sentence, for the coder that writes it. */
   purpose: string
-  trigger: StoryDesignBotTrigger
+  trigger: WorkcardDesignBotTrigger
   /** The command name, without the slash, when `trigger` is `command`. */
   command?: string
   /** The kit actions it carries out — the ones the project's bot kit offers. */
@@ -463,10 +463,10 @@ export interface StoryDesignBotHandler {
   records?: string[]
 }
 
-/** What the gate answers with — the model's half of {@link StoryDesignRuntime}. */
+/** What the gate answers with — the model's half of {@link WorkcardDesignRuntime}. */
 export interface RuntimeDecision {
   kv: boolean
   feedback: string
-  jobs: StoryDesignJob[]
-  agents: StoryDesignAgent[]
+  jobs: WorkcardDesignJob[]
+  agents: WorkcardDesignAgent[]
 }

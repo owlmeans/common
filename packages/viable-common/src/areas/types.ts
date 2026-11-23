@@ -22,7 +22,7 @@ export type AreaKey = string
  * inherit, and which URL the preview opens when the story is done. It is the area's KEY: one of the
  * four standard keys, or a custom area of the project's map.
  */
-export interface StoryDraft {
+export interface WorkcardDraft {
   story: string
   area: AreaKey
 }

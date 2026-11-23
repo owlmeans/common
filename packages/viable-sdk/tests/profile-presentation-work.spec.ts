@@ -2,9 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import { z } from 'zod'
 import {
   ConnectFeedKind, ConnectHarness, ConnectInquiryKind, ConnectLlm, ConnectTarget, ConnectWaitReason, ConversionStatus,
-  StoryBatchKind, StoryBatchOrderSource, StoryBatchOutcome, StoryBatchStatus, ViableStoryTransition, STORY_BATCH_STALLED,
+  WorkcardBatchKind, WorkcardBatchOrderSource, WorkcardBatchOutcome, WorkcardBatchStatus, ViableWorkcardTransition, WORKCARD_BATCH_STALLED,
   type BlueprintCatalogue, type ConnectPipelineState, type ConnectProjectStatus, type ConnectStoryStatus,
-  type ConversionStatusView, type ConvertCheck, type InquiryPayload, type StoryBatchView, type ViableStoryCard,
+  type ConversionStatusView, type ConvertCheck, type InquiryPayload, type WorkcardBatchView, type ViableWorkcard,
 } from '@owlmeans/viable-common'
 import { catalogue } from '../src/tools/catalogue.js'
 import { ToolHostKind } from '../src/tools/consts.js'
@@ -132,16 +132,16 @@ const BARE_STATUS = {
   agent: { locked: false },
 } as unknown as ConnectProjectStatus
 
-const batchView = (patch: Partial<StoryBatchView> = {}): StoryBatchView => ({
+const batchView = (patch: Partial<WorkcardBatchView> = {}): WorkcardBatchView => ({
   id: 'b1',
   projectId: 'p1',
-  kind: StoryBatchKind.Stories,
-  status: StoryBatchStatus.Running,
+  kind: WorkcardBatchKind.Workcards,
+  status: WorkcardBatchStatus.Running,
   stories: ['c2', 'c1', 'c3'],
   codes: { c1: 'US-AAAAA', c2: 'US-BBBBB', c3: 'US-CCCCC' },
-  ordering: { source: StoryBatchOrderSource.Model, reasons: { c2: 'creates the order record', c1: 'lists the orders' } },
+  ordering: { source: WorkcardBatchOrderSource.Model, reasons: { c2: 'creates the order record', c1: 'lists the orders' } },
   current: 'c1',
-  outcomes: { c2: StoryBatchOutcome.Completed },
+  outcomes: { c2: WorkcardBatchOutcome.Completed },
   createdAt: '2026-10-24T10:00:00.000Z',
   updatedAt: '2026-10-24T10:30:00.000Z',
   ...patch,
@@ -177,12 +177,12 @@ const conversionView = (patch: Partial<ConversionStatusView> = {}): ConversionSt
 })
 
 /** A connector whose story tools run over a REAL planning service, the story status composed from the card. */
-const storyConnector = (suite: PlanningSuite, projectId: string, extra: Partial<ConnectStoryStatus> = {}): ToolDeps =>
+const workcardConnector = (suite: PlanningSuite, projectId: string, extra: Partial<ConnectStoryStatus> = {}): ToolDeps =>
   depsOf({
     planning: suite.planning,
     story: {
-      status: async (project: string, storyId: string): Promise<ConnectStoryStatus> => {
-        const card = await suite.planning.cards.get(storyId) as ViableStoryCard
+      status: async (project: string, workcardId: string): Promise<ConnectStoryStatus> => {
+        const card = await suite.planning.cards.get(workcardId) as ViableWorkcard
 
         return {
           projectId: project,
@@ -369,18 +369,18 @@ describe('viable-sdk — the work-domain presentation of a listing profile', () 
     const gate = await suite.story(project.id!, 'As a cook, I pick what is in my pantry.', {
       order: 1, fields: { landing: true, primary: true },
     })
-    await suite.story(project.id!, 'As a cook, I save a recipe.', { order: 2, moves: [ViableStoryTransition.Start] })
+    await suite.story(project.id!, 'As a cook, I save a recipe.', { order: 2, moves: [ViableWorkcardTransition.Start] })
     await suite.story(project.id!, 'As a cook, I share a recipe.', { order: 3 })
-    const deps = storyConnector(suite, project.id!)
+    const deps = workcardConnector(suite, project.id!)
 
     const page = presented('list_stories', await structuredOf('list_stories', { size: 2 }, deps), { size: 2 })
     expect(page).toMatchObject({ total: 3, page: 0, nextPage: 1 })
-    const stories = page.stories as Record<string, unknown>[]
-    expect(stories[0]).toEqual({
+    const workcards = page.stories as Record<string, unknown>[]
+    expect(workcards[0]).toEqual({
       id: gate.id, code: gate.code, title: gate.title, status: 'planned', intrinsic: 'planned', area: 'user',
       primary: true, landing: true,
     })
-    expect(stories[1]).toMatchObject({ status: 'in-progress', primary: false })
+    expect(workcards[1]).toMatchObject({ status: 'in-progress', primary: false })
     expect(JSON.stringify(page)).not.toContain(ENTITY_ID)
 
     const last = presented('list_stories', await structuredOf('list_stories', { size: 2, page: 1 }, deps), { size: 2, page: 1 })
@@ -411,13 +411,13 @@ describe('viable-sdk — the work-domain presentation of a listing profile', () 
     const gate = await suite.story(project.id!, 'As a cook, I pick what is in my pantry.', { fields: { landing: true } })
     const failed = await suite.story(project.id!, 'As a cook, I save a recipe.', {
       fields: { warning: 'viable-agent-common:content-refused:abuse-tooling' },
-      moves: [ViableStoryTransition.Start, ViableStoryTransition.Fail],
+      moves: [ViableWorkcardTransition.Start, ViableWorkcardTransition.Fail],
     })
     const run = {
       runId: 'r3', pipeline: 'vib:story:develop', status: 'waiting', step: 'design', completed: [], pending: ['design'],
       startedAt: '2026-10-31T10:00:00.000Z',
     }
-    const deps = storyConnector(suite, project.id!, { run, waitingFor: ConnectWaitReason.Person, pendingInquiry: inquiry({ id: 'q3' }) })
+    const deps = workcardConnector(suite, project.id!, { run, waitingFor: ConnectWaitReason.Person, pendingInquiry: inquiry({ id: 'q3' }) })
 
     const status = presented('story_status', await structuredOf('story_status', { storyId: gate.code }, deps))
     expect(status).toEqual({
@@ -445,14 +445,14 @@ describe('viable-sdk — the work-domain presentation of a listing profile', () 
   })
 
   test('a story batch reads in implementation order with each story\'s state; none, halted and cancelled too', async () => {
-    let view: StoryBatchView | null = batchView()
+    let view: WorkcardBatchView | null = batchView()
     const stops: string[] = []
     const deps = depsOf({
       project: {
         batch: {
-          start: async () => batchView({ status: StoryBatchStatus.Ordering, current: undefined, outcomes: {} }),
+          start: async () => batchView({ status: WorkcardBatchStatus.Ordering, current: undefined, outcomes: {} }),
           get: async () => view,
-          cancel: async () => batchView({ status: StoryBatchStatus.Cancelled }),
+          cancel: async () => batchView({ status: WorkcardBatchStatus.Cancelled }),
         },
         stop: async (_projectId: string, args: { storyId: string }) => { stops.push(args.storyId); return { locked: true, stopping: true } },
       },
@@ -479,10 +479,10 @@ describe('viable-sdk — the work-domain presentation of a listing profile', () 
       },
     })
 
-    view = batchView({ status: StoryBatchStatus.Halted, reason: STORY_BATCH_STALLED })
+    view = batchView({ status: WorkcardBatchStatus.Halted, reason: WORKCARD_BATCH_STALLED })
     const halted = presented('story_batch_status', await structuredOf('story_batch_status', {}, deps))
     expect(halted.batch).toMatchObject({ status: 'halted', halted: expect.stringContaining('stopped moving') })
-    expect((halted.batch as { stories: { state: string }[] }).stories.map(story => story.state))
+    expect((halted.batch as { stories: { state: string }[] }).stories.map(workcard => workcard.state))
       .toEqual(['completed', 'started', 'not-started'])
 
     view = null

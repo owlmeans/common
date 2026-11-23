@@ -1,12 +1,12 @@
 import { SpecCategory } from '../ba/consts.js'
-import type { Entity, StoryComponent, StoryScreen, UserStory } from '../ba/types.js'
-import { DesignStaleness, STORY_DESIGN_VERSION } from './consts.js'
-import type { StoryDesign } from './types.js'
-import type { StoryDesignHelper } from './story/types.js'
+import type { Entity, UserStoryComponent, UserStoryScreen, UserStory } from '../ba/types.js'
+import { DesignStaleness, WORKCARD_DESIGN_VERSION } from './consts.js'
+import type { WorkcardDesign } from './types.js'
+import type { WorkcardDesignHelper } from './workcard/types.js'
 
-export const createStoryDesignHelper = (): StoryDesignHelper => {
-  const userStoryOfDesign = (design: StoryDesign): UserStory => {
-    const componentOf = (name: string): StoryComponent | null => {
+export const createWorkcardDesignHelper = (): WorkcardDesignHelper => {
+  const userStoryOfDesign = (design: WorkcardDesign): UserStory => {
+    const componentOf = (name: string): UserStoryComponent | null => {
       const component = design.components.find(entry => entry.name === name)
       if (component == null) {
         return null
@@ -25,7 +25,7 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
       }
     }
 
-    const screens: StoryScreen[] = design.screens.map(screen => ({
+    const screens: UserStoryScreen[] = design.screens.map(screen => ({
       name: screen.name,
       description: '',
       ...(screen.section != null ? { section: screen.section } : {}),
@@ -35,7 +35,7 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
       } as Record<SpecCategory, string>,
       components: screen.components
         .map(componentOf)
-        .filter((component): component is StoryComponent => component != null),
+        .filter((component): component is UserStoryComponent => component != null),
     }))
 
     return {
@@ -50,14 +50,14 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
     }
   }
 
-  const screenMapOf = (design: StoryDesign): Record<string, string[]> =>
+  const screenMapOf = (design: WorkcardDesign): Record<string, string[]> =>
     design.screens.reduce<Record<string, string[]>>((map, screen) => {
       map[screen.name] = [...screen.components]
 
       return map
     }, {})
 
-  const designPaths = (design: StoryDesign): string[] => [
+  const designPaths = (design: WorkcardDesign): string[] => [
     ...design.types.map(entry => entry.path),
     ...design.resources.map(entry => entry.path),
     ...design.models.map(entry => entry.path),
@@ -68,10 +68,10 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
   ]
 
   const designStaleness = (
-    design: StoryDesign,
+    design: WorkcardDesign,
     now: { narrativeHash: string, projectHash: string, registryHash: string, requirementsHash?: string },
   ): DesignStaleness => {
-    if (design.version !== STORY_DESIGN_VERSION) {
+    if (design.version !== WORKCARD_DESIGN_VERSION) {
       return DesignStaleness.Version
     }
     if (design.provenance.narrativeHash !== now.narrativeHash) {
@@ -102,10 +102,10 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
     return hash.toString(16).padStart(8, '0')
   }
 
-  const emptyStoryDesign = (
-    input: Pick<StoryDesign, 'code' | 'narrative' | 'area'> & Partial<StoryDesign>,
-  ): StoryDesign => ({
-    version: STORY_DESIGN_VERSION,
+  const emptyWorkcardDesign = (
+    input: Pick<WorkcardDesign, 'code' | 'narrative' | 'area'> & Partial<WorkcardDesign>,
+  ): WorkcardDesign => ({
+    version: WORKCARD_DESIGN_VERSION,
     reserved: {},
     entities: [],
     screens: [],
@@ -127,7 +127,7 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
     ...input,
   })
 
-  const designDigest = (design: StoryDesign): string => {
+  const designDigest = (design: WorkcardDesign): string => {
     const lines: string[] = [
       `Story ${design.code} (${design.area}): ${design.narrative}`,
     ]
@@ -183,9 +183,9 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
     return lines.join('\n')
   }
 
-  const amendStoryDesign = (
-    design: StoryDesign, patch: Record<string, unknown>,
-  ): StoryDesign | string => {
+  const amendWorkcardDesign = (
+    design: WorkcardDesign, patch: Record<string, unknown>,
+  ): WorkcardDesign | string => {
     const forbidden: string[] = []
 
     const checkList = <T extends { path?: string, alias?: string, name?: string }>(
@@ -220,13 +220,13 @@ export const createStoryDesignHelper = (): StoryDesignHelper => {
         + 'or leave the name alone and change the behaviour.'
     }
 
-    return { ...design, ...patch } as StoryDesign
+    return { ...design, ...patch } as WorkcardDesign
   }
 
   return {
-    userStoryOfDesign, screenMapOf, designPaths, designStaleness, designHash, emptyStoryDesign, designDigest,
-    amendStoryDesign,
+    userStoryOfDesign, screenMapOf, designPaths, designStaleness, designHash, emptyWorkcardDesign, designDigest,
+    amendWorkcardDesign,
   }
 }
 
-export const storyDesignHelper = createStoryDesignHelper()
+export const workcardDesignHelper = createWorkcardDesignHelper()

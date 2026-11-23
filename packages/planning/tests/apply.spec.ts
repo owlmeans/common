@@ -52,6 +52,23 @@ describe('applyTransition — the fold', () => {
     expect([next.seq, next.head, next.updatedAt, next.createdAt]).toEqual([2, 2, LATER, AT])
   })
 
+  test('retype writes the transition\'s type onto the record, merges its changes and leaves the rest', () => {
+    const card = created()
+    const next = applyHelper.applyTransition(card, transitionOf({
+      card: 'c1', seq: 2, action: TransitionAction.Retype, type: TASK_TYPE.type, at: LATER,
+      changes: { code: 'T-ABCDE', fields: { formerCodes: ['US-ABCDE'] } }, unset: ['fields.primary'],
+    }))!
+
+    expect(next.type).toBe(TASK_TYPE.type)
+    expect(next.kind).toBe(WorkcardKind.Card)
+    expect(next.code).toBe('T-ABCDE')
+    expect(next.fields).toEqual({ area: 'user', formerCodes: ['US-ABCDE'] })
+    expect([next.status, next.seq, next.createdAt]).toEqual(['planned', 2, AT])
+    // An update never moves the type, whatever its row says.
+    const updated = applyHelper.applyTransition(card, transitionOf({ card: 'c1', seq: 2, action: TransitionAction.Update, type: TASK_TYPE.type }))!
+    expect(updated.type).toBe(STORY_TYPE.type)
+  })
+
   test('an applied seq returns the card unchanged; a gap or a missing card is refused', () => {
     const card = { ...created(), head: 3 }
 

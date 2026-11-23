@@ -18,7 +18,7 @@ export const HARNESS_DIR = '.agents'
 export const MEMORY_DIR = `${HARNESS_DIR}/memory`
 export const DOCS_DIR = 'docs'
 
-export const STORIES_DIR = `${DOCS_DIR}/stories`
+export const WORKCARDS_DIR = `${DOCS_DIR}/stories`
 export const ENTITIES_DIR = `${DOCS_DIR}/entities`
 
 /** Co-located specs keep their names and their place — beside the source file they describe. */
@@ -30,7 +30,7 @@ export const UI_SUFFIX = '.ui.md'
  * Everything under `docs/` is plain markdown: the directory says what a file is, so the name
  * does not have to. `docs/stories/CHK-1.md`, not `docs/stories/CHK-1.story.md`.
  */
-export const STORY_SUFFIX = '.md'
+export const WORKCARD_SUFFIX = '.md'
 export const ENTITY_SUFFIX = '.md'
 
 /** The project brief — `docs/project.md`, the first file anyone opens. */
@@ -129,13 +129,13 @@ export const METADATA_DIRS = [HARNESS_DIR, DOCS_DIR]
 
 export enum MetadataKind {
   Project = 'project',
-  Story = 'story',
+  Workcard = 'story',
   Source = 'source',
   History = 'history',
 }
 
 export enum MetadataListKind {
-  Stories = 'stories',
+  Workcards = 'stories',
   Meta = 'meta',
   // All metadata: the docs/ and .agents/ trees + co-located *.spec/.ux/.ui.md beside sources
   All = 'all',

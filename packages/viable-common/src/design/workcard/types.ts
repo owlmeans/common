@@ -1,9 +1,9 @@
 import type { UserStory } from '../../ba/types.js'
 import type { DesignStaleness } from '../consts.js'
-import type { StoryDesign } from '../types.js'
+import type { WorkcardDesign } from '../types.js'
 
 /** Reading, digesting, hashing and amending a story's design record. */
-export interface StoryDesignHelper {
+export interface WorkcardDesignHelper {
   /**
    * The in-memory aggregate the coders take, derived from the design ALONE.
    *
@@ -17,11 +17,11 @@ export interface StoryDesignHelper {
    * the reader: the card wins on the narrative, code, area and actor, which a person may have
    * changed since the design was written.
    */
-  userStoryOfDesign: (design: StoryDesign) => UserStory
+  userStoryOfDesign: (design: WorkcardDesign) => UserStory
   /** Screen name to component names - the shape every UX and UI prompt takes. */
-  screenMapOf: (design: StoryDesign) => Record<string, string[]>
+  screenMapOf: (design: WorkcardDesign) => Record<string, string[]>
   /** Every path the design names, in the order the implementation stage visits them. */
-  designPaths: (design: StoryDesign) => string[]
+  designPaths: (design: WorkcardDesign) => string[]
   /**
    * How far the world has moved since the design was written.
    *
@@ -34,7 +34,7 @@ export interface StoryDesignHelper {
    * answers `Narrative` too — checked right after the narrative itself.
    */
   designStaleness: (
-    design: StoryDesign,
+    design: WorkcardDesign,
     now: { narrativeHash: string, projectHash: string, registryHash: string, requirementsHash?: string },
   ) => DesignStaleness
   /**
@@ -46,9 +46,9 @@ export interface StoryDesignHelper {
    */
   designHash: (...parts: Array<string | undefined>) => string
   /** An empty design, so every stage can fill its own slice without inventing the shape. */
-  emptyStoryDesign: (
-    input: Pick<StoryDesign, 'code' | 'narrative' | 'area'> & Partial<StoryDesign>,
-  ) => StoryDesign
+  emptyWorkcardDesign: (
+    input: Pick<WorkcardDesign, 'code' | 'narrative' | 'area'> & Partial<WorkcardDesign>,
+  ) => WorkcardDesign
   /**
    * The design, small enough to hand a model, complete enough to act on.
    *
@@ -56,7 +56,7 @@ export interface StoryDesignHelper {
    * types and endpoints the story implies. The UX and UI prose is the bulk of a design and none of
    * it helps an agent decide what to do next, so it is deliberately left out.
    */
-  designDigest: (design: StoryDesign) => string
+  designDigest: (design: WorkcardDesign) => string
   /**
    * Apply a patch to a design, refusing anything that would rename an allocated artifact.
    *
@@ -67,5 +67,5 @@ export interface StoryDesignHelper {
    *
    * Returns the reason as a STRING when it refuses, so a model can read it and take the other route.
    */
-  amendStoryDesign: (design: StoryDesign, patch: Record<string, unknown>) => StoryDesign | string
+  amendWorkcardDesign: (design: WorkcardDesign, patch: Record<string, unknown>) => WorkcardDesign | string
 }

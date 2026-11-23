@@ -3,7 +3,7 @@ import { ResilientError } from '@owlmeans/error'
 import { CommitState, TransitionAction, WorkcardConflict } from '@owlmeans/planning'
 import {
   CONNECT_CALL_COLLECT_WAIT_SEC, CONNECT_CALL_HEADER, CONNECT_TOKEN_PREFIX, ConnectCallLost, ConnectCallState,
-  ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget, connect, connectRef, VIABLE_STORY_TYPE,
+  ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget, connect, connectRef, VIABLE_USER_STORY_TYPE,
   type ModelTask, type ModelTaskResult,
 } from '@owlmeans/viable-common'
 
@@ -52,7 +52,7 @@ describe('viable-sdk — a delegated write is named with x-viable-call', () => {
       await api.project.create('a store finder')
       await api.project.status('p1')
       await api.planning.cards.list({ parent: 'p1' } as never)
-      await api.planning.execute({ action: TransitionAction.Create, card: { kind: 'card', type: VIABLE_STORY_TYPE, parent: 'p1', title: 'x' } } as never)
+      await api.planning.execute({ action: TransitionAction.Create, card: { kind: 'card', type: VIABLE_USER_STORY_TYPE, parent: 'p1', title: 'x' } } as never)
 
       const named = calls.map(call => [call.alias, callIdOf(call) !== ''])
       const delegated = llm === ConnectLlm.Local
@@ -117,14 +117,14 @@ describe('viable-sdk — an early { pending } answer is collected until the call
   test('a planning execute through the planning client resolves with the receipt the direct answer would give', async () => {
     const context = await contextOf(ConnectLlm.Local)
     const transition = { id: 't1', card: 'c1', seq: 1, action: TransitionAction.Create, commit: { state: CommitState.Committed } }
-    const card = { id: 'c1', kind: 'card', type: VIABLE_STORY_TYPE, title: 'x', seq: 1, createdAt: '2026-10-09T00:00:00.000Z' }
+    const card = { id: 'c1', kind: 'card', type: VIABLE_USER_STORY_TYPE, title: 'x', seq: 1, createdAt: '2026-10-09T00:00:00.000Z' }
     const calls = captureTransport(context, call => call.alias.endsWith(':execute')
       ? accepted({ pending: callIdOf(call) })
       : { state: ConnectCallState.Settled, outcome: 'ok', value: { transition, card } })
     const { planning } = makeRemoteConnectorApi(context)
 
     const receipt = await planning.execute({
-      action: TransitionAction.Create, card: { kind: 'card', type: VIABLE_STORY_TYPE, parent: 'p1', title: 'x' },
+      action: TransitionAction.Create, card: { kind: 'card', type: VIABLE_USER_STORY_TYPE, parent: 'p1', title: 'x' },
     } as never, { wait: true })
 
     expect(receipt.transition).toEqual({ ...transition, entityId: '' } as never)

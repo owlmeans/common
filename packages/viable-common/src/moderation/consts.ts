@@ -36,7 +36,7 @@ export enum ModerationCategory {
 export enum ModerationSubject {
   Prompt = 'prompt',
   Specification = 'specification',
-  Story = 'story',
+  Workcard = 'story',
   /**
    * A file a human wrote through the project's own editor.
    *

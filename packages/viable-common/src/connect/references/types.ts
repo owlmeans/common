@@ -1,5 +1,5 @@
 import type { BlueprintCatalogue } from '../../blueprint/catalogue/types.js'
-import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView } from '../../batch/types.js'
+import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, WorkcardBatchStartArgs, WorkcardBatchView } from '../../batch/types.js'
 import type {
   ConnectAccessTokenList, ConnectAccessTokenParams, ConnectAccessTokenRevoked, ConnectBrandingBackfill, ConnectIntentPickup,
   ConnectIntentPickupBody, ConnectOrganizationBranding, ConnectOrganizationBrandingSave, ConnectPrivacyChoices,
@@ -27,12 +27,17 @@ import type {
   ConnectMaterialsState, ConnectMaterialText,
 } from '../materials/types.js'
 import type { UploadFileQuery, UploadFileResult, UploadSession } from '@owlmeans/upload'
+import type {
+  ConnectCardParams, ConnectCardStatus, ConnectCardsPlanView, ConnectCardsRerunBody, ConnectCardsRerunView,
+  ConnectCardsRunAllBody, ConnectCardsTogetherBody,
+  ConnectCardsTogetherView, ConnectRequestView,
+} from '../cards/types.js'
 import type { BinaryBody } from '@owlmeans/entrypoint'
 import type { ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFileChanges } from '../feed/types.js'
 import type { ConnectInquiryAnswerBody, ConnectOp, ConnectOpResult, ConnectOpSubmission } from '../ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from '../pipeline/types.js'
 import type {
-  ConnectAgentLock, ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody,
+  ConnectAgentLock, ConnectAttachBody, ConnectConfirmBody, ConnectConfirmImplementationBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody,
   ConnectProjectStatus, ConnectProjectSummary, ConnectStoryStatus
 } from '../project/types.js'
 import type {
@@ -99,6 +104,7 @@ export interface ConnectReferences {
     createWithMaterials: ConnectReference<{ body: ConnectCreateWithMaterialsBody }, ConnectProjectStatus>
     createWithReferences: ConnectReference<{ body: ConnectCreateBody }, ConnectProjectStatus>
     confirmWithReferences: ConnectReference<{ params: { id: string }, body: ConnectConfirmBody }, ConnectProjectStatus>
+    confirmImplementation: ConnectReference<{ params: { id: string }, body: ConnectConfirmImplementationBody }, ConnectProjectStatus>
     materials: {
       state: ConnectReference<{ params: { id: string } }, UploadSession>
       file: ConnectReference<{ params: { id: string }, query: UploadFileQuery, body: BinaryBody }, UploadFileResult>
@@ -114,14 +120,15 @@ export interface ConnectReferences {
     attach: ConnectReference<{ body: ConnectAttachBody }, ConnectProjectStatus>
     reinit: ConnectReference<{ params: { id: string } }, ConnectProjectStatus>
     modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>
+    request: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectRequestView>
     rename: ConnectReference<{ params: { id: string }, body: ConnectRenameBody }, ConnectProjectStatus>
     destroy: ConnectReference<{ params: { id: string } }, ConnectProjectSummary>
     stop: ConnectReference<{ params: { id: string }, body: AgentStopArgs }, ConnectAgentLock>
     steer: ConnectReference<{ params: { id: string }, body: AgentSteerArgs }, AgentSteerResult>
     batch: {
-      start: ConnectReference<{ params: { id: string }, body: StoryBatchStartArgs }, StoryBatchView>
-      get: ConnectReference<{ params: { id: string } }, StoryBatchView | null>
-      cancel: ConnectReference<{ params: { id: string } }, StoryBatchView>
+      start: ConnectReference<{ params: { id: string }, body: WorkcardBatchStartArgs }, WorkcardBatchView>
+      get: ConnectReference<{ params: { id: string } }, WorkcardBatchView | null>
+      cancel: ConnectReference<{ params: { id: string } }, WorkcardBatchView>
     }
     activity: ConnectReference<{ params: { id: string }, query?: ConnectActivityQuery }, ConnectFeedPage>
     llm: {
@@ -153,6 +160,13 @@ export interface ConnectReferences {
   }
   story: {
     status: ConnectReference<{ params: { id: string, storyId: string } }, ConnectStoryStatus>
+  }
+  cards: {
+    status: ConnectReference<{ params: ConnectCardParams }, ConnectCardStatus>
+    together: ConnectReference<{ params: { id: string }, body: ConnectCardsTogetherBody }, ConnectCardsTogetherView>
+    plan: ConnectReference<{ params: { id: string } }, ConnectCardsPlanView>
+    runAll: ConnectReference<{ params: { id: string }, body: ConnectCardsRunAllBody }, WorkcardBatchView>
+    rerun: ConnectReference<{ params: { id: string }, body: ConnectCardsRerunBody }, ConnectCardsRerunView>
   }
   files: {
     list: ConnectReference<{ params: { id: string } }, string[]>

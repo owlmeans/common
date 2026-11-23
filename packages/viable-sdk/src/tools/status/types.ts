@@ -1,4 +1,4 @@
-import type { ConnectClientView, ConnectPipelineState, ConnectProjectStatus, ConnectSlotView, ConnectStoryStatus, ConversionStatusView, StoryBatchView } from '@owlmeans/viable-common'
+import type { ConnectClientView, ConnectPipelineState, ConnectProjectStatus, ConnectSlotView, ConnectStoryStatus, ConversionStatusView, WorkcardBatchView } from '@owlmeans/viable-common'
 import type { StoryStatusExtra } from '../types.js'
 
 /** Every domain status as text a parent agent reads — each one ending in the next valid action. */
@@ -21,7 +21,7 @@ export interface StatusTextHelper {
    * stands and the ordering's reason for its place, the progress, why it halted — ending in the
    * next valid action.
    */
-  renderBatchStatus: (view: StoryBatchView) => string
+  renderBatchStatus: (view: WorkcardBatchView) => string
   /**
    * How the platform sees this connection, in one line — the edition, its version and the door, and
    * that it never performs the platform's model calls where it may not; `null` (a platform older than

@@ -15,7 +15,7 @@ the Viable platform has no use for it. The package's skills are `viable-common` 
 ## Installation
 
 ```bash
-bun add @owlmeans/viable-common@^0.2.2-rc.1
+bun add @owlmeans/viable-common@^0.2.3-alpha.0
 ```
 
 ## What is in it
@@ -35,7 +35,7 @@ bun add @owlmeans/viable-common@^0.2.2-rc.1
 
 - **Viable card** — a project, user story or specification is an `@owlmeans/planning` workcard of a
   `VIABLE_*_TYPE`; what is Viable's lives under the card's `fields`, validated by
-  `ViableProjectFieldsSchema` / `ViableStoryFieldsSchema`.
+  `ViableProjectFieldsSchema` / `ViableWorkcardFieldsSchema`.
 - **Story code** — `US-` + five uppercase characters; the vocabulary of a target's files. A card id
   never reaches a target file.
 - **Area** — `ProjectArea`: guest `/`, user `/frontoffice`, admin `/admin`, operator `/backoffice`.
@@ -166,15 +166,15 @@ The full export list is the package's `src/` barrel; the groups an app reaches f
 
 | Area | Exports |
 |---|---|
-| Planning | `VIABLE_PROJECT_TYPE`, `VIABLE_STORY_TYPE`, `VIABLE_SPEC_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`, `ViableProjectStatus`, `ViableChannel`, `ViableProjectCard`, `ViableStoryCard`, `viableCardHelper`, `viableSpecHelper`, `landingSentenceHelper` |
-| Project refusals | `ProjectNotFound`, `ProjectPermissionError`, `ProjectStoryNotFound`, `ProjectStoryMissconfigured`, `ProjectAgentOccupied` and their bases |
+| Planning | `VIABLE_PROJECT_TYPE`, `VIABLE_USER_STORY_TYPE`, `VIABLE_SPEC_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableWorkcardStatus`, `ViableProjectStatus`, `ViableChannel`, `ViableProjectCard`, `ViableWorkcard`, `viableCardHelper`, `viableSpecHelper`, `landingSentenceHelper` |
+| Project refusals | `ProjectNotFound`, `ProjectPermissionError`, `ProjectWorkcardNotFound`, `ProjectWorkcardMissconfigured`, `ProjectAgentOccupied` and their bases |
 | Areas and tenancy | `ProjectArea`, `AREA_PATHS`, `AREA_ACCESS`, `AREA_TIER`, `ADMIN_PERMISSION`, `OPERATOR_PERMISSION`, `ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyHelper`, `TENANCY_QUOTE_MAX` |
 | Blueprint and skills | `Blueprint`, `BlueprintRef`, `BlueprintCase`, `GameKind`, `WorkKind`, `landingGatePreferenceOf`, `ViableSkill`, `ViablePersona` |
-| Design and scaffold | `StoryDesign`, `ScaffoldPlan`, `ScaffoldPlanSchema`, `landingPlanHelper`, `StoryDesignPort`, `AccessBlock`, `PermissionDefault` |
+| Design and scaffold | `WorkcardDesign`, `ScaffoldPlan`, `ScaffoldPlanSchema`, `landingPlanHelper`, `WorkcardDesignPort`, `AccessBlock`, `PermissionDefault` |
 | Slot metadata | `SlotMetadata`, `metadataConfigs`, `metadataLists`, `metadataSecrets`, `APP_SECRET_ENV`, `BRANDING_ENV_KEYS`, `brandingEnv` |
 | Agent output | `agentPresentationHelper`, `AgentMessageCategory`, `AgentStructuredKind`, `AgentCodeLanguage`, `AgentMarkdownKind`, `AgentMessageRole` |
 | Materials | `MaterialPurpose`, `MaterialStatus`, `MaterialRemoval`, `MaterialUseBy`, `MaterialUseTarget`, `ProjectMaterialRecord`, `ProjectMaterialRecordSchema`, `MaterialIndexEntry`, `MaterialIndexEntrySchema`, `materialIndexHelper`, `MATERIALS_DIR`, `MATERIALS_INDEX`, `MATERIALS_ASSETS_DIR`, `MATERIALS_ASSET_PURPOSES`, `MATERIALS_KEEP`, `MATERIALS_LIMITS`, `MATERIALS_BRIEF_TOKENS` |
-| `./slot` | `SlotCommandType`, `SlotFileCommand` (`WriteBinaryFile`, `ReadBinaryFile`), `SLOT_BINARY_MAX_BYTES`, `slotCommandHelper`, `SubProject`, `LAYOUTS`, `ROLE_DIRS`, `slotLayoutHelper`, `slotOriginHelper`, `DATABASE_READ_LIMITS` |
+| `./slot` | `SlotCommandType`, `SlotFileCommand` (`WriteBinaryFile`, `ReadBinaryFile`), `SLOT_BINARY_MAX_BYTES`, `slotCommandHelper`, `SubProject`, `LAYOUTS`, `ROLE_DIRS`, `slotLayoutHelper`, `slotOriginHelper`, `DATABASE_READ_LIMITS`; the task data change and its backup (`SlotDatabaseCommand.Change` / `Dump` / `Restore`, `DATABASE_CHANGE_LIMITS`, `DATABASE_BACKUP_LIMITS`, `DATABASE_COMMAND_DEADLINES` / `DATABASE_COMMAND_TIMEOUTS`, `SlotDatabaseError`) — inspection otherwise, repairs in target migrations |
 | `./connect` | `connectProtocols`, `connect`, `connectRef`, `ConnectEntrypointOptions`, `ConnectPaidGate`, `ModelTier`, `modelTierHelper`, the view and body types with their `*Schema`s, `CONNECT_CALL_*`, the `Connect*` error family |
 | `./convert` | `ConversionStage`, `conversionStageHelper`, `OriginKind`, `StackId`, `censusHelper`, `conversionDocHelper`, `CENSUS_SKIP_DIRS`, `SOURCE_LIST_EXCLUSIONS` |
 | `./integrity` | `TargetLayout`, `TARGET_LAYOUTS`, `targetLayoutHelper`, `targetIntegrityHelper`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES` |
@@ -186,8 +186,8 @@ The full export list is the package's `src/` barrel; the groups an app reaches f
 |---|---|
 | 402 | `ConnectOutOfCredits` |
 | 428 | `ConnectConsentRequired`, `ConnectConfirmationRequired` |
-| 404 | `ProjectNotFound`, `ProjectStoryNotFound`, `ConnectSessionNotFound`, `ConnectOpUnknown` |
-| 409 | `ProjectAgentOccupied`, `ProjectStoryMissconfigured`, `ConnectSessionGone`, `LocalSlotUnsupported` |
+| 404 | `ProjectNotFound`, `ProjectWorkcardNotFound`, `ConnectSessionNotFound`, `ConnectOpUnknown` |
+| 409 | `ProjectAgentOccupied`, `ProjectWorkcardMissconfigured`, `ConnectSessionGone`, `LocalSlotUnsupported` |
 | 410 | `ConnectCallLost` |
 | 422 | `ConnectOpRefused` |
 
@@ -245,7 +245,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.2-alpha.0
+npx @owlmeans/agent-skills@^0.2.3-alpha.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

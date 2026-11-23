@@ -10,7 +10,7 @@
  */
 import { CRON_FIELDS, ScheduleProblem } from './schedule/consts.js'
 import type { CronField, JobScheduleHelper } from './schedule/types.js'
-import type { StoryDesignJob, StoryDesignJobSchedule } from './types.js'
+import type { WorkcardDesignJob, WorkcardDesignJobSchedule } from './types.js'
 
 export const createJobScheduleHelper = (): JobScheduleHelper => {
   /** A field's value as a number — a digit string, or one of the field's names. */
@@ -73,7 +73,7 @@ export const createJobScheduleHelper = (): JobScheduleHelper => {
     return problems
   }
 
-  const scheduleOf: JobScheduleHelper['scheduleOf'] = (job: Pick<StoryDesignJob, 'schedule'>): StoryDesignJobSchedule | null =>
+  const scheduleOf: JobScheduleHelper['scheduleOf'] = (job: Pick<WorkcardDesignJob, 'schedule'>): WorkcardDesignJobSchedule | null =>
     job.schedule != null && typeof job.schedule === 'object' && problemsOf(job.schedule).length === 0 ? job.schedule : null
 
   const isScheduled: JobScheduleHelper['isScheduled'] = job => scheduleOf(job) != null

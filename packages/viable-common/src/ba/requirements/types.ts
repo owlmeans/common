@@ -1,10 +1,10 @@
 import type { RequirementPart } from '../consts.js'
 import type {
-  MergedStoryDraft, RequestedStoryDraft, RequirementsDocument, StatedRequirement,
+  MergedUserStoryDraft, RequestedUserStoryDraft, RequirementsDocument, StatedRequirement,
 } from '../types.js'
 
 /** One story's own requirements, as `docs/requirements.md` lists them. */
-export interface RequirementsFileStory {
+export interface RequirementsFileUserStory {
   code: string
   title: string
   items: StatedRequirement[]
@@ -51,7 +51,7 @@ export interface RequirementsHelper {
   /** The ids per part a target story file's frontmatter carries; a part with none is omitted. */
   frontmatterOf: (items: readonly StatedRequirement[]) => Partial<Record<RequirementPart, string[]>>
   /** The markdown body of the target's `docs/requirements.md`. */
-  requirementsFile: (project: RequirementsDocument, stories: readonly RequirementsFileStory[]) => string
+  requirementsFile: (project: RequirementsDocument, userStories: readonly RequirementsFileUserStory[]) => string
   /** A stable hash of the items — the `requirementsHash` a design's provenance records. */
   digest: (items: readonly StatedRequirement[]) => string
   /**
@@ -61,9 +61,17 @@ export interface RequirementsHelper {
    * the entries that follow it before the next flow entry), as a `requested` entry carrying the
    * clamped anchor; a draft with no anchor goes to the end and carries none. A draft that repeats
    * an existing entry's text (case and whitespace collapsed) is dropped, and at most
-   * `REQUESTED_STORY_CAP` are kept, in input order. The flow and connective entries are never
+   * `REQUESTED_USER_STORY_CAP` are kept, in input order. The flow and connective entries are never
    * moved relative to each other, so every connective `after` stays valid. Every entry keeps its
    * draft's `area` key.
    */
-  mergeRequested: (merged: readonly MergedStoryDraft[], requested: readonly RequestedStoryDraft[]) => MergedStoryDraft[]
+  mergeRequested: (merged: readonly MergedUserStoryDraft[], requested: readonly RequestedUserStoryDraft[]) => MergedUserStoryDraft[]
+  /**
+   * One card's requirements from two writers — what it already holds (`kept`, never changed) and what
+   * arrives (`incoming`: requirements moved in from another card, or the card's own quoted afresh):
+   * an incoming item whose quote and source an item already carries is dropped (case and whitespace
+   * collapsed); one whose id is taken is kept under the next free `S` id when it is a story's own,
+   * and dropped when it is a prompt's (`R` ids are the project's, one item each). Sorted by id.
+   */
+  mergeItems: (kept: readonly StatedRequirement[], incoming: readonly StatedRequirement[]) => StatedRequirement[]
 }

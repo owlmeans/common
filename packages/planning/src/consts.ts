@@ -39,6 +39,11 @@ export enum TransitionAction {
   Link = 'link',
   Unlink = 'unlink',
   Delete = 'delete',
+  /**
+   * The card becomes another type of the same kind — only where its current type lists the new one
+   * in `retypes`. The transition's `type` is the NEW type; the fold writes it onto the record.
+   */
+  Retype = 'retype',
 }
 
 export enum CommitState {
@@ -136,6 +141,15 @@ export const DEFAULT_COMMIT_TIMEOUT = 30_000
 export const DEFAULT_COMMIT_POLL = 20
 /** The longest single long poll a server grants, in seconds. */
 export const MAX_COMMIT_POLL = 55
+/**
+ * The `fields` key a retype keeps the codes a card gave up in — the old code is appended when the new
+ * type mints another. A type that lists `retypes` declares it in its `fields` schema
+ * (an array of strings), or the retype is refused by the fields check.
+ */
+export const FORMER_CODES_FIELD = 'formerCodes'
+/** The most former codes a card keeps; the oldest are dropped first. */
+export const MAX_FORMER_CODES = 16
+
 /** Re-rolls a code policy gets before it refuses with `CodeTaken`. */
 export const CODE_MINT_ATTEMPTS = 8
 /** Random part length of a code policy that names none. */

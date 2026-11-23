@@ -1,4 +1,4 @@
-import { BODY_MAX, cardHelper, changesHelper, CODE_MAX, DESCRIPTION_MAX, IllegalTransition, LabelNotAllowed, MAX_LABELS, MAX_PARENTS, ParentNotFound, PlanningError, RelationshipRefused, specificationHelper, SpecificationRevisionConflict, SpecificationSlotUnknown, statusHelper, TITLE_MAX, TransitionAction, validateHelper, WorkcardKind, PlanningResourceKind, type PlanningFacade, type RelationshipDraft, type Specification, type TransitionExecution, type WorkcardDraft } from '@owlmeans/planning'
+import { BODY_MAX, cardHelper, changesHelper, CODE_MAX, codeHelper, FORMER_CODES_FIELD, RetypeNotAllowed, DESCRIPTION_MAX, IllegalTransition, LabelNotAllowed, MAX_LABELS, MAX_PARENTS, ParentNotFound, PlanningError, RelationshipRefused, specificationHelper, SpecificationRevisionConflict, SpecificationSlotUnknown, statusHelper, TITLE_MAX, TransitionAction, validateHelper, WorkcardKind, PlanningResourceKind, type PlanningFacade, type RelationshipDraft, type Specification, type TransitionExecution, type WorkcardDraft } from '@owlmeans/planning'
 import type { PlanningRuntime } from '../types.js'
 import { creatorHelper } from './creator.js'
 import type { Resolved } from './types.js'
@@ -28,6 +28,12 @@ const assertShape = (exec: TransitionExecution, resolved: Resolved): void => {
   }
   if (exec.action === TransitionAction.Transit && (exec.transition == null || exec.transition === '')) {
     throw malformed('transit-without-transition')
+  }
+  if (exec.action === TransitionAction.Retype && (exec.toType == null || exec.toType === '')) {
+    throw malformed('retype-without-type')
+  }
+  if (exec.action !== TransitionAction.Retype && exec.toType != null) {
+    throw malformed('to-type-outside-retype')
   }
   if ((exec.action === TransitionAction.Link || exec.action === TransitionAction.Unlink)
     && (exec.link?.to == null || exec.link.to === '' || exec.link.type == null || exec.link.type === '')) {
@@ -77,6 +83,18 @@ const assertFields = (exec: TransitionExecution, resolved: Resolved): void => {
     return
   }
   const clears = (exec.unset ?? []).filter(path => path.startsWith('fields.'))
+  if (exec.action === TransitionAction.Retype) {
+    // Every field the card keeps must fit the type it becomes — the former codes the code step will
+    // append included.
+    const card = resolved.card!
+    const target = resolved.target!
+    const kept = changesHelper.applyUnset({ fields: changesHelper.mergeFields(card.fields, exec.changes?.fields) }, clears).fields
+    const former = codeHelper.remintsOn(target.code, card.code) && card.code != null && card.code !== ''
+      ? { [FORMER_CODES_FIELD]: codeHelper.formerCodesOf(card.fields, card.code) }
+      : {}
+    validateHelper.validateFields(schemas, target.type, { ...kept, ...former })
+    return
+  }
   if (exec.changes?.fields == null && clears.length === 0) {
     return
   }
@@ -85,9 +103,11 @@ const assertFields = (exec: TransitionExecution, resolved: Resolved): void => {
 }
 
 const assertLabels = (exec: TransitionExecution, resolved: Resolved): void => {
+  const retype = exec.action === TransitionAction.Retype
   const labels = [
     ...(resolved.create ? (exec.card as WorkcardDraft).labels ?? [] : []),
-    ...(exec.changes?.labels ?? []),
+    // A retype keeps the card's labels unless it replaces them: the new type must allow them.
+    ...(exec.changes?.labels ?? (retype ? resolved.card?.labels ?? [] : [])),
   ]
   if (labels.length === 0) {
     return
@@ -95,7 +115,7 @@ const assertLabels = (exec: TransitionExecution, resolved: Resolved): void => {
   if (new Set(labels).size > MAX_LABELS) {
     throw new LabelNotAllowed(`too-many:${labels.length}`)
   }
-  const allowed = resolved.type.labels
+  const allowed = retype ? resolved.target?.labels : resolved.type.labels
   const refused = allowed == null ? undefined : labels.find(label => !allowed.includes(label))
   if (refused != null) {
     throw new LabelNotAllowed(refused)
@@ -231,14 +251,110 @@ const assertRelationships = async (
   }
 }
 
+/** Edges between two cards: an assignee or a team at either end is a reference, not a card link. */
+const cardEdge = (edge: { fromKind?: PlanningResourceKind, toKind?: PlanningResourceKind }): boolean =>
+  (edge.fromKind ?? PlanningResourceKind.Workcard) === PlanningResourceKind.Workcard
+  && (edge.toKind ?? PlanningResourceKind.Workcard) === PlanningResourceKind.Workcard
+
+/**
+ * A retype's own checks: another type of the same kind that the current type lists in `retypes`,
+ * written to the same store; no parent moved by it; every flow of the new type declaring the status
+ * the card holds in it; every parent admitting the new type; every document's slot declared by the new
+ * type with the same format; every card link still fitting the relationship rules from either end.
+ * Fields and labels are checked against the new type by their own steps; the children against it by
+ * the projection invariants (`hierarchy` with the card retyped).
+ *
+ * @throws {RetypeNotAllowed | CardTypeNotAllowed | ParentNotFound | RelationshipRefused | PlanningError}
+ */
+const assertRetype = async (
+  exec: TransitionExecution, resolved: Resolved, runtime: PlanningRuntime, facade: PlanningFacade
+): Promise<void> => {
+  if (exec.action !== TransitionAction.Retype) {
+    return
+  }
+  const card = resolved.card!
+  const from = resolved.type
+  const target = resolved.target!
+  if (target.type === from.type) {
+    throw new RetypeNotAllowed(`same:${from.type}`)
+  }
+  if (target.kind !== card.kind) {
+    throw new RetypeNotAllowed(`kind:${from.type}:${target.type}`)
+  }
+  if (!(from.retypes ?? []).includes(target.type)) {
+    throw new RetypeNotAllowed(`${from.type}:${target.type}`)
+  }
+  if (runtime.service().store(target.type) !== resolved.store) {
+    throw new RetypeNotAllowed(`store:${target.type}`)
+  }
+  const changes = exec.changes ?? {}
+  if (changes.parent !== undefined || changes.parents !== undefined
+    || (exec.unset ?? []).some(path => path === 'parent' || path === 'parents')) {
+    throw malformed('retype-moves-parent')
+  }
+
+  const primary = statusHelper.primaryFlowOf(from)
+  for (const flowId of target.flows) {
+    const status = card.flows[flowId] ?? (flowId === primary ? card.status : undefined)
+    if (status == null || statusHelper.statusDefinitionOf(resolved.schemas.flow(flowId), status) == null) {
+      throw new RetypeNotAllowed(`status:${flowId}:${status ?? ''}`)
+    }
+  }
+
+  const resolve = resolveUtilsOf(runtime)
+  for (const id of card.parents) {
+    const parent = await facade.cards.load(id)
+    if (parent == null) {
+      throw new ParentNotFound(id)
+    }
+    resolve.assertChildAllowed(parent, card.kind, target.type, await resolve.childViewOf(facade.scope.entityId, parent))
+  }
+
+  const documents = await facade.specifications.list(card.id!, { size: 0 })
+  for (const document of documents.items) {
+    const slot = specificationHelper.slotOf(target, document.category)
+    if (slot == null || slot.format !== document.format) {
+      throw new RetypeNotAllowed(`document:${document.category}`)
+    }
+  }
+
+  const outgoing = await facade.relationships.list({ from: card.id!, size: 0 })
+  for (const edge of outgoing.items.filter(cardEdge)) {
+    const rule = target.relationships?.find(entry => entry.name === edge.type)
+    if (rule == null) {
+      throw new RelationshipRefused(`retype:unknown:${edge.type}`)
+    }
+    if (rule.field != null) {
+      continue
+    }
+    if (rule.from != null && !rule.from.includes(target.type)) {
+      throw new RelationshipRefused(`retype:from-type:${edge.type}:${target.type}`)
+    }
+    const to = rule.to != null ? await facade.cards.load(edge.to) : null
+    if (rule.to != null && (to == null || !rule.to.includes(to.type))) {
+      throw new RelationshipRefused(`retype:to-type:${edge.type}:${to?.type ?? edge.to}`)
+    }
+  }
+  const incoming = await facade.relationships.list({ to: card.id!, size: 0 })
+  for (const edge of incoming.items.filter(cardEdge)) {
+    const owner = await facade.cards.load(edge.from)
+    const rule = owner == null ? undefined : resolved.schemas.has(owner.type)
+      ? resolved.schemas.type(owner.type).relationships?.find(entry => entry.name === edge.type) : undefined
+    if (rule?.to != null && !rule.to.includes(target.type)) {
+      throw new RelationshipRefused(`retype:to-type:${edge.type}:${target.type}`)
+    }
+  }
+}
+
 /**
  * Step 6: shape, flow rule, immutables (`createdBy` among them, `creatorHelper.assertCreatorFixed`),
- * `fields`, labels, parent moves, the specification slot and relationships — in that order.
+ * a retype's own checks, `fields` and labels (a retype's against the type it makes), parent moves,
+ * the specification slot and relationships — in that order.
  * Nothing is written by a refusal here.
  *
  * @throws {PlanningError} `malformed:*` / `immutable:*`
  * @throws {IllegalTransition | FieldsInvalid | LabelNotAllowed | ParentNotFound | CardTypeNotAllowed}
- * @throws {SpecificationSlotUnknown | SpecificationRevisionConflict | RelationshipRefused}
+ * @throws {SpecificationSlotUnknown | SpecificationRevisionConflict | RelationshipRefused | RetypeNotAllowed}
  */
 export const validateExecution = async (
   runtime: PlanningRuntime, facade: PlanningFacade, exec: TransitionExecution, resolved: Resolved
@@ -247,6 +363,7 @@ export const validateExecution = async (
   assertFlow(exec, resolved)
   changesHelper.assertMutable(exec, resolved.type)
   creatorHelper.assertCreatorFixed(exec)
+  await assertRetype(exec, resolved, runtime, facade)
   assertFields(exec, resolved)
   assertLabels(exec, resolved)
   await assertParentMove(exec, resolved, runtime, facade)

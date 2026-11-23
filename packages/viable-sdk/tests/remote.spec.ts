@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { CommitState, TransitionAction } from '@owlmeans/planning'
-import { AgentStopScope, CONNECT_TOKEN_PREFIX, connect, ConnectFeedDetail, ConnectLlm, VIABLE_STORY_TYPE, WorkloadKind } from '@owlmeans/viable-common'
+import { AgentStopScope, CONNECT_TOKEN_PREFIX, connect, ConnectFeedDetail, ConnectLlm, VIABLE_USER_STORY_TYPE, WorkloadKind } from '@owlmeans/viable-common'
 
 import { makeRemoteConnectorApi } from '../src/api/remote.js'
 import { transportHelper } from '../src/api/transport.js'
 import { COMMIT_POLL_SEC, COMMIT_WAIT_MS, TOOL_DEADLINE_MS } from '../src/consts.js'
 import { makeSdkContext } from '../src/context/index.js'
-import { storyHelper } from '../src/tools/stories.js'
+import { storyHelper } from '../src/tools/workcards.js'
 import { captureTransport } from './context.js'
 
 describe('viable-sdk — remote transport recovery', () => {
@@ -77,7 +77,7 @@ describe('viable-sdk — the delegated mode\'s remote calls', () => {
 
     await api.project.create('a store finder', 'local' as never, 's-unattached')
     await api.project.create('a store finder')
-    await api.planning.execute({ action: TransitionAction.Create, card: { kind: 'card', type: VIABLE_STORY_TYPE, parent: 'p1', title: 'x' } } as never)
+    await api.planning.execute({ action: TransitionAction.Create, card: { kind: 'card', type: VIABLE_USER_STORY_TYPE, parent: 'p1', title: 'x' } } as never)
 
     // A write that waits on the parent's model call is collected, never held open: no longer deadline.
     expect(calls.map(call => [call.alias, call.timeout])).toEqual([
@@ -117,7 +117,7 @@ describe('viable-sdk — the remote agent controls and story batches', () => {
       : call.alias === connect.project.steer ? { queued: true, id: 'm1' } : { ok: true })
     const api = makeRemoteConnectorApi(context)
 
-    await api.project.stop('p1', { scope: AgentStopScope.Story, storyId: 'c1', confirm: true })
+    await api.project.stop('p1', { scope: AgentStopScope.Workcard, storyId: 'c1', confirm: true })
     await api.project.stop('p1', {})
     expect(await api.project.steer('p1', { prompt: 'keep the blue accent' })).toEqual({ queued: true, id: 'm1' })
     await api.project.batch.start('p1', { stories: ['c1', 'c2'] })
@@ -136,7 +136,7 @@ describe('viable-sdk — the remote agent controls and story batches', () => {
       [connect.project.batch.cancel, '/connect/project/:id/batch/cancel', TOOL_DEADLINE_MS],
     ])
     expect(calls.slice(0, 5).map(call => call.body)).toEqual([
-      { scope: AgentStopScope.Story, storyId: 'c1', confirm: true },
+      { scope: AgentStopScope.Workcard, storyId: 'c1', confirm: true },
       {},
       { prompt: 'keep the blue accent' },
       { stories: ['c1', 'c2'] },
@@ -341,7 +341,7 @@ describe('viable-sdk — the remote planning facade', () => {
     const context = await makeSdkContext({
       apiUrl: 'http://127.0.0.1:9', token: `${CONNECT_TOKEN_PREFIX}offline_test_token`,
     })
-    const card = { id: 'c1', kind: 'card', type: VIABLE_STORY_TYPE, status: 'in-progress', seq: 2 }
+    const card = { id: 'c1', kind: 'card', type: VIABLE_USER_STORY_TYPE, status: 'in-progress', seq: 2 }
     const transition = {
       id: 't1', card: 'c1', seq: 2, action: TransitionAction.Transit, commit: { state: CommitState.Pending },
     }
@@ -369,7 +369,7 @@ describe('viable-sdk — the remote planning facade', () => {
       ['/planning/commits/:transition', (COMMIT_POLL_SEC + 10) * 1000],
     ])
     // The query crosses in its wire shape, and the actor never crosses at all.
-    expect(calls[0]!.query).toMatchObject({ parent: 'p1', type: VIABLE_STORY_TYPE, fields: '{"area":"user"}' })
+    expect(calls[0]!.query).toMatchObject({ parent: 'p1', type: VIABLE_USER_STORY_TYPE, fields: '{"area":"user"}' })
     expect(calls[1]!.body).not.toHaveProperty('actor')
   })
 })
@@ -382,7 +382,7 @@ describe('viable-sdk — the remote API addresses only routes the platform serve
     const api = makeRemoteConnectorApi(context)
 
     expect(Object.keys(api).sort()).toEqual([
-      'account', 'client', 'closeSession', 'config', 'convert', 'copyOrganizationBranding', 'files', 'git', 'github', 'iam', 'inquiry',
+      'account', 'cards', 'client', 'closeSession', 'config', 'convert', 'copyOrganizationBranding', 'files', 'git', 'github', 'iam', 'inquiry',
       'materials', 'openSession',
       'pipeline', 'planning', 'production', 'project', 'projectBranding', 'pullOps', 'sandbox', 'saveProjectBranding',
       'setPlatformCredit', 'slot', 'story', 'submitOp',
@@ -398,6 +398,10 @@ describe('viable-sdk — the remote API addresses only routes the platform serve
     expect(Object.keys(api.account.intent)).toEqual(['pickup'])
     expect(Object.keys(api.project)).toEqual(expect.arrayContaining(['llm', 'setLlm', 'activity', 'stop', 'steer', 'batch', 'apps']))
     expect(Object.keys(api.project.batch).sort()).toEqual(['cancel', 'get', 'start'])
+    // The cards wire: a request triaged first, one card's status, Run together, Run all (proposal, then run) and a
+    // container's re-run.
+    expect(Object.keys(api.project)).toEqual(expect.arrayContaining(['modify', 'request']))
+    expect(Object.keys(api.cards).sort()).toEqual(['plan', 'rerun', 'runAll', 'status', 'together'])
     expect(Object.keys(api.files).sort()).toEqual(['changes', 'get', 'list', 'meta', 'remove', 'save'])
     // A new project's files: the create, the upload (its state read and each file), a file taken back,
     // the seal, the drafting asked again and the two reads — no open, no abort.

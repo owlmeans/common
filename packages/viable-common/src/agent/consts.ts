@@ -26,7 +26,7 @@ export enum AgentStructuredKind {
   ToolCalls = 'tool-calls',
   ArtifactSelection = 'artifact-selection',
   EntitySelection = 'entity-selection',
-  StoryPlan = 'story-plan',
+  WorkcardPlan = 'story-plan',
   ScreenPlan = 'screen-plan',
   ComponentPlan = 'component-plan',
   TransitionPlan = 'transition-plan',

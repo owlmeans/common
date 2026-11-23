@@ -77,6 +77,11 @@ export const makeWorkcardModel = <T extends Workcard = Workcard>(record: T, faca
 
     update: (changes, opts) => run({ action: TransitionAction.Update, changes, unset: opts?.unset }, opts),
 
+    retype: (toType, changes, opts) => run({
+      action: TransitionAction.Retype, toType,
+      ...(changes != null ? { changes } : {}), ...(opts?.unset != null ? { unset: opts.unset } : {}),
+    }, opts),
+
     remove: opts => run({ action: TransitionAction.Delete }, opts),
 
     link: (type, to, fields, opts) => run({

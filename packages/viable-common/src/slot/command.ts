@@ -1,4 +1,4 @@
-import { APP_BUILD_DEADLINE_STEP, COMMAND_DEADLINES, COMMAND_TIMEOUTS, DEFAULT_COMMAND_DEADLINE, DEFAULT_COMMAND_TIMEOUT, DEFAULT_FILE_COMMAND_DEADLINE, DEFAULT_GIT_COMMAND_DEADLINE, FILE_COMMAND_DEADLINES, FILE_COMMAND_TIMEOUTS, GIT_COMMAND_DEADLINES, GIT_COMMAND_TIMEOUTS, SHELL_COMMAND_TIMEOUTS, SlotCommandType, SlotFileCommand, SlotGitCommand, SlotShellCommand } from './consts.js'
+import { APP_BUILD_DEADLINE_STEP, COMMAND_DEADLINES, COMMAND_TIMEOUTS, DATABASE_COMMAND_DEADLINES, DATABASE_COMMAND_TIMEOUTS, DEFAULT_COMMAND_DEADLINE, DEFAULT_COMMAND_TIMEOUT, DEFAULT_DATABASE_COMMAND_DEADLINE, DEFAULT_FILE_COMMAND_DEADLINE, DEFAULT_GIT_COMMAND_DEADLINE, FILE_COMMAND_DEADLINES, FILE_COMMAND_TIMEOUTS, GIT_COMMAND_DEADLINES, GIT_COMMAND_TIMEOUTS, SHELL_COMMAND_TIMEOUTS, SlotCommandType, SlotDatabaseCommand, SlotFileCommand, SlotGitCommand, SlotShellCommand } from './consts.js'
 import type { SlotCommandHelper } from './command/types.js'
 import type { SlotCommandScale } from './types.js'
 
@@ -8,7 +8,8 @@ export const createSlotCommandHelper = (): SlotCommandHelper => {
     switch (type) {
       case SlotCommandType.Shell: return SHELL_COMMAND_TIMEOUTS[command]
       case SlotCommandType.Git: return GIT_COMMAND_TIMEOUTS[command as SlotGitCommand]
-      case SlotCommandType.Database: return COMMAND_TIMEOUTS[SlotCommandType.Database]
+      case SlotCommandType.Database:
+        return DATABASE_COMMAND_TIMEOUTS[command as SlotDatabaseCommand] ?? COMMAND_TIMEOUTS[SlotCommandType.Database]
       default: return FILE_COMMAND_TIMEOUTS[command as SlotFileCommand]
     }
   }
@@ -36,7 +37,7 @@ export const createSlotCommandHelper = (): SlotCommandHelper => {
       case SlotCommandType.Git:
         return GIT_COMMAND_DEADLINES[command as SlotGitCommand] ?? DEFAULT_GIT_COMMAND_DEADLINE
       case SlotCommandType.Database:
-        return 30_000
+        return DATABASE_COMMAND_DEADLINES[command as SlotDatabaseCommand] ?? DEFAULT_DATABASE_COMMAND_DEADLINE
       default:
         return FILE_COMMAND_DEADLINES[command as SlotFileCommand] ?? DEFAULT_FILE_COMMAND_DEADLINE
     }

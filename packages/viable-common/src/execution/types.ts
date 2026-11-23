@@ -6,7 +6,7 @@ import type { PurposeMetadata } from '../agent/types.js'
 import type { AgentProject, Entity, UserStory } from '../ba/types.js'
 import type { UXTransition } from '../ux/types.js'
 import type { SeniorityMode } from '../consts.js'
-import type { ViableProjectCard, ViableStoryCard } from '../planning/types.js'
+import type { ViableProjectCard, ViableWorkcard } from '../planning/types.js'
 import type { OriginTenancyFacts } from '../areas/types.js'
 import type { WorkMode } from './consts.js'
 
@@ -82,7 +82,7 @@ export interface TaskExecutionState
   mode?: SeniorityMode
   story?: UserStory
   /** The story card the task develops, as plain data — the aggregate above is derived from it. */
-  card?: ViableStoryCard
+  card?: ViableWorkcard
   transitions?: UXTransition[]
   /**
    * The app this task works in, by name (`AppDescriptor.name`). Absent — every task before apps

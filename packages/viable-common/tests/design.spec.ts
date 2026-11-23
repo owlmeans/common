@@ -3,17 +3,17 @@ import Ajv from 'ajv'
 import { ProjectArea } from '../src/areas/consts.js'
 import { RequirementKind, RequirementSource, SpecCategory } from '../src/ba/consts.js'
 import { BotKitAction } from '../src/blueprint/index.js'
-import { DesignStaleness, NO_RUNTIME, STORY_DESIGN_VERSION, StoryDesignSchema, storyDesignHelper, storyRuntimeHelper } from '../src/design/index.js'
-import type { StoryDesign } from '../src/design/index.js'
+import { DesignStaleness, NO_RUNTIME, WORKCARD_DESIGN_VERSION, WorkcardDesignSchema, workcardDesignHelper, workcardRuntimeHelper } from '../src/design/index.js'
+import type { WorkcardDesign } from '../src/design/index.js'
 
-const design = (extra: Partial<StoryDesign> = {}): StoryDesign => storyDesignHelper.emptyStoryDesign({
+const design = (extra: Partial<WorkcardDesign> = {}): WorkcardDesign => workcardDesignHelper.emptyWorkcardDesign({
   code: 'US-ABC12',
   narrative: 'A visitor books a slot.',
   area: ProjectArea.User,
   ...extra,
 })
 
-const withScreens = (): StoryDesign => design({
+const withScreens = (): WorkcardDesign => design({
   screens: [{
     name: 'booking/list/overview',
     definition: 'booking-overview',
@@ -43,32 +43,32 @@ describe('viable-common - the design aggregate', () => {
   test('derives the UserStory the coders take, carrying the story code', () => {
     // The scaffold stamps every placeholder it draws with the code, so a run keyed by anything
     // else cannot recognise its own reservation.
-    const story = storyDesignHelper.userStoryOfDesign(withScreens())
+    const workcard = workcardDesignHelper.userStoryOfDesign(withScreens())
 
-    expect(story.code).toBe('US-ABC12')
-    expect(story.area).toBe(ProjectArea.User)
-    expect(story.screens).toHaveLength(1)
-    expect(story.screens[0].section).toBe('Booking')
-    expect(story.screens[0].specs[SpecCategory.UX]).toBe('the ux')
-    expect(story.screens[0].components[0].name).toBe('BookingList')
-    expect(story.screens[0].components[0].entities[0].name).toBe('Booking')
+    expect(workcard.code).toBe('US-ABC12')
+    expect(workcard.area).toBe(ProjectArea.User)
+    expect(workcard.screens).toHaveLength(1)
+    expect(workcard.screens[0].section).toBe('Booking')
+    expect(workcard.screens[0].specs[SpecCategory.UX]).toBe('the ux')
+    expect(workcard.screens[0].components[0].name).toBe('BookingList')
+    expect(workcard.screens[0].components[0].entities[0].name).toBe('Booking')
   })
 
   test('drops a component reference the design does not carry rather than inventing one', () => {
     const broken = withScreens()
     broken.screens[0].components = ['BookingList', 'Ghost']
 
-    expect(storyDesignHelper.userStoryOfDesign(broken).screens[0].components.map(entry => entry.name)).toEqual(['BookingList'])
+    expect(workcardDesignHelper.userStoryOfDesign(broken).screens[0].components.map(entry => entry.name)).toEqual(['BookingList'])
   })
 
   test('screenMapOf is the shape every UX and UI prompt takes', () => {
-    expect(storyDesignHelper.screenMapOf(withScreens())).toEqual({ 'booking/list/overview': ['BookingList'] })
+    expect(workcardDesignHelper.screenMapOf(withScreens())).toEqual({ 'booking/list/overview': ['BookingList'] })
   })
 })
 
 describe('viable-common - design staleness', () => {
   const now = { narrativeHash: 'n', projectHash: 'p', registryHash: 'r' }
-  const fresh = (): StoryDesign => {
+  const fresh = (): WorkcardDesign => {
     const value = design()
     value.provenance = { ...value.provenance, ...now }
 
@@ -76,46 +76,46 @@ describe('viable-common - design staleness', () => {
   }
 
   test('answers fresh when nothing moved', () => {
-    expect(storyDesignHelper.designStaleness(fresh(), now)).toBe(DesignStaleness.Fresh)
+    expect(workcardDesignHelper.designStaleness(fresh(), now)).toBe(DesignStaleness.Fresh)
   })
 
   test('ranks by severity: version, then narrative, then project, then tree', () => {
     // Each answer has one correct reaction, and collapsing them into a boolean makes every one of
     // them the most expensive of the four.
     const versioned = fresh()
-    versioned.version = STORY_DESIGN_VERSION + 1
-    expect(storyDesignHelper.designStaleness(versioned, now)).toBe(DesignStaleness.Version)
+    versioned.version = WORKCARD_DESIGN_VERSION + 1
+    expect(workcardDesignHelper.designStaleness(versioned, now)).toBe(DesignStaleness.Version)
 
-    expect(storyDesignHelper.designStaleness(fresh(), { ...now, narrativeHash: 'x' })).toBe(DesignStaleness.Narrative)
-    expect(storyDesignHelper.designStaleness(fresh(), { ...now, projectHash: 'x' })).toBe(DesignStaleness.Project)
-    expect(storyDesignHelper.designStaleness(fresh(), { ...now, registryHash: 'x' })).toBe(DesignStaleness.Tree)
+    expect(workcardDesignHelper.designStaleness(fresh(), { ...now, narrativeHash: 'x' })).toBe(DesignStaleness.Narrative)
+    expect(workcardDesignHelper.designStaleness(fresh(), { ...now, projectHash: 'x' })).toBe(DesignStaleness.Project)
+    expect(workcardDesignHelper.designStaleness(fresh(), { ...now, registryHash: 'x' })).toBe(DesignStaleness.Tree)
   })
 
   test('a changed set of stated requirements re-designs, ranked right after the narrative', () => {
     // Absent on both sides is the design every story had before requirements existed.
-    expect(storyDesignHelper.designStaleness(fresh(), { ...now, requirementsHash: '' })).toBe(DesignStaleness.Fresh)
-    expect(storyDesignHelper.designStaleness(fresh(), { ...now, requirementsHash: 'q' })).toBe(DesignStaleness.Narrative)
+    expect(workcardDesignHelper.designStaleness(fresh(), { ...now, requirementsHash: '' })).toBe(DesignStaleness.Fresh)
+    expect(workcardDesignHelper.designStaleness(fresh(), { ...now, requirementsHash: 'q' })).toBe(DesignStaleness.Narrative)
 
     const hashed = fresh()
     hashed.provenance.requirementsHash = 'q'
-    expect(storyDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q' })).toBe(DesignStaleness.Fresh)
-    expect(storyDesignHelper.designStaleness(hashed, now)).toBe(DesignStaleness.Narrative)
-    expect(storyDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q2', projectHash: 'x', registryHash: 'x' }))
+    expect(workcardDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q' })).toBe(DesignStaleness.Fresh)
+    expect(workcardDesignHelper.designStaleness(hashed, now)).toBe(DesignStaleness.Narrative)
+    expect(workcardDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q2', projectHash: 'x', registryHash: 'x' }))
       .toBe(DesignStaleness.Narrative)
-    expect(storyDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q', projectHash: 'x' }))
+    expect(workcardDesignHelper.designStaleness(hashed, { ...now, requirementsHash: 'q', projectHash: 'x' }))
       .toBe(DesignStaleness.Project)
   })
 
   test('the hash is stable and distinguishes its inputs', () => {
-    expect(storyDesignHelper.designHash('a', 'b')).toBe(storyDesignHelper.designHash('a', 'b'))
-    expect(storyDesignHelper.designHash('a', 'b')).not.toBe(storyDesignHelper.designHash('a', 'c'))
-    expect(storyDesignHelper.designHash('a', undefined)).toBe(storyDesignHelper.designHash('a'))
+    expect(workcardDesignHelper.designHash('a', 'b')).toBe(workcardDesignHelper.designHash('a', 'b'))
+    expect(workcardDesignHelper.designHash('a', 'b')).not.toBe(workcardDesignHelper.designHash('a', 'c'))
+    expect(workcardDesignHelper.designHash('a', undefined)).toBe(workcardDesignHelper.designHash('a'))
   })
 })
 
 describe('viable-common - the design schema', () => {
   const ajv = new Ajv({ allErrors: true, strict: false })
-  const validate = ajv.compile(StoryDesignSchema)
+  const validate = ajv.compile(WorkcardDesignSchema)
 
   test('accepts a design the library itself produced', () => {
     // Driven from the vocabulary, never from a hand-written fixture: a fixture pins only the
@@ -139,7 +139,7 @@ describe('viable-common - the design schema', () => {
     const value = withScreens()
     value.requirements = [{
       id: 'R1', quote: 'bookings must be exportable', statement: 'An admin exports bookings.',
-      kind: RequirementKind.Story, parts: { ux: 'An export button on the list.' }, source: RequirementSource.Prompt,
+      kind: RequirementKind.UserStory, parts: { ux: 'An export button on the list.' }, source: RequirementSource.Prompt,
     }]
     value.provenance.requirementsHash = 'abcd0123'
     expect(validate(value)).toBe(true)
@@ -235,12 +235,12 @@ describe('viable-common - the design schema', () => {
 
 describe('viable-common - the bot handlers of a runtime', () => {
   test('are total: a design without a runtime, or a runtime without a bot block, has none', () => {
-    expect(storyRuntimeHelper.botHandlersOf(storyRuntimeHelper.runtimeOf(design()))).toEqual([])
-    expect(storyRuntimeHelper.botHandlersOf(NO_RUNTIME)).toEqual([])
+    expect(workcardRuntimeHelper.botHandlersOf(workcardRuntimeHelper.runtimeOf(design()))).toEqual([])
+    expect(workcardRuntimeHelper.botHandlersOf(NO_RUNTIME)).toEqual([])
 
     const handlers = [{ name: 'reply', purpose: 'Answers.', trigger: 'keywords' as const, actions: [BotKitAction.Reply], records: ['KeywordGroup'] }]
-    expect(storyRuntimeHelper.botHandlersOf({ ...NO_RUNTIME, bot: { handlers } })).toEqual(handlers)
+    expect(workcardRuntimeHelper.botHandlersOf({ ...NO_RUNTIME, bot: { handlers } })).toEqual(handlers)
     // Bot handlers are not queue work: the queue gate stays closed.
-    expect(storyRuntimeHelper.needsRuntime({ ...NO_RUNTIME, bot: { handlers } })).toBe(false)
+    expect(workcardRuntimeHelper.needsRuntime({ ...NO_RUNTIME, bot: { handlers } })).toBe(false)
   })
 })

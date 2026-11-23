@@ -51,3 +51,12 @@ by naming a `parent`.
 A screen's guards are its own plus every ancestor's, taken from `getGuards()`. An empty list is an
 open screen; when the list is non-empty and no guard matches, the renderer throws
 `AuthorizationError('frontend-guard')`.
+
+**A navigation never remounts a mounted route.** `handler(Component)` builds its component once,
+when the entrypoint is bound, and the route renderer (`utils/route.tsx`) memoizes it once per route
+— so the React type under a route stays the same across renders. A query-only change (`?tab=`), a
+changed parameter on the same route, or a move between child screens re-renders the layout and
+keeps it mounted, together with its state, its modal host and an open `ctx.modal()` body; only a
+route that stops matching unmounts. A screen that must reset on a parameter change keys its own
+subtree on that parameter. A custom entrypoint handler that answers a new function per call opts
+out of this, since a different function is a different type.

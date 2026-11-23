@@ -1,4 +1,4 @@
-import { ConnectWaitReason, ConversionDecision, ConversionStatus, STORY_BATCH_LIVE, STORY_BATCH_STALLED, StoryBatchKind, StoryBatchStatus, type ConnectClientView, type ConnectPipelineState, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type ConversionStatusView, type StoryBatchView, conversionStageHelper } from '@owlmeans/viable-common'
+import { ConnectWaitReason, ConversionDecision, ConversionStatus, WORKCARD_BATCH_LIVE, WORKCARD_BATCH_STALLED, WorkcardBatchKind, WorkcardBatchStatus, type ConnectClientView, type ConnectPipelineState, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type ConversionStatusView, type WorkcardBatchView, conversionStageHelper } from '@owlmeans/viable-common'
 import { refusalHelper } from './refusal.js'
 import { LANDING_NOTE } from './consts.js'
 import { BATCH_OUTCOME_WORDS, BATCH_STALLED_WORDS } from './consts.local.js'
@@ -139,7 +139,7 @@ export const createStatusTextHelper = (): StatusTextHelper => {
     }
   }
 
-  const batchNext = (view: StoryBatchView, live: boolean): string => {
+  const batchNext = (view: WorkcardBatchView, live: boolean): string => {
     const project = `"projectId": "${view.projectId}"`
     if (live) {
       return `story_batch_status { ${project} }` + (view.current != null && view.outcomes[view.current] == null
@@ -147,18 +147,18 @@ export const createStatusTextHelper = (): StatusTextHelper => {
         : '')
     }
     // A conversion's batch IS its implementation stage: how it ended is the conversion's to say.
-    if (view.kind === StoryBatchKind.Conversion) return 'conversion_status'
+    if (view.kind === WorkcardBatchKind.Conversion) return 'conversion_status'
     switch (view.status) {
-      case StoryBatchStatus.Completed: return 'nothing — every story of this batch has an outcome; list_stories shows where each stands'
-      case StoryBatchStatus.Cancelled: return 'nothing — this batch was cancelled; start_story_batch starts a new one over the stories still planned'
-      default: return view.reason === STORY_BATCH_STALLED && view.current != null
+      case WorkcardBatchStatus.Completed: return 'nothing — every story of this batch has an outcome; list_stories shows where each stands'
+      case WorkcardBatchStatus.Cancelled: return 'nothing — this batch was cancelled; start_story_batch starts a new one over the stories still planned'
+      default: return view.reason === WORKCARD_BATCH_STALLED && view.current != null
         ? `story_status { ${project}, "storyId": "${view.current}" }, then start_story_batch again for the stories still planned`
         : 'start_story_batch again once the cause above is addressed — it takes the stories still planned'
     }
   }
 
-  const renderBatchStatus = (view: StoryBatchView): string => {
-    const live = STORY_BATCH_LIVE.includes(view.status)
+  const renderBatchStatus = (view: WorkcardBatchView): string => {
+    const live = WORKCARD_BATCH_LIVE.includes(view.status)
     const stateOf = (id: string): string => {
       const outcome = view.outcomes[id]
       if (outcome != null) return BATCH_OUTCOME_WORDS[outcome] ?? outcome
@@ -170,7 +170,7 @@ export const createStatusTextHelper = (): StatusTextHelper => {
     for (const outcome of Object.values(view.outcomes)) counts.set(outcome, (counts.get(outcome) ?? 0) + 1)
     const lines = [
       `story batch ${view.id} · ${view.kind} · ${view.status}`,
-      view.status === StoryBatchStatus.Ordering
+      view.status === WorkcardBatchStatus.Ordering
         ? 'order: being decided — the platform puts first what the other stories build on'
         : `order: ${view.ordering?.source ?? 'board'}`,
       ...view.stories.map((id, at) => {
@@ -181,8 +181,8 @@ export const createStatusTextHelper = (): StatusTextHelper => {
       `progress: ${Object.keys(view.outcomes).length} of ${view.stories.length} finished`
       + (counts.size > 0 ? ` (${[...counts].map(([outcome, count]) => `${count} ${outcome}`).join(', ')})` : ''),
     ]
-    if (view.status === StoryBatchStatus.Halted) {
-      lines.push(`halted: ${view.reason === STORY_BATCH_STALLED ? BATCH_STALLED_WORDS : refusalHelper.refusalPhrase(view.reason ?? '')}`)
+    if (view.status === WorkcardBatchStatus.Halted) {
+      lines.push(`halted: ${view.reason === WORKCARD_BATCH_STALLED ? BATCH_STALLED_WORDS : refusalHelper.refusalPhrase(view.reason ?? '')}`)
     }
     lines.push(`next: ${batchNext(view, live)}`)
 

@@ -15,7 +15,8 @@
     "transit": "Статус змінено",
     "link": "Пов’язано",
     "unlink": "Зв’язок видалено",
-    "delete": "Видалено"
+    "delete": "Видалено",
+    "retype": "Тип змінено"
   },
   "commit": {
     "pending": "Збереження…",
@@ -41,6 +42,7 @@
     "PlanningErrorSpecificationSlotUnknown": "Цей вид документа тут неприпустимий",
     "PlanningErrorSpecificationRevisionConflict": "Цей документ уже існує — відредагуйте його",
     "PlanningErrorRelationshipRefused": "Цей зв’язок неприпустимий",
+    "PlanningErrorRetypeNotAllowed": "Цей елемент не можна перевести в цей тип",
     "PlanningErrorCodeTaken": "Цей код уже зайнятий",
     "PlanningErrorWorkcardConflict": "Хтось змінив цей елемент тим часом — оновіть і спробуйте знову",
     "PlanningErrorCommitTimeout": "Зміна ще зберігається — перевірте трохи пізніше",

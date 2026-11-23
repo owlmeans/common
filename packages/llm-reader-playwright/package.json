@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/llm-reader-playwright",
-  "version": "0.2.2-alpha.0",
+  "version": "0.2.3-alpha.0",
   "description": "Playwright renderer for @owlmeans/llm-reader: script-run pages, computed styles, screenshots, offline bundles and guarded sub-requests.",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
@@ -33,14 +33,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/error": "^0.2.2-alpha.0",
-    "@owlmeans/llm-reader": "^0.2.2-alpha.0",
-    "@owlmeans/log": "^0.2.2-alpha.0"
+    "@owlmeans/error": "^0.2.3-alpha.0",
+    "@owlmeans/llm-reader": "^0.2.3-alpha.0",
+    "@owlmeans/log": "^0.2.3-alpha.0"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.2-alpha.0",
-    "@owlmeans/test": "^0.2.2-alpha.0",
-    "@owlmeans/test-ui": "^0.2.2-alpha.0",
+    "@owlmeans/dep-config": "^0.2.3-alpha.0",
+    "@owlmeans/test": "^0.2.3-alpha.0",
+    "@owlmeans/test-ui": "^0.2.3-alpha.0",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",

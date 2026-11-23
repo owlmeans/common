@@ -92,7 +92,7 @@ export interface ConversionEstimate {
  * A range, because a story's cost is set by how much code it turns out to need — which is exactly
  * what nothing knows before it is written. Shown with the disclaimer that says so.
  */
-export interface StoryEstimateBand {
+export interface WorkcardEstimateBand {
   minUsd: number
   maxUsd: number
   /** @deprecated Credits are USD at the reference rate now — read `minUsd`. Kept for records stored before the change. */

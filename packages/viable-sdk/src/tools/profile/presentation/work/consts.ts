@@ -17,7 +17,7 @@ export const LOCAL_ORIGIN = 'http://localhost:'
  * A batch story's state while it has no outcome: the one in progress (or, once the batch settled,
  * the one it started and never finished), the ones still queued, and the ones it never reached.
  */
-export const BATCH_STORY_PENDING = Object.freeze({
+export const BATCH_WORKCARD_PENDING = Object.freeze({
   current: 'in-progress',
   currentSettled: 'started',
   queued: 'queued',

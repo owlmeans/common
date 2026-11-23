@@ -105,6 +105,18 @@ export interface WorkPresenters {
   setupReport: Presenter
   /** `list_slots`. */
   slots: Presenter
+  /** One page of `list_cards`, and the next page while there is one. */
+  cardPage: Presenter
+  /** One work card (`{ card }`), or what a create committed before its card landed. */
+  card: Presenter
+  /** A card's composed status (`{ card: status, together? }`) — `card_status`, `run_card`, `run_cards_together`. */
+  cardStatus: Presenter
+  /** `run_all_cards`: the placement, and the batch once confirmed. */
+  cardsRunAll: Presenter
+  /** `delete_card`. */
+  cardDeleted: Presenter
+  /** `modify_project`: the project status and, where the platform triaged it, what the request became. */
+  requestStatus: Presenter
 }
 
 /** The structured output and presenter of every work-domain tool, keyed by tool name. */

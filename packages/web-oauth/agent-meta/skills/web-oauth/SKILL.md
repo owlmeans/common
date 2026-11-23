@@ -1,6 +1,6 @@
 ---
 name: web-oauth
-description: How to use @owlmeans/web-oauth — the browser half of OAuth sign-in: the consent, device-code and done screens, oauthEntrypoints, appendOAuthScreens, the useOAuthConsent hook, the suspend-then-dispatcher sign-in leg, the mandatory Tailwind @source line, the i18n resource and the data-testid contract. Auto-invoked when binding the OAuth screens in a web app, changing what the consent screen shows, diagnosing a person who is not returned to consent after signing in, or writing a test against these screens.
+description: "How to use @owlmeans/web-oauth — the browser half of OAuth sign-in: the consent, device-code and done screens, oauthEntrypoints, appendOAuthScreens, the useOAuthConsent hook, the suspend-then-dispatcher sign-in leg, the mandatory Tailwind @source line, the i18n resource and the data-testid contract. Auto-invoked when binding the OAuth screens in a web app, changing what the consent screen shows, diagnosing a person who is not returned to consent after signing in, or writing a test against these screens."
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-oauth
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-oauth": "^0.2.2-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/web-oauth": "^0.2.3-alpha.0"` in `dependencies`
 **Contracts:** `@owlmeans/oauth` — aliases, `makeOAuthProtocols`, `oauthFlow`, `ConsentView`
 **Server half:** `@owlmeans/server-oauth` (its `consentUrl`/`deviceUrl` must point at these screens)
 

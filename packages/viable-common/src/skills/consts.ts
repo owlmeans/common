@@ -142,4 +142,14 @@ export enum ViablePersona {
   SourceExtractor = 'source-extractor',
   DeclarationLookup = 'declaration-lookup',
   FixAgent = 'fix-agent',
+  /**
+   * Plans an improvement or a standalone feature: the shortest set of story steps and helper steps
+   * from the engine's step catalogue, and the pieces they change — a product architect planning work.
+   */
+  WorkPlanner = 'work-planner',
+  /**
+   * Carries out a task card — configuration, variables, secrets requested from the person, data
+   * changes and backups of the preview database — through ports, never writing code.
+   */
+  TaskOperator = 'task-operator',
 }

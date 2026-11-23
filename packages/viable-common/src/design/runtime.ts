@@ -14,33 +14,33 @@
  * emits exactly the tree it emitted before any of this existed.
  */
 
-import { EPHEMERAL_ACTORS, NO_RUNTIME, StoryActor } from './consts.js'
-import type { StoryDesignBotHandler, StoryDesignRuntime } from './types.js'
-import type { StoryRuntimeHelper } from './runtime/types.js'
+import { EPHEMERAL_ACTORS, NO_RUNTIME, WorkcardActor } from './consts.js'
+import type { WorkcardDesignBotHandler, WorkcardDesignRuntime } from './types.js'
+import type { WorkcardRuntimeHelper } from './runtime/types.js'
 
-export const createStoryRuntimeHelper = (): StoryRuntimeHelper => {
-  const isEphemeralActor = (actor?: StoryActor): boolean =>
+export const createWorkcardRuntimeHelper = (): WorkcardRuntimeHelper => {
+  const isEphemeralActor = (actor?: WorkcardActor): boolean =>
     actor != null && EPHEMERAL_ACTORS.includes(actor)
 
-  const runtimeOf = (design?: { runtime?: StoryDesignRuntime }): StoryDesignRuntime =>
+  const runtimeOf = (design?: { runtime?: WorkcardDesignRuntime }): WorkcardDesignRuntime =>
     design?.runtime ?? NO_RUNTIME
 
-  const needsRuntime = (runtime: StoryDesignRuntime): boolean =>
+  const needsRuntime = (runtime: WorkcardDesignRuntime): boolean =>
     runtime.worker || runtime.jobs.length > 0 || runtime.agents.length > 0
 
-  const botHandlersOf = (runtime: StoryDesignRuntime): StoryDesignBotHandler[] => runtime.bot?.handlers ?? []
+  const botHandlersOf = (runtime: WorkcardDesignRuntime): WorkcardDesignBotHandler[] => runtime.bot?.handlers ?? []
 
   return { isEphemeralActor, runtimeOf, needsRuntime, botHandlersOf }
 }
 
-export const storyRuntimeHelper = createStoryRuntimeHelper()
+export const workcardRuntimeHelper = createWorkcardRuntimeHelper()
 
-/** @deprecated compat:factory-refactor — use `storyRuntimeHelper.isEphemeralActor(…)` */
-export const isEphemeralActor = (actor?: StoryActor): boolean => storyRuntimeHelper.isEphemeralActor(actor)
+/** @deprecated compat:factory-refactor — use `workcardRuntimeHelper.isEphemeralActor(…)` */
+export const isEphemeralActor = (actor?: WorkcardActor): boolean => workcardRuntimeHelper.isEphemeralActor(actor)
 
-/** @deprecated compat:factory-refactor — use `storyRuntimeHelper.runtimeOf(…)` */
-export const runtimeOf = (design?: { runtime?: StoryDesignRuntime }): StoryDesignRuntime =>
-  storyRuntimeHelper.runtimeOf(design)
+/** @deprecated compat:factory-refactor — use `workcardRuntimeHelper.runtimeOf(…)` */
+export const runtimeOf = (design?: { runtime?: WorkcardDesignRuntime }): WorkcardDesignRuntime =>
+  workcardRuntimeHelper.runtimeOf(design)
 
-/** @deprecated compat:factory-refactor — use `storyRuntimeHelper.needsRuntime(…)` */
-export const needsRuntime = (runtime: StoryDesignRuntime): boolean => storyRuntimeHelper.needsRuntime(runtime)
+/** @deprecated compat:factory-refactor — use `workcardRuntimeHelper.needsRuntime(…)` */
+export const needsRuntime = (runtime: WorkcardDesignRuntime): boolean => workcardRuntimeHelper.needsRuntime(runtime)

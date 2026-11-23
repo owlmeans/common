@@ -80,7 +80,7 @@ const ProjectRef = z.object({
 })
 
 /** A user story; every story tool takes its `id` or its `code`. */
-const Story = z.object({
+const Workcard = z.object({
   id: z.string(),
   code: z.string().optional(),
   title: z.string(),
@@ -92,7 +92,7 @@ const Story = z.object({
   warning: z.string().optional(),
 })
 
-const StoryRef = z.object({
+const WorkcardRef = z.object({
   id: z.string(),
   code: z.string().optional(),
 })
@@ -108,10 +108,30 @@ const Batch = z.object({
     state: z.string(),
     reason: z.string().optional(),
   })),
-  current: StoryRef.optional(),
+  current: WorkcardRef.optional(),
   finished: z.number(),
   total: z.number(),
   halted: z.string().optional(),
+})
+
+/** A work card of any type; every cards tool takes its `id` or its `code`. */
+const Card = z.object({
+  id: z.string(),
+  code: z.string().optional(),
+  type: z.string(),
+  title: z.string(),
+  status: z.string().optional(),
+  intrinsic: z.string().optional(),
+  /** The spec or feature the card sits in. */
+  container: z.string().optional(),
+  warning: z.string().optional(),
+})
+
+/** What a triaged request became — a question, a fix, or the cards filed and the start asked for. */
+const Request = z.object({
+  kind: z.string(),
+  cards: z.array(z.object({ id: z.string(), code: z.string().optional(), type: z.string(), title: z.string() })).optional(),
+  start: z.object({ card: z.string(), started: z.boolean(), refusal: z.string().optional() }).optional(),
 })
 
 /** What an origin is built with, or what a conversion rebuilds it onto. */
@@ -211,6 +231,12 @@ export const ProjectStatusOutput = {
   local: z.boolean().optional(),
 }
 
+/** `modify_project`: the project status, and what the platform made of the request where it triaged it. */
+export const RequestStatusOutput = {
+  ...ProjectStatusOutput,
+  request: Request.optional(),
+}
+
 export const ProjectListOutput = {
   total: z.number(),
   projects: z.array(ProjectRef),
@@ -234,36 +260,81 @@ export const KitApplyOutput = {
   warnings: z.array(z.string()),
 }
 
-export const StoryPageOutput = {
+export const CardPageOutput = {
+  total: z.number(),
+  page: z.number(),
+  /** The page `list_cards` answers next, while there is one. */
+  nextPage: z.number().optional(),
+  cards: z.array(Card),
+}
+
+export const CardOutput = {
+  card: Card,
+}
+
+export const CardStatusOutput = {
+  projectId: z.string(),
+  card: Card,
+  members: z.array(Card).optional(),
+  plan: z.object({ steps: z.array(z.string()), rationale: z.string().optional() }).optional(),
+  proposals: z.array(z.object({ id: z.string(), kind: z.string(), title: z.string(), type: z.string().optional() })).optional(),
+  /** A task's inputs — never a value. */
+  inputs: z.array(z.object({ name: z.string(), kind: z.string(), set: z.boolean() })).optional(),
+  /** Where the user types a task's secrets. */
+  inputsUrl: z.string().optional(),
+  run: Run.optional(),
+  waitingFor: z.string().optional(),
+  question: Question.optional(),
+  /** Run together: the spec it filed and whether it started. */
+  together: z.object({ spec: z.string(), started: z.boolean() }).optional(),
+}
+
+export const CardsRunAllOutput = {
+  projectId: z.string(),
+  placements: z.array(z.object({ card: z.string(), container: z.string().optional(), order: z.number(), reason: z.string().optional() })),
+  /** The new spec two or more cards no existing container fits go into. */
+  newSpec: z.string().optional(),
+  /** The cards (ids) that run on their own — after every spec, one by one, in this order. */
+  loose: z.array(z.string()).optional(),
+  /** Present once run with confirm: the batch over the specs and the cards on their own. */
+  batch: Batch.optional(),
+}
+
+export const CardDeletedOutput = {
+  deleted: z.boolean(),
+  card: z.object({ id: z.string(), code: z.string().optional() }),
+}
+
+export const WorkcardPageOutput = {
   total: z.number(),
   page: z.number(),
   /** The page `list_stories` answers next, while there is one. */
   nextPage: z.number().optional(),
-  stories: z.array(Story),
+  stories: z.array(Workcard),
 }
 
-export const StoryCardOutput = {
-  story: Story,
+export const WorkcardOutput = {
+  story: Workcard,
 }
 
-export const StoryStatusOutput = {
+export const WorkcardStatusOutput = {
   projectId: z.string(),
-  story: Story,
+  story: Workcard,
   run: Run.optional(),
   waitingFor: z.string().optional(),
   question: Question.optional(),
 }
 
-export const StoryBatchOutput = {
+export const WorkcardBatchOutput = {
   projectId: z.string(),
   /** Absent: no batch has run on the project. */
   batch: Batch.optional(),
 }
 
-export const StoryBatchCancelOutput = {
-  ...StoryBatchOutput,
+export const WorkcardBatchCancelOutput = {
+  ...WorkcardBatchOutput,
   /** The story in progress the cancel also stopped, rolled back to planned. */
-  stopped: StoryRef.optional(),
+  stopped: WorkcardRef.optional(),
 }
 
 export const SteerOutput = {

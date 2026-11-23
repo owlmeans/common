@@ -19,6 +19,8 @@ metadata:
 - `update`/`transit` write `changes` — **`fields` and `flows` merge shallowly, every other key
   replaces** — and clear `unset` (`key`, `fields.key`, `flows.id`); identity and required keys are
   never written or cleared;
+- `retype` writes `changes`/`unset` as an update does and then the transition's `type` (the NEW type)
+  onto the record — the one move of `type`; `kind` never changes;
 - `link`/`unlink` move only `seq`/`head`/`updatedAt`; `delete` answers `null`;
 - every result carries `seq = transition.seq`, `head = max(head, seq)`, `updatedAt = transition.at`;
 - the log is replayed AS WRITTEN: a stored row admission would refuse (an update naming
@@ -39,12 +41,16 @@ metadata:
   `revision + 1`. An update that changes nothing is `changesHelper.isEmptyChange` and must append nothing;
 - transit — `flows[flow] = rule.to`, `status` on the primary flow, `intrinsic` when it moves,
   `closedAt` set on entering closed and cleared on leaving; throws `IllegalTransition`;
+- retype — `type` is the NEW type: the caller's changes diffed as in an update (the minted code and
+  `fields.formerCodes` among them), every flow keeping its status, `status`/`intrinsic`/`closedAt`
+  mirrored again under the new type's primary flow and policy;
 - link/unlink/delete — nothing.
 
 `changesHelper.assertMutable(exec, type)` refuses (`planning:immutable:<field>`) identity keys (`createdAt`
 among them), `createdBy` in `changes` or `unset` on any action (a create included),
 `revision` / `bodyChars`, `status`/`intrinsic`/`flows`/`closedAt` outside a create (they move only
-through `transit`), `category`, a fixed `code`, and clearing a required field.
+through `transit`), `category`, a fixed `code` (and any `code` on a `retype`, which mints its own), and
+clearing a required field.
 
 ## Querying
 

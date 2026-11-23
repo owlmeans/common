@@ -8,7 +8,7 @@ import {
 } from './consts.js'
 import type {
   BentoFragment, GuestHomePlan, LandingGateAnswer, LandingGateField, LandingGatePlan, ProductIdentity,
-  ScaffoldAreaPlan, ScaffoldPlan, ScaffoldStoryPlan, SketchContent,
+  ScaffoldAreaPlan, ScaffoldPlan, ScaffoldWorkcardPlan, SketchContent,
 } from './types.js'
 
 const SketchContentSchema: JSONSchemaType<SketchContent> = {
@@ -70,7 +70,7 @@ const SketchContentSchema: JSONSchemaType<SketchContent> = {
   additionalProperties: false,
 }
 
-const ScaffoldStoryPlanSchema: JSONSchemaType<ScaffoldStoryPlan> = {
+const ScaffoldWorkcardPlanSchema: JSONSchemaType<ScaffoldWorkcardPlan> = {
   type: 'object',
   title: 'ScaffoldStoryPlan',
   description: 'Where one user story lives in the menus, and what its dashboard widget shows',
@@ -731,7 +731,7 @@ export const ScaffoldPlanSchema: JSONSchemaType<ScaffoldPlan> = {
     },
     stories: {
       type: 'array',
-      items: ScaffoldStoryPlanSchema,
+      items: ScaffoldWorkcardPlanSchema,
       description: 'EXACTLY one entry per user story given to you, in the same order'
     },
     motifs: {
@@ -778,10 +778,10 @@ export const ScaffoldPlanAnswerSchema = {
     stories: {
       ...ScaffoldPlanSchema.properties!.stories,
       items: {
-        ...ScaffoldStoryPlanSchema,
-        required: [...(ScaffoldStoryPlanSchema.required ?? []), 'interaction'],
+        ...ScaffoldWorkcardPlanSchema,
+        required: [...(ScaffoldWorkcardPlanSchema.required ?? []), 'interaction'],
         properties: {
-          ...ScaffoldStoryPlanSchema.properties,
+          ...ScaffoldWorkcardPlanSchema.properties,
           interaction: {
             ...RecordInteractionPlanSchema,
             nullable: true,

@@ -9,7 +9,7 @@ import type { OriginDefinitionFacts, OriginTypeProof, OriginTypeSpec } from '../
 /** Where the per-story and per-seed conversion documents live in a target. */
 export interface ConversionDocHelper {
   /** The restored story document of one story code. */
-  conversionStoryDoc: (code: string) => string
+  conversionWorkcardDoc: (code: string) => string
   /** The description document of one carried seed. */
   conversionSeedDoc: (name: string) => string
   /** The carried seed data file itself. */
@@ -83,14 +83,14 @@ export interface AnalysisDocMeta extends ConversionDocMeta {
   flowSteps: number
 }
 
-export interface StoryListDocMeta extends ConversionDocMeta {
+export interface WorkcardListDocMeta extends ConversionDocMeta {
   total: number
   flow: number
   connective: number
   coverage: number
 }
 
-export interface StoryProofDocMeta extends ConversionDocMeta {
+export interface WorkcardProofDocMeta extends ConversionDocMeta {
   code: string
   /** The story's area, by key. */
   area: AreaKey

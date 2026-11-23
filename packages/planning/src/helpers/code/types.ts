@@ -28,4 +28,14 @@ export interface CodeHelper {
   ) => Promise<string>
   /** Where a draft's code must be unique: its parent, or the whole entity. */
   codeScopeOf: (policy: CodePolicy, draft: Pick<WorkcardDraft, 'parent'>) => { parent?: string }
+  /**
+   * Whether a retype to a type of this policy mints the card a new code: a card without a code, or
+   * whose code does not carry the policy's prefix. A type without a policy keeps the code it has.
+   */
+  remintsOn: (policy: CodePolicy | undefined, code: string | undefined) => boolean
+  /**
+   * The `fields.formerCodes` a retype writes when the card gives up `code`: the card's earlier ones
+   * with `code` appended once, the oldest dropped past `MAX_FORMER_CODES`.
+   */
+  formerCodesOf: (fields: Record<string, unknown> | undefined, code: string) => string[]
 }

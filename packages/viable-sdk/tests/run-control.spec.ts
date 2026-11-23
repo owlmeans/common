@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { z } from 'zod'
 import {
-  AgentNotRunning, AgentStopScope, ConnectHarness, ConnectLlm, ConnectTarget, STORY_BATCH_STALLED, StoryBatchActive,
-  StoryBatchEmpty, StoryBatchKind, StoryBatchOrderSource, StoryBatchOutcome, StoryBatchStatus, ViableStoryTransition,
-  type AgentStopArgs, type ConnectAgentLock, type StoryBatchStartArgs, type StoryBatchView,
+  AgentNotRunning, AgentStopScope, ConnectHarness, ConnectLlm, ConnectTarget, WORKCARD_BATCH_STALLED, WorkcardBatchActive,
+  WorkcardBatchEmpty, WorkcardBatchKind, WorkcardBatchOrderSource, WorkcardBatchOutcome, WorkcardBatchStatus, ViableWorkcardTransition,
+  type AgentStopArgs, type ConnectAgentLock, type WorkcardBatchStartArgs, type WorkcardBatchView,
 } from '@owlmeans/viable-common'
 import { catalogue, catalogueHelper } from '../src/tools/catalogue.js'
 import { registerCatalogue } from '../src/tools/mcp.js'
@@ -30,19 +30,19 @@ const tool = (name: string) => {
   return found
 }
 
-const batchView = (patch: Partial<StoryBatchView> = {}): StoryBatchView => ({
+const batchView = (patch: Partial<WorkcardBatchView> = {}): WorkcardBatchView => ({
   id: 'b1',
   projectId: 'p1',
-  kind: StoryBatchKind.Stories,
-  status: StoryBatchStatus.Running,
+  kind: WorkcardBatchKind.Workcards,
+  status: WorkcardBatchStatus.Running,
   stories: ['c2', 'c1', 'c3'],
   codes: { c1: 'US-AAAAA', c2: 'US-BBBBB', c3: 'US-CCCCC' },
   ordering: {
-    source: StoryBatchOrderSource.Model,
+    source: WorkcardBatchOrderSource.Model,
     reasons: { c2: 'creates the order record the others list', c1: 'lists the orders' },
   },
   current: 'c1',
-  outcomes: { c2: StoryBatchOutcome.Completed },
+  outcomes: { c2: WorkcardBatchOutcome.Completed },
   createdAt: '2026-10-24T10:00:00.000Z',
   updatedAt: '2026-10-24T10:30:00.000Z',
   ...patch,
@@ -61,10 +61,10 @@ interface Recorded {
  */
 const connector = (suite: PlanningSuite | null, opts: {
   attached?: string | null
-  view?: StoryBatchView | null
+  view?: WorkcardBatchView | null
   lock?: ConnectAgentLock
   stop?: (args: AgentStopArgs) => Promise<ConnectAgentLock>
-  start?: (args: StoryBatchStartArgs) => Promise<StoryBatchView>
+  start?: (args: WorkcardBatchStartArgs) => Promise<WorkcardBatchView>
   steer?: () => Promise<{ queued: true, id: string }>
   host?: ToolHost
 } = {}): Recorded => {
@@ -86,11 +86,11 @@ const connector = (suite: PlanningSuite | null, opts: {
           return await (opts.steer?.() ?? Promise.resolve({ queued: true as const, id: 'm1' }))
         },
         batch: {
-          start: async (projectId: string, args: StoryBatchStartArgs) => {
+          start: async (projectId: string, args: WorkcardBatchStartArgs) => {
             order.push(`batch.start:${projectId}:${JSON.stringify(args)}`)
 
             return await (opts.start?.(args) ?? Promise.resolve(batchView({
-              projectId, status: StoryBatchStatus.Ordering, ordering: undefined, current: undefined, outcomes: {},
+              projectId, status: WorkcardBatchStatus.Ordering, ordering: undefined, current: undefined, outcomes: {},
               stories: args.stories ?? ['c1'],
             })))
           },
@@ -102,7 +102,7 @@ const connector = (suite: PlanningSuite | null, opts: {
           cancel: async (projectId: string) => {
             order.push(`batch.cancel:${projectId}`)
 
-            return { ...(opts.view ?? batchView({ projectId })), status: StoryBatchStatus.Cancelled }
+            return { ...(opts.view ?? batchView({ projectId })), status: WorkcardBatchStatus.Cancelled }
           },
         },
       },
@@ -139,7 +139,7 @@ describe('viable-sdk — run all: a story batch', () => {
     expect(result.text).toContain('Batch b1 started over 2 stories')
     expect(result.text).toContain('order: being decided')
     expect(result.text).toContain(`next: story_batch_status { "projectId": "${project.id}" }`)
-    expect(result.structured).toEqual({ batch: expect.objectContaining({ id: 'b1', status: StoryBatchStatus.Ordering }) })
+    expect(result.structured).toEqual({ batch: expect.objectContaining({ id: 'b1', status: WorkcardBatchStatus.Ordering }) })
   })
 
   test('start_story_batch without stories asks for every planned one, and a story of another project is refused first', async () => {
@@ -184,31 +184,31 @@ describe('viable-sdk — run all: a story batch', () => {
 
   test('a finished, cancelled, halted or conversion batch ends in its own next step', () => {
     const done = statusTextHelper.renderBatchStatus(batchView({
-      status: StoryBatchStatus.Completed, current: 'c3',
-      outcomes: { c2: StoryBatchOutcome.Completed, c1: StoryBatchOutcome.Failed, c3: StoryBatchOutcome.Stopped },
+      status: WorkcardBatchStatus.Completed, current: 'c3',
+      outcomes: { c2: WorkcardBatchOutcome.Completed, c1: WorkcardBatchOutcome.Failed, c3: WorkcardBatchOutcome.Stopped },
     }))
     expect(done).toContain('progress: 3 of 3 finished (1 completed, 1 failed, 1 stopped)')
     expect(done).toContain('rolled back and it is planned again')
     expect(done).toContain('next: nothing — every story of this batch has an outcome')
 
-    const cancelled = statusTextHelper.renderBatchStatus(batchView({ status: StoryBatchStatus.Cancelled }))
+    const cancelled = statusTextHelper.renderBatchStatus(batchView({ status: WorkcardBatchStatus.Cancelled }))
     expect(cancelled).toContain('2. US-AAAAA · started, not finished')
     expect(cancelled).toContain('3. US-CCCCC · not started')
     expect(cancelled).toContain('next: nothing — this batch was cancelled; start_story_batch starts a new one')
 
-    const stalled = statusTextHelper.renderBatchStatus(batchView({ status: StoryBatchStatus.Halted, reason: STORY_BATCH_STALLED }))
+    const stalled = statusTextHelper.renderBatchStatus(batchView({ status: WorkcardBatchStatus.Halted, reason: WORKCARD_BATCH_STALLED }))
     expect(stalled).toContain('halted: the story it started stopped moving')
     expect(stalled).toContain('next: story_status { "projectId": "p1", "storyId": "c1" }, then start_story_batch again')
 
     // A refusal marker stored as the reason is phrased like a thrown one — never left as the marker.
     const broke = statusTextHelper.renderBatchStatus(batchView({
-      status: StoryBatchStatus.Halted, reason: 'performance-consent-required',
+      status: WorkcardBatchStatus.Halted, reason: 'performance-consent-required',
     }))
     expect(broke).toContain('halted: Nothing was started.')
     expect(broke).not.toContain('halted: performance-consent-required')
     expect(broke).toContain('next: start_story_batch again once the cause above is addressed')
 
-    const conversion = statusTextHelper.renderBatchStatus(batchView({ kind: StoryBatchKind.Conversion, status: StoryBatchStatus.Cancelled }))
+    const conversion = statusTextHelper.renderBatchStatus(batchView({ kind: WorkcardBatchKind.Conversion, status: WorkcardBatchStatus.Cancelled }))
     expect(conversion).toContain('story batch b1 · conversion · cancelled')
     expect(conversion).toContain('next: conversion_status')
   })
@@ -225,7 +225,7 @@ describe('viable-sdk — run all: a story batch', () => {
     const result = await tool('cancel_story_batch').run({ confirm: true }, confirmed.deps)
     expect(confirmed.order).toEqual([
       'batch.cancel:p1',
-      `stop:p1:${JSON.stringify({ scope: AgentStopScope.Story, storyId: 'c1', confirm: true })}`,
+      `stop:p1:${JSON.stringify({ scope: AgentStopScope.Workcard, storyId: 'c1', confirm: true })}`,
     ])
     expect(result.isError).not.toBe(true)
     expect(result.text).toContain('The batch is cancelled: no further story starts, and the story in progress stops')
@@ -234,7 +234,7 @@ describe('viable-sdk — run all: a story batch', () => {
   })
 
   test('cancel_story_batch between two stories stops nothing, and nothing running is no failure', async () => {
-    const between = connector(null, { view: batchView({ outcomes: { c2: StoryBatchOutcome.Completed, c1: StoryBatchOutcome.Failed } }) })
+    const between = connector(null, { view: batchView({ outcomes: { c2: WorkcardBatchOutcome.Completed, c1: WorkcardBatchOutcome.Failed } }) })
     const idle = await tool('cancel_story_batch').run({ confirm: true }, between.deps)
     expect(between.order).toEqual(['batch.cancel:p1'])
     expect(idle.text).toContain('No story of it was being implemented.')
@@ -253,7 +253,7 @@ describe('viable-sdk — run all: a story batch', () => {
 
 describe('viable-sdk — stopping and steering the agent', () => {
   test('stop_agent asks the user first for every stop that rolls a story back, and makes no call before', async () => {
-    for (const args of [{}, { scope: AgentStopScope.Story }, { scope: AgentStopScope.Batch }, { scope: AgentStopScope.Story, confirm: false }]) {
+    for (const args of [{}, { scope: AgentStopScope.Workcard }, { scope: AgentStopScope.Batch }, { scope: AgentStopScope.Workcard, confirm: false }]) {
       const { deps, order } = connector(null)
       const result = await tool('stop_agent').run(args, deps)
       expect([JSON.stringify(args), result.isError]).toEqual([JSON.stringify(args), true])
@@ -283,15 +283,15 @@ describe('viable-sdk — stopping and steering the agent', () => {
   test('stop_agent resolves a story code to its card on the project it names', async () => {
     const suite = await makePlanningSuite()
     const project = await suite.project('Shop', 'shop')
-    const story = await suite.story(project.id!, 'As a clerk, I record a sale.', { moves: [ViableStoryTransition.Start] })
+    const workcard = await suite.story(project.id!, 'As a clerk, I record a sale.', { moves: [ViableWorkcardTransition.Start] })
     const { deps, order } = connector(suite, { attached: null })
 
     const result = await tool('stop_agent').run({
-      projectId: project.id, scope: AgentStopScope.Story, storyId: story.code, confirm: true,
+      projectId: project.id, scope: AgentStopScope.Workcard, storyId: workcard.code, confirm: true,
     }, deps)
 
     expect(order).toEqual([
-      `stop:${project.id}:${JSON.stringify({ scope: AgentStopScope.Story, storyId: story.id, confirm: true })}`,
+      `stop:${project.id}:${JSON.stringify({ scope: AgentStopScope.Workcard, storyId: workcard.id, confirm: true })}`,
     ])
     expect(result.text).toContain('Stop requested: the story in progress stops at its next step')
     // A stop opens no session: nothing it does is a model call the connector performs.
@@ -347,7 +347,7 @@ describe('viable-sdk — the refusals of the agent controls, phrased for the mod
     const { deps } = connector(null, {
       stop: async () => { throw new AgentNotRunning('stop') },
       steer: async () => { throw new AgentNotRunning('steer') },
-      start: async () => { throw new StoryBatchActive('b0') },
+      start: async () => { throw new WorkcardBatchActive('b0') },
     })
     const { server, run } = fakeServer()
     registerCatalogue(server, deps)
@@ -362,7 +362,7 @@ describe('viable-sdk — the refusals of the agent controls, phrased for the mod
     expect(busy.content[0]!.text).toContain('A story batch is already running on this project (b0)')
     expect(busy.content[0]!.text).toContain('story_batch_status')
 
-    expect(refusalHelper.refusalPhrase(new StoryBatchEmpty())).toContain('the selection holds no planned story')
+    expect(refusalHelper.refusalPhrase(new WorkcardBatchEmpty())).toContain('the selection holds no planned story')
     // A marshalled refusal reads the same as the class.
     expect(refusalHelper.refusalPhrase(new AgentNotRunning('steer').marshal()))
       .toContain('Nothing is running on this project right now that this reaches (steer)')

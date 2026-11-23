@@ -5,9 +5,9 @@ import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 import { AREA_KEY_MAX, AREA_KEY_PATTERN } from '../areas/consts.js'
 import { ENGLISH_NAME_NOTE } from '../dev/consts.js'
 import { StatedRequirementSchema } from '../ba/schemas.js'
-import { STORY_BOT_TRIGGERS, StoryActor, StoryAgentKind } from './consts.js'
+import { WORKCARD_BOT_TRIGGERS, WorkcardActor, WorkcardAgentKind } from './consts.js'
 import { CRON_SHAPE } from './schedule/consts.js'
-import type { StoryDesign, RuntimeDecision } from './types.js'
+import type { WorkcardDesign, RuntimeDecision } from './types.js'
 
 /**
  * The design shape, validated where the shape is DEFINED.
@@ -45,7 +45,7 @@ const transition = {
   additionalProperties: false,
 } as const
 
-export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
+export const WorkcardDesignSchema: JSONSchemaType<WorkcardDesign> = {
   type: 'object',
   title: 'StoryDesign',
   description: 'Everything a user story will be, decided before any of it is written',
@@ -263,7 +263,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
       type: 'object',
       nullable: true,
       properties: {
-        actor: { type: 'string', enum: Object.values(StoryActor) },
+        actor: { type: 'string', enum: Object.values(WorkcardActor) },
         worker: { type: 'boolean' },
         kv: { type: 'boolean' },
         feedback: { type: 'string', nullable: true },
@@ -314,7 +314,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
               alias: { type: 'string' },
               path: { type: 'string' },
               purpose: { type: 'string' },
-              kind: { type: 'string', enum: Object.values(StoryAgentKind) },
+              kind: { type: 'string', enum: Object.values(WorkcardAgentKind) },
               job: { type: 'string', nullable: true },
               units: { type: 'array', items: { type: 'string' }, nullable: true },
             },
@@ -334,7 +334,7 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
                 properties: {
                   name: { type: 'string', minLength: 1 },
                   purpose: { type: 'string' },
-                  trigger: { type: 'string', enum: STORY_BOT_TRIGGERS },
+                  trigger: { type: 'string', enum: WORKCARD_BOT_TRIGGERS },
                   command: { type: 'string', nullable: true },
                   actions: { type: 'array', items: { type: 'string', enum: Object.values(BotKitAction) } },
                   agent: { type: 'string', nullable: true },
@@ -415,12 +415,12 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
     'types', 'resources', 'models', 'api', 'stores', 'transitions', 'access', 'provenance',
   ],
   additionalProperties: false,
-} as unknown as JSONSchemaType<StoryDesign>
+} as unknown as JSONSchemaType<WorkcardDesign>
 
 /**
  * What the runtime gate answers with.
  *
- * Deliberately NOT `StoryDesignRuntime`: the model is asked what the story NEEDS, and the derived
+ * Deliberately NOT `WorkcardDesignRuntime`: the model is asked what the story NEEDS, and the derived
  * half — whether that adds up to a worker, whether an agent has a job to run in — is the helper's
  * to compute. A model asked for `worker: boolean` beside a job list can answer with the two
  * disagreeing, and there is no honest way to pick a winner.
@@ -480,7 +480,7 @@ export const RuntimeDecisionSchema = {
           purpose: { type: 'string' },
           kind: {
             type: 'string',
-            enum: Object.values(StoryAgentKind),
+            enum: Object.values(WorkcardAgentKind),
             description: '`call` for one prompt and one answer — the default and almost '
               + 'always right; `pipeline` for steps this application names in advance; `agent` '
               + 'only when the number of steps cannot be predicted and tool choice is the '

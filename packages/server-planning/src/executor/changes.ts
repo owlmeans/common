@@ -9,7 +9,9 @@ export const createChangesUtils = (): ChangesUtils => {
   const changeSetOf = (
     exec: TransitionExecution, resolved: Resolved, schemas: PlanningSchemaRegistry, at: string
   ): { set: ChangeSet, empty: boolean } => {
-    const set = changesHelper.computeChanges(resolved.card, exec, resolved.type, schemas, at, { slot: resolved.slot })
+    // A retype's changes are computed under the type the card becomes.
+    const type = exec.action === TransitionAction.Retype ? resolved.target ?? resolved.type : resolved.type
+    const set = changesHelper.computeChanges(resolved.card, exec, type, schemas, at, { slot: resolved.slot })
     const empty = exec.action === TransitionAction.Update && changesHelper.isEmptyChange(set)
 
     return { set, empty }
@@ -33,7 +35,8 @@ export const createChangesUtils = (): ChangesUtils => {
       entityId: scope.entityId,
       card: cardId,
       kind,
-      type: resolved.type.type,
+      // A retype's row carries the NEW type: the fold writes it onto the record.
+      type: exec.action === TransitionAction.Retype ? resolved.target?.type ?? resolved.type.type : resolved.type.type,
       project,
       seq,
       action: exec.action,

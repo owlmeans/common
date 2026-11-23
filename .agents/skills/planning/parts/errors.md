@@ -24,6 +24,7 @@ the marker survives a hop where the class is unknown, so match on it there:
 | `FieldsInvalid` / `LabelNotAllowed` | `fields-invalid:` / `label-not-allowed:` | 422 |
 | `SpecificationSlotUnknown` / `SpecificationRevisionConflict` | `specification-slot-unknown:` / `specification-revision-conflict:` | 422 / 409 |
 | `RelationshipRefused` / `CodeTaken` | `relationship-refused:` / `code-taken:` | 422 / 409 |
+| `RetypeNotAllowed` | `retype-not-allowed:` — the type pair (`<from>:<to>`), `same:`, `kind:`, `store:`, `status:<flow>:<status>`, `document:<category>` | 422 |
 | `WorkcardConflict` | `workcard-conflict:` — stale `expectSeq` | 409 |
 | `SchemaConflict` / `SchemaInUse` | `schema-conflict:` (lost version CAS) / `schema-in-use:` (retiring a flow a live type runs) | 409 |
 | `SchemaSealed` / `SchemaInvalid` | `schema-sealed:` / `schema-invalid:` | 422 |

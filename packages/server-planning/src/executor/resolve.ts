@@ -178,6 +178,15 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
       throw new UnknownStatusFlow(`${type.type}:${flowId}`)
     }
 
+    let target: AnyTypeSchema | undefined
+    if (exec.action === TransitionAction.Retype && exec.toType != null && exec.toType !== '') {
+      target = schemas.type(exec.toType)
+      if (layered && isScoped(schemas) && schemas.isRetired(PlanningSchemaKind.Type, exec.toType)) {
+        // Nothing becomes a retired type, as nothing new is made of one.
+        throw new UnknownWorkcardType(`retired:${exec.toType}`)
+      }
+    }
+
     const kind = create ? (exec.card as WorkcardDraft).kind : card!.kind
     const category = create ? (exec.card as WorkcardDraft).category : (card as Specification | undefined)?.category
     const slot = kind === WorkcardKind.Specification && parent != null && category != null
@@ -189,6 +198,7 @@ export const makeResolveUtils = (runtime: PlanningRuntime): ResolveUtils => {
       project,
       ...(card != null ? { card } : {}),
       type,
+      ...(target != null ? { target } : {}),
       flowId,
       flow: schemas.flow(flowId),
       ...(parent != null ? { parent } : {}),

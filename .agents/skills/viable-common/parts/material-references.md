@@ -1,6 +1,6 @@
 ---
 name: material-references
-description: References in the materials contract — links, online research requests and npm packages a person points at instead of uploading: the links budget and policy, the reserved links/ prefix and places, the references.json ledger, fetched-file provenance, the reference scan with its eight-language research cues, generated documents and the connector's reference routes.
+description: "References in the materials contract — links, online research requests and npm packages a person points at instead of uploading: the links budget and policy, the reserved links/ prefix and places, the references.json ledger, fetched-file provenance, the reference scan with its eight-language research cues, generated documents and the connector's reference routes."
 metadata:
   purposes: data, agent, config
   mentions: MaterialLinkIntent, MATERIALS_LINK_LIMITS, MATERIALS_LINK_POLICY, MATERIALS_LINKS_PREFIX, MATERIALS_RESEARCH_PURPOSE, MATERIALS_REFERENCES, ReferencesLedger, referencesLedgerHelper, MaterialLinkDetails, materialLinkOf, referenceScanHelper, REFERENCE_RESEARCH_CUES, MaterialGeneratedKind, ModelRole.Researcher

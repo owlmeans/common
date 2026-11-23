@@ -352,7 +352,7 @@ export enum PurposeEvidenceSource {
  * as account lifecycle the platform provides to every target ({@link PlatformFlow}).
  */
 export enum OriginFlowDisposition {
-  Story = 'story',
+  Workcard = 'story',
   Main = 'main',
   Platform = 'platform',
 }
@@ -401,7 +401,7 @@ export enum EstimateSlice {
   Config = 'config',
   Taxonomy = 'taxonomy',
   Spec = 'spec',
-  StoryList = 'story-list',
+  WorkcardList = 'story-list',
   OriginCard = 'origin-card',
   /** A fixed per-call overhead that does not scale with the origin. */
   Fixed = 'fixed',
@@ -475,7 +475,7 @@ export const CONVERSION_TAXONOMY_FILE = `${CONVERSION_DIR}/taxonomy.md`
 export const CONVERSION_PURPOSE_FILE = `${CONVERSION_DIR}/purpose.md`
 export const CONVERSION_DESIGN_FILE = `${CONVERSION_DIR}/design.md`
 export const CONVERSION_ANALYSIS_FILE = `${CONVERSION_DIR}/analysis.md`
-export const CONVERSION_STORY_LIST_FILE = `${CONVERSION_DIR}/story-list.md`
+export const CONVERSION_WORKCARD_LIST_FILE = `${CONVERSION_DIR}/story-list.md`
 export const CONVERSION_FLOWS_FILE = `${CONVERSION_DIR}/flows.md`
 export const CONVERSION_AREAS_FILE = `${CONVERSION_DIR}/areas.md`
 export const CONVERSION_SCAFFOLD_FILE = `${CONVERSION_DIR}/scaffold.md`
@@ -492,9 +492,15 @@ export const CONVERSION_TENANCY_FILE = `${CONVERSION_DIR}/tenancy.md`
  * definitions state for the target's definition editors (`OriginTypesRecord`, `originTypesHelper`).
  */
 export const CONVERSION_TYPES_FILE = `${CONVERSION_DIR}/types.md`
+/**
+ * The coherent specs the extraction grouped the restored stories into (`SpecGrouping`): each spec,
+ * its features (one capability for one role) and the stories it holds, then the stories left loose
+ * (no spec of one story is ever formed).
+ */
+export const CONVERSION_SPECS_FILE = `${CONVERSION_DIR}/specs.md`
 
 /** One document per extracted story, named by the platform's story code. */
-export const CONVERSION_STORY_DIR = `${CONVERSION_DIR}/stories`
+export const CONVERSION_WORKCARD_DIR = `${CONVERSION_DIR}/stories`
 /**
  * One document per top-level package of the origin, holding a whole-file summary of every
  * readable file in it (`conversionDocHelper.conversionSummaryDoc`). The origin's root package is
@@ -531,7 +537,7 @@ export const CONVERSION_DOCS: readonly string[] = [
   CONVERSION_PURPOSE_FILE,
   CONVERSION_DESIGN_FILE,
   CONVERSION_ANALYSIS_FILE,
-  CONVERSION_STORY_LIST_FILE,
+  CONVERSION_WORKCARD_LIST_FILE,
   CONVERSION_FLOWS_FILE,
   CONVERSION_AREAS_FILE,
   CONVERSION_SCAFFOLD_FILE,
@@ -543,6 +549,7 @@ export const CONVERSION_DOCS: readonly string[] = [
   CONVERSION_ORIGIN_CARD_FILE,
   CONVERSION_TENANCY_FILE,
   CONVERSION_TYPES_FILE,
+  CONVERSION_SPECS_FILE,
 ]
 
 /** The memory nodes a conversion owns in the target's harness. */
@@ -676,8 +683,8 @@ export const ESTIMATE_VERSION = 1
  * on the main, dev-0 and staging ledgers after the 2026-10-21 prompt-cache change: median 57,825
  * credits per conversion story over 159,259 per regular story before it (×0.3631).
  */
-export const STORY_BAND_MIN_USD = 0.73
-export const STORY_BAND_MAX_USD = 1.82
+export const WORKCARD_BAND_MIN_USD = 0.73
+export const WORKCARD_BAND_MAX_USD = 1.82
 
 /** Below this, a purpose inference is reported as a guess and the user is asked to confirm it. */
 export const PURPOSE_CONFIDENCE_FLOOR = 0.4

@@ -55,7 +55,8 @@ export const createChangesHelper = (): ChangesHelper => {
 
   const assertMutable = (exec: TransitionExecution, type: AnyTypeSchema): void => {
     const create = exec.action === TransitionAction.Create
-    const codeFixed = type.code != null && type.code.mutable !== true
+    // A retype mints the code itself (`codeHelper.remintsOn`): the caller never names one.
+    const codeFixed = exec.action === TransitionAction.Retype || (type.code != null && type.code.mutable !== true)
     const refuse = (key: string): never => {
       throw new PlanningError(`immutable:${FLOW_KEYS.includes(key) ? 'status' : key}`)
     }
@@ -171,6 +172,38 @@ export const createChangesHelper = (): ChangesHelper => {
     }
   }
 
+  /**
+   * A retype under the NEW type: the caller's changes diffed as in an update (the code the executor
+   * minted among them), every flow keeping its status, and `status`/`intrinsic`/`closedAt` mirrored
+   * again under the new type's primary flow and intrinsic policy.
+   */
+  const retypeOf = (
+    card: Workcard, exec: TransitionExecution, type: AnyTypeSchema, registry: FlowLookup, at: string, set: ChangeSet
+  ): ChangeSet => {
+    diffInto(card, exec.changes, FLOW_KEYS, set)
+    unsetInto(card, exec.unset?.filter(path => !FLOW_KEYS.includes(path.split('.')[0])), set)
+
+    const primary = statusHelper.primaryFlowOf(type)
+    const status = card.flows[primary] ?? card.status
+    if (status !== card.status) {
+      set.changes.status = status
+    }
+    if (card.flows[primary] == null) {
+      set.changes.flows = { [primary]: status }
+    }
+    const intrinsic = statusHelper.resolveIntrinsic(type, { ...card.flows, [primary]: status }, registry)
+    if (intrinsic !== card.intrinsic) {
+      set.changes.intrinsic = intrinsic
+    }
+    if (intrinsic === IntrinsicStatus.Closed && card.intrinsic !== IntrinsicStatus.Closed) {
+      set.changes.closedAt = at
+    } else if (intrinsic !== IntrinsicStatus.Closed && card.closedAt != null) {
+      set.unset.push('closedAt')
+    }
+
+    return set
+  }
+
   const createOf = (
     exec: TransitionExecution, type: AnyTypeSchema, registry: FlowLookup, at: string, slot?: SpecificationSlot | null
   ): ChangeSet => {
@@ -235,7 +268,8 @@ export const createChangesHelper = (): ChangesHelper => {
       return createOf(exec, type, registry, at, opts?.slot)
     }
     const set: ChangeSet = { changes: {}, unset: [] }
-    if (exec.action !== TransitionAction.Update && exec.action !== TransitionAction.Transit) {
+    if (exec.action !== TransitionAction.Update && exec.action !== TransitionAction.Transit
+      && exec.action !== TransitionAction.Retype) {
       return set
     }
     if (card == null) {
@@ -249,6 +283,10 @@ export const createChangesHelper = (): ChangesHelper => {
       reviseInto(card, opts?.slot, set)
 
       return set
+    }
+
+    if (exec.action === TransitionAction.Retype) {
+      return retypeOf(card, exec, type, registry, at, set)
     }
 
     if (exec.transition == null) {

@@ -1,19 +1,21 @@
 import type { JSONSchemaType } from 'ajv'
-import { CODE_MAX, IntrinsicPolicy, IntrinsicStatus, SpecificationFormat, WorkcardKind, AnyTypeSchema, ProjectTypeSchema, RelationshipType, SpecificationSlot, StatusFlowSchema, WorkcardTypeSchema } from '@owlmeans/planning'
+import { CODE_MAX, MAX_FORMER_CODES, IntrinsicPolicy, IntrinsicStatus, SpecificationFormat, WorkcardKind, AnyTypeSchema, ProjectTypeSchema, RelationshipType, SpecificationSlot, StatusFlowSchema, WorkcardTypeSchema } from '@owlmeans/planning'
 import { AREA_KEY_MAX, AREA_KEY_PATTERN, ORIGIN_TENANCY_LIST_MAX, ORIGIN_TENANCY_WORD_MAX, TENANCY_QUOTE_MAX } from '../areas/consts.js'
 import { TARGET_AREA_MAX } from '../topology/apps/consts.js'
 import { ViableAppsDecisionSchema } from '../topology/schemas.js'
 import { BOT_PLATFORM_ID_FORMAT, BOT_PLATFORMS_MAX, BotKit, CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
-import { REQUIREMENTS_VERSION, StoryKind } from '../ba/consts.js'
+import { REQUIREMENTS_VERSION, UserStoryKind } from '../ba/consts.js'
 import { RequirementsDocumentSchema } from '../ba/schemas.js'
 import { ConnectLlm, ConnectTarget } from '../connect/consts.js'
 import { WorkMode } from '../execution/consts.js'
 import { ProjectOriginSchema } from '../convert/schemas.js'
-import { StoryActor, STORY_DESIGN_VERSION } from '../design/consts.js'
-import type { ViableProjectFields, ViableStoryFields } from './types.js'
-import { StoryDesignSchema } from '../design/schemas.js'
+import { WorkcardActor, WORKCARD_DESIGN_VERSION } from '../design/consts.js'
+import type { ViableFeatureFields, ViableImprovementFields, ViableProjectFields, ViableSpecCardFields, ViableTaskFields, ViableWorkcardFields } from './types.js'
+import { WorkcardDesignSchema } from '../design/schemas.js'
 import { ScaffoldPlanSchema } from '../scaffold/schemas.js'
-import { VIABLE_BUG_CODE, VIABLE_BUG_TYPE, VIABLE_DESIGN_REVISIONS_KEPT, VIABLE_IMPROVEMENT_CODE, VIABLE_IMPROVEMENT_TYPE, VIABLE_PROJECT_CODE, VIABLE_PROJECT_FLOW, VIABLE_PROJECT_TYPE, VIABLE_REQUIREMENT_CODE, VIABLE_REQUIREMENT_TYPE, VIABLE_SPEC_FLOW, VIABLE_SPEC_TYPE, VIABLE_STORY_CODE, VIABLE_STORY_FLOW, VIABLE_STORY_TYPE, ViableProjectStatus, ViableProjectTransition, ViableRelationship, ViableSpecCategory, ViableSpecStatus, ViableStoryStatus, ViableStoryTransition, ViableTone } from './consts.js'
+import { TASK_OPERATIONS_VERSION, WORK_PLAN_VERSION, WORK_PROPOSALS_VERSION } from '../work/consts.js'
+import { TaskOperationsSchema, WorkPlanSchema, WorkProposalsSchema } from '../work/schemas.js'
+import { VIABLE_BUG_CODE, VIABLE_BUG_TYPE, VIABLE_DESIGN_REVISIONS_KEPT, VIABLE_FEATURE_CODE, VIABLE_FEATURE_MEMBERS, VIABLE_FEATURE_TYPE, VIABLE_IMPROVEMENT_CODE, VIABLE_IMPROVEMENT_TYPE, VIABLE_PROJECT_CODE, VIABLE_PROJECT_FLOW, VIABLE_PROJECT_TYPE, VIABLE_REQUIREMENT_CODE, VIABLE_REQUIREMENT_TYPE, VIABLE_SPEC_CARD_CODE, VIABLE_SPEC_CARD_MEMBERS, VIABLE_SPEC_CARD_TYPE, VIABLE_SPEC_FLOW, VIABLE_SPEC_TYPE, VIABLE_TASK_CODE, VIABLE_TASK_TYPE, VIABLE_USER_STORY_CODE, VIABLE_WORK_FLOW, VIABLE_WORK_TYPES, VIABLE_WORKCARD_FLOW, VIABLE_USER_STORY_TYPE, ViableProjectStatus, ViableProjectTransition, ViableRelationship, ViableInitScope, ViableSpecCategory, ViableSpecOrigin, ViableSpecStatus, ViableTypeBy, ViableWorkcardStatus, ViableWorkcardTransition, ViableTone, VIABLE_TYPE_REASON_MAX } from './consts.js'
 
 /**
  * The `fields` schema of a `viable:project` card.
@@ -107,10 +109,35 @@ export const ViableProjectFieldsSchema = {
     // An absent `apps` is one app, `main`, over the four standard areas — never written for a
     // project that has not been split. The rules between entries are `appMapHelper.validate`'s.
     apps: { ...ViableAppsDecisionSchema, nullable: true },
+    // The confirm's choice — absent (or `null`) is the preview.
+    initScope: { type: 'string', enum: [...Object.values(ViableInitScope), null], nullable: true },
   },
   required: [],
   additionalProperties: false,
 } as unknown as JSONSchemaType<ViableProjectFields>
+
+/** Who decided the type — a nullable enum carrying `null`. */
+const typeByProperty = () => ({ type: 'string', enum: [...Object.values(ViableTypeBy), null], nullable: true })
+
+/** The codes a retype took from the card (`@owlmeans/planning`'s `formerCodes`), oldest first. */
+const formerCodesProperty = () => ({
+  type: 'array', items: { type: 'string', minLength: 1, maxLength: CODE_MAX }, maxItems: MAX_FORMER_CODES, nullable: true,
+})
+
+const warningProperty = () => ({ type: 'string', maxLength: 1024, nullable: true })
+
+/** Why the type check retyped the card (`typeBy: model`) — cleared by a person's retype. */
+const typeReasonProperty = () => ({ type: 'string', maxLength: VIABLE_TYPE_REASON_MAX, nullable: true })
+
+const areaProperty = () => ({ type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source })
+
+const areasProperty = () => ({
+  type: 'array',
+  items: areaProperty(),
+  maxItems: TARGET_AREA_MAX,
+  uniqueItems: true,
+  nullable: true,
+})
 
 /**
  * The `fields` schema of a `viable:user-story` card.
@@ -121,26 +148,85 @@ export const ViableProjectFieldsSchema = {
  * with one of the four standard kinds (`'user'`) validates unchanged; whether the project's map knows
  * the key is the writer's check, never the schema's.
  */
-export const ViableStoryFieldsSchema = {
+export const ViableWorkcardFieldsSchema = {
   type: 'object',
   properties: {
-    area: { type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source },
+    area: areaProperty(),
     primary: { type: 'boolean' },
-    actor: { type: 'string', enum: [...Object.values(StoryActor), null], nullable: true },
-    warning: { type: 'string', maxLength: 1024, nullable: true },
-    kind: { type: 'string', enum: [...Object.values(StoryKind), null], nullable: true },
+    actor: { type: 'string', enum: [...Object.values(WorkcardActor), null], nullable: true },
+    warning: warningProperty(),
+    kind: { type: 'string', enum: [...Object.values(UserStoryKind), null], nullable: true },
     landing: { type: 'boolean', nullable: true },
-    areas: {
-      type: 'array',
-      items: { type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source },
-      maxItems: TARGET_AREA_MAX,
-      uniqueItems: true,
-      nullable: true,
-    },
+    areas: areasProperty(),
+    typeBy: typeByProperty(),
+    typeReason: typeReasonProperty(),
+    formerCodes: formerCodesProperty(),
   },
   required: ['area', 'primary'],
   additionalProperties: false,
-} as unknown as JSONSchemaType<ViableStoryFields>
+} as unknown as JSONSchemaType<ViableWorkcardFields>
+
+/** The `fields` schema of a `viable:spec-card`. */
+export const ViableSpecCardFieldsSchema = {
+  type: 'object',
+  properties: {
+    warning: warningProperty(),
+    origin: { type: 'string', enum: [...Object.values(ViableSpecOrigin), null], nullable: true },
+    typeBy: typeByProperty(),
+    typeReason: typeReasonProperty(),
+    formerCodes: formerCodesProperty(),
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ViableSpecCardFields>
+
+/**
+ * The `fields` schema of a `viable:feature`. `area` is the role the capability serves; optional here
+ * because a person's create may leave it to the formatting, which fills it before the write.
+ */
+export const ViableFeatureFieldsSchema = {
+  type: 'object',
+  properties: {
+    area: { ...areaProperty(), nullable: true },
+    actor: { type: 'string', enum: [...Object.values(WorkcardActor), null], nullable: true },
+    warning: warningProperty(),
+    kind: { type: 'string', enum: [...Object.values(UserStoryKind), null], nullable: true },
+    typeBy: typeByProperty(),
+    typeReason: typeReasonProperty(),
+    formerCodes: formerCodesProperty(),
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ViableFeatureFields>
+
+/** The `fields` schema of a `viable:improvement`. */
+export const ViableImprovementFieldsSchema = {
+  type: 'object',
+  properties: {
+    area: { ...areaProperty(), nullable: true },
+    areas: areasProperty(),
+    warning: warningProperty(),
+    kind: { type: 'string', enum: [...Object.values(UserStoryKind), null], nullable: true },
+    typeBy: typeByProperty(),
+    typeReason: typeReasonProperty(),
+    formerCodes: formerCodesProperty(),
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ViableImprovementFields>
+
+/** The `fields` schema of a `viable:task` — names and states live in its `operations` document, values nowhere on the card. */
+export const ViableTaskFieldsSchema = {
+  type: 'object',
+  properties: {
+    warning: warningProperty(),
+    typeBy: typeByProperty(),
+    typeReason: typeReasonProperty(),
+    formerCodes: formerCodesProperty(),
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ViableTaskFields>
 
 /** The open `fields` of a reserved card type — nothing is decided about them yet. */
 export const ViableOpenFieldsSchema = {
@@ -165,34 +251,34 @@ export const ViableSpecFieldsSchema = {
  * a retry is simply `start` again. `reset` from anywhere is the manual recovery — the one move a
  * completed story still accepts.
  */
-export const VIABLE_STORY_FLOW_SCHEMA: StatusFlowSchema = {
-  id: VIABLE_STORY_FLOW,
+export const VIABLE_WORKCARD_FLOW_SCHEMA: StatusFlowSchema = {
+  id: VIABLE_WORKCARD_FLOW,
   version: 1,
   statuses: [
-    { key: ViableStoryStatus.Planned, intrinsic: IntrinsicStatus.Planned, initial: true, tone: ViableTone.Blue },
-    { key: ViableStoryStatus.InProgress, intrinsic: IntrinsicStatus.InProgress, tone: ViableTone.Yellow },
-    { key: ViableStoryStatus.Completed, intrinsic: IntrinsicStatus.Closed, tone: ViableTone.Green },
-    { key: ViableStoryStatus.Failed, intrinsic: IntrinsicStatus.Planned, tone: ViableTone.Red },
+    { key: ViableWorkcardStatus.Planned, intrinsic: IntrinsicStatus.Planned, initial: true, tone: ViableTone.Blue },
+    { key: ViableWorkcardStatus.InProgress, intrinsic: IntrinsicStatus.InProgress, tone: ViableTone.Yellow },
+    { key: ViableWorkcardStatus.Completed, intrinsic: IntrinsicStatus.Closed, tone: ViableTone.Green },
+    { key: ViableWorkcardStatus.Failed, intrinsic: IntrinsicStatus.Planned, tone: ViableTone.Red },
   ],
   transitions: [
     {
-      name: ViableStoryTransition.Start,
-      from: [ViableStoryStatus.Planned, ViableStoryStatus.Failed],
-      to: ViableStoryStatus.InProgress,
+      name: ViableWorkcardTransition.Start,
+      from: [ViableWorkcardStatus.Planned, ViableWorkcardStatus.Failed],
+      to: ViableWorkcardStatus.InProgress,
       explicit: true,
     },
     {
-      name: ViableStoryTransition.Complete,
-      from: [ViableStoryStatus.InProgress],
-      to: ViableStoryStatus.Completed,
+      name: ViableWorkcardTransition.Complete,
+      from: [ViableWorkcardStatus.InProgress],
+      to: ViableWorkcardStatus.Completed,
       explicit: true,
     },
     {
-      name: ViableStoryTransition.Fail,
-      from: [ViableStoryStatus.InProgress],
-      to: ViableStoryStatus.Failed,
+      name: ViableWorkcardTransition.Fail,
+      from: [ViableWorkcardStatus.InProgress],
+      to: ViableWorkcardStatus.Failed,
     },
-    { name: ViableStoryTransition.Reset, from: '*', to: ViableStoryStatus.Planned, explicit: true },
+    { name: ViableWorkcardTransition.Reset, from: '*', to: ViableWorkcardStatus.Planned, explicit: true },
   ],
 }
 
@@ -267,24 +353,33 @@ export const VIABLE_PROJECT_SLOTS: SpecificationSlot[] = [
   requirementsSlot(),
 ]
 
-/** A story's design — the payload the implementation stage consumes — and its stated requirements. */
-export const VIABLE_STORY_SLOTS: SpecificationSlot[] = [
-  slot(ViableSpecCategory.Design, SpecificationFormat.Json, {
-    revisioned: true,
-    keepRevisions: VIABLE_DESIGN_REVISIONS_KEPT,
-    schema: StoryDesignSchema,
-    version: STORY_DESIGN_VERSION,
-  }),
+const revisionedJson = (category: ViableSpecCategory, schema: object, version: number): SpecificationSlot =>
+  slot(category, SpecificationFormat.Json, { revisioned: true, keepRevisions: VIABLE_DESIGN_REVISIONS_KEPT, schema, version })
+
+/**
+ * Every work card's documents — ONE set for all five work types, so a retype never orphans one:
+ * `design` (the payload the implementation consumes; a container's holds the run design), the stated
+ * `requirements`, the run's `plan` (`WorkPlan`), a task's `operations` (`TaskOperations`) and the
+ * review's `proposals` (`WorkProposals`).
+ */
+export const VIABLE_WORK_SLOTS: SpecificationSlot[] = [
+  revisionedJson(ViableSpecCategory.Design, WorkcardDesignSchema, WORKCARD_DESIGN_VERSION),
   requirementsSlot(),
+  revisionedJson(ViableSpecCategory.Plan, WorkPlanSchema, WORK_PLAN_VERSION),
+  revisionedJson(ViableSpecCategory.Operations, TaskOperationsSchema, TASK_OPERATIONS_VERSION),
+  revisionedJson(ViableSpecCategory.Proposals, WorkProposalsSchema, WORK_PROPOSALS_VERSION),
 ]
 
-const storyLink = (name: ViableRelationship): RelationshipType =>
-  ({ name, from: [VIABLE_STORY_TYPE], to: [VIABLE_STORY_TYPE], single: true })
+/** A user story's documents — the work set. */
+export const VIABLE_WORKCARD_SLOTS: SpecificationSlot[] = VIABLE_WORK_SLOTS
 
-export const VIABLE_STORY_RELATIONSHIPS: RelationshipType[] = [
-  storyLink(ViableRelationship.Follows),
-  storyLink(ViableRelationship.SharesWidget),
-  storyLink(ViableRelationship.SharesScreen),
+const workcardLink = (name: ViableRelationship): RelationshipType =>
+  ({ name, from: [...VIABLE_WORK_TYPES], to: [...VIABLE_WORK_TYPES], single: true })
+
+export const VIABLE_WORKCARD_RELATIONSHIPS: RelationshipType[] = [
+  workcardLink(ViableRelationship.Follows),
+  workcardLink(ViableRelationship.SharesWidget),
+  workcardLink(ViableRelationship.SharesScreen),
 ]
 
 export const VIABLE_PROJECT_TYPE_SCHEMA: ProjectTypeSchema = {
@@ -296,20 +391,54 @@ export const VIABLE_PROJECT_TYPE_SCHEMA: ProjectTypeSchema = {
   intrinsic: IntrinsicPolicy.Primary,
   specifications: VIABLE_PROJECT_SLOTS,
   code: VIABLE_PROJECT_CODE,
-  cardTypes: [VIABLE_STORY_TYPE],
+  cardTypes: [...VIABLE_WORK_TYPES],
 }
 
-export const VIABLE_STORY_TYPE_SCHEMA: WorkcardTypeSchema = {
-  type: VIABLE_STORY_TYPE,
+/** The other work types a work card may become — every one, the rules (PV) say when. */
+const retypesOf = (type: string): string[] => VIABLE_WORK_TYPES.filter(other => other !== type)
+
+/** Where a leaf may sit: under its project, inside a spec or a feature. */
+const LEAF_PARENTS = [VIABLE_PROJECT_TYPE, VIABLE_SPEC_CARD_TYPE, VIABLE_FEATURE_TYPE]
+
+const workType = (
+  type: string, fields: unknown, code: WorkcardTypeSchema['code'], hierarchy: Pick<WorkcardTypeSchema, 'parents' | 'children'>,
+): WorkcardTypeSchema => ({
+  type,
   kind: WorkcardKind.Card,
   version: 1,
-  fields: ViableStoryFieldsSchema,
-  flows: [VIABLE_STORY_FLOW],
+  fields: fields as WorkcardTypeSchema['fields'],
+  flows: [VIABLE_WORK_FLOW],
   intrinsic: IntrinsicPolicy.Primary,
-  specifications: VIABLE_STORY_SLOTS,
-  relationships: VIABLE_STORY_RELATIONSHIPS,
-  code: VIABLE_STORY_CODE,
-}
+  specifications: VIABLE_WORK_SLOTS,
+  relationships: VIABLE_WORKCARD_RELATIONSHIPS,
+  code,
+  ...hierarchy,
+  retypes: retypesOf(type),
+})
+
+export const VIABLE_USER_STORY_TYPE_SCHEMA: WorkcardTypeSchema = workType(
+  VIABLE_USER_STORY_TYPE, ViableWorkcardFieldsSchema, VIABLE_USER_STORY_CODE, { parents: { types: LEAF_PARENTS } },
+)
+
+/** A spec: a container built together in one pass — a spec inside a spec is the schema's, the board refuses it. */
+export const VIABLE_SPEC_CARD_TYPE_SCHEMA: WorkcardTypeSchema = workType(
+  VIABLE_SPEC_CARD_TYPE, ViableSpecCardFieldsSchema, VIABLE_SPEC_CARD_CODE,
+  { parents: { types: [VIABLE_PROJECT_TYPE, VIABLE_SPEC_CARD_TYPE] }, children: { types: [...VIABLE_SPEC_CARD_MEMBERS] } },
+)
+
+/** A feature: one capability for one role, standing alone or inside a spec. */
+export const VIABLE_FEATURE_TYPE_SCHEMA: WorkcardTypeSchema = workType(
+  VIABLE_FEATURE_TYPE, ViableFeatureFieldsSchema, VIABLE_FEATURE_CODE,
+  { parents: { types: [VIABLE_PROJECT_TYPE, VIABLE_SPEC_CARD_TYPE] }, children: { types: [...VIABLE_FEATURE_MEMBERS] } },
+)
+
+export const VIABLE_IMPROVEMENT_TYPE_SCHEMA: WorkcardTypeSchema = workType(
+  VIABLE_IMPROVEMENT_TYPE, ViableImprovementFieldsSchema, VIABLE_IMPROVEMENT_CODE, { parents: { types: LEAF_PARENTS } },
+)
+
+export const VIABLE_TASK_TYPE_SCHEMA: WorkcardTypeSchema = workType(
+  VIABLE_TASK_TYPE, ViableTaskFieldsSchema, VIABLE_TASK_CODE, { parents: { types: LEAF_PARENTS } },
+)
 
 export const VIABLE_SPEC_TYPE_SCHEMA: WorkcardTypeSchema = {
   type: VIABLE_SPEC_TYPE,
@@ -325,7 +454,7 @@ const reserved = (type: string, code: WorkcardTypeSchema['code']): WorkcardTypeS
   kind: WorkcardKind.Card,
   version: 1,
   fields: ViableOpenFieldsSchema,
-  flows: [VIABLE_STORY_FLOW],
+  flows: [VIABLE_WORKCARD_FLOW],
   intrinsic: IntrinsicPolicy.Primary,
   specifications: [],
   code,
@@ -334,14 +463,22 @@ const reserved = (type: string, code: WorkcardTypeSchema['code']): WorkcardTypeS
 /** Registered so their prefixes and flow are decided once; not creatable under a project yet. */
 export const VIABLE_RESERVED_TYPE_SCHEMAS: WorkcardTypeSchema[] = [
   reserved(VIABLE_BUG_TYPE, VIABLE_BUG_CODE),
-  reserved(VIABLE_IMPROVEMENT_TYPE, VIABLE_IMPROVEMENT_CODE),
   reserved(VIABLE_REQUIREMENT_TYPE, VIABLE_REQUIREMENT_CODE),
+]
+
+/** The five work types, in {@link VIABLE_WORK_TYPES} order. */
+export const VIABLE_WORK_TYPE_SCHEMAS: WorkcardTypeSchema[] = [
+  VIABLE_USER_STORY_TYPE_SCHEMA,
+  VIABLE_SPEC_CARD_TYPE_SCHEMA,
+  VIABLE_FEATURE_TYPE_SCHEMA,
+  VIABLE_IMPROVEMENT_TYPE_SCHEMA,
+  VIABLE_TASK_TYPE_SCHEMA,
 ]
 
 /** Every Viable type — what a planning plugin registers. */
 export const VIABLE_TYPE_SCHEMAS: AnyTypeSchema[] = [
   VIABLE_PROJECT_TYPE_SCHEMA,
-  VIABLE_STORY_TYPE_SCHEMA,
+  ...VIABLE_WORK_TYPE_SCHEMAS,
   VIABLE_SPEC_TYPE_SCHEMA,
   ...VIABLE_RESERVED_TYPE_SCHEMAS,
 ]
@@ -349,6 +486,6 @@ export const VIABLE_TYPE_SCHEMAS: AnyTypeSchema[] = [
 /** Every Viable flow — registered beside the types. */
 export const VIABLE_FLOW_SCHEMAS: StatusFlowSchema[] = [
   VIABLE_PROJECT_FLOW_SCHEMA,
-  VIABLE_STORY_FLOW_SCHEMA,
+  VIABLE_WORKCARD_FLOW_SCHEMA,
   VIABLE_SPEC_FLOW_SCHEMA,
 ]

@@ -1,34 +1,34 @@
 import { SpecCategory } from "./consts"
-import type { ConnectingStoryKind, RequirementKind, RequirementPart, RequirementSource, StoryKind } from "./consts.js"
-import type { AreaKey, StoryDraft } from "../areas/types.js"
-import type { StoryActor } from "../design/consts.js"
+import type { ConnectingUserStoryKind, RequirementKind, RequirementPart, RequirementSource, UserStoryKind } from "./consts.js"
+import type { AreaKey, WorkcardDraft } from "../areas/types.js"
+import type { WorkcardActor } from "../design/consts.js"
 import type { SubProject } from "../slot/consts.js"
 
 export interface EntityList {
   entities: string[]
 }
 
-export interface StoryList {
+export interface UserStoryList {
   /** In flow order — story N implements numbered step N of the main flow. */
-  stories: StoryDraft[]
+  stories: WorkcardDraft[]
 }
 
 /**
  * A story that CONNECTS two numbered steps of the main flow to each other.
  *
- * A {@link StoryDraft} plus an ANCHOR. `after` is not a position in the answer — it is the number
+ * A {@link WorkcardDraft} plus an ANCHOR. `after` is not a position in the answer — it is the number
  * of the FLOW story whose result this one displays, so the consumer interleaves these into flow
  * order instead of appending them. The flow list is never rewritten or reordered by the call that
  * produces these.
  */
-export interface ConnectingStoryDraft extends StoryDraft {
-  kind: ConnectingStoryKind
+export interface ConnectingUserStoryDraft extends WorkcardDraft {
+  kind: ConnectingUserStoryKind
   /** 1-based index into the flow story list that was passed in. Never 0, never past its end. */
   after: number
 }
 
-export interface ConnectingStoryList {
-  stories: ConnectingStoryDraft[]
+export interface ConnectingUserStoryList {
+  stories: ConnectingUserStoryDraft[]
 }
 
 /**
@@ -41,8 +41,8 @@ export interface ConnectingStoryList {
  * already clamped, so it always names a flow story that list contains. A requested entry with no
  * anchor sits at the end of the list and carries none.
  */
-export interface MergedStoryDraft extends StoryDraft {
-  kind: StoryKind
+export interface MergedUserStoryDraft extends WorkcardDraft {
+  kind: UserStoryKind
   after?: number
 }
 
@@ -93,7 +93,7 @@ export interface RequirementsDocument {
  * `covers` names the requirement ids it exists for. `after` is an ANCHOR like a connecting story's:
  * the 1-based number of the flow story it follows; absent puts it at the end of the list.
  */
-export interface RequestedStoryDraft extends StoryDraft {
+export interface RequestedUserStoryDraft extends WorkcardDraft {
   covers: string[]
   after?: number
 }
@@ -120,22 +120,22 @@ export interface UserStory {
    * `area`, because that says which human audience the work is FOR and therefore where its
    * progress is shown.
    */
-  actor?: StoryActor
+  actor?: WorkcardActor
   entity: string
   entities: Entity[]
-  screens: StoryScreen[]
+  screens: UserStoryScreen[]
 }
 
-export interface StoryScreen {
+export interface UserStoryScreen {
   name: string
   specs: Record<SpecCategory, string>
   description: string
   /** The top-menu group this screen belongs to. A label — never a URL segment. */
   section?: string
-  components: StoryComponent[]
+  components: UserStoryComponent[]
 }
 
-export interface StoryComponent {
+export interface UserStoryComponent {
   name: string
   specs: Record<SpecCategory, string>
   description: string
@@ -183,11 +183,11 @@ export interface AgentProject {
   language?: string
 }
 
-export interface MainStoryProbability {
+export interface MainUserStoryProbability {
   story: string
   probability: number
 }
 
-export interface MainStoryCandidates {
-  candidates: MainStoryProbability[]
+export interface MainUserStoryCandidates {
+  candidates: MainUserStoryProbability[]
 }

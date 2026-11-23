@@ -15,7 +15,7 @@ export enum SpecCategory {
  * The taxonomy is CLOSED on purpose: a kind nothing derives is a screen nobody asked for, and every
  * story here costs a full develop run the project's owner pays for.
  */
-export enum ConnectingStoryKind {
+export enum ConnectingUserStoryKind {
   /** The list of records waiting for THIS actor to perform their step. Derived from a hand-off. */
   Queue = 'queue',
   /** The directory of a kind of record, where an actor finds and opens the one they mean. */
@@ -33,7 +33,7 @@ export enum ConnectingStoryKind {
  * `connective` stories are what a person needs to get from one step to the next. Persisted on the
  * story card as `fields.kind`, so the distinction survives the pipeline that drew it.
  */
-export enum StoryKind {
+export enum UserStoryKind {
   Flow = 'flow',
   Connective = 'connective',
   /**
@@ -67,7 +67,7 @@ export const REQUIREMENT_PARTS: readonly RequirementPart[] = Object.freeze([
 /** What a stated requirement asks for. */
 export enum RequirementKind {
   /** A kind of user does something the product must support. */
-  Story = 'story',
+  UserStory = 'story',
   /** How something must work, be stored, look or behave. */
   Rule = 'rule',
   /** The platform already provides it. */
@@ -81,7 +81,7 @@ export enum RequirementSource {
   /** The project prompt — ids `R1`, `R2`, … */
   Prompt = 'prompt',
   /** A story a person typed — ids `S1`, `S2`, … */
-  Story = 'story',
+  UserStory = 'story',
 }
 
 /** The shape version of a stored requirements document. */
@@ -89,14 +89,14 @@ export const REQUIREMENTS_VERSION = 1
 /** The most requirements one prompt is split into. */
 export const REQUIREMENTS_CAP = 40
 /** The most `requested` stories one project's analysis adds. */
-export const REQUESTED_STORY_CAP = 12
+export const REQUESTED_USER_STORY_CAP = 12
 /** The most stories a person's typed story is split into. */
-export const STORY_SPLIT_CAP = 3
+export const USER_STORY_SPLIT_CAP = 3
 
 /** The id prefix of a requirement quoted from the project prompt. */
 export const REQUIREMENT_PROMPT_PREFIX = 'R'
 /** The id prefix of a requirement quoted from a person's story. */
-export const REQUIREMENT_STORY_PREFIX = 'S'
+export const REQUIREMENT_USER_STORY_PREFIX = 'S'
 
 /**
  * The titles of the specification sections stated requirements add, rendered as `## <title>`.

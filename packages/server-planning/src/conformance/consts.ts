@@ -34,6 +34,7 @@ export const BOOK_TYPE: WorkcardTypeSchema = {
   relationships: [{ name: 'sequel-of', to: [LIBRARY.book], single: true }, { name: 'shelved-near' }],
   labels: ['rare', 'new', 'signed'],
   code: { prefix: 'B-', style: CodeStyle.Random, length: 5, uppercase: true, uniqueWithin: CodeScope.Parent },
+  retypes: [LIBRARY.periodical],
 }
 
 export const PERIODICAL_TYPE: WorkcardTypeSchema = {

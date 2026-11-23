@@ -1,4 +1,4 @@
-import type { StoryProof } from './analysis/types.js'
+import type { WorkcardProof } from './analysis/types.js'
 
 /**
  * How much work re-implementing a story is, as a multiplier on the per-story price band.
@@ -8,7 +8,7 @@ import type { StoryProof } from './analysis/types.js'
  * logic somebody has to reproduce. Two runs over the same extraction therefore price identically,
  * which is the point — a band that moved between two viewings of the same screen would be noise.
  */
-export const storyComplexity = (proof: Pick<StoryProof, 'proofs' | 'algorithms'>): number => {
+export const workcardComplexity = (proof: Pick<WorkcardProof, 'proofs' | 'algorithms'>): number => {
   const proofs = proof.proofs?.length ?? 0
   const algorithms = proof.algorithms?.length ?? 0
 

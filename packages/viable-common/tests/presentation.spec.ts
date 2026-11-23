@@ -26,10 +26,10 @@ describe('@owlmeans/viable-common — agent message presentation', () => {
     expect(agentPresentationHelper.classifyAgentMessage({ value: { actor: 'human', worker: false, jobs: [], agents: [], kv: false } }))
       .toMatchObject({ category: AgentMessageCategory.Structured, structure: AgentStructuredKind.RuntimeDecision })
     // The model's own runtime-decision call never carries `actor`/`worker` — those are added only
-    // once the decision is persisted onto a StoryDesign.
+    // once the decision is persisted onto a WorkcardDesign.
     expect(agentPresentationHelper.classifyAgentMessage({ value: { kv: true, feedback: null, jobs: [], agents: [] } }))
       .toMatchObject({ category: AgentMessageCategory.Structured, structure: AgentStructuredKind.RuntimeDecision })
-    // A scaffold plan carries its own `stories` array — checked ahead of StoryPlan's bare check.
+    // A scaffold plan carries its own `stories` array — checked ahead of WorkcardPlan's bare check.
     expect(agentPresentationHelper.classifyAgentMessage({
       value: { identity: { name: 'App', description: '' }, guestHome: {}, areas: [], stories: [], motifs: '' },
     })).toMatchObject({ category: AgentMessageCategory.Structured, structure: AgentStructuredKind.ScaffoldPlan })

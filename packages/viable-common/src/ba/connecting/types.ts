@@ -1,8 +1,8 @@
-import type { StoryDraft } from '../../areas/types.js'
-import type { ConnectingStoryDraft, MergedStoryDraft } from '../types.js'
+import type { WorkcardDraft } from '../../areas/types.js'
+import type { ConnectingUserStoryDraft, MergedUserStoryDraft } from '../types.js'
 
 /** The connecting stories of a flow: how many it may carry, and where each one lands. */
-export interface ConnectingStoryHelper {
+export interface ConnectingUserStoryHelper {
   /**
    * How many connecting stories one flow may carry.
    *
@@ -14,7 +14,7 @@ export interface ConnectingStoryHelper {
    * The real reason for a hard number: every story here becomes a full develop run the project's
    * owner pays for.
    */
-  connectingStoryCap: (flowCount: number) => number
+  connectingUserStoryCap: (flowCount: number) => number
   /**
    * Interleave the connecting stories into the flow they were derived from.
    *
@@ -43,5 +43,5 @@ export interface ConnectingStoryHelper {
    *
    * Every entry keeps its draft's `area` — the area's key, a custom area of the project's map included.
    */
-  mergeConnectingStories: (flow: StoryDraft[], connecting: ConnectingStoryDraft[]) => MergedStoryDraft[]
+  mergeConnectingUserStories: (flow: WorkcardDraft[], connecting: ConnectingUserStoryDraft[]) => MergedUserStoryDraft[]
 }

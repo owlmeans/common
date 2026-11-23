@@ -33,6 +33,7 @@ export const createInstructionsHelper = (): InstructionsHelper => {
         ...(toolHostHelper.uploadsMaterials(host) ? ['create_project_with_files'] : []), 'list_materials', 'read_material',
       ),
       ...family('stories', 'list_stories', 'create_story', 'develop_story', 'start_story_batch', 'story_batch_status'),
+      ...family('work cards — specs, features, improvements and tasks', 'list_cards', 'create_card', 'run_card', 'run_cards_together', 'run_all_cards', 'rerun_card', 'card_status'),
       `open-ended changes (${list('modify_project', 'steer_agent')}), stopping the agent (${list('stop_agent')})`
       + ` and planning kits (${list('describe_planning_kits')})`,
       ...(cloud
@@ -75,6 +76,16 @@ export const createInstructionsHelper = (): InstructionsHelper => {
       + ' after the first stage rather than before it. A conversion step that would use the plan\'s'
       + ' conversion limit or spend credits answers with what it costs instead of starting: tell the'
       + ' user, and repeat the call with confirm: true only after they agree.',
+      ...(list('run_card') === '' ? [] : ['', 'Work cards: '
+      + chain('list_cards', 'create_card', 'run_card', 'card_status')
+      + ` — create_card with type auto lets the platform decide the type; ${list('run_cards_together')} builds several`
+      + ` planned cards together in one new spec; ${list('run_all_cards')} answers where every loose card would go and runs`
+      + ' it only with confirm: true'
+      + `${list('rerun_card') === '' ? '' : `; ${list('rerun_card')} builds again only the cards of a spec or a feature that failed (scope failed) or are not completed (scope unfinished)`}.`
+      + ' A spec or a feature start needs the 100,000-credit floor (a spec on the Pro plan may'
+      + ' use its free spec of the month), an improvement or a task a positive balance. '
+      + `${list('modify_project')} reads a request first: a question is answered without changes, a small fix is made at once,`
+      + ' and bigger work is filed as cards — started only when the request asks for it now.']),
       '',
       'The stock blueprint is owlmeans-fullstack-ts. Cases: web (business web apps, portals and dashboards); scalable (queued services); ai-pipeline (staged AI workflows); ai-agent (tool-using assistants); game (casual, online-turn and online-live games); work-management and work-management-tenanted (project tracking, CRM, service desk, inventory, recruiting, field service and process workflows). The tenanted case supports multiple organization entities. Call describe_blueprints for the deployed registry, category ids and current capabilities before choosing.',
       '',
@@ -97,7 +108,8 @@ export const createInstructionsHelper = (): InstructionsHelper => {
       '',
       'A tool that changes what cannot be undone — deleting a project'
       + (cloud ? ', a file' : '') + ', a converted origin, an application user or group, releasing an agent'
-      + ' lock, stopping a story run or cancelling a story batch (the story in progress is rolled back), '
+      + ' lock, stopping a story run or cancelling a story batch (the story in progress is rolled back), running every'
+      + ' loose card, '
       + (cloud ? 'discarding or reverting git changes, disconnecting GitHub, publishing the'
         + ' production site, ' : '')
       + 'revoking an access token — refuses without confirm: true: ask the user first, and only then call'

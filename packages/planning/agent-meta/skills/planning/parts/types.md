@@ -17,7 +17,7 @@ the keys:
 
 | Declaration | Required | Optional |
 |---|---|---|
-| card / specification type | `type` (its key), `kind`, `version`, `fields`, `flows` (at least one), `specifications` | `intrinsic`, `relationships`, `labels`, `code`, `label`, `tone`, `icon`, `overridable`, `app` |
+| card / specification type | `type` (its key), `kind`, `version`, `fields`, `flows` (at least one), `specifications` | `intrinsic`, `relationships`, `parents`, `children`, `retypes`, `labels`, `code`, `label`, `tone`, `icon`, `overridable`, `app` |
 | project type | the same, plus `cardTypes` | `projectTypes`, `scopedCardTypes` |
 | flow | `id` (its key), `version`, `statuses` (at least one), `transitions` | `label`, `tone`, `icon`, `overridable`, `app` |
 | status | `key`, `intrinsic` | `initial`, `terminal`, `label`, `tone` |
@@ -37,6 +37,11 @@ keep the literal typed.
 - `code` — `CodePolicy { prefix?, style: random|sequential|slug, length?, uppercase?, uniqueWithin:
   parent|entity, mutable? }`. A code is fixed once minted unless `mutable`.
 - `relationships` — the edge types a card may start (`single` = at most one per card).
+- `parents` (`types`, `required`) / `children` (`types`) — the hierarchy: which types may parent a
+  card of this type, and which it may hold; without `children` only a project holds cards.
+- `retypes` — the types a card of this type may BECOME through `retype` (same kind). Absent or
+  empty: never retyped. A type listing any declares `formerCodes` in its `fields` when the types'
+  code prefixes differ (the re-minted card keeps its old codes there).
 - `labels` — the allowed labels (any when omitted).
 - A project type lists `cardTypes` (and `projectTypes` for nesting) its children may have;
   `scopedCardTypes: true` also admits card types defined as data (below).

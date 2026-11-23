@@ -1,6 +1,6 @@
 import type { ProjectArea } from '../../areas/consts.js'
 import type { AreaKey } from '../../areas/types.js'
-import type { StoryKind } from '../../ba/consts.js'
+import type { UserStoryKind } from '../../ba/consts.js'
 import type { OriginFlowDisposition, PlatformFlow, PurposeEvidenceSource, TaxonomyKind } from '../consts.js'
 import type { OriginProof } from '../types.js'
 
@@ -73,7 +73,7 @@ export interface OriginFlowConsolidation {
 }
 
 /** One story of the settled plan, with the identity and the ordinal it is filed under. */
-export interface OriginStoryGroup extends OriginFlowGroup {
+export interface OriginWorkcardGroup extends OriginFlowGroup {
   /** Stable: a digest of the sorted member ids, so two settlings of one answer name it alike. */
   id: string
   /** The card's `order`. Fixed when the plan is settled, so a replayed allocation files nothing twice. */
@@ -96,19 +96,19 @@ export interface OriginFlowPlacement {
  * Durable in `flows.md`'s frontmatter, because the step that allocates it may run in another
  * process than the step that paid for it.
  */
-export interface OriginStoryPlan {
-  groups: OriginStoryGroup[]
+export interface OriginWorkcardPlan {
+  groups: OriginWorkcardGroup[]
   /** One per census flow, covered or not, in census order. */
   placements: OriginFlowPlacement[]
 }
 
 /** One entry of the restored story list, in the order the records are created in. */
-export interface ConversionStoryRef {
+export interface ConversionWorkcardRef {
   code: string
   story: string
   /** The story's area, by key — on a converted project one of the four standard keys. */
   area: AreaKey
-  kind: ConversionStoryKind
+  kind: ConversionWorkcardKind
   ordinal: number
 }
 
@@ -118,7 +118,7 @@ export interface ConversionStoryRef {
  * `complexity` is what the per-story price band is scaled by — derived from the proofs and the
  * algorithms, never asked of a model, so two runs over the same extraction price identically.
  */
-export interface StoryProof {
+export interface WorkcardProof {
   code: string
   narrative: string
   specification: string
@@ -165,4 +165,4 @@ export interface DesignInference {
  * does; a conversion adds one more — a `coverage` story, written so an area the origin serves but
  * the flow never reaches still has something in it.
  */
-export type ConversionStoryKind = StoryKind | 'coverage'
+export type ConversionWorkcardKind = UserStoryKind | 'coverage'

@@ -15,7 +15,8 @@ export interface ApplyHelper {
    * - `create` builds the whole record from `changes` plus the transition's identity; `delete`
    *   answers `null`; `link`/`unlink` only move `seq`/`head`/`updatedAt` (the edges are
    *   {@link ApplyHelper.applyRelationship}'s); `update`/`transit` write `changes` — `fields` and
-   *   `flows` merge, everything else replaces — and clear `unset`.
+   *   `flows` merge, everything else replaces — and clear `unset`; `retype` does the same and writes
+   *   the transition's `type` (the new type) onto the record — the one move of `type`.
    * - Every result has `seq = transition.seq`, `head = max(head, seq)`, `updatedAt = transition.at`.
    *
    * @throws {PlanningError} `planning:fold:out-of-order:…`

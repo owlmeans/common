@@ -18,7 +18,7 @@ const isoNow = (): string => new Date().toISOString()
 
 /** What a type/parent change by a middleware is judged by. */
 const identityOf = (exec: TransitionExecution): string => typeof exec.card === 'string'
-  ? `${exec.action}|${exec.card}|${exec.flow ?? ''}|${exec.changes?.parent ?? ''}`
+  ? `${exec.action}|${exec.card}|${exec.flow ?? ''}|${exec.changes?.parent ?? ''}|${exec.toType ?? ''}`
   : `${exec.action}|${exec.card.kind}|${exec.card.type}|${exec.card.parent ?? ''}|${(exec.card.parents ?? []).join(',')}|${exec.flow ?? ''}`
 
 const execContextOf = (
@@ -67,7 +67,8 @@ const currentReceipt = async (
  *
  * 1 normalize (a create's `createdBy` defaults to the scope's subject — `creatorHelper.withCreator`) →
  * 2 scope → 3 idempotency (a known `key` answers its first receipt, before any validation) →
- * 4 resolve → 5 the plugins' `before` chain (re-resolved once when it moved the type or the parent)
+ * 4 resolve (a `retype`'s new type too) → 5 the plugins' `before` chain (re-resolved once when it
+ * moved the type, the parent or a retype's new type)
  * → 6 validate (a `createdBy` in `changes`/`unset` is refused — `creatorHelper.assertCreatorFixed`) →
  * 7 allocate the card id → 8 code → 9 changes (an update changing nothing answers
  * the current receipt and appends nothing) → 10 seq, a CAS against the head → 11 append →

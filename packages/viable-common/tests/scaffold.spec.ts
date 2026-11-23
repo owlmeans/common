@@ -44,8 +44,8 @@ const newPlan = (): ScaffoldPlan => {
 
   return {
     ...plan,
-    stories: plan.stories.map(story => ({ ...story, interaction: {
-      entity: 'Bake', capabilities: ['list', 'read'], placement: 'destination', presentation: 'inline', hostScreen: story.screen,
+    stories: plan.stories.map(workcard => ({ ...workcard, interaction: {
+      entity: 'Bake', capabilities: ['list', 'read'], placement: 'destination', presentation: 'inline', hostScreen: workcard.screen,
     } })),
     guestHome: {
       ...plan.guestHome,

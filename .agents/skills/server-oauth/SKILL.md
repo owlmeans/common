@@ -1,13 +1,13 @@
 ---
 name: server-oauth
-description: How to use @owlmeans/server-oauth — the OAuth 2.1 authorization server for an OwlMeans backend: appendOAuthServer, the raw Fastify routes (RFC 8414/9728 metadata, authorize, device_authorization, token, register, revoke), static/CIMD/DCR clients and the SSRF guard, the pending-record store, the session-guarded consent handlers, oauthMetadataOf(ctx).protectedResourceChallenge for resource servers, and the lazy URL options. Auto-invoked when adding sign-in-by-browser to an API, mounting the consent handlers, giving an MCP/URL host a 401 challenge, or diagnosing a boot crash on `open '/mcp'`.
+description: "How to use @owlmeans/server-oauth — the OAuth 2.1 authorization server for an OwlMeans backend: appendOAuthServer, the raw Fastify routes (RFC 8414/9728 metadata, authorize, device_authorization, token, register, revoke), static/CIMD/DCR clients and the SSRF guard, the pending-record store, the session-guarded consent handlers, oauthMetadataOf(ctx).protectedResourceChallenge for resource servers, and the lazy URL options. Auto-invoked when adding sign-in-by-browser to an API, mounting the consent handlers, giving an MCP/URL host a 401 challenge, or diagnosing a boot crash on `open '/mcp'`."
 user-invocable: false
 ---
 
 # @owlmeans/server-oauth
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oauth": "^0.2.2-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/server-oauth": "^0.2.3-alpha.0"` in `dependencies`
 **Contracts:** `@owlmeans/oauth` — constants, protocols, client helpers, errors
 **Issues through:** `@owlmeans/server-auth-token` (`accessTokenIssuerOf(ctx).issueAccessToken`, `refuseTokenAuth`)
 

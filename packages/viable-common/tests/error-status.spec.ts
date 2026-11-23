@@ -26,17 +26,17 @@ const DECLARED: Record<string, number | undefined> = {
   ConnectOpTimeout: undefined,
   ProjectResourceError: undefined,
   ProjectNotFound: 404,
-  ProjectStoryNotFound: 404,
-  ProjectStoryMissconfigured: 409,
+  ProjectWorkcardNotFound: 404,
+  ProjectWorkcardMissconfigured: 409,
   ProjectAgentOccupied: 409,
   // Never thrown; a permission refusal extends `AuthForbidden` instead of declaring 403.
   ProjectPermissionError: undefined,
-  ProjectStoryError: undefined,
+  ProjectWorkcardError: undefined,
   ProjectError: undefined,
   ProjectAgentError: undefined,
   AgentNotRunning: 409,
-  StoryBatchActive: 409,
-  StoryBatchEmpty: 400,
+  WorkcardBatchActive: 409,
+  WorkcardBatchEmpty: 400,
 }
 
 const classes = Object.entries({ ...connect, ...planning, ...batch }).filter(([, value]) =>

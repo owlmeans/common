@@ -26,6 +26,7 @@ const DECLARED: Record<string, number | undefined> = {
   LabelNotAllowed: 422,
   SpecificationSlotUnknown: 422,
   RelationshipRefused: 422,
+  RetypeNotAllowed: 422,
   SchemaConflict: 409,
   SchemaInUse: 409,
   SchemaSealed: 422,

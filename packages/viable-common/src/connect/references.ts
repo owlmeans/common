@@ -1,5 +1,5 @@
 import type { BlueprintCatalogue } from '../blueprint/catalogue/types.js'
-import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, StoryBatchStartArgs, StoryBatchView } from '../batch/types.js'
+import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, WorkcardBatchStartArgs, WorkcardBatchView } from '../batch/types.js'
 import { entrypointRef } from '@owlmeans/entrypoint'
 import { connect } from './consts.js'
 import type {
@@ -34,10 +34,15 @@ import type { ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFi
 import type { ConnectInquiryAnswerBody, ConnectOp, ConnectOpResult, ConnectOpSubmission } from './ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
 import type {
-  ConnectAgentLock, ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody,
+  ConnectAgentLock, ConnectAttachBody, ConnectConfirmBody, ConnectConfirmImplementationBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody,
   ConnectProjectStatus, ConnectProjectSummary, ConnectStoryStatus
 } from './project/types.js'
 import type { ConnectReferences } from './references/types.js'
+import type {
+  ConnectCardParams, ConnectCardStatus, ConnectCardsPlanView, ConnectCardsRerunBody, ConnectCardsRerunView,
+  ConnectCardsRunAllBody, ConnectCardsTogetherBody,
+  ConnectCardsTogetherView, ConnectRequestView,
+} from './cards/types.js'
 import type {
   ConnectIamGroupParams, ConnectIamMemberParams, ConnectIamOrganizationParams, ConnectIamUserParams,
 } from './iam/types.js'
@@ -110,6 +115,9 @@ export const connectRef: ConnectReferences = {
     confirmWithReferences: entrypointRef<{
       params: { id: string }, body: ConnectConfirmBody
     }, ConnectProjectStatus>(connect.project.confirmWithReferences),
+    confirmImplementation: entrypointRef<{
+      params: { id: string }, body: ConnectConfirmImplementationBody
+    }, ConnectProjectStatus>(connect.project.confirmImplementation),
     materials: {
       state: entrypointRef<{ params: { id: string } }, UploadSession>(connect.project.materials.state),
       file: entrypointRef<{
@@ -131,16 +139,17 @@ export const connectRef: ConnectReferences = {
     attach: entrypointRef<{ body: ConnectAttachBody }, ConnectProjectStatus>(connect.project.attach),
     reinit: entrypointRef<{ params: { id: string } }, ConnectProjectStatus>(connect.project.reinit),
     modify: entrypointRef<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>(connect.project.modify),
+    request: entrypointRef<{ params: { id: string }, body: ConnectModifyBody }, ConnectRequestView>(connect.project.request),
     rename: entrypointRef<{ params: { id: string }, body: ConnectRenameBody }, ConnectProjectStatus>(connect.project.rename),
     destroy: entrypointRef<{ params: { id: string } }, ConnectProjectSummary>(connect.project.destroy),
     stop: entrypointRef<{ params: { id: string }, body: AgentStopArgs }, ConnectAgentLock>(connect.project.stop),
     steer: entrypointRef<{ params: { id: string }, body: AgentSteerArgs }, AgentSteerResult>(connect.project.steer),
     batch: {
       start: entrypointRef<{
-        params: { id: string }, body: StoryBatchStartArgs
-      }, StoryBatchView>(connect.project.batch.start),
-      get: entrypointRef<{ params: { id: string } }, StoryBatchView | null>(connect.project.batch.get),
-      cancel: entrypointRef<{ params: { id: string } }, StoryBatchView>(connect.project.batch.cancel),
+        params: { id: string }, body: WorkcardBatchStartArgs
+      }, WorkcardBatchView>(connect.project.batch.start),
+      get: entrypointRef<{ params: { id: string } }, WorkcardBatchView | null>(connect.project.batch.get),
+      cancel: entrypointRef<{ params: { id: string } }, WorkcardBatchView>(connect.project.batch.cancel),
     },
     activity: entrypointRef<{
       params: { id: string }, query?: ConnectActivityQuery
@@ -184,6 +193,15 @@ export const connectRef: ConnectReferences = {
     status: entrypointRef<{
       params: { id: string, storyId: string }
     }, ConnectStoryStatus>(connect.story.status),
+  },
+  cards: {
+    status: entrypointRef<{ params: ConnectCardParams }, ConnectCardStatus>(connect.cards.status),
+    together: entrypointRef<{
+      params: { id: string }, body: ConnectCardsTogetherBody
+    }, ConnectCardsTogetherView>(connect.cards.together),
+    plan: entrypointRef<{ params: { id: string } }, ConnectCardsPlanView>(connect.cards.plan),
+    runAll: entrypointRef<{ params: { id: string }, body: ConnectCardsRunAllBody }, WorkcardBatchView>(connect.cards.runAll),
+    rerun: entrypointRef<{ params: { id: string }, body: ConnectCardsRerunBody }, ConnectCardsRerunView>(connect.cards.rerun),
   },
   convert: {
     create: entrypointRef<{ body: ConnectConvertCreateBody }, ConversionStatusView>(connect.convert.create),

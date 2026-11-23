@@ -1,16 +1,16 @@
-import { storyDesignHelper } from '../design/story.js'
+import { workcardDesignHelper } from '../design/workcard.js'
 import {
-  REQUESTED_STORY_CAP, REQUIREMENT_PARTS, REQUIREMENT_PROMPT_PREFIX, REQUIREMENT_STORY_PREFIX,
+  REQUESTED_USER_STORY_CAP, REQUIREMENT_PARTS, REQUIREMENT_PROMPT_PREFIX, REQUIREMENT_USER_STORY_PREFIX,
   REQUIREMENTS_SECTION_CAPABILITIES, REQUIREMENTS_SECTION_EXPERIENCE, REQUIREMENTS_SECTION_PLATFORM,
-  REQUIREMENTS_SECTION_RULES, REQUIREMENTS_SECTION_TECHNICAL, RequirementKind, RequirementPart, StoryKind,
+  REQUIREMENTS_SECTION_RULES, REQUIREMENTS_SECTION_TECHNICAL, RequirementKind, RequirementPart, UserStoryKind,
 } from './consts.js'
 import {
   REQUIREMENT_PART_TITLES, REQUIREMENTS_CARD_INTRO, REQUIREMENTS_CARD_TITLE, REQUIREMENTS_FILE_INTRO,
   REQUIREMENTS_FILE_TITLE,
 } from './requirements/consts.js'
-import type { RequirementsFileStory, RequirementsHelper } from './requirements/types.js'
+import type { RequirementsFileUserStory, RequirementsHelper } from './requirements/types.js'
 import type {
-  MergedStoryDraft, RequirementPackage, RequirementsDocument, StatedRequirement,
+  MergedUserStoryDraft, RequirementPackage, RequirementsDocument, StatedRequirement,
 } from './types.js'
 
 export const createRequirementsHelper = (): RequirementsHelper => {
@@ -21,10 +21,10 @@ export const createRequirementsHelper = (): RequirementsHelper => {
   const oneLine = (text: string | undefined): string => (text ?? '').replace(/\s+/g, ' ').trim()
 
   /** Case and whitespace collapsed, so "the same story twice" is recognised as such. */
-  const canonical = (story: string): string => story.trim().replace(/\s+/g, ' ').toLowerCase()
+  const canonical = (userStory: string): string => userStory.trim().replace(/\s+/g, ' ').toLowerCase()
 
   const prefixRank = (prefix: string): number =>
-    prefix === REQUIREMENT_PROMPT_PREFIX ? 0 : prefix === REQUIREMENT_STORY_PREFIX ? 1 : 2
+    prefix === REQUIREMENT_PROMPT_PREFIX ? 0 : prefix === REQUIREMENT_USER_STORY_PREFIX ? 1 : 2
 
   const compareIds = (a: string, b: string): number => {
     const left = /^([A-Za-z]*)(\d*)$/.exec(a)
@@ -88,7 +88,7 @@ export const createRequirementsHelper = (): RequirementsHelper => {
     const ordered = sorted(items)
     const sections: Array<[string, string[]]> = [
       [REQUIREMENTS_SECTION_CAPABILITIES, ordered
-        .filter(item => item.kind === RequirementKind.Story)
+        .filter(item => item.kind === RequirementKind.UserStory)
         .map(item => specificationLine(item, oneLine(item.statement)))],
       [REQUIREMENTS_SECTION_RULES, ordered
         .filter(item => textOf(item, RequirementPart.Ba) !== '')
@@ -135,7 +135,7 @@ export const createRequirementsHelper = (): RequirementsHelper => {
   const sliceFor = (doc: RequirementsDocument, code: string): StatedRequirement[] =>
     sorted(doc.items
       .filter(item => item.stories?.includes(code) === true)
-      .map(({ stories: _stories, ...item }) => item))
+      .map(({ stories: _userStories, ...item }) => item))
 
   const frontmatterOf = (items: readonly StatedRequirement[]): Partial<Record<RequirementPart, string[]>> => {
     const ordered = sorted(items)
@@ -176,7 +176,7 @@ export const createRequirementsHelper = (): RequirementsHelper => {
     return lines
   }
 
-  const requirementsFile = (project: RequirementsDocument, stories: readonly RequirementsFileStory[]): string => {
+  const requirementsFile = (project: RequirementsDocument, userStories: readonly RequirementsFileUserStory[]): string => {
     const blocks: string[] = [`# ${REQUIREMENTS_FILE_TITLE}\n\n${REQUIREMENTS_FILE_INTRO}`]
 
     if (project.items.length > 0) {
@@ -191,12 +191,12 @@ export const createRequirementsHelper = (): RequirementsHelper => {
       blocks.push(lines.join('\n'))
     }
 
-    for (const story of stories) {
-      if (story.items.length === 0) {
+    for (const userStory of userStories) {
+      if (userStory.items.length === 0) {
         continue
       }
-      const lines = [`## Story ${story.code}. ${oneLine(story.title)}`]
-      for (const item of sorted(story.items)) {
+      const lines = [`## Story ${userStory.code}. ${oneLine(userStory.title)}`]
+      for (const item of sorted(userStory.items)) {
         lines.push('', ...fileEntry(item))
       }
       blocks.push(lines.join('\n'))
@@ -225,16 +225,16 @@ export const createRequirementsHelper = (): RequirementsHelper => {
   }
 
   const digest = (items: readonly StatedRequirement[]): string =>
-    storyDesignHelper.designHash(canonicalJson(sorted(items)))
+    workcardDesignHelper.designHash(canonicalJson(sorted(items)))
 
   const mergeRequested: RequirementsHelper['mergeRequested'] = (merged, requested) => {
     const result = [...merged]
-    const flowCount = merged.filter(entry => entry.kind === StoryKind.Flow).length
+    const flowCount = merged.filter(entry => entry.kind === UserStoryKind.Flow).length
     const seen = new Set(merged.map(entry => canonical(entry.story)))
     let kept = 0
 
     for (const draft of requested) {
-      if (kept >= REQUESTED_STORY_CAP) {
+      if (kept >= REQUESTED_USER_STORY_CAP) {
         break
       }
       const text = canonical(draft.story ?? '')
@@ -249,8 +249,8 @@ export const createRequirementsHelper = (): RequirementsHelper => {
       const after = flowCount > 0 && Number.isFinite(anchor)
         ? Math.min(Math.max(Math.trunc(anchor), 1), flowCount)
         : undefined
-      const entry: MergedStoryDraft = {
-        story: draft.story.trim(), area: draft.area, kind: StoryKind.Requested, ...(after != null ? { after } : {}),
+      const entry: MergedUserStoryDraft = {
+        story: draft.story.trim(), area: draft.area, kind: UserStoryKind.Requested, ...(after != null ? { after } : {}),
       }
 
       // The group of flow story N ends where flow story N + 1 starts — or at the end of the list.
@@ -258,7 +258,7 @@ export const createRequirementsHelper = (): RequirementsHelper => {
       if (after != null) {
         let flow = 0
         for (let index = 0; index < result.length; index += 1) {
-          if (result[index]!.kind === StoryKind.Flow) {
+          if (result[index]!.kind === UserStoryKind.Flow) {
             flow += 1
             if (flow === after + 1) {
               at = index
@@ -273,9 +273,28 @@ export const createRequirementsHelper = (): RequirementsHelper => {
     return result
   }
 
+  const mergeItems: RequirementsHelper['mergeItems'] = (kept, incoming) => {
+    const result = [...kept]
+    const same = (a: StatedRequirement, b: StatedRequirement): boolean =>
+      a.source === b.source && canonical(a.quote) === canonical(b.quote)
+    const numberOf = (id: string): number => {
+      const match = new RegExp(`^${REQUIREMENT_USER_STORY_PREFIX}(\\d+)$`).exec(id)
+      return match != null ? Number(match[1]) : 0
+    }
+    let next = Math.max(0, ...result.map(item => numberOf(item.id)), ...incoming.map(item => numberOf(item.id)))
+    for (const item of incoming) {
+      if (result.some(entry => same(entry, item))) continue
+      const taken = result.some(entry => entry.id === item.id)
+      if (taken && !item.id.startsWith(REQUIREMENT_USER_STORY_PREFIX)) continue
+      result.push(taken ? { ...item, id: `${REQUIREMENT_USER_STORY_PREFIX}${++next}` } : item)
+    }
+
+    return sorted(result)
+  }
+
   return {
     compareIds, partsOf, card, specificationSections, idsInSpecification, retained, sliceFor, frontmatterOf,
-    requirementsFile, digest, mergeRequested,
+    requirementsFile, digest, mergeRequested, mergeItems,
   }
 }
 

@@ -1,13 +1,13 @@
 ---
 name: cli-auth
-description: How to use @owlmeans/cli-auth — Node-side browser sign-in for a command-line tool or stdio MCP server: the `~/.owlmeans` dotenv credentials file and its precedence, atomic 0600 writes, the browser opener and its suppression, the cross-process sign-in lock, and makeCliCredentials (token/require/invalidate/signOut) that runs the device grant. Auto-invoked when adding sign-in to a CLI, reading or writing the credentials file, diagnosing "signed in but the token is ignored", or writing tests that must not touch the developer's real credentials.
+description: "How to use @owlmeans/cli-auth — Node-side browser sign-in for a command-line tool or stdio MCP server: the `~/.owlmeans` dotenv credentials file and its precedence, atomic 0600 writes, the browser opener and its suppression, the cross-process sign-in lock, and makeCliCredentials (token/require/invalidate/signOut) that runs the device grant. Auto-invoked when adding sign-in to a CLI, reading or writing the credentials file, diagnosing \"signed in but the token is ignored\", or writing tests that must not touch the developer's real credentials."
 user-invocable: false
 ---
 
 # @owlmeans/cli-auth
 
 **Layer:** Tooling (Node/Bun — no React, no DOM, no framework runtime)
-**Install:** `"@owlmeans/cli-auth": "^0.2.2-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/cli-auth": "^0.2.3-alpha.0"` in `dependencies`
 **Contracts:** `@owlmeans/oauth` (discovery, device authorization, polling, revoke, `SignInRequired`)
 **Server half:** any API built on `@owlmeans/server-oauth`; **consumers:** `@owlmeans/viable-mcp` (closed-source, built outside this repository)
 

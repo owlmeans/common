@@ -8,11 +8,11 @@ import {
 } from './consts.js'
 import type {
   AreaAlignment, DesignInference, OriginFlow, OriginFlowConsolidation, OriginFlowList,
-  PurposeInference, StoryProof
+  PurposeInference, WorkcardProof
 } from './analysis/types.js'
 import type { SeedDetection } from './census/types.js'
 import type { ArchitectureVerdict, StackConfirmation } from './detection/types.js'
-import type { ConversionEstimate, StoryEstimateBand } from './estimate/types.js'
+import type { ConversionEstimate, WorkcardEstimateBand } from './estimate/types.js'
 import type {
   ConversionAnswer, ConversionInventorySummary, ConversionStackRef, ConversionStructure
 } from './record/types.js'
@@ -405,7 +405,7 @@ export const OriginFlowConsolidationSchema: JSONSchemaType<OriginFlowConsolidati
   additionalProperties: false,
 }
 
-export const StoryProofSchema: JSONSchemaType<StoryProof> = {
+export const WorkcardProofSchema: JSONSchemaType<WorkcardProof> = {
   type: 'object',
   title: 'StoryProof',
   description: 'One user story restored from the original code, with the code that proves it',
@@ -757,7 +757,7 @@ export const ConversionEstimateSchema = {
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConversionEstimate>
 
-export const StoryEstimateBandSchema = {
+export const WorkcardEstimateBandSchema = {
   type: 'object',
   properties: {
     minUsd: { type: 'number' },
@@ -782,7 +782,7 @@ export const StoryEstimateBandSchema = {
   },
   required: ['minUsd', 'maxUsd', 'perStory'],
   additionalProperties: false,
-} as unknown as JSONSchemaType<StoryEstimateBand>
+} as unknown as JSONSchemaType<WorkcardEstimateBand>
 
 export const ConversionAnswerSchema = {
   type: 'object',

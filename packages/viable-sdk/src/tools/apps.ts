@@ -1,7 +1,7 @@
 import { apiStatusHelper } from '@owlmeans/api'
 import type { Workcard } from '@owlmeans/planning'
 import {
-  MAIN_APP, ProjectArea, TARGET_WEB_PORT, appMapHelper, connectAppsHelper, storyFieldsOf, type AppMap, type ConnectAppView,
+  MAIN_APP, ProjectArea, TARGET_WEB_PORT, appMapHelper, connectAppsHelper, workcardFieldsOf, type AppMap, type ConnectAppView,
   type ConnectAreaView,
 } from '@owlmeans/viable-common'
 import type { LocalAppStatus } from '../run/types.js'
@@ -104,14 +104,14 @@ export const createAppsToolHelper = (): AppsToolHelper => {
    * and its further `areas`; empty for a card in a standard area reaching nothing further.
    */
   const namedAreas = (card: Workcard): string[] => {
-    const fields = storyFieldsOf(card)
+    const fields = workcardFieldsOf(card)
     const extra = (fields.areas ?? []).filter(key => typeof key === 'string' && key !== '')
     if (STANDARD_KEYS.has(fields.area) && extra.length < 1) return []
 
     return [fields.area, ...extra].filter((key): key is string => typeof key === 'string' && key !== '')
   }
 
-  const storyApps: AppsToolHelper['storyApps'] = async (deps, projectId, cards) => {
+  const workcardApps: AppsToolHelper['workcardApps'] = async (deps, projectId, cards) => {
     const named = cards.map(card => [card, namedAreas(card)] as const).filter(([, areas]) => areas.length > 0)
     const answer = new Map<string, string[]>()
     if (named.length < 1) return answer
@@ -126,7 +126,7 @@ export const createAppsToolHelper = (): AppsToolHelper => {
     return answer
   }
 
-  return { renderApps, legacyView, routeMissing, storyApps }
+  return { renderApps, legacyView, routeMissing, workcardApps }
 }
 
 export const appsToolHelper = createAppsToolHelper()

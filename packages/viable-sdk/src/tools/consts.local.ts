@@ -1,4 +1,4 @@
-import { AgentStopScope, ConnectFeedDetail, IamGrantMode, ModerationCategory, StoryBatchOutcome, WorkloadKind } from '@owlmeans/viable-common'
+import { AgentStopScope, ConnectFeedDetail, IamGrantMode, ModerationCategory, WorkcardBatchOutcome, WorkloadKind } from '@owlmeans/viable-common'
 import type { MaterialOutcomeStatus } from './materials/types.js'
 
 /** What a production body leaves of a confirmation or consent refusal (`@owlmeans/api` `ApiStatusError`). */
@@ -249,18 +249,43 @@ export const FEED_LINE_MAX = 400
 export const FEED_TOAST_WORDS: Readonly<Record<string, string>> = {
   'out-of-tokens': 'a run stopped: the organization ran out of credits — the user tops up in the web application\'s Billing',
   'allowance-exhausted': 'a run stopped: the plan allowance it started on is used up — the user reads their plan in Billing',
+  'credits-finishing': 'the organization ran out of credits while a run worked: it finishes, and what it uses past the'
+    + ' balance is settled first from the next top-up — no new work starts until then; the user tops up in Billing',
+  'credits-stopping': 'the organization ran out of credits while an open-ended change or a conversion stage worked: the'
+    + ' step in progress finishes, then it stops; what it used past the balance is settled first from the next top-up',
+}
+
+/**
+ * The balance gates a connector refusal names (`ConnectOutOfCredits.gate`) that the cards tools phrase
+ * on their own — the platform's spec gate (a spec or a feature start) and change gate (an improvement or
+ * a task start). Plain strings: the gate vocabulary is the platform's, read off the refusal as it came.
+ */
+export const SPEC_GATE = 'spec'
+export const CHANGE_GATE = 'change'
+
+/** The spec gate's floor in credits — three times a story's: what a spec or a feature start needs in the balance. */
+export const SPEC_FLOOR_CREDITS = 100_000
+
+/** Why a retype was refused (`retype:<why>`), in words. */
+export const RETYPE_REFUSALS: Readonly<Record<string, string>> = {
+  client: 'This connector does not change card types through this platform (it predates the cards tools). Nothing was changed.',
+  status: 'Only a planned card can change its type. Nothing was changed; card_status says where it stands.',
+  primary: 'The project\'s primary user story stays a user story. Nothing was changed.',
+  landing: 'The landing gate story stays a user story. Nothing was changed.',
+  members: 'A spec or a feature that holds cards cannot become another type; take its members out first. Nothing was changed.',
+  owned: 'The generated code already holds pieces this card owns, so its type is fixed now. Nothing was changed.',
 }
 
 /** What `stop_agent` can address: the run in progress, the story in progress, or the whole batch. */
-export const STOP_SCOPES = [AgentStopScope.Run, AgentStopScope.Story, AgentStopScope.Batch] as const
+export const STOP_SCOPES = [AgentStopScope.Run, AgentStopScope.Workcard, AgentStopScope.Batch] as const
 
 /** What became of a story of a batch, in the words every batch answer uses. */
 export const BATCH_OUTCOME_WORDS: Readonly<Record<string, string>> = {
-  [StoryBatchOutcome.Completed]: 'completed',
-  [StoryBatchOutcome.Failed]: 'failed — story_status says why; the batch went on with the next one',
-  [StoryBatchOutcome.Stopped]: 'stopped by a person — its changes were rolled back and it is planned again',
-  [StoryBatchOutcome.Skipped]: 'skipped — it left the project before its turn',
-  [StoryBatchOutcome.Refused]: 'refused — its start was refused; the batch went on with the next one',
+  [WorkcardBatchOutcome.Completed]: 'completed',
+  [WorkcardBatchOutcome.Failed]: 'failed — story_status says why; the batch went on with the next one',
+  [WorkcardBatchOutcome.Stopped]: 'stopped by a person — its changes were rolled back and it is planned again',
+  [WorkcardBatchOutcome.Skipped]: 'skipped — it left the project before its turn',
+  [WorkcardBatchOutcome.Refused]: 'refused — its start was refused; the batch went on with the next one',
 }
 
 /** Why a batch halted when the story it started stopped moving and nothing runs it any more. */
@@ -268,7 +293,7 @@ export const BATCH_STALLED_WORDS = 'the story it started stopped moving and noth
   + ' (the run behind it ended without finishing it)'
 
 /** What every rolled-back story stop says it does: what is lost, and what is kept. */
-export const STORY_STOP_ROLLBACK = 'the story in progress stops at its next step, and every change made since'
+export const WORKCARD_STOP_ROLLBACK = 'the story in progress stops at its next step, and every change made since'
   + ' that run started — edits saved in the web editor meanwhile included — is rolled back; the story returns'
   + ' to planned'
 
@@ -345,6 +370,20 @@ export const REFERENCES_READ = 'Links in the description — web pages, public S
 /** What `confirm_project` says about references the confirmed specification adds. */
 export const REFERENCES_CONFIRMED = 'Links and "search online" requests the edited specification adds are fetched'
   + ' and researched before the build.'
+
+/** What `confirm_project` says about its `implement` choice — the one sentence its description (and the listings') carries. */
+export const IMPLEMENT_CONFIRMED = 'Pass implement: spec to also implement the specification right away once the'
+  + ' application is drawn (it costs a spec), or preview to draw the application only.'
+
+/** The `implement` argument of `confirm_project`, described for the model. */
+export const IMPLEMENT_INPUT = 'The choice at the specification approval. preview: draw the application only, as'
+  + ' without the argument. spec: also implement the specification right away — it costs a spec: the Pro plan\'s'
+  + ' free spec of the month, otherwise 100,000 credits; the Free plan needs topped-up credits and is refused'
+  + ' without them. Ask the user which they want.'
+
+/** `confirm_project` with `implement` on a platform older than the choice: nothing was confirmed. */
+export const IMPLEMENT_UNSUPPORTED = 'This platform does not offer the implement choice yet (it is older than it), so'
+  + ' nothing was confirmed. Call confirm_project again without implement: the application is drawn as a preview.'
 
 /** The most references lines of each kind (links, research requests, packages) `list_materials` prints. */
 export const REFERENCES_SHOWN = 20

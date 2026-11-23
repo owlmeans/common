@@ -1,6 +1,6 @@
 ---
 name: oauth
-description: How to use @owlmeans/oauth — the shared layer of OwlMeans OAuth sign-in: the two grants (device authorization RFC 8628, authorization code + PKCE S256), the consent protocols (makeOAuthProtocols), the `_oauth` flow, fetch-only client helpers (discovery, device authorization, polling, revoke), user/device-code and redirect-URI matching, and the error family incl. SignInRequired. Auto-invoked when a project needs an authorization server, a browser consent screen or a CLI/MCP browser sign-in, when importing oauth constants/types/helpers, or when reasoning about which grant a client should use.
+description: "How to use @owlmeans/oauth — the shared layer of OwlMeans OAuth sign-in: the two grants (device authorization RFC 8628, authorization code + PKCE S256), the consent protocols (makeOAuthProtocols), the `_oauth` flow, fetch-only client helpers (discovery, device authorization, polling, revoke), user/device-code and redirect-URI matching, and the error family incl. SignInRequired. Auto-invoked when a project needs an authorization server, a browser consent screen or a CLI/MCP browser sign-in, when importing oauth constants/types/helpers, or when reasoning about which grant a client should use."
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/oauth
 
 **Layer:** Auth shared (beside `auth-token`)
-**Install:** `"@owlmeans/oauth": "^0.2.2-alpha.0"` in `dependencies`
+**Install:** `"@owlmeans/oauth": "^0.2.3-alpha.0"` in `dependencies`
 **Halves:** `@owlmeans/server-oauth` (the authorization server), `@owlmeans/web-oauth` (the consent
 screens), `@owlmeans/cli-auth` (the command-line credential holder). None of the three imports
 another — they meet only here.

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE } from '../../consts.js'
-import { REFERENCES_CONFIRMED, REFERENCES_READ } from '../../consts.local.js'
+import { IMPLEMENT_CONFIRMED, REFERENCES_CONFIRMED, REFERENCES_READ } from '../../consts.local.js'
 import type { ToolAnnotations } from '../../types.js'
 import type { ToolSplit } from '../types.js'
 import type { ListingTextRule, ListingToolPresentation } from './types.js'
@@ -344,7 +344,7 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
     description: 'Confirm the drafted project, optionally editing what the analysis produced. This is what starts'
       + ' the build: the template lands, dependencies install, the whole application is drawn — model work that'
       + ' spends credits, or the plan\'s project allowance where it covers it. ' + REFERENCES_CONFIRMED
-      + ' Returns the project status while'
+      + ' ' + IMPLEMENT_CONFIRMED + ' Returns the project status while'
       + ' the build continues on the platform. Only a drafted project is confirmed, so calling it again starts'
       + ' no second build.',
   },
@@ -443,11 +443,75 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
   cancel_story_batch: { annotations: REPLACES },
   modify_project: {
     annotations: REWRITES,
-    description: 'Describe a change in words and let the platform\'s own coding agent make it — model work that'
-      + ' spends credits. For anything that is not a user story: a fix, a styling change. To rename the product,'
-      + ' use rename_project. Returns project status. Each call is a new change: calling it again makes it again'
-      + ' and spends again.',
+    description: 'Describe a change in words and let the platform decide what it is — model work that spends credits:'
+      + ' a question is answered by reading the project and changes nothing, a small fix (a wording, a colour, one'
+      + ' bug) is made by the platform\'s own coding agent at once, and anything bigger is filed as cards of the right'
+      + ' type and reported — started only when the request asks for it to be done now. To rename the product, use'
+      + ' rename_project. Returns project status. Each call is a new request: calling it again makes it again and'
+      + ' spends again.',
   },
+
+  // ── Work cards ─────────────────────────────────────────────────────────────────────────────────
+  list_cards: { annotations: READ },
+  card_status: { annotations: READ },
+  create_card: {
+    annotations: ADDS,
+    description: 'Add a work card in your own words: a spec (several cards built together in one run), a feature'
+      + ' (one capability for one role), a user story, an improvement (a change to what exists) or a task'
+      + ' (configuration, secrets, a data change — no code); type auto lets the platform decide. The platform files'
+      + ' the title the way its pipeline needs and checks the text — a short model call that spends credits. cards'
+      + ' moves existing cards into a new spec or feature; inputs names what a task needs, never a value: a secret is'
+      + ' typed by the user into the task\'s secure input in the web application. Each call adds another card.',
+  },
+  update_card: {
+    annotations: REWRITES,
+    description: 'Change what a card says, or accept and dismiss what the platform proposed on it (card_status lists'
+      + ' the proposals). A new title is filed the way the pipeline needs and its type checked again — a short model'
+      + ' call that spends credits; calling it again rewrites it and spends again. Its status is not changed — run_card'
+      + ' does that.',
+  },
+  retype_card: {
+    annotations: REPLACES,
+    description: 'Make a planned card another type — a user story that is really a feature, an improvement that is'
+      + ' really a task. It gets a new code (the old one is kept as a former code) and the type you name stays until'
+      + ' its text changes again. Refused once the generated code holds pieces the card owns; asking for the type it'
+      + ' already has changes nothing.',
+  },
+  run_card: {
+    annotations: REWRITES,
+    description: 'Start one card: a user story is designed and built, a spec builds all its members together in one'
+      + ' run, a feature or an improvement runs a planned set of steps, a task carries out its configuration or data'
+      + ' change. Takes many minutes and spends credits — a spec or a feature needs the 100,000-credit floor (a spec on'
+      + ' the Pro plan may use its free spec of the month instead), an improvement or a task a positive balance;'
+      + ' nothing new starts while the organization is in debt. A card already running is refused; calling it again'
+      + ' after its run ended starts it again and spends again.',
+  },
+  run_cards_together: {
+    annotations: REWRITES,
+    description: 'Put several planned cards into ONE new spec and start it: they are designed and built together in'
+      + ' one run — usually cheaper and faster than one at a time — and the run spends credits like any spec (the'
+      + ' 100,000-credit floor, or the Pro plan\'s free spec of the month). Calling it again with the same cards finds'
+      + ' the same spec and starts it again once its run has ended.',
+  },
+  run_all_cards: {
+    annotations: REWRITES,
+    description: 'Run every loose planned card: without confirm it answers where each would go — into the existing'
+      + ' spec or feature it continues, or into one new spec with the other cards it belongs with; a card that fits'
+      + ' nothing runs on its own, never alone in a spec — and starts nothing. With confirm: true, given only after'
+      + ' the user agreed, it applies that placement and starts them one after another (existing specs first, the new'
+      + ' spec next, cards on their own last), each spending credits like run_card. Calling it again with confirm'
+      + ' starts another round.',
+  },
+  rerun_card: {
+    annotations: REWRITES,
+    description: 'Start a spec or a feature again for exactly some of the cards inside it: scope failed builds only'
+      + ' the ones that failed, scope unfinished every one not completed; the completed ones are left as they are. It'
+      + ' takes many minutes and spends credits like run_card for a spec or a feature (the 100,000-credit floor, or the'
+      + ' Pro plan\'s free spec of the month for a spec); nothing new starts while the organization is in debt. Refused'
+      + ' when nothing matches or while the card or one of its cards runs; calling it again after its run ended starts'
+      + ' it again and spends again.',
+  },
+  delete_card: { annotations: REPLACES },
   steer_agent: {
     annotations: ADDS,
     description: 'Add a message to the open-ended change the platform\'s agent is making right now (modify_project,'

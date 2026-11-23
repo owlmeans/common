@@ -39,6 +39,11 @@ export interface WorkcardModel<T extends Workcard = Workcard> {
   pending: () => boolean
   transit: (transition: string, changes?: WorkcardChanges, opts?: ModelExecuteOptions & { flow?: string }) => Promise<TransitionReceipt>
   update: (changes: WorkcardChanges, opts?: ModelExecuteOptions & { unset?: string[] }) => Promise<TransitionReceipt>
+  /**
+   * Become `toType` (same kind) — only where the current type lists it in `retypes`. `changes` and
+   * `unset` fit the fields to the new type; the code is minted by the executor, never named here.
+   */
+  retype: (toType: string, changes?: WorkcardChanges, opts?: ModelExecuteOptions & { unset?: string[] }) => Promise<TransitionReceipt>
   remove: (opts?: ModelExecuteOptions) => Promise<TransitionReceipt>
   link: (type: string, to: string, fields?: Record<string, unknown>, opts?: ModelExecuteOptions) => Promise<TransitionReceipt>
   unlink: (type: string, to: string, opts?: ModelExecuteOptions) => Promise<TransitionReceipt>

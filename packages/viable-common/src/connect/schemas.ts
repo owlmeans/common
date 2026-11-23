@@ -34,7 +34,7 @@ import type {
 import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe, PlanningKitView } from './kit/types.js'
 import type { ConnectOpResult, InquiryAnswerPayload } from './ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody } from './pipeline/types.js'
-import type { ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody } from './project/types.js'
+import type { ConnectAttachBody, ConnectConfirmBody, ConnectConfirmImplementationBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody } from './project/types.js'
 import type { ConnectProductionDomainBody, ConnectProductionRedirectsBody } from './production/types.js'
 import type {
   ConnectIamGroupParams, ConnectIamMemberParams, ConnectIamOrganizationParams, ConnectIamUserParams,
@@ -48,6 +48,11 @@ import type {
 } from './materials/types.js'
 import { APP_NAME_PATTERN } from '../topology/apps/consts.js'
 import type { ConnectAppParams, ConnectAppRestartBody } from './apps/types.js'
+import { WORKCARD_BATCH_MAX } from '../batch/consts.js'
+import { WORK_NAME_MAX, WORK_TEXT_MAX } from '../work/consts.js'
+import { ViableImplementChoice, WorkRerunScope } from '../planning/consts.js'
+import { CONNECT_CARDS_KEY_MAX, CONNECT_CARDS_TOGETHER_MAX } from './consts.js'
+import type { ConnectCardParams, ConnectCardsRerunBody, ConnectCardsRunAllBody, ConnectCardsTogetherBody } from './cards/types.js'
 
 /**
  * A nullable ENUM carries `null` as one of its values.
@@ -313,6 +318,16 @@ export const ConnectConfirmBodySchema = {
   required: [],
   additionalProperties: false,
 } as JSONSchemaType<ConnectConfirmBody>
+
+/** `connect.project.confirmImplementation`: the confirm's own body plus the choice, required. */
+export const ConnectConfirmImplementationBodySchema = {
+  ...ConnectConfirmBodySchema,
+  properties: {
+    ...ConnectConfirmBodySchema.properties,
+    implement: { type: 'string', enum: Object.values(ViableImplementChoice) },
+  },
+  required: ['implement'],
+} as unknown as JSONSchemaType<ConnectConfirmImplementationBody>
 
 export const ConnectModifyBodySchema = {
   type: 'object',
@@ -917,3 +932,77 @@ export const ConnectAppRestartBodySchema = {
   required: [],
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConnectAppRestartBody>
+
+/** One card a card route addresses, under its project. */
+export const ConnectCardParamsSchema = {
+  type: 'object',
+  properties: { id: idValue, cardId: idValue },
+  required: ['id', 'cardId'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectCardParams>
+
+/** Run together — the web's own body (`CardsTogetherArgs`), every limit the same. */
+export const ConnectCardsTogetherBodySchema = {
+  type: 'object',
+  properties: {
+    cards: { type: 'array', items: idValue, minItems: 1, maxItems: CONNECT_CARDS_TOGETHER_MAX },
+    start: { type: 'boolean', nullable: true },
+    title: { type: 'string', nullable: true, maxLength: WORK_NAME_MAX },
+    key: { type: 'string', nullable: true, minLength: 1, maxLength: CONNECT_CARDS_KEY_MAX },
+  },
+  required: ['cards'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectCardsTogetherBody>
+
+/** Run all — the assignment the person accepted, as Run all's proposal answered it. */
+export const ConnectCardsRunAllBodySchema = {
+  type: 'object',
+  properties: {
+    assignment: {
+      type: 'object',
+      properties: {
+        placements: {
+          type: 'array',
+          maxItems: WORKCARD_BATCH_MAX,
+          items: {
+            type: 'object',
+            properties: {
+              card: idValue,
+              container: { ...idValue, nullable: true },
+              order: { type: 'integer', minimum: 0 },
+              reason: { type: 'string', nullable: true, maxLength: WORK_TEXT_MAX },
+            },
+            required: ['card', 'order'],
+            additionalProperties: false,
+          },
+        },
+        newSpec: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            title: { type: 'string', maxLength: WORK_NAME_MAX },
+            summary: { type: 'string', maxLength: WORK_TEXT_MAX },
+          },
+          required: ['title', 'summary'],
+          additionalProperties: false,
+        },
+        loose: { type: 'array', nullable: true, maxItems: WORKCARD_BATCH_MAX, items: idValue },
+      },
+      required: ['placements'],
+      additionalProperties: false,
+    },
+  },
+  required: ['assignment'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectCardsRunAllBody>
+
+/** Re-run a container's members — the web's own body (`CardRerunArgs`): the container and the scope. */
+export const ConnectCardsRerunBodySchema = {
+  type: 'object',
+  properties: {
+    card: idValue,
+    scope: { type: 'string', enum: Object.values(WorkRerunScope) },
+  },
+  required: ['card', 'scope'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectCardsRerunBody>

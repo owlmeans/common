@@ -1,10 +1,10 @@
 import type { Workcard, WorkcardQuery } from '@owlmeans/planning'
-import type { ConnectStoryStatus, ViableStoryCard, ViableStoryTransition } from '@owlmeans/viable-common'
+import type { ConnectStoryStatus, ViableWorkcard, ViableWorkcardTransition } from '@owlmeans/viable-common'
 import type { StoryFilter, ToolDeps } from '../types.js'
 
 /** A story moved through its flow: the card it was resolved to, and its domain status after. */
 export interface StoryTransit {
-  card: ViableStoryCard
+  card: ViableWorkcard
   status: ConnectStoryStatus
 }
 
@@ -20,9 +20,9 @@ export interface StoryHelper {
    * passes that. Both are asked at once and the id wins, and neither answers for a story of another
    * project: a card id is global, and an id that belongs elsewhere is not a story of THIS project.
    *
-   * @throws {ProjectStoryNotFound} when neither names a story of the project
+   * @throws {ProjectWorkcardNotFound} when neither names a story of the project
    */
-  resolveStory: (deps: Pick<ToolDeps, 'api'>, projectId: string, ref: string) => Promise<ViableStoryCard>
+  resolveStory: (deps: Pick<ToolDeps, 'api'>, projectId: string, ref: string) => Promise<ViableWorkcard>
   /**
    * Move a story through its flow — the story's `start`, `reset` or `complete` — and read its
    * domain status after.
@@ -34,7 +34,7 @@ export interface StoryHelper {
    * platform as a broken server. A refusal is thrown, and no status is read to hide it.
    */
   transit: (
-    deps: Pick<ToolDeps, 'api' | 'log'>, projectId: string, ref: string, transition: ViableStoryTransition, cause: string,
+    deps: Pick<ToolDeps, 'api' | 'log'>, projectId: string, ref: string, transition: ViableWorkcardTransition, cause: string,
   ) => Promise<StoryTransit>
     /** Whether a story card is the project's landing gate story. */
   isLandingStory: (card: Workcard) => boolean

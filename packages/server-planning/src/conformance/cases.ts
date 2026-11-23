@@ -1,6 +1,6 @@
 import { resourceConformance } from './resources.js'
 
-import { applyHelper, CardTypeNotAllowed, CommitState, FieldsInvalid, IntrinsicStatus, PlanningError, PlanningSchemaKind, RelationshipRefused, SchemaConflict, SchemaInUse, SchemaInvalid, SchemaOrigin, SchemaSealed, SpecificationFormat, TransitionAction, UnknownWorkcardType, WorkcardConflict, WorkcardKind, WorkcardNotFound, type CommitEvent, type PlanningFacade, type PlanningStore, type StatusFlowSchema, type Transition, type TransitionExecution, type Unsubscribe, type Workcard, type WorkcardQuery, type WorkcardTypeSchema } from '@owlmeans/planning'
+import { applyHelper, CardTypeNotAllowed, CommitState, RetypeNotAllowed, FieldsInvalid, IntrinsicStatus, PlanningError, PlanningSchemaKind, RelationshipRefused, SchemaConflict, SchemaInUse, SchemaInvalid, SchemaOrigin, SchemaSealed, SpecificationFormat, TransitionAction, UnknownWorkcardType, WorkcardConflict, WorkcardKind, WorkcardNotFound, type CommitEvent, type PlanningFacade, type PlanningStore, type StatusFlowSchema, type Transition, type TransitionExecution, type Unsubscribe, type Workcard, type WorkcardQuery, type WorkcardTypeSchema } from '@owlmeans/planning'
 import { creatorHelper } from '../executor/creator.js'
 import { assertHelper } from './assert.js'
 import { conformanceFixturesOf } from './fixtures.js'
@@ -399,6 +399,27 @@ const cases: ConformanceCase[] = [
       check(refusal.message.includes('hierarchy:parent-in-use'), `the refusal names the hierarchy: ${refusal.message}`)
       same((await planning.cards.get(shelved.id!)).parent, shelf.id, 'the child card stays')
       same((await planning.specifications.current(shelved.id!, 'summary'))?.body, '{"lines":["kept"]}', 'with its document')
+    },
+  },
+
+  {
+    name: 'retypes a card: the store folds the new type, queries follow it and the log keeps both',
+    run: async ({ facade, store }) => {
+      const entityId = organization()
+      const planning = facade(entityId)
+      const fixtures = conformanceFixturesOf(planning)
+      const branch = await fixtures.createBranch()
+      const book = await fixtures.createBook(branch.id!, 'Almanac', { fields: { genre: 'history' } })
+
+      const retyped = await execute(planning, { card: book.id!, action: TransitionAction.Retype, toType: LIBRARY.periodical })
+
+      same([retyped?.type, retyped?.kind, retyped?.code, retyped?.status], [LIBRARY.periodical, WorkcardKind.Card, book.code, 'shelved'], 'the card is a periodical; a type without a code policy keeps the code')
+      same((await planning.cards.get(book.id!)).fields, { genre: 'history' }, 'the fields stay')
+      same(await ids(planning, { parent: branch.id!, type: LIBRARY.periodical }), [book.id!], 'listed under the new type')
+      same(await ids(planning, { parent: branch.id!, type: LIBRARY.book }), [], 'no longer under the old one')
+      const log = await store.transitions!.list({ entityId, card: book.id! }, { size: 0, sort: [{ field: 'seq', order: 'asc' }] })
+      same(log.items.map(row => [row.action, row.type]), [[TransitionAction.Create, LIBRARY.book], [TransitionAction.Retype, LIBRARY.periodical]], 'each row keeps the type it was written under')
+      await rejects(planning.execute({ card: book.id!, action: TransitionAction.Retype, toType: LIBRARY.book }), RetypeNotAllowed, 'a periodical lists no retypes')
     },
   },
 
