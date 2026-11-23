@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { PipelineRunStatus } from '@owlmeans/agent-common'
 import type { PipelineSpec } from '@owlmeans/agent-common'
+import { addLogPlugin, memoryPlugin, type LogRecord } from '@owlmeans/log'
 import { createMemoryPipelineRunStore, makePipeline } from '../src/index.js'
 import type { PipelineStep } from '../src/index.js'
 
@@ -183,6 +184,72 @@ describe('agent — pipeline execution', () => {
     const row = await runs.load('run-1')
     expect(row?.status).toBe(PipelineRunStatus.Failed)
     expect(row?.failedAt).toBe('b')
+  })
+
+  describe('the line a fatal error leaves in the log', () => {
+    class OutOfTokens extends Error {}
+    const fatalAt = (expected?: (e: unknown) => string | null | undefined) => {
+      const runs = createMemoryPipelineRunStore()
+      const pipeline = makePipeline<State, Deps>(spec([{ step: 'a' }, { step: 'b', after: ['a'] }]), {
+        steps: [step('a'), step('b', async () => { throw new OutOfTokens('no balance') })],
+        runs,
+        fatal: e => e instanceof OutOfTokens,
+        ...(expected != null ? { expected } : {}),
+      })
+
+      return { runs, pipeline }
+    }
+    /** The run's terminal lines — what an operator reads about how it ended. */
+    const logged = async (run: () => Promise<unknown>): Promise<LogRecord[]> => {
+      const memory = memoryPlugin('pipeline-terminal')
+      const remove = addLogPlugin(memory)
+      try {
+        await run().catch(() => undefined)
+      } finally {
+        remove()
+      }
+
+      return memory.records.filter(record =>
+        record.scope === 'agent:pipeline' && ['Pipeline failed', 'Pipeline stopped'].includes(record.message))
+    }
+
+    test('an expected stop is a warn `Pipeline stopped` with its reason and step — never an error', async () => {
+      const { runs, pipeline } = fatalAt(e => e instanceof OutOfTokens ? 'out of credits' : null)
+      let thrown: unknown = null
+
+      const lines = await logged(async () => { await pipeline.invoke({}, args()).catch(e => { thrown = e }) })
+
+      expect(lines).toHaveLength(1)
+      expect(lines[0]).toMatchObject({
+        level: 'warn', message: 'Pipeline stopped', event: 'job.stop',
+        data: { alias: 'test', runId: 'run-1', reason: 'out of credits', step: 'b', message: 'no balance' },
+      })
+      expect(lines[0].error).toBeUndefined()
+      // Logging only: the row and the throw are a fatal error's, so a resume continues from `b`.
+      expect(thrown).toBeInstanceOf(OutOfTokens)
+      expect((await runs.load('run-1'))?.status).toBe(PipelineRunStatus.Failed)
+      expect((await runs.load('run-1'))?.failedAt).toBe('b')
+    })
+
+    test('a fatal error the classifier does not name stays an error `Pipeline failed`', async () => {
+      const unnamed = fatalAt(() => null)
+      const unclassified = fatalAt()
+
+      for (const lines of [await logged(() => unnamed.pipeline.invoke({}, args())), await logged(() => unclassified.pipeline.invoke({}, args()))]) {
+        expect(lines).toHaveLength(1)
+        expect(lines[0]).toMatchObject({ level: 'error', message: 'Pipeline failed', event: 'job.fail', data: { step: 'b' } })
+      }
+    })
+
+    test('a classifier that throws neither replaces the fatal error nor hides the failure', async () => {
+      const { pipeline } = fatalAt(() => { throw new Error('classifier broke') })
+      let thrown: unknown = null
+
+      const lines = await logged(async () => { await pipeline.invoke({}, args()).catch(e => { thrown = e }) })
+
+      expect(thrown).toBeInstanceOf(OutOfTokens)
+      expect(lines.map(line => [line.level, line.message])).toEqual([['error', 'Pipeline failed']])
+    })
   })
 
   test('refuses a state larger than the cap by FAILING the step, never truncating it', async () => {

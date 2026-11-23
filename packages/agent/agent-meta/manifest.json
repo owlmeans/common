@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "package": "@owlmeans/agent",
   "version": "0.2.2",
-  "generatedAt": "2026-11-21T09:26:21.998Z",
+  "generatedAt": "2026-11-22T02:02:26.373Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -69,6 +69,8 @@
             "ctx.mark",
             "ctx.stop",
             "PipelineStopReason",
+            "PipelineOptions.fatal",
+            "PipelineOptions.expected",
             "@owlmeans/agent/pipeline"
           ]
         },

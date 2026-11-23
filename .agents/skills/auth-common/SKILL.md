@@ -27,7 +27,7 @@ entity a token names.
 | `ENTITY_RESOLVER` | `'entity-resolver'` — the organization-entity resolver's service alias |
 | `ENTITY_SLUG_PATTERN` | A lowercase DNS label. Slugs compose hostnames, cluster object names and OIDC client ids, so anything needing sanitising is rejected where it is chosen |
 | `RELY_PIN_PERFIX`, `RELY_TOKEN_PREFIX`, `RELY_CALL_TIMEOUT`, `RELY_ACTION_TIMEOUT` | Rely-handshake constants |
-| `BED255_TIME_HEADER`, `BED255_NONCE_HEADER`, `BED255_SIG_TTL`, `BED255_CASHE_RESOURCE` | Ed25519 signature-guard headers, replay window and nonce-cache alias |
+| `BED255_TIME_HEADER`, `BED255_NONCE_HEADER`, `BED255_SIG_TTL`, `BED255_DELIVERY_TTL`, `BED255_CASHE_RESOURCE` | Ed25519 signature-guard headers, replay window, a queued claim's lifetime and nonce-cache alias |
 | `authApi` | Alias tree for the manager API entrypoints (`profile`, `entity`, `auth`) |
 
 ### Entrypoints, guard and middleware
@@ -141,6 +141,22 @@ token's slug only; both write `'-'` when neither is available. Read the gate you
   accepts only canonical timestamps inside its symmetric 60-second window and claims the
   credential-and-nonce pair until that timestamp's absolute expiry; a replay-store error refuses
   authentication rather than disabling deduplication.
+- **A queued request's redelivery is not a replay.** A request the queue bridge rebuilt from a job
+  carries `delivery` (`{ id: '<queue>:<job id>', attempt }`, in-process only, never from the wire).
+  Its claim is bound to that id (`claim(id, expiresAt, owner)`) and lives `deliveryTtl` (default
+  `BED255_DELIVERY_TTL`, 1 h) past the first admission. The SAME job at a later attempt (a stall, a
+  retry) is admitted on the claim it holds (`holder(id) === delivery.id`) — inside the window and,
+  because the claim proves an in-window first admission, past it. The same nonce on another job, on
+  the same job's first attempt, or over HTTP stays a replay (`nonce`), and a request past the window
+  with no such claim stays `expired`. A custom `SignedRequestReplayStore` without `holder` (or a
+  resource without `load`) recognises no redelivery.
+- **A queued request is judged fresh at its enqueue.** A delivery carrying `enqueuedAt` (the broker's
+  own stamp) AND `maxAge` (the queue's `envelopeTtl`) is fresh when its signature lies within 60 s of
+  that enqueue and the enqueue within `maxAge` of now — a job that waited behind a backlog or a deploy
+  gap is admitted; one past the queue's window is `expired`, redelivery or not. Its claim then lives
+  until `signedAt + 60 s + maxAge` (or `deliveryTtl` from now, whichever is later), so a copy of it
+  that could still pass the enqueue test always meets the claim. A delivery without both, and every
+  HTTP request, keeps the 60-second window at arrival.
 - A process that holds a trusted record's private key but no context (a Node test helper, a
   script) signs with `signBasicEd25519Request`, never a re-derived copy: `credential` is the
   record's `id` (OwlMeans deployments use the key's address, `ed25519:<address>`), `key` a

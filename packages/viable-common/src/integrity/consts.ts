@@ -14,8 +14,12 @@
  * program — it is to refuse a tree that is not the one the platform generated.
  *
  * **Two trees are the one the platform generated.** A slot's volume holds the layout it was
- * initialized with for the life of the project and nothing migrates it, so the manifest is
- * per-layout and the tree picks which one it is verified against ({@link detectTargetLayout}).
+ * initialized with for the life of the project and a layout is never migrated (the cure for the
+ * legacy one is re-initialization), so the manifest is per-layout and the tree picks which one it
+ * is verified against ({@link detectTargetLayout}). Within its layout a tree's seed currency is
+ * brought up by the platform's migrations capability (`@owlmeans/viable-migrations`) before a
+ * change, never by this manifest — so the current layout's rules must keep accepting an older tree
+ * of that layout untouched.
  * Asserting the current layout unconditionally is not a stricter check — it is a check aimed at
  * the wrong tree, and every legacy slot answers it with one `missing` violation per path it was
  * never supposed to have. That refuses the application the platform itself generated, in front

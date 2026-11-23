@@ -19,7 +19,7 @@ The agent runtime. Contracts live in `@owlmeans/agent-common`.
 | `makeAgentModel(options)` | An agent over the LangGraph functional API: `invoke(input, { action, context, stop, inbox })`, `use`, `conversation`. |
 | `AgentInbox` · `AGENT_INBOX_PREFIX` | The person's messages for a running loop (`drain`, `drainOrClose`) and the prefix of the turn that carries them. |
 | `AGENT_STOP_INSTRUCTION` · `AGENT_STOPPED_TOOL_RESULT` · `AGENT_STOP_SUMMARY_TIMEOUT_MS` · `AGENT_STOPPED_NOTE` | A stopped loop's summary turn, the answer to a tool call it did not run, the summary's deadline, the `autoFinish` note. |
-| `makePipeline(spec, options)` | A resumable state machine over a checkpointed LangGraph `StateGraph`: `invoke`, `resume`, `snapshot`, `asStep`. `options.plugins` seats `PipelinePlugin`s; `stop` on `invoke`/`resume` is the cooperative stop (`PipelineResult.stopped`, `PipelineStopReason`). |
+| `makePipeline(spec, options)` | A resumable state machine over a checkpointed LangGraph `StateGraph`: `invoke`, `resume`, `snapshot`, `asStep`. `options.plugins` seats `PipelinePlugin`s; `options.fatal` errors are written `Failed` and rethrown, and `options.expected` names those logged as a warn stop rather than an error; `stop` on `invoke`/`resume` is the cooperative stop (`PipelineResult.stopped`, `PipelineStopReason`). |
 | `cumulativeResultsPlugin(options)` · `CUMULATIVE_RESULTS_PLUGIN` · `DEFAULT_RESULT_SUMMARY_SCHEMA` | CUMULATIVE PIPELINE RESULTS — tells every step what its predecessors produced; see the `cumulative-results` part. |
 | `PipelinePlugin` and its events, `StepResults`, `PipelineParentRef` | The pipeline plugin seam (types, from `./pipeline`). |
 | `makeCheckpointSaver(store)` | A `BaseCheckpointSaver` over the `CheckpointStore` port. |

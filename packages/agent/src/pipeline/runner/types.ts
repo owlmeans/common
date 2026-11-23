@@ -225,6 +225,15 @@ export interface PipelineOptions<S extends PipelineState, C> {
    * The row is written `Failed` first, then the error is rethrown.
    */
   fatal?: (e: unknown) => boolean
+  /**
+   * Names a FATAL error that is an expected outcome a person resolves — an exhausted balance a
+   * top-up cures — rather than a fault. Asked only of an error `fatal` called fatal; a non-empty
+   * answer is the reason the runner logs, at `warn`, as `Pipeline stopped` (`reason`, `step`,
+   * event `job.stop`) instead of `error` `Pipeline failed` (`job.fail`). Logging only: the row is
+   * still written `Failed` at the step and the error rethrown, so a resume continues from it.
+   * Absent, answering nothing, or throwing, every fatal error is logged as a failure.
+   */
+  expected?: (e: unknown) => string | null | undefined
   maxStateChars?: number
   /** How `ctx.ask` reaches a person. Absent ⇒ every question parks the run. */
   inquiry?: PipelineInquiryOptions<S, C>

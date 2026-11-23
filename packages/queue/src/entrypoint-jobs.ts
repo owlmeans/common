@@ -48,6 +48,7 @@ export const makeEntrypointJobsHelper = (context: Context<Config>): EntrypointJo
 
       const request = queueBridgeHelper.requestOf(envelope, entrypoint.path(), context, {
         id: job.id, name: job.name, queue: job.queue, attempt: job.attempt, touch: job.touch,
+        ...(job.enqueuedAt != null ? { enqueuedAt: job.enqueuedAt } : {}),
       })
       const response = provideResponse<unknown>()
 
@@ -87,7 +88,8 @@ export const makeEntrypointJobsHelper = (context: Context<Config>): EntrypointJo
     } catch (e) {
       // A refusal the caller must see as its own class — `ContentRefused`, `AgentLocked` — travels
       // in the reply. Only a broker- or connection-level fault should ever reach the retry logic:
-      // retrying a refusal just spends the work again to be refused identically.
+      // retrying a refusal just spends the work again to be refused identically. A driver records
+      // a reply carrying `error` as a FAILED job that is not retried — never as a completed one.
       if (e instanceof ResilientError) {
         return { error: ResilientError.marshal(e).message }
       }

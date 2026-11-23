@@ -74,7 +74,11 @@ to its sections: `auth`, `host`, `base`, `unsecure`, `timeout`, `signal`, and th
 `QueryOf<Protocol>`, and `HeadersOf<Protocol>` derive the contract types. A handler receives
 `HandlerRequest<RequestOf<Protocol>>`, which includes the transport metadata as well as the typed
 sections. Use `entrypointRef<Request, Response>(alias)` only for a dynamic remote address whose
-declaration is unavailable to import.
+declaration is unavailable to import. `AbstractRequest.delivery` (`RequestDelivery { id, attempt,
+enqueuedAt?, maxAge? }`) is set in-process only, by a transport that can deliver one request more
+than once (the queue bridge); it is never serialized, so an admission claim bound to it (the Ed25519
+guard's nonce) tells that transport's redelivery from a replay, and the transport's own enqueue
+time and window let the guard judge a request that waited in it at its enqueue.
 
 ## Authorization and addressing
 

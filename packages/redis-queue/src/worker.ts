@@ -25,7 +25,9 @@ const log = logger('redis-queue:worker')
  * It binds one bullmq worker per queue named in `cfg.queue.listen` and dispatches by job name — to
  * a processor an application registered here, or to an entrypoint this process both serves and
  * listens to. A job name neither of them answers fails unrecoverably: nothing in this process can
- * ever run it, so retrying only moves the same failure further down the backlog.
+ * ever run it, so retrying only moves the same failure further down the backlog. So does an
+ * entrypoint job whose reply carries a refusal: it is a failed job (the refusal its reason), never a
+ * completed one with an error inside.
  */
 export const makeRedisQueueWorker = (
   alias: string = DEFAULT_ALIAS, dbAlias: string = DEFAULT_DB_ALIAS,
@@ -65,6 +67,9 @@ export const makeRedisQueueWorker = (
     name: job.name,
     queue,
     attempt: job.attemptsStarted,
+    stalls: job.stalledCounter ?? 0,
+    // bullmq stamps the job when it is added, outside its data: what a signed job's freshness is judged at.
+    ...(Number.isFinite(job.timestamp) && job.timestamp > 0 ? { enqueuedAt: job.timestamp } : {}),
     data: job.data,
     signal,
     // bullmq stamps every run a scheduler produces with the scheduler's id.
@@ -104,10 +109,21 @@ export const makeRedisQueueWorker = (
 
     const handled = jobContext(queue, job, token, signal, lockDuration)
     const run = async (): Promise<unknown> => await processor(handled)
-    log.debug('Job started', { queue, name: job.name, id: job.id, attempt: job.attemptsStarted }, { event: 'job.start' })
+    log.debug('Job started', {
+      queue, name: job.name, id: job.id, attempt: job.attemptsStarted, stalls: handled.stalls,
+    }, { event: 'job.start' })
 
     try {
-      return hooks.wrapHandler != null ? await hooks.wrapHandler(handled, run) : await run()
+      const result = hooks.wrapHandler != null ? await hooks.wrapHandler(handled, run) : await run()
+      // An entrypoint job answers a refusal in its reply, so the producer rebuilds it as its own class.
+      // Returned as it is, bullmq would record a refused job as COMPLETED; failed unrecoverably, it is
+      // a visible failure that is not retried, and `wait` rebuilds the same class from the reason.
+      const refusal = registered == null ? jobRecordHelper.refusalOf(result) : null
+      if (refusal != null) {
+        throw new UnrecoverableError(refusal)
+      }
+
+      return result
     } catch (e) {
       // A domain refusal has to cross the hop as the class it was thrown as. Marshalling it into
       // the failure reason is what lets `wait` rebuild it instead of handing back a string.

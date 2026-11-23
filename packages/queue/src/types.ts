@@ -203,7 +203,19 @@ export interface JobContext<D = unknown> {
   id: string
   name: string
   queue: string
+  /** Deliveries started so far, this one included: 1 the first time, more after a stall or a retry. */
   attempt: number
+  /**
+   * How many times the broker took this job back from a worker that stopped renewing its lock (a
+   * stall) — the job is then delivered again although nothing ever failed it. Absent when the driver
+   * cannot tell.
+   */
+  stalls?: number
+  /**
+   * When the broker took the job in (ms since the epoch) — the broker's own record (bullmq's job
+   * `timestamp`), which the job's data cannot set. Absent when the driver cannot tell.
+   */
+  enqueuedAt?: number
   data: D
   signal: AbortSignal
   /**
@@ -274,6 +286,8 @@ export interface QueueJobMeta {
   name: string
   queue: string
   attempt: number
+  /** When the broker took the job in (ms since the epoch) — its own record, not the job's data. */
+  enqueuedAt?: number
   /** Renew the broker lock for protocol handlers whose work can outlive one lock duration. */
   touch: () => Promise<void>
 }

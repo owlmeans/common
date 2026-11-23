@@ -24,6 +24,10 @@ export interface EntrypointJobsHelper {
    * It never throws for a DOMAIN failure — the error is marshalled into the returned reply so the
    * producer can rebuild it as its own class, and so the broker does not count a legitimate refusal
    * as a job to retry. Infrastructure failures are left to propagate: those are what retries are for.
+   * The driver records a reply carrying `error` as a failed job that is never retried (the refusal
+   * as its reason, which the producer's `wait` rebuilds), so a refused job never reads as completed.
+   * A request rebuilt from a job carries `delivery` (`<queue>:<job id>`, the attempt), which binds
+   * the signed request's nonce to the job: a redelivery is not a replay.
    */
   handle: (job: JobContext<JobEnvelope>) => Promise<JobReply>
 }
