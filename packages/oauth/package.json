@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/oauth",
-  "version": "0.2.3",
+  "version": "0.2.4-rc.0",
   "license": "MIT",
   "description": "Shared OAuth 2.1 contracts for OwlMeans authorization servers and clients — device authorization, authorization code + PKCE, protected-resource and authorization-server metadata, Client ID Metadata Documents, the shared consent flow, and runtime-agnostic client helpers.",
   "homepage": "https://owlmeans.com/docs/",

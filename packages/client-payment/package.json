@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-payment",
-  "version": "0.2.3",
+  "version": "0.2.4-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,7 +31,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-auth": "^0.2.3",
+    "@owlmeans/client-auth": "^0.2.4-rc.0",
     "@owlmeans/context": "^0.2.3",
     "@owlmeans/payment": "^0.2.3"
   },

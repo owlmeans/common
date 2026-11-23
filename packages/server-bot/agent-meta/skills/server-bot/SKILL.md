@@ -1,6 +1,6 @@
 ---
 name: server-bot
-description: How to use @owlmeans/server-bot — the platform-neutral server runtime of OwlMeans chat bots; each platform is a plugin package registered explicitly. appendBot and BotService (the registered platforms, platform.list, (connections with AES-GCM sealed credentials, activity), the signed inbound hook and its deduplicating inbox, simulate on mock connections (API only — the mock's native payload straight into normalize and the inbox), the worker-only runtime (dispatcher handing each update to the application's handlers as is + poll/gateway receivers, fatal receiver faults that fail the connection), the never-throwing BotActions answering a sentence plus its machine code and recording the handler's opaque ref, serveBotEntrypoints / serveBotHookEntrypoints, the record schemas a store registers, the BotPlatformPlugin interface and registry, the API-faithful mock transport and the configurable test platform (./mock) and the store conformance suite (./conformance). Auto-invoked when wiring bots into a backend, writing a bot handler, writing a platform plugin, storing bot records, or testing against the mock transport.
+description: "How to use @owlmeans/server-bot — the platform-neutral server runtime of OwlMeans chat bots, each platform a plugin package registered explicitly. appendBot and BotService (registered platforms, platform.list, connections with AES-GCM sealed credentials, activity), the signed inbound hook and its deduplicating inbox, simulate on mock connections (API only), the worker-only runtime (dispatcher handing each update to the application's handlers as is, poll/gateway receivers, fatal receiver faults that fail the connection), the never-throwing BotActions (a sentence plus its machine code, the handler's opaque ref), serveBotEntrypoints / serveBotHookEntrypoints, the record schemas a store registers, the BotPlatformPlugin interface and registry, the API-faithful mock transport and configurable test platform (./mock) and the store conformance suite (./conformance). Auto-invoked when wiring bots into a backend, writing a bot handler or a platform plugin, storing bot records, or testing against the mock transport."
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-bot
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-bot": "^0.2.3"` in `dependencies` (`ajv` is a peer)
+**Install:** `"@owlmeans/server-bot": "^0.2.4-rc.0"` in `dependencies` (`ajv` is a peer)
 **Contract:** `@owlmeans/bot` — platform descriptors, connections, updates, activity, the text helper, the two protocol trees, the errors
 
 The runtime of the bot case. It stores (over ANY `@owlmeans/resource` — `@owlmeans/bot-postgres` in a

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-job",
-  "version": "0.2.3",
+  "version": "0.2.4-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -40,8 +40,8 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/client": "^0.2.3",
-    "@owlmeans/client-auth": "^0.2.3",
+    "@owlmeans/client": "^0.2.4-rc.0",
+    "@owlmeans/client-auth": "^0.2.4-rc.0",
     "@owlmeans/client-context": "^0.2.3",
     "@owlmeans/client-entrypoint": "^0.2.3",
     "@owlmeans/context": "^0.2.3",

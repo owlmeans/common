@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-iam",
-  "version": "0.2.3",
+  "version": "0.2.4-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,14 +32,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-auth": "^0.2.3",
+    "@owlmeans/client-auth": "^0.2.4-rc.0",
     "@owlmeans/consent": "^0.2.3",
     "@owlmeans/context": "^0.2.3",
     "@owlmeans/entrypoint": "^0.2.3",
     "@owlmeans/iam": "^0.2.3",
     "@owlmeans/oidc": "^0.2.3",
-    "@owlmeans/web-client": "^0.2.3",
-    "@owlmeans/web-oidc-rp": "^0.2.3"
+    "@owlmeans/web-client": "^0.2.4-rc.0",
+    "@owlmeans/web-oidc-rp": "^0.2.4-rc.0"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "^0.2.3",

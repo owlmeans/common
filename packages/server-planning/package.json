@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-planning",
-  "version": "0.2.3",
+  "version": "0.2.4-rc.0",
   "license": "MIT",
   "description": "The general planning implementation — the planning service and its plugin/middleware registry, the transition executor, the in-memory store, the protocol handlers and the commit feed.",
   "homepage": "https://owlmeans.com/docs/",
@@ -60,7 +60,7 @@
     "@owlmeans/context": "^0.2.3",
     "@owlmeans/entrypoint": "^0.2.3",
     "@owlmeans/error": "^0.2.3",
-    "@owlmeans/planning": "^0.2.3",
+    "@owlmeans/planning": "^0.2.4-rc.0",
     "@owlmeans/queue": "^0.2.3",
     "@owlmeans/resource": "^0.2.3",
     "@owlmeans/log": "^0.2.3",

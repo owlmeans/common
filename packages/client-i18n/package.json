@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-i18n",
-  "version": "0.2.3",
+  "version": "0.2.4-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -47,7 +47,7 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/client": "^0.2.3",
+    "@owlmeans/client": "^0.2.4-rc.0",
     "@owlmeans/client-context": "^0.2.3",
     "@owlmeans/i18n": "^0.2.3",
     "@owlmeans/log": "^0.2.3",

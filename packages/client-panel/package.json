@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-panel",
-  "version": "0.2.3",
+  "version": "0.2.4-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -47,8 +47,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",
-    "@owlmeans/client": "^0.2.3",
-    "@owlmeans/client-i18n": "^0.2.3",
+    "@owlmeans/client": "^0.2.4-rc.0",
+    "@owlmeans/client-i18n": "^0.2.4-rc.0",
     "@owlmeans/client-entrypoint": "^0.2.3",
     "@owlmeans/client-route": "^0.2.3",
     "@owlmeans/error": "^0.2.3",
@@ -56,7 +56,7 @@
   },
   "peerDependencies": {
     "@owlmeans/auth": "^0.2.3",
-    "@owlmeans/client-auth": "^0.2.3",
+    "@owlmeans/client-auth": "^0.2.4-rc.0",
     "@owlmeans/config": "^0.2.3",
     "@owlmeans/i18n": "^0.2.3",
     "@owlmeans/router": "^0.2.3",
@@ -75,7 +75,7 @@
   "devDependencies": {
     "@owlmeans/dep-config": "^0.2.3",
     "@owlmeans/auth": "^0.2.3",
-    "@owlmeans/client-auth": "^0.2.3",
+    "@owlmeans/client-auth": "^0.2.4-rc.0",
     "@owlmeans/context": "^0.2.3",
     "@owlmeans/route": "^0.2.3",
     "@types/react": "^19.3.0",

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-planning
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-planning": "^0.2.3"` in `dependencies` (`ajv` is a peer)
+**Install:** `"@owlmeans/server-planning": "^0.2.4-rc.0"` in `dependencies` (`ajv` is a peer)
 
 The general implementation of `@owlmeans/planning`: the planning service (a plugin host), the
 scoped facade, the executor every write goes through, the in-memory reference store, the commit
@@ -147,7 +147,7 @@ wrong form as written.
 
 | Part | Load it when |
 |---|---|
-| [executor](parts/executor.md) | writing a planning plugin, or diagnosing why a transition was refused or never committed |
+| [executor](parts/executor.md) | writing a planning plugin, or diagnosing why a transition (a `retype` and its own checks included) was refused or never committed |
 | [stores](parts/stores.md) | choosing or writing a store, or testing planning code |
 | [serving](parts/serving.md) | binding the planning handlers, writing an access resolver, or narrowing what a person sees or writes |
 | [schemas](parts/schemas.md) | defining or retiring types and flows as data |

@@ -13,7 +13,7 @@ component. The `mui-panel` skill covers this package.
 ## Installation
 
 ```bash
-bun add @owlmeans/mui-panel@^0.2.3
+bun add @owlmeans/mui-panel@^0.2.4-rc.0
 ```
 
 Peer dependencies the app provides: `@mui/material`, `@mui/icons-material`, `@emotion/react`,
@@ -228,7 +228,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.3
+npx @owlmeans/agent-skills@^0.2.4-rc.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-wl",
-  "version": "0.2.3",
+  "version": "0.2.4-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -31,7 +31,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.2.3",
+    "@owlmeans/client": "^0.2.4-rc.0",
     "@owlmeans/client-entrypoint": "^0.2.3",
     "@owlmeans/context": "^0.2.3",
     "@owlmeans/wled": "^0.2.3"

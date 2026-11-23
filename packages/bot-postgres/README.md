@@ -8,7 +8,7 @@ generated target project) adds it next to `appendBot`.
 ## Installation
 
 ```bash
-bun add @owlmeans/bot-postgres@^0.2.3
+bun add @owlmeans/bot-postgres@^0.2.4-rc.0
 ```
 
 Peer dependencies: `pg`, `ajv`.
@@ -137,7 +137,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.3
+npx @owlmeans/agent-skills@^0.2.4-rc.0
 ```
 
 The embedded files are version-matched to this package release. Do not edit them
