@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/test-payment
 
-**Install:** `bun add -d @owlmeans/test-payment@^0.2.3` (dev dependency only)
+**Install:** `bun add -d @owlmeans/test-payment@^0.2.4-rc.0` (dev dependency only)
 
 The one harness every payment test builds on. The host's specs (`@owlmeans/server-payment`) run on
 the fake paygate, so "the host asked the paygate for exactly this" is an assertion; a provider

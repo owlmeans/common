@@ -8,8 +8,12 @@ import { topologyHelper } from './resolve.js'
 import type { TargetPackageDescriptor, TargetPackageKind, TopologyDescriptor, TopologyMeta } from './types.js'
 import { KINDS, ROLES } from './consts.local.js'
 import type { TopologyCardHelper } from './card/types.js'
+import { projectStructureHelper } from './structure.js'
+import { STRUCTURE_PURPOSE_MAX, StructurePartKind } from './structure/consts.js'
 
 export const createTopologyCardHelper = (): TopologyCardHelper => {
+  const PART_KINDS = new Set<string>(Object.values(StructurePartKind))
+
   const asStrings = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
 
@@ -33,6 +37,11 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
     const queues = asStrings(raw.queues)
     const app = typeof raw.app === 'string' && APP_NAME_PATTERN.test(raw.app) ? raw.app : null
     const mount = typeof raw.mount === 'string' && TARGET_APP_MOUNT_PATTERN.test(raw.mount) ? raw.mount : null
+    const part = typeof raw.part === 'string' && APP_NAME_PATTERN.test(raw.part) ? raw.part : null
+    const partKind = typeof raw.partKind === 'string' && PART_KINDS.has(raw.partKind) ? raw.partKind as StructurePartKind : null
+    const purpose = typeof raw.purpose === 'string' && raw.purpose.trim() !== '' && raw.purpose.length <= STRUCTURE_PURPOSE_MAX
+      ? raw.purpose.trim()
+      : null
 
     return {
       name,
@@ -43,6 +52,9 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
       ...(queues.length > 0 ? { queues } : {}),
       ...(app != null ? { app } : {}),
       ...(mount != null ? { mount } : {}),
+      ...(part != null ? { part } : {}),
+      ...(part != null && partKind != null ? { partKind } : {}),
+      ...(part != null && purpose != null ? { purpose } : {}),
     }
   }
 
@@ -61,6 +73,22 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
     return Array.isArray(raw.areas) ? { areas: map.areas, apps: map.apps } : { apps: map.apps }
   }
 
+  /**
+   * The record's structure, only when it is whole: every area and part narrows and the structure
+   * passes every rule (purposes aside — those live on the packages). Anything less is NO structure:
+   * the packages and the apps then say what the tree is, as they did before structures existed.
+   */
+  const parseStructure = (raw: Record<string, unknown>): Pick<TopologyDescriptor, 'structure'> => {
+    if (raw.structure == null || typeof raw.structure !== 'object') return {}
+    const source = raw.structure as Record<string, unknown>
+    const structure = projectStructureHelper.narrow(source)
+    if (structure == null || !Array.isArray(source.areas) || !Array.isArray(source.parts)) return {}
+    if (structure.areas.length !== source.areas.length || structure.parts.length !== source.parts.length) return {}
+    if (projectStructureHelper.validateRef(structure).length > 0) return {}
+
+    return { structure: projectStructureHelper.refOf(structure) }
+  }
+
   const parseTopologyMeta = (data: unknown): TopologyDescriptor | null => {
     if (data == null || typeof data !== 'object') return null
     const raw = data as Record<string, unknown>
@@ -75,6 +103,7 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
       dir: raw.dir.trim(),
       packages,
       ...parseApps(raw),
+      ...parseStructure(raw),
     }
   }
 
@@ -97,6 +126,7 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
         ...(pkg.areas != null ? [`areas: ${pkg.areas.join(', ')}`] : []),
         ...(pkg.queues != null ? [`queues: ${pkg.queues.join(', ')}`] : []),
         ...(pkg.app != null ? [`app: ${pkg.app}`] : []),
+        ...(pkg.part != null ? [`part: ${pkg.part}`] : []),
       ].join('; ')
 
       return `| \`${topology.dir}/${pkg.name}\` | ${pkg.roles.join(', ')} | ${pkg.kind} | ${deps} | ${extra === '' ? '—' : extra} |`
@@ -113,7 +143,34 @@ export const createTopologyCardHelper = (): TopologyCardHelper => {
       ...rows,
       '',
       ...renderApps(topology),
+      ...renderStructure(topology),
     ].join('\n')
+  }
+
+  /** The parts table — only for a record carrying a structure; any other record renders as it always has. */
+  const renderStructure = (topology: TopologyDescriptor): string[] => {
+    if (topology.structure == null) return []
+    const cell = (text: string): string => text.replace(/\|/g, '\\|').replace(/\s+/g, ' ')
+    const rows = topology.structure.parts.map(part => {
+      const packages = projectStructureHelper.packagesOf(part).map(name => `\`${topology.dir}/${name}\``).join(', ')
+      const deps = part.dependsOn.length > 0 ? part.dependsOn.join(', ') : '—'
+      const areas = part.areas != null && part.areas.length > 0 ? part.areas.join(', ') : '—'
+      const purpose = topology.packages.find(pkg => pkg.part === part.name && pkg.purpose != null)?.purpose ?? '—'
+
+      return `| ${part.name} | ${part.kind} | ${packages} | ${deps} | ${areas} | ${cell(purpose)} |`
+    })
+
+    return [
+      '## Structure',
+      '',
+      'The parts this project is made of, what each is for and which it depends on. A web part names',
+      'the one api or pair it calls among its dependencies; that is the API its screens use.',
+      '',
+      '| Part | Kind | Packages | Depends on | Areas | Purpose |',
+      '|---|---|---|---|---|---|',
+      ...rows,
+      '',
+    ]
   }
 
   /** The apps table — only for a project split into apps; a one-app record renders as it always has. */

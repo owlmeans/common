@@ -47,6 +47,19 @@ export enum WorkOutcome {
   Skipped = 'skipped',
 }
 
+/**
+ * What one batch of a container's implementation plan runs (`WorkPlanBatch.kind`): a combined pass over
+ * user stories, features and the container's own requirements; the planned run of improvements; or task runs.
+ */
+export enum WorkBatchKind {
+  /** ONE combined design + implement pass over its units (a lone unit: that card's own run). */
+  Pass = 'pass',
+  /** The improvements, planned each on its own document and built together in one planned run. */
+  Improvements = 'improvements',
+  /** Task runs, one after another — no code. */
+  Tasks = 'tasks',
+}
+
 /** What one task operation does. Never a value — only names, counts and backup ids are recorded. */
 export enum TaskOperationKind {
   /** A configuration variable set or cleared (`agent.config.apply`). */
@@ -100,4 +113,11 @@ export enum TriageKind {
   Fix = 'fix',
   /** Work for one or more cards, filed as the person's own. */
   Card = 'card',
+  /**
+   * A change of the project's APPLICATION STRUCTURE — an app added, an area added to an app or moved
+   * to another one, an app renamed or remounted: free flight with its app tools, never cards. The
+   * features a request names inside that structure are filed by the run as planned stories after it.
+   * The connector's `request` answers it as `fix` (free flight runs): its wire knows no other kind.
+   */
+  Apps = 'apps',
 }

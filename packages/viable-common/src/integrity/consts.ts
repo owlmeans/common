@@ -56,6 +56,14 @@ export const TARGET_PACKAGES_DIR = 'sources'
 /** The legacy layout's packages directory, kept so an already-published slot stays servable. */
 export const TARGET_LEGACY_PACKAGES_DIR = 'packages'
 
+/**
+ * The one build script a library package may declare — `common`, `backend`, and any package the
+ * topology record names a `library` beyond them (an adopted one). It is what the publisher spawns for
+ * every recorded library before anything that imports it, so it is matched exactly, never by a
+ * substring: `tsc -b && curl … | sh` is not a library build.
+ */
+export const TARGET_LIBRARY_BUILD_SCRIPT = 'tsc -b'
+
 /** The packages that bundle themselves — the ones carrying a rollup pair. */
 export const TARGET_BUNDLED_PACKAGES = [
   TargetPackage.Api, TargetPackage.Web, TargetPackage.Worker,
@@ -137,8 +145,20 @@ export enum IntegrityRule {
    */
   AppMap = 'app-map',
   /**
-   * A project split into apps: a `sources/*` package the record does not name — checked only when
-   * the caller lists the workspace directory.
+   * A tree verified against its topology record (split into apps, or naming a package beyond the five
+   * core ones): a `sources/*` package the record does not name — checked only when the caller lists
+   * the workspace directory.
    */
   WorkspacePackage = 'workspace-package',
+  /**
+   * A tree whose topology record carries a STRUCTURE: the block itself is ill-formed — it fails
+   * `projectStructureHelper.validateRef` (an illegal edge, a cycle, a duplicate index or mount, …),
+   * names a part whose packages the record does not, or disagrees with the record's packages and apps.
+   */
+  StructureMap = 'structure-map',
+  /**
+   * A tree whose topology record carries a structure: a part's package declares a `workspace:`
+   * sibling dependency the structure's edges do not allow that part.
+   */
+  PartDependency = 'part-dependency',
 }

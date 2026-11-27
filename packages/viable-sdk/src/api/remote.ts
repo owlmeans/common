@@ -2,9 +2,9 @@ import { apiStatusHelper } from '@owlmeans/api'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { makeUploadClient } from '@owlmeans/client-upload'
 import type { UploadProtocols } from '@owlmeans/upload'
-import { connectProtocols, connectRef, type ConnectClientView, type ConnectAppRestartBody, type ConnectAppsView, type AgentSteerArgs, type AgentStopArgs, type WorkcardBatchStartArgs, type WorkcardBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload, type ConnectCardStatus, type ConnectCardsPlanView, type ConnectCardsRerunBody, type ConnectCardsRerunView, type ConnectCardsRunAllBody, type ConnectCardsTogetherBody, type ConnectCardsTogetherView, type ConnectRequestView } from '@owlmeans/viable-common'
+import { connectProtocols, connectRef, type ConnectClientView, type ConnectAppAddBody, type ConnectAppRestartBody, type ConnectAppsChangeView, type ConnectAppsView, type ConnectAreaAddBody, type ConnectAreaAddition, type ConnectAreaBindBody, type AgentSteerArgs, type AgentStopArgs, type WorkcardBatchStartArgs, type WorkcardBatchView, type ConnectActivityQuery, type ConnectFeedQuery, type ConnectLlm, type ConnectProjectSettings, type ConnectAgentLock, type ConnectConfigSaveBody, type ConnectConfigScope, type ConnectOrganizationBrandingSave, type ConnectFileContent, type ConnectFileMetaQuery, type ConnectFileWritten, type ConnectSlotView, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectProjectSummary, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload, type ConnectCardStatus, type ConnectCardsPlanView, type ConnectCardsRerunBody, type ConnectCardsRerunView, type ConnectCardsRunAllBody, type ConnectCardsTogetherBody, type ConnectCardsTogetherView, type ConnectRequestView, type CatalogueChoice, type ConnectCreateWithChoiceBody, type ConnectConvertCreateWithChoiceBody, type ConnectProjectStructure, type ConnectStructureSubmitBody } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
-import { MATERIALS_FILE_TIMEOUT_MS, NOT_FOUND } from './consts.local.js'
+import { APPS_CHANGE_TIMEOUT_MS, MATERIALS_FILE_TIMEOUT_MS, NOT_FOUND } from './consts.local.js'
 import type { ConnectorApi, OpenSessionArgs, ProjectEdits, ProjectImplementEdits } from '../types.js'
 import type { Ctx } from './types.local.js'
 import type { RemoteConnectorOptions } from './types.js'
@@ -39,6 +39,24 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
     ...(query.detail != null ? { detail: query.detail } : {}),
   })
   const feedTimeout = (query: ConnectFeedQuery = {}): number => Math.max(timeout, ((query.wait ?? 0) + 10) * 1000)
+  // A change of the apps crosses only the fields its closed body names — a host's extra keys never do.
+  const areaOf = (area: ConnectAreaAddition): ConnectAreaAddition => ({
+    key: area.key, kind: area.kind,
+    ...(area.segment != null ? { segment: area.segment } : {}),
+    ...(area.label != null ? { label: area.label } : {}),
+    ...(area.restricted != null ? { restricted: area.restricted } : {}),
+  })
+  // The person's choice crosses only the keys its closed body names — a host's extra keys never do.
+  const choiceOf = (choice: CatalogueChoice): CatalogueChoice => ({
+    ...(choice.stack != null ? { stack: choice.stack } : {}),
+    ...(choice.blueprint != null ? { blueprint: choice.blueprint } : {}),
+    ...(choice.case != null ? { case: choice.case } : {}),
+    ...(choice.botPlatforms != null ? { botPlatforms: [...choice.botPlatforms] } : {}),
+    ...(choice.tenancy != null ? { tenancy: { users: choice.tenancy.users, operators: choice.tenancy.operators } } : {}),
+  })
+  // A change of the apps is a short RUN on the platform (minutes, its rebuild included): its call is
+  // named and collected (`x-viable-call`), so this bounds only a held request — the tool answers at its own deadline.
+  const appsTimeout = Math.max(timeout, APPS_CHANGE_TIMEOUT_MS)
   // The project's upload, over the tree the context bound. The connector's tree has no `open` — the
   // create with materials opens the session — so the client's own `open` is never called.
   const materialsTree = connectProtocols({ guard: DEFAULT_GUARD }).project.materials
@@ -94,6 +112,33 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
       confirmImplementation: async (id: string, edits: ProjectImplementEdits) =>
         await context.entrypoint(connectRef.project.confirmImplementation).call({
           params: { id }, body: edits, timeout,
+        }),
+      createWithChoice: async (body: ConnectCreateWithChoiceBody): Promise<ConnectProjectStatus> =>
+        await context.entrypoint(connectRef.project.createWithChoice).call({
+          body: {
+            prompt: body.prompt,
+            ...(body.target != null ? { target: body.target } : {}),
+            ...(body.sessionId != null ? { sessionId: body.sessionId } : {}),
+            ...choiceOf(body),
+            ...(body.reviewStructure != null ? { reviewStructure: body.reviewStructure } : {}),
+            ...(body.materials != null ? { materials: { files: body.materials.files, bytes: body.materials.bytes } } : {}),
+          },
+          timeout,
+        }),
+      structure: async (id: string): Promise<ConnectProjectStructure> =>
+        await context.entrypoint(connectRef.project.structure.get).call({ params: { id }, timeout }),
+      submitStructure: async (id: string, body: ConnectStructureSubmitBody): Promise<ConnectProjectStructure> =>
+        await context.entrypoint(connectRef.project.structure.submit).call({
+          params: { id },
+          body: {
+            revision: body.revision,
+            ...(body.choice != null ? { choice: choiceOf(body.choice) } : {}),
+            ...(body.structure != null ? { structure: body.structure } : {}),
+            ...(body.advise != null ? { advise: body.advise } : {}),
+            ...(body.ideas != null ? { ideas: body.ideas } : {}),
+            ...(body.confirm != null ? { confirm: body.confirm } : {}),
+          },
+          timeout,
         }),
       list: async () => await context.entrypoint(connectRef.project.list).call({ timeout }),
       status: async (id: string): Promise<ConnectProjectStatus> => await context
@@ -317,6 +362,28 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
         }),
     },
 
+    apps: {
+      add: async (id: string, body: ConnectAppAddBody): Promise<ConnectAppsChangeView> => await context
+        .entrypoint(connectRef.apps.add).call({
+          params: { id },
+          body: {
+            name: body.name,
+            ...(body.mount != null ? { mount: body.mount } : {}),
+            ...(body.areas != null ? { areas: [...body.areas] } : {}),
+            ...(body.newArea != null ? { newArea: areaOf(body.newArea) } : {}),
+          },
+          timeout: appsTimeout,
+        }),
+      addArea: async (id: string, body: ConnectAreaAddBody): Promise<ConnectAppsChangeView> => await context
+        .entrypoint(connectRef.apps.addArea).call({
+          params: { id }, body: { ...areaOf(body), ...(body.app != null ? { app: body.app } : {}) }, timeout: appsTimeout,
+        }),
+      bindArea: async (id: string, body: ConnectAreaBindBody): Promise<ConnectAppsChangeView> => await context
+        .entrypoint(connectRef.apps.bindArea).call({
+          params: { id }, body: { area: body.area, app: body.app }, timeout: appsTimeout,
+        }),
+    },
+
     slot: {
       list: async (): Promise<ConnectSlotView[]> => await context.entrypoint(connectRef.slot.list).call({ timeout }),
     },
@@ -469,6 +536,13 @@ export const makeRemoteConnectorApi = (context: Ctx, opts: RemoteConnectorOption
         await context.entrypoint(connectRef.convert.create).call({
           body: args, timeout,
         }),
+      createWithChoice: async (args: ConnectConvertCreateWithChoiceBody): Promise<ConversionStatusView> => {
+        const { stack: _stack, blueprint: _case, case: _category, botPlatforms: _platforms, tenancy: _tenancy, ...body } = args
+
+        return await context.entrypoint(connectRef.convert.createWithChoice).call({
+          body: { ...body, ...choiceOf(args) }, timeout,
+        })
+      },
       check: async (id: string): Promise<ConvertCheck> => await context
         .entrypoint(connectRef.convert.check).call({ params: { id }, timeout }),
       start: async (id: string, body?: ConnectConvertStartBody): Promise<ConversionStatusView> => await context

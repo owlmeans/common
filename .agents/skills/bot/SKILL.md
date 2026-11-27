@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/bot
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/bot": "^0.2.3"` in `dependencies`
+**Install:** `"@owlmeans/bot": "^0.2.4-rc.0"` in `dependencies`
 **Runtime-free:** no network, no storage, no logging — enums, interfaces, AJV schemas (plain
 objects), three pure helpers, protocol factories and registered errors. Safe in a browser.
 **Platform-neutral:** it names no platform. A platform is a string id (`BotPlatformId`) owned by its
@@ -165,8 +165,8 @@ makeBotHookProtocols({ base: { alias, path, parent?, service? } }): BotHookProto
 
 ## Target wiring
 
-A generated target (`bot` / `ai-bot` case seed) declares three trees in
-`sources/common/src/bot-protocols.ts` and spreads them into its case protocol surface:
+A generated target (`bot` / `ai-bot` blueprint seed) declares three trees in
+`sources/common/src/bot-protocols.ts` and spreads them into its blueprint protocol surface:
 
 ```ts
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
@@ -193,7 +193,7 @@ export const botProtocols = Object.freeze({
 - The member mount's gate requires `BOT_MANAGE_PERMISSION` (`'bot--manage'`) — import it, never
   respell it: the platform and the target seed read the same constant. Where users work in
   organizations, an organization's owners hold it by default; otherwise it is only granted explicitly.
-- The case slot (`sources/common/src/case.ts`) restates each managing tree leaf by leaf —
+- The blueprint slot (`sources/common/src/case.ts`) restates each managing tree leaf by leaf —
   `platform: { list: operator.platform.list }` included.
 - The api binds each managing tree with `serveBotEntrypoints(tree, { scope })` (`@owlmeans/server-bot`),
   `scope` from the target's actor — the application's own organization for `operator` without
@@ -236,4 +236,4 @@ export const moderate = botHandler('moderate', async (update, bot, ctx) => {
 
 - [[entrypoint]] — immutable protocols, `bind` / `bindAll`
 - [[planning]] — the same per-mount protocol-factory shape (`makePlanningProtocols`)
-- [[viable-common]] — `BlueprintCase.Bot` / `AiBot`, `BotKit`, the card's `botPlatforms` / `botKit`
+- [[viable-common]] — `Blueprint.Bot` / `AiBot`, `BotKit`, the card's `botPlatforms` / `botKit`

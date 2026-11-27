@@ -1,11 +1,11 @@
-import type { Blueprint } from '../blueprint/types.js'
+import type { Stack } from '../stack/types.js'
 import { ProjectArea, NO_TENANCY } from './consts.js'
 import type { ProjectTenancy } from './types.js'
 import type { TenancyHelper } from './tenancy/types.js'
 
 export const createTenancyHelper = (): TenancyHelper => {
-  const tenancyOf = (blueprint?: Pick<Blueprint, 'experience'> | null): ProjectTenancy => {
-    const tenancy = blueprint?.experience?.tenancy
+  const tenancyOf = (stack?: Pick<Stack, 'experience'> | null): ProjectTenancy => {
+    const tenancy = stack?.experience?.tenancy
     const operators = tenancy?.operators === true
     const users = tenancy?.users === true
 
@@ -26,8 +26,8 @@ export const createTenancyHelper = (): TenancyHelper => {
 export const tenancyHelper = createTenancyHelper()
 
 /** @deprecated compat:factory-refactor — use `tenancyHelper.tenancyOf(…)` */
-export const tenancyOf = (blueprint?: Pick<Blueprint, 'experience'> | null): ProjectTenancy =>
-  tenancyHelper.tenancyOf(blueprint)
+export const tenancyOf = (stack?: Pick<Stack, 'experience'> | null): ProjectTenancy =>
+  tenancyHelper.tenancyOf(stack)
 
 /** @deprecated compat:factory-refactor — use `tenancyHelper.tenantedArea(…)` */
 export const tenantedArea = (area: ProjectArea, tenancy: ProjectTenancy): boolean =>

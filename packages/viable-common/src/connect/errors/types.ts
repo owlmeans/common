@@ -1,7 +1,10 @@
 
 
-/** The conversion verb a {@link ConnectConfirmationRequired} stopped. */
-export type ConnectConfirmationAction = 'convert-start' | 'convert-proceed'
+/**
+ * The verb a {@link ConnectConfirmationRequired} stopped: a conversion's start or stage, or a structure
+ * step's advice round (`structure-advise` — the round would spend credits; every amount packed `0`).
+ */
+export type ConnectConfirmationAction = 'convert-start' | 'convert-proceed' | 'structure-advise'
 
 /**
  * What a person is asked to agree to before a conversion verb spends anything — credits, except

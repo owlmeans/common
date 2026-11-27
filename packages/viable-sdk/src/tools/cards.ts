@@ -220,6 +220,8 @@ export const createCardsToolHelper = (): CardsToolHelper => {
 
         return lines.join('\n')
       }
+      // A fix — and `apps` (a change of the project's application structure, which the platform answers as
+      // fix on this wire) or any kind this connector has not heard of: an open-ended change is under way.
       default:
         return 'Read as a small FIX: the platform\'s agent is making it now (an open-ended change).'
     }

@@ -218,6 +218,36 @@ export enum ConnectWaitReason {
 }
 
 /**
+ * Where a project's structure step stands, as `connect.project.structure.*` answers it — the
+ * platform's preliminary record statuses, value for value (the connect module owns its own
+ * vocabulary): `pending → analysing → awaiting ⇄ advising | uploading → specifying → specified`, or
+ * `failed`. A project past its initialization reads `specified`. The view types it as a plain string,
+ * because it crosses a version skew and a newer platform may answer with a status this one never heard of.
+ */
+export enum ConnectStructureStatus {
+  Pending = 'pending',
+  Analysing = 'analysing',
+  /** Waiting for the person: the structure may be edited (`connect.project.structure.submit`). */
+  Awaiting = 'awaiting',
+  Uploading = 'uploading',
+  /** An advice round runs over the person's edits and ideas. */
+  Advising = 'advising',
+  /** The decision is settled; the specification is being written. */
+  Specifying = 'specifying',
+  Specified = 'specified',
+  Failed = 'failed',
+}
+
+/** Where a project's structure step belongs: a new project's creation, or an existing application's conversion. */
+export enum ConnectStructureOrigin {
+  Creation = 'creation',
+  Conversion = 'conversion',
+}
+
+/** The longest ideas text one structure submission adds — the platform's own ceiling. */
+export const CONNECT_STRUCTURE_IDEAS_MAX = 4_000
+
+/**
  * The shapes a question can take on the wire.
  *
  * Mirrors `InquiryKind` in `@owlmeans/llm-common` value for value, and is deliberately a SEPARATE
@@ -697,6 +727,26 @@ export const connect = Object.freeze({
      */
     confirmImplementation: 'viable:manager-api:connect:project:confirm-implementation',
     /**
+     * Create a project with the person's CHOICE made before the specification — the blueprint, the
+     * case and its category, a bot's platforms, the tenancy flags (each absent is Auto) — and, with
+     * `reviewStructure`, stopping at the structure step for the person (where the environment allows
+     * it). `createWithReferences`' reading of the prompt, and its files when it announces them as
+     * `createWithMaterials` does; the same answer. A route of its own — the released create stays as
+     * it was and never stops.
+     */
+    createWithChoice: 'viable:manager-api:connect:project:create-with-choice',
+    /**
+     * A project's STRUCTURE — the blueprint, the case and the parts (common, shared, library, pair,
+     * api, web, worker) with their areas, purposes and edges: read (the preliminary record while the
+     * creation or the conversion is at its structure step, the project card's after), and submitted
+     * from the structure step — an edit that asks for advice is an advice round billed as part of
+     * the initialization (`confirm: true` asked first); one without advice continues.
+     */
+    structure: Object.freeze({
+      get: 'viable:manager-api:connect:project:structure:get',
+      submit: 'viable:manager-api:connect:project:structure:submit',
+    }),
+    /**
      * A NEW project's files ("materials"): the upload tree whose session IS the project (`state`, the
      * streamed `file`, `remove`, `seal` — no `open`: the creation opens the session, and no `abort`:
      * a connector seals with what arrived), the
@@ -832,6 +882,12 @@ export const connect = Object.freeze({
   }),
   convert: Object.freeze({
     create: 'viable:manager-api:connect:convert:create',
+    /**
+     * `create` with the person's blueprint, case and its category, a bot's platforms and the tenancy
+     * flags (each absent is Auto), settled at import and recorded on the card as the person's. A route
+     * of its own — the released create's body is closed.
+     */
+    createWithChoice: 'viable:manager-api:connect:convert:create-with-choice',
     check: 'viable:manager-api:connect:convert:check',
     start: 'viable:manager-api:connect:convert:start',
     proceed: 'viable:manager-api:connect:convert:proceed',
@@ -872,6 +928,18 @@ export const connect = Object.freeze({
      * while its siblings and the worker keep serving. Answers the apps as they then stand.
      */
     restartApp: 'viable:manager-api:connect:sandbox:restart-app',
+  }),
+  /**
+   * The project's APP STRUCTURE changed by the person — an app added (with the areas it takes over,
+   * or a new home area), an area of the project's own added to an app, an area moved to another app.
+   * Each runs the free-flight app tools' checks and applies as its own short run under the project
+   * lock (the platform update first, the rebuild last); a held call is collected (`x-viable-call`).
+   * Each answers the apps as they then stand, with what changed.
+   */
+  apps: Object.freeze({
+    add: 'viable:manager-api:connect:apps:add',
+    addArea: 'viable:manager-api:connect:apps:add-area',
+    bindArea: 'viable:manager-api:connect:apps:bind-area',
   }),
   /** The organization's workloads, every project and kind, as the connector's small projection. */
   slot: Object.freeze({

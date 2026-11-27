@@ -126,6 +126,22 @@ export interface AppsPresentHelper {
    * server (a local run's lines merged in by name), and which one a restart restarted.
    */
   apps: Presenter
+  /**
+   * add_app, add_area and bind_area — the applications as the change left them (as {@link apps}), what
+   * changed and what did not go through; or, while the platform is still applying it, which tool runs.
+   */
+  change: Presenter
+}
+
+/** A project's structure step. */
+export interface StructurePresentHelper {
+  /**
+   * project_structure and update_project_structure — where the step stands and its revision, the choice
+   * in force and the suggested one (in the tools' words: `blueprint` the wire's case, `case` its category, no
+   * stack), the areas and every part with its keys and purpose, the issues by
+   * sentence, the latest advice by its changes, how many ideas, the kinds the platform takes.
+   */
+  view: Presenter
 }
 
 /** A new project's files. */

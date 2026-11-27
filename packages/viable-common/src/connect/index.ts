@@ -1,4 +1,4 @@
-export type * from '../blueprint/catalogue/types.js'
+export type * from '../stack/catalogue/types.js'
 export * from './consts.js'
 export * from './model-tier.js'
 export * from './client.js'

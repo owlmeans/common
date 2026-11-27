@@ -1,6 +1,6 @@
-import type { BlueprintCapabilities } from '../types.js'
+import type { StackCapabilities } from '../types.js'
 
-export interface SupportedAppCategory {
+export interface SupportedCase {
   id: string
   title: string
   description: string
@@ -8,32 +8,32 @@ export interface SupportedAppCategory {
   records?: string[]
 }
 
-export interface SupportedBlueprintCase {
+export interface SupportedBlueprint {
   id: string
   title: string
   description: string
-  capabilities: BlueprintCapabilities
+  capabilities: StackCapabilities
   tenancy: 'single-organization' | 'multiple-organizations' | 'configurable'
-  categories: SupportedAppCategory[]
+  categories: SupportedCase[]
   categoryKind?: 'work' | 'game' | 'bot'
   planningResources?: string[]
   /** A bot case's supported messaging platform ids, in the order the deployment offers them. */
   botPlatforms?: string[]
 }
 
-export interface SupportedBlueprint {
+export interface SupportedStack {
   id: string
   title: string
   language: string
   runtime: string
   framework: string
-  capabilities: BlueprintCapabilities
-  cases: SupportedBlueprintCase[]
+  capabilities: StackCapabilities
+  cases: SupportedBlueprint[]
 }
 
 /** Public JSON discovery, derived from the installed registry and resolved case definitions. */
-export interface BlueprintCatalogue {
+export interface StackCatalogue {
   version: 1
   defaultBlueprintId: string
-  blueprints: SupportedBlueprint[]
+  blueprints: SupportedStack[]
 }

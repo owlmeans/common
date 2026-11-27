@@ -112,6 +112,7 @@ export const createTopologyHelper = (): TopologyHelper => {
       // to another app), so it is compared too; two records without one compare as before.
       && JSON.stringify(a.apps ?? null) === JSON.stringify(b.apps ?? null)
       && JSON.stringify(a.areas ?? null) === JSON.stringify(b.areas ?? null)
+      && JSON.stringify(a.structure ?? null) === JSON.stringify(b.structure ?? null)
 
   return {
     orderPackages, resolveTopology, topologyOf, packageForRole, packagesForRole, packageForArea, packageDir,

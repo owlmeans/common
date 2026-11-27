@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-upload
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-upload": "^0.2.3"` in `dependencies`
+**Install:** `"@owlmeans/client-upload": "^0.2.4-rc.0"` in `dependencies`
 
 Client half of the upload family: the contract is `@owlmeans/upload`, the server
 `@owlmeans/server-upload`, the React UI `@owlmeans/web-upload` (built on this client). The main entry

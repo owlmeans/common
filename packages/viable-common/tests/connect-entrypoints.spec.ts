@@ -18,7 +18,7 @@ import {
   ConnectFileSaveBodySchema, ConnectGitCommitBodySchema, ConnectGitRevertBodySchema, ConnectGithubBranchQuerySchema,
   ConnectGithubLinkBodySchema, ConnectGithubPublishBodySchema, ConnectGithubRepoQuerySchema, ConnectKitApplyBodySchema,
   ConnectProductionDomainBodySchema, ConnectProductionRedirectsBodySchema, ConnectKitApplyResultSchema, ConnectKitDescribeSchema, ConnectProjectBrandingSaveSchema,
-  PlanningKitViewSchema, ConnectActivityQuerySchema, ConnectFeedQuerySchema, ConnectAppParamsSchema,
+  PlanningKitViewSchema, ConnectActivityQuerySchema, ConnectFeedQuerySchema, ConnectAppParamsSchema, ConnectAppAddBodySchema, ConnectAreaAddBodySchema, ConnectAreaBindBodySchema,
   ConnectAppRestartBodySchema, ConnectCardParamsSchema, ConnectCardsRerunBodySchema, ConnectCardsRunAllBodySchema,
   ConnectCardsTogetherBodySchema,
 } from '../src/connect/schemas.js'
@@ -71,7 +71,11 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.cards.plan.alias).toBe(connect.cards.plan)
     expect(tree.cards.runAll.alias).toBe(connect.cards.runAll)
     expect(tree.cards.rerun.alias).toBe(connect.cards.rerun)
-    expect(protocols(tree)).toHaveLength(133)
+    expect(tree.project.createWithChoice.alias).toBe(connect.project.createWithChoice)
+    expect(tree.project.structure.get.alias).toBe(connect.project.structure.get)
+    expect(tree.project.structure.submit.alias).toBe(connect.project.structure.submit)
+    expect(tree.convert.createWithChoice.alias).toBe(connect.convert.createWithChoice)
+    expect(protocols(tree)).toHaveLength(140)
     expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(protocols(tree).length)
   })
 
@@ -93,12 +97,13 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'GET /project/:id/iam/organizations/:entitySlug/members', 'GET /project/:id/iam/permissions', 'GET /project/:id/iam/users',
       'GET /project/:id/kits', 'GET /project/:id/llm', 'GET /project/:id/production',
       'GET /project/:id/production/auth', 'GET /project/:id/status',
-      'GET /project/:id/story/:storyId/status', 'GET /session/:sessionId/ops', 'GET /slot',
+      'GET /project/:id/story/:storyId/status', 'GET /project/:id/structure', 'GET /session/:sessionId/ops', 'GET /slot',
       'POST /:id/draft', 'POST /:id/seal',
       'POST /access-tokens/:id/revoke', 'POST /branding', 'POST /branding/backfill',
-      'POST /convert', 'POST /convert/:id/proceed', 'POST /convert/:id/purge', 'POST /convert/:id/start',
+      'POST /convert', 'POST /convert/:id/proceed', 'POST /convert/:id/purge', 'POST /convert/:id/start', 'POST /convert/with-choice',
       'POST /intent/pickup', 'POST /llm',
-      'POST /pipeline/:id/:runId/resume', 'POST /privacy/withdraw', 'POST /project', 'POST /project/:id/batch',
+      'POST /pipeline/:id/:runId/resume', 'POST /privacy/withdraw', 'POST /project', 'POST /project/:id/apps/add',
+      'POST /project/:id/apps/areas/add', 'POST /project/:id/apps/areas/bind', 'POST /project/:id/batch',
       'POST /project/:id/batch/cancel', 'POST /project/:id/branding',
       'POST /project/:id/branding/copy-defaults', 'POST /project/:id/branding/credit',
       'POST /project/:id/cards/rerun', 'POST /project/:id/cards/run-all', 'POST /project/:id/cards/together',
@@ -126,8 +131,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /project/:id/production/publish', 'POST /project/:id/production/restart', 'POST /project/:id/production/stop',
       'POST /project/:id/reinit', 'POST /project/:id/rename', 'POST /project/:id/request',
       'POST /project/:id/sandbox/apps/:app/restart', 'POST /project/:id/sandbox/rebuild', 'POST /project/:id/sandbox/restart', 'POST /project/:id/sandbox/run',
-      'POST /project/:id/sandbox/stop', 'POST /project/:id/steer', 'POST /project/:id/stop',
-      'POST /project/attach', 'POST /project/with-materials', 'POST /project/with-references', 'POST /session',
+      'POST /project/:id/sandbox/stop', 'POST /project/:id/steer', 'POST /project/:id/stop', 'POST /project/:id/structure',
+      'POST /project/attach', 'POST /project/with-choice', 'POST /project/with-materials', 'POST /project/with-references', 'POST /session',
       'POST /session/:sessionId/close', 'POST /session/:sessionId/ops/:opId', 'POST /session/delegated',
       'PUT /:id/file',
     ])
@@ -555,6 +560,46 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(body({ web: true })).toBe(true)
     expect(body({ api: true, worker: true })).toBe(false)
     expect(body({ api: 'yes' })).toBe(false)
+  })
+
+  test('changes a project\'s apps — three POSTs under the owned base, no paid gate, closed bodies', () => {
+    const paid = connectProtocols({
+      guard: DEFAULT_GUARD,
+      gate: { alias: 'test-gate', params: ['owner'] },
+      paid: Object.fromEntries(Object.values(ConnectPaidGate).map(kind => [kind, { alias: `gate-${kind}`, params: [kind] }])),
+    })
+    const { add, addArea, bindArea } = paid.apps
+    const leaves = [add, addArea, bindArea]
+
+    expect(leaves.map(protocol => `${protocol.route.route.method!.toUpperCase()} ${protocol.route.route.path}`))
+      .toEqual(['POST /project/:id/apps/add', 'POST /project/:id/apps/areas/add', 'POST /project/:id/apps/areas/bind'])
+    expect(leaves.map(protocol => aliasOf(protocol.route.route.parent))).toEqual(leaves.map(() => connect.base))
+    expect(leaves.map(protocol => protocol.gate)).toEqual(leaves.map(() => undefined))
+    expect(leaves.map(protocol => protocol.alias)).toEqual([connect.apps.add, connect.apps.addArea, connect.apps.bindArea])
+    expect([connectRef.apps.add.alias, connectRef.apps.addArea.alias, connectRef.apps.bindArea.alias])
+      .toEqual([connect.apps.add, connect.apps.addArea, connect.apps.bindArea])
+
+    const ajv = new Ajv({ strict: false })
+    const app = ajv.compile(ConnectAppAddBodySchema)
+    const area = ajv.compile(ConnectAreaAddBodySchema)
+    const bind = ajv.compile(ConnectAreaBindBodySchema)
+    expect(app({ name: 'partners' })).toBe(true)
+    expect(app({ name: 'partners', mount: 'partners', areas: ['admin'] })).toBe(true)
+    expect(app({ name: 'partners', newArea: { key: 'partner-portal', kind: 'user', label: 'Partner portal' } })).toBe(true)
+    // An app's name and mount are a slug; the new area's kind is one of the four.
+    for (const name of ['Partners', 'p', 'partner-portal', '']) expect([name, app({ name })]).toEqual([name, false])
+    expect(app({ name: 'partners', mount: '/partners' })).toBe(false)
+    expect(app({ name: 'partners', newArea: { key: 'partners', kind: 'partner' } })).toBe(false)
+    expect(app({ name: 'partners', areas: ['Admin Area'] })).toBe(false)
+    expect(app({ name: 'partners', extra: true })).toBe(false)
+    expect(area({ key: 'field-ops', kind: 'user' })).toBe(true)
+    expect(area({ key: 'field-ops', kind: 'operator', app: 'backoffice', segment: 'field', label: 'Field', restricted: true })).toBe(true)
+    expect(area({ key: 'field-ops' })).toBe(false)
+    expect(area({ key: 'Field Ops', kind: 'user' })).toBe(false)
+    expect(area({ key: 'field-ops', kind: 'user', segment: '/field' })).toBe(false)
+    expect(bind({ area: 'field-ops', app: 'admin' })).toBe(true)
+    expect(bind({ area: 'field-ops' })).toBe(false)
+    expect(bind({ area: 'field-ops', app: 'admin', force: true })).toBe(false)
   })
 
   test('the file query, the write body and the metadata query are closed shapes', () => {

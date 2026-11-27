@@ -27,7 +27,7 @@ export const createInstructionsHelper = (): InstructionsHelper => {
     const families = [
       ...family('supported stacks and application categories', 'describe_blueprints'),
       ...family('projects', 'list_projects', 'rename_project', 'delete_project', 'list_slots'),
-      ...family('a project\'s applications, each under its own path', 'project_apps', 'restart_project_app'),
+      ...family('a project\'s applications, each under its own path', 'project_apps', 'restart_project_app', 'add_app', 'add_area', 'bind_area'),
       ...family(
         'a new project\'s files',
         ...(toolHostHelper.uploadsMaterials(host) ? ['create_project_with_files'] : []), 'list_materials', 'read_material',
@@ -76,6 +76,14 @@ export const createInstructionsHelper = (): InstructionsHelper => {
       + ' after the first stage rather than before it. A conversion step that would use the plan\'s'
       + ' conversion limit or spend credits answers with what it costs instead of starting: tell the'
       + ' user, and repeat the call with confirm: true only after they agree.',
+      ...(list('update_project_structure') === '' ? [] : ['', 'The project structure: to choose the kind of product'
+      + ` and review its composition before the specification, ${chain('describe_blueprints', 'create_project')} with`
+      + ' blueprint (one of the cases describe_blueprints lists under its stack entry), case (one of that case\'s'
+      + ' categories — a kind of work, a game kind or a bot kit; the stack itself is never chosen) and'
+      + ` review_structure: true → ${chain('project_structure', 'update_project_structure')} —`
+      + ' an advice round (advise or ideas) is model work that answers with its cost first where it would spend'
+      + ' credits, and an update without advice continues — then '
+      + `${chain('project_status', 'confirm_project')}. Without review_structure the platform applies its own proposal.`]),
       ...(list('run_card') === '' ? [] : ['', 'Work cards: '
       + chain('list_cards', 'create_card', 'run_card', 'card_status')
       + ` — create_card with type auto lets the platform decide the type; ${list('run_cards_together')} builds several`

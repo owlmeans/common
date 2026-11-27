@@ -6,7 +6,7 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.2.3`
+**Install:** `bun add @owlmeans/server-payment@^0.2.4-rc.0`
 
 Public MIT package. It embeds payments into an application backend and owns everything between a
 paygate and an entity's entitlements: the subscription store, one-time fulfillments, the usage

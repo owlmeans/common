@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { NO_TENANCY, ProjectArea, tenancyHelper } from '../src/index.js'
-import { LandingGatePreference } from '../src/blueprint/index.js'
+import { LandingGatePreference } from '../src/stack/index.js'
 
 const experience = (tenancy: unknown) =>
   ({ experience: { landingGate: LandingGatePreference.Allow, tenancy: tenancy as never } })

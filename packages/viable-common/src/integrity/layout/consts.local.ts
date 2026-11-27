@@ -1,7 +1,7 @@
 import { HARNESS_PROTECTED, ROOT_PROTECTED } from '../consts.local.js'
 import {
   TARGET_BUNDLED_PACKAGES, TARGET_LEGACY_BUNDLED_PACKAGES, TARGET_LEGACY_PACKAGES, TARGET_LEGACY_PACKAGES_DIR,
-  TARGET_PACKAGES_DIR, TargetLayout, TargetLegacyPackage, TargetPackage,
+  TARGET_LIBRARY_BUILD_SCRIPT, TARGET_PACKAGES_DIR, TargetLayout, TargetLegacyPackage, TargetPackage,
 } from '../consts.js'
 import type { TargetLayoutManifest } from '../types.js'
 
@@ -64,8 +64,8 @@ export const V2_MANIFEST: TargetLayoutManifest = {
       [`${TARGET_PACKAGES_DIR}/${pkg}/rollup.config.js`, `${TARGET_PACKAGES_DIR}/${pkg}/rollup.build.mjs`]),
   ],
   buildScripts: {
-    [TargetPackage.Common]: 'tsc -b',
-    [TargetPackage.Backend]: 'tsc -b',
+    [TargetPackage.Common]: TARGET_LIBRARY_BUILD_SCRIPT,
+    [TargetPackage.Backend]: TARGET_LIBRARY_BUILD_SCRIPT,
     [TargetPackage.Api]: 'bun ./rollup.build.mjs',
     [TargetPackage.Web]: 'bun ./rollup.build.mjs',
     [TargetPackage.Worker]: 'bun ./rollup.build.mjs',

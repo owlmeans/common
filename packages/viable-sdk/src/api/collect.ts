@@ -15,7 +15,7 @@ import {
 } from '@owlmeans/viable-common'
 import { SdkUnsupported } from '../errors.js'
 import {
-  AXIOS_TIMEOUT_CODE, COLLECT_DROPPED_HOPS, COLLECT_DROPPED_STATUSES, COLLECT_FAST_MS, COLLECT_HOP_TIMEOUT_MS,
+  ALWAYS_COLLECTED_ALIASES, AXIOS_TIMEOUT_CODE, COLLECT_DROPPED_HOPS, COLLECT_DROPPED_STATUSES, COLLECT_FAST_MS, COLLECT_HOP_TIMEOUT_MS,
   COLLECT_PAUSE_MS,
 } from './consts.local.js'
 import { transportHelper } from './transport.js'
@@ -135,7 +135,10 @@ export const createCallCollectTransport = (opts: CallCollectOptions): CallCollec
     const context = contextOf()
     const api = apiOf(context)
     nameClient(req)
-    if (!opts.delegated || !writes(context, req.alias)) {
+    // A delegated write may wait on the parent's model call; an always-collected call (a GET among them)
+    // is long platform work in any mode. Everything else is forwarded as it came.
+    const collected = ALWAYS_COLLECTED_ALIASES.has(req.alias) || (opts.delegated && writes(context, req.alias))
+    if (!collected) {
       await api.handler(req, res)
       return
     }

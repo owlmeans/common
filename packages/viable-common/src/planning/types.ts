@@ -1,7 +1,8 @@
 import type { Card, Project, Specification } from '@owlmeans/planning'
-import type { BotKit, WorkKind } from '../blueprint/consts.js'
+import type { BotKit, WorkKind } from '../stack/consts.js'
 import type { AreaKey, ViableTenancyDecision } from '../areas/types.js'
 import type { ViableAppsDecision } from '../topology/apps/types.js'
+import type { ViableStructureDecision } from '../topology/structure/types.js'
 import type { UserStoryKind } from '../ba/consts.js'
 import type { ConnectLlm, ConnectTarget } from '../connect/consts.js'
 import type { ProjectOrigin } from '../convert/types.js'
@@ -62,7 +63,7 @@ export type ViableProjectFields = {
    * Whether the target splits its operators and its end users into tenant organizations.
    *
    * ABSENT means never decided and reads as a single-organization application, exactly as every
-   * project before tenancy. It reaches a run through the blueprint reference (`BlueprintRef.tenancy`)
+   * project before tenancy. It reaches a run through the blueprint reference (`StackRef.tenancy`)
    * only when a flag is on.
    */
   tenancy?: ViableTenancyDecision
@@ -71,15 +72,34 @@ export type ViableProjectFields = {
    *
    * ABSENT means one app, `main`, over the four standard areas — every project created before apps
    * existed, untouched and never rewritten. It reaches a run through the blueprint reference
-   * (`BlueprintRef.apps`), and the target's topology record and the slot's claim follow it.
+   * (`StackRef.apps`), and the target's topology record and the slot's claim follow it.
    */
   apps?: ViableAppsDecision | null
+  /**
+   * The project's structure — its parts (libraries, shared libraries, apps, apis, webs, workers), their
+   * purposes and edges — and who decided it.
+   *
+   * Written only when it differs from the view {@link ViableProjectFields.apps} derives
+   * (`projectStructureHelper.isDerived`), in the same `execute()` as the `apps` mirror. ABSENT: the
+   * structure is the one `apps` derives (`projectStructureHelper.fromCard`), as for every project
+   * created before structures existed.
+   */
+  structure?: ViableStructureDecision | null
+  /**
+   * Who chose the case: the person (`person` — a choice on the home screen, the structure step or the
+   * import dialog) or the classifier (`model`). Absent on a project created before the choice existed.
+   */
+  caseBy?: ViableBlueprintBy | null
   /**
    * What the person chose at the confirm: the preview only, or the first spec implemented right away
    * — written by the confirm transit itself. Absent is the preview.
    */
   initScope?: ViableInitScope | null
 }
+
+// Kept as a type: a closed string union.
+/** Who chose a project's case — see {@link ViableProjectFields.caseBy}. */
+export type ViableBlueprintBy = 'person' | 'model'
 
 /** The recorded landing-gate decision — see {@link ViableProjectFields.landing}. */
 export interface ViableLandingDecision {

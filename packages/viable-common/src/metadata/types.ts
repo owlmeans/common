@@ -216,6 +216,12 @@ export interface RegistryAllocation extends Record<string, unknown> {
    */
   app?: string
   /**
+   * The structure part whose package holds the allocation, by name — a library or shared library
+   * holding a domain model, an extra worker holding a processor. Written ONLY for a part beyond the
+   * stock ones, so every registry of a project without a structure stays byte for byte what it was.
+   */
+  part?: string
+  /**
    * Top-menu group of a screen: an English NAME, never a URL segment. What the menu SHOWS for it is
    * {@link RegistryAllocation.sectionLabel}.
    */

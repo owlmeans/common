@@ -100,3 +100,58 @@ export interface ConnectAppsHelper {
    */
   areasOf: (map: AppMap) => ConnectAreaView[]
 }
+
+/**
+ * One AREA of the project's own, as the person names it — `connect.apps.addArea`'s body, and the home
+ * area `connect.apps.add` may create. An instance of one of the four kinds under a key of its own.
+ */
+export interface ConnectAreaAddition {
+  /** Lower-case words joined by single hyphens (`AREA_KEY_PATTERN`), never a standard area's key. */
+  key: string
+  /** The kind it works like — `guest`, `user`, `admin` or `operator`: its access and surface follow it. */
+  kind: string
+  /** Its one path segment inside its app; its key when absent. */
+  segment?: string
+  /** What a person reads for it; the kind's default label when absent. */
+  label?: string
+  /** Only the people the owner grants `project--<key>` enter it (a signed-in kind only). */
+  restricted?: boolean
+}
+
+/**
+ * `connect.apps.add`'s body: a new app of the project, served at `/<mount>` with its api at
+ * `/<mount>/api`, taking over the `areas` named and/or created with a `newArea` of its own (its home
+ * area, first). At least one of the two.
+ */
+export interface ConnectAppAddBody {
+  /** 2–16 lower-case letters and digits, starting with a letter (`APP_NAME_PATTERN`). */
+  name: string
+  /** The one path segment it is served under; its name when absent. */
+  mount?: string
+  /** Area keys of the project (or standard area keys) the app serves from now on, in order. */
+  areas?: string[]
+  /** A new area of the project's own the app is created with — its home area. */
+  newArea?: ConnectAreaAddition
+}
+
+/** `connect.apps.addArea`'s body: one area of the project's own, served by `app` (the kind's default app when absent). */
+export interface ConnectAreaAddBody extends ConnectAreaAddition {
+  app?: string
+}
+
+/** `connect.apps.bindArea`'s body: an area with no built story, moved to another app of the project. */
+export interface ConnectAreaBindBody {
+  area: string
+  app: string
+}
+
+/**
+ * What a change of the project's apps answers: the apps as they then stand (exactly the
+ * `connect.project.apps` view) and what changed — a new route's answer, so it may say more.
+ */
+export interface ConnectAppsChangeView extends ConnectAppsView {
+  /** What was changed, in one sentence the person reads. */
+  summary: string
+  /** The steps that did not go through; the change itself is recorded. */
+  warnings?: string[]
+}

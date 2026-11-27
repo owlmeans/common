@@ -1,5 +1,5 @@
 import type { AreaKey } from '../areas/types.js'
-import type { BotKitAction } from '../blueprint/consts.js'
+import type { BotKitAction } from '../stack/consts.js'
 import type { StatedRequirement } from '../ba/types.js'
 import type { RecordInteractionPlan } from '../interaction/types.js'
 
@@ -138,6 +138,13 @@ export interface WorkcardDesignModel {
    * back instead of paying for it again.
    */
   solution?: string
+  /**
+   * The structure part the model lives in, by name — a shared library or a library of the project's
+   * structure that every consumer of the model (each api, worker and model using it) depends on.
+   * Absent: the stock `backend`, where every model of a project without such parts lives. Written only
+   * for another part, so every design of a project without a structure stays what it was.
+   */
+  part?: string
   /**
    * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
    * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).
@@ -357,6 +364,12 @@ export interface WorkcardDesignJob {
    * which answers only a valid one.
    */
   schedule?: WorkcardDesignJobSchedule
+  /**
+   * The structure's extra worker consuming the job's queue, by part name — derived from the queue
+   * (the worker listing it), never asked. Absent: the stock `worker`, where every job of a project
+   * without extra workers runs.
+   */
+  worker?: string
   /**
    * The user stories of a combined run this piece serves, by code — the FIRST is its owner, in the order
    * the run implements them. Absent on every design of one story (a piece of a one-story run serves it).

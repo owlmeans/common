@@ -1,4 +1,4 @@
-import type { ProjectArea } from '../../areas/consts.js'
+import type { AreaKey } from '../../areas/types.js'
 import type { ArchitectureCase, TaxonomyKind } from '../consts.js'
 import type { OriginProof } from '../types.js'
 
@@ -36,7 +36,7 @@ export interface TaxonomyPackage {
 /** A role the origin's own access model names, mapped onto the area whose audience holds it. */
 export interface TaxonomyRole {
   name: string
-  area: ProjectArea
+  area: AreaKey
   evidence: OriginProof[]
 }
 
@@ -51,7 +51,7 @@ export interface TaxonomyPermission {
 export interface TaxonomySummary {
   case: ArchitectureCase
   packages: TaxonomyPackage[]
-  areas: ProjectArea[]
+  areas: AreaKey[]
   roles: TaxonomyRole[]
   permissions: TaxonomyPermission[]
   counts: Record<TaxonomyKind, number>

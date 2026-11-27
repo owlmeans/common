@@ -1,4 +1,3 @@
-import type { ProjectArea } from '../../areas/consts.js'
 import type { AreaKey } from '../../areas/types.js'
 import type {
   ArchitectureCase, ConversionStage, ConvertibilityVerdict, OriginKind, PurposeEvidenceSource, StackFamily, StackId
@@ -155,7 +154,7 @@ export interface SeedDocMeta extends ConversionDocMeta {
 }
 
 export interface AreasDocMeta extends ConversionDocMeta {
-  areas: ProjectArea[]
+  areas: AreaKey[]
   roles: number
   permissions: number
 }

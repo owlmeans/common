@@ -40,7 +40,8 @@ the cut), `researchDocOf`, `summaryDocOf`, `designDocOf`, `skillDocOf`, `skillDi
 
 - `links: ReferenceLink[]` — `id` (16 hex digits digesting the normalized URL), `url`, `normalized`,
   `intents: MaterialLinkIntent[]` (`design`, `function`, `content`, `asset`, `package`), `own`,
-  `instruction?` (the person's quote), `origin` (`prompt` | `specification`), `status`
+  `instruction?` (the person's quote), `origin` (`ReferenceAskedOrigin` = `REFERENCE_ASKED_ORIGINS`: `prompt`,
+  `specification`, `ideas` — a structure step's advice round), `status`
   (`ReferenceLinkStatus`: `pending`, `fetched`, `researched`, `skipped`, `refused`, `failed`),
   `reason?`, `folder?` (`links/<nn>-<slug>`), `files?`, `bytes?`, `docs?`.
 - `research: ReferenceResearch[]` — `id` (digest of the folded query), `query`, `instruction?`,

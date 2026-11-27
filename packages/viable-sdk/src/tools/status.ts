@@ -45,6 +45,10 @@ export const createStatusTextHelper = (): StatusTextHelper => {
       : []
   }
 
+  const atStructureStep: StatusTextHelper['atStructureStep'] = status =>
+    status.waitingFor === ConnectWaitReason.Person && status.pendingInquiry == null
+    && status.project.status === 'draft' && status.run?.status !== 'waiting'
+
   const renderProjectStatus = (status: ConnectProjectStatus): string => {
     const lines = [
       `${status.project.name} (${status.project.alias}) · ${status.project.id}`,
@@ -68,7 +72,9 @@ export const createStatusTextHelper = (): StatusTextHelper => {
       : status.project.status === 'draft'
         ? `confirm_project { "projectId": "${status.project.id}" }`
         : 'list_stories'
-    lines.push(`next: ${waitingNext(status.waitingFor, status.pendingInquiry?.id, fallback)}`)
+    lines.push(`next: ${atStructureStep(status)
+      ? `project_structure { "projectId": "${status.project.id}" } — the project waits at its structure step`
+      : waitingNext(status.waitingFor, status.pendingInquiry?.id, fallback)}`)
 
     return lines.join('\n')
   }
@@ -194,7 +200,7 @@ export const createStatusTextHelper = (): StatusTextHelper => {
     : `The platform sees this connection as ${view.kind}${view.version != null && view.version !== '' ? ` ${view.version}` : ''}`
       + ` (via ${view.via})${view.inference ? '' : ' — it never performs the platform\'s model calls'}.`
 
-  return { renderProjectStatus, renderStoryStatus, renderPipelineStatus, conversionNext, renderSlot, renderBatchStatus, renderClient }
+  return { renderProjectStatus, atStructureStep, renderStoryStatus, renderPipelineStatus, conversionNext, renderSlot, renderBatchStatus, renderClient }
 }
 
 export const statusTextHelper = createStatusTextHelper()

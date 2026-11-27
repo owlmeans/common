@@ -244,11 +244,19 @@ export enum SlotShellCommand {
    */
   RestartApp = 'restartApp',
   /**
-   * What this runtime can do: `{ result: null, capabilities, apps }` — the capability list
-   * ({@link SLOT_RUNTIME_CAPABILITIES}) and the apps it serves. Reads only; an older publisher says
-   * `Unknown command`, which reads as "no capabilities".
+   * What this runtime can do: `{ result: null, capabilities, apps, parts? }` — the capability list
+   * ({@link SLOT_RUNTIME_CAPABILITIES}), the apps it serves and, for a structure with runnable parts
+   * beyond its pairs, those parts. Reads only; an older publisher says `Unknown command`, which reads
+   * as "no capabilities".
    */
   RuntimeInfo = 'runtimeInfo',
+  /**
+   * Restart one worker process: `{ part }` → `{ result }` (error text or `null`). Absent `part`, or
+   * `worker`, is the stock worker; another name is a structure's extra worker. Its siblings, the apis
+   * and the web servers are untouched. Only a publisher listing {@link SlotRuntimeCapability.Structure}
+   * answers it — an older one says `Unknown command`.
+   */
+  RestartWorker = 'restartWorker',
 }
 
 /** What a slot runtime can do beyond the commands every publisher answers. */
@@ -257,11 +265,17 @@ export enum SlotRuntimeCapability {
   Apps = 'apps',
   /** It answers {@link SlotShellCommand.RestartApp}. */
   RestartApp = 'restart-app',
+  /**
+   * It runs every part of the topology record's structure: libraries built in record order, an api or
+   * a web of their own under its mount, extra workers — and answers {@link SlotShellCommand.RestartWorker}.
+   * A tree whose record names a part beyond its pairs is served only by a runtime listing it.
+   */
+  Structure = 'structure',
 }
 
 /** Every capability a runtime of this version reports through {@link SlotShellCommand.RuntimeInfo}. */
 export const SLOT_RUNTIME_CAPABILITIES: readonly SlotRuntimeCapability[] = Object.freeze([
-  SlotRuntimeCapability.Apps, SlotRuntimeCapability.RestartApp,
+  SlotRuntimeCapability.Apps, SlotRuntimeCapability.RestartApp, SlotRuntimeCapability.Structure,
 ])
 
 /**
@@ -357,6 +371,8 @@ export const COMMAND_DEADLINES: Record<string, number> = {
   [SlotShellCommand.RestartApp]: 120_000,
   // A capability list and the topology record — nothing is spawned.
   [SlotShellCommand.RuntimeInfo]: 10_000,
+  // One worker process stopped and started again.
+  [SlotShellCommand.RestartWorker]: 120_000,
 }
 
 /**
@@ -364,6 +380,12 @@ export const COMMAND_DEADLINES: Record<string, number> = {
  * is one more web build and one more api build in the same chains.
  */
 export const APP_BUILD_DEADLINE_STEP = 240_000
+
+/**
+ * What a {@link SlotShellCommand.Build} gains per runnable structure part beyond the pairs, on both
+ * bounds: an api, a web or an extra worker is one more build in the same chains.
+ */
+export const PART_BUILD_DEADLINE_STEP = 120_000
 
 export const DEFAULT_COMMAND_DEADLINE = 60_000
 
@@ -456,6 +478,7 @@ export const SHELL_COMMAND_TIMEOUTS: Record<string, number> = {
   [SlotShellCommand.Integrity]: 25_000,       // executor deadline (15s) + margin
   [SlotShellCommand.RestartApp]: 160_000,     // executor deadline (120s) + margin
   [SlotShellCommand.RuntimeInfo]: 15_000,     // one read
+  [SlotShellCommand.RestartWorker]: 160_000,  // executor deadline (120s) + margin
 }
 
 /**

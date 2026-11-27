@@ -1,4 +1,4 @@
-import { APP_BUILD_DEADLINE_STEP, COMMAND_DEADLINES, COMMAND_TIMEOUTS, DATABASE_COMMAND_DEADLINES, DATABASE_COMMAND_TIMEOUTS, DEFAULT_COMMAND_DEADLINE, DEFAULT_COMMAND_TIMEOUT, DEFAULT_DATABASE_COMMAND_DEADLINE, DEFAULT_FILE_COMMAND_DEADLINE, DEFAULT_GIT_COMMAND_DEADLINE, FILE_COMMAND_DEADLINES, FILE_COMMAND_TIMEOUTS, GIT_COMMAND_DEADLINES, GIT_COMMAND_TIMEOUTS, SHELL_COMMAND_TIMEOUTS, SlotCommandType, SlotDatabaseCommand, SlotFileCommand, SlotGitCommand, SlotShellCommand } from './consts.js'
+import { APP_BUILD_DEADLINE_STEP, PART_BUILD_DEADLINE_STEP, COMMAND_DEADLINES, COMMAND_TIMEOUTS, DATABASE_COMMAND_DEADLINES, DATABASE_COMMAND_TIMEOUTS, DEFAULT_COMMAND_DEADLINE, DEFAULT_COMMAND_TIMEOUT, DEFAULT_DATABASE_COMMAND_DEADLINE, DEFAULT_FILE_COMMAND_DEADLINE, DEFAULT_GIT_COMMAND_DEADLINE, FILE_COMMAND_DEADLINES, FILE_COMMAND_TIMEOUTS, GIT_COMMAND_DEADLINES, GIT_COMMAND_TIMEOUTS, SHELL_COMMAND_TIMEOUTS, SlotCommandType, SlotDatabaseCommand, SlotFileCommand, SlotGitCommand, SlotShellCommand } from './consts.js'
 import type { SlotCommandHelper } from './command/types.js'
 import type { SlotCommandScale } from './types.js'
 
@@ -14,13 +14,12 @@ export const createSlotCommandHelper = (): SlotCommandHelper => {
     }
   }
 
-  /** What a target's extra apps add to one command's bounds — only a `Build` grows with them. */
+  /** What a target's extra apps and runnable parts add to one command's bounds — only a `Build` grows with them. */
   const extraFor = (type: SlotCommandType, command: string, scale?: SlotCommandScale): number => {
     if (type !== SlotCommandType.Shell || command !== SlotShellCommand.Build) return 0
-    const apps = scale?.apps
-    if (apps == null || !Number.isFinite(apps)) return 0
+    const count = (value?: number): number => value == null || !Number.isFinite(value) ? 0 : Math.max(0, Math.floor(value))
 
-    return Math.max(0, Math.floor(apps) - 1) * APP_BUILD_DEADLINE_STEP
+    return Math.max(0, count(scale?.apps) - 1) * APP_BUILD_DEADLINE_STEP + count(scale?.parts) * PART_BUILD_DEADLINE_STEP
   }
 
   const commandTimeout = (

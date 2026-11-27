@@ -25,7 +25,7 @@ the server is `@owlmeans/server-upload`, the client `@owlmeans/client-upload`, t
 ## Installation
 
 ```bash
-bun add @owlmeans/upload@^0.2.3 ajv
+bun add @owlmeans/upload@^0.2.4-rc.0 ajv
 ```
 
 `ajv` is a peer dependency (the schemas are typed with its `JSONSchemaType`). Add
@@ -243,7 +243,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.3
+npx @owlmeans/agent-skills@^0.2.4-rc.1
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

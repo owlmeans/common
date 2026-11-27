@@ -172,6 +172,24 @@ export interface SlotShellResult {
   capabilities?: string[]
   /** RuntimeInfo: the apps this runtime serves, main first. */
   apps?: SlotRuntimeApp[]
+  /**
+   * RuntimeInfo: the structure's runnable parts beyond its pairs (an api, a web, an extra worker), in
+   * index order — present only for a record naming one, so every other answer is the one it was.
+   */
+  parts?: SlotRuntimePart[]
+}
+
+/** One runnable structure part as a runtime reports it — an api or a web of its own, an extra worker. */
+export interface SlotRuntimePart {
+  name: string
+  /** `api`, `web` or `worker` — a `StructurePartKind` value. */
+  kind: string
+  /** A mounted part's path segment; absent for a worker. */
+  mount?: string
+  /** The mounted parts' index space for an api or a web, the workers' for a worker (1..9). */
+  index: number
+  /** The part's package is on the volume. */
+  present: boolean
 }
 
 /** One app as a runtime reports it: the slot's claim plus whether its packages are on the volume. */
@@ -182,9 +200,13 @@ export interface SlotRuntimeApp {
   present: boolean
 }
 
-/** How much one command's bounds scale with the target: `apps` — how many apps it has, main included. */
+/**
+ * How much one command's bounds scale with the target: `apps` — how many apps it has, main included;
+ * `parts` — how many runnable structure parts it has beyond them.
+ */
 export interface SlotCommandScale {
   apps?: number
+  parts?: number
 }
 
 /**
@@ -319,8 +341,17 @@ export interface SlotShellArgs {
    * The app a scoped command acts on, by name (`Build`, `ValidateWithRenderer`, `ValidateBackend`,
    * `BootCheck`/`BootCheckStatus`, `DbSync`, `Validate`/`Bun`, `RestartApp`). Absent or `main` is
    * main — what every command meant before apps existed, and what an older publisher still does.
+   * A structure's api or web of its own is an app here too.
    */
   app?: string
+  /**
+   * The structure part a part-scoped command acts on, by name: `RestartWorker` restarts that worker
+   * (absent or `worker` is the stock one); `Validate` and `Bun` run in that part's one package — a
+   * worker's `sources/<n>-worker`, a library's or a shared library's `sources/<n>` — and a name the
+   * record's structure does not hold as such a part answers `Unknown part: <name>`. Sent only to a
+   * runtime listing `SlotRuntimeCapability.Structure`.
+   */
+  part?: string
 }
 
 /** The minimum a caller must know about a slot to address it. */

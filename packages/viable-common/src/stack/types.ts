@@ -4,7 +4,8 @@ import type { SubProject } from '../slot/consts.js'
 import type { ViablePersona, ViableSkill } from '../skills/consts.js'
 import type { TopologyDescriptor } from '../topology/types.js'
 import type { AppMap } from '../topology/apps/types.js'
-import { BlueprintPatchKind, LandingGatePreference } from './consts.js'
+import type { StructureRef } from '../topology/structure/types.js'
+import { StackPatchKind, LandingGatePreference } from './consts.js'
 
 /**
  * A BLUEPRINT is everything that decides what kind of project the pipeline is building — the
@@ -26,11 +27,11 @@ import { BlueprintPatchKind, LandingGatePreference } from './consts.js'
  * resolving: every reader asks through a helper that answers the default for an absent layer
  * ({@link landingGatePreferenceOf}, `tenancyOf`).
  */
-export interface Blueprint {
+export interface Stack {
   id: string
   title: string
   technology: TechnologyLayer
-  stack: StackLayer
+  framework: FrameworkLayer
   template: TemplateLayer
   createApp: CreateAppLayer
   packages: PackagesLayer
@@ -48,7 +49,7 @@ export interface ExperienceLayer {
   /**
    * Whether the product splits its audiences into tenant organizations.
    *
-   * Written by resolution from {@link BlueprintRef.tenancy} — the project's own decision — and by
+   * Written by resolution from {@link StackRef.tenancy} — the project's own decision — and by
    * no blueprint or case table, which cannot know it. Absent is a single-organization application;
    * always read through `tenancyOf`.
    */
@@ -57,7 +58,7 @@ export interface ExperienceLayer {
    * The signed-in areas the initialization's coverage stories must reach — an area outside it gets
    * no coverage story. Absent is every signed-in area (user, admin, operator); a bot case narrows it
    * to the area that runs the bot and the admin area. Always read through the library's total
-   * reader (`blueprintHelper.coverageAreasOf`), which also moves a bot's area with the tenancy.
+   * reader (`stackHelper.coverageAreasOf`), which also moves a bot's area with the tenancy.
    */
   coverage?: ProjectArea[]
 }
@@ -75,7 +76,7 @@ export interface TechnologyLayer {
 }
 
 /** Framework family — what the generated code is written AGAINST. */
-export interface StackLayer {
+export interface FrameworkLayer {
   id: string
   framework: string
   /** The arrangement a new project of this stack is created with. */
@@ -110,7 +111,7 @@ export interface TemplateLayer {
    */
   remove?: string[]
   /** Deterministic patches applied after the overlay, in order. */
-  patches: BlueprintPatchSpec[]
+  patches: StackPatchSpec[]
   /** Overlay subtrees that belong to one role only — the per-package half of a template. */
   perRole?: Partial<Record<SubProject, string>>
   /**
@@ -122,10 +123,10 @@ export interface TemplateLayer {
   seeds?: string[]
 }
 
-export interface BlueprintPatchSpec {
+export interface StackPatchSpec {
   /** Target path, relative to the project root. */
   path: string
-  kind: BlueprintPatchKind
+  kind: StackPatchKind
 }
 
 /** Which scaffolder runs first, and how. */
@@ -148,14 +149,14 @@ export interface CreateAppLayer {
  */
 export interface PackagesLayer {
   id: string
-  capabilities: BlueprintCapabilities
+  capabilities: StackCapabilities
   /** Per-topic allow-lists, rendered verbatim into coder prompts. */
   libraries: Record<string, string[]>
   skills: ViableSkill[]
   /**
    * Skills added to ONE persona, rather than to every prompt of the blueprint.
    *
-   * The additive twin of `skillsForBlueprint` (in `@owlmeans/viable`), which subtracts. `skills`
+   * The additive twin of `skillsForStack` (in `@owlmeans/viable`), which subtracts. `skills`
    * above is what is true of the whole stack; this is what is true of one performer — the analyst
    * who has to know that a game brief is a core loop rather than a numbered flow, the architect who
    * has to know when a tool loop is warranted. Without it a case could only change what a CODER is
@@ -172,7 +173,7 @@ export interface PackagesLayer {
  *
  * A capability being on never means a story uses it. It means the question may be asked.
  */
-export interface BlueprintCapabilities {
+export interface StackCapabilities {
   /** Relational persistence — the default resource kind. */
   postgres: boolean
   /** A pod-local key/value store: TTL, locks, counters, fan-out. */
@@ -206,17 +207,17 @@ export interface BlueprintCapabilities {
 
 // Kept as types: mapped types over the blueprint's keys.
 /**
- * One layer's part of a {@link BlueprintPatch}, as the merge reads it: a plain object is partial all
+ * One layer's part of a {@link StackPatch}, as the merge reads it: a plain object is partial all
  * the way down, an array or a scalar replaces the resolved value whole.
  */
-export type BlueprintLayerPatch<T> = {
+export type StackLayerPatch<T> = {
   [K in keyof T]?: NonNullable<T[K]> extends readonly unknown[] ? T[K]
-    : NonNullable<T[K]> extends object ? BlueprintLayerPatch<NonNullable<T[K]>> : T[K]
+    : NonNullable<T[K]> extends object ? StackLayerPatch<NonNullable<T[K]>> : T[K]
 }
 
 /** A partial override of a blueprint, deep-merged over the resolved value. */
-export type BlueprintPatch = {
-  [K in keyof Blueprint]?: Blueprint[K] extends string ? Blueprint[K] : BlueprintLayerPatch<Blueprint[K]>
+export type StackPatch = {
+  [K in keyof Stack]?: Stack[K] extends string ? Stack[K] : StackLayerPatch<Stack[K]>
 }
 
 /**
@@ -226,7 +227,7 @@ export type BlueprintPatch = {
  * holds keys, never artifacts. A resolved blueprint is an artifact: it embeds a whole topology, a
  * patch list and two skill sets, and it is reconstructible from these two fields at any time.
  */
-export interface BlueprintRef {
+export interface StackRef {
   id: string
   /**
    * WHICH KIND of product is being built on that blueprint — the case.
@@ -255,5 +256,15 @@ export interface BlueprintRef {
    * serializes exactly as it did, and paths come from this map rather than from a cached record.
    */
   apps?: AppMap
-  overrides?: BlueprintPatch
+  /**
+   * The project's structure, keys only — the project card's decision (`fields.structure`), resolved
+   * after the app map and before the overrides into the blueprint's topology
+   * (`projectStructureHelper.topologyOf`).
+   *
+   * Present only for a structure the app map does not derive (a library, a shared library, an api or
+   * a web of its own, an extra worker); absent, the app map says it all, and a run row of every
+   * project created before structures existed serializes exactly as it did.
+   */
+  structure?: StructureRef
+  overrides?: StackPatch
 }

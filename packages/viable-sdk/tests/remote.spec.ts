@@ -382,7 +382,7 @@ describe('viable-sdk — the remote API addresses only routes the platform serve
     const api = makeRemoteConnectorApi(context)
 
     expect(Object.keys(api).sort()).toEqual([
-      'account', 'cards', 'client', 'closeSession', 'config', 'convert', 'copyOrganizationBranding', 'files', 'git', 'github', 'iam', 'inquiry',
+      'account', 'apps', 'cards', 'client', 'closeSession', 'config', 'convert', 'copyOrganizationBranding', 'files', 'git', 'github', 'iam', 'inquiry',
       'materials', 'openSession',
       'pipeline', 'planning', 'production', 'project', 'projectBranding', 'pullOps', 'sandbox', 'saveProjectBranding',
       'setPlatformCredit', 'slot', 'story', 'submitOp',
@@ -407,8 +407,12 @@ describe('viable-sdk — the remote API addresses only routes the platform serve
     // the seal, the drafting asked again and the two reads — no open, no abort.
     expect(Object.keys(api.materials).sort()).toEqual(['catalogue', 'create', 'draft', 'read', 'remove', 'seal', 'upload'])
     expect(Object.keys(api.sandbox).sort()).toEqual(['rebuild', 'restart', 'restartApp', 'run', 'stop'])
+    // A project's app structure: an app added, an area added, an area moved.
+    expect(Object.keys(api.apps!).sort()).toEqual(['add', 'addArea', 'bindArea'])
     expect(Object.keys(api.slot)).toEqual(['list'])
-    expect(Object.keys(api.convert).sort()).toEqual(['check', 'create', 'proceed', 'purge', 'start', 'status'])
+    expect(Object.keys(api.convert).sort()).toEqual(['check', 'create', 'createWithChoice', 'proceed', 'purge', 'start', 'status'])
+    // The structure step: the create with the person's choice, the structure read and submitted.
+    expect(Object.keys(api.project)).toEqual(expect.arrayContaining(['createWithChoice', 'structure', 'submitStructure']))
     expect(Object.keys(api.git).sort()).toEqual(['commit', 'discard', 'log', 'revert', 'status'])
     // Authorized, never completed: the completion is the web application's callback.
     expect(Object.keys(api.github).sort())

@@ -1,5 +1,7 @@
 import type { AreaKey } from '../areas/types.js'
-import type { TaskOperationKind, TaskOperationStatus, TriageKind, WorkOutcome, WorkProposalKind, WorkProposalStatus } from './consts.js'
+import type {
+  TaskOperationKind, TaskOperationStatus, TriageKind, WorkBatchKind, WorkOutcome, WorkProposalKind, WorkProposalStatus,
+} from './consts.js'
 
 /** One member of a run, in the order the plan builds it. */
 export interface WorkPlanMember {
@@ -54,6 +56,35 @@ export interface WorkPlanOutcome {
 }
 
 /**
+ * One batch of a container's implementation plan: the cards built together in ONE combined pass, the
+ * improvements built in one planned run, or tasks — the implementation planner's answer, settled by code.
+ * A run executes its batches one after another; a budget stop lands only between two of them.
+ */
+export interface WorkPlanBatch {
+  kind: WorkBatchKind
+  /**
+   * Its cards, in build order. The container's own unit — its own requirements, built like a member — is
+   * the container itself: `{ card: <container id>, code: <container code> }`.
+   */
+  members: WorkPlanMember[]
+  /** Set when the batch holds the container's own unit. */
+  own?: boolean
+  /** Why the batch stands where it does — one sentence. */
+  reason?: string
+}
+
+/** A container's own unit: what of its own requirements it builds, and what its members deliver instead. */
+export interface WorkPlanOwnUnit {
+  /** The container's id — the own unit's card. */
+  card: string
+  code?: string
+  /** The ids of the container's own requirements the own unit builds (none: its narrative alone). */
+  requirements?: string[]
+  /** The ids of the container's own requirements its members deliver — left out of the own unit. */
+  covered?: string[]
+}
+
+/**
  * A run's plan — the `plan` document of a work card (`WORK_PLAN_VERSION`).
  *
  * A spec's plan orders its members and records the decisions they share; an improvement's or a
@@ -79,6 +110,19 @@ export interface WorkPlan {
   notes?: string[]
   /** How the members and targets ended, written as the run closes. */
   outcomes?: WorkPlanOutcome[]
+  /**
+   * The implementation in batches, in run order (a spec's or a standalone feature's run): each a set of
+   * units built in one combined pass, the improvements' planned run, or task runs. Absent — a plan written
+   * before batches (the run builds its units together, then the improvements, then the tasks).
+   */
+  batches?: WorkPlanBatch[]
+  /** The container's own unit, when its own requirements are built (a batch holds it, `own: true`). */
+  own?: WorkPlanOwnUnit
+  /**
+   * The index of the first batch a budget stop left unstarted: the run stopped at that batch boundary, and
+   * the next start (a Retry, Run unfinished) continues with those batches.
+   */
+  halted?: number
 }
 
 /** One operation of a task — names, statuses, counts and backup ids; NEVER a value. */

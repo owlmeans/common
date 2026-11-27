@@ -25,9 +25,9 @@ import type { IntegrityHelper } from './integrity/types.js'
 let _cached: { at: number, root: string, report: TargetIntegrityReport } | null = null
 
 export const createIntegrityHelper = (): IntegrityHelper => {
-  // The manifest follows the record, exactly as the publisher reads it: the base set first, then what
-  // the topology record of a project split into apps asks for — its extra app packages and the
-  // `sources/` listing. A one-pass reader sees a split tree's app packages as missing and refuses it.
+  // The manifest follows the record, exactly as the publisher reads it: the base set first, then the
+  // `sources/` listing (every V2 tree) and what the topology record asks for — a split tree's extra app
+  // packages, every other recorded package's manifest. A one-pass reader sees those as missing.
   const collectTargetFiles = async (dir: string): Promise<TargetFileCollection> =>
     await targetIntegrityHelper.collectTargetFiles(
       async file => await fs.readFile(p.join(dir, file), 'utf-8').catch(() => null),
@@ -42,7 +42,7 @@ export const createIntegrityHelper = (): IntegrityHelper => {
     }
 
     const { files, workspaceDirs } = await collectTargetFiles(dir)
-    // The listing exists only for a split tree; any other tree is verified exactly as before.
+    // Listed for every V2 tree (every package there is checked); a V1 tree is verified as before.
     const report = workspaceDirs != null
       ? targetIntegrityHelper.verifyTargetShape(files, { workspaceDirs })
       : targetIntegrityHelper.verifyTargetShape(files)

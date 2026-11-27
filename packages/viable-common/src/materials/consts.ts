@@ -1,6 +1,6 @@
 import { DEFAULT_UPLOAD_POLICY, FileKind, type UploadPolicy } from '@owlmeans/upload'
 import { SLOT_BINARY_MAX_BYTES } from '../slot/consts.js'
-import type { MaterialsLimits, MaterialsLinkLimits } from './types.js'
+import type { MaterialsLimits, MaterialsLinkLimits, ReferenceAskedOrigin } from './types.js'
 
 /**
  * The files a person attaches to a NEW project's prompt — "materials" in code, "Files" in the UI.
@@ -217,12 +217,17 @@ export enum MaterialLinkIntent {
   Package = 'package',
 }
 
-/** Where a reference was named: the prompt, the specification at confirmation, or a fetched link. */
+/**
+ * Where a reference was named: the prompt, the specification at confirmation, a fetched link, or the
+ * ideas a person added on the structure step.
+ */
 export enum ReferenceOrigin {
   Prompt = 'prompt',
   Specification = 'specification',
   /** A package a fetched page named — packages only. */
   Link = 'link',
+  /** The ideas text of a structure step's advice round (`materials-links:<id>:ideas:<round>`). */
+  Ideas = 'ideas',
 }
 
 /** Where one link of `references.json` stands. */
@@ -371,8 +376,8 @@ export const REFERENCE_RESEARCH_MAX = 20
 export const REFERENCE_PACKAGES_MAX = 50
 
 /** The origins a link or a research request may have — only a package may come from a fetched link. */
-export const REFERENCE_ASKED_ORIGINS: readonly ReferenceOrigin[] = Object.freeze([
-  ReferenceOrigin.Prompt, ReferenceOrigin.Specification,
+export const REFERENCE_ASKED_ORIGINS: readonly ReferenceAskedOrigin[] = Object.freeze([
+  ReferenceOrigin.Prompt, ReferenceOrigin.Specification, ReferenceOrigin.Ideas,
 ])
 
 /** The link statuses that take one of the {@link MATERIALS_LINK_LIMITS} `links`. */

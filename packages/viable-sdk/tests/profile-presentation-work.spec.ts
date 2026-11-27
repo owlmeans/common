@@ -3,7 +3,7 @@ import { z } from 'zod'
 import {
   ConnectFeedKind, ConnectHarness, ConnectInquiryKind, ConnectLlm, ConnectTarget, ConnectWaitReason, ConversionStatus,
   WorkcardBatchKind, WorkcardBatchOrderSource, WorkcardBatchOutcome, WorkcardBatchStatus, ViableWorkcardTransition, WORKCARD_BATCH_STALLED,
-  type BlueprintCatalogue, type ConnectPipelineState, type ConnectProjectStatus, type ConnectStoryStatus,
+  type StackCatalogue, type ConnectPipelineState, type ConnectProjectStatus, type ConnectStoryStatus,
   type ConversionStatusView, type ConvertCheck, type InquiryPayload, type WorkcardBatchView, type ViableWorkcard,
 } from '@owlmeans/viable-common'
 import { catalogue } from '../src/tools/catalogue.js'
@@ -318,7 +318,7 @@ describe('viable-sdk — the work-domain presentation of a listing profile', () 
   })
 
   test('the blueprint registry and the planning kits keep every handle a choice needs', async () => {
-    const registry: BlueprintCatalogue = {
+    const registry: StackCatalogue = {
       version: 1, defaultBlueprintId: 'owlmeans-fullstack-ts', blueprints: [{
         id: 'owlmeans-fullstack-ts', title: 'Full stack', language: 'TypeScript', runtime: 'Bun', framework: 'OwlMeans',
         capabilities: { postgres: true, kv: true, queue: false, worker: false, agents: false, validation: true, marketingConsent: true },

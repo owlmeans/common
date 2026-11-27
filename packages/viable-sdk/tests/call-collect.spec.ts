@@ -7,6 +7,7 @@ import {
   type ModelTask, type ModelTaskResult,
 } from '@owlmeans/viable-common'
 
+import { ALWAYS_COLLECTED_ALIASES } from '../src/api/consts.local.js'
 import { makeRemoteConnectorApi } from '../src/api/remote.js'
 import { TOOL_DEADLINE_MS } from '../src/consts.js'
 import { makeSdkContext } from '../src/context/index.js'
@@ -82,6 +83,86 @@ describe('viable-sdk — a delegated write is named with x-viable-call', () => {
 
     expect(callIdOf(calls[0]!)).toMatch(UUID)
     expect(callIdOf(calls[1]!)).toBe(callIdOf(calls[0]!))
+  })
+})
+
+describe('viable-sdk — a change of the apps and a triaged request are named and collected in every mode', () => {
+  const changed = (projectId: string) => ({
+    projectId, local: false, recorded: true, summary: 'Added the app "partners".',
+    apps: [{ name: 'main', mount: '', areas: ['guest'], main: true }, { name: 'partners', mount: 'partners', areas: ['partner-portal'], main: false }],
+  })
+
+  test('named on the cloud mode too, and only those writes', async () => {
+    for (const llm of [undefined, ConnectLlm.Cloud, ConnectLlm.Local]) {
+      const context = await contextOf(llm)
+      const calls = captureTransport(context, call => call.alias.startsWith(connect.apps.add.replace(/:add$/, ''))
+        ? changed('p1')
+        : call.alias === connect.project.request ? { kind: 'fix' } : projectStatus('p1'))
+      const api = makeRemoteConnectorApi(context)
+
+      await api.apps!.add('p1', { name: 'partners', newArea: { key: 'partner-portal', kind: 'user' } })
+      await api.apps!.addArea('p1', { key: 'field-ops', kind: 'user', app: 'main' })
+      await api.apps!.bindArea('p1', { area: 'field-ops', app: 'admin' })
+      await api.project.request('p1', 'Move the field-ops area into the admin app')
+      await api.project.modify('p1', 'Make the title bold')
+
+      const delegated = llm === ConnectLlm.Local
+      expect(calls.map(call => [call.alias, callIdOf(call) !== ''])).toEqual([
+        [connect.apps.add, true], [connect.apps.addArea, true], [connect.apps.bindArea, true],
+        [connect.project.request, true], [connect.project.modify, delegated],
+      ])
+      for (const call of calls.slice(0, 4)) expect(callIdOf(call)).toMatch(UUID)
+      // Only the named fields cross, and the hop gets the long deadline of a short run.
+      expect(calls.slice(0, 3).map(call => [call.path, call.body])).toEqual([
+        ['/connect/project/:id/apps/add', { name: 'partners', newArea: { key: 'partner-portal', kind: 'user' } }],
+        ['/connect/project/:id/apps/areas/add', { key: 'field-ops', kind: 'user', app: 'main' }],
+        ['/connect/project/:id/apps/areas/bind', { area: 'field-ops', app: 'admin' }],
+      ])
+      expect(calls.slice(0, 3).every(call => (call.timeout ?? 0) >= 20 * 60_000)).toBe(true)
+    }
+  })
+
+  test('a cloud-mode change answered { pending } is collected to the apps it settled with', async () => {
+    const context = await contextOf(ConnectLlm.Cloud)
+    const calls = captureTransport(context, async call => {
+      if (call.alias === connect.apps.add) return accepted({ pending: callIdOf(call) })
+      await Bun.sleep(1_050)
+      return { state: ConnectCallState.Settled, outcome: 'ok', value: changed('p1') }
+    })
+
+    expect(await makeRemoteConnectorApi(context).apps!.add('p1', { name: 'partners', areas: ['user'] })).toEqual(changed('p1') as never)
+    expect(collects(calls)).toHaveLength(1)
+  })
+
+  const proposal = { assignment: { placements: [], loose: ['c1'] }, loose: [], containers: [] }
+
+  test('Run all\'s proposal — a GET holding one model call — is named in every mode; every other GET never is', async () => {
+    for (const llm of [undefined, ConnectLlm.Cloud, ConnectLlm.Local]) {
+      const context = await contextOf(llm)
+      const calls = captureTransport(context, call => call.alias === connect.cards.plan ? proposal : { cardId: 'c1' })
+      const api = makeRemoteConnectorApi(context)
+
+      expect(ALWAYS_COLLECTED_ALIASES.has(connect.cards.plan)).toBe(true)
+      expect(await api.cards.plan('p1')).toEqual(proposal as never)
+      await api.cards.status('p1', 'c1')
+
+      expect(calls.map(call => [call.alias, callIdOf(call) !== ''])).toEqual([[connect.cards.plan, true], [connect.cards.status, false]])
+      expect(callIdOf(calls[0]!)).toMatch(UUID)
+      // Nothing crosses but the project: a GET, no body.
+      expect([calls[0]!.path, calls[0]!.body]).toEqual(['/connect/project/:id/cards/plan', undefined])
+    }
+  })
+
+  test('a cloud-mode proposal answered { pending } is collected to the assignment it settled with', async () => {
+    const context = await contextOf(ConnectLlm.Cloud)
+    const calls = captureTransport(context, async call => {
+      if (call.alias === connect.cards.plan) return accepted({ pending: callIdOf(call) })
+      await Bun.sleep(1_050)
+      return { state: ConnectCallState.Settled, outcome: 'ok', value: proposal }
+    })
+
+    expect(await makeRemoteConnectorApi(context).cards.plan('p1')).toEqual(proposal as never)
+    expect(collects(calls).map(call => call.query)).toEqual([{ wait: CONNECT_CALL_COLLECT_WAIT_SEC }])
   })
 })
 

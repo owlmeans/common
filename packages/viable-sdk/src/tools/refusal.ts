@@ -2,6 +2,7 @@ import { ResilientError } from '@owlmeans/error'
 import { AGENT_NOT_RUNNING_MARKER, ConnectConfirmationRequired, ConnectConsentRequired, ConnectOutOfCredits, WORKCARD_BATCH_ACTIVE_MARKER, WORKCARD_BATCH_EMPTY_MARKER, type ConnectConfirmation } from '@owlmeans/viable-common'
 import { settingsHelper } from './settings.js'
 import { CAPABILITY_LABELS, CHANGE_GATE, LIMIT_EXHAUSTED_FIELDS, MARKER_SHAPE, MODERATION, PROTECTED_FILE_DETAIL, RETYPE_REFUSALS, SPEC_FLOOR_CREDITS, SPEC_GATE, STACK_FRAME } from './consts.local.js'
+import { CHOICE_ISSUE_WORDS, STRUCTURE_ADVICE_COST, STRUCTURE_UNSUPPORTED_SUBMISSION } from './structure/consts.local.js'
 import { UNKNOWN_REFUSAL, UNPHRASED_REFUSAL } from './consts.js'
 import type { RefusalPhrase } from './types.js'
 import type { RefusalHelper } from './refusal/types.js'
@@ -40,7 +41,9 @@ export const createRefusalHelper = (): RefusalHelper => {
   const confirmationRequiredPhrase = (fields: ConnectConfirmation, retry?: string): string => {
     const limited = fields.cap > 0
     const said = ['Nothing was started.']
-    if (fields.action === 'convert-proceed') {
+    if (fields.action === 'structure-advise') {
+      said.push(STRUCTURE_ADVICE_COST)
+    } else if (fields.action === 'convert-proceed') {
       said.push(`The next conversion stage is estimated at about ${creditsOf(fields.estimate)} credits: ${splitOf(fields)}.`)
       said.push(limited
         ? `Conversion limit: ${creditsOf(fields.spent)} of ${creditsOf(fields.cap)} credits used,`
@@ -74,6 +77,13 @@ export const createRefusalHelper = (): RefusalHelper => {
     + ' refused the same way again, the organization bought credits less than 14 days ago and a person must'
     + ' first confirm in Billing in the OwlMeans web application, in the browser — do not retry until they say'
     + ' they did.'
+
+  const unconfirmedAdvicePhrase = (retry: string): string =>
+    'Nothing was started: the platform waits for the user\'s go-ahead. An advice round is refused like this when'
+    + ' it would spend the organization\'s credits — the plan\'s allowance for the project does not cover it. Tell'
+    + ` the user and ask; only after they agree, call ${retry}. If that call is refused the same way again, the`
+    + ' organization bought credits less than 14 days ago and a person must first confirm in Billing in the'
+    + ' OwlMeans web application, in the browser — do not retry until they say they did.'
 
   const capabilityRequiredPhrase = (params: string): string => {
     const named = params.split('|').map(param => param.trim()).filter(param => param !== '')
@@ -168,6 +178,10 @@ export const createRefusalHelper = (): RefusalHelper => {
 
   /** ` (detail)`, or nothing at all: a phrase must read as a sentence when there is no detail. */
   const aside = (detail: string): string => detail !== '' ? ` (${detail})` : ''
+
+  /** `blueprint-unknown,case-required` → the tools' words for each, an unknown code as it came. */
+  const choiceIssuesOf = (codes: string): string => codes.split(',').map(code => code.trim()).filter(code => code !== '')
+    .map(code => CHOICE_ISSUE_WORDS[code] ?? code).join('; ')
 
   const refusals: RefusalPhrase[] = [
     // ── The connector itself is not signed in ───────────────────────────────────────────────────
@@ -554,9 +568,50 @@ export const createRefusalHelper = (): RefusalHelper => {
         + ' that also brings the current runtime.',
     },
     {
+      // The platform's `AppsChangeRefused`: the sentence is the platform's own reading of the map.
+      marker: 'slot-app:change-refused:',
+      phrase: sentence => `${sentence !== '' ? `${sentence} ` : 'The platform refused that change of the project\'s applications. '}`
+        + 'Nothing was changed — project_apps lists the applications and areas as they stand.',
+    },
+    {
       marker: 'slot-app:apps-unsupported',
       phrase: () => 'This project\'s preview runs a runtime that addresses only its main application. Restart'
         + ' the whole preview with preview_control { action: restart } — that brings the current runtime.',
+    },
+
+    // ── A project's structure step ───────────────────────────────────────────────────────────────
+    // The platform's preliminary refusals, by marker: their classes are the platform's own. The rule
+    // breach first — its marker sits inside the family's.
+    {
+      marker: 'preliminary:structure-invalid:',
+      phrase: issues => `The structure breaks the platform's rules${aside(issues)}, so nothing was changed.`
+        + ' project_structure lists the issues and the part kinds this platform takes; fix them and submit again.',
+    },
+    {
+      marker: 'preliminary:case-choice:',
+      // The codes and the phrase speak the same words (a blueprint, its case).
+      phrase: codes => `The blueprint or case cannot stand as chosen${aside(choiceIssuesOf(codes))}, so nothing was created or changed.`
+        + ' describe_blueprints lists the blueprints (the cases of its stack entry) with their cases (the categories) and bot'
+        + ' platforms; choose again, or leave the blueprint out to let the platform decide.',
+    },
+    {
+      marker: 'preliminary:not-found:',
+      phrase: () => 'This project has no structure step: the platform decided its structure while drafting it.'
+        + ' Read project_status; once the specification is in, project_structure shows the project\'s structure.',
+    },
+    {
+      marker: 'preliminary:stale:',
+      phrase: revision => `The structure changed since it was read${revision !== '' ? ` (it is at revision ${revision} now)` : ''},`
+        + ' so nothing was changed. Read project_structure again and make the change over its new revision.',
+    },
+    {
+      marker: 'preliminary:closed:',
+      phrase: status => `The structure step takes no change now${status !== '' ? ` — it is ${status}` : ''}.`
+        + ' project_structure says where it stands.',
+    },
+    {
+      marker: 'preliminary:unsupported:',
+      phrase: what => STRUCTURE_UNSUPPORTED_SUBMISSION[what.split(/[\s:]/)[0] ?? ''] ?? `The structure step does not take that submission from a connector${aside(what)}; project_structure shows what it holds.`,
     },
 
     // ── The project is busy ──────────────────────────────────────────────────────────────────────
@@ -784,7 +839,7 @@ export const createRefusalHelper = (): RefusalHelper => {
   }
 
   return {
-    consentRequiredPhrase, confirmationRequiredPhrase, unconfirmedConversionPhrase, capabilityRequiredPhrase,
+    consentRequiredPhrase, confirmationRequiredPhrase, unconfirmedConversionPhrase, unconfirmedAdvicePhrase, capabilityRequiredPhrase,
     limitExhaustedPhrase, personRefusalPhrase, refusalMessage, refusalPhrase, refusals,
   }
 }

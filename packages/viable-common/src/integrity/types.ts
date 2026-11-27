@@ -74,22 +74,24 @@ export interface TargetLayoutManifest {
 /** What the verifier is told about the tree beyond its file map. */
 export interface TargetIntegrityTree {
   /**
-   * The entry names directly under `sources/`, as listed. The `workspace-package` rule runs only
-   * when given — and only for a project split into apps.
+   * The entry names directly under `sources/`, as listed — given, every V2 package there the record
+   * does not name is checked: refused (`workspace-package`) for a tree split into apps, held to no
+   * lifecycle script otherwise. A recorded library's directory in it makes its manifest required.
    */
   workspaceDirs?: string[]
 }
 
 /**
  * What a caller must read beyond `TARGET_INTEGRITY_FILES`, decided from what it has read: the extra
- * apps' package files and whether to list `sources/`. Empty for every project not split into apps.
+ * apps' package files, every other recorded package's manifest, and whether to list `sources/` —
+ * every V2 tree, never a V1 one.
  */
 export interface TargetIntegrityPlan {
   extraFiles: string[]
   listWorkspace: boolean
 }
 
-/** A tree as `collectTargetFiles` read it: the file map and, for a split project, the listing. */
+/** A tree as `collectTargetFiles` read it: the file map and, for a V2 tree, the `sources/` listing. */
 export interface TargetFileCollection extends TargetIntegrityTree {
   files: TargetFileMap
 }

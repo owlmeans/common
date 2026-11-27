@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import { ProjectArea } from '../src/areas/consts.js'
 import { RequirementKind, RequirementSource, SpecCategory } from '../src/ba/consts.js'
-import { BotKitAction } from '../src/blueprint/index.js'
+import { BotKitAction } from '../src/stack/index.js'
 import { DesignStaleness, NO_RUNTIME, WORKCARD_DESIGN_VERSION, WorkcardDesignSchema, workcardDesignHelper, workcardRuntimeHelper } from '../src/design/index.js'
 import type { WorkcardDesign } from '../src/design/index.js'
 

@@ -1,6 +1,6 @@
 import type { PlanningFacade } from '@owlmeans/planning'
 import type {
-  BlueprintCatalogue, ConnectAccessTokenList, ConnectAccessTokenRevoked, ConnectIntentPickup, ConnectPrivacyChoices,
+  StackCatalogue, ConnectAccessTokenList, ConnectAccessTokenRevoked, ConnectIntentPickup, ConnectPrivacyChoices,
   ConnectProfileSettingsView, ConnectProjectSettings,
   ConnectAgentLock, ConnectBrandingBackfill, ConnectCapabilities, ConnectClientView, ConnectConfigSaveBody, ConnectConfigScope,
   ConnectOrganizationBranding, ConnectOrganizationBrandingSave, ConnectProjectConfig, ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody,
@@ -23,10 +23,11 @@ import type {
   ConnectActivityQuery, ConnectFeedPage, ConnectFeedQuery, ConnectFileChanges,
   AgentSteerArgs, AgentSteerResult, AgentStopArgs, WorkcardBatchStartArgs, WorkcardBatchView,
   ConnectCreateWithMaterialsBody, ConnectMaterialCatalogue, ConnectMaterialsState, ConnectMaterialText,
-  ConnectAppRestartBody, ConnectAppsView,
+  ConnectAppAddBody, ConnectAppRestartBody, ConnectAppsChangeView, ConnectAppsView, ConnectAreaAddBody, ConnectAreaBindBody,
   ConnectCardStatus, ConnectCardsPlanView, ConnectCardsRerunBody, ConnectCardsRerunView, ConnectCardsRunAllBody, ConnectCardsTogetherBody,
   ConnectCardsTogetherView,
   ConnectRequestView, ViableImplementChoice,
+  ConnectCreateWithChoiceBody, ConnectConvertCreateWithChoiceBody, ConnectProjectStructure, ConnectStructureSubmitBody,
 } from '@owlmeans/viable-common'
 import type { UploadInput, UploadInputResult, UploadRunOptions } from '@owlmeans/client-upload'
 import type { UploadSession } from '@owlmeans/upload'
@@ -90,6 +91,27 @@ export interface ConnectorApi {
      * answers 404 (the tool then says the choice is not offered yet — never a silent preview).
      */
     confirmImplementation: (projectId: string, edits: ProjectImplementEdits) => Promise<ConnectProjectStatus>
+    /**
+     * A create with the person's choice made BEFORE the specification (`connect.project.createWithChoice`):
+     * the blueprint, the case and its category, a bot's platforms, the tenancy flags (each absent is Auto),
+     * whether to stop at the structure step, and — for a create with files — the announcement
+     * (`materials.upload` then sends them). The prompt's references are read. Optional: an implementation
+     * written before it has none, and a platform older than the route answers 404 — the tools then refuse
+     * and create nothing, never dropping the choice.
+     */
+    createWithChoice?: (body: ConnectCreateWithChoiceBody) => Promise<ConnectProjectStatus>
+    /**
+     * The project's structure (`connect.project.structure.get`): the structure step's record while a
+     * creation or a conversion is at it, the project card's after the initialization. Optional, like
+     * {@link createWithChoice}.
+     */
+    structure?: (projectId: string) => Promise<ConnectProjectStructure>
+    /**
+     * Submit the structure step (`connect.project.structure.submit`) — over the revision read; an advice
+     * round (`advise`, ideas) is refused with `ConnectConfirmationRequired` unless `confirm`. Optional, like
+     * {@link createWithChoice}.
+     */
+    submitStructure?: (projectId: string, body: ConnectStructureSubmitBody) => Promise<ConnectProjectStructure>
     list: () => Promise<Array<{ id: string, name: string, alias: string }>>
     status: (projectId: string) => Promise<ConnectProjectStatus>
     attach: (args: { projectId?: string, slug?: string }) => Promise<ConnectProjectStatus>
@@ -220,7 +242,7 @@ export interface ConnectorApi {
   /** The organization's own records. */
   account: {
     /** Installed blueprint and case catalogue; available before any project exists. */
-    blueprints: () => Promise<BlueprintCatalogue>
+    blueprints: () => Promise<StackCatalogue>
     /** The organization's branding defaults — what every new project starts with. */
     branding: {
       get: () => Promise<ConnectOrganizationBranding>
@@ -374,6 +396,21 @@ export interface ConnectorApi {
      * holds the project.
      */
     restartApp: (projectId: string, app: string, args?: ConnectAppRestartBody) => Promise<ConnectAppsView>
+  }
+
+  /**
+   * The project's APP STRUCTURE, changed by the person: an app added (taking over areas, or created
+   * with a new home area), an area of the project's own added to an app, an area moved to another app.
+   * Each runs free flight's app checks and applies as one short run under the project lock — the
+   * platform update first, the rebuild last — and answers the apps as they then stand with what
+   * changed. Refused as `slot-app:change-refused:<sentence>` (nothing changed) and while the agent
+   * holds the project. Optional: an implementation written before it (a platform older than the
+   * routes answers 404) offers no structural change.
+   */
+  apps?: {
+    add: (projectId: string, body: ConnectAppAddBody) => Promise<ConnectAppsChangeView>
+    addArea: (projectId: string, body: ConnectAreaAddBody) => Promise<ConnectAppsChangeView>
+    bindArea: (projectId: string, body: ConnectAreaBindBody) => Promise<ConnectAppsChangeView>
   }
 
   /** The organization's workloads, every project and kind (preview, production, local). */
@@ -533,6 +570,12 @@ export interface ConnectorApi {
    */
   convert: {
     create: (args: ConnectConvertCreateBody) => Promise<ConversionStatusView>
+    /**
+     * `create` with the person's blueprint, case and its category, a bot's platforms and the tenancy flags
+     * (`connect.convert.createWithChoice`), settled at import. Optional: without it (or on a platform that
+     * answers 404) a conversion asked with a choice is refused, never filed without it.
+     */
+    createWithChoice?: (args: ConnectConvertCreateWithChoiceBody) => Promise<ConversionStatusView>
     check: (projectId: string) => Promise<ConvertCheck>
     /** `body.confirm`: a person agreed to what the start uses (`ConnectConfirmationRequired` otherwise). */
     start: (projectId: string, body?: ConnectConvertStartBody) => Promise<ConversionStatusView>

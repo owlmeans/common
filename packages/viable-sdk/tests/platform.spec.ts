@@ -179,11 +179,11 @@ describe('viable-sdk — describe_platform', () => {
   test('a project\'s applications are one group, offered on every host and named in the instructions', () => {
     const apps = PLATFORM_CATALOGUE.capabilities.find(one => one.id === 'apps')
 
-    expect(apps?.tools).toEqual(['project_apps', 'restart_project_app'])
+    expect(apps?.tools).toEqual(['project_apps', 'restart_project_app', 'add_app', 'add_area', 'bind_area'])
     for (const where of [host(), url, host({ target: ConnectTarget.Cloud, llm: ConnectLlm.Cloud })]) {
-      expect(renderPlatform(PLATFORM_CATALOGUE, where)).toContain('project_apps, restart_project_app')
+      expect(renderPlatform(PLATFORM_CATALOGUE, where)).toContain('project_apps, restart_project_app, add_app, add_area, bind_area')
       expect(serverInstructions({ host: where }))
-        .toContain('a project\'s applications, each under its own path (project_apps, restart_project_app)')
+        .toContain('a project\'s applications, each under its own path (project_apps, restart_project_app, add_app, add_area, bind_area)')
     }
   })
 

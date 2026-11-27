@@ -1,6 +1,6 @@
 import { LANDING_GATE_PREFERENCES } from './consts.local.js'
 import { LandingGatePreference } from './consts.js'
-import type { Blueprint } from './types.js'
+import type { Stack } from './types.js'
 
 /**
  * The landing-gate preference of a resolved blueprint.
@@ -10,9 +10,9 @@ import type { Blueprint } from './types.js'
  * specification rather than tilting it either way on a value nobody set.
  */
 export const landingGatePreferenceOf = (
-  blueprint?: Pick<Blueprint, 'experience'> | null
+  stack?: Pick<Stack, 'experience'> | null
 ): LandingGatePreference => {
-  const value = blueprint?.experience?.landingGate
+  const value = stack?.experience?.landingGate
 
   return value != null && LANDING_GATE_PREFERENCES.has(value)
     ? value

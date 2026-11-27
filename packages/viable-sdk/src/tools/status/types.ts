@@ -5,6 +5,11 @@ import type { StoryStatusExtra } from '../types.js'
 export interface StatusTextHelper {
   /** A project's status as a parent reads it, ending in the next valid action. */
   renderProjectStatus: (status: ConnectProjectStatus) => string
+  /**
+   * Whether a project waits at its STRUCTURE step: a draft waiting for the person (`waitingFor: person`)
+   * with no question asked and no parked run — the next action is `project_structure`, not a question.
+   */
+  atStructureStep: (status: ConnectProjectStatus) => boolean
   /** A story's status as a parent reads it, ending in the next valid action. */
   renderStoryStatus: (status: ConnectStoryStatus, extra?: StoryStatusExtra) => string
   /** A pipeline run's state as a parent reads it, ending in the next valid action. */

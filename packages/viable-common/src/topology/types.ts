@@ -1,6 +1,8 @@
 import type { AreaDescriptor, AreaKey } from '../areas/types.js'
 import type { SubProject } from '../slot/consts.js'
 import type { AppDescriptor } from './apps/types.js'
+import type { StructurePartKind } from './structure/consts.js'
+import type { StructureRef } from './structure/types.js'
 
 /**
  * How a target's workspace packages are ARRANGED — which of them exist, what role each plays and
@@ -61,6 +63,15 @@ export interface TargetPackageDescriptor {
   app?: string
   /** The extra app's mount (one path segment), beside {@link TargetPackageDescriptor.app}. */
   mount?: string
+  /**
+   * The structure part this package belongs to, by name — present only in a topology that records a
+   * structure (`TopologyDescriptor.structure`); absent everywhere else.
+   */
+  part?: string
+  /** That part's kind, beside {@link TargetPackageDescriptor.part}. */
+  partKind?: StructurePartKind
+  /** What that part is for, as the project card records it — beside {@link TargetPackageDescriptor.part}. */
+  purpose?: string
 }
 
 export type TargetPackageKind = 'library' | 'bundle'
@@ -86,6 +97,12 @@ export interface TopologyDescriptor {
    * app, `main` (`appMapHelper.fromTopology`).
    */
   apps?: AppDescriptor[]
+  /**
+   * The project's structure, keys only (`projectStructureHelper.topologyOf`) — carried only when it is
+   * not the one {@link TopologyDescriptor.apps} derives (a library, a shared library, an api or a web
+   * of its own, an extra worker, a person's purpose). Absent: the packages and the apps say it all.
+   */
+  structure?: StructureRef
 }
 
 /**

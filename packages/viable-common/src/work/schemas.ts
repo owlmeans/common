@@ -1,7 +1,7 @@
 import type { JSONSchemaType } from 'ajv'
 import {
   TASK_OPERATIONS_MAX, TaskOperationKind, TaskOperationStatus, WORK_NAME_MAX, WORK_PLAN_LIST_MAX, WORK_PROPOSALS_MAX,
-  WORK_STEP_KEY_MAX, WORK_TEXT_MAX, WorkOutcome, WorkProposalKind, WorkProposalStatus,
+  WORK_STEP_KEY_MAX, WORK_TEXT_MAX, WorkBatchKind, WorkOutcome, WorkProposalKind, WorkProposalStatus,
 } from './consts.js'
 import type { TaskOperation, TaskOperations, WorkPlan, WorkProposal, WorkProposals } from './types.js'
 
@@ -18,18 +18,20 @@ const list = (items: object, max: number = WORK_PLAN_LIST_MAX) => ({ type: 'arra
  * and `helpers` are the engine's step catalogue keys — the catalogue, not this schema, decides
  * which exist.
  */
+const member = {
+  type: 'object',
+  properties: { card: name, code: { ...name, nullable: true } },
+  required: ['card'],
+  additionalProperties: false,
+} as const
+
 export const WorkPlanSchema = {
   type: 'object',
   title: 'WorkPlan',
   description: 'A run\'s plan: its members, the steps it takes and the pieces it changes',
   properties: {
     version: { type: 'integer', minimum: 1 },
-    members: list({
-      type: 'object',
-      properties: { card: name, code: { ...name, nullable: true } },
-      required: ['card'],
-      additionalProperties: false,
-    }),
+    members: list(member),
     drafts: list({
       type: 'object',
       properties: {
@@ -69,6 +71,30 @@ export const WorkPlanSchema = {
       required: ['card', 'outcome'],
       additionalProperties: false,
     }),
+    batches: list({
+      type: 'object',
+      properties: {
+        kind: { type: 'string', enum: Object.values(WorkBatchKind) },
+        members: { type: 'array', items: member, maxItems: WORK_PLAN_LIST_MAX },
+        own: { type: 'boolean', nullable: true },
+        reason: { ...text(), nullable: true },
+      },
+      required: ['kind', 'members'],
+      additionalProperties: false,
+    }),
+    own: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        card: name,
+        code: { ...name, nullable: true },
+        requirements: list({ type: 'string', minLength: 1, maxLength: WORK_NAME_MAX }),
+        covered: list({ type: 'string', minLength: 1, maxLength: WORK_NAME_MAX }),
+      },
+      required: ['card'],
+      additionalProperties: false,
+    },
+    halted: { type: 'integer', minimum: 0, nullable: true },
   },
   required: ['version', 'steps'],
   additionalProperties: false,

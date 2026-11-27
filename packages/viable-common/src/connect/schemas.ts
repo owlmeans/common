@@ -46,13 +46,20 @@ import { MATERIAL_PATH_MAX, MATERIALS_LIMITS } from '../materials/consts.js'
 import type {
   ConnectCreateWithMaterialsBody, ConnectMaterialQuery, ConnectMaterialsAnnouncement, ConnectMaterialsDraftBody,
 } from './materials/types.js'
-import { APP_NAME_PATTERN } from '../topology/apps/consts.js'
-import type { ConnectAppParams, ConnectAppRestartBody } from './apps/types.js'
+import { APP_NAME_PATTERN, TARGET_APP_MOUNT_PATTERN } from '../topology/apps/consts.js'
+import { AREA_KEY_MAX, AREA_KEY_PATTERN, AREA_LABEL_MAX, AREA_SEGMENT_PATTERN, ProjectArea } from '../areas/consts.js'
+import type {
+  ConnectAppAddBody, ConnectAppParams, ConnectAppRestartBody, ConnectAreaAddBody, ConnectAreaAddition, ConnectAreaBindBody,
+} from './apps/types.js'
 import { WORKCARD_BATCH_MAX } from '../batch/consts.js'
 import { WORK_NAME_MAX, WORK_TEXT_MAX } from '../work/consts.js'
 import { ViableImplementChoice, WorkRerunScope } from '../planning/consts.js'
-import { CONNECT_CARDS_KEY_MAX, CONNECT_CARDS_TOGETHER_MAX } from './consts.js'
+import { CONNECT_CARDS_KEY_MAX, CONNECT_CARDS_TOGETHER_MAX, CONNECT_STRUCTURE_IDEAS_MAX } from './consts.js'
 import type { ConnectCardParams, ConnectCardsRerunBody, ConnectCardsRunAllBody, ConnectCardsTogetherBody } from './cards/types.js'
+import { CatalogueChoiceSchema } from '../stack/choice/schemas.js'
+import { ProjectStructureSchema } from '../topology/structure/schemas.js'
+import type { ConnectCreateWithChoiceBody, ConnectStructureSubmitBody } from './project/types.js'
+import type { ConnectConvertCreateWithChoiceBody } from './conversion/types.js'
 
 /**
  * A nullable ENUM carries `null` as one of its values.
@@ -933,6 +940,61 @@ export const ConnectAppRestartBodySchema = {
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConnectAppRestartBody>
 
+/** An area's key as a change of the apps names it — the key a story's `area` takes. */
+const areaKeyValue = { type: 'string', minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_KEY_PATTERN.source } as const
+
+/** An app's name — `main`, or one the project's map names or a new one takes. */
+const appNameValue = { type: 'string', pattern: APP_NAME_PATTERN.source } as const
+
+/**
+ * A new area of the project's own: its key, its kind, and optionally its segment, label and
+ * restriction — the map's own rules (`appMapHelper.validate`) are the platform's, after this shape.
+ */
+export const ConnectAreaAdditionSchema = {
+  type: 'object',
+  properties: {
+    key: areaKeyValue,
+    kind: { type: 'string', enum: Object.values(ProjectArea) },
+    segment: { type: 'string', nullable: true, minLength: 1, maxLength: AREA_KEY_MAX, pattern: AREA_SEGMENT_PATTERN.source },
+    label: { type: 'string', nullable: true, minLength: 1, maxLength: AREA_LABEL_MAX },
+    restricted: { type: 'boolean', nullable: true },
+  },
+  required: ['key', 'kind'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectAreaAddition>
+
+/** A new app: its name, its mount, the areas it takes over and/or the home area it is created with. */
+export const ConnectAppAddBodySchema = {
+  type: 'object',
+  properties: {
+    name: appNameValue,
+    mount: { type: 'string', nullable: true, pattern: TARGET_APP_MOUNT_PATTERN.source },
+    areas: { type: 'array', nullable: true, items: areaKeyValue, maxItems: 16 },
+    newArea: { ...ConnectAreaAdditionSchema, nullable: true },
+  },
+  required: ['name'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectAppAddBody>
+
+/** A new area of the project's own and the app serving it. */
+export const ConnectAreaAddBodySchema = {
+  type: 'object',
+  properties: {
+    ...ConnectAreaAdditionSchema.properties,
+    app: { ...appNameValue, nullable: true },
+  },
+  required: ['key', 'kind'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectAreaAddBody>
+
+/** One area moved to another app. */
+export const ConnectAreaBindBodySchema = {
+  type: 'object',
+  properties: { area: areaKeyValue, app: appNameValue },
+  required: ['area', 'app'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectAreaBindBody>
+
 /** One card a card route addresses, under its project. */
 export const ConnectCardParamsSchema = {
   type: 'object',
@@ -1006,3 +1068,50 @@ export const ConnectCardsRerunBodySchema = {
   required: ['card', 'scope'],
   additionalProperties: false,
 } as JSONSchemaType<ConnectCardsRerunBody>
+
+/**
+ * `connect.project.createWithChoice`: the create body's properties exactly, the person's choice
+ * (`CatalogueChoiceSchema`'s keys, each nullable — absent is Auto), the stop at the structure step and
+ * the files about to be uploaded.
+ */
+export const ConnectCreateWithChoiceBodySchema = {
+  type: 'object',
+  properties: {
+    ...ConnectCreateBodySchema.properties,
+    ...CatalogueChoiceSchema.properties,
+    reviewStructure: { type: 'boolean', nullable: true },
+    materials: { ...ConnectMaterialsAnnouncementSchema, nullable: true },
+  },
+  required: ['prompt'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectCreateWithChoiceBody>
+
+/** `connect.convert.createWithChoice`: the convert create body's properties exactly and the person's choice. */
+export const ConnectConvertCreateWithChoiceBodySchema = {
+  type: 'object',
+  properties: {
+    ...ConnectConvertCreateBodySchema.properties,
+    ...CatalogueChoiceSchema.properties,
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectConvertCreateWithChoiceBody>
+
+/**
+ * A structure step's submission: the revision read, and what changed — the choice and the structure (each
+ * absent kept), the advice asked, the ideas text, the person's agreement. The structure's own rules
+ * (`projectStructureHelper.validate` with the environment's kinds) are the platform's, after this shape.
+ */
+export const ConnectStructureSubmitBodySchema = {
+  type: 'object',
+  properties: {
+    revision: { type: 'number', minimum: 0, multipleOf: 1 },
+    choice: { ...CatalogueChoiceSchema, nullable: true },
+    structure: { ...ProjectStructureSchema, nullable: true },
+    advise: { type: 'boolean', nullable: true },
+    ideas: { type: 'string', minLength: 1, maxLength: CONNECT_STRUCTURE_IDEAS_MAX, nullable: true },
+    confirm: { type: 'boolean', nullable: true },
+  },
+  required: ['revision'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectStructureSubmitBody>

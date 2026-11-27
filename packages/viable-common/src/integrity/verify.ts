@@ -5,18 +5,22 @@ import {
   RESERVED_APP_NAMES, RESERVED_MOUNTS, TARGET_APP_MAX_INDEX, TARGET_APP_MOUNT_PATTERN,
 } from '../topology/apps/consts.js'
 import { topologyCardHelper } from '../topology/card.js'
+import { topologyHelper } from '../topology/resolve.js'
+import type { TopologyDescriptor } from '../topology/types.js'
 import {
-  IntegrityRule, TARGET_FORBIDDEN_SCRIPTS, TARGET_PACKAGES_DIR, TARGET_SLUG_PATTERN, TargetLayout, TargetPackage,
+  IntegrityRule, TARGET_FORBIDDEN_SCRIPTS, TARGET_LIBRARY_BUILD_SCRIPT, TARGET_PACKAGES_DIR, TARGET_SLUG_PATTERN,
+  TargetLayout, TargetPackage,
 } from './consts.js'
-import { BUNDLE_PROTECTED } from './consts.local.js'
+import { BUNDLE_PROTECTED, LIBRARY_PROTECTED, PART_LIBRARY_FILES } from './consts.local.js'
 import { TARGET_INTEGRITY_FILES, TARGET_PROTECTED_FILES } from './layout/consts.js'
 import { targetLayoutHelper } from './layout.js'
 import type {
   IntegrityViolation, TargetFileMap, TargetIntegrityPlan, TargetIntegrityReport, TargetIntegrityTree,
   TargetLayoutManifest,
 } from './types.js'
+import { structureIntegrityHelper } from './verify/structure.js'
 import type { TargetIntegrityHelper } from './verify/types.js'
-import type { AppPackage, AppsRecord } from './verify/types.local.js'
+import type { AppPackage, AppsRecord, OtherPackage, PartLibrary, TreeRecord } from './verify/types.local.js'
 
 export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
   const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -24,16 +28,13 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
 
   const safeDir = (dir: string): boolean => APP_PACKAGE_DIR_PATTERN.test(dir)
 
-  /** The split the record declares — `null` for a record of one app, an unreadable record, or none. */
-  const appsRecordOf = (files: TargetFileMap): AppsRecord | null => {
-    if (targetLayoutHelper.detectTargetLayout(files) !== TargetLayout.V2) return null
-    const source = files[TOPOLOGY_FILE]
-    if (source == null) return null
-    const data = topologyCardHelper.frontmatterOf(source)
-    if (!isRecord(data) || !Array.isArray(data.apps)) return null
+  const corePackages = new Set<string>(Object.values(TargetPackage))
+
+  /** The split the record declares — `null` for a record of one app or none. */
+  const splitOf = (data: Record<string, unknown>, topology: TopologyDescriptor | null): AppsRecord | null => {
+    if (!Array.isArray(data.apps)) return null
     const map = appMapHelper.narrow(data)
     if (map == null || map.apps.length < 2) return null
-    const topology = topologyCardHelper.parseTopologyMeta(data)
 
     return {
       claimed: data.apps.length,
@@ -41,6 +42,24 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
       packages: new Set(topology?.packages.map(pkg => pkg.name) ?? []),
       dir: typeof data.dir === 'string' ? data.dir.trim() : '',
     }
+  }
+
+  /**
+   * The recorded packages that are neither core nor an extra app's, as the runtime resolves the record:
+   * its dependency order, each name once, with the kind its build lists read — so the verifier holds
+   * exactly the packages the publisher would build to the rules.
+   */
+  const othersOf = (topology: TopologyDescriptor, classifiedDirs: readonly string[]): OtherPackage[] => {
+    const classified = new Set<string>([...corePackages, ...classifiedDirs])
+    const seen = new Set<string>()
+    const out: OtherPackage[] = []
+    for (const pkg of topologyHelper.resolveTopology(topology).packages) {
+      if (classified.has(pkg.name) || seen.has(pkg.name)) continue
+      seen.add(pkg.name)
+      out.push({ dir: pkg.name, kind: pkg.kind })
+    }
+
+    return out
   }
 
   /**
@@ -55,7 +74,7 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
       for (const [dir, rules] of [[app.web, TargetPackage.Web], [app.api, TargetPackage.Api]] as const) {
         if (!safeDir(dir) || core.has(dir) || seen.has(dir)) continue
         seen.add(dir)
-        out.push({ dir, rules, app: app.name })
+        out.push({ dir, rules, owner: `the app "${app.name}"` })
       }
     }
 
@@ -72,13 +91,64 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
   const appFilesOf = (manifest: TargetLayoutManifest, pkg: AppPackage): string[] =>
     manifest.files.map(path => appPathOf(path, manifest, pkg)).filter((path): path is string => path != null)
 
+  const manifestPathOf = (dir: string): string => `${TARGET_PACKAGES_DIR}/${dir}/package.json`
+
+  const partLibraryFilesOf = (lib: PartLibrary): string[] =>
+    PART_LIBRARY_FILES.map(file => `${TARGET_PACKAGES_DIR}/${lib.dir}/${file}`)
+
+  /**
+   * What the record makes of the tree — `null` for today's one-pass path: not a V2 tree, no readable
+   * record, or a record that neither splits, nor carries a structure, nor names a package beyond the
+   * five core ones. A record placing its packages outside `sources/` names none of this tree's
+   * packages: the runtime does not read it (the layout's own arrangement stands), and a split or a
+   * structure one is refused (`app-map`, `structure-map`).
+   */
+  const recordOf = (files: TargetFileMap): TreeRecord | null => {
+    if (targetLayoutHelper.detectTargetLayout(files) !== TargetLayout.V2) return null
+    const source = files[TOPOLOGY_FILE]
+    if (source == null) return null
+    const data = topologyCardHelper.frontmatterOf(source)
+    if (!isRecord(data)) return null
+    const topology = topologyCardHelper.parseTopologyMeta(data)
+    const split = splitOf(data, topology)
+    const structure = structureIntegrityHelper.read(data)
+    const manifest = targetLayoutHelper.targetManifest(TargetLayout.V2)
+    const parts = structure?.ref != null ? structureIntegrityHelper.packagesOf(structure.ref) : { bundles: [], libraries: [] }
+    const appPackages = split != null ? appPackagesOf(split, manifest) : []
+    const named = new Set(appPackages.map(pkg => pkg.dir))
+    appPackages.push(...parts.bundles.filter(pkg => !named.has(pkg.dir)))
+    const others = topology != null && topology.dir === manifest.dir
+      ? othersOf(topology, [...appPackages.map(pkg => pkg.dir), ...parts.libraries.map(lib => lib.dir)])
+      : []
+    if (split == null && structure == null && others.length === 0) return null
+
+    return {
+      dir: typeof data.dir === 'string' ? data.dir.trim() : '',
+      recorded: topology?.packages ?? [],
+      split,
+      structure,
+      strict: split != null || structure != null,
+      appPackages,
+      partLibraries: parts.libraries,
+      packages: new Set(topology?.packages.map(pkg => pkg.name) ?? []),
+      others,
+    }
+  }
+
   const readPlan = (files: TargetFileMap): TargetIntegrityPlan => {
-    const record = appsRecordOf(files)
-    if (record == null) return { extraFiles: [], listWorkspace: false }
+    // Every V2 tree lists `sources/`: the workspace glob installs whatever is there, so every
+    // package in it is checked for lifecycle scripts, recorded or not.
+    if (targetLayoutHelper.detectTargetLayout(files) !== TargetLayout.V2) return { extraFiles: [], listWorkspace: false }
+    const record = recordOf(files)
+    if (record == null) return { extraFiles: [], listWorkspace: true }
     const manifest = targetLayoutHelper.targetManifest(TargetLayout.V2)
 
     return {
-      extraFiles: appPackagesOf(record, manifest).flatMap(pkg => appFilesOf(manifest, pkg)),
+      extraFiles: [
+        ...record.appPackages.flatMap(pkg => appFilesOf(manifest, pkg)),
+        ...record.partLibraries.flatMap(partLibraryFilesOf),
+        ...record.others.map(other => manifestPathOf(other.dir)),
+      ],
       listWorkspace: true,
     }
   }
@@ -87,8 +157,9 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
     const violations: IntegrityViolation[] = []
     const layout = targetLayoutHelper.detectTargetLayout(files)
     const manifest = targetLayoutHelper.targetManifest(layout)
-    const record = appsRecordOf(files)
-    const appPackages = record != null ? appPackagesOf(record, manifest) : []
+    const record = recordOf(files)
+    const appPackages = record?.appPackages ?? []
+    const partLibraries = record?.partLibraries ?? []
 
     // Only this layout's files. The caller reads the union of every layout's list so that the
     // probes are in hand before the layout is known — reporting the other layout's paths as
@@ -112,13 +183,35 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
     }
     checkMarkers(Object.entries(manifest.markers))
 
-    // A tree split into apps: the record's list, then each extra app's packages under main's rules,
-    // then whatever else the workspace holds. Nothing here runs for a tree with no split.
+    // A tree verified against its record: the record's app list (a split) and its structure, each
+    // extra app's and structure part's package under its core package's or the library rules, every
+    // other package the record names (an adopted or pulled one), the parts' dependency directions,
+    // then whatever else the workspace holds. Nothing here runs on today's one-pass path.
     if (record != null) {
-      checkAppMap(record)
+      if (record.split != null) {
+        checkAppMap(record.split)
+      }
+      if (record.structure != null) {
+        violations.push(...structureIntegrityHelper.mapViolations(record.structure, {
+          dir: record.dir, packages: record.recorded, apps: record.split?.apps ?? null,
+        }))
+      }
       for (const pkg of appPackages) {
         checkAppPackage(pkg, slug)
       }
+      for (const lib of partLibraries) {
+        checkPartLibrary(lib, slug)
+      }
+      for (const other of record.others) {
+        checkOtherPackage(other)
+      }
+      if (record.structure?.ref != null && slug != null) {
+        violations.push(...structureIntegrityHelper.dependencyViolations(record.structure.ref, {
+          slug, manifestOf: dir => parseJson(files[manifestPathOf(dir)]),
+        }))
+      }
+    }
+    if (layout === TargetLayout.V2) {
       checkWorkspacePackages(record)
     }
 
@@ -144,10 +237,12 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
       }
 
       // The workspace list is what makes the packages resolve to each other. Both spellings are
-      // the same tree: the glob `create-app` emits, or the entries written out — every app
-      // package's among them for a tree split into apps.
+      // the same tree: the glob `create-app` emits, or the entries written out — every app and
+      // structure part package's among them for a tree verified against its record.
       const entries = [
-        ...manifest.workspaceEntries, ...appPackages.map(pkg => `${manifest.dir}/${pkg.dir}`),
+        ...manifest.workspaceEntries,
+        ...appPackages.map(pkg => `${manifest.dir}/${pkg.dir}`),
+        ...partLibraries.map(lib => `${manifest.dir}/${lib.dir}`),
       ]
       const declared = Array.isArray(found.workspaces) ? found.workspaces as string[] : []
       const isGlob = declared.length === 1 && declared[0] === manifest.workspaceGlob
@@ -196,23 +291,7 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
       const found = readJson(path)
       if (found == null) return
 
-      // With no readable slug the name and the workspace dependencies have nothing to be checked
-      // against; the root violation already says why, and repeating it per package is noise.
-      if (slug != null) {
-        const expected = targetLayoutHelper.targetPackageName(slug, pkg)
-        if (found.name !== expected) {
-          violations.push({
-            path, rule: IntegrityRule.PackageName,
-            detail: `Package must be named "${expected}", not "${String(found.name)}".`
-          })
-        }
-      }
-      if (found.type !== 'module') {
-        violations.push({
-          path, rule: IntegrityRule.ModuleType,
-          detail: `Package "${pkg}" must declare "type": "module".`
-        })
-      }
+      checkIdentity(path, pkg, found, slug)
 
       const scripts = asRecord(found.scripts)
       if (scripts.build !== manifest.buildScripts[rules]) {
@@ -235,6 +314,63 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
           })
         }
       }
+    }
+
+    /** `<slug>-<pkg>` and `type: module` — a core or app package's name and module type. */
+    function checkIdentity(path: string, pkg: string, found: Record<string, unknown>, slug: string | null): void {
+      // With no readable slug the name and the workspace dependencies have nothing to be checked
+      // against; the root violation already says why, and repeating it per package is noise.
+      if (slug != null) {
+        const expected = targetLayoutHelper.targetPackageName(slug, pkg)
+        if (found.name !== expected) {
+          violations.push({
+            path, rule: IntegrityRule.PackageName,
+            detail: `Package must be named "${expected}", not "${String(found.name)}".`
+          })
+        }
+      }
+      if (found.type !== 'module') {
+        violations.push({
+          path, rule: IntegrityRule.ModuleType,
+          detail: `Package "${pkg}" must declare "type": "module".`
+        })
+      }
+    }
+
+    /**
+     * A recorded package the manifest has no rules of its own for — adopted, or brought by a pull.
+     *
+     * The publisher builds every recorded library before anything that imports it, so a library's
+     * build is exactly `tsc -b` (both sides trimmed — what adoption classifies by). Nothing else is
+     * asked of it: the package is the person's, named and typed as they wrote it. A bundle is never
+     * built or run (`buildOrderOf`). Either way the workspace glob installs it, so it carries no
+     * lifecycle script. A library's directory listed with no manifest in it is `missing`: `bun run
+     * build` there walks up to the root's `build`, which builds every `sources/*` package. A package
+     * that is not there at all is nothing the platform runs; one the caller never read fails closed.
+     */
+    function checkOtherPackage(other: OtherPackage): void {
+      const path = manifestPathOf(other.dir)
+      const library = other.kind === 'library'
+      const listed = tree?.workspaceDirs == null || tree.workspaceDirs.includes(other.dir)
+      if (files[path] === undefined || (files[path] === null && library && listed)) {
+        violations.push({
+          path, rule: IntegrityRule.Missing,
+          detail: `${path} is missing — the topology record names the ${library ? 'library' : 'package'} "${other.dir}".`
+        })
+        return
+      }
+      const found = readJson(path)
+      if (found == null) return
+
+      const build: unknown = asRecord(found.scripts).build
+      if (library && (typeof build !== 'string' || build.trim() !== TARGET_LIBRARY_BUILD_SCRIPT)) {
+        violations.push({
+          path, rule: IntegrityRule.BuildScript,
+          detail: `The build script of "${other.dir}" must be exactly \`${TARGET_LIBRARY_BUILD_SCRIPT}\``
+          + ' — the topology record names it a library.'
+        })
+      }
+      checkScripts(path, found)
     }
 
     /** Lifecycle hooks run on `bun install`, before anything else has a chance to refuse. */
@@ -321,13 +457,13 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
       for (const [dir, seen] of dirs) if (seen > 1) report(`The package "${dir}" is named ${seen} times.`)
     }
 
-    /** An extra app's package, held to main's web or api rules. */
+    /** An extra app's or a structure part's bundled package, held to main's web, api or worker rules. */
     function checkAppPackage(pkg: AppPackage, slug: string | null): void {
       for (const path of appFilesOf(manifest, pkg)) {
         if (files[path] == null) {
           violations.push({
             path, rule: IntegrityRule.Missing,
-            detail: `${path} is missing — the app "${pkg.app}" always has it.`
+            detail: `${path} is missing — ${pkg.owner} always has it.`
           })
         }
       }
@@ -337,19 +473,77 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
         .filter((entry): entry is [string, readonly string[]] => entry[0] != null))
     }
 
-    /** A `sources/*` package nobody recorded: installed by the workspace glob, checked by nothing. */
-    function checkWorkspacePackages(found: AppsRecord): void {
+    /**
+     * A structure's library part — what the platform staged, so held to the library rules a core
+     * library is: its files, `<slug>-<dir>`, `type: module`, exactly `tsc -b`, no lifecycle script.
+     * Its dependency directions are `part-dependency`'s.
+     */
+    function checkPartLibrary(lib: PartLibrary, slug: string | null): void {
+      for (const path of partLibraryFilesOf(lib)) {
+        if (files[path] == null) {
+          violations.push({
+            path, rule: IntegrityRule.Missing,
+            detail: `${path} is missing — the part "${lib.part}" always has it.`
+          })
+        }
+      }
+      const path = manifestPathOf(lib.dir)
+      const found = readJson(path)
+      if (found == null) return
+
+      checkIdentity(path, lib.dir, found, slug)
+      if (asRecord(found.scripts).build !== TARGET_LIBRARY_BUILD_SCRIPT) {
+        violations.push({
+          path, rule: IntegrityRule.BuildScript,
+          detail: `The build script of "${lib.dir}" must be exactly \`${TARGET_LIBRARY_BUILD_SCRIPT}\`.`
+        })
+      }
+      checkScripts(path, found)
+    }
+
+    /**
+     * A `sources/*` package nobody recorded — installed by the workspace glob all the same.
+     *
+     * A tree split into apps or carrying a structure holds its workspace to the record
+     * (`workspace-package`): the runtime serves and ports exactly what the record says, and a package
+     * it does not name is refused — a listed directory nobody looked into counts as one. Any other V2
+     * tree treats it as an unclassified bundle: nothing builds or runs it, and its manifest carries no lifecycle script
+     * (unreadable is refused — Bun reads manifests `JSON.parse` does not). A directory with no
+     * manifest is no package; a listing whose manifests were never read checks nothing here.
+     */
+    function checkWorkspacePackages(found: TreeRecord | null): void {
       if (tree?.workspaceDirs == null) return
-      const known = new Set<string>([...manifest.packages, ...found.packages, ...appPackages.map(pkg => pkg.dir)])
+      const known = new Set<string>([
+        ...manifest.packages, ...found?.packages ?? [], ...appPackages.map(pkg => pkg.dir), ...partLibraries.map(lib => lib.dir),
+      ])
+      const strict = found?.strict === true
       for (const dir of [...new Set(tree.workspaceDirs)].sort()) {
         if (dir === '' || dir.startsWith('.') || dir.includes('/') || known.has(dir)) continue
-        const path = `${manifest.dir}/${dir}/package.json`
+        const path = manifestPathOf(dir)
+        if (!strict) {
+          if (files[path] == null) continue
+          const stray = readJson(path)
+          if (stray != null) checkScripts(path, stray)
+          continue
+        }
         // Not read: assumed present — a listed directory nobody looked into is not proof of absence.
         if (files[path] === null) continue
         violations.push({
           path, rule: IntegrityRule.WorkspacePackage,
           detail: `${path} is a workspace package the topology record does not name.`
         })
+      }
+    }
+
+    /** A manifest read for a second opinion — `null` when absent or unreadable, never reported (its own check did). */
+    function parseJson(content: string | null | undefined): Record<string, unknown> | null {
+      if (content == null) return null
+      try {
+        const parsed: unknown = JSON.parse(content)
+
+        return isRecord(parsed) ? parsed : null
+      } catch {
+        return null
       }
     }
 
@@ -397,7 +591,7 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
     const workspaceDirs = await list(TARGET_PACKAGES_DIR)
     // The manifest of every listed directory the record does not name, so the rule can tell a stray
     // package from a stray directory.
-    const record = appsRecordOf(files)
+    const record = recordOf(files)
     const named = new Set<string>([
       ...Object.values(TargetPackage), ...(record?.packages ?? []),
       ...plan.extraFiles.map(path => path.split('/')[1]),
@@ -410,18 +604,36 @@ export const createTargetIntegrityHelper = (): TargetIntegrityHelper => {
   }
 
   const protectedFilesOf: TargetIntegrityHelper['protectedFilesOf'] = record => {
-    const dirs = new Set<string>([
+    // A structure's parts mirror the core packages: a bundled part (api, web, worker) has a bundle's
+    // build files, a library part a library's.
+    const parts = record?.structure != null ? structureIntegrityHelper.packagesOf(record.structure) : { bundles: [], libraries: [] }
+    const bundles = new Set<string>([
       ...(record?.apps ?? []).filter(app => app.mount !== '').flatMap(app => [app.web, app.api]),
       ...(record?.packages ?? []).filter(pkg => pkg.app != null).map(pkg => pkg.name),
+      ...parts.bundles.map(pkg => pkg.dir),
     ])
-    const extra = [...dirs]
-      .filter(dir => safeDir(dir) && !(Object.values(TargetPackage) as string[]).includes(dir))
-      .flatMap(dir => BUNDLE_PROTECTED.map(file => `${TARGET_PACKAGES_DIR}/${dir}/${file}`))
+    const protect = (dirs: Iterable<string>, files: readonly string[]): string[] => [...dirs]
+      .filter(dir => safeDir(dir) && !corePackages.has(dir))
+      .flatMap(dir => files.map(file => `${TARGET_PACKAGES_DIR}/${dir}/${file}`))
 
-    return [...new Set([...TARGET_PROTECTED_FILES, ...extra])]
+    return [...new Set([
+      ...TARGET_PROTECTED_FILES,
+      ...protect(bundles, BUNDLE_PROTECTED),
+      ...protect(parts.libraries.map(lib => lib.dir), LIBRARY_PROTECTED),
+    ])]
   }
 
-  return { verifyTargetShape, formatIntegrityReport, readPlan, collectTargetFiles, protectedFilesOf }
+  const buildOrderOf: TargetIntegrityHelper['buildOrderOf'] = record => {
+    // An app pair's packages and a structure's api, web and worker parts build like the core ones;
+    // every library does. Only a bundle nothing classified — an adopted one — never builds.
+    const appDirs = (record.apps ?? []).filter(app => app.mount !== '').flatMap(app => [app.web, app.api])
+    const partDirs = record.structure != null ? structureIntegrityHelper.packagesOf(record.structure).bundles.map(pkg => pkg.dir) : []
+    const bundles = new Set(othersOf(record, [...appDirs, ...partDirs]).filter(other => other.kind !== 'library').map(other => other.dir))
+
+    return topologyHelper.resolveTopology(record).build.filter(name => !bundles.has(name))
+  }
+
+  return { verifyTargetShape, formatIntegrityReport, readPlan, collectTargetFiles, protectedFilesOf, buildOrderOf }
 }
 
 export const targetIntegrityHelper = createTargetIntegrityHelper()

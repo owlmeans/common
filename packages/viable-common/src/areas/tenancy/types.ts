@@ -1,4 +1,4 @@
-import type { Blueprint } from '../../blueprint/types.js'
+import type { Stack } from '../../stack/types.js'
 import type { ProjectArea } from '../consts.js'
 import type { ProjectTenancy } from '../types.js'
 
@@ -12,7 +12,7 @@ export interface TenancyHelper {
    * read as on by mistake splits a product's people into organizations nobody asked for, while one
    * read as off leaves the application exactly as it was before tenancy existed.
    */
-  tenancyOf: (blueprint?: Pick<Blueprint, 'experience'> | null) => ProjectTenancy
+  tenancyOf: (stack?: Pick<Stack, 'experience'> | null) => ProjectTenancy
   /**
    * Whether an AREA's people act inside a tenant organization.
    *

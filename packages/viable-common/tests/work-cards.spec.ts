@@ -14,7 +14,7 @@ import {
 } from '../src/planning/index.js'
 import {
   TASK_OPERATIONS_VERSION, TaskOperationKind, TaskOperationStatus, TaskOperationsSchema, WORK_PLAN_VERSION,
-  WORK_PROPOSALS_VERSION, WorkOutcome, WorkPlanSchema, WorkProposalKind, WorkProposalStatus, WorkProposalsSchema,
+  WORK_PROPOSALS_VERSION, WorkBatchKind, WorkOutcome, WorkPlanSchema, WorkProposalKind, WorkProposalStatus, WorkProposalsSchema,
 } from '../src/work/index.js'
 
 const ajv = new Ajv({ allErrors: true, strict: false })
@@ -135,6 +135,26 @@ describe('viable-common — work documents', () => {
     expect(plan({ version: WORK_PLAN_VERSION, steps: [], drafts: [{ ref: 'd-1', narrative: '' }] })).toBe(false)
     expect(plan({ version: WORK_PLAN_VERSION })).toBe(false)
     expect(plan({ version: WORK_PLAN_VERSION, steps: [], targets: [{ unit: 'x', part: 'y' }] })).toBe(false)
+  })
+
+  test('a container\'s plan carries its batches, its own unit and where a budget stop halted it — all optional', () => {
+    const plan = ajv.compile(WorkPlanSchema)
+
+    expect(plan({
+      version: WORK_PLAN_VERSION, steps: [],
+      members: [{ card: 'c1', code: 'US-AAAAA' }, { card: 'c3', code: 'IMP-CCCCC' }],
+      batches: [
+        { kind: WorkBatchKind.Pass, members: [{ card: 's1', code: 'SPEC-SSSSS' }, { card: 'c1', code: 'US-AAAAA' }], own: true, reason: 'One pass' },
+        { kind: WorkBatchKind.Improvements, members: [{ card: 'c3', code: 'IMP-CCCCC' }], own: null, reason: null },
+      ],
+      own: { card: 's1', code: 'SPEC-SSSSS', requirements: ['S1'], covered: ['S2'] },
+      halted: 1,
+    })).toBe(true)
+    expect(plan({ version: WORK_PLAN_VERSION, steps: [], batches: null, own: null, halted: null })).toBe(true)
+    expect(plan({ version: WORK_PLAN_VERSION, steps: [], batches: [{ kind: 'everything', members: [] }] })).toBe(false)
+    expect(plan({ version: WORK_PLAN_VERSION, steps: [], batches: [{ kind: WorkBatchKind.Tasks }] })).toBe(false)
+    expect(plan({ version: WORK_PLAN_VERSION, steps: [], own: { code: 'SPEC-SSSSS' } })).toBe(false)
+    expect(plan({ version: WORK_PLAN_VERSION, steps: [], halted: -1 })).toBe(false)
   })
 
   test('a task\'s operations carry names, statuses, counts and backup ids — never a value', () => {

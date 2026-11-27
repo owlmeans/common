@@ -10,8 +10,10 @@ export interface TopologyCardHelper {
    * arrangement it describes is almost certainly still the default one.
    *
    * `areas` / `apps` are kept only when the whole app map narrows and validates
-   * (`appMapHelper.validate`); anything less reads as no apps. A package's `app` / `mount` are kept
-   * when well-formed. A record without them parses exactly as it always has.
+   * (`appMapHelper.validate`); anything less reads as no apps. `structure` likewise, only when every
+   * area and part narrows and it passes `projectStructureHelper.validateRef`. A package's `app` /
+   * `mount` / `part` / `partKind` / `purpose` are kept when well-formed (the last two only beside a
+   * `part`). A record without them parses exactly as it always has.
    */
   parseTopologyMeta: (data: unknown) => TopologyDescriptor | null
   /**
@@ -28,7 +30,8 @@ export interface TopologyCardHelper {
    * Rendered from the descriptor rather than maintained beside it, for the same reason the layout
    * tables are: a card that disagrees with the frontmatter teaches the wrong tree. A record with no
    * apps (or one) renders exactly as before apps existed; a split project adds `app: <name>` to its
-   * app packages' notes and an Apps table.
+   * app packages' notes and an Apps table; a record carrying a structure adds `part: <name>` to its
+   * packages' notes and a Structure table (parts, kinds, packages, edges, areas, purposes).
    */
   renderTopologyCard: (topology: TopologyDescriptor) => string
 }

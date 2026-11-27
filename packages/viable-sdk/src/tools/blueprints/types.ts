@@ -1,5 +1,5 @@
-import type { BlueprintCatalogue } from '@owlmeans/viable-common'
+import type { StackCatalogue } from '@owlmeans/viable-common'
 
 export interface BlueprintDescriptionHelper {
-  render: (catalogue: BlueprintCatalogue) => string
+  render: (catalogue: StackCatalogue) => string
 }

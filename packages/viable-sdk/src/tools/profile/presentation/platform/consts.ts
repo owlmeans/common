@@ -165,6 +165,63 @@ export const APPS_OUTPUT = {
   restarted: z.string().optional().describe('The application a restart restarted.'),
 }
 
+/** A change of the apps: the apps as it left them, what changed — or the tool still running. */
+export const APPS_CHANGE_OUTPUT = {
+  ...APPS_OUTPUT,
+  summary: z.string().optional().describe('What was changed, in one sentence.'),
+  warnings: z.array(z.string()).optional().describe('The steps that did not go through; the change itself is recorded.'),
+  running: z.string().optional().describe('The change is still being applied by this tool; project_apps shows the result once it is done.'),
+}
+
+// --- a project's structure step -----------------------------------------------------------------
+
+/** The choice in the tools' words: the blueprint is the kind of product, the case its kind of work, game kind or bot kit; the one stack unsaid. */
+const STRUCTURE_CHOICE = {
+  blueprint: z.string().optional().describe('The blueprint — the kind of product (web, game, work-management…); absent: decided by the platform.'),
+  case: z.string().optional().describe('The blueprint\'s case — a kind of work, a game kind or a bot kit; absent: none or decided by the platform.'),
+  botPlatforms: z.array(z.string()).optional().describe('A bot blueprint\'s messaging platforms.'),
+  tenancy: z.object({ users: z.boolean(), operators: z.boolean() }).optional()
+    .describe('Whether end users and staff each work inside organizations of their own.'),
+}
+
+const STRUCTURE_AREA = z.object({
+  key: z.string(),
+  kind: z.string().describe('guest, user, admin or operator.'),
+  segment: z.string().describe('Its path segment; empty for an application\'s home area.'),
+  label: z.string().optional(),
+})
+
+const STRUCTURE_PART = z.object({
+  name: z.string(),
+  kind: z.string().describe('common, shared, library, pair (an interface with its server), api, web or worker.'),
+  purpose: z.string(),
+  dependsOn: z.array(z.string()).describe('The parts it builds on; a web-only part names the one it calls.'),
+  mount: z.string().optional().describe('An application\'s path segment; empty for main at the root.'),
+  index: z.number().optional(),
+  areas: z.array(z.string()).optional().describe('The areas an application serves, its home area first.'),
+  queues: z.array(z.string()).optional().describe('The queues a worker consumes.'),
+})
+
+/** A project's structure: the step, the choice, the parts, the issues and the latest advice. */
+export const STRUCTURE_OUTPUT = {
+  projectId: PROJECT_ID,
+  origin: z.string().describe('creation or conversion.'),
+  status: z.string().describe('pending, analysing, awaiting (the person may change it), advising, uploading, specifying, specified or failed.'),
+  revision: z.number().describe('What update_project_structure names as revision.'),
+  ...STRUCTURE_CHOICE,
+  suggestion: z.object({ ...STRUCTURE_CHOICE, rationale: z.string() }).optional()
+    .describe('The platform\'s different blueprint and case, beside the ones chosen.'),
+  areas: z.array(STRUCTURE_AREA),
+  parts: z.array(STRUCTURE_PART),
+  issues: z.array(z.string()).describe('What the structure breaks; empty for a valid one.'),
+  advice: z.object({ rationale: z.string(), changes: z.array(z.string()) }).optional()
+    .describe('The latest advice and what it changed.'),
+  ideas: z.number().describe('How many ideas the person added.'),
+  kinds: z.array(z.string()).describe('The part kinds the platform takes beyond the stock ones.'),
+  error: z.string().optional().describe('Why the last step failed.'),
+  readonly: z.boolean().optional().describe('A conversion repairing a project in place: the structure is shown, never edited.'),
+}
+
 // --- a new project's files ----------------------------------------------------------------------
 
 const MATERIAL_OUTCOME = z.object({

@@ -235,9 +235,10 @@ const packedNumber = (value: string | undefined): number => {
  * A conversion verb would spend the plan's conversion or credits, and the caller has not said that a
  * person agreed (`confirm: true`): a start that would use the organization's `conversions` unit, or a
  * stage whose estimate reaches past what is left of the conversion limit into credit limits or
- * topped-up credits. Nothing was started. The caller tells the person what it costs and repeats the
- * call with `confirm: true` once they agree — unlike {@link ConnectConsentRequired}, this is agreed
- * to in the conversation, not in the browser.
+ * topped-up credits — or a structure step's advice round that the project's initialization allowance
+ * does not cover, so it would spend credits (`structure-advise`). Nothing was started. The caller tells
+ * the person what it costs and repeats the call with `confirm: true` once they agree — unlike
+ * {@link ConnectConsentRequired}, this is agreed to in the conversation, not in the browser.
  *
  * Packed like the other two refusals a connector phrases for a person, because only `type` and
  * `message` survive a marshal:

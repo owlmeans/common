@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { connect, type BlueprintCatalogue, ConnectHarness, ConnectLlm, ConnectTarget } from '@owlmeans/viable-common'
+import { connect, type StackCatalogue, ConnectHarness, ConnectLlm, ConnectTarget } from '@owlmeans/viable-common'
 import { makeSdkContext } from '../src/context/index.js'
 import { makeRemoteConnectorApi } from '../src/api/remote.js'
 import { catalogueHelper } from '../src/tools/catalogue.js'
@@ -8,7 +8,7 @@ import { ToolHostKind } from '../src/tools/consts.js'
 import type { ToolDeps } from '../src/tools/types.js'
 import { captureTransport } from './context.js'
 
-const installed: BlueprintCatalogue = { version: 1, defaultBlueprintId: 'custom', blueprints: [{
+const installed: StackCatalogue = { version: 1, defaultBlueprintId: 'custom', blueprints: [{
   id: 'custom', title: 'Installed target', language: 'TypeScript', runtime: 'Bun', framework: 'OwlMeans',
   capabilities: { postgres: true, kv: true, queue: false, worker: false, agents: false, validation: true, marketingConsent: true },
   cases: [{ id: 'crm-custom', title: 'CRM', description: 'Tenant customer work', tenancy: 'multiple-organizations',

@@ -5,10 +5,10 @@
  * make the platform's own list the closed set of everything that can exist — which is the shape
  * this whole abstraction was introduced to remove.
  */
-export const DEFAULT_BLUEPRINT_ID = 'owlmeans-fullstack-ts'
+export const DEFAULT_STACK_ID = 'owlmeans-fullstack-ts'
 
 /** Recorded on a project so a later run knows which blueprint drew it. */
-export const BLUEPRINT_META_KEY = 'blueprint'
+export const STACK_META_KEY = 'blueprint'
 
 /**
  * WHICH KIND of product is being built on a blueprint.
@@ -20,10 +20,10 @@ export const BLUEPRINT_META_KEY = 'blueprint'
  *
  * Deliberately NOT a second blueprint. Everything a case has to say is already a blueprint field,
  * so a case is a PATCH and the resolution order stays base → case → per-run overrides. That is
- * also why adding one is a data change: nothing reads `BlueprintCase` except the case table
- * (`BLUEPRINT_CASES` in `@owlmeans/viable`) and the prompt that classifies a project into it.
+ * also why adding one is a data change: nothing reads `Blueprint` except the case table
+ * (`BLUEPRINTS` in `@owlmeans/viable`) and the prompt that classifies a project into it.
  */
-export enum BlueprintCase {
+export enum Blueprint {
   /** A web application whose every feature fits inside a request. No queue, no worker, no agents. */
   Web = 'web',
   /** A web application with work that genuinely belongs off the request path. */
@@ -129,7 +129,7 @@ export enum BotKitAction {
  * @deprecated The messaging platforms a bot product lived on, verbatim as the 0.1 contract named them
  * — kept only so code written against that enum still compiles. A platform is a string id now
  * (`fields.botPlatforms`), owned by its plugin package; the platforms a deployment supports reach a
- * consumer through the blueprint catalogue (`SupportedBlueprintCase.botPlatforms`), never through
+ * consumer through the blueprint catalogue (`SupportedBlueprint.botPlatforms`), never through
  * this enum. New code compares string ids.
  */
 export enum BotPlatform {
@@ -159,22 +159,22 @@ export const CASE_QUOTE_MAX = 1024
  * technology — the ladder exists so that adding one is a data change. `experience` is last and
  * optional: it shares no key with the five build layers, so its place decides nothing today.
  */
-export enum BlueprintLayer {
+export enum StackLayer {
   Technology = 'technology',
-  Stack = 'stack',
+  Framework = 'framework',
   Template = 'template',
   CreateApp = 'create-app',
   Packages = 'packages',
   Experience = 'experience',
 }
 
-export const BLUEPRINT_LAYER_ORDER: BlueprintLayer[] = [
-  BlueprintLayer.Technology,
-  BlueprintLayer.Stack,
-  BlueprintLayer.Template,
-  BlueprintLayer.CreateApp,
-  BlueprintLayer.Packages,
-  BlueprintLayer.Experience,
+export const STACK_LAYER_ORDER: StackLayer[] = [
+  StackLayer.Technology,
+  StackLayer.Framework,
+  StackLayer.Template,
+  StackLayer.CreateApp,
+  StackLayer.Packages,
+  StackLayer.Experience,
 ]
 
 /**
@@ -194,7 +194,7 @@ export enum LandingGatePreference {
   Discourage = 'discourage',
 }
 
-export enum BlueprintPatchKind {
+export enum StackPatchKind {
   /** Deep-merge a JSON document — the manifests, the tsconfigs. */
   JsonMerge = 'json-merge',
   /** Rewrite the `<head>` of an HTML document from the project's identity. */

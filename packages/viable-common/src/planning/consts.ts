@@ -1,4 +1,5 @@
 import { CodeScope, CodeStyle, type CodePolicy } from '@owlmeans/planning'
+import type { ViableBlueprintBy } from './types.js'
 
 /**
  * The OwlMeans Viable vocabulary over `@owlmeans/planning`.
@@ -220,6 +221,12 @@ export const VIABLE_TYPE_REASON_MAX = 1024
  * on the confirm transit's `changes.fields.initScope` (and so kept on the project card); absent is
  * the preview, as every confirm before the choice existed.
  */
+/**
+ * Who chose a project's case (`fields.caseBy`): the person, on the home screen or the structure step
+ * (`person`), or the classifier (`model`). Absent on a project created before the choice existed.
+ */
+export const VIABLE_BLUEPRINT_SOURCES: readonly ViableBlueprintBy[] = Object.freeze(['person', 'model'])
+
 export enum ViableInitScope {
   Preview = 'preview',
   Implement = 'implement',

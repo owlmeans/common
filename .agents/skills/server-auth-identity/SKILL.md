@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth-identity
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-identity": "^0.2.3"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-identity": "^0.2.4-rc.0"` in `dependencies`
 
 The identity store a deployment owns when it does not delegate identity to an external IAM. It
 answers *who is this person* (account + credentials), *what are they in this app and organization*

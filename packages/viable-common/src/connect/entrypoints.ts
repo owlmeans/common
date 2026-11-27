@@ -1,4 +1,4 @@
-import type { BlueprintCatalogue } from '../blueprint/catalogue/types.js'
+import type { StackCatalogue } from '../stack/catalogue/types.js'
 import { AgentSteerArgsSchema, AgentStopArgsSchema, WorkcardBatchStartArgsSchema } from '../batch/schemas.js'
 import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, WorkcardBatchStartArgs, WorkcardBatchView } from '../batch/types.js'
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
@@ -21,14 +21,18 @@ import {
   ConnectProductionRedirectsBodySchema, ConnectIamGroupParamsSchema, ConnectIamMemberParamsSchema,
   ConnectIamOrganizationParamsSchema, ConnectIamUserParamsSchema, ConnectActivityQuerySchema, ConnectFeedQuerySchema,
   ConnectCreateWithMaterialsBodySchema, ConnectMaterialQuerySchema, ConnectMaterialsDraftBodySchema,
-  ConnectAppParamsSchema, ConnectAppRestartBodySchema,
+  ConnectAppParamsSchema, ConnectAppRestartBodySchema, ConnectAppAddBodySchema, ConnectAreaAddBodySchema, ConnectAreaBindBodySchema,
   ConnectCardParamsSchema, ConnectCardsRerunBodySchema, ConnectCardsRunAllBodySchema, ConnectCardsTogetherBodySchema,
+  ConnectCreateWithChoiceBodySchema, ConnectConvertCreateWithChoiceBodySchema, ConnectStructureSubmitBodySchema,
 } from './schemas.js'
 import type {
   ConnectCardParams, ConnectCardStatus, ConnectCardsPlanView, ConnectCardsRerunBody, ConnectCardsRerunView,
   ConnectCardsRunAllBody, ConnectCardsTogetherBody, ConnectCardsTogetherView, ConnectRequestView,
 } from './cards/types.js'
-import type { ConnectAppParams, ConnectAppRestartBody, ConnectAppsView } from './apps/types.js'
+import type {
+  ConnectAppAddBody, ConnectAppParams, ConnectAppRestartBody, ConnectAppsChangeView, ConnectAppsView, ConnectAreaAddBody,
+  ConnectAreaBindBody,
+} from './apps/types.js'
 import type {
   ConnectAccessTokenList, ConnectAccessTokenParams, ConnectAccessTokenRevoked, ConnectBrandingBackfill, ConnectIntentPickup,
   ConnectIntentPickupBody, ConnectOrganizationBranding, ConnectOrganizationBrandingSave, ConnectPrivacyChoices,
@@ -38,7 +42,8 @@ import type { ConnectBrandingCreditBody, ConnectProjectBranding, ConnectProjectB
 import type { ConnectCallCollectParams, ConnectCallCollectQuery, ConnectCallResult } from './call/types.js'
 import type { ConnectConfigSaveBody, ConnectProjectConfig, ConnectScopeQuery } from './config/types.js'
 import type {
-  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody, ConversionStatusView, ConvertCheck
+  ConnectConvertCreateBody, ConnectConvertCreateWithChoiceBody, ConnectConvertProceedBody, ConnectConvertStartBody,
+  ConversionStatusView, ConvertCheck,
 } from './conversion/types.js'
 import type { ConnectEntrypointOptions, ConnectGateRef } from './entrypoints/types.js'
 import type {
@@ -60,7 +65,8 @@ import type { ConnectInquiryAnswerBody, ConnectOpResult } from './ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
 import type {
   ConnectAgentLock, ConnectAttachBody, ConnectConfirmBody, ConnectConfirmImplementationBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody,
-  ConnectProjectStatus, ConnectProjectSummary, ConnectStoryStatus
+  ConnectProjectStatus, ConnectProjectSummary, ConnectStoryStatus, ConnectCreateWithChoiceBody, ConnectProjectStructure,
+  ConnectStructureSubmitBody,
 } from './project/types.js'
 import type {
   ConnectProductionAuth, ConnectProductionDomain, ConnectProductionDomainBody, ConnectProductionRedirects,
@@ -160,7 +166,7 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     base: accountBase,
     blueprints: protocol(
       route(connect.account.blueprints, '/blueprints', { parent: accountBase, method: RouteMethod.GET }),
-      contract(typed<BlueprintCatalogue>()),
+      contract(typed<StackCatalogue>()),
     ),
     // The organization's branding defaults: read, a patch saved (its name and copyright judged by
     // the content gate), and copied into the projects whose rows are still blank.
@@ -302,6 +308,28 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       route(connect.project.createWithReferences, '/project/with-references', { parent: base, method: RouteMethod.POST }),
       contract.request({ body: typed<ConnectCreateBody>(ConnectCreateBodySchema) }, typed<ConnectProjectStatus>())
     ),
+    // The create with the person's choice made before the specification — blueprint, case, category, a
+    // bot's platforms, tenancy — and the stop at the structure step; the references read, the files
+    // announced when there are any. The same answer; no payment gate on the route: the create gate is checked inside.
+    createWithChoice: protocol(
+      route(connect.project.createWithChoice, '/project/with-choice', { parent: base, method: RouteMethod.POST }),
+      contract.request({ body: typed<ConnectCreateWithChoiceBody>(ConnectCreateWithChoiceBodySchema) }, typed<ConnectProjectStatus>())
+    ),
+    // The project's structure: read (the structure step's record, the card's after the initialization) and
+    // submitted from the structure step. The ownership gate alone: an advice round's gate is the handler's.
+    structure: {
+      get: protocol(
+        route(connect.project.structure.get, '/project/:id/structure', { parent: base, method: RouteMethod.GET }),
+        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectProjectStructure>())
+      ),
+      submit: protocol(
+        route(connect.project.structure.submit, '/project/:id/structure', { parent: base, method: RouteMethod.POST }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+          body: typed<ConnectStructureSubmitBody>(ConnectStructureSubmitBodySchema),
+        }, typed<ConnectProjectStructure>())
+      ),
+    },
     // The project's files: the upload (only where a connector reads a disk), the drafting asked again,
     // and the catalogue and one material's text — read on every host. The ownership gate alone.
     materials: {
@@ -692,6 +720,24 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     ),
     },
 
+    // The project's app structure, changed by the person: each change is its own short run under the
+    // project lock, answered with the apps as they then stand. Under `base` — the guard and the
+    // ownership gate; free flight's floor is the handler's, never a payment gate.
+    apps: {
+    add: protocol(
+      route(connect.apps.add, '/project/:id/apps/add', { parent: base, method: RouteMethod.POST }),
+      contract.request({ ...projectParams, body: typed<ConnectAppAddBody>(ConnectAppAddBodySchema) }, typed<ConnectAppsChangeView>()),
+    ),
+    addArea: protocol(
+      route(connect.apps.addArea, '/project/:id/apps/areas/add', { parent: base, method: RouteMethod.POST }),
+      contract.request({ ...projectParams, body: typed<ConnectAreaAddBody>(ConnectAreaAddBodySchema) }, typed<ConnectAppsChangeView>()),
+    ),
+    bindArea: protocol(
+      route(connect.apps.bindArea, '/project/:id/apps/areas/bind', { parent: base, method: RouteMethod.POST }),
+      contract.request({ ...projectParams, body: typed<ConnectAreaBindBody>(ConnectAreaBindBodySchema) }, typed<ConnectAppsChangeView>()),
+    ),
+    },
+
     slot: {
     list: protocol(
       route(connect.slot.list, '/slot', { parent: base, method: RouteMethod.GET }),
@@ -852,6 +898,13 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     create: protocol(
       route(connect.convert.create, '/convert', { parent: base, method: RouteMethod.POST }),
       contract.request({ body: typed<ConnectConvertCreateBody>(ConnectConvertCreateBodySchema) }, typed<ConversionStatusView>()),
+    ),
+    // `create` with the person's blueprint and case (each absent Auto), settled at import: the same answer.
+    createWithChoice: protocol(
+      route(connect.convert.createWithChoice, '/convert/with-choice', { parent: base, method: RouteMethod.POST }),
+      contract.request({
+        body: typed<ConnectConvertCreateWithChoiceBody>(ConnectConvertCreateWithChoiceBodySchema),
+      }, typed<ConversionStatusView>()),
     ),
     check: protocol(
       route(connect.convert.check, '/convert/:id/check', { parent: base, method: RouteMethod.GET }),

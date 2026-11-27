@@ -4,6 +4,7 @@ import type {
 } from '../../convert/consts.js'
 import type { ConversionEstimate, WorkcardEstimateBand } from '../../convert/estimate/types.js'
 import type { ConversionStackRef } from '../../convert/record/types.js'
+import type { CatalogueChoice } from '../../stack/choice/types.js'
 import type { ConnectTarget, ConnectWaitReason } from '../consts.js'
 import type { InquiryPayload } from '../ops/types.js'
 
@@ -25,6 +26,17 @@ export interface ConnectConvertCreateBody {
    * parent. Absent, the platform performs them.
    */
   sessionId?: string
+}
+
+/**
+ * File a project to convert with the person's choice (`connect.convert.createWithChoice`): the create
+ * body and the {@link CatalogueChoice} keys — the blueprint, the case and its category, a bot's
+ * platforms, the tenancy flags; each absent is Auto. Settled at import and recorded on the card as the
+ * person's; the conversion's own structure is read and edited at its intake (`connect.project.structure.*`).
+ * The keys are the registry's words — `convert_project`'s `blueprint` travels as `case`, its `case` as
+ * `category` ({@link CatalogueChoice}).
+ */
+export interface ConnectConvertCreateWithChoiceBody extends ConnectConvertCreateBody, CatalogueChoice {
 }
 
 /**

@@ -15,7 +15,7 @@ the Viable platform has no use for it. The package's skills are `viable-common` 
 ## Installation
 
 ```bash
-bun add @owlmeans/viable-common@^0.2.4-rc.0
+bun add @owlmeans/viable-common@^0.2.4-rc.1
 ```
 
 ## What is in it
@@ -169,7 +169,7 @@ The full export list is the package's `src/` barrel; the groups an app reaches f
 | Planning | `VIABLE_PROJECT_TYPE`, `VIABLE_USER_STORY_TYPE`, `VIABLE_SPEC_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableWorkcardStatus`, `ViableProjectStatus`, `ViableChannel`, `ViableProjectCard`, `ViableWorkcard`, `viableCardHelper`, `viableSpecHelper`, `landingSentenceHelper` |
 | Project refusals | `ProjectNotFound`, `ProjectPermissionError`, `ProjectWorkcardNotFound`, `ProjectWorkcardMissconfigured`, `ProjectAgentOccupied` and their bases |
 | Areas and tenancy | `ProjectArea`, `AREA_PATHS`, `AREA_ACCESS`, `AREA_TIER`, `ADMIN_PERMISSION`, `OPERATOR_PERMISSION`, `ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyHelper`, `TENANCY_QUOTE_MAX` |
-| Blueprint and skills | `Blueprint`, `BlueprintRef`, `BlueprintCase`, `GameKind`, `WorkKind`, `landingGatePreferenceOf`, `ViableSkill`, `ViablePersona` |
+| Blueprint and skills | `Blueprint`, `StackRef`, `Blueprint`, `GameKind`, `WorkKind`, `landingGatePreferenceOf`, `ViableSkill`, `ViablePersona` |
 | Design and scaffold | `WorkcardDesign`, `ScaffoldPlan`, `ScaffoldPlanSchema`, `landingPlanHelper`, `WorkcardDesignPort`, `AccessBlock`, `PermissionDefault` |
 | Slot metadata | `SlotMetadata`, `metadataConfigs`, `metadataLists`, `metadataSecrets`, `APP_SECRET_ENV`, `BRANDING_ENV_KEYS`, `brandingEnv` |
 | Agent output | `agentPresentationHelper`, `AgentMessageCategory`, `AgentStructuredKind`, `AgentCodeLanguage`, `AgentMarkdownKind`, `AgentMessageRole` |
@@ -245,7 +245,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.2.4-rc.0
+npx @owlmeans/agent-skills@^0.2.4-rc.1
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

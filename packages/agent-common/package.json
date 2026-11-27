@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent-common",
-  "version": "0.2.3",
+  "version": "0.2.4-rc.0",
   "license": "MIT",
   "homepage": "https://owlmeans.com/docs/",
   "repository": {
@@ -32,17 +32,17 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.2.3",
+    "@owlmeans/dep-config": "^0.2.4-rc.0",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/error": "^0.2.3",
-    "@owlmeans/flow": "^0.2.3",
-    "@owlmeans/llm-common": "^0.2.3",
-    "@owlmeans/resource": "^0.2.3"
+    "@owlmeans/error": "^0.2.4-rc.0",
+    "@owlmeans/flow": "^0.2.4-rc.0",
+    "@owlmeans/llm-common": "^0.2.4-rc.0",
+    "@owlmeans/resource": "^0.2.4-rc.0"
   },
   "publishConfig": {
     "access": "public"

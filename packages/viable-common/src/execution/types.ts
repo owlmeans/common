@@ -1,4 +1,4 @@
-import type { BlueprintRef } from '../blueprint/types.js'
+import type { StackRef } from '../stack/types.js'
 import type {
   ExecutionState as LlmExecutionState, TaskExecutionState as LlmTaskExecutionState,
 } from '@owlmeans/llm-common'
@@ -50,7 +50,7 @@ export interface ExecutionState extends LlmExecutionState {
    *
    * Absent means the platform default — every project created before blueprints existed.
    */
-  blueprint?: BlueprintRef
+  blueprint?: StackRef
   /**
    * What a CONVERTED project's origin called its tenant: the label, the key fields it keyed every
    * record by, its records of people. Facts, never a map — derived by the platform from the project

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import {
-  APP_BUILD_DEADLINE_STEP, COMMAND_DEADLINES, COMMAND_TIMEOUTS, DEFAULT_COMMAND_DEADLINE, SHELL_COMMAND_TIMEOUTS,
+  APP_BUILD_DEADLINE_STEP, PART_BUILD_DEADLINE_STEP, COMMAND_DEADLINES, COMMAND_TIMEOUTS, DEFAULT_COMMAND_DEADLINE, SHELL_COMMAND_TIMEOUTS,
   SLOT_RUNTIME_CAPABILITIES, SlotCommandType, SlotDatabaseCommand, SlotFileCommand, SlotGitCommand, SlotRuntimeCapability,
   SlotShellCommand,
 } from '../src/slot/consts.js'
@@ -73,7 +73,7 @@ describe('viable-common - the two runtime commands', () => {
   })
 
   test('the capabilities a runtime of this version reports', () => {
-    expect([...SLOT_RUNTIME_CAPABILITIES]).toEqual(['apps', 'restart-app'])
+    expect([...SLOT_RUNTIME_CAPABILITIES]).toEqual(['apps', 'restart-app', 'structure'])
     expect(Object.values(SlotRuntimeCapability)).toEqual([...SLOT_RUNTIME_CAPABILITIES])
   })
 
@@ -82,5 +82,15 @@ describe('viable-common - the two runtime commands', () => {
     expect(validate({ type: SlotCommandType.Shell, command: SlotShellCommand.RestartApp, args: { app: 'admin' } })).toBe(true)
     expect(validate({ type: SlotCommandType.Shell, command: SlotShellCommand.RuntimeInfo })).toBe(true)
     expect(validate({ type: SlotCommandType.Shell, command: SlotShellCommand.Build, args: { app: 'admin' } })).toBe(true)
+    expect(validate({ type: SlotCommandType.Shell, command: SlotShellCommand.RestartWorker, args: { part: 'mailer' } })).toBe(true)
+  })
+
+  test('a Build grows with runnable parts beyond the pairs, as with apps', () => {
+    const base = slotCommandHelper.commandDeadline(SlotCommandType.Shell, SlotShellCommand.Build)
+    expect(slotCommandHelper.commandDeadline(SlotCommandType.Shell, SlotShellCommand.Build, { apps: 1, parts: 0 })).toBe(base)
+    expect(slotCommandHelper.commandDeadline(SlotCommandType.Shell, SlotShellCommand.Build, { apps: 3, parts: 2 }))
+      .toBe(base + 2 * APP_BUILD_DEADLINE_STEP + 2 * PART_BUILD_DEADLINE_STEP)
+    expect(slotCommandHelper.commandDeadline(SlotCommandType.Shell, SlotShellCommand.RestartWorker, { parts: 4 }))
+      .toBe(slotCommandHelper.commandDeadline(SlotCommandType.Shell, SlotShellCommand.RestartWorker))
   })
 })

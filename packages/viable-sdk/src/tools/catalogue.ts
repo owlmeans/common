@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { CommitTimeout, TransitionAction, WorkcardKind } from '@owlmeans/planning'
-import { APP_NAME_PATTERN, AREA_KEY_MAX, AREA_KEY_PATTERN, MAIN_APP, type ConnectAppsView, MATERIAL_PATH_MAX, MATERIALS_LIMITS, AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, WORKCARD_BATCH_MAX, type WorkcardBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, WORKCARD_BAND_MAX_USD, WORKCARD_BAND_MIN_USD, VIABLE_USER_STORY_TYPE, ViableWorkcardTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableWorkcard, CONNECT_CARDS_TOGETHER_MAX, VIABLE_CONTAINER_TYPES, VIABLE_TASK_TYPE, ViableSpecCategory, ViableTypeBy, WORK_NAME_MAX, WORK_TEXT_MAX, WorkProposalStatus, viableWorkHelper, type AnyViableWorkCard, type WorkProposals, ViableImplementChoice } from '@owlmeans/viable-common'
+import { APP_NAME_PATTERN, AREA_KEY_MAX, AREA_KEY_PATTERN, AREA_LABEL_MAX, AREA_SEGMENT_PATTERN, MAIN_APP, ProjectArea, TARGET_APP_MOUNT_PATTERN, type ConnectAppsView, MATERIAL_PATH_MAX, MATERIALS_LIMITS, AGENT_NOT_RUNNING_MARKER, AGENT_STEER_PROMPT_MAX, AgentNotRunning, AgentStopScope, WORKCARD_BATCH_MAX, type WorkcardBatchView, ConnectConfirmationRequired, ConnectTarget, IamDefaultClass, IamGrantMode, type ConnectLlm, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MetadataListKind, MODEL_TIER_ROLES, OriginKind, SpecCategory, WORKCARD_BAND_MAX_USD, WORKCARD_BAND_MIN_USD, VIABLE_USER_STORY_TYPE, ViableWorkcardTransition, type ConnectConfigScope, type ConnectPipelineState, type ConnectProductionDomain, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSlotView, type ConnectStoryStatus, type IamGroupBundle, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ConnectConvertCreateBody, type ViableWorkcard, CONNECT_CARDS_TOGETHER_MAX, VIABLE_CONTAINER_TYPES, VIABLE_TASK_TYPE, ViableSpecCategory, ViableTypeBy, WORK_NAME_MAX, WORK_TEXT_MAX, WorkProposalStatus, viableWorkHelper, type AnyViableWorkCard, type WorkProposals, ViableImplementChoice, type ConnectProjectStructure } from '@owlmeans/viable-common'
 import {
   COMMIT_WAIT_MS, HANDOVER_WAIT_MS, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
 } from '../consts.js'
@@ -35,6 +35,11 @@ import {
 import type { CardInput } from './cards/types.js'
 import { requestToolOf } from './request.js'
 import { appsToolHelper } from './apps.js'
+import { appsChangeToolHelper } from './apps-change.js'
+import { APPS_CHANGE_RUN } from './apps-change/consts.js'
+import { attendedCallHelper } from './attended.js'
+import { structureToolHelper } from './structure.js'
+import { BLUEPRINTS_MAPPING, CHOICE_INPUT, CHOICE_SAID, CHOICE_UNSUPPORTED, CONVERT_CHOICE_SAID, REVIEW_INPUT, STRUCTURE_MEANING, STRUCTURE_UNSUPPORTED, SUBMIT_INPUT } from './structure/consts.local.js'
 import { LOCAL_APP_RESTART_HINT, ONE_APP_PLATFORM, RESTART_WHOLE_PREVIEW } from './apps/consts.local.js'
 import type { ToolDeps, ToolDefinition, ToolHost, ToolResult } from './types.js'
 import type { CatalogueHelper } from './catalogue/types.js'
@@ -173,6 +178,27 @@ const projectOf = (args: Record<string, unknown>, deps: { attached: () => string
 
   return project
 }
+
+/** An area of the project's own as the app tools take it — a key, a kind, and its optional segment, label and restriction. */
+const AREA_FIELDS = {
+  key: z.string().regex(AREA_KEY_PATTERN).max(AREA_KEY_MAX)
+    .describe('The new area\'s key: lower-case words joined by single hyphens, never guest/user/admin/operator — e.g. "partner-portal".'),
+  kind: z.enum(Object.values(ProjectArea) as [string, ...string[]])
+    .describe('The kind it works like — guest (public, main app only), user (signed-in end users), admin (the owner\'s), operator (staff): its access and surface are that kind\'s.'),
+  segment: z.string().regex(AREA_SEGMENT_PATTERN).min(1).max(AREA_KEY_MAX).optional()
+    .describe('Its one path segment inside its app; its key when left out.'),
+  label: z.string().min(1).max(AREA_LABEL_MAX).optional().describe('What a person reads for it; the kind\'s label when left out.'),
+  restricted: z.boolean().optional()
+    .describe('Only the people the owner grants project--<key> enter it (a signed-in kind only).'),
+}
+
+/** An area the person named, as a change body carries it: the optional parts only when given. */
+const areaOf = (args: Record<string, unknown>) => ({
+  key: String(args.key), kind: String(args.kind),
+  ...(typeof args.segment === 'string' && args.segment !== '' ? { segment: args.segment } : {}),
+  ...(typeof args.label === 'string' && args.label.trim() !== '' ? { label: args.label.trim() } : {}),
+  ...(typeof args.restricted === 'boolean' ? { restricted: args.restricted } : {}),
+})
 
 const projectResult = (status: ConnectProjectStatus) => ok(
   statusTextHelper.renderProjectStatus(status), { project: status as unknown as Record<string, unknown> }
@@ -540,7 +566,8 @@ export const catalogue: ToolDefinition[] = [
   {
     name: 'describe_blueprints',
     title: 'Supported blueprints, cases and application categories',
-    description: 'Read the installed blueprint registry, its complete case list, supported app categories, tenancy and planning resources. Call before choosing a project type. Authenticated, read-only, model-free; requires no project or connector session.',
+    description: 'Read the installed blueprint registry, its complete case list, supported app categories, tenancy and planning resources. Call before choosing a project type. '
+      + BLUEPRINTS_MAPPING + ' Authenticated, read-only, model-free; requires no project or connector session.',
     input: {},
     availability: toolHostHelper.anyHost,
     annotations: READ_ONLY,
@@ -677,23 +704,39 @@ export const catalogue: ToolDefinition[] = [
     title: 'Start a project from a description',
     description:
       'Describe the application in a sentence or two. The platform writes a specification, names it'
-      + ' and drafts a vision. ' + REFERENCES_READ
+      + ' and drafts a vision. ' + REFERENCES_READ + ' ' + CHOICE_SAID
       + ' Returns the project status; read the draft and call confirm_project.',
-    input: { prompt: z.string().min(1) },
+    input: { prompt: z.string().min(1), ...CHOICE_INPUT, review_structure: REVIEW_INPUT },
     availability: toolHostHelper.anyHost,
     annotations: WRITE,
     run: async (args, deps) => {
+      // A choice made before the specification travels on its own route; a connector or a platform
+      // without it creates NOTHING — the choice is never dropped in silence.
+      const chosen = structureToolHelper.choiceOf(args)
+      if (chosen.asked && typeof deps.api.project.createWithChoice !== 'function') {
+        return fail(CHOICE_UNSUPPORTED('create_project', 'created'))
+      }
       // In the delegated mode the platform's checks of the prompt run before the project exists, so
       // they go to a session that names no project yet — and the drafting after them to the
       // project's own, attached as soon as the platform answers with it.
       const sessionId = toolHostHelper.performsModelTasks(deps.host) ? await unattachedSessionId(deps) : undefined
-      // The platform reads the prompt's references (links, research requests, npm packages); an older
-      // platform without that route drafts from the released create, the prompt as plain text.
-      const status = await referencesToolOf(deps.api).create(
-        args.prompt as string,
-        deps.host.target === ConnectTarget.Local ? ConnectTarget.Local : ConnectTarget.Cloud,
-        sessionId,
-      )
+      const target = deps.host.target === ConnectTarget.Local ? ConnectTarget.Local : ConnectTarget.Cloud
+      let status: ConnectProjectStatus
+      if (chosen.asked) {
+        try {
+          status = await deps.api.project.createWithChoice!({
+            prompt: args.prompt as string, target, ...(sessionId != null ? { sessionId } : {}), ...chosen.choice,
+            ...(chosen.review ? { reviewStructure: true } : {}),
+          })
+        } catch (e) {
+          if (structureToolHelper.routeMissing(e)) return fail(CHOICE_UNSUPPORTED('create_project', 'created'))
+          throw e
+        }
+      } else {
+        // The platform reads the prompt's references (links, research requests, npm packages); an older
+        // platform without that route drafts from the released create, the prompt as plain text.
+        status = await referencesToolOf(deps.api).create(args.prompt as string, target, sessionId)
+      }
       deps.attach(status.project.id)
       if (sessionId != null) await ensureSession(deps, status.project.id)
 
@@ -712,14 +755,16 @@ export const catalogue: ToolDefinition[] = [
       + ' writes the specification, name and vision from the description and their text (links and "search'
       + ' online" requests in the description are read too, as create_project reads them) — model work that'
       + ' spends credits (the plan\'s project allowance first). Returns the project status and what became'
-      + ' of each file; read the draft with project_status and call confirm_project. Each call creates'
-      + ' another project, so calling it again spends again.',
+      + ' of each file; read the draft with project_status and call confirm_project. ' + CHOICE_SAID
+      + ' Each call creates another project, so calling it again spends again.',
     input: {
       prompt: z.string().min(1),
       paths: z.array(z.string().min(1)).min(1).max(MATERIALS_LIMITS.files).describe(
         'Files and folders on this machine — absolute, or relative to the project directory. A folder is'
           + ' sent with every file under it, its own name kept as the first segment; links are never followed.'
       ),
+      ...CHOICE_INPUT,
+      review_structure: REVIEW_INPUT,
     },
     availability: toolHostHelper.uploadsMaterials,
     annotations: WRITE,
@@ -732,15 +777,34 @@ export const catalogue: ToolDefinition[] = [
         return fail(`Nothing was created: none of the files can be sent.\n${materialsToolHelper.renderOutcomes(before)}`)
       }
 
+      // A choice made before the specification travels on the create with the choice, the files announced
+      // beside it; without that route nothing is created and nothing sent.
+      const chosen = structureToolHelper.choiceOf(args)
+      if (chosen.asked && typeof deps.api.project.createWithChoice !== 'function') {
+        return fail(CHOICE_UNSUPPORTED('create_project_with_files', 'created or sent'))
+      }
       // As create_project: in the delegated mode the platform's checks of the prompt go to a session
       // that names no project yet, and everything after them to the project's own.
       const sessionId = toolHostHelper.performsModelTasks(deps.host) ? await unattachedSessionId(deps) : undefined
-      const status = await deps.api.materials.create({
+      const body = {
         prompt: args.prompt as string,
         materials: checked.totals,
         target: deps.host.target === ConnectTarget.Local ? ConnectTarget.Local : ConnectTarget.Cloud,
         ...(sessionId != null ? { sessionId } : {}),
-      })
+      }
+      let status: ConnectProjectStatus
+      if (chosen.asked) {
+        try {
+          status = await deps.api.project.createWithChoice!({
+            ...body, ...chosen.choice, ...(chosen.review ? { reviewStructure: true } : {}),
+          })
+        } catch (e) {
+          if (structureToolHelper.routeMissing(e)) return fail(CHOICE_UNSUPPORTED('create_project_with_files', 'created or sent'))
+          throw e
+        }
+      } else {
+        status = await deps.api.materials.create(body)
+      }
       const projectId = status.project.id
       deps.attach(projectId)
       // The seal hands the drafting to the project's delegating session: it must be attached first.
@@ -932,8 +996,91 @@ export const catalogue: ToolDefinition[] = [
       for (const warning of [status.slot?.lastError, status.slot?.buildWarning, status.slot?.backendWarning]) {
         if (warning != null && warning !== '') lines.push(`warning: ${refusalHelper.refusalPhrase(warning)}`)
       }
+      // A draft waiting for the person with no question asked waits at its structure step.
+      if (statusTextHelper.atStructureStep(status)) {
+        lines.push(`waiting for the person: the project structure — project_structure { "projectId": "${status.project.id}" }`)
+      }
 
       return ok(lines.join('\n'), status as unknown as Record<string, unknown>)
+    },
+  },
+
+  {
+    name: 'project_structure',
+    title: 'The project\'s structure',
+    description:
+      `A project's structure: ${STRUCTURE_MEANING}, the issues the platform finds in it and the part kinds it`
+      + ' takes. While a new project waits at its structure step (create_project with review_structure) — or a'
+      + ' conversion after its intake — it also shows the platform\'s suggested case, the latest advice and its'
+      + ' changes, and the structure as JSON to edit; once the project is initialized, the structure it was built'
+      + ' with. Reading spends nothing.',
+    input: { projectId: z.string().optional() },
+    availability: toolHostHelper.anyHost,
+    annotations: READ_ONLY,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      if (typeof deps.api.project.structure !== 'function') return fail(STRUCTURE_UNSUPPORTED)
+      let view: ConnectProjectStructure
+      try {
+        view = await deps.api.project.structure(project)
+      } catch (e) {
+        if (structureToolHelper.routeMissing(e)) return fail(STRUCTURE_UNSUPPORTED)
+        throw e
+      }
+
+      return ok(structureToolHelper.renderStructure(view), view as unknown as Record<string, unknown>)
+    },
+  },
+
+  {
+    name: 'update_project_structure',
+    title: 'Change or accept the project\'s structure',
+    description:
+      'Submit the structure step of a project waiting at it: the revision project_structure printed, the'
+      + ' blueprint and case (the choice arguments given replace the whole choice; none given keeps it) and the'
+      + ' structure as edited (every part with its purpose; left out, the one in force stays). With advise: true'
+      + ' or ideas (the user\'s own words, links included) it is an ADVICE round: the platform proposes an updated'
+      + ' structure from the change — model work billed as part of the initialization, the plan\'s allowance for'
+      + ' the project first, then credits; when a round would spend credits the tool answers with the cost and'
+      + ' starts nothing — tell the user, and repeat it with confirm: true only after they agree. After an advice'
+      + ' round the platform may apply the advice and go on to the specification by itself; project_structure'
+      + ' says which. Without advice it takes the structure and continues: a new project\'s specification is'
+      + ' written (project_status, then confirm_project), a conversion keeps it for its analysis'
+      + ' (proceed_conversion). Calling it again with advice asks for advice again and spends again.',
+    input: { projectId: z.string().optional(), ...SUBMIT_INPUT },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      if (typeof deps.api.project.submitStructure !== 'function') return fail(STRUCTURE_UNSUPPORTED)
+      const body = structureToolHelper.submitOf(args)
+      const advice = structureToolHelper.isAdvice(body)
+      // An advice round's content check runs on the project's own session where it delegates.
+      await ensureSession(deps, project)
+      try {
+        const view = await deps.api.project.submitStructure(project, body)
+        const lead = advice
+          ? 'Advice asked: the platform proposes an updated structure from the change.'
+          : 'The structure is taken.'
+
+        return ok(`${lead}\n${structureToolHelper.renderStructure(view)}`, view as unknown as Record<string, unknown>)
+      } catch (e) {
+        if (structureToolHelper.routeMissing(e)) return fail(STRUCTURE_UNSUPPORTED)
+        // An advice round that would spend credits waits for the person's agreement: answered with its cost
+        // and the exact call to repeat — the project named, the change repeated, confirm: true.
+        const { confirm: _confirm, ...repeat } = args
+        const retry = confirmedCall('update_project_structure', { ...repeat, projectId: project })
+        const text = e instanceof ConnectConfirmationRequired
+          ? refusalHelper.confirmationRequiredPhrase(e, retry)
+          : advice && body.confirm !== true && refusalHelper.refusalMessage(e).includes(BARE_428)
+            ? refusalHelper.unconfirmedAdvicePhrase(retry)
+            : null
+        if (text == null) throw e
+        deps.log(`update_project_structure refused: ${refusalHelper.refusalMessage(e)}`)
+        deps.notify?.('warning', text)
+
+        return fail(text)
+      }
     },
   },
 
@@ -2277,21 +2424,28 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
+
       // The triaging route first; an older platform answers the released open-ended change, exactly as before.
-      const asked = requestToolOf(deps.api).ask(project, args.prompt as string)
-      const outcome = await within(asked, REQUEST_ANSWER_MS)
-      if (outcome == null) {
-        asked.catch(e => deps.log(`modify_project: the request ended later with ${refusalHelper.refusalMessage(e)}`))
-        const status = await deps.api.project.status(project)
+      // Attended: the triage may wait for the preview to wake, so an identical repeat collects what it became.
+      return await attendedCallHelper.attend(deps, {
+        tool: 'modify_project', args, waitMs: REQUEST_ANSWER_MS,
+        run: async () => {
+          const outcome = await requestToolOf(deps.api).ask(project, args.prompt as string)
+          if (outcome.view == null) return projectResult(outcome.status!)
+          const status = await deps.api.project.status(project)
 
-        return ok('The platform is still reading the request — what it files or changes shows in project_activity'
-          + ` and list_cards.\n\n${statusTextHelper.renderProjectStatus(status)}`, { project: status as unknown as Record<string, unknown> })
-      }
-      if (outcome.view == null) return projectResult(outcome.status!)
-      const status = await deps.api.project.status(project)
+          return ok(`${cardsToolHelper.renderRequest(outcome.view)}\n\n${statusTextHelper.renderProjectStatus(status)}`, {
+            project: status as unknown as Record<string, unknown>, request: outcome.view,
+          })
+        },
+        pending: async rejoinable => {
+          const status = await deps.api.project.status(project)
 
-      return ok(`${cardsToolHelper.renderRequest(outcome.view)}\n\n${statusTextHelper.renderProjectStatus(status)}`, {
-        project: status as unknown as Record<string, unknown>, request: outcome.view,
+          return ok('The platform is still reading the request — what it files or changes shows in project_activity'
+            + ' and list_cards.'
+            + (rejoinable ? ' Calling modify_project again with the same prompt waits on this request rather than sending another.' : '')
+            + `\n\n${statusTextHelper.renderProjectStatus(status)}`, { project: status as unknown as Record<string, unknown> })
+        },
       })
     },
   },
@@ -2737,7 +2891,7 @@ export const catalogue: ToolDefinition[] = [
       'Bring an existing application onto the platform: it reads the code, restores the'
       + ' specification and the user stories nobody wrote down, and rebuilds it on the platform\'s'
       + ' stack. The original is kept beside it. Returns conversion status and stops at your decision after'
-      + ` each stage. ${CONVERSION_COST}`,
+      + ` each stage. ${CONVERT_CHOICE_SAID} ${CONVERSION_COST}`,
     input: {
       projectId: z.string().optional().describe('Convert into a project that already exists.'),
       name: z.string().optional(),
@@ -2745,6 +2899,7 @@ export const catalogue: ToolDefinition[] = [
       repoUrl: z.string().optional()
         .describe('A GitHub repository to convert. Named, it is converted rather than this directory.'),
       branch: z.string().optional(),
+      ...CHOICE_INPUT,
       confirm: CONFIRM_INPUT,
     },
     availability: toolHostHelper.anyHost,
@@ -2757,11 +2912,22 @@ export const catalogue: ToolDefinition[] = [
         deps, 'convert_project', { projectId }, confirm,
         async () => await deps.api.convert.start(projectId, confirm ? { confirm } : {}),
       )
+      // The blueprint and case are the conversion's from its filing on: they travel on the create with the
+      // choice, and a call that cannot carry them files nothing rather than dropping them.
+      const chosen = structureToolHelper.choiceOf(args)
       const named = typeof args.projectId === 'string' ? args.projectId : deps.attached()
       if (named != null) {
+        if (chosen.asked) {
+          return fail(`Project ${named} is filed already, and its blueprint and case were settled when it was:`
+            + ' nothing was started. Call convert_project again without blueprint, case, bot_platforms and'
+            + ' tenancy to convert it, or detach and name a repository to file a new conversion with them.')
+        }
         await ensureSession(deps, named)
 
         return await start(named)
+      }
+      if (chosen.asked && typeof deps.api.convert.createWithChoice !== 'function') {
+        return fail(CHOICE_UNSUPPORTED('convert_project', 'filed'))
       }
 
       const repoUrl = typeof args.repoUrl === 'string' && args.repoUrl.trim() !== ''
@@ -2777,7 +2943,7 @@ export const catalogue: ToolDefinition[] = [
       // Nothing is attached here, so the session is an unattached one: in the delegated mode the
       // platform hands it the checks it runs before the project exists.
       const sessionId = toolHostHelper.performsModelTasks(deps.host) ? await unattachedSessionId(deps) : undefined
-      const status = await deps.api.convert.create({
+      const body: ConnectConvertCreateBody = {
         ...(sessionId != null ? { sessionId } : {}),
         ...(typeof args.name === 'string' ? { name: args.name } : {}),
         ...(typeof args.about === 'string' ? { about: args.about } : {}),
@@ -2797,7 +2963,18 @@ export const catalogue: ToolDefinition[] = [
               ...(typeof args.branch === 'string' ? { branch: args.branch } : {}),
             },
           }),
-      })
+      }
+      let status: ConversionStatusView
+      if (chosen.asked) {
+        try {
+          status = await deps.api.convert.createWithChoice!({ ...body, ...chosen.choice })
+        } catch (e) {
+          if (structureToolHelper.routeMissing(e)) return fail(CHOICE_UNSUPPORTED('convert_project', 'filed'))
+          throw e
+        }
+      } else {
+        status = await deps.api.convert.create(body)
+      }
       deps.attach(status.projectId)
       await ensureSession(deps, status.projectId)
 
@@ -3166,6 +3343,110 @@ export const catalogue: ToolDefinition[] = [
         + appsToolHelper.renderApps(view),
         { ...view, restarted: app, ...(restarted?.cause != null ? { cause: restarted.cause } : {}) } as unknown as Record<string, unknown>,
       )
+    },
+  },
+
+  {
+    name: 'add_app',
+    title: 'Add an application to a project',
+    description:
+      'Split the project further: add an APPLICATION — its own interface and server, served at /<mount> of the'
+      + ' project\'s address with its api at /<mount>/api — that takes over the areas named (from the applications'
+      + ' serving them now) and/or is created with a newArea of the project\'s own as its home: a separate'
+      + ' application for another group of people (partners, a field crew) starts from one. An area whose'
+      + ' stories are built or being built never moves, and the guest area stays in main. The new application'
+      + ` is stamped with the project's shell and look and its areas' placeholders are drawn. ${APPS_CHANGE_RUN}`,
+    input: {
+      projectId: z.string().optional(),
+      name: z.string().regex(APP_NAME_PATTERN)
+        .describe('2–16 lower-case letters and digits, starting with a letter — e.g. "partners".'),
+      mount: z.string().regex(TARGET_APP_MOUNT_PATTERN).optional()
+        .describe('The one path segment it is served under; its name when left out.'),
+      areas: z.array(z.string().regex(AREA_KEY_PATTERN).max(AREA_KEY_MAX)).max(16).optional()
+        .describe('Area keys it takes over, in order (project_apps lists them); its home area first unless newArea is given.'),
+      newArea: z.object(AREA_FIELDS).optional()
+        .describe('A new area of the project\'s own the application is created with, as its home area.'),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const areas = Array.isArray(args.areas) ? (args.areas as unknown[]).filter((key): key is string => typeof key === 'string') : []
+      const created = args.newArea != null && typeof args.newArea === 'object' ? areaOf(args.newArea as Record<string, unknown>) : undefined
+      if (areas.length < 1 && created == null) {
+        return fail('Name the areas the application takes over with areas, or the area it is created with with newArea — project_apps lists them.')
+      }
+      await ensureSession(deps, project)
+      const name = String(args.name)
+
+      return await appsChangeToolHelper.change(deps, {
+        tool: 'add_app', args, projectId: project, doing: `adding the application "${name}"`,
+        apply: async api => await api.add(project, {
+          name,
+          ...(typeof args.mount === 'string' && args.mount !== '' ? { mount: args.mount } : {}),
+          ...(areas.length > 0 ? { areas } : {}),
+          ...(created != null ? { newArea: created } : {}),
+        }),
+      })
+    },
+  },
+
+  {
+    name: 'add_area',
+    title: 'Add an area to a project',
+    description:
+      'Add an AREA of the project\'s own to one of its applications — a part of the product for another group of'
+      + ' people (a partner portal, a field crew\'s workspace), an instance of one of the four kinds under its own key'
+      + ' and path segment. Its layout, home screen and menu entry are drawn in its application; a story lands in it'
+      + ' when its card names its key (create_story\'s area). Never for a role a permission can express instead.'
+      + ` ${APPS_CHANGE_RUN}`,
+    input: {
+      projectId: z.string().optional(),
+      ...AREA_FIELDS,
+      app: z.string().regex(APP_NAME_PATTERN).optional()
+        .describe('The application serving it (project_apps lists them); main for a public area, else the one serving that kind\'s standard area.'),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      await ensureSession(deps, project)
+      const area = areaOf(args)
+
+      return await appsChangeToolHelper.change(deps, {
+        tool: 'add_area', args, projectId: project, doing: `adding the area "${area.key}"`,
+        apply: async api => await api.addArea(project, {
+          ...area, ...(typeof args.app === 'string' && args.app !== '' ? { app: args.app } : {}),
+        }),
+      })
+    },
+  },
+
+  {
+    name: 'bind_area',
+    title: 'Move an area to another application',
+    description:
+      'Move one AREA of a project to another of its applications: its placeholders are retired where it was and'
+      + ' drawn where it goes, and its address follows that application\'s path. Refused for an area whose stories'
+      + ' are built or being built, for the guest area (always main\'s home) and for an application\'s only area;'
+      + ` moving it back is the same call. ${APPS_CHANGE_RUN}`,
+    input: {
+      projectId: z.string().optional(),
+      area: z.string().regex(AREA_KEY_PATTERN).max(AREA_KEY_MAX).describe('The area\'s key (project_apps lists them).'),
+      app: z.string().regex(APP_NAME_PATTERN).describe('The application that serves it from now on.'),
+    },
+    availability: toolHostHelper.anyHost,
+    annotations: WRITE,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      await ensureSession(deps, project)
+      const area = String(args.area)
+      const app = String(args.app)
+
+      return await appsChangeToolHelper.change(deps, {
+        tool: 'bind_area', args, projectId: project, doing: `moving the area "${area}" to "${app}"`,
+        apply: async api => await api.bindArea(project, { area, app }),
+      })
     },
   },
 

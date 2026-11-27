@@ -50,7 +50,14 @@ export const createAppsPresentHelper = (): AppsPresentHelper => {
     })
   })
 
-  return { apps }
+  const change = read.total((structured, args) => read.compact({
+    ...apps(structured, args) as Record<string, unknown>,
+    summary: read.maybeText(structured.summary),
+    warnings: read.texts(structured.warnings).length > 0 ? read.texts(structured.warnings) : undefined,
+    running: read.maybeText(structured.running),
+  }))
+
+  return { apps, change }
 }
 
 export const appsPresentHelper = createAppsPresentHelper()

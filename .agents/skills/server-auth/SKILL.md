@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth": "^0.2.3"` in `dependencies`
+**Install:** `"@owlmeans/server-auth": "^0.2.4-rc.0"` in `dependencies`
 
 Two halves, deliberately split by subpath:
 

@@ -1,4 +1,4 @@
-import type { BlueprintCatalogue } from '../blueprint/catalogue/types.js'
+import type { StackCatalogue } from '../stack/catalogue/types.js'
 import type { AgentSteerArgs, AgentSteerResult, AgentStopArgs, WorkcardBatchStartArgs, WorkcardBatchView } from '../batch/types.js'
 import { entrypointRef } from '@owlmeans/entrypoint'
 import { connect } from './consts.js'
@@ -11,7 +11,8 @@ import type { ConnectBrandingCreditBody, ConnectProjectBranding, ConnectProjectB
 import type { ConnectConfigSaveBody, ConnectProjectConfig, ConnectScopeQuery } from './config/types.js'
 import type { ConnectCallCollectParams, ConnectCallCollectQuery, ConnectCallResult } from './call/types.js'
 import type {
-  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody, ConversionStatusView, ConvertCheck
+  ConnectConvertCreateBody, ConnectConvertCreateWithChoiceBody, ConnectConvertProceedBody, ConnectConvertStartBody,
+  ConversionStatusView, ConvertCheck,
 } from './conversion/types.js'
 import type {
   ConnectFileContent, ConnectFileMetaQuery, ConnectFileQuery, ConnectFileSaveBody, ConnectFileWritten,
@@ -23,7 +24,10 @@ import type {
   ConnectGithubPublishBody, ConnectGithubRepoList, ConnectGithubRepoQuery,
 } from './git/types.js'
 import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } from './kit/types.js'
-import type { ConnectAppParams, ConnectAppRestartBody, ConnectAppsView } from './apps/types.js'
+import type {
+  ConnectAppAddBody, ConnectAppParams, ConnectAppRestartBody, ConnectAppsChangeView, ConnectAppsView, ConnectAreaAddBody,
+  ConnectAreaBindBody,
+} from './apps/types.js'
 import type {
   ConnectCreateWithMaterialsBody, ConnectMaterialCatalogue, ConnectMaterialQuery, ConnectMaterialsDraftBody,
   ConnectMaterialsState, ConnectMaterialText,
@@ -35,7 +39,8 @@ import type { ConnectInquiryAnswerBody, ConnectOp, ConnectOpResult, ConnectOpSub
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
 import type {
   ConnectAgentLock, ConnectAttachBody, ConnectConfirmBody, ConnectConfirmImplementationBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody,
-  ConnectProjectStatus, ConnectProjectSummary, ConnectStoryStatus
+  ConnectProjectStatus, ConnectProjectSummary, ConnectStoryStatus, ConnectCreateWithChoiceBody, ConnectProjectStructure,
+  ConnectStructureSubmitBody,
 } from './project/types.js'
 import type { ConnectReferences } from './references/types.js'
 import type {
@@ -69,7 +74,7 @@ import type { ConnectLlmBody, ConnectProfileSettingsView, ConnectProjectLlmBody,
  */
 export const connectRef: ConnectReferences = {
   account: {
-    blueprints: entrypointRef<{}, BlueprintCatalogue>(connect.account.blueprints),
+    blueprints: entrypointRef<{}, StackCatalogue>(connect.account.blueprints),
     branding: {
       get: entrypointRef<{}, ConnectOrganizationBranding>(connect.account.branding.get),
       save: entrypointRef<{ body: ConnectOrganizationBrandingSave }, ConnectOrganizationBranding>(connect.account.branding.save),
@@ -112,6 +117,13 @@ export const connectRef: ConnectReferences = {
       body: ConnectCreateWithMaterialsBody
     }, ConnectProjectStatus>(connect.project.createWithMaterials),
     createWithReferences: entrypointRef<{ body: ConnectCreateBody }, ConnectProjectStatus>(connect.project.createWithReferences),
+    createWithChoice: entrypointRef<{ body: ConnectCreateWithChoiceBody }, ConnectProjectStatus>(connect.project.createWithChoice),
+    structure: {
+      get: entrypointRef<{ params: { id: string } }, ConnectProjectStructure>(connect.project.structure.get),
+      submit: entrypointRef<{
+        params: { id: string }, body: ConnectStructureSubmitBody
+      }, ConnectProjectStructure>(connect.project.structure.submit),
+    },
     confirmWithReferences: entrypointRef<{
       params: { id: string }, body: ConnectConfirmBody
     }, ConnectProjectStatus>(connect.project.confirmWithReferences),
@@ -205,6 +217,9 @@ export const connectRef: ConnectReferences = {
   },
   convert: {
     create: entrypointRef<{ body: ConnectConvertCreateBody }, ConversionStatusView>(connect.convert.create),
+    createWithChoice: entrypointRef<{
+      body: ConnectConvertCreateWithChoiceBody
+    }, ConversionStatusView>(connect.convert.createWithChoice),
     check: entrypointRef<{ params: { id: string } }, ConvertCheck>(connect.convert.check),
     start: entrypointRef<{
       params: { id: string }, body: ConnectConvertStartBody
@@ -240,6 +255,11 @@ export const connectRef: ConnectReferences = {
     restartApp: entrypointRef<{
       params: ConnectAppParams, body: ConnectAppRestartBody
     }, ConnectAppsView>(connect.sandbox.restartApp),
+  },
+  apps: {
+    add: entrypointRef<{ params: { id: string }, body: ConnectAppAddBody }, ConnectAppsChangeView>(connect.apps.add),
+    addArea: entrypointRef<{ params: { id: string }, body: ConnectAreaAddBody }, ConnectAppsChangeView>(connect.apps.addArea),
+    bindArea: entrypointRef<{ params: { id: string }, body: ConnectAreaBindBody }, ConnectAppsChangeView>(connect.apps.bindArea),
   },
   client: {
     identify: entrypointRef<{}, ConnectClientView>(connect.client.identify),

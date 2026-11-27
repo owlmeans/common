@@ -28,7 +28,8 @@ const SCOPE_TOOLS = [
   'backfill_project_branding', 'list_access_tokens', 'revoke_access_token', 'privacy_choices',
   'withdraw_marketing_consent', 'pickup_intent', 'create_project_with_files', 'list_materials', 'read_material',
   'list_files', 'read_file', 'write_file', 'delete_file',
-  'preview_control', 'project_apps', 'restart_project_app', 'git_status', 'git_history', 'git_commit', 'git_discard', 'git_revert', 'connect_github',
+  'preview_control', 'project_apps', 'restart_project_app', 'add_app', 'add_area', 'bind_area',
+  'project_structure', 'update_project_structure', 'git_status', 'git_history', 'git_commit', 'git_discard', 'git_revert', 'connect_github',
   'publish_to_github', 'github_sync', 'disconnect_github', 'github_repositories', 'link_github_origin',
   'production_status', 'publish_production', 'production_control', 'custom_domain', 'production_auth',
   'set_production_redirects', 'app_users', 'manage_app_user', 'app_permissions', 'set_app_permission_default',
@@ -231,7 +232,48 @@ const CATALOGUE = {
   ],
 }
 
+/** A new project waiting at its structure step — with what must never be echoed (the record's internals). */
+const STRUCTURE_VIEW = {
+  projectId: 'p1', origin: 'creation', status: 'awaiting', revision: 2,
+  choice: { blueprint: 'owlmeans-fullstack-ts', case: 'game', category: 'online-turn' },
+  suggestion: { choice: { case: 'web' }, rationale: 'The description reads as a portal.' },
+  structure: {
+    areas: [{ key: 'guest', kind: 'guest', segment: '' }, { key: 'user', kind: 'user', segment: 'app' }],
+    parts: [
+      { name: 'common', kind: 'common', dependsOn: [], purpose: 'Shared contracts.' },
+      { name: 'main', kind: 'pair', mount: '', index: 0, areas: ['guest', 'user'], dependsOn: ['common'], purpose: 'The game.' },
+    ],
+  },
+  proposal: {
+    structure: { areas: [], parts: [] }, rationale: 'A league needs a worker.',
+    changes: [{ op: 'add', part: 'league', to: 'worker' }],
+  },
+  issues: [{ code: 'part-unknown', message: 'The part "league" depends on "x", which the structure does not have.' }],
+  kinds: ['pair'], ideas: ['Weekly leagues'], round: 2, entityId: 'org-1',
+}
+
 const CASES: Case[] = [
+  // a project's structure step
+  {
+    tool: 'project_structure', args: {}, answers: { 'project.structure': STRUCTURE_VIEW },
+    check: (presented, json) => {
+      // The choice in the tools' words: the wire's case is the blueprint, its category the case, no stack.
+      expect([presented.blueprint, presented.case, presented.revision, (presented.parts as unknown[]).length, presented.ideas])
+        .toEqual(['game', 'online-turn', 2, 2, 1])
+      expect(presented.suggestion).toEqual({ blueprint: 'web', rationale: 'The description reads as a portal.' })
+      expect(Object.keys(presented)).not.toContain('category')
+      expect(json).not.toContain('owlmeans-fullstack-ts')
+      expect(presented.advice).toEqual({ rationale: 'A league needs a worker.', changes: ['add league → worker'] })
+      expect(json).not.toContain('org-1')
+      expect(json).not.toContain('round')
+    },
+  },
+  {
+    tool: 'update_project_structure', args: { revision: 2, advise: true, confirm: true },
+    answers: { 'project.submitStructure': { ...STRUCTURE_VIEW, status: 'advising', revision: 3 } },
+    check: presented => expect([presented.status, presented.revision]).toEqual(['advising', 3]),
+  },
+
   // a new project's files
   {
     tool: 'create_project_with_files', args: { prompt: 'A bakery shop', paths: [join(MATERIALS_DIR, 'brief.md')] },
@@ -437,6 +479,20 @@ const CASES: Case[] = [
   {
     tool: 'restart_project_app', args: { app: 'admin' }, answers: { 'sandbox.restartApp': APPS },
     check: presented => expect([presented.restarted, (presented.apps as unknown[]).length]).toEqual(['admin', 2]),
+  },
+  {
+    tool: 'add_app', args: { name: 'partners', newArea: { key: 'partner-portal', kind: 'user' } },
+    answers: { 'apps.add': { ...APPS, summary: 'Added the app "partners".', warnings: ['the topology record could not be written'] } },
+    check: presented => expect([presented.summary, presented.warnings, (presented.apps as unknown[]).length])
+      .toEqual(['Added the app "partners".', ['the topology record could not be written'], 2]),
+  },
+  {
+    tool: 'add_area', args: { key: 'field-ops', kind: 'operator' }, answers: { 'apps.addArea': { ...APPS, summary: 'Added the area "field-ops".' } },
+    check: presented => expect([presented.summary, presented.warnings]).toEqual(['Added the area "field-ops".', undefined]),
+  },
+  {
+    tool: 'bind_area', args: { area: 'user', app: 'admin' }, answers: { 'apps.bindArea': { ...APPS, summary: 'Moved the area "user".' } },
+    check: presented => expect(presented.summary).toBe('Moved the area "user".'),
   },
 
   // git and GitHub

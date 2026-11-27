@@ -1,4 +1,4 @@
-import type { ProjectArea } from '../../areas/consts.js'
+import type { AreaKey } from '../../areas/types.js'
 import type {
   ArchitectureCase, ConversionStage, ConvertibilityReason, ConvertibilityVerdict, OriginKind, StackFamily,
   StackId, WorkspaceKind
@@ -85,7 +85,7 @@ export interface ConversionInventorySummary {
 /** The area/section/story tree the conversion dialog draws. */
 export interface ConversionStructure {
   areas: {
-    area: ProjectArea
+    area: AreaKey
     sections: {
       name: string
       stories: { code: string, title: string, primary?: boolean }[]

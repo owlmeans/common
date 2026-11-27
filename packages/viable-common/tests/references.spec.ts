@@ -74,7 +74,7 @@ const ledger = (): ReferencesLedger => referencesLedgerHelper.merge(referencesLe
 describe('viable-common — references vocabulary', () => {
   test('intents, origins and statuses keep their wire values', () => {
     expect(Object.values(MaterialLinkIntent)).toEqual(['design', 'function', 'content', 'asset', 'package'])
-    expect(Object.values(ReferenceOrigin)).toEqual(['prompt', 'specification', 'link'])
+    expect(Object.values(ReferenceOrigin)).toEqual(['prompt', 'specification', 'link', 'ideas'])
     expect(Object.values(ReferenceLinkStatus)).toEqual(['pending', 'fetched', 'researched', 'skipped', 'refused', 'failed'])
     expect(Object.values(ReferenceResearchStatus)).toEqual(['pending', 'researched', 'skipped', 'failed'])
     expect(Object.values(ReferencePackageVerdict)).toEqual(['genuine', 'suspicious', 'unknown'])
@@ -181,6 +181,11 @@ describe('viable-common — the references ledger', () => {
     expect(validate({ ...referencesLedgerHelper.empty(), links: [link({ intents: ['look' as MaterialLinkIntent] })] })).toBe(false)
     expect(validate({ ...referencesLedgerHelper.empty(), links: [link({ origin: ReferenceOrigin.Link as ReferenceOrigin.Prompt })] }))
       .toBe(false)
+    // A link the ideas of a structure step's advice round named is a link like the prompt's.
+    expect(validate({ ...referencesLedgerHelper.empty(), links: [link({ origin: ReferenceOrigin.Ideas })] })).toBe(true)
+    expect(referencesLedgerHelper.parse(referencesLedgerHelper.render({
+      ...referencesLedgerHelper.empty(), links: [link({ origin: ReferenceOrigin.Ideas })],
+    }))?.links[0]?.origin).toBe(ReferenceOrigin.Ideas)
     expect(validate({ ...referencesLedgerHelper.empty(), links: [link({ intents: [MaterialLinkIntent.Design, MaterialLinkIntent.Design] })] }))
       .toBe(false)
     expect(JSON.stringify(ReferencesLedgerSchema)).not.toContain('"integer"')

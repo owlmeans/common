@@ -248,11 +248,13 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     {
       id: 'projects',
       title: 'Projects',
-      what: 'Create one, read what was drafted, list what this account has and every workload it runs'
-        + ' (previews, production sites, local targets), point the connector at an existing one, and'
-        + ' delete a project — only once the user agreed (confirm: true).',
+      what: 'Create one — its blueprint and case chosen or left to the platform, and its structure (applications,'
+        + ' workers, libraries) reviewed before the specification when asked — read what was drafted, list what'
+        + ' this account has and every workload it runs (previews, production sites, local targets), point the'
+        + ' connector at an existing one, and delete a project — only once the user agreed (confirm: true).',
       tools: [
         'describe_blueprints', 'describe_capabilities', 'create_project', 'confirm_project', 'project_status',
+        'project_structure', 'update_project_structure',
         'list_projects', 'list_slots', 'attach_project', 'reinitialize_project', 'rename_project',
         'delete_project',
       ],
@@ -264,8 +266,11 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       what: 'Every project has main, at the root of its address; a project split into applications serves'
         + ' each of them under its own path (/admin, /backoffice, …) of that one address, each with its own'
         + ' interface and server. List them — the areas each serves, and how its interface and server stand'
-        + ' — and restart one while the others keep serving: in the preview, or in the run on this machine.',
-      tools: ['project_apps', 'restart_project_app'],
+        + ' — and restart one while the others keep serving: in the preview, or in the run on this machine.'
+        + ' Change the structure too: add an application (taking over areas, or with a new area of its own),'
+        + ' add an area of the project\'s own to one, or move an area with nothing built in it to another —'
+        + ' each a short run of the platform\'s, paid like an open-ended change.',
+      tools: ['project_apps', 'restart_project_app', 'add_app', 'add_area', 'bind_area'],
       absent: 'a project\'s applications are not offered here',
     },
     {

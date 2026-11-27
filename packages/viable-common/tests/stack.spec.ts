@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'bun:test'
-import { BlueprintCase, BotKit, BotKitAction, BotPlatform, landingGatePreferenceOf, LandingGatePreference } from '../src/blueprint/index.js'
-import type { Blueprint } from '../src/blueprint/index.js'
+import { Blueprint, BotKit, BotKitAction, BotPlatform, landingGatePreferenceOf, LandingGatePreference } from '../src/stack/index.js'
+import type { Stack } from '../src/stack/index.js'
 import { ViablePersona, ViableSkill } from '../src/skills/consts.js'
 
 /** Just enough of a blueprint to read a preference from — the shape a test builds. */
-const base = (extra: Partial<Blueprint> = {}): Blueprint => ({
+const base = (extra: Partial<Stack> = {}): Stack => ({
   id: 'test-blueprint',
   title: 'Test',
   technology: { id: 'ts', language: 'typescript', runtime: 'bun', extensions: ['.ts'], buildScripts: {}, packageManager: 'bun' },
-  stack: { id: 'owlmeans', framework: 'owlmeans', topology: {} as Blueprint['stack']['topology'], skills: [ViableSkill.TsStyle] },
+  framework: { id: 'owlmeans', framework: 'owlmeans', topology: {} as Stack['framework']['topology'], skills: [ViableSkill.TsStyle] },
   template: { id: 'seed', overlay: 'seed', patches: [] },
   createApp: { id: 'create-app', package: '@owlmeans/create-app', bare: true, template: 'bare' },
   packages: {
@@ -34,7 +34,7 @@ describe('viable-common - the landing-gate preference', () => {
 
 describe('viable-common - the bot case vocabulary', () => {
   test('names both bot cases, the three kits and the kit actions, and keeps the deprecated platform enum verbatim', () => {
-    expect([BlueprintCase.Bot, BlueprintCase.AiBot]).toEqual(['bot', 'ai-bot'] as BlueprintCase[])
+    expect([Blueprint.Bot, Blueprint.AiBot]).toEqual(['bot', 'ai-bot'] as Blueprint[])
     expect(Object.values(BotKit)).toEqual(['moderation', 'support', 'intake'] as BotKit[])
     expect(Object.values(BotKitAction)).toEqual(['delete', 'warn', 'mute', 'ban', 'reply', 'record', 'agent'] as BotKitAction[])
     expect(Object.values(BotPlatform)).toEqual(['telegram', 'whatsapp', 'discord', 'slack'] as BotPlatform[])

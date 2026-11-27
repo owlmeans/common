@@ -1,4 +1,3 @@
-import type { ProjectArea } from '../../areas/consts.js'
 import type { AreaKey } from '../../areas/types.js'
 import type { UserStoryKind } from '../../ba/consts.js'
 import type { OriginFlowDisposition, PlatformFlow, PurposeEvidenceSource, TaxonomyKind } from '../consts.js'
@@ -26,7 +25,7 @@ export interface OriginFlowEntry {
   id: string
   name: string
   actor: string
-  area: ProjectArea
+  area: AreaKey
   steps: string[]
   /**
    * Whether the census thought the main flow already covers it — a HINT the consolidation is shown,
@@ -45,7 +44,7 @@ export interface OriginFlow extends OriginFlowEntry {
 export interface OriginFlowGroup {
   /** The census ids this story covers. */
   members: string[]
-  area: ProjectArea
+  area: AreaKey
   actor: string
   kind: OriginFlowKind
   /** The user-story narrative, in the main flow's voice and language. */
@@ -131,7 +130,7 @@ export interface WorkcardProof {
 
 export interface AreaAlignment {
   areas: {
-    area: ProjectArea
+    area: AreaKey
     roles: string[]
     permissions: string[]
     stories: string[]

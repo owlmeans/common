@@ -1,13 +1,13 @@
 ---
 name: viable-sdk
-description: How to use @owlmeans/viable-sdk — the connector SDK an external coding agent drives the OwlMeans Viable platform with — the token-authenticated client context, the two host kinds and their tool catalogue (the story tools, the `cards` group, the triaged `modify_project`, `confirm_project`'s `implement`), the client header every request names its edition with, the session operation loop and its model-task seam, the local slot executor and local run, the model-task envelope, the extension seam a host adds its own tools through, and the profile seam that presents the catalogue for a store listing or a plugin (the listing profiles). Auto-invoked when building or changing a connector, an MCP host, a connector tool, a tool profile, the task envelope, or anything that executes platform slot commands on a developer's machine.
+description: How to use @owlmeans/viable-sdk — the connector SDK an external coding agent drives the OwlMeans Viable platform with — the token-authenticated client context, the two host kinds and their tool catalogue (the story tools, the `cards` group, the triaged `modify_project`, `confirm_project`'s `implement`, the person's blueprint/case choice and the structure step — `project_structure` / `update_project_structure` —, the app-change tools `add_app` / `add_area` / `bind_area`), the client header every request names its edition with, the session operation loop and its model-task seam, the local slot executor and local run, the model-task envelope, the extension seam a host adds its own tools through, and the profile seam that presents the catalogue for a store listing or a plugin (the listing profiles). Auto-invoked when building or changing a connector, an MCP host, a connector tool, a tool profile, the task envelope, or anything that executes platform slot commands on a developer's machine.
 user-invocable: false
 ---
 
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.2.4-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.2.4-rc.1"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — the work-card types and their one flow) and `@owlmeans/planning` (the planning protocol tree
@@ -242,13 +242,18 @@ elsewhere. The cloud mode sends none and opens nothing.
 **Request now, collect later.** A delegated write may wait on a model call this very parent
 performs — create, convert create, confirm, reinit, modify, rename, a settings save, a story create or
 update (the platform formats the narrative in its planning `execute`) — for longer than an edge holds
-a response open (~100 s). So `makeSdkContext({ llm: ConnectLlm.Local })` registers ONE transport
-(`createCallCollectTransport`, under `transportAlias('http')`, which every client entrypoint asks for
-before the API client) in front of the context's API client — the connector routes and the planning
-client both go through it, with no per-method code:
+a response open (~100 s). So `makeSdkContext` registers ONE transport (`createCallCollectTransport`,
+under `transportAlias('http')`, which every client entrypoint asks for before the API client) in front
+of the context's API client — the connector routes and the planning client both go through it, with no
+per-method code:
 
-- every NON-GET request carries `x-viable-call: <randomUUID()>` (`CONNECT_CALL_HEADER`); a request
-  that already names one keeps it, so a retry of that request is the same call to the platform;
+- every NON-GET request of the delegated mode (`llm=local`) — and, in EVERY mode and whatever its method,
+  an always-collected call (`ALWAYS_COLLECTED_ALIASES`, `api/consts.local.ts`: `connect.apps.{add,addArea,bindArea}`
+  — a short run with its rebuild —, `connect.project.request` — the triage may wait for the preview to
+  wake — and `connect.cards.plan`, Run all's proposal: a GET holding one model call of up to three minutes)
+  — carries `x-viable-call: <randomUUID()>` (`CONNECT_CALL_HEADER`); a request that already names
+  one keeps it, so a retry of that request is the same call to the platform; a platform that does not
+  defer the route ignores the header and answers held open, as before;
 - an answer `{ pending: <that id> }` (202, after the platform's `CONNECT_CALL_ACCEPT_MS` hold) becomes
   `connect.call.collect` long polls (`wait` = `CONNECT_CALL_COLLECT_WAIT_SEC`, HTTP deadline wait +
   10 s), repeated while `pending` (an unheld one — under 1 s — rests 1 s first) until `settled`: its
@@ -258,10 +263,12 @@ client both go through it, with no per-method code:
   status tool before repeating);
 - a hop the LINE dropped (a transient transport error, axios's own timeout, an edge 502/503/504) is
   asked again, up to `COLLECT_DROPPED_HOPS` in a row; any other answer — a direct value, a `pending`
-  of another id, a refusal, every GET, the cloud mode — passes through untouched.
+  of another id, a refusal, every GET outside the always-collected set, a cloud-mode write outside it —
+  passes through untouched.
 
 `collect` is the transport's route, not a `ConnectorApi` member. Every request and collect hop stays
-under `TOOL_DEADLINE_MS`; nothing caps the call as a whole but the platform's own model-task deadline,
+under `TOOL_DEADLINE_MS` (a change of the apps: its first request `APPS_CHANGE_TIMEOUT_MS`, a bound for a
+platform that answers no `{ pending }` — the tool answers at its own deadline); nothing caps the call as a whole but the platform's own model-task deadline,
 and the handover is unchanged — its in-flight promise simply lasts as long as the collection.
 
 ## 45 seconds is the ceiling, so long operations return domain status
@@ -394,9 +401,15 @@ the renderers, `routeMissing`) and `cardsPlanMemoOf(api)`.
   bare 404 falls back to `project.modify` with the same prompt, remembered per API, and answers exactly the
   released `{ project }`. Its answer is `renderRequest(view)` (question / fix / the cards filed and the
   start — a refused start's `refusal` is the marshalled error, rebuilt with `ResilientError.ensure` and
-  phrased like a thrown one) over the project status, structured `{ project, request }`; a request still
-  being read after `REQUEST_ANSWER_MS` (38 s) answers the project status and points at `project_activity`.
-  The description carries the triage sentence.
+  phrased like a thrown one) over the project status, structured `{ project, request }`. The request is an
+  ATTENDED call (`attendedCallHelper`, `tools/attended.ts`): joined in `deps.inflight` by tool + arguments
+  and raced against `REQUEST_ANSWER_MS` (38 s); still being read — the project status, `project_activity`
+  named, and on a stdio host the hint that calling modify_project again with the same prompt waits on this
+  request; an identical repeat joins the running request, or collects the settled one nobody was told
+  (once, within `ATTEND_REJOIN_MS`, 15 min — later the same words are a new request). In the delegated
+  mode the handover attends it instead. `renderRequest` reads `apps` (the platform answers a change of the
+  app structure as `fix` on this wire) and any unknown kind as the fix line. The description carries the
+  triage sentence.
 - **Gate refusals are phrased per gate** (`refusalHelper.personRefusalPhrase` over `ConnectOutOfCredits`):
   balance below zero → the organization is in debt, nothing new starts until a top-up settles it; gate
   `spec` → the 100,000-credit floor (`SPEC_FLOOR_CREDITS`) or the Pro plan's free spec of the month; gate
@@ -518,12 +531,72 @@ process are on the user's machine, read and run directly.
 - **`list_slots`** (any host, any target) — every workload of the organization, one line each plus
   its warnings. `viable-slot:not-found:` is phrased as a project with no workload yet.
 
-## A project's applications: `project_apps` and `restart_project_app`, on every host and target
+## The person's choice and the structure step: `project_structure` and `update_project_structure`
+
+- **The person's vocabulary is the wire's.** A tool's **`blueprint`** is the kind of product (web, scalable,
+  ai-pipeline, ai-agent, game, work-management, work-management-tenanted, bot, ai-bot) — `CatalogueChoice.blueprint`;
+  its **`case`** is that blueprint's kind of work, game kind or bot kit — `CatalogueChoice.case`; the **stack**
+  (`CatalogueChoice.stack`, `owlmeans-fullstack-ts`) is no argument and is never shown while the platform runs
+  one. `structureToolHelper` (`choiceFrom` onto the wire, `choiceLine` and the presenter back) only moves the
+  snake-case arguments onto the wire bodies (`ConnectCreateWithChoiceBody`, `ConnectStructureSubmitBody`,
+  `CatalogueChoice`). Only `describe_blueprints`' released output keeps the registry's older names; its
+  description (and the listing's) says the mapping (`BLUEPRINTS_MAPPING`, naming no tool — a listing names
+  only what it offers): each entry is a stack, its `cases` are what a tool takes as `blueprint`, each
+  case's `categories` what it takes as `case`.
+- **The choice** (`tools/structure.ts` `structureToolHelper`, inputs `structure/consts.local.ts`):
+  `create_project`, `create_project_with_files`, `convert_project` and `update_project_structure` take the
+  optional `CHOICE_INPUT` (`blueprint`, `case`, `bot_platforms`, `tenancy { users, operators }` — every one
+  absent = Auto; no `category`, no stack) and the creates `review_structure` (`REVIEW_INPUT`).
+  `choiceOf(args)` → `{ choice, review, asked }` (the choice in the wire's words): nothing asked → the released route, byte for byte
+  (`referencesToolOf(...).create`, `materials.create`, `convert.create`); asked → the OPTIONAL
+  `api.project.createWithChoice` / `api.convert.createWithChoice` (`connect.{project,convert}.createWithChoice`;
+  the bridge's member absent, or a bare 404 — `routeMissing` — ⇒ `CHOICE_UNSUPPORTED`: nothing is created,
+  the choice is never dropped in silence). `convert_project` naming a filed project with a choice refuses
+  (its case was settled when it was filed).
+- **`project_structure { projectId? }`** (`projects` group, READ) → `api.project.structure` →
+  `renderStructure(view)`: status · revision, the choice (`blueprint: <wire case|auto> · case: <wire category>`,
+  the stack unsaid) and the classifier's `suggestion` in the same words, areas, one line
+  per part (kind, mount, areas, queues, depends on, purpose), issues, the latest advice with its changes,
+  the ideas count with the latest one capped, the kinds this platform takes (or the read-only line of a
+  repair), refusal / error, then — awaiting — the structure as JSON to edit, and `next:` (`nextOf`:
+  working → read again; awaiting → `update_project_structure` with the revision (a conversion:
+  `proceed_conversion` analyze); specifying → `project_status` then `confirm_project`; failed → the web
+  application or a new project). Member absent or `routeMissing` ⇒ `STRUCTURE_UNSUPPORTED`.
+- **`update_project_structure { projectId?, revision, blueprint?…, structure?, advise?, ideas?, confirm? }`**
+  (`projects` group, WRITE; listing `REWRITES`) → `api.project.submitStructure(id, submitOf(args))`: the
+  choice arguments given replace the whole choice; `advise: true` or non-blank `ideas` is an ADVICE round
+  (`isAdvice`) — billed as part of the initialization (the plan's project allowance first, then credits), so a
+  `ConnectConfirmationRequired` (action `structure-advise`, `STRUCTURE_ADVICE_COST`) or a bare 428 answers
+  the cost and the exact call to repeat with `confirm: true` (`confirmedCall`), pushed through `notify`;
+  without advice the structure is taken and the creation goes on to its specification (a conversion keeps
+  it for its analysis). An advice round's content check runs on the project's own session
+  (`ensureSession`) in the delegated mode.
+- **Status**: `statusTextHelper.atStructureStep(status)` — `waitingFor: person`, no pending inquiry, a
+  `draft` project, no `waiting` run — makes `project_status` say "waiting for the person: the project
+  structure" and name `project_structure` as `next:`; the released wire carries nothing else.
+- **Refusals** (`refusal.ts`, the platform's `preliminary:*` markers): `structure-invalid` (the issues),
+  `case-choice` (the settle's issue codes, each said in the tool's words — `CHOICE_ISSUE_WORDS`:
+  `stack-unknown` no such stack, `blueprint-unknown` no such blueprint, `case-unknown` no such case of it, …), `not-found` (no structure step: decided while drafting),
+  `stale` (re-read, the new revision), `closed` (the step takes no change in its status), `unsupported`
+  (`STRUCTURE_UNSUPPORTED_SUBMISSION`).
+- **Instructions**: while `update_project_structure` is listed the server instructions add the structure
+  workflow line (`describe_blueprints` → `create_project` with `blueprint` (a listed case), `case` (one of its
+  categories) and `review_structure` → `project_structure` → `update_project_structure` → `project_status` →
+  `confirm_project`). Presenters `presentation/platform/structure.ts` (`STRUCTURE_OUTPUT`, both tools: the
+  choice and the suggestion as `blueprint` / `case`, no stack, no `category`). Specs:
+  `tests/structure-tools.spec.ts`, `tests/profile-presentation-platform.spec.ts`; the closed stdio specs pin
+  the input properties of the built editions.
+
+## A project's applications: `project_apps`, `restart_project_app` and the app-change tools, on every host and target
 
 A project is `main` at its address's root plus, when split, one app per group of areas under its own
-mount (`/admin`, `/backoffice`, …) — each with its interface and server. Both tools are in the
-`apps` capability group, `anyHost`, under every profile (listing annotations: `project_apps` READ,
-`restart_project_app` ADDS — it repeats; output `APPS_OUTPUT`, presenter `presentation/platform/apps.ts`).
+mount (`/admin`, `/backoffice`, …) — each with its interface and server. All five tools are in the
+`apps` capability group (`project_apps`, `restart_project_app`, `add_app`, `add_area`, `bind_area`),
+`anyHost`, under every profile (listing annotations: `project_apps` READ, `restart_project_app`,
+`add_app`, `add_area` ADDS — they repeat, an addition refused the second time; `bind_area` ENSURES — a
+move of an area with nothing built is reversible and a repeat is refused; outputs `APPS_OUTPUT` and
+`APPS_CHANGE_OUTPUT` = it + optional `summary`, `warnings`, `running`; presenters
+`presentation/platform/apps.ts` `apps` / `change`).
 
 - **`project_apps { projectId? }`** → `api.project.apps` → `appsToolHelper.renderApps` (`tools/apps.ts`):
   one line per app (`name · /mount · areas … · interface … · server …`, the capped cause beneath),
@@ -551,6 +624,21 @@ mount (`/admin`, `/backoffice`, …) — each with its interface and server. Bot
   by `appsToolHelper.routeMissing`: no app marker AND `project.status` still answers ⇒ an older
   platform — "This platform reports one application (main)"; a restart then also reads
   `project.apps` (404 again ⇒ restart the whole preview; else "serves no application" + the list).
+- **The app-change tools** (catalogue WRITE, never `confirm`; descriptions name the credits and
+  project_apps) → the OPTIONAL `api.apps` (`ConnectorApi.apps.{add,addArea,bindArea}`; remote: only the
+  named fields, `APPS_CHANGE_TIMEOUT_MS` 20 min, always collected; the in-process bridge is the
+  platform's): `add_app { projectId?, name, mount?, areas?, newArea?: { key, kind, segment?, label?,
+  restricted? } }` (at least one of `areas` / `newArea`, refused before the platform otherwise),
+  `add_area { projectId?, key, kind, app?, segment?, label?, restricted? }`, `bind_area { projectId?,
+  area, app }`. One behaviour, `appsChangeToolHelper.change` (`tools/apps-change.ts`): `api.apps` absent
+  or `routeMissing` ⇒ `APPS_CHANGE_UNSUPPORTED` (names modify_project); else an attended call (as
+  modify_project, `ATTEND_ANSWER_MS` 38 s): settled ⇒ `summary`, `Not everything went through: …`, then
+  `renderApps(view)`, structured the `ConnectAppsChangeView`; still applying ⇒ "The platform is still
+  <doing>: the project stays locked … project_apps … shows …" (+ "Calling <tool> again with the same
+  arguments waits on the same change" on a stdio host only — a hosted host holds nothing between
+  requests and is told to read project_apps / project_status), structured `{ running, projectId }`.
+  The platform's `AppsChangeRefused` (`slot-app:change-refused:<sentence>`) is phrased as its sentence +
+  "Nothing was changed — project_apps lists …". Spec: `tests/apps-change-tools.spec.ts`.
 - **Stories**: `renderStories(items, page, total, apps?)` adds ` · app: <name>` (` · apps: a, b`)
   after the landing flag, the area still last, and `renderStoryStatus` an `app:` line — only for a
   card whose `fields.area` is a custom key or that names `fields.areas` (`appsToolHelper.workcardApps`
@@ -1111,9 +1199,12 @@ same shape ("error text or null"), and only an unknown command — a protocol fa
 project fault — escapes as an exception. Everything is resolved per call rather than closed over,
 because a re-initialization replaces the tree under a running connector. The integrity verdict is
 forgotten after every command that changes the tree, and reads the tree in the manifest's two passes
-exactly as the publisher does (`targetIntegrityHelper.collectTargetFiles` + the `sources/` listing),
-so a target split into apps runs here as it builds in a slot and a one-app tree answers the one-pass
-report byte for byte (`tests/executor-integrity.spec.ts`).
+exactly as the publisher does (`targetIntegrityHelper.collectTargetFiles` + the `sources/` listing,
+taken for every V2 tree) — so a tree verified against its record (split into apps, or
+naming an adopted package) runs here as it builds in a slot, a package nobody recorded is checked for
+install hooks, and a clean core-only tree answers the one-pass report byte for byte
+(`tests/executor-integrity.spec.ts`). The executor builds the layout's own libraries (`LAYOUTS`), never
+a recorded package.
 
 Rules for the local executor:
 
@@ -1284,8 +1375,8 @@ transport playing the platform: refusals reported before anything is sent, the a
 bytes streamed, the seal, a refused seal drafting with what arrived, the delegated attach before the first
 file; plus `list_materials` / `read_material` and the members' routes. `call-collect.spec.ts` drives the
 transport through the same captured client (`captureTransport` replaces the context's API CLIENT, so
-the SDK's transport stays in front): the header only in the delegated mode and only on writes, a
-reused id, pending → collect → settled for a connector call and a planning execute, a settled error
+the SDK's transport stays in front): the header only in the delegated mode and only on writes (the
+always-collected calls in every mode, Run all's proposal the one GET), a reused id, pending → collect → settled for a connector call and a planning execute, a settled error
 rethrown as its class, `lost` → `ConnectCallLost`, a dropped hop retried, ordinary answers untouched,
 and the handover over a call that went pending. `catalogue.spec.ts` also pins the manual story moves
 over the real planning service (order, the refusal, a late commit), `delete_project`
@@ -1328,12 +1419,12 @@ that every presenter's output validates against its schema.
   `@owlmeans/config`, `@owlmeans/context`, `@owlmeans/error`, `@owlmeans/basic-ids`
 - `@modelcontextprotocol/sdk` (types only, structurally), `zod`, `fs-extra`, `globby`, `ajv`
 
-## Blueprint discovery before project creation
+## Stack discovery before project creation
 
-`ConnectorApi.account.blueprints()` reads the installed `BlueprintCatalogue` from authenticated
+`ConnectorApi.account.blueprints()` reads the installed `StackCatalogue` from authenticated
 `/connect/account/blueprints`, before a project or session exists. `describe_blueprints` renders and
-returns its full structured catalogue: blueprint ids, stacks, resolved cases, supported application
-categories, tenancy and planning resource capabilities. Both stdio MCP and platform `/mcp` expose
+returns its full structured catalogue: the stacks (`blueprints[]`), their blueprints (`cases[]`), each
+blueprint's cases (`categories[]`), tenancy and planning resource capabilities. Both stdio MCP and platform `/mcp` expose
 this same SDK tool. The platform bridges to the signed agent registry; never synthesize the deployed
 catalogue from frontend presets or a closed-package import.
 
@@ -1342,11 +1433,13 @@ metadata (`entityId: ''`). Native organization IDs are absent from planning wire
 authenticated organization entity slug and the planning scope lifecycle for client isolation;
 never resolve permissions or organization identity from a returned planning record.
 
-Server instructions explicitly describe the stock `owlmeans-fullstack-ts` cases: `web`, `scalable`,
-`ai-pipeline`, `ai-agent`, `game`, `work-management`, `work-management-tenanted`. Work categories
-include project tracking, CRM, service desk, inventory, recruiting, field service and process;
-game categories include casual, online-turn and online-live. The live catalogue is authoritative
-for installed custom registries. Read it before proposing a project category.
+`describe_blueprints`' released output keeps the registry's older words (`blueprints[]` = stacks, `cases[]` =
+blueprints, `categories[]` = cases); its description tells the agent how they map onto the choice arguments
+(above: a listed case is passed as `blueprint`, a category as `case`). Server instructions explicitly describe the
+stock `owlmeans-fullstack-ts` blueprints: `web`, `scalable`, `ai-pipeline`, `ai-agent`, `game`, `work-management`,
+`work-management-tenanted`. Work-management cases include project tracking, CRM, service desk, inventory,
+recruiting, field service and process; game cases include casual, online-turn and online-live. The live catalogue
+is authoritative for installed custom registries. Read it before proposing a project's blueprint and case.
 
 
 ## Related

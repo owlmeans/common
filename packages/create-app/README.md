@@ -9,7 +9,7 @@ bun create @owlmeans/app my-app
 # or
 yarn create @owlmeans/app my-app
 # or
-npx @owlmeans/create-app@^0.2.4-rc.0 my-app
+npx @owlmeans/create-app@^0.2.4-rc.1 my-app
 ```
 
 ## What it generates

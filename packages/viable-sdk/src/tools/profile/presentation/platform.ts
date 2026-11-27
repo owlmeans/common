@@ -2,14 +2,14 @@ import type { ToolPresentation } from '../types.js'
 import { accountPresentHelper as account } from './platform/account.js'
 import { appsPresentHelper as apps } from './platform/apps.js'
 import {
-  APPS_OUTPUT, APP_GRANT_OUTPUT, APP_GRANTS_OUTPUT, APP_GROUP_OUTPUT, APP_GROUPS_OUTPUT, APP_ORGANIZATION_OUTPUT,
+  APPS_CHANGE_OUTPUT, APPS_OUTPUT, APP_GRANT_OUTPUT, APP_GRANTS_OUTPUT, APP_GROUP_OUTPUT, APP_GROUPS_OUTPUT, APP_ORGANIZATION_OUTPUT,
   APP_ORGANIZATIONS_OUTPUT, APP_PERMISSION_OUTPUT, APP_PERMISSIONS_OUTPUT, APP_USER_OUTPUT, APP_USERS_OUTPUT,
   BACKFILL_OUTPUT, CONFIGURATION_OUTPUT, CUSTOM_DOMAIN_OUTPUT, FILE_READ_OUTPUT, FILE_WRITTEN_OUTPUT, FILES_OUTPUT,
   GIT_COMMIT_OUTPUT, GIT_DISCARD_OUTPUT, GIT_HISTORY_OUTPUT, GIT_REVERT_OUTPUT, GIT_STATUS_OUTPUT,
   GITHUB_AUTHORIZE_OUTPUT, GITHUB_CONNECTION_OUTPUT, GITHUB_DISCONNECTED_OUTPUT, GITHUB_LINKED_OUTPUT,
   GITHUB_REPOSITORIES_OUTPUT, GITHUB_SYNC_OUTPUT, INTENT_OUTPUT, MATERIAL_TEXT_OUTPUT, MATERIALS_OUTPUT,
   ORGANIZATION_BRANDING_OUTPUT, PREVIEW_OUTPUT, PROJECT_WITH_FILES_OUTPUT,
-  PRIVACY_OUTPUT, PRODUCTION_AUTH_OUTPUT, PRODUCTION_OUTPUT, REDIRECTS_OUTPUT, SETTINGS_OUTPUT, TOKEN_REVOKED_OUTPUT,
+  PRIVACY_OUTPUT, PRODUCTION_AUTH_OUTPUT, PRODUCTION_OUTPUT, REDIRECTS_OUTPUT, SETTINGS_OUTPUT, STRUCTURE_OUTPUT, TOKEN_REVOKED_OUTPUT,
   TOKENS_OUTPUT, WITHDRAW_OUTPUT,
 } from './platform/consts.js'
 import { gitPresentHelper as git } from './platform/git.js'
@@ -17,12 +17,13 @@ import { iamPresentHelper as iam } from './platform/iam.js'
 import { materialsPresentHelper as materials } from './platform/materials.js'
 import { productionPresentHelper as production } from './platform/production.js'
 import { settingsPresentHelper as settings } from './platform/settings.js'
+import { structurePresentHelper as structure } from './platform/structure.js'
 import { workspacePresentHelper as workspace } from './platform/workspace.js'
 
 /**
  * The declared structured output and its presenter for every PLATFORM-domain tool of the listing
  * profiles — settings, configuration, branding, the account, a new project's files, files and the preview, a project's
- * applications, git and GitHub,
+ * applications and its structure step, git and GitHub,
  * production and the generated application's sign-in.
  *
  * Keyed by the BASE tool name: a split variant (`attach_custom_domain`, `invite_app_user`, …)
@@ -56,6 +57,11 @@ export const platformPresentation: Readonly<Record<string, ToolPresentation>> = 
   preview_control: { output: PREVIEW_OUTPUT, present: workspace.preview },
   project_apps: { output: APPS_OUTPUT, present: apps.apps },
   restart_project_app: { output: APPS_OUTPUT, present: apps.apps },
+  add_app: { output: APPS_CHANGE_OUTPUT, present: apps.change },
+  add_area: { output: APPS_CHANGE_OUTPUT, present: apps.change },
+  bind_area: { output: APPS_CHANGE_OUTPUT, present: apps.change },
+  project_structure: { output: STRUCTURE_OUTPUT, present: structure.view },
+  update_project_structure: { output: STRUCTURE_OUTPUT, present: structure.view },
 
   git_status: { output: GIT_STATUS_OUTPUT, present: git.status },
   git_history: { output: GIT_HISTORY_OUTPUT, present: git.history },

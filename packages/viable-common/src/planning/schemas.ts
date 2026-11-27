@@ -3,7 +3,8 @@ import { CODE_MAX, MAX_FORMER_CODES, IntrinsicPolicy, IntrinsicStatus, Specifica
 import { AREA_KEY_MAX, AREA_KEY_PATTERN, ORIGIN_TENANCY_LIST_MAX, ORIGIN_TENANCY_WORD_MAX, TENANCY_QUOTE_MAX } from '../areas/consts.js'
 import { TARGET_AREA_MAX } from '../topology/apps/consts.js'
 import { ViableAppsDecisionSchema } from '../topology/schemas.js'
-import { BOT_PLATFORM_ID_FORMAT, BOT_PLATFORMS_MAX, BotKit, CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
+import { ViableStructureDecisionSchema } from '../topology/structure/schemas.js'
+import { BOT_PLATFORM_ID_FORMAT, BOT_PLATFORMS_MAX, BotKit, CASE_QUOTE_MAX, WorkKind } from '../stack/consts.js'
 import { REQUIREMENTS_VERSION, UserStoryKind } from '../ba/consts.js'
 import { RequirementsDocumentSchema } from '../ba/schemas.js'
 import { ConnectLlm, ConnectTarget } from '../connect/consts.js'
@@ -15,7 +16,7 @@ import { WorkcardDesignSchema } from '../design/schemas.js'
 import { ScaffoldPlanSchema } from '../scaffold/schemas.js'
 import { TASK_OPERATIONS_VERSION, WORK_PLAN_VERSION, WORK_PROPOSALS_VERSION } from '../work/consts.js'
 import { TaskOperationsSchema, WorkPlanSchema, WorkProposalsSchema } from '../work/schemas.js'
-import { VIABLE_BUG_CODE, VIABLE_BUG_TYPE, VIABLE_DESIGN_REVISIONS_KEPT, VIABLE_FEATURE_CODE, VIABLE_FEATURE_MEMBERS, VIABLE_FEATURE_TYPE, VIABLE_IMPROVEMENT_CODE, VIABLE_IMPROVEMENT_TYPE, VIABLE_PROJECT_CODE, VIABLE_PROJECT_FLOW, VIABLE_PROJECT_TYPE, VIABLE_REQUIREMENT_CODE, VIABLE_REQUIREMENT_TYPE, VIABLE_SPEC_CARD_CODE, VIABLE_SPEC_CARD_MEMBERS, VIABLE_SPEC_CARD_TYPE, VIABLE_SPEC_FLOW, VIABLE_SPEC_TYPE, VIABLE_TASK_CODE, VIABLE_TASK_TYPE, VIABLE_USER_STORY_CODE, VIABLE_WORK_FLOW, VIABLE_WORK_TYPES, VIABLE_WORKCARD_FLOW, VIABLE_USER_STORY_TYPE, ViableProjectStatus, ViableProjectTransition, ViableRelationship, ViableInitScope, ViableSpecCategory, ViableSpecOrigin, ViableSpecStatus, ViableTypeBy, ViableWorkcardStatus, ViableWorkcardTransition, ViableTone, VIABLE_TYPE_REASON_MAX } from './consts.js'
+import { VIABLE_BUG_CODE, VIABLE_BUG_TYPE, VIABLE_DESIGN_REVISIONS_KEPT, VIABLE_FEATURE_CODE, VIABLE_FEATURE_MEMBERS, VIABLE_FEATURE_TYPE, VIABLE_IMPROVEMENT_CODE, VIABLE_IMPROVEMENT_TYPE, VIABLE_PROJECT_CODE, VIABLE_PROJECT_FLOW, VIABLE_PROJECT_TYPE, VIABLE_REQUIREMENT_CODE, VIABLE_REQUIREMENT_TYPE, VIABLE_SPEC_CARD_CODE, VIABLE_SPEC_CARD_MEMBERS, VIABLE_SPEC_CARD_TYPE, VIABLE_SPEC_FLOW, VIABLE_SPEC_TYPE, VIABLE_TASK_CODE, VIABLE_TASK_TYPE, VIABLE_USER_STORY_CODE, VIABLE_WORK_FLOW, VIABLE_WORK_TYPES, VIABLE_WORKCARD_FLOW, VIABLE_USER_STORY_TYPE, ViableProjectStatus, ViableProjectTransition, ViableRelationship, ViableInitScope, ViableSpecCategory, ViableSpecOrigin, ViableSpecStatus, ViableTypeBy, ViableWorkcardStatus, ViableWorkcardTransition, ViableTone, VIABLE_TYPE_REASON_MAX, VIABLE_BLUEPRINT_SOURCES } from './consts.js'
 
 /**
  * The `fields` schema of a `viable:project` card.
@@ -109,6 +110,10 @@ export const ViableProjectFieldsSchema = {
     // An absent `apps` is one app, `main`, over the four standard areas — never written for a
     // project that has not been split. The rules between entries are `appMapHelper.validate`'s.
     apps: { ...ViableAppsDecisionSchema, nullable: true },
+    // An absent `structure` is the one `apps` derives — written only when it differs. No `format` and
+    // no `multipleOf` inside it: the browser's planning validator refuses both.
+    structure: { ...ViableStructureDecisionSchema, nullable: true },
+    caseBy: { type: 'string', enum: [...VIABLE_BLUEPRINT_SOURCES, null], nullable: true },
     // The confirm's choice — absent (or `null`) is the preview.
     initScope: { type: 'string', enum: [...Object.values(ViableInitScope), null], nullable: true },
   },

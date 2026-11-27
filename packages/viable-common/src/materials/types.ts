@@ -4,6 +4,10 @@ import type {
   ReferenceResearchStatus,
 } from './consts.js'
 
+// Kept as a type: a subset of an enum.
+/** The origins a link or a research request may have (`REFERENCE_ASKED_ORIGINS`) — never a fetched link. */
+export type ReferenceAskedOrigin = ReferenceOrigin.Prompt | ReferenceOrigin.Specification | ReferenceOrigin.Ideas
+
 /** The upload limits — see `MATERIALS_LIMITS`. */
 export interface MaterialsLimits {
   /** Files in the expanded set. */
@@ -58,7 +62,7 @@ export interface ReferenceLink {
   own: boolean
   /** The person's words about it, quoted. */
   instruction?: string
-  origin: ReferenceOrigin.Prompt | ReferenceOrigin.Specification
+  origin: ReferenceAskedOrigin
   status: ReferenceLinkStatus
   /** Why it was skipped, refused or failed — short and safe to show. */
   reason?: string
@@ -79,7 +83,7 @@ export interface ReferenceResearch {
   query: string
   /** The person's words, quoted. */
   instruction?: string
-  origin: ReferenceOrigin.Prompt | ReferenceOrigin.Specification
+  origin: ReferenceAskedOrigin
   status: ReferenceResearchStatus
   reason?: string
   /** The workload path of its report. */

@@ -3,9 +3,11 @@ import type { ConnectClient } from '@owlmeans/viable-common'
 
 export interface CallCollectOptions {
   /**
-   * Whether this context runs in the DELEGATED mode (`llm=local`). Only then is a write named with
-   * `x-viable-call` and an early `{ pending }` answer collected; otherwise every call passes through
-   * to the API client untouched but for the client header.
+   * Whether this context runs in the DELEGATED mode (`llm=local`). Then every write is named with
+   * `x-viable-call` and an early `{ pending }` answer collected; otherwise only the always-collected
+   * calls (`ALWAYS_COLLECTED_ALIASES`: a change of the project's apps, a triaged request, Run all's
+   * proposal) are, and every other call passes through to the API client untouched but for the client
+   * header.
    */
   delegated: boolean
   /**
@@ -23,14 +25,17 @@ export interface CallCollectOptions {
  * whatever the mode.
  *
  * In the delegated mode a write may wait on a model call the connector's own parent performs, which
- * outlasts what an edge holds a response open. So every non-GET request carries `x-viable-call:
- * <uuid>` (kept when the request already names one, so a retry reuses it), and an answer `{ pending:
- * <that id> }` is turned into `connect.call.collect` long polls until the call settles: its value
+ * outlasts what an edge holds a response open; in EVERY mode a change of the project's apps
+ * (`connect.apps.*`, a short run with its rebuild), a triaged request (`connect.project.request`,
+ * which may wait for the preview to wake) and Run all's proposal (`connect.cards.plan`, a GET holding one
+ * model call) may too (`ALWAYS_COLLECTED_ALIASES`). So each delegated non-GET request and each
+ * always-collected one carries `x-viable-call: <uuid>` (kept when the request already names one, so a retry
+ * reuses it), and an answer `{ pending: <that id> }` is turned into `connect.call.collect` long polls until the call settles: its value
  * resolves the original call exactly as a direct answer would have, its marshalled error is rethrown
  * as its own class, and a lost call throws `ConnectCallLost`. Any other answer is returned as is.
  */
 export interface CallCollectTransport extends EntrypointTransport {
-  /** Whether writes are named and collected — the delegated mode. */
+  /** Whether EVERY write is named and collected — the delegated mode (the always-collected ones are in any mode). */
   readonly delegated: boolean
   /** The `x-viable-client` value every request carries. */
   readonly client: string

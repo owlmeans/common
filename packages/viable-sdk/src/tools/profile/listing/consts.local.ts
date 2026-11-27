@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE } from '../../consts.js'
 import { IMPLEMENT_CONFIRMED, REFERENCES_CONFIRMED, REFERENCES_READ } from '../../consts.local.js'
+import { BLUEPRINTS_MAPPING, CHOICE_SAID, CONVERT_CHOICE_SAID } from '../../structure/consts.local.js'
 import type { ToolAnnotations } from '../../types.js'
 import type { ToolSplit } from '../types.js'
 import type { ListingTextRule, ListingToolPresentation } from './types.js'
@@ -275,8 +276,8 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
   describe_blueprints: {
     annotations: READ,
     description: 'Read the installed blueprint registry, its complete case list, supported app categories,'
-      + ' tenancy and planning resources. Call before choosing a project type. Read-only: it needs no project'
-      + ' and spends no credits.',
+      + ' tenancy and planning resources. Call before choosing a project type. ' + BLUEPRINTS_MAPPING
+      + ' Read-only: it needs no project and spends no credits.',
   },
   describe_platform: {
     annotations: READ,
@@ -321,6 +322,7 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
   app_groups: { annotations: READ },
   list_slots: { annotations: READ },
   project_apps: { annotations: READ },
+  project_structure: { annotations: READ },
   project_activity: { annotations: READ },
   notifications: { annotations: READ },
   file_changes: { annotations: READ },
@@ -332,7 +334,7 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
     annotations: ADDS,
     description: 'Describe the application in a sentence or two. The platform writes a specification, names it'
       + ' and drafts a vision — model work that spends credits (the plan\'s project allowance first). '
-      + REFERENCES_READ + ' Returns'
+      + REFERENCES_READ + ' ' + CHOICE_SAID + ' Returns'
       + ' the project status; read the draft and call confirm_project. Each call drafts another project, so'
       + ' calling it again spends again.',
   },
@@ -349,6 +351,8 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
       + ' no second build.',
   },
   attach_project: { annotations: ENSURES },
+  // It replaces the structure in force, and an advice round is paid model work again on every call.
+  update_project_structure: { annotations: REWRITES },
   reinitialize_project: {
     annotations: REWRITES,
     description: 'Wipe the generated sources and lay the template down again, then draw the application anew.'
@@ -379,6 +383,32 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
       + ' while the others keep serving: the repair for one application that stopped answering. Its sources and'
       + ' data are kept, and the published production site is never touched. Calling it again restarts it again.'
       + ' project_apps names the applications.',
+  },
+  add_app: {
+    annotations: ADDS,
+    description: 'Add an APPLICATION to a project — its own interface and server under /<mount> of the project\'s address —'
+      + ' taking over the areas named and/or created with a new area of the project\'s own as its home (a separate'
+      + ' application for partners, a field crew). Areas with stories built never move; the guest area stays in main.'
+      + ' A short run on the platform under the project\'s lock — the platform update first, the rebuild last — and'
+      + ' model work that spends credits like an open-ended change. Calling it again with the same name is refused'
+      + ' (the application exists). project_apps shows the result.',
+  },
+  add_area: {
+    annotations: ADDS,
+    description: 'Add an AREA of the project\'s own — a part of the product for another group of people — to one of its'
+      + ' applications: its layout, home screen and menu entry are drawn there, and a story lands in it when its card'
+      + ' names its key. A short run on the platform under the project\'s lock (the platform update first, the rebuild'
+      + ' last), model work that spends credits like an open-ended change. Calling it again with the same key is refused'
+      + ' (the area exists). project_apps shows the result.',
+  },
+  // Moving an area with nothing built in it is reversible (the same call moves it back): only its
+  // placeholders are retired and drawn again, and a repeat is refused (already served there).
+  bind_area: {
+    annotations: ENSURES,
+    description: 'Move an AREA with no story built in it to another application of the project: its placeholders are'
+      + ' retired where it was and drawn where it goes, and its address follows that application\'s path — moving it'
+      + ' back is the same call. A short run on the platform under the project\'s lock (the platform update first, the'
+      + ' rebuild last), model work that spends credits like an open-ended change. project_apps shows the result.',
   },
 
   // ── Settings, configuration and branding ───────────────────────────────────────────────────────
@@ -548,7 +578,7 @@ export const LISTING_TOOLS: Readonly<Record<string, ListingToolPresentation>> = 
     description: 'Bring an existing application onto the platform: it reads the code (a GitHub repository given'
       + ' as repoUrl, or the project named), restores the specification and the user stories nobody wrote down,'
       + ' and rebuilds it on the platform\'s stack. The original is kept beside it. Returns conversion status and'
-      + ` stops at your decision after each stage. ${CONVERSION_PAID} Without a project named, each call files`
+      + ` stops at your decision after each stage. ${CONVERT_CHOICE_SAID} ${CONVERSION_PAID} Without a project named, each call files`
       + ' another conversion — name the project when calling it again.',
   },
   proceed_conversion: {

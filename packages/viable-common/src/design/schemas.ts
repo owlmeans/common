@@ -1,5 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
-import { BotKitAction } from '../blueprint/consts.js'
+import { BotKitAction } from '../stack/consts.js'
 import { RecordInteractionPlanSchema } from '../interaction/schemas.js'
 
 import { AREA_KEY_MAX, AREA_KEY_PATTERN } from '../areas/consts.js'
@@ -192,6 +192,7 @@ export const WorkcardDesignSchema: JSONSchemaType<WorkcardDesign> = {
           path: { type: 'string' },
           entities: { type: 'array', items: { type: 'string' } },
           solution: { type: 'string', nullable: true },
+          part: { type: 'string', nullable: true },
           units: { type: 'array', items: { type: 'string' }, nullable: true },
         },
         required: ['path', 'entities'],
@@ -300,6 +301,7 @@ export const WorkcardDesignSchema: JSONSchemaType<WorkcardDesign> = {
                   ],
                 },
               },
+              worker: { type: 'string', nullable: true },
               units: { type: 'array', items: { type: 'string' }, nullable: true },
             },
             required: ['queue', 'name', 'path', 'purpose', 'reason', 'idempotency'],

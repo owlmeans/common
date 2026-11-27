@@ -29,6 +29,12 @@ export interface RefusalHelper {
    */
   unconfirmedConversionPhrase: (retry: string) => string
   /**
+   * A structure step's advice round sent WITHOUT `confirm` and answered with a bare 428 (a production
+   * body keeps only the status): the round waits for the user's go-ahead, `retry` the exact call to make
+   * once they agree — and a second such refusal is the spend consent, given in the browser.
+   */
+  unconfirmedAdvicePhrase: (retry: string) => string
+  /**
    * What the model tells a PERSON when the organization's plan lacks the capability an action
    * needs (`capability-required:<param|param>`): which feature, and that the plan is changed in the
    * browser. Nothing a parent does unlocks it.

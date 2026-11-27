@@ -36,7 +36,7 @@ import type { McpServerLike, McpToolAnswer, ToolDefinition, ToolDeps, ToolHost }
  * add_app_organization_member, create_app_group, add_app_group_members, run_local.
  */
 const DESTRUCTIVE_SET = [
-  'reinitialize_project', 'rename_project', 'delete_project', 'apply_planning_kit',
+  'reinitialize_project', 'rename_project', 'delete_project', 'apply_planning_kit', 'update_project_structure',
   'update_project_settings', 'set_platform_credit', 'update_project_configuration', 'update_organization_branding',
   'revoke_access_token', 'withdraw_marketing_consent',
   'update_story', 'delete_story', 'develop_story', 'reset_story', 'complete_story', 'start_story_batch',
@@ -76,7 +76,8 @@ const CREDIT_SET = [
   'create_project', 'create_project_with_files', 'confirm_project', 'reinitialize_project', 'recollect_configuration', 'create_story',
   'update_story', 'develop_story', 'start_story_batch', 'modify_project', 'rename_project', 'resume_pipeline',
   'answer_question', 'convert_project', 'proceed_conversion', 'purge_origin',
-  'create_card', 'update_card', 'run_card', 'run_cards_together', 'run_all_cards', 'rerun_card',
+  'create_card', 'update_card', 'run_card', 'run_cards_together', 'run_all_cards', 'rerun_card', 'add_app', 'add_area', 'bind_area',
+  'update_project_structure',
 ]
 
 /** NOT IDEMPOTENT — a write whose second call repeats its effect (another record, another paid run). */
@@ -85,8 +86,8 @@ const REPEATING_SET = [
   'update_story', 'develop_story', 'start_story_batch', 'modify_project', 'steer_agent', 'rename_project',
   'resume_pipeline', 'next_question', 'answer_question', 'convert_project', 'proceed_conversion',
   'restart_preview', 'rebuild_preview', 'git_commit', 'git_revert', 'connect_github', 'publish_to_github',
-  'github_sync', 'publish_production', 'restart_production', 'run_local', 'restart_project_app',
-  'create_card', 'update_card', 'run_card', 'run_cards_together', 'run_all_cards', 'rerun_card',
+  'github_sync', 'publish_production', 'restart_production', 'run_local', 'restart_project_app', 'add_app', 'add_area',
+  'create_card', 'update_card', 'run_card', 'run_cards_together', 'run_all_cards', 'rerun_card', 'update_project_structure',
 ]
 
 /** The offered tools that never answer a structured part, and so declare no output. */

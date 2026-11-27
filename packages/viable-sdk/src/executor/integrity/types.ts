@@ -10,12 +10,13 @@ export interface IntegrityHelper {
   /**
    * Read the manifest's files from a tree; a path that cannot be read comes back as `null`.
    *
-   * Two passes (`targetIntegrityHelper.collectTargetFiles`): the base set, then whatever the topology
-   * record asks for — every extra app's package files of a project split into apps. A project that
-   * is not split reads exactly the base set.
+   * Two passes (`targetIntegrityHelper.collectTargetFiles`): the base set, then what `readPlan` asks for
+   * — every extra app's package files and every other recorded package's manifest of a tree verified
+   * against its record, and for every V2 tree the manifest of each `sources/*` package the record does
+   * not name. A clean core-only tree reads exactly the base set.
    */
   readTargetFiles: (dir: string) => Promise<TargetFileMap>
-  /** {@link readTargetFiles} with the `sources/` listing a split project's `workspace-package` rule needs. */
+  /** {@link readTargetFiles} with the `sources/` listing (every V2 tree) the unrecorded-package checks need. */
   collectTargetFiles: (dir: string) => Promise<TargetFileCollection>
   /** Verify the tree, reusing a verdict from the last couple of seconds. */
   verifyTarget: (dir: string) => Promise<TargetIntegrityReport>
